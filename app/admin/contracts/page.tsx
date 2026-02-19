@@ -1,0 +1,159 @@
+import Link from 'next/link'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminRole } from '@/lib/auth/admin'
+import { createContract, setContractActive } from './actions'
+
+export const dynamic = 'force-dynamic'
+
+type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
+
+type ContractRow = {
+  id: string
+  name: string
+  slug: string
+  contract_type: ContractType
+  is_active: boolean
+  created_at: string
+}
+
+export default async function AdminContractsPage() {
+  const supabase = await createSupabaseServerClient()
+  await requireAdminRole(supabase)
+
+  const { data, error } = await supabase
+    .from('contract_products')
+    .select('id,name,slug,contract_type,is_active,created_at')
+    .order('created_at', { ascending: false })
+    .returns<ContractRow[]>()
+
+  if (error) throw new Error(error.message)
+
+  const contracts = data ?? []
+
+  return (
+    <div className="space-y-10">
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold">Elavtal</h1>
+          <p className="text-gray-400 mt-2">
+            Skapa och hantera avtalsprodukter (spot, portfölj, fast).
+          </p>
+        </div>
+        <Link
+          href="/admin/pricing"
+          className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-black"
+        >
+          Till prishantering
+        </Link>
+      </div>
+
+      {/* Create */}
+      <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
+        <div className="text-lg font-semibold">Skapa nytt avtal</div>
+        <form action={createContract} className="mt-4 grid gap-4 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <label className="text-xs text-gray-400">Namn</label>
+            <input
+              name="name"
+              required
+              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+              placeholder="Gridex Spot – Rörligt"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400">Slug</label>
+            <input
+              name="slug"
+              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+              placeholder="gridex-spot-rorligt"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400">Typ</label>
+            <select
+              name="contract_type"
+              defaultValue="spot_hourly"
+              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+            >
+              <option value="spot_hourly">spot_hourly</option>
+              <option value="portfolio_managed">portfolio_managed</option>
+              <option value="fixed">fixed</option>
+            </select>
+          </div>
+
+          <div className="md:col-span-4 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input type="checkbox" name="is_active" defaultChecked value="true" />
+              Aktiv produkt
+            </label>
+
+            <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
+              Skapa avtal
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* List */}
+      <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-gray-400 border-b border-gray-800">
+              <tr>
+                <th className="p-4">Namn</th>
+                <th className="p-4">Slug</th>
+                <th className="p-4">Typ</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Skapad</th>
+                <th className="p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {contracts.map((c) => (
+                <tr key={c.id} className="border-t border-gray-800">
+                  <td className="p-4 text-gray-200">{c.name}</td>
+                  <td className="p-4 font-mono text-xs text-gray-400">{c.slug}</td>
+                  <td className="p-4 text-gray-300">{c.contract_type}</td>
+                  <td className="p-4">
+                    <span className={c.is_active ? 'text-emerald-300' : 'text-rose-300'}>
+                      {c.is_active ? 'Aktiv' : 'Inaktiv'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-gray-500">
+                    {new Date(c.created_at).toLocaleDateString('sv-SE')}
+                  </td>
+                  <td className="p-4">
+                    <form action={setContractActive} className="flex items-center gap-2">
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="is_active" value={c.is_active ? 'false' : 'true'} />
+                      <button className="rounded-xl border border-gray-800 bg-black/40 px-3 py-2 text-xs text-gray-200 hover:border-cyan-500/40">
+                        {c.is_active ? 'Inaktivera' : 'Aktivera'}
+                      </button>
+
+                      <Link
+                        href={`/admin/pricing/${c.slug}`}
+                        className="rounded-xl bg-cyan-500 px-3 py-2 text-xs font-bold text-black"
+                      >
+                        Priser
+                      </Link>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+
+              {contracts.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-6 text-gray-500">
+                    Inga avtal hittades.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
