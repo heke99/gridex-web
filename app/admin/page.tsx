@@ -1,6 +1,7 @@
 // app/admin/page.tsx
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminRole } from '@/lib/auth/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,7 @@ type AuditRow = {
 
 export default async function AdminDashboard() {
   const supabase = await createSupabaseServerClient()
+  await requireAdminRole(supabase)
 
   // OBS: du använder is_published här. Jag rör inte din affärslogik.
   const { data: publishedVersion } = await supabase
@@ -50,7 +52,9 @@ export default async function AdminDashboard() {
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
               Senast publicerad version:{' '}
               <span className="text-white">
-                {new Date(publishedVersion.valid_from).toLocaleDateString('sv-SE')}
+                {new Date(publishedVersion.valid_from).toLocaleDateString(
+                  'sv-SE'
+                )}
               </span>
             </div>
           ) : (
@@ -63,8 +67,7 @@ export default async function AdminDashboard() {
           {latestAudit && (
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-cyan-400" />
-              Senaste audit:{' '}
-              <span className="text-white">{latestAudit.action}</span>{' '}
+              Senaste audit: <span className="text-white">{latestAudit.action}</span>{' '}
               {new Date(latestAudit.performed_at).toLocaleString('sv-SE')}
             </div>
           )}

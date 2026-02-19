@@ -1,5 +1,9 @@
+// app/admin/pricing/page.tsx
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminRole } from '@/lib/auth/admin'
+
+export const dynamic = 'force-dynamic'
 
 type Contract = {
   id: string
@@ -14,7 +18,7 @@ type Version = {
   contract_id: string
   version_number: number
   valid_from: string
-  is_active: boolean
+  is_published: boolean
 }
 
 type Audit = {
@@ -25,26 +29,27 @@ type Audit = {
 
 export default async function AdminPricingIndexPage() {
   const supabase = await createSupabaseServerClient()
+  await requireAdminRole(supabase)
 
   const { data: contracts, error: cErr } = await supabase
     .from('contract_products')
     .select('id,name,slug,contract_type,is_active')
     .order('name', { ascending: true })
+    .returns<Contract[]>()
 
   if (cErr) throw new Error(cErr.message)
 
-  const contractIds = (contracts ?? []).map(c => c.id)
+  const contractIds = (contracts ?? []).map((c) => c.id)
 
   const { data: versions, error: vErr } = await supabase
     .from('contract_pricing_versions')
-    .select('id,contract_id,version_number,valid_from,is_active')
+    .select('id,contract_id,version_number,valid_from,is_published')
     .in(
       'contract_id',
-      contractIds.length
-        ? contractIds
-        : ['00000000-0000-0000-0000-000000000000']
+      contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000']
     )
     .order('version_number', { ascending: false })
+    .returns<Version[]>()
 
   if (vErr) throw new Error(vErr.message)
 
@@ -53,17 +58,25 @@ export default async function AdminPricingIndexPage() {
     .select('contract_id,version_id,performed_at')
     .in(
       'contract_id',
-      contractIds.length
-        ? contractIds
-        : ['00000000-0000-0000-0000-000000000000']
+      contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000']
     )
     .order('performed_at', { ascending: false })
+    .returns<Audit[]>()
 
-  const activeByContract = new Map<string, Version | undefined>()
+  const nowIso = new Date().toISOString()
+
+  // LIVE per kontrakt = published & valid_from <= now, senaste valid_from
+  const liveByContract = new Map<string, Version | undefined>()
   for (const v of versions ?? []) {
-    if (v.is_active) activeByContract.set(v.contract_id, v)
+    if (!v.is_published) continue
+    if (v.valid_from > nowIso) continue
+    const curr = liveByContract.get(v.contract_id)
+    if (!curr || curr.valid_from < v.valid_from) {
+      liveByContract.set(v.contract_id, v)
+    }
   }
 
+  // senaste audit per kontrakt
   const lastAuditByContract = new Map<string, Audit | undefined>()
   for (const a of audits ?? []) {
     if (!lastAuditByContract.has(a.contract_id)) {
@@ -76,8 +89,8 @@ export default async function AdminPricingIndexPage() {
       <h1 className="text-3xl font-bold">Prishantering</h1>
 
       <div className="grid gap-4">
-        {(contracts as Contract[] | null)?.map((c) => {
-          const active = activeByContract.get(c.id)
+        {(contracts ?? []).map((c) => {
+          const live = liveByContract.get(c.id)
           const lastAudit = lastAuditByContract.get(c.id)
 
           return (
@@ -90,25 +103,20 @@ export default async function AdminPricingIndexPage() {
                   <div className="text-xl font-semibold">{c.name}</div>
 
                   <div className="text-sm text-gray-400">
-                    {c.contract_type} •{' '}
-                    {c.is_active ? 'Aktiv produkt' : 'Inaktiv'}
+                    {c.contract_type} • {c.is_active ? 'Aktiv produkt' : 'Inaktiv'}
                   </div>
 
                   <div className="mt-2 text-sm">
-                    Aktiv prisversion:{' '}
+                    Live prisversion (Hero/Kalkylator/API):{' '}
                     <span className="text-gray-300">
-                      {active
-                        ? `v${active.version_number} (från ${active.valid_from})`
-                        : 'Ingen'}
+                      {live ? `v${live.version_number} (från ${live.valid_from})` : 'Ingen'}
                     </span>
                   </div>
 
                   {lastAudit && (
                     <div className="mt-2 text-xs text-gray-500">
-                      Senast publicerad:{' '}
-                      {new Date(lastAudit.performed_at).toLocaleString(
-                        'sv-SE'
-                      )}
+                      Senast ändrad (audit):{' '}
+                      {new Date(lastAudit.performed_at).toLocaleString('sv-SE')}
                     </div>
                   )}
                 </div>

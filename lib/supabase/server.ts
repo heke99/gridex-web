@@ -1,7 +1,9 @@
+// lib/supabase/server.ts
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies()
 
   return createServerClient(
@@ -9,14 +11,12 @@ export async function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-          })
-        },
+        // 🚫 Do NOT mutate cookies inside Server Components
+        set() {},
+        remove() {},
       },
     }
   )

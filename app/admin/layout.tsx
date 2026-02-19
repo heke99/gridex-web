@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import AdminShell from '@/components/admin/AdminShell'
+import { requireAdminRole } from '@/lib/auth/admin'
 
 export default async function AdminLayout({
   children,
@@ -10,24 +11,17 @@ export default async function AdminLayout({
 }) {
   const supabase = await createSupabaseServerClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const authResult = await requireAdminRole(supabase).catch(() => null)
 
-  if (!user) redirect('/login')
-
-  const { data: isAdmin, error } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (error) {
-    // fail safe: om admin-check failar, blocka
+  if (!authResult) {
     redirect('/')
   }
 
-  if (!isAdmin) redirect('/')
+  const { user } = authResult
 
-  return <AdminShell email={user.email ?? null}>{children}</AdminShell>
+  return (
+    <AdminShell email={user.email ?? null}>
+      {children}
+    </AdminShell>
+  )
 }

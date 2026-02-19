@@ -14,8 +14,10 @@ export async function requireAdminRole(
 ): Promise<{ user: User; role: AdminRole }> {
   const {
     data: { user },
+    error: userErr,
   } = await supabase.auth.getUser()
 
+  if (userErr) throw new Error(userErr.message)
   if (!user) throw new Error('Unauthorized')
 
   const { data, error } = await supabase
@@ -27,16 +29,25 @@ export async function requireAdminRole(
   if (error) throw new Error(error.message)
   if (!data) throw new Error('Forbidden')
 
-  if (typeof data.is_active !== 'undefined' && data.is_active === false) {
+  if (data.is_active === false) {
     throw new Error('Forbidden')
   }
 
-  const role: AdminRole = data.role ?? 'admin'
+  const role: AdminRole =
+    data.role === 'admin' || data.role === 'editor' ? data.role : 'editor'
+
   return { user, role }
 }
 
 export function assertCanPublish(role: AdminRole): void {
   if (role !== 'admin') {
     throw new Error('Publish not allowed')
+  }
+}
+
+// Extra guard (behåller allt gammalt, bara ny helper)
+export function assertEditorOrAdmin(role: AdminRole): void {
+  if (role !== 'admin' && role !== 'editor') {
+    throw new Error('Forbidden')
   }
 }

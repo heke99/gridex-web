@@ -1,3 +1,4 @@
+// app/admin/contracts/page.tsx
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requireAdminRole } from '@/lib/auth/admin'
