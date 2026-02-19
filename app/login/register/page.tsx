@@ -1,3 +1,4 @@
+// app/register/page.tsx
 'use client'
 
 import { useState } from 'react'

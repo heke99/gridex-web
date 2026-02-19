@@ -1,57 +1,177 @@
+// app/register/page.tsx
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/browser'
-import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+
+function calculateStrength(password: string): number {
+  let score = 0
+  if (password.length >= 8) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[^A-Za-z0-9]/.test(password)) score++
+  return score
+}
+
+function normalizeEmail(v: string): string {
+  return v.trim().toLowerCase()
+}
 
 export default function RegisterPage() {
-  const supabase = createClient()
-  const router = useRouter()
+  const supabase = createSupabaseBrowserClient()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [password2, setPassword2] = useState('')
+  const [accepted, setAccepted] = useState(false)
+
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const strength = useMemo(() => calculateStrength(password), [password])
+
+  const strengthColor =
+    ([
+      'bg-red-500',
+      'bg-orange-500',
+      'bg-yellow-400',
+      'bg-emerald-500',
+    ][strength - 1] as string) || 'bg-gray-700'
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password
-    })
+    setError(null)
 
-    if (!error) {
-      router.push('/login')
+    const cleanEmail = normalizeEmail(email)
+
+    if (!accepted) {
+      setError('Du måste acceptera användarvillkoren.')
+      return
+    }
+
+    if (password !== password2) {
+      setError('Lösenorden matchar inte.')
+      return
+    }
+
+    if (strength < 3) {
+      setError('Lösenordet är för svagt.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      setSuccess(true)
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <form onSubmit={handleRegister} className="space-y-4 w-80">
-        <h1 className="text-2xl font-bold">Skapa konto</h1>
+    <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold">Skapa konto</h1>
+          <p className="text-xs text-white/60 mt-1">
+            Konto kräver e-postverifiering. Rollbaserad åtkomst till admin ges separat.
+          </p>
+        </div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 bg-gray-800"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        {success ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+            Kontrollera din e-post för att verifiera ditt konto.
+          </div>
+        ) : (
+          <form onSubmit={handleRegister} className="space-y-5">
+            <input
+              type="email"
+              required
+              placeholder="E-post"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
+            />
 
-        <input
-          type="password"
-          placeholder="Lösenord"
-          className="w-full p-2 bg-gray-800"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+            <div>
+              <input
+                type="password"
+                required
+                placeholder="Lösenord"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
+              />
 
-        <button
-          type="submit"
-          className="w-full bg-cyan-500 p-2 text-black font-bold"
-        >
-          Skapa konto
-        </button>
-      </form>
-    </div>
+              <div className="mt-2 h-2 rounded-full bg-gray-800 overflow-hidden">
+                <div
+                  className={`h-full transition-all ${strengthColor}`}
+                  style={{ width: `${(strength / 4) * 100}%` }}
+                />
+              </div>
+
+              <div className="text-xs text-white/60 mt-1">
+                Minst 8 tecken, versal, siffra och specialtecken.
+              </div>
+            </div>
+
+            <input
+              type="password"
+              required
+              placeholder="Bekräfta lösenord"
+              value={password2}
+              onChange={(e) => setPassword2(e.target.value)}
+              className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
+            />
+
+            <div className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+              />
+              <span>
+                Jag accepterar{' '}
+                <Link href="/villkor" className="underline text-cyan-400">
+                  användarvillkoren
+                </Link>
+              </span>
+            </div>
+
+            {error && <div className="text-rose-400 text-sm">{error}</div>}
+
+            <button
+              className="w-full h-11 rounded-xl bg-white text-black font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? 'Skapar konto…' : 'Skapa konto'}
+            </button>
+
+            <div className="text-xs text-white/60 text-center">
+              Har du redan konto?{' '}
+              <Link href="/login" className="underline">
+                Logga in
+              </Link>
+            </div>
+          </form>
+        )}
+      </div>
+    </main>
   )
 }

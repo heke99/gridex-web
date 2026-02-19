@@ -1,15 +1,20 @@
+// app/logout/route.ts
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 
-export async function POST() {
-  const supabase = await createSupabaseServerClient()
+export async function POST(req: Request) {
+  const supabase = await createSupabaseServerActionClient()
   await supabase.auth.signOut()
-  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'))
+
+  const url = new URL('/login', req.url)
+  return NextResponse.redirect(url)
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   // Tillåt GET för enkelhet (t.ex. klick från UI) men håll POST i UI om du vill.
-  const supabase = await createSupabaseServerClient()
+  const supabase = await createSupabaseServerActionClient()
   await supabase.auth.signOut()
-  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'))
+
+  const url = new URL('/login', req.url)
+  return NextResponse.redirect(url)
 }

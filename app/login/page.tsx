@@ -27,8 +27,6 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-14 md:flex-row md:items-center md:py-24">
-
-        {/* Left: Brand / trust */}
         <section className="flex-1">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -40,8 +38,8 @@ export default async function LoginPage({ searchParams }: Props) {
           </h1>
 
           <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 md:text-base">
-            Säker autentisering till Gridex-plattformen.
-            Åtkomst styrs via rollbaserad behörighet och server-side validering.
+            Säker autentisering till Gridex-plattformen. Åtkomst styrs via
+            rollbaserad behörighet och server-side validering.
           </p>
 
           <div className="mt-8 grid max-w-xl grid-cols-1 gap-4 md:grid-cols-2">
@@ -82,10 +80,8 @@ export default async function LoginPage({ searchParams }: Props) {
           </div>
         </section>
 
-        {/* Right: Login card */}
         <section className="w-full max-w-md">
           <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl">
-
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-semibold">Inloggning</div>
@@ -141,7 +137,7 @@ export default async function LoginPage({ searchParams }: Props) {
                 </Link>
 
                 <Link
-                  href="/login/register"
+                  href="/register"
                   className="underline decoration-white/20 underline-offset-4 hover:text-white"
                 >
                   Skapa konto
@@ -156,12 +152,9 @@ export default async function LoginPage({ searchParams }: Props) {
               </button>
             </form>
 
-            {/* BankID placeholder */}
             <div className="mt-6 border-t border-white/10 pt-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-xs text-white/60">
-                  Alternativ inloggning
-                </div>
+                <div className="text-xs text-white/60">Alternativ inloggning</div>
                 <Link
                   href="/login/bankid"
                   className="text-xs text-white/80 underline decoration-white/20 underline-offset-4 hover:text-white"
@@ -186,9 +179,9 @@ export default async function LoginPage({ searchParams }: Props) {
                 className="text-white/70 underline hover:text-white"
               >
                 användarvillkor
-              </Link>.
+              </Link>
+              .
             </div>
-
           </div>
         </section>
       </div>
