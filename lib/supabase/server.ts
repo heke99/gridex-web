@@ -5,22 +5,19 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 function getSupabaseUrl(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!v) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
-  }
+  if (!v) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
   return v
 }
 
 function getSupabaseAnonKey(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!v) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  }
+  if (!v) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')
   return v
 }
 
 /**
- * READ-ONLY client for Server Components
+ * READ-ONLY for Server Components (pages/layouts).
+ * Next 15 forbids cookie mutation here.
  */
 export async function createSupabaseServerClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies()
@@ -30,7 +27,6 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
       get(name: string): string | undefined {
         return cookieStore.get(name)?.value
       },
-      // No cookie mutations allowed in Server Components
       set(): void {},
       remove(): void {},
     },
@@ -38,9 +34,8 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
 }
 
 /**
- * READ + WRITE client for:
- * - Server Actions
- * - Route Handlers
+ * READ + WRITE for Server Actions & Route Handlers.
+ * Use this when calling auth signIn/signOut server-side.
  */
 export async function createSupabaseServerActionClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies()

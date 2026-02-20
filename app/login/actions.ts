@@ -17,7 +17,6 @@ function normalizeEmail(v: string): string {
 }
 
 function looksLikeEmail(v: string): boolean {
-  // enkel server-side guard (inte perfekt RFC, men bra nog)
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
@@ -46,24 +45,20 @@ export async function loginWithPassword(formData: FormData) {
     )
   }
 
-  // Extra enterprise-guard: om man försöker gå till /admin, kontrollera RBAC direkt.
+  // Enterprise-guard: om man försöker gå till /admin, kontrollera RBAC direkt.
   if (next.startsWith('/admin')) {
     const { data: u } = await supabase.auth.getUser()
-
     if (!u?.user) {
-      // borde inte hända, men fail-safe
       await supabase.auth.signOut()
       redirect(`/login?reason=${encodeURIComponent('forbidden')}`)
     }
 
-    // admin_users-check (matchar din layout + requireAdminRole)
     const { data: adminRow, error: adminErr } = await supabase
       .from('admin_users')
       .select('user_id, is_active')
       .eq('user_id', u.user.id)
       .maybeSingle<{ user_id: string; is_active: boolean | null }>()
 
-    // Om RLS blockerar här kan adminErr bli satt. Då failar vi safe och släpper inte in.
     if (adminErr || !adminRow || adminRow.is_active === false) {
       await supabase.auth.signOut()
       redirect(`/login?reason=${encodeURIComponent('forbidden')}`)

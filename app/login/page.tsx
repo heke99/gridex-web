@@ -38,8 +38,8 @@ export default async function LoginPage({ searchParams }: Props) {
           </h1>
 
           <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 md:text-base">
-            Säker autentisering till Gridex-plattformen. Åtkomst styrs via
-            rollbaserad behörighet och server-side validering.
+            Säker autentisering till Gridex-plattformen.
+            Åtkomst styrs via rollbaserad behörighet och server-side validering.
           </p>
 
           <div className="mt-8 grid max-w-xl grid-cols-1 gap-4 md:grid-cols-2">
@@ -174,10 +174,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
             <div className="mt-6 text-[11px] leading-5 text-white/55">
               Genom att logga in accepterar du våra{' '}
-              <Link
-                href="/villkor"
-                className="text-white/70 underline hover:text-white"
-              >
+              <Link href="/villkor" className="text-white/70 underline hover:text-white">
                 användarvillkor
               </Link>
               .

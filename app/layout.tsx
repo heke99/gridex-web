@@ -1,6 +1,7 @@
 // app/layout.tsx
 import './globals.css'
 import AuthSessionSync from '@/components/auth/AuthSessionSync'
+import Header from '@/app/layout/header'
 
 export const metadata = {
   title: 'Gridex – Energy Fintech',
@@ -14,10 +15,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="sv">
-      <body className="bg-black text-white min-h-screen">
-        {/* Säkerställer att RSC refreshas korrekt vid login/logout */}
+      <body className="bg-black text-white min-h-screen flex flex-col">
+
+        {/* GLOBAL HEADER */}
+        <Header />
+
+        {/* Auth sync (RSC refresh) */}
         <AuthSessionSync />
-        {children}
+
+        {/* Page Content */}
+        <main className="flex-1">
+          {children}
+        </main>
+
       </body>
     </html>
   )

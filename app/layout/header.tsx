@@ -1,4 +1,3 @@
-// app/layout/header.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import HeaderClient from '@/components/layout/HeaderClient'
 

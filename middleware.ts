@@ -14,8 +14,14 @@ function getSupabaseAnonKey(): string {
   return v
 }
 
+function buildLoginRedirect(req: NextRequest): NextResponse {
+  const loginUrl = req.nextUrl.clone()
+  loginUrl.pathname = '/login'
+  loginUrl.searchParams.set('next', req.nextUrl.pathname + req.nextUrl.search)
+  return NextResponse.redirect(loginUrl)
+}
+
 export async function middleware(req: NextRequest) {
-  // Vi skyddar bara /admin/* i matcher, så detta körs bara där.
   const res = NextResponse.next()
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -35,30 +41,35 @@ export async function middleware(req: NextRequest) {
   const { data } = await supabase.auth.getUser()
   const user = data.user
 
-  if (!user) {
-    const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    loginUrl.searchParams.set('next', req.nextUrl.pathname + req.nextUrl.search)
-    return NextResponse.redirect(loginUrl)
+  // Dashboard kräver bara session
+  if (req.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!user) return buildLoginRedirect(req)
+    return res
   }
 
-  // Enterprise: extra RBAC gate i middleware
-  const { data: adminRow, error: adminErr } = await supabase
-    .from('admin_users')
-    .select('user_id, is_active')
-    .eq('user_id', user.id)
-    .maybeSingle<{ user_id: string; is_active: boolean | null }>()
+  // Admin kräver session + admin_users
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    if (!user) return buildLoginRedirect(req)
 
-  if (adminErr || !adminRow || adminRow.is_active === false) {
-    const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    loginUrl.searchParams.set('reason', 'forbidden')
-    return NextResponse.redirect(loginUrl)
+    const { data: adminRow, error: adminErr } = await supabase
+      .from('admin_users')
+      .select('user_id, is_active')
+      .eq('user_id', user.id)
+      .maybeSingle<{ user_id: string; is_active: boolean | null }>()
+
+    if (adminErr || !adminRow || adminRow.is_active === false) {
+      const loginUrl = req.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.searchParams.set('reason', 'forbidden')
+      return NextResponse.redirect(loginUrl)
+    }
+
+    return res
   }
 
   return res
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/dashboard/:path*'],
 }

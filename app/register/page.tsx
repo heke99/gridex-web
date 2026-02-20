@@ -90,7 +90,7 @@ export default function RegisterPage() {
         <div>
           <h1 className="text-xl font-semibold">Skapa konto</h1>
           <p className="text-xs text-white/60 mt-1">
-            Konto kräver e-postverifiering. Rollbaserad åtkomst till admin ges separat.
+            Konto kräver e-postverifiering. Admin-åtkomst ges separat.
           </p>
         </div>
 
