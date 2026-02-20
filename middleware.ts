@@ -47,17 +47,28 @@ export async function middleware(req: NextRequest) {
     return res
   }
 
-  // Admin kräver session + admin_users
+  // Admin kräver session + (legacy admin_users OR permission admin.access)
   if (req.nextUrl.pathname.startsWith('/admin')) {
     if (!user) return buildLoginRedirect(req)
 
+    // Legacy admin_users (behåll exakt)
     const { data: adminRow, error: adminErr } = await supabase
       .from('admin_users')
       .select('user_id, is_active')
       .eq('user_id', user.id)
       .maybeSingle<{ user_id: string; is_active: boolean | null }>()
 
-    if (adminErr || !adminRow || adminRow.is_active === false) {
+    const legacyAllowed = !!adminRow && adminRow.is_active !== false && !adminErr
+
+    // New permission system
+    const { data: hasPerm, error: permErr } = await supabase.rpc(
+      'gridex_has_permission',
+      { p_user_id: user.id, p_permission: 'admin.access' }
+    )
+
+    const permAllowed = !permErr && hasPerm === true
+
+    if (!legacyAllowed && !permAllowed) {
       const loginUrl = req.nextUrl.clone()
       loginUrl.pathname = '/login'
       loginUrl.searchParams.set('reason', 'forbidden')
