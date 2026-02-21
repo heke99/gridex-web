@@ -1,8 +1,10 @@
 // app/admin/pricing/[slug]/page.tsx
+
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole, assertCanPublish } from '@/lib/auth/admin'
+import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
+import { logPermissionAudit } from '@/lib/auth/audit'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -31,14 +33,9 @@ type AreaPricing = {
   monthly_fee_sek: number
 }
 
-function toDateInput(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+/* =======================================================
+   Helpers
+======================================================= */
 
 function isoFromDateInput(dateStr: string): string {
   const s = (dateStr || '').trim()
@@ -58,6 +55,10 @@ function classify(nowIso: string, v: Version): 'LIVE' | 'SCHEDULED' | 'DRAFT' {
   return 'LIVE'
 }
 
+/* ======================================================= */
+
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPricingContractPage({
   params,
   searchParams,
@@ -66,7 +67,11 @@ export default async function AdminPricingContractPage({
   searchParams?: { previewVersionId?: string; kwh?: string }
 }) {
   const supabase = await createSupabaseServerClient()
-  await requireAdminRole(supabase)
+
+  // 🔐 Page access: legacy admin OR admin.access
+  await requirePermissionServer('pricing.write').catch(async () => {
+    await requirePermissionServer('pricing.publish')
+  })
 
   const { data: contract } = await supabase
     .from('contract_products')
@@ -97,27 +102,16 @@ export default async function AdminPricingContractPage({
 
   const activeVersion = live ?? scheduled ?? typedVersions[0] ?? null
 
-  const { data: areaRows } = activeVersion
-    ? await supabase
-        .from('contract_area_pricing')
-        .select('*')
-        .eq('pricing_version_id', activeVersion.id)
-        .returns<AreaPricing[]>()
-    : { data: null }
-
-  const areaMap = new Map<PriceArea, AreaPricing>()
-  areaRows?.forEach((r) => areaMap.set(r.price_area, r))
-
   /* =======================================================
-     CREATE VERSION (UNCHANGED)
+     CREATE VERSION (pricing.write)
   ======================================================= */
   async function createVersionAction(formData: FormData) {
     'use server'
-    const supabase = await createSupabaseServerClient()
-    await requireAdminRole(supabase)
 
     const contractId = String(formData.get('contract_id'))
     const validFrom = isoFromDateInput(String(formData.get('valid_from')))
+
+    const { supabase, user } = await requirePermissionServer('pricing.write')
 
     const { data: latest } = await supabase
       .from('contract_pricing_versions')
@@ -136,25 +130,32 @@ export default async function AdminPricingContractPage({
       is_published: false,
     })
 
+    await logPermissionAudit({
+      actorId: user.id,
+      action: 'pricing.version.create',
+      metadata: { contractId, nextVersion, validFrom },
+    })
+
     revalidatePath(`/admin/pricing/${params.slug}`)
   }
 
   /* =======================================================
-     SAVE PRICES (UNCHANGED)
+     SAVE PRICES (pricing.write)
   ======================================================= */
   async function savePricingAction(formData: FormData) {
     'use server'
-    const supabase = await createSupabaseServerClient()
-    await requireAdminRole(supabase)
 
     const pricingVersionId = String(formData.get('pricing_version_id'))
     const contractType = String(formData.get('contract_type'))
+
+    const { supabase, user } = await requirePermissionServer('pricing.write')
 
     for (const area of AREAS) {
       const monthlyFee = Number(formData.get(`${area}_monthly_fee_sek`) ?? 0)
 
       if (contractType === 'spot_hourly') {
         const markup = Number(formData.get(`${area}_markup_ore`) ?? 0)
+
         await supabase.from('contract_area_pricing').upsert(
           {
             pricing_version_id: pricingVersionId,
@@ -167,6 +168,7 @@ export default async function AdminPricingContractPage({
         )
       } else {
         const price = Number(formData.get(`${area}_price_per_kwh_ore`) ?? 0)
+
         await supabase.from('contract_area_pricing').upsert(
           {
             pricing_version_id: pricingVersionId,
@@ -180,24 +182,28 @@ export default async function AdminPricingContractPage({
       }
     }
 
+    await logPermissionAudit({
+      actorId: user.id,
+      action: 'pricing.write',
+      metadata: { pricingVersionId },
+    })
+
     revalidatePath(`/admin/pricing/${params.slug}`)
   }
 
   /* =======================================================
-     ACTIVATE (UNCHANGED)
+     ACTIVATE VERSION (pricing.publish)
   ======================================================= */
   async function activateVersionAction(formData: FormData) {
     'use server'
-    const supabase = await createSupabaseServerClient()
-
-    const { user, role } = await requireAdminRole(supabase)
-    assertCanPublish(role)
 
     const contractId = String(formData.get('contract_id'))
     const versionId = String(formData.get('version_id'))
     const reason = String(formData.get('reason') || '').trim()
-
     if (!reason) throw new Error('Audit reason required')
+
+    const { supabase, user } =
+      await requirePermissionServer('pricing.publish')
 
     await supabase
       .from('contract_pricing_versions')
@@ -217,23 +223,29 @@ export default async function AdminPricingContractPage({
       reason,
     })
 
+    await logPermissionAudit({
+      actorId: user.id,
+      action: 'pricing.publish',
+      metadata: { contractId, versionId, reason },
+    })
+
     revalidatePath('/')
     revalidatePath(`/admin/pricing/${params.slug}`)
   }
 
   /* =======================================================
-     CLONE VERSION (ONLY TYPE FIXED)
+     CLONE VERSION (pricing.write)
   ======================================================= */
   async function cloneVersionAction(formData: FormData) {
     'use server'
-    const supabase = await createSupabaseServerClient()
-    const { user } = await requireAdminRole(supabase)
 
     const contractId = String(formData.get('contract_id'))
     const sourceVersionId = String(formData.get('source_version_id'))
     const reason = String(formData.get('reason') || '')
-
     if (!reason) throw new Error('Audit reason required')
+
+    const { supabase, user } =
+      await requirePermissionServer('pricing.write')
 
     const { data: latest } = await supabase
       .from('contract_pricing_versions')
@@ -284,10 +296,18 @@ export default async function AdminPricingContractPage({
       reason,
     })
 
+    await logPermissionAudit({
+      actorId: user.id,
+      action: 'pricing.clone',
+      metadata: { contractId, sourceVersionId, newVersion: newVersion.id },
+    })
+
     revalidatePath(`/admin/pricing/${params.slug}`)
   }
 
-  /* ======================================================= */
+  /* =======================================================
+     PREVIEW LOGIC (unchanged)
+  ======================================================= */
 
   const previewVersionId = searchParams?.previewVersionId ?? activeVersion?.id
   const previewKwh = Number(searchParams?.kwh ?? 2000)

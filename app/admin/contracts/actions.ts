@@ -1,8 +1,9 @@
+// app/admin/contracts/actions.ts
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole, assertCanPublish } from '@/lib/auth/admin'
+import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
+import { logPermissionAudit } from '@/lib/auth/audit'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 
@@ -33,9 +34,8 @@ export async function createContract(formData: FormData) {
   const slug = slugInput ? slugify(slugInput) : slugify(name)
   if (!slug) throw new Error('Slug is invalid')
 
-  const supabase = await createSupabaseServerClient()
-  const { role } = await requireAdminRole(supabase)
-  assertCanPublish(role)
+  // ✅ Step B: require permission for mutation
+  const { supabase, user } = await requirePermissionServer('contracts.write')
 
   // Unique check
   const { data: existing, error: exErr } = await supabase
@@ -56,17 +56,23 @@ export async function createContract(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
+  await logPermissionAudit({
+    actorId: user.id,
+    action: 'contracts.create',
+    metadata: { name, slug, contract_type, is_active },
+  })
+
   revalidatePath('/admin/contracts')
+  revalidatePath('/admin/pricing')
 }
 
 export async function setContractActive(formData: FormData) {
-  const id = String(formData.get('id') || '')
+  const id = String(formData.get('id') || '').trim()
   const is_active = String(formData.get('is_active') || 'true') === 'true'
   if (!id) throw new Error('Missing id')
 
-  const supabase = await createSupabaseServerClient()
-  const { role } = await requireAdminRole(supabase)
-  assertCanPublish(role)
+  // ✅ Step B
+  const { supabase, user } = await requirePermissionServer('contracts.write')
 
   const { error } = await supabase
     .from('contract_products')
@@ -75,5 +81,12 @@ export async function setContractActive(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
+  await logPermissionAudit({
+    actorId: user.id,
+    action: 'contracts.set_active',
+    metadata: { id, is_active },
+  })
+
   revalidatePath('/admin/contracts')
+  revalidatePath('/admin/pricing')
 }

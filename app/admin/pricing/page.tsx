@@ -29,6 +29,7 @@ type Audit = {
 
 export default async function AdminPricingIndexPage() {
   const supabase = await createSupabaseServerClient()
+  // Legacy admin gate (layout + middleware + this)
   await requireAdminRole(supabase)
 
   const { data: contracts, error: cErr } = await supabase
@@ -40,28 +41,28 @@ export default async function AdminPricingIndexPage() {
   if (cErr) throw new Error(cErr.message)
 
   const contractIds = (contracts ?? []).map((c) => c.id)
+  const safeIds =
+    contractIds.length > 0
+      ? contractIds
+      : ['00000000-0000-0000-0000-000000000000']
 
   const { data: versions, error: vErr } = await supabase
     .from('contract_pricing_versions')
     .select('id,contract_id,version_number,valid_from,is_published')
-    .in(
-      'contract_id',
-      contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000']
-    )
+    .in('contract_id', safeIds)
     .order('version_number', { ascending: false })
     .returns<Version[]>()
 
   if (vErr) throw new Error(vErr.message)
 
-  const { data: audits } = await supabase
+  const { data: audits, error: aErr } = await supabase
     .from('pricing_version_audit')
     .select('contract_id,version_id,performed_at')
-    .in(
-      'contract_id',
-      contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000']
-    )
+    .in('contract_id', safeIds)
     .order('performed_at', { ascending: false })
     .returns<Audit[]>()
+
+  if (aErr) throw new Error(aErr.message)
 
   const nowIso = new Date().toISOString()
 
@@ -103,13 +104,16 @@ export default async function AdminPricingIndexPage() {
                   <div className="text-xl font-semibold">{c.name}</div>
 
                   <div className="text-sm text-gray-400">
-                    {c.contract_type} • {c.is_active ? 'Aktiv produkt' : 'Inaktiv'}
+                    {c.contract_type} •{' '}
+                    {c.is_active ? 'Aktiv produkt' : 'Inaktiv'}
                   </div>
 
                   <div className="mt-2 text-sm">
                     Live prisversion (Hero/Kalkylator/API):{' '}
                     <span className="text-gray-300">
-                      {live ? `v${live.version_number} (från ${live.valid_from})` : 'Ingen'}
+                      {live
+                        ? `v${live.version_number} (från ${live.valid_from})`
+                        : 'Ingen'}
                     </span>
                   </div>
 
@@ -131,6 +135,12 @@ export default async function AdminPricingIndexPage() {
             </div>
           )
         })}
+
+        {(contracts ?? []).length === 0 && (
+          <div className="rounded-xl border border-gray-800 bg-gray-950 p-6 text-gray-400">
+            Inga avtalsprodukter hittades. Skapa avtal först under <b>/admin/contracts</b>.
+          </div>
+        )}
       </div>
     </div>
   )

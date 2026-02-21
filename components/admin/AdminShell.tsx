@@ -1,5 +1,16 @@
 import Link from 'next/link'
 
+function SideLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
+    >
+      {label}
+    </Link>
+  )
+}
+
 export default function AdminShell({
   email,
   children,
@@ -18,44 +29,28 @@ export default function AdminShell({
           </div>
 
           <nav className="px-4 py-4 space-y-1 text-sm">
-            <Link
-              href="/admin"
-              className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
-            >
-              Dashboard
-            </Link>
+            <SideLink href="/admin" label="Dashboard" />
 
             <div className="pt-3 pb-1 px-3 text-xs text-gray-500 uppercase tracking-wider">
               Pricing
             </div>
+            <SideLink href="/admin/pricing" label="Versions & Contracts" />
+            <SideLink href="/admin/monthly-spot" label="Månads-Spot" />
+            <SideLink href="/admin/spot-settings" label="Spot-inställningar" />
+            <SideLink href="/admin/portfolio-pricing" label="Portfölj & Fastpris" />
 
-            <Link
-              href="/admin/pricing"
-              className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
-            >
-              Versions & Contracts
-            </Link>
+            <div className="pt-3 pb-1 px-3 text-xs text-gray-500 uppercase tracking-wider">
+              Users
+            </div>
+            <SideLink href="/admin/users" label="Användare (legacy)" />
 
-            <Link
-              href="/admin/monthly-spot"
-              className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
-            >
-              Månads-Spot
-            </Link>
-
-            <Link
-              href="/admin/spot-settings"
-              className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
-            >
-              Spot-inställningar
-            </Link>
-
-            <Link
-              href="/admin/portfolio-pricing"
-              className="block px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5"
-            >
-              Portfölj & Fastpris
-            </Link>
+            <div className="pt-3 pb-1 px-3 text-xs text-gray-500 uppercase tracking-wider">
+              RBAC & Permissions
+            </div>
+            <SideLink href="/admin/rbac" label="RBAC Översikt" />
+            <SideLink href="/admin/rbac/roles" label="Roles" />
+            <SideLink href="/admin/rbac/permissions" label="Permissions" />
+            <SideLink href="/admin/rbac/assignments" label="Assignments" />
 
             <div className="pt-4 px-3">
               <Link
@@ -72,9 +67,9 @@ export default function AdminShell({
         <div>
           <div className="border-b border-gray-800">
             <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-              <div className="text-sm text-gray-300">Enterprise Pricing Console</div>
+              <div className="text-sm text-gray-300">Enterprise Console</div>
               <div className="text-xs text-gray-500">
-                Publish-versioner • valid_from • audit-ready
+                Publish-versioner • RBAC • audit-ready
               </div>
             </div>
           </div>

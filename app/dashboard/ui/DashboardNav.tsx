@@ -4,21 +4,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoutForm from '@/components/account/LogoutForm'
 
-type Role =
-  | 'admin'
-  | 'support'
-  | 'partner'
-  | 'customer'
+type Role = 'admin' | 'support' | 'partner' | 'customer'
 
 type NavItem = {
   label: string
   href: string
   description?: string
-  roles?: Role[] // optional role restriction
+  roles?: Role[]
+  permissions?: string[] // NEW: optional permission restriction
 }
 
 type Props = {
   roles?: Role[]
+  permissions?: string[]
 }
 
 const BASE_NAV: NavItem[] = [
@@ -35,18 +33,21 @@ const ROLE_NAV: NavItem[] = [
     href: '/admin',
     description: 'Systemadministration',
     roles: ['admin'],
+    permissions: ['admin.access'], // NEW (does not break legacy)
   },
   {
     label: 'Supportpanel',
     href: '/support-admin',
     description: 'Kundärenden & tickets',
     roles: ['support', 'admin'],
+    permissions: ['support.access'],
   },
   {
     label: 'Partnerpanel',
     href: '/partner',
     description: 'Partnerverktyg & statistik',
     roles: ['partner', 'admin'],
+    permissions: ['partner.access'],
   },
 ]
 
@@ -55,19 +56,25 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/')
 }
 
-export default function DashboardNav({ roles = [] }: Props) {
+function roleOk(item: NavItem, roles: Role[]) {
+  if (!item.roles || item.roles.length === 0) return true
+  return item.roles.some((r) => roles.includes(r))
+}
+
+function permissionOk(item: NavItem, permissions: string[]) {
+  if (!item.permissions || item.permissions.length === 0) return true
+  // allow if any permission matches
+  return item.permissions.some((p) => permissions.includes(p))
+}
+
+export default function DashboardNav({ roles = [], permissions = [] }: Props) {
   const pathname = usePathname()
 
-  const filteredRoleNav = ROLE_NAV.filter((item) =>
-    item.roles?.some((role) => roles.includes(role))
-  )
-
+  const filteredRoleNav = ROLE_NAV.filter((item) => roleOk(item, roles) || permissionOk(item, permissions))
   const fullNav = [...BASE_NAV, ...filteredRoleNav]
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-3">
-
-      {/* HEADER */}
       <div className="px-3 py-3">
         <div className="text-sm font-semibold flex items-center justify-between">
           Mina sidor
@@ -83,7 +90,6 @@ export default function DashboardNav({ roles = [] }: Props) {
         </div>
       </div>
 
-      {/* NAVIGATION */}
       <nav className="mt-2 space-y-1">
         {fullNav.map((it) => {
           const active = isActive(pathname, it.href)
@@ -101,12 +107,7 @@ export default function DashboardNav({ roles = [] }: Props) {
             >
               <div className="text-sm font-medium flex items-center justify-between">
                 {it.label}
-
-                {active && (
-                  <span className="text-[10px] text-cyan-400">
-                    ●
-                  </span>
-                )}
+                {active && <span className="text-[10px] text-cyan-400">●</span>}
               </div>
 
               {it.description && (
@@ -119,7 +120,6 @@ export default function DashboardNav({ roles = [] }: Props) {
         })}
       </nav>
 
-      {/* FOOTER */}
       <div className="mt-3 border-t border-white/10 pt-3 px-2">
         <LogoutForm variant="ghost" />
       </div>
