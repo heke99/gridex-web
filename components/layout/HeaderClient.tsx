@@ -1,145 +1,123 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useMemo, useState } from 'react'
 import UserMenu from '@/components/account/UserMenu'
 
 type Role =
   | 'admin'
+  | 'super_admin'
+  | 'pricing_manager'
+  | 'pricing_approver'
+  | 'compliance_officer'
   | 'support'
   | 'partner'
   | 'customer'
 
 type Props = {
   userEmail: string | null
-  roles: Role[]
+  roles?: Role[]
 }
 
-export default function HeaderClient({ userEmail, roles }: Props) {
+export default function HeaderClient({ userEmail, roles = [] }: Props) {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  const isLoggedIn = !!userEmail
-  const safeRoles = roles ?? []
+  const safeRoles = useMemo(() => roles ?? [], [roles])
 
-  const isAdmin = safeRoles.includes('admin')
+  const isAdmin = safeRoles.includes('admin') || safeRoles.includes('super_admin')
   const isSupport = safeRoles.includes('support')
   const isPartner = safeRoles.includes('partner')
 
-  /* ===============================
-     Stable Menu Items
-  =============================== */
-  const menuItems = useMemo(() => {
-    const items = [
-      { label: 'Profil', href: '/dashboard/profile' },
-      { label: 'Mina sidor', href: '/dashboard' },
-    ]
-
-    if (isPartner) {
-      items.push({ label: 'Partnerpanel', href: '/partner' })
-    }
-
-    if (isSupport) {
-      items.push({ label: 'Supportpanel', href: '/support-admin' })
-    }
-
-    return items
-  }, [isPartner, isSupport])
-
-  const primaryRole = safeRoles[0] ?? null
-
-  const closeMobile = () => setOpen(false)
+  // IMPORTANT: no setState in useEffect
+  // mobileOpen toggles via onClick only; key={pathname} ensures reset on navigation
 
   return (
-    <header className="border-b border-gray-800 bg-black/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <header
+      key={pathname}
+      className="sticky top-0 z-40 border-b border-white/10 bg-black/70 backdrop-blur"
+    >
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <button
+            className="md:hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80"
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            Meny
+          </button>
 
-        {/* LOGO */}
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          Gridex
-        </Link>
+          <Link href="/" className="text-sm font-semibold tracking-tight">
+            Gridex
+          </Link>
 
-        {/* DESKTOP NAV */}
-        <nav className="hidden md:flex items-center gap-8 text-sm text-gray-300">
+          <div className="hidden md:block text-xs text-white/60">
+            Elavtal • kalkylator • kundservice
+          </div>
+        </div>
 
+        <div className="flex items-center gap-3">
           <Link
             href="/avtal"
-            className={pathname.startsWith('/avtal') ? 'text-white' : 'hover:text-white'}
+            className="hidden md:inline-flex h-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white/80 hover:bg-white/10"
           >
-            Elavtal
+            Avtal
           </Link>
-
-          <Link
-            href="/teckna"
-            className={pathname.startsWith('/teckna') ? 'text-white' : 'hover:text-white'}
-          >
-            Teckna elavtal
-          </Link>
-
           <Link
             href="/kundservice"
-            className={pathname.startsWith('/kundservice') ? 'text-white' : 'hover:text-white'}
+            className="hidden md:inline-flex h-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white/80 hover:bg-white/10"
           >
             Kundservice
           </Link>
 
-          {!isLoggedIn && (
-            <Link
-              href="/login"
-              className="border border-cyan-500 px-4 py-2 rounded-lg text-cyan-400 hover:bg-cyan-500 hover:text-black transition"
-            >
-              Logga in
-            </Link>
-          )}
-
-          {isLoggedIn && (
-            <UserMenu
-              email={userEmail!}
-              showAdminLink={isAdmin}
-              items={menuItems}
-              roleLabel={primaryRole}
-            />
-          )}
-        </nav>
-
-        {/* MOBILE TOGGLE */}
-        <button
-          aria-label="Öppna meny"
-          aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
-          className="md:hidden text-gray-300"
-        >
-          ☰
-        </button>
+          <UserMenu
+            email={userEmail ?? '—'}
+            showAdminLink={isAdmin}
+            roleLabel={safeRoles[0] ?? null}
+            items={[
+              { label: 'Mina sidor', href: '/dashboard' },
+              ...(isAdmin ? [{ label: 'Adminpanel', href: '/admin' }] : []),
+              ...(isSupport ? [{ label: 'Supportpanel', href: '/support-admin' }] : []),
+              ...(isPartner ? [{ label: 'Partnerpanel', href: '/partner' }] : []),
+            ]}
+          />
+        </div>
       </div>
 
-      {/* MOBILE NAV */}
-      {open && (
-        <div
-          key={pathname}
-          className="md:hidden px-6 pb-4 space-y-3 text-gray-300 border-t border-white/10"
-        >
-          <Link href="/avtal" onClick={closeMobile}>Elavtal</Link>
-          <Link href="/teckna" onClick={closeMobile}>Teckna elavtal</Link>
-          <Link href="/kundservice" onClick={closeMobile}>Kundservice</Link>
-
-          {!isLoggedIn && (
-            <Link href="/login" onClick={closeMobile}>
-              Logga in
+      {mobileOpen && (
+        <div className="md:hidden border-t border-white/10 bg-black/70">
+          <div className="mx-auto w-full max-w-7xl px-6 py-4 grid gap-2">
+            <Link
+              href="/avtal"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80"
+              onClick={() => setMobileOpen(false)}
+            >
+              Avtal
             </Link>
-          )}
-
-          {isLoggedIn && (
-            <div className="pt-2 border-t border-white/10">
-              <UserMenu
-                email={userEmail!}
-                showAdminLink={isAdmin}
-                items={menuItems}
-                roleLabel={primaryRole}
-              />
-            </div>
-          )}
+            <Link
+              href="/kundservice"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80"
+              onClick={() => setMobileOpen(false)}
+            >
+              Kundservice
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80"
+              onClick={() => setMobileOpen(false)}
+            >
+              Mina sidor
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-white"
+                onClick={() => setMobileOpen(false)}
+              >
+                Adminpanel
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </header>

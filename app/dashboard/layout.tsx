@@ -8,7 +8,15 @@ import { PermissionsProvider } from '@/components/auth/PermissionsProvider'
 
 export const dynamic = 'force-dynamic'
 
-type Role = 'admin' | 'support' | 'partner' | 'customer'
+type Role =
+  | 'admin'
+  | 'super_admin'
+  | 'pricing_manager'
+  | 'pricing_approver'
+  | 'compliance_officer'
+  | 'support'
+  | 'partner'
+  | 'customer'
 
 function buildLoginRedirect(nextPath: string) {
   const qs = new URLSearchParams()
@@ -43,7 +51,7 @@ export default async function DashboardLayout({
       .map((r) => r.role as Role)
   }
 
-  const isAdmin = roles.includes('admin')
+  const isAdmin = roles.includes('admin') || roles.includes('super_admin')
   const isSupport = roles.includes('support')
   const isPartner = roles.includes('partner')
 

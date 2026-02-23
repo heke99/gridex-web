@@ -1,135 +1,363 @@
 // app/admin/page.tsx
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
 
 export const dynamic = 'force-dynamic'
 
-type PublishedVersion = {
+/* ===============================
+   TYPES
+================================ */
+
+type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
+const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
+
+type IdRow = { id: string }
+
+type PricingVersionRow = {
   id: string
   valid_from: string
-  created_at: string
 }
 
-type AuditRow = {
+type PricingAuditRow = {
   id: string
-  contract_id: string
-  action: 'publish' | 'unpublish'
+  action: string
   performed_at: string
 }
 
-export default async function AdminDashboard() {
-  const supabase = await createSupabaseServerClient()
-  await requireAdminRole(supabase)
+/* ===============================
+   FORMATTERS
+================================ */
 
-  // OBS: du använder is_published här. Jag rör inte din affärslogik.
-  const { data: publishedVersion } = await supabase
-    .from('contract_pricing_versions')
-    .select('id, valid_from, created_at')
-    .eq('is_published', true)
-    .order('valid_from', { ascending: false })
-    .limit(1)
-    .maybeSingle<PublishedVersion>()
+function fmtInt(v: number | null | undefined) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return new Intl.NumberFormat('sv-SE').format(v)
+}
 
-  const { data: latestAudit } = await supabase
-    .from('pricing_version_audit')
-    .select('id, contract_id, action, performed_at')
-    .order('performed_at', { ascending: false })
-    .limit(1)
-    .maybeSingle<AuditRow>()
+function fmtMoney(v: number | null | undefined) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return new Intl.NumberFormat('sv-SE', {
+    style: 'currency',
+    currency: 'SEK',
+    maximumFractionDigits: 0,
+  }).format(v)
+}
+
+function fmtOre(v: number | null | undefined) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return `${new Intl.NumberFormat('sv-SE', {
+    maximumFractionDigits: 2,
+  }).format(v)} öre/kWh`
+}
+
+/* ===============================
+   SAFE COUNT (STRICT SAFE)
+================================ */
+
+async function safeExactCount(
+  builder: {
+    then: (
+      onfulfilled: (value: { count: number | null; error: unknown }) => unknown,
+      onrejected?: (reason: unknown) => unknown
+    ) => unknown
+  }
+): Promise<number | null> {
+  try {
+    const res = await builder
+    if (res?.error) return null
+    return typeof res.count === 'number' ? res.count : null
+  } catch {
+    return null
+  }
+}
+
+/* ===============================
+   UI COMPONENTS
+================================ */
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  trend,
+}: {
+  label: string
+  value: string
+  hint?: string
+  trend?: { label: string; tone?: 'good' | 'warn' | 'bad' }
+}) {
+  const tone = trend?.tone ?? 'good'
+  const toneCls =
+    tone === 'good'
+      ? 'text-emerald-300'
+      : tone === 'warn'
+      ? 'text-amber-300'
+      : 'text-rose-300'
 
   return (
-    <div className="space-y-10">
-      <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-gray-400 mt-3">
-          Central hub för pricing-versioner, avtal, användare och systemstyrning.
-        </p>
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+      <div className="text-xs text-white/60">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
 
-        <div className="mt-6 space-y-3 text-sm text-gray-400">
-          {publishedVersion ? (
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              Senast publicerad version:{' '}
-              <span className="text-white">
-                {new Date(publishedVersion.valid_from).toLocaleDateString(
-                  'sv-SE'
-                )}
-              </span>
-            </div>
+      {(hint || trend) && (
+        <div className="mt-2 flex items-center justify-between gap-3">
+          {hint ? (
+            <div className="text-[11px] text-white/50">{hint}</div>
           ) : (
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              Ingen publicerad pricing-version
-            </div>
+            <div />
           )}
-
-          {latestAudit && (
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-cyan-400" />
-              Senaste audit: <span className="text-white">{latestAudit.action}</span>{' '}
-              {new Date(latestAudit.performed_at).toLocaleString('sv-SE')}
+          {trend && (
+            <div className={['text-[11px]', toneCls].join(' ')}>
+              {trend.label}
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+function QuickAction({
+  href,
+  title,
+  subtitle,
+}: {
+  href: string
+  title: string
+  subtitle: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-3xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="font-semibold text-white/90">{title}</div>
+          <div className="mt-1 text-[11px] text-white/55">{subtitle}</div>
+        </div>
+        <div className="text-white/25 group-hover:text-white/40">→</div>
+      </div>
+    </Link>
+  )
+}
+
+/* ===============================
+   DASHBOARD
+================================ */
+
+export default async function AdminDashboard() {
+  const supabase = await createSupabaseServerClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white/70">
+        Session saknas.
+      </div>
+    )
+  }
+
+  /* ===============================
+     KPI QUERIES
+  ================================= */
+
+  const customersCountP = safeExactCount(
+    supabase
+      .from('user_roles')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('role', 'customer')
+      .or('is_active.is.null,is_active.eq.true')
+  )
+
+  const contractsTotalP = safeExactCount(
+    supabase.from('contract_products').select('id', {
+      count: 'exact',
+      head: true,
+    })
+  )
+
+  const contractsActiveP = safeExactCount(
+    supabase
+      .from('contract_products')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true)
+  )
+
+  const publishedAnyP = (async (): Promise<PricingVersionRow | null> => {
+    const { data, error } = await supabase
+      .from('contract_pricing_versions')
+      .select('id, valid_from')
+      .eq('is_published', true)
+      .order('valid_from', { ascending: false })
+      .limit(1)
+      .maybeSingle<PricingVersionRow>()
+
+    if (error || !data) return null
+    return data
+  })()
+
+  const auditLatestP = (async (): Promise<PricingAuditRow | null> => {
+    const { data, error } = await supabase
+      .from('pricing_version_audit')
+      .select('id, action, performed_at')
+      .order('performed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<PricingAuditRow>()
+
+    if (error || !data) return null
+    return data
+  })()
+
+  const spotCoverageP = (async () => {
+    const { data: activeSpot } = await supabase
+      .from('contract_products')
+      .select('id')
+      .eq('contract_type', 'spot_hourly')
+      .eq('is_active', true)
+
+    const spotIds = (activeSpot ?? []).map((r: IdRow) => r.id)
+    const expected = spotIds.length * AREAS.length
+
+    if (!spotIds.length) return { expected: 0, actual: 0 }
+
+    const { count } = await supabase
+      .from('gridex_spot_area_settings')
+      .select('contract_id', { count: 'exact', head: true })
+      .in('contract_id', spotIds)
+
+    return { expected, actual: count ?? 0 }
+  })()
+
+  const portfolioCoverageP = (async () => {
+    const { data: activePortfolio } = await supabase
+      .from('contract_products')
+      .select('id')
+      .in('contract_type', ['portfolio_managed', 'fixed'])
+      .eq('is_active', true)
+
+    const ids = (activePortfolio ?? []).map((r: IdRow) => r.id)
+    const expected = ids.length * AREAS.length
+
+    if (!ids.length) return { expected: 0, actual: 0 }
+
+    const { count } = await supabase
+      .from('gridex_portfolio_area_pricing')
+      .select('contract_id', { count: 'exact', head: true })
+      .in('contract_id', ids)
+
+    return { expected, actual: count ?? 0 }
+  })()
+
+  const [
+    customersCount,
+    contractsTotal,
+    contractsActive,
+    publishedAny,
+    latestAudit,
+    spotCoverage,
+    portfolioCoverage,
+  ] = await Promise.all([
+    customersCountP,
+    contractsTotalP,
+    contractsActiveP,
+    publishedAnyP,
+    auditLatestP,
+    spotCoverageP,
+    portfolioCoverageP,
+  ])
+
+  const publishStatus = publishedAny
+    ? `Publicerad ${new Date(publishedAny.valid_from).toLocaleDateString(
+        'sv-SE'
+      )}`
+    : 'Ingen publicerad version'
+
+  const publishTrend = publishedAny
+    ? { label: 'OK', tone: 'good' as const }
+    : { label: 'Saknas', tone: 'bad' as const }
+
+  /* ===============================
+     UI
+  ================================= */
+
+  return (
+    <div className="space-y-10">
+      {/* HEADER BLOCK */}
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+        <h1 className="text-3xl font-bold">Admin • Översikt</h1>
+
+        <div className="mt-6 flex items-center gap-4 text-sm text-white/70">
+          <span
+            className={[
+              'h-2 w-2 rounded-full',
+              publishedAny ? 'bg-emerald-400' : 'bg-rose-400',
+            ].join(' ')}
+          />
+          {publishStatus}
+        </div>
+
+        {latestAudit && (
+          <div className="mt-3 text-xs text-white/50">
+            Senaste audit: {latestAudit.action} •{' '}
+            {new Date(latestAudit.performed_at).toLocaleString('sv-SE')}
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Link
-          href="/admin/pricing"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Prishantering</div>
-          <div className="text-sm text-gray-400 mt-2">Versioner per kontrakt</div>
-        </Link>
+      {/* KPI GRID */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Kunder" value={fmtInt(customersCount)} />
+        <KpiCard
+          label="Avtal"
+          value={`${fmtInt(contractsActive)} / ${fmtInt(contractsTotal)}`}
+        />
+        <KpiCard
+          label="Publish-status"
+          value={publishedAny ? 'LIVE' : 'OFF'}
+          trend={publishTrend}
+        />
+        <KpiCard
+          label="SE1–SE4 coverage (Spot)"
+          value={
+            spotCoverage
+              ? `${fmtInt(spotCoverage.actual)}/${fmtInt(
+                  spotCoverage.expected
+                )}`
+              : '—'
+          }
+        />
+        <KpiCard
+          label="SE1–SE4 coverage (Portfölj)"
+          value={
+            portfolioCoverage
+              ? `${fmtInt(portfolioCoverage.actual)}/${fmtInt(
+                  portfolioCoverage.expected
+                )}`
+              : '—'
+          }
+        />
+      </div>
 
-        <Link
+      {/* QUICK ACTIONS */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <QuickAction
           href="/admin/contracts"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Elavtal</div>
-          <div className="text-sm text-gray-400 mt-2">Skapa & hantera produkter</div>
-        </Link>
-
-        <Link
-          href="/admin/users"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Användare</div>
-          <div className="text-sm text-gray-400 mt-2">Roller & åtkomst</div>
-        </Link>
-
-        <Link
-          href="/admin/audit/pricing"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Audit</div>
-          <div className="text-sm text-gray-400 mt-2">Publish-historik & export</div>
-        </Link>
-
-        <Link
-          href="/admin/monthly-spot"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Månads-Spot</div>
-          <div className="text-sm text-gray-400 mt-2">Underlag per SE1–SE4</div>
-        </Link>
-
-        <Link
-          href="/admin/spot-settings"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Spot-inställningar</div>
-          <div className="text-sm text-gray-400 mt-2">Påslag/avgifter</div>
-        </Link>
-
-        <Link
-          href="/admin/portfolio-pricing"
-          className="rounded-2xl border border-gray-800 bg-gray-950 p-6 hover:border-cyan-500/40 transition"
-        >
-          <div className="text-white font-semibold">Portfölj & Fast</div>
-          <div className="text-sm text-gray-400 mt-2">Pris per område</div>
-        </Link>
+          title="Skapa/Hantera avtal"
+          subtitle="contract_products • featured • sortering"
+        />
+        <QuickAction
+          href="/admin/pricing"
+          title="Skapa prisversion"
+          subtitle="clone • write • publish"
+        />
+        <QuickAction
+          href="/admin/calculator"
+          title="Kalkylator preview"
+          subtitle="validera kundspec"
+        />
       </div>
     </div>
   )

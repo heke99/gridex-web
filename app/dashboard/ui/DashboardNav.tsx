@@ -4,7 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoutForm from '@/components/account/LogoutForm'
 
-type Role = 'admin' | 'support' | 'partner' | 'customer'
+type Role =
+  | 'admin'
+  | 'super_admin'
+  | 'pricing_manager'
+  | 'pricing_approver'
+  | 'compliance_officer'
+  | 'support'
+  | 'partner'
+  | 'customer'
 
 type NavItem = {
   label: string
@@ -32,7 +40,7 @@ const ROLE_NAV: NavItem[] = [
     label: 'Adminpanel',
     href: '/admin',
     description: 'Systemadministration',
-    roles: ['admin'],
+    roles: ['admin', 'super_admin'],
     permissions: ['admin.access'], // NEW (does not break legacy)
   },
   {

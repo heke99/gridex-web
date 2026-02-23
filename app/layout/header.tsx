@@ -1,10 +1,13 @@
+// app/layout/header.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import HeaderClient from '@/components/layout/HeaderClient'
 
-export const dynamic = 'force-dynamic'
-
 type Role =
   | 'admin'
+  | 'super_admin'
+  | 'pricing_manager'
+  | 'pricing_approver'
+  | 'compliance_officer'
   | 'support'
   | 'partner'
   | 'customer'
@@ -16,8 +19,9 @@ export default async function Header() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  let roles: Role[] = []
+  const email = user?.email ?? null
 
+  let roles: Role[] = []
   if (user) {
     const { data } = await supabase
       .from('user_roles')
@@ -31,10 +35,5 @@ export default async function Header() {
     }
   }
 
-  return (
-    <HeaderClient
-      userEmail={user?.email ?? null}
-      roles={roles}
-    />
-  )
+  return <HeaderClient userEmail={email} roles={roles} />
 }
