@@ -1,6 +1,7 @@
 // app/admin/contracts/page.tsx
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { requireAdminRole } from '@/lib/auth/admin'
 import { createContract, setContractActive } from './actions'
 
@@ -17,11 +18,22 @@ type ContractRow = {
   created_at: string
 }
 
+function getServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
 export default async function AdminContractsPage() {
+  // 🔐 Auth check (session client)
   const supabase = await createSupabaseServerClient()
   await requireAdminRole(supabase)
 
-  const { data, error } = await supabase
+  // 🔥 Service client (bypass RLS)
+  const service = getServiceClient()
+
+  const { data, error } = await service
     .from('contract_products')
     .select('id,name,slug,contract_type,is_active,created_at')
     .order('created_at', { ascending: false })
@@ -66,6 +78,7 @@ export default async function AdminContractsPage() {
             <label className="text-xs text-gray-400">Slug</label>
             <input
               name="slug"
+              required
               className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
               placeholder="gridex-spot-rorligt"
             />
@@ -128,7 +141,11 @@ export default async function AdminContractsPage() {
                   <td className="p-4">
                     <form action={setContractActive} className="flex items-center gap-2">
                       <input type="hidden" name="id" value={c.id} />
-                      <input type="hidden" name="is_active" value={c.is_active ? 'false' : 'true'} />
+                      <input
+                        type="hidden"
+                        name="is_active"
+                        value={c.is_active ? 'false' : 'true'}
+                      />
                       <button className="rounded-xl border border-gray-800 bg-black/40 px-3 py-2 text-xs text-gray-200 hover:border-cyan-500/40">
                         {c.is_active ? 'Inaktivera' : 'Aktivera'}
                       </button>

@@ -1,13 +1,36 @@
-// app/admin/contracts/actions.ts
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
-import { logPermissionAudit } from '@/lib/auth/audit'
+import { createClient } from '@supabase/supabase-js'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminRole } from '@/lib/auth/admin'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 
-function slugify(input: string): string {
+type UserRoleRow = {
+  role: string
+  is_active: boolean | null
+}
+
+type ContractInsertResult = {
+  id: string
+  contract_type: ContractType
+}
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL')
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false },
+  })
+}
+
+function slugify(input: string) {
   return input
     .trim()
     .toLowerCase()
@@ -18,75 +41,167 @@ function slugify(input: string): string {
     .replace(/(^-|-$)+/g, '')
 }
 
-function normalizeType(v: unknown): ContractType {
-  if (v === 'spot_hourly' || v === 'portfolio_managed' || v === 'fixed') return v
-  return 'spot_hourly'
+/**
+ * Enterprise admin check
+ */
+async function assertAdmin(): Promise<{ userId: string }> {
+  const supabase = await createSupabaseServerClient()
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser()
+
+  if (userErr) throw new Error(userErr.message)
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: hasPerm } = await supabase.rpc('gridex_has_permission', {
+    p_user_id: user.id,
+    p_permission: 'admin.access',
+  })
+
+  if (hasPerm === true) {
+    return { userId: user.id }
+  }
+
+  try {
+    await requireAdminRole(supabase)
+    return { userId: user.id }
+  } catch {}
+
+  const { data: roleRows } = await supabase
+    .from('user_roles')
+    .select('role,is_active')
+    .eq('user_id', user.id)
+    .returns<UserRoleRow[]>()
+
+  const roleNames =
+    roleRows
+      ?.filter((r) => r.is_active !== false)
+      .map((r) => r.role) ?? []
+
+  const isAdmin =
+    roleNames.includes('admin') ||
+    roleNames.includes('super_admin')
+
+  if (!isAdmin) throw new Error('Unauthorized')
+
+  return { userId: user.id }
 }
 
+/**
+ * Create contract + auto draft pricing version
+ * Ensures only one active per contract_type
+ */
 export async function createContract(formData: FormData) {
-  const name = String(formData.get('name') || '').trim()
-  const slugInput = String(formData.get('slug') || '').trim()
-  const contract_type = normalizeType(formData.get('contract_type'))
-  const is_active = String(formData.get('is_active') || 'true') === 'true'
+  const { userId } = await assertAdmin()
+  const service = getServiceClient()
+
+  const name = String(formData.get('name') ?? '').trim()
+  const slugInput = String(formData.get('slug') ?? '').trim()
+  const contractType = String(
+    formData.get('contract_type') ?? 'spot_hourly'
+  ) as ContractType
+
+  const isActive = formData.get('is_active') ? true : false
 
   if (!name) throw new Error('Name is required')
 
   const slug = slugInput ? slugify(slugInput) : slugify(name)
-  if (!slug) throw new Error('Slug is invalid')
+  if (!slug) throw new Error('Slug could not be generated')
 
-  // ✅ Step B: require permission for mutation
-  const { supabase, user } = await requirePermissionServer('contracts.write')
-
-  // Unique check
-  const { data: existing, error: exErr } = await supabase
+  // 1️⃣ Insert contract
+  const { data: contractRow, error: contractError } = await service
     .from('contract_products')
-    .select('id')
-    .eq('slug', slug)
-    .maybeSingle<{ id: string }>()
+    .insert({
+      name,
+      slug,
+      contract_type: contractType,
+      is_active: isActive,
+      created_by: userId,
+    })
+    .select('id, contract_type')
+    .single()
+    .returns<ContractInsertResult>()
 
-  if (exErr) throw new Error(exErr.message)
-  if (existing?.id) throw new Error('Slug already exists')
+  if (contractError) throw new Error(contractError.message)
+  if (!contractRow) throw new Error('Failed to create contract')
 
-  const { error } = await supabase.from('contract_products').insert({
-    name,
-    slug,
-    contract_type,
-    is_active,
-  })
+  const contractId = contractRow.id
 
-  if (error) throw new Error(error.message)
+  // 2️⃣ Enforce only one active per type
+  if (isActive) {
+    const { error: deactivateError } = await service
+      .from('contract_products')
+      .update({ is_active: false })
+      .eq('contract_type', contractType)
+      .neq('id', contractId)
 
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'contracts.create',
-    metadata: { name, slug, contract_type, is_active },
-  })
+    if (deactivateError) throw new Error(deactivateError.message)
+  }
+
+  // 3️⃣ Create initial draft pricing version
+  const { error: pricingError } = await service
+    .from('contract_pricing_versions')
+    .insert({
+      contract_product_id: contractId,
+      version_number: 1,
+      is_published: false,
+    })
+
+  if (pricingError) throw new Error(pricingError.message)
 
   revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
 }
 
+/**
+ * Toggle active state
+ * Ensures only one active per type
+ */
 export async function setContractActive(formData: FormData) {
-  const id = String(formData.get('id') || '').trim()
-  const is_active = String(formData.get('is_active') || 'true') === 'true'
+  await assertAdmin()
+  const service = getServiceClient()
+
+  const id = String(formData.get('id') ?? '').trim()
+  const isActiveStr = String(formData.get('is_active') ?? '').trim()
+
   if (!id) throw new Error('Missing id')
 
-  // ✅ Step B
-  const { supabase, user } = await requirePermissionServer('contracts.write')
+  const isActive =
+    isActiveStr === 'true'
+      ? true
+      : isActiveStr === 'false'
+      ? false
+      : null
 
-  const { error } = await supabase
+  if (isActive === null) throw new Error('Invalid is_active value')
+
+  // Get contract type
+  const { data: contract } = await service
     .from('contract_products')
-    .update({ is_active })
+    .select('contract_type')
+    .eq('id', id)
+    .single()
+
+  if (!contract) throw new Error('Contract not found')
+
+  if (isActive) {
+    // deactivate others of same type
+    const { error: deactivateError } = await service
+      .from('contract_products')
+      .update({ is_active: false })
+      .eq('contract_type', contract.contract_type)
+      .neq('id', id)
+
+    if (deactivateError) throw new Error(deactivateError.message)
+  }
+
+  const { error } = await service
+    .from('contract_products')
+    .update({ is_active: isActive })
     .eq('id', id)
 
   if (error) throw new Error(error.message)
 
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'contracts.set_active',
-    metadata: { id, is_active },
-  })
-
   revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
 }
