@@ -1,12 +1,16 @@
 // app/admin/pricing/[slug]/page.tsx
 import Link from 'next/link'
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { requireAdminRole } from '@/lib/auth/admin'
-import { logPermissionAudit } from '@/lib/auth/audit'
 import { computeCustomerSpec, type PriceArea } from '@/lib/gridex/previewEngine'
+import {
+  createVersionAction,
+  savePricingAction,
+  publishVersionAction,
+  cloneVersionAction,
+} from './actions'
 
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
@@ -32,18 +36,6 @@ type AreaPricing = {
   price_per_kwh_ore: number | null
   markup_ore: number | null
   monthly_fee_sek: number | null
-}
-
-function isoFromDateInput(dateStr: string): string {
-  const s = (dateStr || '').trim()
-  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s)) {
-    const d0 = new Date(s)
-    if (!Number.isNaN(d0.getTime())) return d0.toISOString()
-    throw new Error('Invalid valid_from date')
-  }
-  const d = new Date(`${s}T00:00:00.000Z`)
-  if (Number.isNaN(d.getTime())) throw new Error('Invalid valid_from date')
-  return d.toISOString()
 }
 
 function fmtWhen(iso: string) {
@@ -76,10 +68,11 @@ export default async function AdminPricingContractPage({
 }) {
   const { slug } = await params
   const sp = searchParams ? await searchParams : undefined
+
   const supabase = await createSupabaseServerClient()
   const nowIso = new Date().toISOString()
 
-  // Gate: pricing.write OR pricing.publish (legacy admin allowed via requirePermissionServer)
+  // Gate: pricing.write OR pricing.publish
   await requirePermissionServer('pricing.write').catch(async () => {
     await requirePermissionServer('pricing.publish')
   })
@@ -89,11 +82,10 @@ export default async function AdminPricingContractPage({
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
-  // Determine UI capabilities (do not throw)
+  // Determine UI capabilities
   const legacy = await requireAdminRole(supabase).catch(() => null)
   const isLegacyAdmin = legacy?.role === 'admin'
 
-  // canWrite (avoid .catch() on PromiseLike; use try/catch)
   let canWrite = isLegacyAdmin
   if (!canWrite) {
     try {
@@ -107,7 +99,6 @@ export default async function AdminPricingContractPage({
     }
   }
 
-  // canPublish (avoid .catch() on PromiseLike; use try/catch)
   let canPublish = isLegacyAdmin
   if (!canPublish) {
     try {
@@ -148,251 +139,10 @@ export default async function AdminPricingContractPage({
 
   const activePublished = live ?? scheduled ?? null
 
-  /* =======================================================
-     Actions (keep behavior, upgrade UX + revalidate)
-  ======================================================= */
-
-  async function createVersionAction(formData: FormData) {
-    'use server'
-
-    const contractId = String(formData.get('contract_id') || '')
-    const validFrom = isoFromDateInput(String(formData.get('valid_from') || ''))
-
-    const { supabase, user } = await requirePermissionServer('pricing.write')
-
-    const { data: latest } = await supabase
-      .from('contract_pricing_versions')
-      .select('version_number')
-      .eq('contract_id', contractId)
-      .order('version_number', { ascending: false })
-      .limit(1)
-      .maybeSingle<{ version_number: number }>()
-
-    const nextVersion = (latest?.version_number ?? 0) + 1
-
-    const { error } = await supabase.from('contract_pricing_versions').insert({
-      contract_id: contractId,
-      version_number: nextVersion,
-      valid_from: validFrom,
-      is_published: false,
-    })
-
-    if (error) throw new Error(error.message)
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'pricing.version.create',
-      metadata: { contractId, nextVersion, validFrom },
-    })
-
-    revalidatePath(`/admin/pricing/${slug}`)
-  }
-
-  async function savePricingAction(formData: FormData) {
-    'use server'
-
-    const pricingVersionId = String(formData.get('pricing_version_id') || '')
-    const contractType = String(formData.get('contract_type') || '')
-
-    const { supabase, user } = await requirePermissionServer('pricing.write')
-
-    for (const area of AREAS) {
-      const monthlyFee = Number(formData.get(`${area}_monthly_fee_sek`) ?? 0)
-
-      if (contractType === 'spot_hourly') {
-        const markup = Number(formData.get(`${area}_markup_ore`) ?? 0)
-
-        const { error } = await supabase.from('contract_area_pricing').upsert(
-          {
-            pricing_version_id: pricingVersionId,
-            price_area: area,
-            monthly_fee_sek: monthlyFee,
-            markup_ore: markup,
-            price_per_kwh_ore: null,
-          },
-          { onConflict: 'pricing_version_id,price_area' }
-        )
-        if (error) throw new Error(error.message)
-      } else {
-        const price = Number(formData.get(`${area}_price_per_kwh_ore`) ?? 0)
-
-        const { error } = await supabase.from('contract_area_pricing').upsert(
-          {
-            pricing_version_id: pricingVersionId,
-            price_area: area,
-            monthly_fee_sek: monthlyFee,
-            price_per_kwh_ore: price,
-            markup_ore: null,
-          },
-          { onConflict: 'pricing_version_id,price_area' }
-        )
-        if (error) throw new Error(error.message)
-      }
-    }
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'pricing.write',
-      metadata: { pricingVersionId },
-    })
-
-    revalidatePath(`/admin/pricing/${slug}`)
-  }
-
-  async function publishVersionAction(formData: FormData) {
-    'use server'
-
-    const contractId = String(formData.get('contract_id') || '')
-    const versionId = String(formData.get('version_id') || '')
-    const reason = String(formData.get('reason') || '').trim()
-    if (!reason) throw new Error('Audit reason required')
-
-    const { supabase, user } = await requirePermissionServer('pricing.publish')
-
-    // Safety: ensure version belongs to contract
-    const { data: v, error: vErr } = await supabase
-      .from('contract_pricing_versions')
-      .select('id,contract_id')
-      .eq('id', versionId)
-      .maybeSingle<{ id: string; contract_id: string }>()
-
-    if (vErr) throw new Error(vErr.message)
-    if (!v || v.contract_id !== contractId) throw new Error('Invalid version for contract')
-
-    // Enterprise rule: only ONE published version per contract
-    const { error: offErr } = await supabase
-      .from('contract_pricing_versions')
-      .update({ is_published: false })
-      .eq('contract_id', contractId)
-
-    if (offErr) throw new Error(offErr.message)
-
-    const { error: onErr } = await supabase
-      .from('contract_pricing_versions')
-      .update({ is_published: true })
-      .eq('id', versionId)
-      .eq('contract_id', contractId)
-
-    if (onErr) throw new Error(onErr.message)
-
-    const { error: aErr } = await supabase.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: versionId,
-      action: 'publish',
-      performed_by: user.id,
-      reason,
-    })
-
-    if (aErr) throw new Error(aErr.message)
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'pricing.publish',
-      metadata: { contractId, versionId, reason },
-    })
-
-    // Revalidate admin + public
-    revalidatePath('/admin')
-    revalidatePath('/admin/contracts')
-    revalidatePath('/admin/pricing')
-    revalidatePath(`/admin/pricing/${slug}`)
-
-    revalidatePath('/')
-    revalidatePath('/avtal')
-    revalidatePath('/teckna')
-    revalidatePath('/kundservice')
-
-    // Programmatic/SEO price routes (if present)
-    revalidatePath('/elpris')
-    revalidatePath('/elpris/se1')
-    revalidatePath('/elpris/se2')
-    revalidatePath('/elpris/se3')
-    revalidatePath('/elpris/se4')
-  }
-
-  async function cloneVersionAction(formData: FormData) {
-    'use server'
-
-    const contractId = String(formData.get('contract_id') || '')
-    const sourceVersionId = String(formData.get('source_version_id') || '')
-    const reason = String(formData.get('reason') || '').trim()
-    if (!reason) throw new Error('Audit reason required')
-
-    const { supabase, user } = await requirePermissionServer('pricing.write')
-
-    const { data: latest } = await supabase
-      .from('contract_pricing_versions')
-      .select('version_number')
-      .eq('contract_id', contractId)
-      .order('version_number', { ascending: false })
-      .limit(1)
-      .maybeSingle<{ version_number: number }>()
-
-    const nextVersion = (latest?.version_number ?? 0) + 1
-
-    const { data: newVersion, error: nvErr } = await supabase
-      .from('contract_pricing_versions')
-      .insert({
-        contract_id: contractId,
-        version_number: nextVersion,
-        valid_from: new Date().toISOString(),
-        is_published: false,
-      })
-      .select('id,contract_id,version_number,valid_from,is_published,status')
-      .single<Version>()
-
-    if (nvErr) throw new Error(nvErr.message)
-    if (!newVersion) throw new Error('Clone failed')
-
-    const { data: oldRows, error: oldErr } = await supabase
-      .from('contract_area_pricing')
-      .select('pricing_version_id,price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
-      .eq('pricing_version_id', sourceVersionId)
-      .returns<AreaPricing[]>()
-
-    if (oldErr) throw new Error(oldErr.message)
-
-    if (oldRows) {
-      for (const r of oldRows) {
-        const { error } = await supabase.from('contract_area_pricing').insert({
-          pricing_version_id: newVersion.id,
-          price_area: r.price_area,
-          price_per_kwh_ore: r.price_per_kwh_ore,
-          markup_ore: r.markup_ore,
-          monthly_fee_sek: r.monthly_fee_sek,
-        })
-        if (error) throw new Error(error.message)
-      }
-    }
-
-    const { error: aErr } = await supabase.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: newVersion.id,
-      action: 'clone',
-      performed_by: user.id,
-      reason,
-    })
-
-    if (aErr) throw new Error(aErr.message)
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'pricing.clone',
-      metadata: { contractId, sourceVersionId, newVersion: newVersion.id },
-    })
-
-    revalidatePath(`/admin/pricing/${slug}`)
-  }
-
-  /* =======================================================
-     Preview (uses pricing engine to avoid mismatch)
-  ======================================================= */
-
   const previewVersionId = sp?.previewVersionId ?? activePublished?.id ?? versions[0]?.id
   const previewKwh = Number(sp?.kwh ?? 2000)
   const previewArea = (sp?.area ?? 'SE3') as PriceArea
 
-  // NOTE: computeCustomerSpec returns a real Promise, so .catch() is fine here.
   const previewSpec = await computeCustomerSpec({
     supabase,
     contract: {
@@ -409,7 +159,6 @@ export default async function AdminPricingContractPage({
 
   const previewLines = previewSpec?.lines ?? []
 
-  // Prefill price inputs from DB for selected previewVersionId
   const { data: pricingRows } = previewVersionId
     ? await supabase
         .from('contract_area_pricing')
@@ -421,7 +170,6 @@ export default async function AdminPricingContractPage({
   const pricingMap = new Map<PriceArea, AreaPricing>()
   ;(pricingRows ?? []).forEach((r) => pricingMap.set(r.price_area, r))
 
-  // ✅ Fix: strict key union to avoid "Unexpected any" from keyof + index access
   type AreaNumericKey = 'price_per_kwh_ore' | 'markup_ore' | 'monthly_fee_sek'
   function defaultVal(area: PriceArea, key: AreaNumericKey) {
     const row = pricingMap.get(area)
@@ -500,6 +248,7 @@ export default async function AdminPricingContractPage({
 
         <form action={createVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
           <input type="hidden" name="contract_id" value={typedContract.id} />
+          <input type="hidden" name="slug" value={slug} />
 
           <div className="flex-1">
             <label className="text-xs text-gray-400">valid_from (YYYY-MM-DD)</label>
@@ -587,6 +336,7 @@ export default async function AdminPricingContractPage({
                         <form action={cloneVersionAction} className="flex items-center gap-2">
                           <input type="hidden" name="contract_id" value={typedContract.id} />
                           <input type="hidden" name="source_version_id" value={v.id} />
+                          <input type="hidden" name="slug" value={slug} />
                           <input
                             name="reason"
                             placeholder="Anledning (clone)"
@@ -635,6 +385,7 @@ export default async function AdminPricingContractPage({
           <form action={savePricingAction} className="mt-5 space-y-4">
             <input type="hidden" name="pricing_version_id" value={previewVersionId} />
             <input type="hidden" name="contract_type" value={typedContract.contract_type} />
+            <input type="hidden" name="slug" value={slug} />
 
             <div className="grid gap-4 md:grid-cols-4">
               {AREAS.map((area) => (
@@ -737,7 +488,8 @@ export default async function AdminPricingContractPage({
                 <span className="text-gray-500"> / mån</span>
               </div>
               <div className="text-xs text-gray-500">
-                Öre/kWh: {previewSpec.totalOrePerKwh.toFixed(2)} • inkl. moms: {previewSpec.totalMonthlyCostInclVatSek.toFixed(2)} SEK
+                Öre/kWh: {previewSpec.totalOrePerKwh.toFixed(2)} • inkl. moms:{' '}
+                {previewSpec.totalMonthlyCostInclVatSek.toFixed(2)} SEK
               </div>
             </div>
 
@@ -757,7 +509,9 @@ export default async function AdminPricingContractPage({
             </div>
           </div>
         ) : (
-          <div className="mt-4 text-sm text-gray-500">Preview kunde inte beräknas ännu (saknar data för vald version/område).</div>
+          <div className="mt-4 text-sm text-gray-500">
+            Preview kunde inte beräknas ännu (saknar data för vald version/område).
+          </div>
         )}
       </div>
 
@@ -774,6 +528,7 @@ export default async function AdminPricingContractPage({
           <form action={publishVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
             <input type="hidden" name="contract_id" value={typedContract.id} />
             <input type="hidden" name="version_id" value={previewVersionId} />
+            <input type="hidden" name="slug" value={slug} />
 
             <div className="flex-1">
               <label className="text-xs text-gray-400">Audit reason</label>
