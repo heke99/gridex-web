@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
+import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
 
 export const metadata: Metadata = {
   title: 'Elavtal – jämför spot, portfölj och fastpris',
@@ -10,36 +11,11 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://gridex.se/avtal' },
 }
 
-type ContractRow = {
-  id: string
-  name: string
-  slug: string
-  contract_type: 'spot_hourly' | 'portfolio_managed' | 'fixed'
-}
-
 export default async function AvtalPage() {
   const supabase = await createSupabaseServerClient()
   const nowIso = new Date().toISOString()
 
-  const { data: contracts } = await supabase
-    .from('contract_products')
-    .select('id,name,slug,contract_type')
-    .eq('is_active', true)
-
-  const contractIds = (contracts ?? []).map((c) => c.id)
-
-  const { data: published } = await supabase
-    .from('contract_pricing_versions')
-    .select('contract_id')
-    .in('contract_id', contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000'])
-    .eq('status', 'published')
-    .lte('valid_from', nowIso)
-
-  const publishedIds = new Set((published ?? []).map((r) => r.contract_id as string))
-
-  const visibleContracts = (contracts ?? []).filter((c) =>
-    publishedIds.has(c.id)
-  ) as ContractRow[]
+  const visibleContracts = await fetchLivePublishedContracts(supabase, nowIso)
 
   const faqItems = [
     {
@@ -73,16 +49,12 @@ export default async function AvtalPage() {
             className="rounded-2xl border border-white/10 bg-gray-950 p-8 flex flex-col justify-between"
           >
             <div>
-              <div className="text-white font-semibold text-lg">
-                {c.name}
-              </div>
+              <div className="text-white font-semibold text-lg">{c.name}</div>
 
-              <div className="text-xs text-gray-500 mt-1">
-                {c.contract_type}
-              </div>
+              <div className="text-xs text-gray-500 mt-1">{c.contract_type}</div>
 
               <p className="text-gray-400 mt-3 text-sm">
-                Publicerad prisversion per elområde. Full specifikation visas innan teckning.
+                LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.
               </p>
             </div>
 
@@ -94,6 +66,22 @@ export default async function AvtalPage() {
             </Link>
           </div>
         ))}
+
+        {visibleContracts.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-gray-950 p-8 md:col-span-3">
+            <div className="text-white font-semibold text-lg">Inga LIVE-avtal ännu</div>
+            <p className="text-gray-400 mt-2 text-sm">
+              När en prisversion publiceras och dess <span className="text-gray-200">valid_from</span> är idag eller tidigare,
+              kommer avtalet automatiskt att visas här.
+            </p>
+            <Link
+              href="/kundservice"
+              className="inline-flex mt-5 border border-white/10 hover:border-cyan-500/40 transition px-5 py-3 rounded-xl text-gray-200 text-sm"
+            >
+              Kontakta oss
+            </Link>
+          </div>
+        )}
       </div>
 
       <section className="space-y-4">

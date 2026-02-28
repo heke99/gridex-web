@@ -31,9 +31,12 @@ export type ContractAreaPricing = {
   monthly_fee_sek: number | null
 }
 
+/**
+ * ✅ Extended (not removed): pricing_version_id / contract_id may be null depending on schema / joins.
+ */
 export type SpotAreaSettings = {
-  pricing_version_id?: string
-  contract_id?: string
+  pricing_version_id?: string | null
+  contract_id?: string | null
   price_area: PriceArea
   markup_ore: number | null
   variable_fee_ore: number | null
@@ -41,9 +44,12 @@ export type SpotAreaSettings = {
   elcert_ore?: number | null
 }
 
+/**
+ * ✅ Extended (not removed): pricing_version_id / contract_id may be null depending on schema / joins.
+ */
 export type PortfolioAreaPricing = {
-  pricing_version_id?: string
-  contract_id?: string
+  pricing_version_id?: string | null
+  contract_id?: string | null
   price_area: PriceArea
   fixed_price_ore: number | null
   variable_fee_ore: number | null

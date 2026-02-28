@@ -16,14 +16,20 @@ import {
 } from './db'
 import { resolvePricingVersionForContract, type PricingVersionSelection } from './versioning'
 
+/**
+ * ✅ Enterprise type: resolve selectionMode type without "any" or nested infer chains.
+ * This keeps the function signature stable but avoids TS recursion/edge cases.
+ */
+type ResolverResult = Awaited<ReturnType<typeof resolvePricingVersionForContract>>
+type SelectionMode = ResolverResult extends { selectionMode: infer M } ? M : never
+
 export async function computeCustomerSpecDomain(params: {
   ctx: EngineContext
   contract: ContractProduct
   priceArea: PriceArea
   kwh: number
   selection?: PricingVersionSelection
-}): Promise<{ spec: CustomerSpecResult; selectionMode: ReturnType<typeof resolvePricingVersionForContract> extends Promise<infer R> ? R extends { selectionMode: infer M } ? M : never : never }> {
-
+}): Promise<{ spec: CustomerSpecResult; selectionMode: SelectionMode }> {
   const now = params.ctx.now ?? new Date()
   const vatRate = clampVatRate(safeNumber(params.ctx.vatRate, 0.25))
   assertPositiveKwh(params.kwh)
@@ -45,7 +51,11 @@ export async function computeCustomerSpecDomain(params: {
 
   const pricingVersionId = version.id
 
-  const areaPricing = await fetchAreaPricing(params.ctx.supabase, pricingVersionId, params.priceArea)
+  const areaPricing = await fetchAreaPricing(
+    params.ctx.supabase,
+    pricingVersionId,
+    params.priceArea
+  )
 
   const lines: MoneySpecLine[] = []
 
@@ -74,6 +84,7 @@ export async function computeCustomerSpecDomain(params: {
       contractId: params.contract.id,
       priceArea: params.priceArea,
     })
+
     spotKey = keyMode
     spotHasElcertOre = probes.spotHasElcertOre
 
@@ -110,6 +121,7 @@ export async function computeCustomerSpecDomain(params: {
       contractId: params.contract.id,
       priceArea: params.priceArea,
     })
+
     portKey = keyMode
     portfolioHasElcertOre = probes.portfolioHasElcertOre
 
@@ -151,6 +163,7 @@ export async function computeCustomerSpecDomain(params: {
     orePerKwh: totalOrePerKwh,
     sekPerMonth: totalMonthlyCostSek,
   })
+
   lines.push({
     key: 'total_incl_vat',
     label: `Totalt inkl. moms (${Math.round(vatRate * 100)}%)`,
@@ -171,7 +184,6 @@ export async function computeCustomerSpecDomain(params: {
       vatRate,
       spotBasis,
       sources: {
-        // Keep existing semantics: these are schema-driven fallbacks
         versionSelection: resolved.probes.versionsHasStatus ? 'status' : 'is_published',
         spotSettingsKey: spotKey,
         portfolioKey: portKey,

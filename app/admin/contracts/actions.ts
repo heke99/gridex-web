@@ -43,6 +43,8 @@ function slugify(input: string) {
 
 /**
  * Enterprise admin check
+ * - Prefer permission admin.access (RBAC)
+ * - Fallback to legacy admin_users + user_roles
  */
 async function assertAdmin(): Promise<{ userId: string }> {
   const supabase = await createSupabaseServerClient()
@@ -55,6 +57,7 @@ async function assertAdmin(): Promise<{ userId: string }> {
   if (userErr) throw new Error(userErr.message)
   if (!user) throw new Error('Not authenticated')
 
+  // New: permission-based
   const { data: hasPerm } = await supabase.rpc('gridex_has_permission', {
     p_user_id: user.id,
     p_permission: 'admin.access',
@@ -64,11 +67,13 @@ async function assertAdmin(): Promise<{ userId: string }> {
     return { userId: user.id }
   }
 
+  // Legacy: admin_users
   try {
     await requireAdminRole(supabase)
     return { userId: user.id }
   } catch {}
 
+  // Extra fallback: user_roles
   const { data: roleRows } = await supabase
     .from('user_roles')
     .select('role,is_active')
@@ -80,10 +85,7 @@ async function assertAdmin(): Promise<{ userId: string }> {
       ?.filter((r) => r.is_active !== false)
       .map((r) => r.role) ?? []
 
-  const isAdmin =
-    roleNames.includes('admin') ||
-    roleNames.includes('super_admin')
-
+  const isAdmin = roleNames.includes('admin') || roleNames.includes('super_admin')
   if (!isAdmin) throw new Error('Unauthorized')
 
   return { userId: user.id }
@@ -91,7 +93,10 @@ async function assertAdmin(): Promise<{ userId: string }> {
 
 /**
  * Create contract + auto draft pricing version
- * Ensures only one active per contract_type
+ * Ensures:
+ * - contract_products row
+ * - draft contract_pricing_versions row (is_published=false)
+ * - optional: enforce one active per contract_type (via update)
  */
 export async function createContract(formData: FormData) {
   const { userId } = await assertAdmin()
@@ -99,10 +104,7 @@ export async function createContract(formData: FormData) {
 
   const name = String(formData.get('name') ?? '').trim()
   const slugInput = String(formData.get('slug') ?? '').trim()
-  const contractType = String(
-    formData.get('contract_type') ?? 'spot_hourly'
-  ) as ContractType
-
+  const contractType = String(formData.get('contract_type') ?? 'spot_hourly') as ContractType
   const isActive = formData.get('is_active') ? true : false
 
   if (!name) throw new Error('Name is required')
@@ -110,7 +112,7 @@ export async function createContract(formData: FormData) {
   const slug = slugInput ? slugify(slugInput) : slugify(name)
   if (!slug) throw new Error('Slug could not be generated')
 
-  // 1️⃣ Insert contract
+  // 1) Insert contract
   const { data: contractRow, error: contractError } = await service
     .from('contract_products')
     .insert({
@@ -129,7 +131,7 @@ export async function createContract(formData: FormData) {
 
   const contractId = contractRow.id
 
-  // 2️⃣ Enforce only one active per type
+  // 2) Enforce only one active per type (business rule)
   if (isActive) {
     const { error: deactivateError } = await service
       .from('contract_products')
@@ -140,18 +142,24 @@ export async function createContract(formData: FormData) {
     if (deactivateError) throw new Error(deactivateError.message)
   }
 
-  // 3️⃣ Create initial draft pricing version
+  // 3) Create initial draft pricing version (NOW as valid_from, unpublished)
+  // NOTE: contract_pricing_versions is keyed by contract_id (NOT contract_product_id)
   const { error: pricingError } = await service
     .from('contract_pricing_versions')
     .insert({
-      contract_product_id: contractId,
+      contract_id: contractId,
       version_number: 1,
+      valid_from: new Date().toISOString(),
       is_published: false,
     })
 
   if (pricingError) throw new Error(pricingError.message)
 
+  // 4) Revalidate admin + public routes that depend on contracts/pricing
   revalidatePath('/admin/contracts')
+  revalidatePath('/admin/pricing')
+  revalidatePath('/avtal')
+  revalidatePath('/teckna')
 }
 
 /**
@@ -168,11 +176,7 @@ export async function setContractActive(formData: FormData) {
   if (!id) throw new Error('Missing id')
 
   const isActive =
-    isActiveStr === 'true'
-      ? true
-      : isActiveStr === 'false'
-      ? false
-      : null
+    isActiveStr === 'true' ? true : isActiveStr === 'false' ? false : null
 
   if (isActive === null) throw new Error('Invalid is_active value')
 
@@ -204,4 +208,7 @@ export async function setContractActive(formData: FormData) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/admin/contracts')
+  revalidatePath('/admin/pricing')
+  revalidatePath('/avtal')
+  revalidatePath('/teckna')
 }

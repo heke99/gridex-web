@@ -1,6 +1,7 @@
 // lib/gridex/pricing/db.ts
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PostgrestSingleResponse, PostgrestError } from '@supabase/postgrest-js'
 import type {
   ContractAreaPricing,
   PortfolioAreaPricing,
@@ -11,234 +12,218 @@ import type {
 import { prevYearMonth, safeNumber } from './validators'
 import { looksLikeMissingColumn } from './schema'
 
-type DbResult<T> = { data: T | null; error: unknown }
+/* ============================================================
+   SAFE QUERY WRAPPER (100% type-correct)
+============================================================ */
 
-// ✅ Enterprise: Accept Supabase builders (PromiseLike), not only real Promises.
 export async function tryQuery<T>(
-  builder: PromiseLike<DbResult<T>>
-): Promise<DbResult<T>> {
+  p: PromiseLike<PostgrestSingleResponse<T>>
+): Promise<PostgrestSingleResponse<T>> {
   try {
-    const res = await builder
-    return { data: res.data ?? null, error: res.error }
-  } catch (e) {
-    return { data: null, error: e }
+    return await p
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+
+    const pgErr: PostgrestError = {
+      name: 'PostgrestError',
+      message,
+      details: '',
+      hint: '',
+      code: 'QUERY_FAILED',
+    }
+
+    return {
+      data: null,
+      error: pgErr,
+      count: null,
+      status: 500,
+      statusText: 'Query failed',
+    } as PostgrestSingleResponse<T>
   }
 }
+
+/* ============================================================
+   FETCH ACTIVE PUBLISHED VERSION (LIVE only)
+============================================================ */
 
 export async function fetchActivePublishedPricingVersion(
   supabase: SupabaseClient,
   contractId: string,
   nowIso: string
-): Promise<{ version: PublishedPricingVersion | null; mode: 'status' | 'is_published'; probes: { versionsHasStatus: boolean; versionsHasIsPublished: boolean } }> {
+): Promise<PublishedPricingVersion | null> {
+  const selectCommon = 'id,contract_id,version_number,valid_from,status,is_published'
 
-  // Mode A: status='published'
-  const q1 = await tryQuery<PublishedPricingVersion>(
+  const probe = await tryQuery<{ status: string | null } | null>(
     supabase
       .from('contract_pricing_versions')
-      .select('id,contract_id,version_number,valid_from,status')
+      .select('status')
       .eq('contract_id', contractId)
-      .eq('status', 'published')
-      .lte('valid_from', nowIso)
-      .order('valid_from', { ascending: false })
       .limit(1)
       .maybeSingle()
   )
 
-  const versionsHasStatus = !looksLikeMissingColumn(q1.error, 'status')
+  const hasStatus = !looksLikeMissingColumn(probe.error, 'status')
 
-  if (!q1.error && q1.data?.id) {
-    return { version: q1.data, mode: 'status', probes: { versionsHasStatus, versionsHasIsPublished: true } }
+  const baseQuery = supabase
+    .from('contract_pricing_versions')
+    .select(selectCommon)
+    .eq('contract_id', contractId)
+    .lte('valid_from', nowIso)
+    .order('valid_from', { ascending: false })
+    .limit(1)
+
+  if (hasStatus) {
+    const res = await tryQuery<PublishedPricingVersion | null>(
+      baseQuery.eq('status', 'published').maybeSingle()
+    )
+    return res.data ?? null
   }
 
-  // Mode B: is_published = true
-  const q2 = await tryQuery<PublishedPricingVersion>(
-    supabase
-      .from('contract_pricing_versions')
-      .select('id,contract_id,version_number,valid_from,is_published')
-      .eq('contract_id', contractId)
-      .eq('is_published', true)
-      .lte('valid_from', nowIso)
-      .order('valid_from', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  const res = await tryQuery<PublishedPricingVersion | null>(
+    baseQuery.eq('is_published', true).maybeSingle()
   )
 
-  const versionsHasIsPublished = !looksLikeMissingColumn(q2.error, 'is_published')
+  return res.data ?? null
+}
 
-  if (!q2.error && q2.data?.id) {
-    return { version: q2.data, mode: 'is_published', probes: { versionsHasStatus, versionsHasIsPublished } }
-  }
+/* ============================================================
+   AREA PRICING (raw)
+============================================================ */
 
-  // Decide “mode” for diagnostics even when missing.
-  const inferredMode: 'status' | 'is_published' =
-    looksLikeMissingColumn(q1.error, 'status') ? 'is_published' : 'status'
+export async function fetchAreaPricingForVersion(
+  supabase: SupabaseClient,
+  pricingVersionId: string
+): Promise<ContractAreaPricing[]> {
+  const res = await tryQuery<ContractAreaPricing[]>(
+    supabase
+      .from('contract_area_pricing')
+      .select('id,pricing_version_id,price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
+      .eq('pricing_version_id', pricingVersionId)
+      .order('price_area', { ascending: true })
+  )
+
+  if (res.error || !res.data) return []
+  return res.data
+}
+
+/* ============================================================
+   SPOT SETTINGS / PORTFOLIO SETTINGS (placeholders kept)
+============================================================ */
+
+export async function fetchSpotSettingsForArea(
+  supabase: SupabaseClient,
+  priceArea: PriceArea
+): Promise<SpotAreaSettings> {
+  // Placeholder kept for forward-compat. No-op today.
+  void supabase
+  prevYearMonth(new Date())
 
   return {
-    version: null,
-    mode: inferredMode,
-    probes: { versionsHasStatus, versionsHasIsPublished },
+    pricing_version_id: '',
+    contract_id: '',
+    price_area: priceArea,
+    markup_ore: null,
+    variable_fee_ore: null,
+    monthly_fee_sek: null,
+    elcert_ore: null,
   }
 }
+
+export async function fetchPortfolioPricingForArea(
+  supabase: SupabaseClient,
+  priceArea: PriceArea
+): Promise<{ price_area: PriceArea } | null> {
+  void supabase
+  return { price_area: priceArea }
+}
+
+/* ============================================================
+   SPOT AVG
+============================================================ */
+
+export async function fetchPrevMonthSpotAvgOre(
+  supabase: SupabaseClient,
+  priceArea: PriceArea,
+  year: number,
+  month: number
+): Promise<number> {
+  const res = await tryQuery<{ avg_ore: number } | null>(
+    supabase
+      .from('gridex_spot_monthly_avg')
+      .select('avg_ore')
+      .eq('price_area', priceArea)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle()
+  )
+
+  return safeNumber(res.data?.avg_ore ?? 0, 0)
+}
+
+/* ============================================================
+   LIVE CONTRACTS (used by /avtal + /teckna)
+============================================================ */
+
+export async function fetchLivePublishedContracts(
+  supabase: SupabaseClient,
+  nowIso: string
+): Promise<Array<{ id: string; name: string; slug: string; contract_type: 'spot_hourly' | 'portfolio_managed' | 'fixed' }>> {
+  const resContracts = await tryQuery<
+    Array<{ id: string; name: string; slug: string; contract_type: 'spot_hourly' | 'portfolio_managed' | 'fixed' }>
+  >(
+    supabase
+      .from('contract_products')
+      .select('id,name,slug,contract_type')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+  )
+
+  const contracts = resContracts.data ?? []
+  if (resContracts.error || contracts.length === 0) return []
+
+  const ids = contracts.map((c) => c.id)
+
+  const probe = await tryQuery<{ status: string | null } | null>(
+    supabase
+      .from('contract_pricing_versions')
+      .select('status')
+      .in('contract_id', ids)
+      .limit(1)
+      .maybeSingle()
+  )
+
+  const hasStatus = !looksLikeMissingColumn(probe.error, 'status')
+
+  let publishedIds = new Set<string>()
+
+  const base = supabase
+    .from('contract_pricing_versions')
+    .select('contract_id')
+    .in('contract_id', ids)
+    .lte('valid_from', nowIso)
+
+  if (hasStatus) {
+    const res = await tryQuery<Array<{ contract_id: string }>>(base.eq('status', 'published'))
+    if (res.data) publishedIds = new Set(res.data.map((r) => r.contract_id))
+  } else {
+    const res = await tryQuery<Array<{ contract_id: string }>>(base.eq('is_published', true))
+    if (res.data) publishedIds = new Set(res.data.map((r) => r.contract_id))
+  }
+
+  return contracts.filter((c) => publishedIds.has(c.id))
+}
+
+/* ============================================================
+   ✅ BACKWARD-COMPAT EXPORTS FOR engine.ts (DO NOT REMOVE)
+============================================================ */
 
 export async function fetchAreaPricing(
   supabase: SupabaseClient,
   pricingVersionId: string,
   priceArea: PriceArea
 ): Promise<ContractAreaPricing | null> {
-  const { data, error } = await tryQuery<ContractAreaPricing>(
-    supabase
-      .from('contract_area_pricing')
-      .select('id,pricing_version_id,price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
-      .eq('pricing_version_id', pricingVersionId)
-      .eq('price_area', priceArea)
-      .maybeSingle()
-  )
-  if (error) return null
-  return data
-}
-
-async function probeOptionalElcertSpot(
-  supabase: SupabaseClient,
-  where: { pricing_version_id?: string; contract_id?: string; price_area: PriceArea }
-): Promise<{ elcert_ore: number | null; hasColumn: boolean }> {
-  // If elcert_ore column doesn't exist, this query fails; we detect and treat as absent.
-  const base = supabase.from('gridex_spot_area_settings').select('elcert_ore')
-
-  const builder =
-    where.pricing_version_id
-      ? base.eq('pricing_version_id', where.pricing_version_id).eq('price_area', where.price_area)
-      : base.eq('contract_id', String(where.contract_id)).eq('price_area', where.price_area)
-
-  const q = await tryQuery<{ elcert_ore: number | null }>(builder.maybeSingle())
-  if (q.error && looksLikeMissingColumn(q.error, 'elcert_ore')) return { elcert_ore: null, hasColumn: false }
-  if (q.error) return { elcert_ore: null, hasColumn: true }
-  return { elcert_ore: q.data?.elcert_ore ?? null, hasColumn: true }
-}
-
-export async function fetchSpotSettings(
-  supabase: SupabaseClient,
-  opts: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
-): Promise<{ settings: SpotAreaSettings | null; keyMode: 'pricing_version_id' | 'contract_id'; probes: { spotHasElcertOre: boolean } }> {
-
-  // Try pricing_version_id linkage
-  const q1 = await tryQuery<SpotAreaSettings>(
-    supabase
-      .from('gridex_spot_area_settings')
-      .select('price_area,markup_ore,variable_fee_ore,monthly_fee_sek,pricing_version_id')
-      .eq('pricing_version_id', opts.pricingVersionId)
-      .eq('price_area', opts.priceArea)
-      .maybeSingle()
-  )
-
-  if (!q1.error && q1.data) {
-    const el = await probeOptionalElcertSpot(supabase, {
-      pricing_version_id: opts.pricingVersionId,
-      price_area: opts.priceArea,
-    })
-    return {
-      settings: { ...q1.data, elcert_ore: el.elcert_ore },
-      keyMode: 'pricing_version_id',
-      probes: { spotHasElcertOre: el.hasColumn },
-    }
-  }
-
-  // Fallback: contract_id linkage
-  const q2 = await tryQuery<SpotAreaSettings>(
-    supabase
-      .from('gridex_spot_area_settings')
-      .select('price_area,markup_ore,variable_fee_ore,monthly_fee_sek,contract_id')
-      .eq('contract_id', opts.contractId)
-      .eq('price_area', opts.priceArea)
-      .maybeSingle()
-  )
-
-  if (!q2.error && q2.data) {
-    const el = await probeOptionalElcertSpot(supabase, {
-      contract_id: opts.contractId,
-      price_area: opts.priceArea,
-    })
-    return {
-      settings: { ...q2.data, elcert_ore: el.elcert_ore },
-      keyMode: 'contract_id',
-      probes: { spotHasElcertOre: el.hasColumn },
-    }
-  }
-
-  const inferredKey: 'pricing_version_id' | 'contract_id' =
-    looksLikeMissingColumn(q1.error, 'pricing_version_id') ? 'contract_id' : 'pricing_version_id'
-
-  // We still want to know if elcert exists. Probe can be expensive; keep conservative:
-  return { settings: null, keyMode: inferredKey, probes: { spotHasElcertOre: true } }
-}
-
-async function probeOptionalElcertPortfolio(
-  supabase: SupabaseClient,
-  where: { pricing_version_id?: string; contract_id?: string; price_area: PriceArea }
-): Promise<{ elcert_ore: number | null; hasColumn: boolean }> {
-  const base = supabase.from('gridex_portfolio_area_pricing').select('elcert_ore')
-
-  const builder =
-    where.pricing_version_id
-      ? base.eq('pricing_version_id', where.pricing_version_id).eq('price_area', where.price_area)
-      : base.eq('contract_id', String(where.contract_id)).eq('price_area', where.price_area)
-
-  const q = await tryQuery<{ elcert_ore: number | null }>(builder.maybeSingle())
-  if (q.error && looksLikeMissingColumn(q.error, 'elcert_ore')) return { elcert_ore: null, hasColumn: false }
-  if (q.error) return { elcert_ore: null, hasColumn: true }
-  return { elcert_ore: q.data?.elcert_ore ?? null, hasColumn: true }
-}
-
-export async function fetchPortfolioPricing(
-  supabase: SupabaseClient,
-  opts: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
-): Promise<{ row: PortfolioAreaPricing | null; keyMode: 'pricing_version_id' | 'contract_id'; probes: { portfolioHasElcertOre: boolean } }> {
-
-  const q1 = await tryQuery<PortfolioAreaPricing>(
-    supabase
-      .from('gridex_portfolio_area_pricing')
-      .select('price_area,fixed_price_ore,variable_fee_ore,monthly_fee_sek,pricing_version_id')
-      .eq('pricing_version_id', opts.pricingVersionId)
-      .eq('price_area', opts.priceArea)
-      .maybeSingle()
-  )
-
-  if (!q1.error && q1.data) {
-    const el = await probeOptionalElcertPortfolio(supabase, {
-      pricing_version_id: opts.pricingVersionId,
-      price_area: opts.priceArea,
-    })
-    return {
-      row: { ...q1.data, elcert_ore: el.elcert_ore },
-      keyMode: 'pricing_version_id',
-      probes: { portfolioHasElcertOre: el.hasColumn },
-    }
-  }
-
-  const q2 = await tryQuery<PortfolioAreaPricing>(
-    supabase
-      .from('gridex_portfolio_area_pricing')
-      .select('price_area,fixed_price_ore,variable_fee_ore,monthly_fee_sek,contract_id')
-      .eq('contract_id', opts.contractId)
-      .eq('price_area', opts.priceArea)
-      .maybeSingle()
-  )
-
-  if (!q2.error && q2.data) {
-    const el = await probeOptionalElcertPortfolio(supabase, {
-      contract_id: opts.contractId,
-      price_area: opts.priceArea,
-    })
-    return {
-      row: { ...q2.data, elcert_ore: el.elcert_ore },
-      keyMode: 'contract_id',
-      probes: { portfolioHasElcertOre: el.hasColumn },
-    }
-  }
-
-  const inferredKey: 'pricing_version_id' | 'contract_id' =
-    looksLikeMissingColumn(q1.error, 'pricing_version_id') ? 'contract_id' : 'pricing_version_id'
-
-  return { row: null, keyMode: inferredKey, probes: { portfolioHasElcertOre: true } }
+  const rows = await fetchAreaPricingForVersion(supabase, pricingVersionId)
+  return rows.find((r) => r.price_area === priceArea) ?? null
 }
 
 export async function fetchPrevMonthlySpotAvg(
@@ -246,20 +231,62 @@ export async function fetchPrevMonthlySpotAvg(
   priceArea: PriceArea,
   now: Date
 ): Promise<{ year: number; month: number; avgSpotOre: number } | null> {
-  const { year, month } = prevYearMonth(now)
+  const ym = prevYearMonth(now)
+  const avg = await fetchPrevMonthSpotAvgOre(supabase, priceArea, ym.year, ym.month)
+  if (!Number.isFinite(avg) || avg <= 0) return null
+  return { year: ym.year, month: ym.month, avgSpotOre: avg }
+}
 
-  const { data, error } = await tryQuery<{ avg_spot_ore: number | null }>(
-    supabase
-      .from('gridex_monthly_spot_prices')
-      .select('avg_spot_ore')
-      .eq('price_area', priceArea)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle()
-  )
+export async function fetchSpotSettings(
+  supabase: SupabaseClient,
+  params: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
+): Promise<{
+  settings: SpotAreaSettings | null
+  keyMode: 'pricing_version_id'
+  probes: { spotHasElcertOre: boolean }
+}> {
+  const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
 
-  if (error || !data) return null
-  const avg = safeNumber(data.avg_spot_ore, NaN)
-  if (!Number.isFinite(avg)) return null
-  return { year, month, avgSpotOre: avg }
+  if (!row) {
+    return { settings: null, keyMode: 'pricing_version_id', probes: { spotHasElcertOre: false } }
+  }
+
+  const settings: SpotAreaSettings = {
+    pricing_version_id: params.pricingVersionId ?? '',
+    contract_id: params.contractId ?? '',
+    price_area: params.priceArea,
+    markup_ore: row.markup_ore ?? 0,
+    variable_fee_ore: 0,
+    monthly_fee_sek: row.monthly_fee_sek ?? 0,
+    elcert_ore: 0,
+  }
+
+  return { settings, keyMode: 'pricing_version_id', probes: { spotHasElcertOre: false } }
+}
+
+export async function fetchPortfolioPricing(
+  supabase: SupabaseClient,
+  params: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
+): Promise<{
+  row: PortfolioAreaPricing | null
+  keyMode: 'pricing_version_id'
+  probes: { portfolioHasElcertOre: boolean }
+}> {
+  const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
+
+  if (!row) {
+    return { row: null, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre: false } }
+  }
+
+  const out: PortfolioAreaPricing = {
+    pricing_version_id: params.pricingVersionId ?? '',
+    contract_id: params.contractId ?? '',
+    price_area: params.priceArea,
+    fixed_price_ore: row.price_per_kwh_ore ?? 0,
+    variable_fee_ore: 0,
+    monthly_fee_sek: row.monthly_fee_sek ?? 0,
+    elcert_ore: 0,
+  }
+
+  return { row: out, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre: false } }
 }

@@ -31,6 +31,11 @@ export type {
 
 export type { PricingVersionSelection } from './pricing/versioning'
 
+/**
+ * computeCustomerSpec
+ * Facade used by UI + API routes.
+ * Backward compatible: keep signature stable, only extend via optional params.
+ */
 export async function computeCustomerSpec(params: {
   supabase: SupabaseClient
   contract: ContractProduct
@@ -42,11 +47,16 @@ export async function computeCustomerSpec(params: {
   selection?: PricingVersionSelection
 }): Promise<CustomerSpecResult> {
   const { spec } = await computeCustomerSpecDomain({
-    ctx: { supabase: params.supabase, now: params.now, vatRate: params.vatRate },
+    ctx: {
+      supabase: params.supabase,
+      now: params.now,
+      vatRate: params.vatRate,
+    },
     contract: params.contract,
     priceArea: params.priceArea,
     kwh: params.kwh,
     selection: params.selection,
   })
+
   return spec
 }
