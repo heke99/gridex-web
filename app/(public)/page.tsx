@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ElectricityCalculator from '@/components/ElectricityCalculator'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
+import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
 
 export const metadata: Metadata = {
   title: 'Elpris idag – Billiga & datadrivna elavtal',
@@ -22,60 +23,19 @@ export default async function HomePage() {
   const supabase = await createSupabaseServerClient()
   const nowIso = new Date().toISOString()
 
-  // 1) Hämta aktiva kontrakt
-  const { data: contracts, error: cErr } = await supabase
-    .from('contract_products')
-    .select('id,name,slug,is_active')
-    .eq('is_active', true)
-    .order('name', { ascending: true })
+  // 🔥 Enterprise: använd EXAKT samma LIVE-logik som /avtal och /teckna
+  // (ingen egen query mot contract_products/contract_pricing_versions här längre)
+  const visibleContracts = await fetchLivePublishedContracts(supabase, nowIso)
 
-  if (cErr) {
-    // Fail-safe: visa sidan utan kalkylator-kontrakt om DB felar
-    return (
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <h1 className="text-4xl font-bold">Elpris idag</h1>
-        <p className="text-gray-400 mt-3">
-          Vi upplever just nu ett tekniskt fel. För support: support@gridex.se
-        </p>
-      </div>
-    )
-  }
-
-  const contractIds = (contracts ?? []).map((c) => c.id)
-
-  // 2) Hämta vilka kontrakt som har publicerad prisversion giltig nu
-  // Enterprise: endast “published” med valid_from <= nu
-  const { data: publishedRows, error: pErr } = await supabase
-    .from('contract_pricing_versions')
-    .select('contract_id')
-    .in('contract_id', contractIds.length ? contractIds : ['00000000-0000-0000-0000-000000000000'])
-    .eq('status', 'published')
-    .lte('valid_from', nowIso)
-
-  if (pErr) {
-    // Om versions-tabellen inte är redo än, visa ändå kontrakten (men kalkylatorn kan svara med “ingen publicerad version”)
-    const options: ContractOption[] = (contracts ?? []).map((c) => ({
-      name: c.name,
-      slug: c.slug,
+  const options: ContractOption[] = visibleContracts
+    .map((item) => ({
+      name: item.contract.name,
+      slug: item.contract.slug,
     }))
-
-    return (
-      <div className="max-w-6xl mx-auto px-6 py-16 space-y-16">
-        <HeroBlock />
-        <ElectricityCalculator contracts={options} />
-        <HomeSeoBlocks />
-      </div>
+    .filter(
+      (o): o is ContractOption =>
+        typeof o.slug === 'string' && o.slug.length > 0
     )
-  }
-
-  const publishedContractIds = new Set((publishedRows ?? []).map((r) => r.contract_id as string))
-
-  const options: ContractOption[] = (contracts ?? [])
-    .filter((c) => publishedContractIds.has(c.id))
-    .map((c) => ({
-      name: c.name,
-      slug: c.slug,
-    }))
 
   const faqItems = [
     {
@@ -212,7 +172,10 @@ function HomeSeoBlocks() {
           <p className="text-gray-400 mt-2 text-sm">
             Tim/spot, portfölj och fastpris – per elområde. Du ser exakt specifikation innan du väljer.
           </p>
-          <Link href="/avtal" className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm">
+          <Link
+            href="/avtal"
+            className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm"
+          >
             Läs mer →
           </Link>
         </div>
@@ -222,7 +185,10 @@ function HomeSeoBlocks() {
           <p className="text-gray-400 mt-2 text-sm">
             Gridex bygger på områdesbaserad prismotor (SE1–SE4) med publicerade prisversioner.
           </p>
-          <Link href="/elpris-se3" className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm">
+          <Link
+            href="/elpris-se3"
+            className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm"
+          >
             Se elpris per område →
           </Link>
         </div>
@@ -232,7 +198,10 @@ function HomeSeoBlocks() {
           <p className="text-gray-400 mt-2 text-sm">
             Skicka in ärende via formulär eller maila direkt.
           </p>
-          <Link href="/kundservice" className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm">
+          <Link
+            href="/kundservice"
+            className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm"
+          >
             Kontakta oss →
           </Link>
         </div>
@@ -246,16 +215,28 @@ function HomeSeoBlocks() {
         </p>
 
         <div className="grid md:grid-cols-4 gap-4 text-sm">
-          <Link href="/elpris-se1" className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition">
+          <Link
+            href="/elpris-se1"
+            className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition"
+          >
             Elpris SE1
           </Link>
-          <Link href="/elpris-se2" className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition">
+          <Link
+            href="/elpris-se2"
+            className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition"
+          >
             Elpris SE2
           </Link>
-          <Link href="/elpris-se3" className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition">
+          <Link
+            href="/elpris-se3"
+            className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition"
+          >
             Elpris SE3
           </Link>
-          <Link href="/elpris-se4" className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition">
+          <Link
+            href="/elpris-se4"
+            className="border border-white/10 p-4 rounded-xl hover:border-cyan-500/40 transition"
+          >
             Elpris SE4
           </Link>
         </div>
