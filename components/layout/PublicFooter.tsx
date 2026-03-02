@@ -6,7 +6,7 @@ export default function PublicFooter() {
       <div className="max-w-6xl mx-auto px-6 py-12 grid gap-10 md:grid-cols-4 text-sm text-gray-400">
         <div className="space-y-2">
           <div className="text-white font-semibold">Gridex AB</div>
-          <div>Org.nr: 550416-7149</div>
+          <div>Org.nr: 559416-7149</div>
           <div>
             E-post:{' '}
             <a href="mailto:support@gridex.se" className="text-cyan-300 hover:text-cyan-200">
@@ -14,7 +14,7 @@ export default function PublicFooter() {
             </a>
           </div>
           <div className="text-xs text-gray-500 pt-2">
-            Gridex är en digital plattform för elavtal och prisinformation per elområde (SE1–SE4).
+            Gridex är en digital plattform för elavtal och prisinformation
           </div>
         </div>
 
@@ -36,7 +36,7 @@ export default function PublicFooter() {
           <Link href="/kundservice" className="block hover:text-white">Kontaktsida</Link>
           <a href="mailto:support@gridex.se" className="block hover:text-white">Maila support</a>
           <div className="text-xs text-gray-500 pt-2">
-            Support: vardagar 09–17 (exempel). Anpassa senare om ni vill.
+            Support: vardagar 09–17
           </div>
         </div>
       </div>

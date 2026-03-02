@@ -6,8 +6,17 @@ import {
   type PriceArea,
   type PricingVersionSelection,
 } from '@/lib/gridex/previewEngine'
+import type { CustomerSpecResult, MoneySpecLine } from '@/lib/gridex/pricing/types'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
+
+/* ============================================================
+   Error Type
+============================================================ */
+
+type ApiError = Error & {
+  status?: number
+}
 
 /* ============================================================
    Helpers
@@ -19,12 +28,26 @@ function normalizePostalCode(input: string): string {
 
 function assertValidInput(kwh: number, contractSlug: string): void {
   if (!Number.isFinite(kwh) || kwh <= 0 || !contractSlug) {
-    const e = new Error('Missing/invalid fields: kwh, contractSlug') as Error & {
-      status?: number
-    }
+    const e: ApiError = new Error('Missing/invalid fields: kwh, contractSlug')
     e.status = 400
     throw e
   }
+}
+
+function assertSpecificationIntegrity(
+  spec: CustomerSpecResult
+): void {
+  if (!spec)
+    throw new Error('Pricing engine returned empty spec')
+
+  if (!Number.isFinite(spec.totalOrePerKwh))
+    throw new Error('Missing totalOrePerKwh')
+
+  if (!Number.isFinite(spec.totalMonthlyCostSek))
+    throw new Error('Missing totalMonthlyCostSek')
+
+  if (!Array.isArray(spec.lines))
+    throw new Error('Missing specification lines')
 }
 
 /* ============================================================
@@ -49,18 +72,16 @@ async function resolvePriceArea(
     .maybeSingle()
 
   if (error) {
-    const e = new Error(error.message) as Error & { status?: number }
+    const e: ApiError = new Error(error.message)
     e.status = 500
     throw e
   }
 
   if (!data?.price_area) {
-    const e = new Error(
-      'Postnummer saknar elområdes-mapping. Lägg till i Admin → Postnummer.'
-    ) as Error & { status?: number; meta?: unknown }
-
+    const e: ApiError = new Error(
+      'Postnummer saknar elområdes-mapping.'
+    )
     e.status = 422
-    e.meta = { missingPostalCode: postal }
     throw e
   }
 
@@ -91,13 +112,13 @@ async function resolveActiveContract(
     .single()
 
   if (error) {
-    const e = new Error(error.message) as Error & { status?: number }
+    const e: ApiError = new Error(error.message)
     e.status = 500
     throw e
   }
 
   if (!data) {
-    const e = new Error('Contract not found') as Error & { status?: number }
+    const e: ApiError = new Error('Contract not found')
     e.status = 404
     throw e
   }
@@ -118,7 +139,6 @@ export async function POST(req: Request) {
     const kwh = Number(body.kwh ?? 0)
     const contractSlug = String(body.contractSlug ?? '').trim()
 
-    // Optional preview override (admin use)
     const selection =
       (body.pricingSelection as PricingVersionSelection | undefined) ?? undefined
 
@@ -126,21 +146,18 @@ export async function POST(req: Request) {
 
     const supabase = await createSupabaseServerClient()
 
-    // 1️⃣ Resolve area
     const priceArea = await resolvePriceArea(
       supabase,
       postalCodeRaw,
       manualArea
     )
 
-    // 2️⃣ Resolve contract
     const contract = await resolveActiveContract(
       supabase,
       contractSlug
     )
 
-    // 3️⃣ SINGLE SOURCE OF TRUTH
-    const spec = await computeCustomerSpec({
+    const spec: CustomerSpecResult = await computeCustomerSpec({
       supabase,
       contract,
       priceArea,
@@ -148,7 +165,50 @@ export async function POST(req: Request) {
       selection,
     })
 
-    // 4️⃣ Return same structure as before (no breaking change)
+    // 🔥 HARD GUARANTEE
+    assertSpecificationIntegrity(spec)
+
+    /* ============================================================
+       Build FRONTEND-SAFE specification
+    ============================================================ */
+
+    const energyLine = spec.lines.find(
+      (l: MoneySpecLine) =>
+        l.key === 'spot' || l.key === 'fixed'
+    )
+
+    const markupLine = spec.lines.find(
+      (l: MoneySpecLine) => l.key === 'markup'
+    )
+
+    const variableLine = spec.lines.find(
+      (l: MoneySpecLine) => l.key === 'variable'
+    )
+
+    const monthlyLine = spec.lines.find(
+      (l: MoneySpecLine) => l.key === 'monthly'
+    )
+
+    const isSpot = contract.contract_type === 'spot_hourly'
+
+    const basis = isSpot
+      ? {
+          type: 'previous_month_avg_spot' as const,
+          year: spec.diagnostics?.spotBasis?.year ?? new Date().getFullYear(),
+          month: spec.diagnostics?.spotBasis?.month ?? new Date().getMonth() + 1,
+          spotAvgOre: energyLine?.orePerKwh ?? 0,
+        }
+      : {
+          type: 'admin_fixed_price' as const,
+          fixedPriceOre: energyLine?.orePerKwh ?? 0,
+        }
+
+    const fees = {
+      markupOre: markupLine?.orePerKwh,
+      variableFeeOre: variableLine?.orePerKwh ?? 0,
+      monthlyFeeSek: monthlyLine?.sekPerMonth ?? 0,
+    }
+
     return NextResponse.json({
       contract: {
         slug: contract.slug,
@@ -159,31 +219,19 @@ export async function POST(req: Request) {
       kwh,
       pricePerKwhOre: spec.totalOrePerKwh,
       totalMonthlyCostSek: spec.totalMonthlyCostSek,
-      pricingVersion: {
-        id: spec.pricingVersion.id,
-        versionNumber: spec.pricingVersion.version_number,
-        validFrom: spec.pricingVersion.valid_from,
-        status: spec.pricingVersion.status ?? null,
-        isPublished: spec.pricingVersion.is_published ?? null,
-      },
       specification: {
-        totalOrePerKwh: spec.totalOrePerKwh,
-        totalMonthlyCostSek: spec.totalMonthlyCostSek,
-        totalMonthlyCostInclVatSek: spec.totalMonthlyCostInclVatSek,
-        energySubtotalSek: spec.energySubtotalSek,
-        lines: spec.lines,
-        diagnostics: spec.diagnostics,
+        basis,
+        fees,
       },
     })
   } catch (err: unknown) {
-    const e = err as { message?: string; status?: number; meta?: unknown }
+    const error = err as ApiError
 
     return NextResponse.json(
       {
-        error: e?.message ?? 'Internal server error',
-        ...(e?.meta ?? {}),
+        error: error.message ?? 'Internal server error',
       },
-      { status: e?.status ?? 500 }
+      { status: error.status ?? 500 }
     )
   }
 }

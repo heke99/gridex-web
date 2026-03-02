@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: Props) {
         <section className="flex-1">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            Gridex Platform • Secure Access
+            Gridex Platform • 
           </div>
 
           <h1 className="mt-6 text-3xl font-semibold tracking-tight md:text-5xl">
@@ -39,7 +39,6 @@ export default async function LoginPage({ searchParams }: Props) {
 
           <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 md:text-base">
             Säker autentisering till Gridex-plattformen.
-            Åtkomst styrs via rollbaserad behörighet och server-side validering.
           </p>
 
           <div className="mt-8 grid max-w-xl grid-cols-1 gap-4 md:grid-cols-2">
