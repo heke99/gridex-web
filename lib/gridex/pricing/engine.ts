@@ -67,6 +67,7 @@ export async function computeCustomerSpecDomain(params: {
 
   let spotBasis: { year: number; month: number; avgSpotOre: number } | undefined
 
+  // These are kept to preserve existing diagnostics shape (enterprise)
   let spotKey: 'pricing_version_id' | 'contract_id' = 'pricing_version_id'
   let portKey: 'pricing_version_id' | 'contract_id' = 'pricing_version_id'
 
@@ -74,8 +75,14 @@ export async function computeCustomerSpecDomain(params: {
   let portfolioHasElcertOre = true
 
   if (params.contract.contract_type === 'spot_hourly') {
+    // ✅ Enterprise: spot basis uses ACTIVE admin-selected year/month (with fallback logic in db.ts)
     const spot = await fetchPrevMonthlySpotAvg(params.ctx.supabase, params.priceArea, now)
-    if (!spot) throw new Error('Spot-pris (föregående månads snitt) saknas för området.')
+    if (!spot) {
+      throw new Error(
+        'Spot-pris (aktiv vald period eller fallback föregående månad) saknas för området.'
+      )
+    }
+
     spotBasis = spot
     baseEnergyOre = spot.avgSpotOre
 
@@ -89,10 +96,11 @@ export async function computeCustomerSpecDomain(params: {
     spotHasElcertOre = probes.spotHasElcertOre
 
     if (!settings) {
+      // Backward-compat fallback (should not happen often once data is complete)
       markupOre = safeNumber(areaPricing?.markup_ore, 0)
       monthlyFeeSek = safeNumber(areaPricing?.monthly_fee_sek, 0)
-      variableFeeOre = 0
-      elcertOre = 0
+      variableFeeOre = safeNumber(areaPricing?.variable_fee_ore, 0)
+      elcertOre = safeNumber(areaPricing?.elcert_ore, 0)
     } else {
       markupOre = safeNumber(settings.markup_ore, 0)
       variableFeeOre = safeNumber(settings.variable_fee_ore, 0)
@@ -102,7 +110,7 @@ export async function computeCustomerSpecDomain(params: {
 
     lines.push({
       key: 'spot',
-      label: 'Elpris (snitt spot, föreg. månad)',
+      label: 'Elpris (snitt spot, aktiv period)',
       orePerKwh: baseEnergyOre,
       note: `${spot.year}-${String(spot.month).padStart(2, '0')}`,
     })
@@ -131,10 +139,11 @@ export async function computeCustomerSpecDomain(params: {
       monthlyFeeSek = safeNumber(portfolio.monthly_fee_sek, 0)
       elcertOre = safeNumber(portfolio.elcert_ore, 0)
     } else {
+      // Backward-compat fallback (should not happen often once data is complete)
       baseEnergyOre = safeNumber(areaPricing?.price_per_kwh_ore, 0)
       monthlyFeeSek = safeNumber(areaPricing?.monthly_fee_sek, 0)
-      variableFeeOre = 0
-      elcertOre = 0
+      variableFeeOre = safeNumber(areaPricing?.variable_fee_ore, 0)
+      elcertOre = safeNumber(areaPricing?.elcert_ore, 0)
     }
 
     lines.push({

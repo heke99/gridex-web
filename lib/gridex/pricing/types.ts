@@ -10,7 +10,15 @@ export type PublishedPricingVersion = {
   contract_id: string
   version_number: number | null
   valid_from: string
+  /**
+   * Enterprise: authoritative status when available.
+   * Expected values: 'draft' | 'published'
+   */
   status?: string | null
+  /**
+   * Backward compat: kept for older schema + existing code paths.
+   * When status exists, DB trigger keeps these in sync.
+   */
   is_published?: boolean | null
 }
 
@@ -26,8 +34,14 @@ export type ContractAreaPricing = {
   id: string
   pricing_version_id: string
   price_area: PriceArea
+  // fixed/portfolio
   price_per_kwh_ore: number | null
+  // spot
   markup_ore: number | null
+
+  // shared
+  variable_fee_ore: number | null
+  elcert_ore: number | null
   monthly_fee_sek: number | null
 }
 

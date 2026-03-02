@@ -24,12 +24,9 @@ function hasAny(haystack: string[], needles?: string[]) {
 }
 
 function canAccess(item: NavItem, roles: string[], permissions: string[]) {
-  // Either roles OR permissions can grant access.
   const roleOk = hasAny(roles, item.rolesAny)
   const permOk = hasAny(permissions, item.permissionsAny)
 
-  // If neither guard is defined -> allowed.
-  // If one defined -> must satisfy at least one of defined guards.
   const hasRoleGuard = !!item.rolesAny && item.rolesAny.length > 0
   const hasPermGuard = !!item.permissionsAny && item.permissionsAny.length > 0
   if (!hasRoleGuard && !hasPermGuard) return true
@@ -100,8 +97,6 @@ function SidebarLink({
 }
 
 async function getActivePathnameFromHeaders(): Promise<string> {
-  // Next.js doesn't expose pathname directly in server components.
-  // We infer from headers when available (RSC), otherwise fallback.
   const h = await headers()
   return h.get('x-invoke-path') || h.get('next-url') || ''
 }
@@ -158,7 +153,13 @@ const NAV: NavGroup[] = [
         label: 'Månads-Spot',
         href: '/admin/monthly-spot',
         description: 'Importunderlag • priskomponenter',
-        permissionsAny: ['admin.access'],
+        // ✅ ENTERPRISE FIX: Allow proper spot roles
+        permissionsAny: [
+          'spot.write',
+          'spot.publish',
+          'pricing.write',
+          'admin.access',
+        ],
       },
       {
         label: 'Spot-inställningar',
@@ -279,7 +280,6 @@ export default async function AdminShell({
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="grid lg:grid-cols-[300px_1fr]">
-        {/* Sidebar */}
         <aside className="border-r border-gray-800 bg-gray-950/40">
           <div className="px-6 py-5 border-b border-gray-800">
             <div className="flex items-center justify-between gap-3">
@@ -354,7 +354,6 @@ export default async function AdminShell({
           </nav>
         </aside>
 
-        {/* Main */}
         <div>
           <div className="border-b border-gray-800">
             <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">

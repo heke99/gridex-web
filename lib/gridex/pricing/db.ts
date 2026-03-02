@@ -13,7 +13,7 @@ import { prevYearMonth, safeNumber } from './validators'
 import { looksLikeMissingColumn } from './schema'
 
 /* ============================================================
-   SAFE QUERY WRAPPER (100% type-correct)
+   SAFE QUERY WRAPPER
 ============================================================ */
 
 export async function tryQuery<T>(
@@ -44,7 +44,21 @@ export async function tryQuery<T>(
 
 /* ============================================================
    FETCH ACTIVE PUBLISHED VERSION (LIVE only)
+   ENTERPRISE: robust for DATE vs TIMESTAMPTZ casting
 ============================================================ */
+
+function toIsoDate(isoOrDate: string): string {
+  // Accepts "YYYY-MM-DD" or full ISO -> returns "YYYY-MM-DD"
+  if (isoOrDate.length >= 10) return isoOrDate.slice(0, 10)
+  return isoOrDate
+}
+
+function parseValidFromToDate(value: unknown): Date | null {
+  if (value == null) return null
+  const s = String(value)
+  const d = new Date(s.length === 10 ? `${s}T00:00:00.000Z` : s)
+  return Number.isFinite(d.getTime()) ? d : null
+}
 
 export async function fetchActivePublishedPricingVersion(
   supabase: SupabaseClient,
@@ -53,6 +67,7 @@ export async function fetchActivePublishedPricingVersion(
 ): Promise<PublishedPricingVersion | null> {
   const selectCommon = 'id,contract_id,version_number,valid_from,status,is_published'
 
+  // Probe if status exists (legacy-compatible)
   const probe = await tryQuery<{ status: string | null } | null>(
     supabase
       .from('contract_pricing_versions')
@@ -63,12 +78,14 @@ export async function fetchActivePublishedPricingVersion(
   )
 
   const hasStatus = !looksLikeMissingColumn(probe.error, 'status')
+  const today = toIsoDate(nowIso)
 
+  // 1) Primary attempt: DB-side live filter (fast path)
   const baseQuery = supabase
     .from('contract_pricing_versions')
     .select(selectCommon)
     .eq('contract_id', contractId)
-    .lte('valid_from', nowIso)
+    .lte('valid_from', today)
     .order('valid_from', { ascending: false })
     .limit(1)
 
@@ -76,146 +93,67 @@ export async function fetchActivePublishedPricingVersion(
     const res = await tryQuery<PublishedPricingVersion | null>(
       baseQuery.eq('status', 'published').maybeSingle()
     )
-    return res.data ?? null
+    if (res.data) return res.data
+  } else {
+    const res = await tryQuery<PublishedPricingVersion | null>(
+      baseQuery.eq('is_published', true).maybeSingle()
+    )
+    if (res.data) return res.data
   }
 
-  const res = await tryQuery<PublishedPricingVersion | null>(
-    baseQuery.eq('is_published', true).maybeSingle()
-  )
+  // 2) Enterprise fallback: fetch most recent published regardless of valid_from,
+  //    then validate in code.
+  const fallbackQuery = supabase
+    .from('contract_pricing_versions')
+    .select(selectCommon)
+    .eq('contract_id', contractId)
+    .order('valid_from', { ascending: false })
+    .limit(5)
 
-  return res.data ?? null
+  const fallbackRes = hasStatus
+    ? await tryQuery<PublishedPricingVersion[]>(fallbackQuery.eq('status', 'published'))
+    : await tryQuery<PublishedPricingVersion[]>(fallbackQuery.eq('is_published', true))
+
+  if (fallbackRes.error || !fallbackRes.data || fallbackRes.data.length === 0) return null
+
+  const now = new Date(nowIso)
+  const todayDate = new Date(`${today}T00:00:00.000Z`)
+
+  for (const v of fallbackRes.data) {
+    const vf = parseValidFromToDate(v.valid_from)
+    if (!vf) continue
+
+    const isDateOnly = String(v.valid_from).length === 10
+    const isLive = isDateOnly ? vf.getTime() <= todayDate.getTime() : vf.getTime() <= now.getTime()
+
+    if (isLive) return v
+  }
+
+  return null
 }
 
 /* ============================================================
-   AREA PRICING (raw)
+   AREA PRICING
 ============================================================ */
 
 export async function fetchAreaPricingForVersion(
   supabase: SupabaseClient,
   pricingVersionId: string
 ): Promise<ContractAreaPricing[]> {
+  const select =
+    'id,pricing_version_id,price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek'
+
   const res = await tryQuery<ContractAreaPricing[]>(
     supabase
       .from('contract_area_pricing')
-      .select('id,pricing_version_id,price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
+      .select(select)
       .eq('pricing_version_id', pricingVersionId)
       .order('price_area', { ascending: true })
   )
 
-  if (res.error || !res.data) return []
-  return res.data
+  if (res.error) return []
+  return res.data ?? []
 }
-
-/* ============================================================
-   SPOT SETTINGS / PORTFOLIO SETTINGS (placeholders kept)
-============================================================ */
-
-export async function fetchSpotSettingsForArea(
-  supabase: SupabaseClient,
-  priceArea: PriceArea
-): Promise<SpotAreaSettings> {
-  // Placeholder kept for forward-compat. No-op today.
-  void supabase
-  prevYearMonth(new Date())
-
-  return {
-    pricing_version_id: '',
-    contract_id: '',
-    price_area: priceArea,
-    markup_ore: null,
-    variable_fee_ore: null,
-    monthly_fee_sek: null,
-    elcert_ore: null,
-  }
-}
-
-export async function fetchPortfolioPricingForArea(
-  supabase: SupabaseClient,
-  priceArea: PriceArea
-): Promise<{ price_area: PriceArea } | null> {
-  void supabase
-  return { price_area: priceArea }
-}
-
-/* ============================================================
-   SPOT AVG
-============================================================ */
-
-export async function fetchPrevMonthSpotAvgOre(
-  supabase: SupabaseClient,
-  priceArea: PriceArea,
-  year: number,
-  month: number
-): Promise<number> {
-  const res = await tryQuery<{ avg_ore: number } | null>(
-    supabase
-      .from('gridex_spot_monthly_avg')
-      .select('avg_ore')
-      .eq('price_area', priceArea)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle()
-  )
-
-  return safeNumber(res.data?.avg_ore ?? 0, 0)
-}
-
-/* ============================================================
-   LIVE CONTRACTS (used by /avtal + /teckna)
-============================================================ */
-
-export async function fetchLivePublishedContracts(
-  supabase: SupabaseClient,
-  nowIso: string
-): Promise<Array<{ id: string; name: string; slug: string; contract_type: 'spot_hourly' | 'portfolio_managed' | 'fixed' }>> {
-  const resContracts = await tryQuery<
-    Array<{ id: string; name: string; slug: string; contract_type: 'spot_hourly' | 'portfolio_managed' | 'fixed' }>
-  >(
-    supabase
-      .from('contract_products')
-      .select('id,name,slug,contract_type')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-  )
-
-  const contracts = resContracts.data ?? []
-  if (resContracts.error || contracts.length === 0) return []
-
-  const ids = contracts.map((c) => c.id)
-
-  const probe = await tryQuery<{ status: string | null } | null>(
-    supabase
-      .from('contract_pricing_versions')
-      .select('status')
-      .in('contract_id', ids)
-      .limit(1)
-      .maybeSingle()
-  )
-
-  const hasStatus = !looksLikeMissingColumn(probe.error, 'status')
-
-  let publishedIds = new Set<string>()
-
-  const base = supabase
-    .from('contract_pricing_versions')
-    .select('contract_id')
-    .in('contract_id', ids)
-    .lte('valid_from', nowIso)
-
-  if (hasStatus) {
-    const res = await tryQuery<Array<{ contract_id: string }>>(base.eq('status', 'published'))
-    if (res.data) publishedIds = new Set(res.data.map((r) => r.contract_id))
-  } else {
-    const res = await tryQuery<Array<{ contract_id: string }>>(base.eq('is_published', true))
-    if (res.data) publishedIds = new Set(res.data.map((r) => r.contract_id))
-  }
-
-  return contracts.filter((c) => publishedIds.has(c.id))
-}
-
-/* ============================================================
-   ✅ BACKWARD-COMPAT EXPORTS FOR engine.ts (DO NOT REMOVE)
-============================================================ */
 
 export async function fetchAreaPricing(
   supabase: SupabaseClient,
@@ -226,20 +164,121 @@ export async function fetchAreaPricing(
   return rows.find((r) => r.price_area === priceArea) ?? null
 }
 
+/* ============================================================
+   ACTIVE SPOT BASIS PERIOD
+============================================================ */
+
+type SpotBasisConfigRow = {
+  active_year: number
+  active_month: number
+}
+
+export async function fetchActiveSpotBasisPeriod(
+  supabase: SupabaseClient,
+  now: Date
+): Promise<{ year: number; month: number }> {
+  const fallback = prevYearMonth(now)
+
+  const res = await tryQuery<SpotBasisConfigRow | null>(
+    supabase
+      .from('gridex_spot_basis_config')
+      .select('active_year,active_month')
+      .eq('id', 1)
+      .maybeSingle()
+  )
+
+  if (res.error || !res.data) return fallback
+
+  const y = Number(res.data.active_year)
+  const m = Number(res.data.active_month)
+
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {
+    return fallback
+  }
+
+  return { year: y, month: m }
+}
+
+/* ============================================================
+   SPOT AVG (ADMIN TABLE FIRST)
+============================================================ */
+
+type MonthlySpotRow = {
+  avg_spot_ore: number
+}
+
+type LegacySpotRow = {
+  avg_ore: number
+}
+
+export async function fetchPrevMonthSpotAvgOre(
+  supabase: SupabaseClient,
+  priceArea: PriceArea,
+  year: number,
+  month: number
+): Promise<number> {
+  const res = await tryQuery<MonthlySpotRow | null>(
+    supabase
+      .from('gridex_monthly_spot_prices')
+      .select('avg_spot_ore')
+      .eq('price_area', priceArea)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle()
+  )
+
+  if (res.data?.avg_spot_ore != null) {
+    const v = safeNumber(res.data.avg_spot_ore, 0)
+    if (v > 0) return v
+  }
+
+  const legacy = await tryQuery<LegacySpotRow | null>(
+    supabase
+      .from('gridex_spot_monthly_avg')
+      .select('avg_ore')
+      .eq('price_area', priceArea)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle()
+  )
+
+  if (legacy.data?.avg_ore != null) {
+    const v = safeNumber(legacy.data.avg_ore, 0)
+    if (v > 0) return v
+  }
+
+  return 0
+}
+
 export async function fetchPrevMonthlySpotAvg(
   supabase: SupabaseClient,
   priceArea: PriceArea,
   now: Date
 ): Promise<{ year: number; month: number; avgSpotOre: number } | null> {
-  const ym = prevYearMonth(now)
-  const avg = await fetchPrevMonthSpotAvgOre(supabase, priceArea, ym.year, ym.month)
+  const active = await fetchActiveSpotBasisPeriod(supabase, now)
+
+  const avg = await fetchPrevMonthSpotAvgOre(supabase, priceArea, active.year, active.month)
+
   if (!Number.isFinite(avg) || avg <= 0) return null
-  return { year: ym.year, month: ym.month, avgSpotOre: avg }
+
+  return {
+    year: active.year,
+    month: active.month,
+    avgSpotOre: avg,
+  }
 }
+
+/* ============================================================
+   SPOT SETTINGS
+============================================================ */
 
 export async function fetchSpotSettings(
   supabase: SupabaseClient,
-  params: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
+  params: {
+    pricingVersionId: string
+    contractId: string
+    priceArea: PriceArea
+  }
 ): Promise<{
   settings: SpotAreaSettings | null
   keyMode: 'pricing_version_id'
@@ -247,26 +286,40 @@ export async function fetchSpotSettings(
 }> {
   const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
 
+  const spotHasElcertOre = row ? row.elcert_ore !== undefined : false
+
   if (!row) {
-    return { settings: null, keyMode: 'pricing_version_id', probes: { spotHasElcertOre: false } }
+    return {
+      settings: null,
+      keyMode: 'pricing_version_id',
+      probes: { spotHasElcertOre },
+    }
   }
 
   const settings: SpotAreaSettings = {
-    pricing_version_id: params.pricingVersionId ?? '',
-    contract_id: params.contractId ?? '',
+    pricing_version_id: params.pricingVersionId,
+    contract_id: params.contractId,
     price_area: params.priceArea,
     markup_ore: row.markup_ore ?? 0,
-    variable_fee_ore: 0,
+    variable_fee_ore: row.variable_fee_ore ?? 0,
     monthly_fee_sek: row.monthly_fee_sek ?? 0,
-    elcert_ore: 0,
+    elcert_ore: row.elcert_ore ?? 0,
   }
 
-  return { settings, keyMode: 'pricing_version_id', probes: { spotHasElcertOre: false } }
+  return { settings, keyMode: 'pricing_version_id', probes: { spotHasElcertOre } }
 }
+
+/* ============================================================
+   PORTFOLIO / FIXED
+============================================================ */
 
 export async function fetchPortfolioPricing(
   supabase: SupabaseClient,
-  params: { pricingVersionId: string; contractId: string; priceArea: PriceArea }
+  params: {
+    pricingVersionId: string
+    contractId: string
+    priceArea: PriceArea
+  }
 ): Promise<{
   row: PortfolioAreaPricing | null
   keyMode: 'pricing_version_id'
@@ -274,19 +327,127 @@ export async function fetchPortfolioPricing(
 }> {
   const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
 
+  const portfolioHasElcertOre = row ? row.elcert_ore !== undefined : false
+
   if (!row) {
-    return { row: null, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre: false } }
+    return {
+      row: null,
+      keyMode: 'pricing_version_id',
+      probes: { portfolioHasElcertOre },
+    }
   }
 
   const out: PortfolioAreaPricing = {
-    pricing_version_id: params.pricingVersionId ?? '',
-    contract_id: params.contractId ?? '',
+    pricing_version_id: params.pricingVersionId,
+    contract_id: params.contractId,
     price_area: params.priceArea,
     fixed_price_ore: row.price_per_kwh_ore ?? 0,
-    variable_fee_ore: 0,
+    variable_fee_ore: row.variable_fee_ore ?? 0,
     monthly_fee_sek: row.monthly_fee_sek ?? 0,
-    elcert_ore: 0,
+    elcert_ore: row.elcert_ore ?? 0,
   }
 
-  return { row: out, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre: false } }
+  return { row: out, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre } }
+}
+
+/* ============================================================
+   PUBLIC: FETCH LIVE PUBLISHED CONTRACTS (FRONTEND /avtal)
+   ENTERPRISE SAFE – Compatible with status OR is_published
+============================================================ */
+
+export type LivePublishedContract = {
+  contract: {
+    id: string
+    name: string
+    slug?: string
+    contract_type: string
+    is_active: boolean
+    created_at?: string
+  }
+  pricingVersion: PublishedPricingVersion
+
+  // 🔥 ROOT LEVEL FIELDS FOR BACKWARD COMPATIBILITY
+  id: string
+  name: string
+  slug?: string
+  contract_type: string
+}
+
+type ContractProductRow = {
+  id: string
+  name: string
+  slug: string | null
+  contract_type: string
+  is_active: boolean
+  created_at: string | null
+  sort_order?: number | null
+}
+
+async function fetchActiveContractsOrdered(
+  supabase: SupabaseClient
+): Promise<PostgrestSingleResponse<ContractProductRow[]>> {
+  const res1 = await tryQuery<ContractProductRow[]>(
+    supabase
+      .from('contract_products')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+  )
+
+  if (!res1.error) return res1
+
+  if (looksLikeMissingColumn(res1.error, 'sort_order')) {
+    const res2 = await tryQuery<ContractProductRow[]>(
+      supabase
+        .from('contract_products')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .order('name', { ascending: true })
+    )
+    return res2
+  }
+
+  return res1
+}
+
+export async function fetchLivePublishedContracts(
+  supabase: SupabaseClient,
+  nowIso: string
+): Promise<LivePublishedContract[]> {
+  const res = await fetchActiveContractsOrdered(supabase)
+
+  if (res.error || !res.data || res.data.length === 0) return []
+
+  const result: LivePublishedContract[] = []
+
+  for (const contract of res.data) {
+    const version = await fetchActivePublishedPricingVersion(
+      supabase,
+      contract.id,
+      nowIso
+    )
+
+    if (!version) continue
+
+    result.push({
+      contract: {
+        id: contract.id,
+        name: contract.name,
+        slug: contract.slug ?? undefined,
+        contract_type: contract.contract_type,
+        is_active: contract.is_active,
+        created_at: contract.created_at ?? undefined,
+      },
+      pricingVersion: version,
+
+      // 🔥 ROOT LEVEL MIRROR (ENTERPRISE SAFE)
+      id: contract.id,
+      name: contract.name,
+      slug: contract.slug ?? undefined,
+      contract_type: contract.contract_type,
+    })
+  }
+
+  return result
 }

@@ -22,6 +22,13 @@ function isoFromDateInput(dateStr: string): string {
   return d.toISOString()
 }
 
+function num(v: FormDataEntryValue | null): number {
+  if (!v) return 0
+  const cleaned = String(v).replace(',', '.')
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : 0
+}
+
 export async function createVersionAction(formData: FormData) {
   const contractId = String(formData.get('contract_id') || '')
   const slug = String(formData.get('slug') || '')
@@ -51,6 +58,7 @@ export async function createVersionAction(formData: FormData) {
       version_number: nextVersion,
       valid_from: validFrom,
       is_published: false,
+      status: 'draft',
     })
     .select('id')
     .single<{ id: string }>()
@@ -79,10 +87,12 @@ export async function savePricingAction(formData: FormData) {
   const { supabase, user } = await requirePermissionServer('pricing.write')
 
   for (const area of AREAS) {
-    const monthlyFee = Number(formData.get(`${area}_monthly_fee_sek`) ?? 0)
+    const monthlyFee = num(formData.get(`${area}_monthly_fee_sek`))
+    const variableFee = num(formData.get(`${area}_variable_fee_ore`))
+    const elcert = num(formData.get(`${area}_elcert_ore`))
 
     if (contractType === 'spot_hourly') {
-      const markup = Number(formData.get(`${area}_markup_ore`) ?? 0)
+      const markup = num(formData.get(`${area}_markup_ore`))
 
       const { error } = await supabase.from('contract_area_pricing').upsert(
         {
@@ -91,12 +101,14 @@ export async function savePricingAction(formData: FormData) {
           monthly_fee_sek: monthlyFee,
           markup_ore: markup,
           price_per_kwh_ore: null,
+          variable_fee_ore: variableFee,
+          elcert_ore: elcert,
         },
         { onConflict: 'pricing_version_id,price_area' }
       )
       if (error) throw new Error(error.message)
     } else {
-      const price = Number(formData.get(`${area}_price_per_kwh_ore`) ?? 0)
+      const price = num(formData.get(`${area}_price_per_kwh_ore`))
 
       const { error } = await supabase.from('contract_area_pricing').upsert(
         {
@@ -105,6 +117,8 @@ export async function savePricingAction(formData: FormData) {
           monthly_fee_sek: monthlyFee,
           price_per_kwh_ore: price,
           markup_ore: null,
+          variable_fee_ore: variableFee,
+          elcert_ore: elcert,
         },
         { onConflict: 'pricing_version_id,price_area' }
       )
@@ -145,17 +159,17 @@ export async function publishVersionAction(formData: FormData) {
   if (vErr) throw new Error(vErr.message)
   if (!v || v.contract_id !== contractId) throw new Error('Invalid version for contract')
 
-  // Enterprise rule: only ONE published version per contract
+  // Enterprise rule: only ONE published version per contract (covers LIVE + SCHEDULED)
   const { error: offErr } = await supabase
     .from('contract_pricing_versions')
-    .update({ is_published: false })
+    .update({ is_published: false, status: 'draft' })
     .eq('contract_id', contractId)
 
   if (offErr) throw new Error(offErr.message)
 
   const { error: onErr } = await supabase
     .from('contract_pricing_versions')
-    .update({ is_published: true })
+    .update({ is_published: true, status: 'published' })
     .eq('id', versionId)
     .eq('contract_id', contractId)
 
@@ -229,6 +243,7 @@ export async function cloneVersionAction(formData: FormData) {
       version_number: nextVersion,
       valid_from: new Date().toISOString(),
       is_published: false,
+      status: 'draft',
     })
     .select('id')
     .single<{ id: string }>()
@@ -237,13 +252,15 @@ export async function cloneVersionAction(formData: FormData) {
 
   const { data: oldRows, error: oldErr } = await supabase
     .from('contract_area_pricing')
-    .select('price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
+    .select('price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek')
     .eq('pricing_version_id', sourceVersionId)
     .returns<
       Array<{
         price_area: PriceArea
         price_per_kwh_ore: number | null
         markup_ore: number | null
+        variable_fee_ore: number | null
+        elcert_ore: number | null
         monthly_fee_sek: number | null
       }>
     >()
@@ -256,6 +273,8 @@ export async function cloneVersionAction(formData: FormData) {
       price_area: r.price_area,
       price_per_kwh_ore: r.price_per_kwh_ore,
       markup_ore: r.markup_ore,
+      variable_fee_ore: r.variable_fee_ore,
+      elcert_ore: r.elcert_ore,
       monthly_fee_sek: r.monthly_fee_sek,
     }))
 

@@ -18,6 +18,7 @@ function getSupabaseAnonKey(): string {
 /**
  * READ-ONLY for Server Components (pages/layouts).
  * Next 15 forbids cookie mutation here.
+ * Enterprise: guarantees anon context for public pages while still supporting session cookies when present.
  */
 export async function createSupabaseServerClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies()
@@ -27,6 +28,7 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
       get(name: string): string | undefined {
         return cookieStore.get(name)?.value
       },
+      // No-op in Server Components
       set(): void {},
       remove(): void {},
     },

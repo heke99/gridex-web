@@ -35,6 +35,8 @@ type AreaPricing = {
   price_area: PriceArea
   price_per_kwh_ore: number | null
   markup_ore: number | null
+  variable_fee_ore: number | null
+  elcert_ore: number | null
   monthly_fee_sek: number | null
 }
 
@@ -162,7 +164,7 @@ export default async function AdminPricingContractPage({
   const { data: pricingRows } = previewVersionId
     ? await supabase
         .from('contract_area_pricing')
-        .select('pricing_version_id,price_area,price_per_kwh_ore,markup_ore,monthly_fee_sek')
+        .select('pricing_version_id,price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek')
         .eq('pricing_version_id', previewVersionId)
         .returns<AreaPricing[]>()
     : { data: null }
@@ -170,7 +172,12 @@ export default async function AdminPricingContractPage({
   const pricingMap = new Map<PriceArea, AreaPricing>()
   ;(pricingRows ?? []).forEach((r) => pricingMap.set(r.price_area, r))
 
-  type AreaNumericKey = 'price_per_kwh_ore' | 'markup_ore' | 'monthly_fee_sek'
+  type AreaNumericKey =
+    | 'price_per_kwh_ore'
+    | 'markup_ore'
+    | 'variable_fee_ore'
+    | 'elcert_ore'
+    | 'monthly_fee_sek'
   function defaultVal(area: PriceArea, key: AreaNumericKey) {
     const row = pricingMap.get(area)
     if (!row) return '0'
@@ -374,13 +381,19 @@ export default async function AdminPricingContractPage({
         <div className="text-lg font-semibold">3) Fyll priser per område</div>
         <p className="text-gray-400 mt-1 text-sm">
           För <span className="text-gray-200">spot_hourly</span> använder vi{' '}
-          <span className="text-gray-200">markup_ore + monthly_fee</span>. För{' '}
+          <span className="text-gray-200">markup_ore</span> +{' '}
+          <span className="text-gray-200">variable_fee_ore</span> +{' '}
+          <span className="text-gray-200">elcert_ore</span> +{' '}
+          <span className="text-gray-200">monthly_fee</span>. För{' '}
           <span className="text-gray-200">fixed/portfolio_managed</span> använder vi{' '}
-          <span className="text-gray-200">price_per_kwh_ore + monthly_fee</span>.
+          <span className="text-gray-200">price_per_kwh_ore</span> +{' '}
+          <span className="text-gray-200">variable_fee_ore</span> +{' '}
+          <span className="text-gray-200">elcert_ore</span> +{' '}
+          <span className="text-gray-200">monthly_fee</span>.
         </p>
 
         {!previewVersionId ? (
-          <div className="mt-4 text-sm text-gray-500">Välj en version för att redigera priser.</div>
+          <div className="mt-4 text-gray-500 text-sm">Välj eller skapa en version först.</div>
         ) : (
           <form action={savePricingAction} className="mt-5 space-y-4">
             <input type="hidden" name="pricing_version_id" value={previewVersionId} />
@@ -415,6 +428,26 @@ export default async function AdminPricingContractPage({
                   )}
 
                   <div className="mt-3 space-y-2">
+                    <label className="text-xs text-gray-400">Rörlig avgift (öre/kWh)</label>
+                    <input
+                      name={`${area}_variable_fee_ore`}
+                      defaultValue={defaultVal(area, 'variable_fee_ore')}
+                      className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                      disabled={!canWrite}
+                    />
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    <label className="text-xs text-gray-400">Elcertifikat (öre/kWh)</label>
+                    <input
+                      name={`${area}_elcert_ore`}
+                      defaultValue={defaultVal(area, 'elcert_ore')}
+                      className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                      disabled={!canWrite}
+                    />
+                  </div>
+
+                  <div className="mt-3 space-y-2">
                     <label className="text-xs text-gray-400">Månadsavgift (SEK)</label>
                     <input
                       name={`${area}_monthly_fee_sek`}
@@ -429,7 +462,8 @@ export default async function AdminPricingContractPage({
 
             <button
               disabled={!canWrite}
-              className="w-full h-11 rounded-xl bg-white text-black font-semibold hover:bg-white/90 disabled:opacity-60"
+              className="w-full h-11 rounded-xl bg-white text-black font-semibold hover:bg-white/90
+              disabled:opacity-60"
             >
               Spara priser
             </button>
@@ -441,121 +475,84 @@ export default async function AdminPricingContractPage({
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">4) Preview</div>
         <p className="text-gray-400 mt-1 text-sm">
-          Preview kör samma pricing-engine som <span className="text-gray-200">/api/price</span>. Du kan byta area och kWh
-          för att verifiera totalsumma och specifikation.
+          Preview använder pricing-engine med selectionMode <span className="font-mono">by_id</span> (inkl draft).
         </p>
 
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
-          <div className="flex-1">
-            <label className="text-xs text-gray-400">kWh/mån</label>
-            <input
-              defaultValue={String(previewKwh)}
-              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-              readOnly
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="text-xs text-gray-400">Elområde</label>
-            <input
-              defaultValue={previewArea}
-              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-              readOnly
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="text-xs text-gray-400">Byt preview</label>
-            <div className="mt-2 flex gap-2">
-              {AREAS.map((a) => (
-                <Link
-                  key={a}
-                  href={`/admin/pricing/${typedContract.slug}?previewVersionId=${previewVersionId ?? ''}&kwh=${previewKwh}&area=${a}`}
-                  className="flex-1 text-center rounded-xl border border-gray-800 bg-black/40 px-3 py-2 text-xs text-gray-200 hover:border-cyan-500/40"
-                >
-                  {a}
-                </Link>
-              ))}
-            </div>
-          </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Link
+            href={`/admin/pricing/${typedContract.slug}?previewVersionId=${previewVersionId}&kwh=2000&area=SE1`}
+            className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3 text-sm text-gray-200 hover:border-cyan-500/40"
+          >
+            Preview SE1 (2000 kWh)
+          </Link>
+          <Link
+            href={`/admin/pricing/${typedContract.slug}?previewVersionId=${previewVersionId}&kwh=2000&area=SE3`}
+            className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3 text-sm text-gray-200 hover:border-cyan-500/40"
+          >
+            Preview SE3 (2000 kWh)
+          </Link>
+          <Link
+            href={`/admin/pricing/${typedContract.slug}?previewVersionId=${previewVersionId}&kwh=8000&area=SE4`}
+            className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3 text-sm text-gray-200 hover:border-cyan-500/40"
+          >
+            Preview SE4 (8000 kWh)
+          </Link>
         </div>
 
-        {previewSpec ? (
-          <div className="mt-5 rounded-2xl border border-gray-800 bg-black/30 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-gray-300">
-                Total: <span className="text-white font-semibold">{previewSpec.totalMonthlyCostSek.toFixed(2)} SEK</span>
-                <span className="text-gray-500"> / mån</span>
-              </div>
-              <div className="text-xs text-gray-500">
-                Öre/kWh: {previewSpec.totalOrePerKwh.toFixed(2)} • inkl. moms:{' '}
-                {previewSpec.totalMonthlyCostInclVatSek.toFixed(2)} SEK
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-2">
+        <div className="mt-6 rounded-2xl border border-gray-800 bg-black/30 p-4">
+          <div className="text-sm font-semibold text-gray-200">Spec (engine)</div>
+          {!previewSpec ? (
+            <div className="mt-2 text-sm text-amber-200">Preview kunde inte beräknas (saknar data).</div>
+          ) : (
+            <div className="mt-3 space-y-2 text-sm text-gray-200">
               {previewLines.map((l) => (
-                <div key={l.key} className="flex items-center justify-between text-sm">
-                  <div className="text-gray-300">{l.label}</div>
-                  <div className="text-gray-200">
-                    {typeof l.sekPerMonth === 'number'
-                      ? `${l.sekPerMonth.toFixed(2)} SEK`
-                      : typeof l.orePerKwh === 'number'
-                      ? `${l.orePerKwh.toFixed(2)} öre/kWh`
-                      : '—'}
+                <div key={l.key} className="flex items-center justify-between gap-3">
+                  <div className="text-gray-300">
+                    {l.label}
+                    {l.note ? <span className="text-xs text-gray-500 ml-2">({l.note})</span> : null}
+                  </div>
+                  <div className="font-mono text-gray-200">
+                    {typeof l.orePerKwh === 'number' ? `${l.orePerKwh} öre/kWh` : ''}
+                    {typeof l.sekPerMonth === 'number' ? `  |  ${l.sekPerMonth} SEK/mån` : ''}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        ) : (
-          <div className="mt-4 text-sm text-gray-500">
-            Preview kunde inte beräknas ännu (saknar data för vald version/område).
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Step 5: Publish */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">5) Publicera</div>
         <p className="text-gray-400 mt-1 text-sm">
-          Publicering kräver audit reason och gör enterprise-korrekt unpublish av alla andra versioner för samma avtal.
+          Publicera vald version. Detta avpublicerar automatiskt andra versioner för samma avtal. Om valid_from ligger i
+          framtiden blir den <span className="text-gray-200">Schemalagd</span> tills datumet.
         </p>
 
-        {!previewVersionId ? (
-          <div className="mt-4 text-sm text-gray-500">Välj en version för att publicera.</div>
-        ) : (
-          <form action={publishVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
-            <input type="hidden" name="contract_id" value={typedContract.id} />
-            <input type="hidden" name="version_id" value={previewVersionId} />
-            <input type="hidden" name="slug" value={slug} />
+        <form action={publishVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
+          <input type="hidden" name="contract_id" value={typedContract.id} />
+          <input type="hidden" name="version_id" value={previewVersionId ?? ''} />
+          <input type="hidden" name="slug" value={slug} />
 
-            <div className="flex-1">
-              <label className="text-xs text-gray-400">Audit reason</label>
-              <input
-                name="reason"
-                required
-                placeholder="Ex: Justering av priser p.g.a. Q2-hedge, godkänd av CFO"
-                className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                disabled={!canPublish}
-              />
-            </div>
-
-            <button
-              disabled={!canPublish}
-              className="h-11 rounded-xl bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400 disabled:opacity-60"
-            >
-              Publicera version
-            </button>
-          </form>
-        )}
-
-        {!canPublish && (
-          <div className="mt-3 text-xs text-amber-200">
-            Du saknar <span className="font-mono">pricing.publish</span>. Du kan fortfarande skapa/ändra (om du har{' '}
-            <span className="font-mono">pricing.write</span>), men publicering är låst.
+          <div className="flex-1">
+            <label className="text-xs text-gray-400">Anledning (audit)</label>
+            <input
+              name="reason"
+              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm text-gray-200"
+              placeholder="Ex: Ny kampanj, justering av påslag, uppdaterade avgifter..."
+              required
+              disabled={!canPublish || !previewVersionId}
+            />
           </div>
-        )}
+
+          <button
+            disabled={!canPublish || !previewVersionId}
+            className="h-11 rounded-xl bg-white px-4 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
+          >
+            Publicera vald version
+          </button>
+        </form>
       </div>
     </div>
   )

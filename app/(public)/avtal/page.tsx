@@ -1,8 +1,13 @@
+// app/(public)/avtal/page.tsx
+
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
-import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
+import {
+  fetchLivePublishedContracts,
+  type LivePublishedContract,
+} from '@/lib/gridex/pricing/db'
 
 export const metadata: Metadata = {
   title: 'Elavtal – jämför spot, portfölj och fastpris',
@@ -11,11 +16,37 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://gridex.se/avtal' },
 }
 
+function formatDate(dateIso: string) {
+  try {
+    const d = new Date(dateIso)
+    return d.toLocaleDateString('sv-SE')
+  } catch {
+    return dateIso
+  }
+}
+
+function contractTypeLabel(type: string) {
+  switch (type) {
+    case 'spot_hourly':
+      return 'Tim / Spot'
+    case 'portfolio_managed':
+      return 'AI Portfölj'
+    case 'fixed':
+      return 'Fastpris'
+    default:
+      return type
+  }
+}
+
 export default async function AvtalPage() {
   const supabase = await createSupabaseServerClient()
-  const nowIso = new Date().toISOString()
 
-  const visibleContracts = await fetchLivePublishedContracts(supabase, nowIso)
+  // ✅ Enterprise: always compute both and pass date-only to pricing selection
+  const nowIso = new Date().toISOString()
+  const todayIsoDate = nowIso.slice(0, 10) // "YYYY-MM-DD"
+
+  const visibleContracts: LivePublishedContract[] =
+    await fetchLivePublishedContracts(supabase, todayIsoDate)
 
   const faqItems = [
     {
@@ -30,6 +61,8 @@ export default async function AvtalPage() {
     },
   ]
 
+  const hasLiveContracts = visibleContracts.length > 0
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
       <FaqJsonLd items={faqItems} />
@@ -43,37 +76,64 @@ export default async function AvtalPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {visibleContracts.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-2xl border border-white/10 bg-gray-950 p-8 flex flex-col justify-between"
-          >
-            <div>
-              <div className="text-white font-semibold text-lg">{c.name}</div>
+        {visibleContracts.map((item) => {
+          const { contract, pricingVersion } = item
 
-              <div className="text-xs text-gray-500 mt-1">{c.contract_type}</div>
-
-              <p className="text-gray-400 mt-3 text-sm">
-                LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.
-              </p>
-            </div>
-
-            <Link
-              href="/teckna"
-              className="mt-6 bg-cyan-500 hover:bg-cyan-400 transition text-black font-bold px-5 py-3 rounded-xl text-center"
+          return (
+            <div
+              key={contract.id}
+              className="rounded-2xl border border-white/10 bg-gray-950 p-8 flex flex-col justify-between hover:border-cyan-500/30 transition"
             >
-              Teckna
-            </Link>
-          </div>
-        ))}
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-white font-semibold text-lg">
+                    {contract.name}
+                  </div>
 
-        {visibleContracts.length === 0 && (
+                  <span className="text-[10px] border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 rounded-full text-emerald-200">
+                    LIVE
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500 mt-1">
+                  {contractTypeLabel(contract.contract_type)}
+                </div>
+
+                <div className="text-xs text-gray-600 mt-2">
+                  Version {pricingVersion.version_number ?? '—'} •
+                  Giltig från {formatDate(pricingVersion.valid_from)}
+                </div>
+
+                <p className="text-gray-400 mt-4 text-sm">
+                  LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.
+                </p>
+              </div>
+
+              <Link
+                href={`/teckna?contract=${contract.slug ?? contract.id}`}
+                className="mt-6 bg-cyan-500 hover:bg-cyan-400 transition text-black font-bold px-5 py-3 rounded-xl text-center"
+              >
+                Teckna
+              </Link>
+            </div>
+          )
+        })}
+
+        {!hasLiveContracts && (
           <div className="rounded-2xl border border-white/10 bg-gray-950 p-8 md:col-span-3">
-            <div className="text-white font-semibold text-lg">Inga LIVE-avtal ännu</div>
+            <div className="text-white font-semibold text-lg">
+              Inga LIVE-avtal ännu
+            </div>
             <p className="text-gray-400 mt-2 text-sm">
-              När en prisversion publiceras och dess <span className="text-gray-200">valid_from</span> är idag eller tidigare,
+              När en prisversion publiceras och dess{' '}
+              <span className="text-gray-200">valid_from</span> är idag eller tidigare,
               kommer avtalet automatiskt att visas här.
             </p>
+
+            <div className="mt-4 text-xs text-gray-600">
+              Diagnostik: nowIso={nowIso} • today={todayIsoDate}
+            </div>
+
             <Link
               href="/kundservice"
               className="inline-flex mt-5 border border-white/10 hover:border-cyan-500/40 transition px-5 py-3 rounded-xl text-gray-200 text-sm"
