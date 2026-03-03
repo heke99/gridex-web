@@ -6,9 +6,7 @@ type NavItem = {
   label: string
   href: string
   description?: string
-  /** If provided: user must have ANY of these permissions to access the item */
   permissionsAny?: string[]
-  /** If provided: user must have ANY of these roles to access the item */
   rolesAny?: string[]
 }
 
@@ -29,6 +27,7 @@ function canAccess(item: NavItem, roles: string[], permissions: string[]) {
 
   const hasRoleGuard = !!item.rolesAny && item.rolesAny.length > 0
   const hasPermGuard = !!item.permissionsAny && item.permissionsAny.length > 0
+
   if (!hasRoleGuard && !hasPermGuard) return true
   return (hasRoleGuard && roleOk) || (hasPermGuard && permOk)
 }
@@ -42,7 +41,8 @@ function SidebarLink({
   active: boolean
   allowed: boolean
 }) {
-  const base = 'group block rounded-2xl px-3 py-2 transition border text-sm'
+  const base =
+    'group block rounded-2xl px-3 py-2 transition border text-sm'
 
   const cls = allowed
     ? [
@@ -73,6 +73,7 @@ function SidebarLink({
           <span className="text-white/25">🔒</span>
         )}
       </div>
+
       {item.description && (
         <div className="mt-0.5 text-[11px] text-white/55 group-hover:text-white/70">
           {item.description}
@@ -83,7 +84,11 @@ function SidebarLink({
 
   if (!allowed) {
     return (
-      <div aria-disabled="true" className={cls} title="Saknar behörighet">
+      <div
+        aria-disabled="true"
+        className={cls}
+        title="Saknar behörighet"
+      >
         {inner}
       </div>
     )
@@ -113,6 +118,7 @@ const NAV: NavGroup[] = [
       },
     ],
   },
+
   {
     title: 'Avtal',
     items: [
@@ -120,17 +126,58 @@ const NAV: NavGroup[] = [
         label: 'Avtalsprodukter',
         href: '/admin/contracts',
         description: 'CRUD • aktiv/inaktiv • featured',
-        permissionsAny: ['contracts.write', 'contracts.read', 'admin.access'],
+        permissionsAny: [
+          'contracts.write',
+          'contracts.read',
+          'admin.access',
+        ],
+      },
+      {
+        label: 'Signerade avtal',
+        href: '/admin/agreements',
+        description: 'PDF • juridik • finalize • export',
+        permissionsAny: [
+          'agreements.read',
+          'agreements.write',
+          'admin.access',
+        ],
       },
     ],
   },
+
+  {
+    title: 'Compliance',
+    items: [
+      {
+        label: 'Juridiska loggar',
+        href: '/admin/legal-acceptances',
+        description:
+          'IP • user agent • version hash • revisionsspår',
+        permissionsAny: [
+          'compliance.read',
+          'admin.access',
+        ],
+      },
+      {
+        label: 'Avtals-audit',
+        href: '/admin/audit/agreements',
+        description: 'finalize • sign • system events',
+        permissionsAny: [
+          'compliance.read',
+          'admin.access',
+        ],
+      },
+    ],
+  },
+
   {
     title: 'Priser',
     items: [
       {
         label: 'Pricing-versioner',
         href: '/admin/pricing',
-        description: 'Versioner • clone • skriv • publish',
+        description:
+          'Versioner • clone • skriv • publish',
         permissionsAny: [
           'pricing.write',
           'pricing.publish',
@@ -141,124 +188,54 @@ const NAV: NavGroup[] = [
       {
         label: 'Audit: pricing',
         href: '/admin/audit/pricing',
-        description: 'pricing_version_audit • export',
+        description:
+          'pricing_version_audit • export',
         permissionsAny: ['admin.access'],
       },
     ],
   },
+
   {
-    title: 'Spot & Portfölj',
-    items: [
-      {
-        label: 'Månads-Spot',
-        href: '/admin/monthly-spot',
-        description: 'Importunderlag • priskomponenter',
-        // ✅ ENTERPRISE FIX: Allow proper spot roles
-        permissionsAny: [
-          'spot.write',
-          'spot.publish',
-          'pricing.write',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Spot-inställningar',
-        href: '/admin/spot-settings',
-        description: 'gridex_spot_area_settings • SE1–SE4',
-        permissionsAny: ['spot.write', 'admin.access'],
-      },
-      {
-        label: 'Portfölj & Fastpris',
-        href: '/admin/portfolio-pricing',
-        description: 'gridex_portfolio_area_pricing • SE1–SE4',
-        permissionsAny: ['portfolio.write', 'admin.access'],
-      },
-      {
-        label: 'Postområden',
-        href: '/admin/postal-areas',
-        description: 'Koppling postnr → elområde',
-        permissionsAny: ['admin.access'],
-      },
-    ],
-  },
-  {
-    title: 'Validering',
-    items: [
-      {
-        label: 'Kalkylator (preview)',
-        href: '/admin/calculator',
-        description: 'Se exakt kundspec per kWh + område',
-        permissionsAny: ['admin.access'],
-      },
-      {
-        label: 'Kundspecifikation (preview)',
-        href: '/admin/customer-spec',
-        description: 'Prisrad • markup • avgifter • månadsavgift',
-        permissionsAny: ['admin.access'],
-      },
-    ],
-  },
-  {
-    title: 'RBAC & Compliance',
+    title: 'RBAC & Security',
     items: [
       {
         label: 'RBAC översikt',
         href: '/admin/rbac',
-        description: 'roller • permissions • assignments',
-        permissionsAny: ['rbac.read', 'rbac.write', 'admin.access'],
+        description:
+          'roller • permissions • assignments',
+        permissionsAny: [
+          'rbac.read',
+          'rbac.write',
+          'admin.access',
+        ],
       },
       {
         label: 'Roles',
         href: '/admin/rbac/roles',
         description: 'Skapa/hantera roller',
-        permissionsAny: ['rbac.write', 'admin.access'],
+        permissionsAny: [
+          'rbac.write',
+          'admin.access',
+        ],
       },
       {
         label: 'Permissions',
         href: '/admin/rbac/permissions',
         description: 'Skapa/hantera permissions',
-        permissionsAny: ['rbac.write', 'admin.access'],
+        permissionsAny: [
+          'rbac.write',
+          'admin.access',
+        ],
       },
       {
         label: 'Assignments',
         href: '/admin/rbac/assignments',
-        description: 'user_roles + user_permissions',
-        permissionsAny: ['rbac.write', 'admin.access'],
-      },
-    ],
-  },
-  {
-    title: 'Framtid',
-    items: [
-      {
-        label: 'Settlements',
-        href: '/admin/settlements',
-        description: 'eSett/BRP • avräkning • placeholders',
-        permissionsAny: ['admin.access'],
-      },
-      {
-        label: 'Fakturering & betalningar',
-        href: '/admin/billing',
-        description: 'status • export • placeholders',
-        permissionsAny: ['admin.access'],
-      },
-      {
-        label: 'Support tickets',
-        href: '/admin/support-tickets',
-        description: 'ärenden • SLA • placeholders',
-        permissionsAny: ['support.access', 'admin.access'],
-      },
-      {
-        label: 'Integrationer',
-        href: '/admin/integrations',
-        description: 'status • webhook • placeholders',
-        permissionsAny: ['admin.access'],
-      },
-      {
-        label: 'Incident management',
-        href: '/admin/incidents',
-        description: 'drift • loggar • placeholders',
-        permissionsAny: ['admin.access'],
+        description:
+          'user_roles + user_permissions',
+        permissionsAny: [
+          'rbac.write',
+          'admin.access',
+        ],
       },
     ],
   },
@@ -282,35 +259,17 @@ export default async function AdminShell({
       <div className="grid lg:grid-cols-[300px_1fr]">
         <aside className="border-r border-gray-800 bg-gray-950/40">
           <div className="px-6 py-5 border-b border-gray-800">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="font-bold tracking-tight">Gridex Admin</div>
-                <div className="text-xs text-gray-400 mt-1">{email ?? ''}</div>
-              </div>
-
-              {roles.length > 0 && (
-                <span className="text-[10px] border border-white/10 bg-white/5 px-2 py-1 rounded-full text-white/70">
-                  {roles[0]}
-                </span>
-              )}
+            <div className="font-bold tracking-tight">
+              Gridex Enterprise Admin
             </div>
 
-            {permissions.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1">
-                {permissions.slice(0, 6).map((p) => (
-                  <span
-                    key={p}
-                    className="text-[10px] border border-white/10 bg-white/5 px-2 py-1 rounded-full text-white/60"
-                    title={p}
-                  >
-                    {p}
-                  </span>
-                ))}
-                {permissions.length > 6 && (
-                  <span className="text-[10px] text-white/50">
-                    +{permissions.length - 6}
-                  </span>
-                )}
+            <div className="text-xs text-gray-400 mt-2">
+              {email ?? ''}
+            </div>
+
+            {roles.length > 0 && (
+              <div className="mt-2 text-[10px] text-cyan-400">
+                Role: {roles.join(', ')}
               </div>
             )}
           </div>
@@ -327,8 +286,14 @@ export default async function AdminShell({
                     const active =
                       it.href === '/admin'
                         ? path === '/admin'
-                        : path === it.href || path.startsWith(it.href + '/')
-                    const allowed = canAccess(it, roles, permissions)
+                        : path === it.href ||
+                          path.startsWith(it.href + '/')
+
+                    const allowed = canAccess(
+                      it,
+                      roles,
+                      permissions
+                    )
 
                     return (
                       <SidebarLink
@@ -342,15 +307,6 @@ export default async function AdminShell({
                 </div>
               </div>
             ))}
-
-            <div className="pt-2 px-2">
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center w-full border border-gray-800 hover:border-cyan-500/40 transition px-3 py-2 rounded-2xl text-gray-200"
-              >
-                Till publika sidan
-              </Link>
-            </div>
           </nav>
         </aside>
 
@@ -359,19 +315,22 @@ export default async function AdminShell({
             <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-300">
-                  Enterprise Admin Console
+                  Enterprise Control Panel
                 </div>
                 <div className="text-[11px] text-gray-500">
-                  RBAC • audit • pricing publish flow • SE1–SE4
+                  RLS enforced • hashed legal docs • signed PDFs
                 </div>
               </div>
+
               <div className="text-xs text-gray-500">
-                {email ? 'Session OK' : '—'}
+                {email ? 'Secure session active' : '—'}
               </div>
             </div>
           </div>
 
-          <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
+          <main className="max-w-7xl mx-auto px-6 py-8">
+            {children}
+          </main>
         </div>
       </div>
     </div>

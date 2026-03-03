@@ -1,7 +1,3 @@
-// lib/gridex/pricing/versioning.ts
-// Enterprise version selection policy for pricing engine (Admin Preview + API).
-// Supports: published now, any published, explicit version id, version_number, and draft/latest.
-
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PublishedPricingVersion } from './types'
 import { tryQuery } from './db'
@@ -12,7 +8,7 @@ export type PricingVersionSelection =
   | { mode: 'published_any' }
   | { mode: 'by_id'; id: string }
   | { mode: 'by_version_number'; versionNumber: number }
-  | { mode: 'draft_latest' } // latest where status='draft' (or is_published=false) when available
+  | { mode: 'draft_latest' }
 
 export type PricingVersionSelectionMode =
   | 'published_now'
@@ -37,8 +33,9 @@ export async function resolvePricingVersionForContract(opts: {
 }> {
   const mode = coerceMode(opts.selection)
 
-  // Probe availability (used in diagnostics)
-  const statusProbe = await tryQuery<{ status: string | null }>(
+  // -------- PROBES (NULL SAFE) --------
+
+  const statusProbe = await tryQuery<{ status: string | null } | null>(
     opts.supabase
       .from('contract_pricing_versions')
       .select('status')
@@ -47,9 +44,12 @@ export async function resolvePricingVersionForContract(opts: {
       .maybeSingle()
   )
 
-  const versionsHasStatus = !looksLikeMissingColumn(statusProbe.error, 'status')
+  const versionsHasStatus = !looksLikeMissingColumn(
+    statusProbe.error,
+    'status'
+  )
 
-  const isPubProbe = await tryQuery<{ is_published: boolean | null }>(
+  const isPubProbe = await tryQuery<{ is_published: boolean | null } | null>(
     opts.supabase
       .from('contract_pricing_versions')
       .select('is_published')
@@ -58,14 +58,20 @@ export async function resolvePricingVersionForContract(opts: {
       .maybeSingle()
   )
 
-  const versionsHasIsPublished = !looksLikeMissingColumn(isPubProbe.error, 'is_published')
+  const versionsHasIsPublished = !looksLikeMissingColumn(
+    isPubProbe.error,
+    'is_published'
+  )
 
-  // Helpers
-  const selectCommon = 'id,contract_id,version_number,valid_from,status,is_published'
+  const selectCommon =
+    'id,contract_id,version_number,valid_from,status,is_published'
+
+  // -------- MODE: by_id --------
 
   if (mode === 'by_id') {
     const id = (opts.selection as { mode: 'by_id'; id: string }).id
-    const { data } = await tryQuery<PublishedPricingVersion>(
+
+    const { data } = await tryQuery<PublishedPricingVersion | null>(
       opts.supabase
         .from('contract_pricing_versions')
         .select(selectCommon)
@@ -73,12 +79,22 @@ export async function resolvePricingVersionForContract(opts: {
         .eq('contract_id', opts.contractId)
         .maybeSingle()
     )
-    return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+    return {
+      version: data ?? null,
+      selectionMode: mode,
+      probes: { versionsHasStatus, versionsHasIsPublished },
+    }
   }
 
+  // -------- MODE: by_version_number --------
+
   if (mode === 'by_version_number') {
-    const versionNumber = (opts.selection as { mode: 'by_version_number'; versionNumber: number }).versionNumber
-    const { data } = await tryQuery<PublishedPricingVersion>(
+    const versionNumber = (
+      opts.selection as { mode: 'by_version_number'; versionNumber: number }
+    ).versionNumber
+
+    const { data } = await tryQuery<PublishedPricingVersion | null>(
       opts.supabase
         .from('contract_pricing_versions')
         .select(selectCommon)
@@ -88,13 +104,19 @@ export async function resolvePricingVersionForContract(opts: {
         .limit(1)
         .maybeSingle()
     )
-    return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+    return {
+      version: data ?? null,
+      selectionMode: mode,
+      probes: { versionsHasStatus, versionsHasIsPublished },
+    }
   }
 
+  // -------- MODE: draft_latest --------
+
   if (mode === 'draft_latest') {
-    // Prefer status='draft' if present; otherwise is_published=false if present.
     if (versionsHasStatus) {
-      const { data } = await tryQuery<PublishedPricingVersion>(
+      const { data } = await tryQuery<PublishedPricingVersion | null>(
         opts.supabase
           .from('contract_pricing_versions')
           .select(selectCommon)
@@ -104,11 +126,16 @@ export async function resolvePricingVersionForContract(opts: {
           .limit(1)
           .maybeSingle()
       )
-      return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+      return {
+        version: data ?? null,
+        selectionMode: mode,
+        probes: { versionsHasStatus, versionsHasIsPublished },
+      }
     }
 
     if (versionsHasIsPublished) {
-      const { data } = await tryQuery<PublishedPricingVersion>(
+      const { data } = await tryQuery<PublishedPricingVersion | null>(
         opts.supabase
           .from('contract_pricing_versions')
           .select(selectCommon)
@@ -118,17 +145,26 @@ export async function resolvePricingVersionForContract(opts: {
           .limit(1)
           .maybeSingle()
       )
-      return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+      return {
+        version: data ?? null,
+        selectionMode: mode,
+        probes: { versionsHasStatus, versionsHasIsPublished },
+      }
     }
 
-    // No known draft semantics.
-    return { version: null, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+    return {
+      version: null,
+      selectionMode: mode,
+      probes: { versionsHasStatus, versionsHasIsPublished },
+    }
   }
 
+  // -------- MODE: published_any --------
+
   if (mode === 'published_any') {
-    // Prefer status='published', otherwise is_published=true.
     if (versionsHasStatus) {
-      const { data } = await tryQuery<PublishedPricingVersion>(
+      const { data } = await tryQuery<PublishedPricingVersion | null>(
         opts.supabase
           .from('contract_pricing_versions')
           .select(selectCommon)
@@ -138,10 +174,15 @@ export async function resolvePricingVersionForContract(opts: {
           .limit(1)
           .maybeSingle()
       )
-      return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+      return {
+        version: data ?? null,
+        selectionMode: mode,
+        probes: { versionsHasStatus, versionsHasIsPublished },
+      }
     }
 
-    const { data } = await tryQuery<PublishedPricingVersion>(
+    const { data } = await tryQuery<PublishedPricingVersion | null>(
       opts.supabase
         .from('contract_pricing_versions')
         .select(selectCommon)
@@ -151,15 +192,22 @@ export async function resolvePricingVersionForContract(opts: {
         .limit(1)
         .maybeSingle()
     )
-    return { version: data, selectionMode: mode, probes: { versionsHasStatus, versionsHasIsPublished } }
+
+    return {
+      version: data ?? null,
+      selectionMode: mode,
+      probes: { versionsHasStatus, versionsHasIsPublished },
+    }
   }
 
-  // published_now (default)
+  // -------- MODE: published_now --------
+
   const nowIso =
-    (opts.selection as { mode?: 'published_now'; nowIso?: string } | undefined)?.nowIso ?? new Date().toISOString()
+    (opts.selection as { mode?: 'published_now'; nowIso?: string } | undefined)
+      ?.nowIso ?? new Date().toISOString()
 
   if (versionsHasStatus) {
-    const { data } = await tryQuery<PublishedPricingVersion>(
+    const { data } = await tryQuery<PublishedPricingVersion | null>(
       opts.supabase
         .from('contract_pricing_versions')
         .select(selectCommon)
@@ -170,10 +218,15 @@ export async function resolvePricingVersionForContract(opts: {
         .limit(1)
         .maybeSingle()
     )
-    return { version: data, selectionMode: 'published_now', probes: { versionsHasStatus, versionsHasIsPublished } }
+
+    return {
+      version: data ?? null,
+      selectionMode: 'published_now',
+      probes: { versionsHasStatus, versionsHasIsPublished },
+    }
   }
 
-  const { data } = await tryQuery<PublishedPricingVersion>(
+  const { data } = await tryQuery<PublishedPricingVersion | null>(
     opts.supabase
       .from('contract_pricing_versions')
       .select(selectCommon)
@@ -185,5 +238,9 @@ export async function resolvePricingVersionForContract(opts: {
       .maybeSingle()
   )
 
-  return { version: data, selectionMode: 'published_now', probes: { versionsHasStatus, versionsHasIsPublished } }
+  return {
+    version: data ?? null,
+    selectionMode: 'published_now',
+    probes: { versionsHasStatus, versionsHasIsPublished },
+  }
 }

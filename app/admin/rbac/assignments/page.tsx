@@ -1,5 +1,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { setUserPermissionOverride, setUserRoleActive } from '../actions'
+import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import {
+  setUserPermissionOverride,
+  setUserRoleActive,
+} from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +25,9 @@ type PermissionRow = { id: string; name: string }
 type UserPermissionRow = { user_id: string; permission_id: string }
 
 export default async function AssignmentsPage() {
+  // 🔐 ENTERPRISE: Server-side RBAC enforcement
+  await requireAdminServer()
+
   const supabase = await createSupabaseServerClient()
 
   const { data: users, error: uErr } = await supabase
@@ -67,14 +74,16 @@ export default async function AssignmentsPage() {
       .map((x) => `${x.user_id}:${x.role}`)
   )
 
-  const overrideSet = new Set((userPerms ?? []).map((x) => `${x.user_id}:${x.permission_id}`))
+  const overrideSet = new Set(
+    (userPerms ?? []).map((x) => `${x.user_id}:${x.permission_id}`)
+  )
 
   return (
     <div className="space-y-10">
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
         <h1 className="text-3xl font-bold">Assignments</h1>
         <p className="text-gray-400 mt-3">
-          Tilldela roles via <span className="text-gray-200">user_roles.role</span> och overrides via{' '}
+          Roles via <span className="text-gray-200">user_roles.role</span> och overrides via{' '}
           <span className="text-gray-200">user_permissions</span>.
         </p>
       </div>
@@ -82,7 +91,9 @@ export default async function AssignmentsPage() {
       <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
         <div className="p-6 border-b border-gray-800">
           <div className="text-lg font-semibold">Users</div>
-          <div className="text-xs text-gray-500 mt-1">Allt loggas i permission_audit.</div>
+          <div className="text-xs text-gray-500 mt-1">
+            Alla ändringar loggas i <span className="text-gray-300">permission_audit</span>.
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -95,6 +106,7 @@ export default async function AssignmentsPage() {
                 <th className="p-4">Overrides</th>
               </tr>
             </thead>
+
             <tbody>
               {(users ?? []).map((u) => (
                 <tr key={u.id} className="border-t border-gray-800 align-top">
@@ -112,7 +124,11 @@ export default async function AssignmentsPage() {
                           <form key={key} action={setUserRoleActive}>
                             <input type="hidden" name="user_id" value={u.id} />
                             <input type="hidden" name="role" value={r.name} />
-                            <input type="hidden" name="active" value={enabled ? 'false' : 'true'} />
+                            <input
+                              type="hidden"
+                              name="active"
+                              value={enabled ? 'false' : 'true'}
+                            />
                             <button
                               className={[
                                 'text-[11px] border px-2 py-1 rounded-full transition',
@@ -126,9 +142,6 @@ export default async function AssignmentsPage() {
                           </form>
                         )
                       })}
-                      {(roles ?? []).length === 0 && (
-                        <span className="text-xs text-gray-500">Skapa roles först.</span>
-                      )}
                     </div>
                   </td>
 
@@ -143,8 +156,11 @@ export default async function AssignmentsPage() {
                           <form key={key} action={setUserPermissionOverride}>
                             <input type="hidden" name="user_id" value={u.id} />
                             <input type="hidden" name="permission_id" value={p.id} />
-                            <input type="hidden" name="enabled" value={enabled ? 'false' : 'true'} />
-
+                            <input
+                              type="hidden"
+                              name="enabled"
+                              value={enabled ? 'false' : 'true'}
+                            />
                             <button
                               className={[
                                 'text-[11px] border px-2 py-1 rounded-full transition',
@@ -159,9 +175,6 @@ export default async function AssignmentsPage() {
                           </form>
                         )
                       })}
-                      {(perms ?? []).length === 0 && (
-                        <span className="text-xs text-gray-500">Skapa permissions först.</span>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -179,8 +192,7 @@ export default async function AssignmentsPage() {
         </div>
 
         <div className="p-6 border-t border-gray-800 text-xs text-gray-500">
-          Notis: Roles tilldelas via er befintliga <span className="text-gray-300">user_roles</span>-tabell (text role).
-          Det gör systemet kompatibelt utan breaking changes.
+          Systemet är kompatibelt med text-baserad role-kolumn i user_roles.
         </div>
       </div>
     </div>

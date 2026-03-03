@@ -1,37 +1,25 @@
-import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { supabaseService } from '@/lib/supabase/service'
+import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
+import { ContractAgreement } from '@/lib/types/contracts'
 
-export default async function EmailSignPage({
+export default async function EmailSign({
   params,
 }: {
   params: { token: string }
 }) {
-  const supabase = await createSupabaseServerClient()
-
-  const { data: agreement } = await supabase
-    .from('contract_agreements')
-    .select('*')
-    .eq('email_sign_token', params.token)
-    .single()
-
-  if (!agreement) redirect('/')
-
-  if (agreement.status === 'email_signed') {
-    return <div>Avtalet är redan signerat.</div>
-  }
-
-  await supabase
+  const { data } = await supabaseService
     .from('contract_agreements')
     .update({
-      status: 'email_signed',
       email_signed_at: new Date().toISOString(),
+      status: 'email_signed',
     })
-    .eq('id', agreement.id)
+    .eq('email_token', params.token)
+    .select('*')
+    .single<ContractAgreement>()
 
-  await supabase.from('contract_agreement_audit').insert({
-    agreement_id: agreement.id,
-    action: 'email_signed',
-  })
+  if (data) {
+    await finalizeAgreement(data.id)
+  }
 
-  redirect('/sign/success')
+  return <div>Avtalet är signerat.</div>
 }
