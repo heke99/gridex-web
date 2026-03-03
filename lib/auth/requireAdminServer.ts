@@ -11,15 +11,15 @@ export async function requireAdminServer() {
     throw new Error('Unauthorized')
   }
 
-  const { data } = await supabase
-    .from('user_roles')
-    .select('role,is_active')
-    .eq('user_id', user.id)
-    .eq('role', 'admin')
-    .eq('is_active', true)
-    .single()
+  const { data, error } = await supabase.rpc(
+    'gridex_has_permission',
+    {
+      p_user_id: user.id,
+      p_permission: 'admin.access',
+    }
+  )
 
-  if (!data) {
+  if (error || data !== true) {
     throw new Error('Forbidden')
   }
 
