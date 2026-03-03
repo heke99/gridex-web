@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import PublicHeader from '@/components/layout/PublicHeader'
-import PublicFooter from '@/components/layout/PublicFooter'
 
 const SITE_URL = 'https://gridex.se'
 
@@ -63,7 +62,7 @@ export default function PublicLayout({
                 name: 'Gridex AB',
                 url: SITE_URL,
                 email: 'support@gridex.se',
-                identifier: '550416-7149',
+                identifier: '559416-7149',
               },
               {
                 '@context': 'https://schema.org',
@@ -81,7 +80,7 @@ export default function PublicLayout({
       <div className="min-h-screen flex flex-col">
         <PublicHeader />
         <main className="flex-1">{children}</main>
-        <PublicFooter />
+        {/* ❌ Footer tas bort här – den renderas i root layout */}
       </div>
     </>
   )

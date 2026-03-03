@@ -1,6 +1,8 @@
 // app/layout.tsx
 import './globals.css'
 import AuthSessionSync from '@/components/auth/AuthSessionSync'
+import Footer from '@/components/layout/Footer'
+import CookieBanner from '@/components/legal/CookieBanner'
 
 export const metadata = {
   title: 'Gridex – Energy Fintech',
@@ -14,13 +16,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="sv">
-      <body className="bg-black text-white min-h-screen">
-        {/* Auth sync (RSC refresh) */}
+      <body className="bg-black text-white min-h-screen flex flex-col">
         <AuthSessionSync />
 
-        {/* Route-level layouts render their own header/navigation.
-            This avoids double headers (public + dashboard/admin). */}
-        {children}
+        <main className="flex-1">
+          {children}
+        </main>
+
+        <Footer />
+
+        {/* 🔥 SKA LIGGA INUTI BODY */}
+        <CookieBanner />
       </body>
     </html>
   )
