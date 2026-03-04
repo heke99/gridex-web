@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { supabaseService } from '@/lib/supabase/service'
 import { requireAdminServer } from '@/lib/auth/requireAdminServer'
 
 type RoleForm = {
@@ -13,6 +14,13 @@ type PermissionForm = {
   user_id: string
   permission_id: string
   enabled: string
+}
+
+type CreateUserForm = {
+  email: string
+  full_name: string
+  phone: string
+  role: string
 }
 
 async function audit(
@@ -30,6 +38,64 @@ async function audit(
     created_at: new Date().toISOString(),
   })
 }
+
+/* ------------------------------------------
+   CREATE USER (ENTERPRISE)
+------------------------------------------ */
+
+export async function createUserWithRole(formData: FormData) {
+  const admin = await requireAdminServer()
+
+  const payload: CreateUserForm = {
+    email: String(formData.get('email')),
+    full_name: String(formData.get('full_name')),
+    phone: String(formData.get('phone') ?? ''),
+    role: String(formData.get('role')),
+  }
+
+  if (!payload.email || !payload.role) {
+    throw new Error('Missing required fields')
+  }
+
+  // 1️⃣ Create auth user (service role required)
+  const { data: created, error } =
+    await supabaseService.auth.admin.createUser({
+      email: payload.email,
+      email_confirm: true,
+      user_metadata: { full_name: payload.full_name },
+    })
+
+  if (error || !created.user) {
+    throw new Error(error?.message ?? 'User creation failed')
+  }
+
+  const userId = created.user.id
+
+  // 2️⃣ Create profile
+  await supabaseService.from('user_profiles').insert({
+    id: userId,
+    full_name: payload.full_name,
+    phone: payload.phone,
+  })
+
+  // 3️⃣ Assign role
+  await supabaseService.from('user_roles').insert({
+    user_id: userId,
+    role: payload.role,
+    is_active: true,
+  })
+
+  const supabase = await createSupabaseServerClient()
+
+  await audit(supabase, admin.id, 'user_created', userId, {
+    role: payload.role,
+    email: payload.email,
+  })
+}
+
+/* ------------------------------------------
+   ROLE UPDATE
+------------------------------------------ */
 
 export async function setUserRoleActive(formData: FormData) {
   const admin = await requireAdminServer()
@@ -53,14 +119,15 @@ export async function setUserRoleActive(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
-  await audit(
-    supabase,
-    admin.id,
-    'role_update',
-    payload.user_id,
-    { role: payload.role, active: isActive }
-  )
+  await audit(supabase, admin.id, 'role_update', payload.user_id, {
+    role: payload.role,
+    active: isActive,
+  })
 }
+
+/* ------------------------------------------
+   PERMISSION OVERRIDE
+------------------------------------------ */
 
 export async function setUserPermissionOverride(formData: FormData) {
   const admin = await requireAdminServer()

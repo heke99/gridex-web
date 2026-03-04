@@ -1,9 +1,11 @@
+// app/admin/rbac/assignments/page.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requireAdminServer } from '@/lib/auth/requireAdminServer'
 import {
   setUserPermissionOverride,
   setUserRoleActive,
-} from '../actions'
+  createUserWithRole,
+} from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +27,6 @@ type PermissionRow = { id: string; name: string }
 type UserPermissionRow = { user_id: string; permission_id: string }
 
 export default async function AssignmentsPage() {
-  // 🔐 ENTERPRISE: Server-side RBAC enforcement
   await requireAdminServer()
 
   const supabase = await createSupabaseServerClient()
@@ -80,19 +81,68 @@ export default async function AssignmentsPage() {
 
   return (
     <div className="space-y-10">
+
+      {/* HEADER */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
-        <h1 className="text-3xl font-bold">Assignments</h1>
+        <h1 className="text-3xl font-bold">RBAC Assignments</h1>
         <p className="text-gray-400 mt-3">
-          Roles via <span className="text-gray-200">user_roles.role</span> och overrides via{' '}
-          <span className="text-gray-200">user_permissions</span>.
+          Skapa användare • Tilldela roller • Permission overrides • Audit-logg
         </p>
       </div>
 
+      {/* CREATE USER SECTION */}
+      <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
+        <div className="text-lg font-semibold mb-4">
+          Skapa ny användare
+        </div>
+
+        <form action={createUserWithRole} className="grid md:grid-cols-4 gap-4">
+
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            required
+            className="bg-black border border-gray-700 p-2 rounded"
+          />
+
+          <input
+            name="full_name"
+            placeholder="Full name"
+            required
+            className="bg-black border border-gray-700 p-2 rounded"
+          />
+
+          <input
+            name="phone"
+            placeholder="Phone"
+            className="bg-black border border-gray-700 p-2 rounded"
+          />
+
+          <select
+            name="role"
+            required
+            className="bg-black border border-gray-700 p-2 rounded"
+          >
+            {(roles ?? []).map((r) => (
+              <option key={r.id} value={r.name}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+
+          <button className="col-span-full bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+            Skapa användare & tilldela roll
+          </button>
+        </form>
+      </div>
+
+      {/* USERS TABLE (din befintliga struktur) */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
         <div className="p-6 border-b border-gray-800">
           <div className="text-lg font-semibold">Users</div>
           <div className="text-xs text-gray-500 mt-1">
-            Alla ändringar loggas i <span className="text-gray-300">permission_audit</span>.
+            Alla ändringar loggas i permission_audit.
           </div>
         </div>
 
@@ -110,8 +160,14 @@ export default async function AssignmentsPage() {
             <tbody>
               {(users ?? []).map((u) => (
                 <tr key={u.id} className="border-t border-gray-800 align-top">
-                  <td className="p-4 text-gray-200">{u.email ?? '—'}</td>
-                  <td className="p-4 text-gray-500">{u.full_name ?? '—'}</td>
+
+                  <td className="p-4 text-gray-200">
+                    {u.email ?? '—'}
+                  </td>
+
+                  <td className="p-4 text-gray-500">
+                    {u.full_name ?? '—'}
+                  </td>
 
                   {/* Roles */}
                   <td className="p-4">
@@ -168,7 +224,6 @@ export default async function AssignmentsPage() {
                                   ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15'
                                   : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
                               ].join(' ')}
-                              title={p.name}
                             >
                               {p.name}
                             </button>
@@ -177,6 +232,7 @@ export default async function AssignmentsPage() {
                       })}
                     </div>
                   </td>
+
                 </tr>
               ))}
 
@@ -187,6 +243,7 @@ export default async function AssignmentsPage() {
                   </td>
                 </tr>
               )}
+
             </tbody>
           </table>
         </div>
@@ -195,6 +252,7 @@ export default async function AssignmentsPage() {
           Systemet är kompatibelt med text-baserad role-kolumn i user_roles.
         </div>
       </div>
+
     </div>
   )
 }
