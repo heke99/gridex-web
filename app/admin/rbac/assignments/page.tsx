@@ -1,13 +1,17 @@
-// app/admin/rbac/assignments/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import RBACUserTable from '@/components/admin/RBACUserTable'
 import { requireAdminServer } from '@/lib/auth/requireAdminServer'
-import {
-  setUserPermissionOverride,
-  setUserRoleActive,
-  createUserWithRole,
-} from './actions'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createUserWithRole } from './actions'
 
 export const dynamic = 'force-dynamic'
+
+type SearchParams = {
+  q?: string
+  role?: string
+  active?: string
+  page?: string
+  per_page?: string
+}
 
 type UserProfileRow = {
   id: string
@@ -26,18 +30,71 @@ type RoleRow = { id: string; name: string }
 type PermissionRow = { id: string; name: string }
 type UserPermissionRow = { user_id: string; permission_id: string }
 
-export default async function AssignmentsPage() {
-  await requireAdminServer()
+function clampInt(v: unknown, def: number, min: number, max: number): number {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return def
+  return Math.min(max, Math.max(min, Math.floor(n)))
+}
 
+function buildHref(basePath: string, current: SearchParams, patch: Partial<SearchParams>) {
+  const params = new URLSearchParams()
+  const merged: SearchParams = { ...current, ...patch }
+
+  Object.entries(merged).forEach(([k, val]) => {
+    if (val === undefined || val === null) return
+    const s = String(val)
+    if (s.length === 0) return
+    params.set(k, s)
+  })
+
+  const qs = params.toString()
+  return qs ? `${basePath}?${qs}` : basePath
+}
+
+export default async function AssignmentsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
+  await requireAdminServer()
   const supabase = await createSupabaseServerClient()
 
-  const { data: users, error: uErr } = await supabase
+  // Filters
+  const q = searchParams.q ?? ''
+  const filterRole = searchParams.role ?? ''
+  const filterActive = searchParams.active ?? ''
+
+  // Pagination
+  const perPage = clampInt(searchParams.per_page, 50, 10, 200) // enterprise-safe
+  const page = clampInt(searchParams.page, 1, 1, 1000000)
+  const from = (page - 1) * perPage
+  const to = from + perPage - 1
+
+  /* -----------------------------------------
+     USERS (PAGED + COUNT)
+  ----------------------------------------- */
+
+  let userQuery = supabase
     .from('user_profiles')
-    .select('id,email,full_name,created_at')
+    .select('id,email,full_name,created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
+
+  if (q) {
+    userQuery = userQuery.or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
+  }
+
+  const { data: usersRaw, error: uErr, count } = await userQuery
+    .range(from, to)
     .returns<UserProfileRow[]>()
 
   if (uErr) throw new Error(uErr.message)
+
+  const users = usersRaw ?? []
+  const total = typeof count === 'number' ? count : null
+
+  /* -----------------------------------------
+     RBAC BASE DATA (SMALL TABLES)
+  ----------------------------------------- */
 
   const { data: roles, error: rErr } = await supabase
     .from('roles')
@@ -55,49 +112,143 @@ export default async function AssignmentsPage() {
 
   if (pErr) throw new Error(pErr.message)
 
-  const { data: userRoles, error: urErr } = await supabase
-    .from('user_roles')
-    .select('user_id,role,is_active')
-    .returns<UserRoleRow[]>()
+  /* -----------------------------------------
+     RBAC FOR CURRENT PAGE ONLY (ENTERPRISE)
+  ----------------------------------------- */
+
+  const userIds = users.map((u) => u.id)
+  const hasUsers = userIds.length > 0
+
+  const { data: userRoles, error: urErr } = hasUsers
+    ? await supabase
+        .from('user_roles')
+        .select('user_id,role,is_active')
+        .in('user_id', userIds)
+        .returns<UserRoleRow[]>()
+    : { data: [] as UserRoleRow[], error: null as null }
 
   if (urErr) throw new Error(urErr.message)
 
-  const { data: userPerms, error: upErr } = await supabase
-    .from('user_permissions')
-    .select('user_id,permission_id')
-    .returns<UserPermissionRow[]>()
+  const { data: userPerms, error: upErr } = hasUsers
+    ? await supabase
+        .from('user_permissions')
+        .select('user_id,permission_id')
+        .in('user_id', userIds)
+        .returns<UserPermissionRow[]>()
+    : { data: [] as UserPermissionRow[], error: null as null }
 
   if (upErr) throw new Error(upErr.message)
 
-  const activeRoleSet = new Set(
-    (userRoles ?? [])
-      .filter((x) => x.is_active !== false)
-      .map((x) => `${x.user_id}:${x.role}`)
-  )
+  /* -----------------------------------------
+     OPTIONAL: FILTER BY ROLE/ACTIVE (IN-MEMORY)
+     NOTE: Role/Active filter depends on user_roles, so we filter after we know them.
+  ----------------------------------------- */
 
-  const overrideSet = new Set(
-    (userPerms ?? []).map((x) => `${x.user_id}:${x.permission_id}`)
-  )
+  const filteredUsers = users.filter((u) => {
+    const rolesForUser = (userRoles ?? []).filter((r) => r.user_id === u.id)
+
+    if (filterRole) {
+      const hasRole = rolesForUser.some(
+        (r) => r.role === filterRole && r.is_active !== false
+      )
+      if (!hasRole) return false
+    }
+
+    if (filterActive === 'true') {
+      if (!rolesForUser.some((r) => r.is_active !== false)) return false
+    }
+
+    if (filterActive === 'false') {
+      if (rolesForUser.some((r) => r.is_active !== false)) return false
+    }
+
+    return true
+  })
+
+  // Pagination UI numbers (best-effort)
+  const showingFrom = from + 1
+  const showingTo = from + filteredUsers.length
+  const hasPrev = page > 1
+  const hasNext = total !== null ? to + 1 < total : users.length === perPage
+
+  const prevHref = buildHref('/admin/rbac/assignments', searchParams, {
+    page: String(page - 1),
+    per_page: String(perPage),
+  })
+
+  const nextHref = buildHref('/admin/rbac/assignments', searchParams, {
+    page: String(page + 1),
+    per_page: String(perPage),
+  })
 
   return (
     <div className="space-y-10">
-
       {/* HEADER */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
         <h1 className="text-3xl font-bold">RBAC Assignments</h1>
         <p className="text-gray-400 mt-3">
-          Skapa användare • Tilldela roller • Permission overrides • Audit-logg
+          Enterprise user management • Roles • Overrides • Deactivate • Audit
         </p>
       </div>
 
-      {/* CREATE USER SECTION */}
+      {/* FILTER BAR */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
-        <div className="text-lg font-semibold mb-4">
-          Skapa ny användare
-        </div>
+        <form className="grid md:grid-cols-6 gap-4">
+          <input
+            name="q"
+            placeholder="Sök email eller namn"
+            defaultValue={q}
+            className="bg-black border border-gray-700 p-2 rounded md:col-span-2"
+          />
+
+          <select
+            name="role"
+            defaultValue={filterRole}
+            className="bg-black border border-gray-700 p-2 rounded"
+          >
+            <option value="">Alla roller</option>
+            {(roles ?? []).map((r) => (
+              <option key={r.id} value={r.name}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            name="active"
+            defaultValue={filterActive}
+            className="bg-black border border-gray-700 p-2 rounded"
+          >
+            <option value="">Alla</option>
+            <option value="true">Aktiva</option>
+            <option value="false">Inaktiva</option>
+          </select>
+
+          <select
+            name="per_page"
+            defaultValue={String(perPage)}
+            className="bg-black border border-gray-700 p-2 rounded"
+          >
+            <option value="25">25 / sida</option>
+            <option value="50">50 / sida</option>
+            <option value="100">100 / sida</option>
+            <option value="200">200 / sida</option>
+          </select>
+
+          <button className="bg-cyan-600 px-4 py-2 rounded">
+            Filtrera
+          </button>
+
+          {/* keep page reset when filtering */}
+          <input type="hidden" name="page" value="1" />
+        </form>
+      </div>
+
+      {/* CREATE USER */}
+      <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
+        <div className="text-lg font-semibold mb-4">Skapa ny användare</div>
 
         <form action={createUserWithRole} className="grid md:grid-cols-4 gap-4">
-
           <input
             name="email"
             type="email"
@@ -137,122 +288,67 @@ export default async function AssignmentsPage() {
         </form>
       </div>
 
-      {/* USERS TABLE (din befintliga struktur) */}
-      <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
-        <div className="p-6 border-b border-gray-800">
-          <div className="text-lg font-semibold">Users</div>
-          <div className="text-xs text-gray-500 mt-1">
-            Alla ändringar loggas i permission_audit.
-          </div>
+      {/* PAGINATION BAR */}
+      <div className="rounded-3xl border border-gray-800 bg-gray-950 p-5 flex items-center justify-between">
+        <div className="text-xs text-gray-400">
+          {total !== null ? (
+            <>
+              Visar <span className="text-gray-200">{showingFrom}</span>–
+              <span className="text-gray-200">{showingTo}</span> av{' '}
+              <span className="text-gray-200">{total}</span>
+            </>
+          ) : (
+            <>
+              Visar <span className="text-gray-200">{showingFrom}</span>–
+              <span className="text-gray-200">{showingTo}</span>
+            </>
+          )}
+          <span className="ml-3 text-gray-500">
+            (page {page}, {perPage}/sida)
+          </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-gray-400 border-b border-gray-800">
-              <tr>
-                <th className="p-4">Email</th>
-                <th className="p-4">Namn</th>
-                <th className="p-4">Roles</th>
-                <th className="p-4">Overrides</th>
-              </tr>
-            </thead>
+        <div className="flex items-center gap-2">
+          <a
+            href={hasPrev ? prevHref : undefined}
+            aria-disabled={!hasPrev}
+            className={[
+              'text-xs border px-3 py-2 rounded-full transition',
+              hasPrev
+                ? 'border-white/10 bg-white/5 hover:bg-white/10 text-white/80'
+                : 'border-white/5 bg-white/0 text-white/30 cursor-not-allowed',
+            ].join(' ')}
+          >
+            ← Föregående
+          </a>
 
-            <tbody>
-              {(users ?? []).map((u) => (
-                <tr key={u.id} className="border-t border-gray-800 align-top">
-
-                  <td className="p-4 text-gray-200">
-                    {u.email ?? '—'}
-                  </td>
-
-                  <td className="p-4 text-gray-500">
-                    {u.full_name ?? '—'}
-                  </td>
-
-                  {/* Roles */}
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      {(roles ?? []).map((r) => {
-                        const key = `${u.id}:${r.name}`
-                        const enabled = activeRoleSet.has(key)
-
-                        return (
-                          <form key={key} action={setUserRoleActive}>
-                            <input type="hidden" name="user_id" value={u.id} />
-                            <input type="hidden" name="role" value={r.name} />
-                            <input
-                              type="hidden"
-                              name="active"
-                              value={enabled ? 'false' : 'true'}
-                            />
-                            <button
-                              className={[
-                                'text-[11px] border px-2 py-1 rounded-full transition',
-                                enabled
-                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15'
-                                  : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10',
-                              ].join(' ')}
-                            >
-                              {r.name}
-                            </button>
-                          </form>
-                        )
-                      })}
-                    </div>
-                  </td>
-
-                  {/* Overrides */}
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      {(perms ?? []).map((p) => {
-                        const key = `${u.id}:${p.id}`
-                        const enabled = overrideSet.has(key)
-
-                        return (
-                          <form key={key} action={setUserPermissionOverride}>
-                            <input type="hidden" name="user_id" value={u.id} />
-                            <input type="hidden" name="permission_id" value={p.id} />
-                            <input
-                              type="hidden"
-                              name="enabled"
-                              value={enabled ? 'false' : 'true'}
-                            />
-                            <button
-                              className={[
-                                'text-[11px] border px-2 py-1 rounded-full transition',
-                                enabled
-                                  ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15'
-                                  : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
-                              ].join(' ')}
-                            >
-                              {p.name}
-                            </button>
-                          </form>
-                        )
-                      })}
-                    </div>
-                  </td>
-
-                </tr>
-              ))}
-
-              {(users ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={4} className="p-6 text-gray-500">
-                    Inga användare hittades i user_profiles.
-                  </td>
-                </tr>
-              )}
-
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-6 border-t border-gray-800 text-xs text-gray-500">
-          Systemet är kompatibelt med text-baserad role-kolumn i user_roles.
+          <a
+            href={hasNext ? nextHref : undefined}
+            aria-disabled={!hasNext}
+            className={[
+              'text-xs border px-3 py-2 rounded-full transition',
+              hasNext
+                ? 'border-white/10 bg-white/5 hover:bg-white/10 text-white/80'
+                : 'border-white/5 bg-white/0 text-white/30 cursor-not-allowed',
+            ].join(' ')}
+          >
+            Nästa →
+          </a>
         </div>
       </div>
 
+      {/* USER TABLE (ISOLATED COMPONENT) */}
+      <RBACUserTable
+        users={filteredUsers.map((u) => ({
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name,
+        }))}
+        roles={roles ?? []}
+        perms={perms ?? []}
+        userRoles={userRoles ?? []}
+        userPerms={userPerms ?? []}
+      />
     </div>
   )
 }

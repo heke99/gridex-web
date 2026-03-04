@@ -57,7 +57,6 @@ export async function createUserWithRole(formData: FormData) {
     throw new Error('Missing required fields')
   }
 
-  // 1️⃣ Create auth user (service role required)
   const { data: created, error } =
     await supabaseService.auth.admin.createUser({
       email: payload.email,
@@ -71,14 +70,12 @@ export async function createUserWithRole(formData: FormData) {
 
   const userId = created.user.id
 
-  // 2️⃣ Create profile
   await supabaseService.from('user_profiles').insert({
     id: userId,
     full_name: payload.full_name,
     phone: payload.phone,
   })
 
-  // 3️⃣ Assign role
   await supabaseService.from('user_roles').insert({
     user_id: userId,
     role: payload.role,
@@ -90,6 +87,32 @@ export async function createUserWithRole(formData: FormData) {
   await audit(supabase, admin.id, 'user_created', userId, {
     role: payload.role,
     email: payload.email,
+  })
+}
+
+/* ------------------------------------------
+   DEACTIVATE USER (NEW)
+------------------------------------------ */
+
+export async function deactivateUser(formData: FormData) {
+  const admin = await requireAdminServer()
+  const supabase = await createSupabaseServerClient()
+
+  const userId = String(formData.get('user_id'))
+
+  if (!userId) {
+    throw new Error('Missing user_id')
+  }
+
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ is_active: false })
+    .eq('user_id', userId)
+
+  if (error) throw new Error(error.message)
+
+  await audit(supabase, admin.id, 'user_deactivated', userId, {
+    reason: 'admin_action',
   })
 }
 
