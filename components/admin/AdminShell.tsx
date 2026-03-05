@@ -1,35 +1,18 @@
-// components/admin/AdminShell.tsx
 import Link from 'next/link'
 import { headers } from 'next/headers'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { ADMIN_NAV, type AdminNavItem } from '@/lib/admin/nav.schema'
+import type { AdminContext } from '@/lib/admin/getAdminContext'
+import { canAccessByRule } from '@/lib/admin/guards'
 
-type NavItem = {
-  label: string
-  href: string
-  description?: string
-  permissionsAny?: string[]
-  rolesAny?: string[]
+type LegacyProps = {
+  email: string | null
+  roles?: string[]
+  permissions?: string[]
 }
 
-type NavGroup = {
-  title: string
-  items: NavItem[]
-}
-
-function hasAny(haystack: string[], needles?: string[]) {
-  if (!needles || needles.length === 0) return true
-  if (!haystack || haystack.length === 0) return false
-  return needles.some((n) => haystack.includes(n))
-}
-
-function canAccess(item: NavItem, roles: string[], permissions: string[]) {
-  const roleOk = hasAny(roles, item.rolesAny)
-  const permOk = hasAny(permissions, item.permissionsAny)
-
-  const hasRoleGuard = !!item.rolesAny && item.rolesAny.length > 0
-  const hasPermGuard = !!item.permissionsAny && item.permissionsAny.length > 0
-
-  if (!hasRoleGuard && !hasPermGuard) return true
-  return (hasRoleGuard && roleOk) || (hasPermGuard && permOk)
+type EnterpriseProps = {
+  ctx: AdminContext
 }
 
 function SidebarLink({
@@ -37,7 +20,7 @@ function SidebarLink({
   active,
   allowed,
 }: {
-  item: NavItem
+  item: AdminNavItem
   active: boolean
   allowed: boolean
 }) {
@@ -63,6 +46,7 @@ function SidebarLink({
     <>
       <div className="flex items-center justify-between gap-3">
         <span className="font-medium">{item.label}</span>
+
         {allowed ? (
           active ? (
             <span className="text-[10px] text-cyan-400">●</span>
@@ -103,162 +87,53 @@ function SidebarLink({
 
 async function getActivePathnameFromHeaders(): Promise<string> {
   const h = await headers()
-  return h.get('x-invoke-path') || h.get('next-url') || ''
+
+  return (
+    h.get('x-invoke-path') ??
+    h.get('next-url') ??
+    ''
+  )
 }
 
-const NAV: NavGroup[] = [
-  {
-    title: 'Översikt',
-    items: [
-      {
-        label: 'Dashboard',
-        href: '/admin',
-        description: 'KPI • status • genvägar',
-        permissionsAny: ['admin.access'],
-      },
-    ],
-  },
-
-  {
-    title: 'Avtal',
-    items: [
-      {
-        label: 'Avtalsprodukter',
-        href: '/admin/contracts',
-        description: 'CRUD • aktiv/inaktiv • featured',
-        permissionsAny: [
-          'contracts.write',
-          'contracts.read',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Signerade avtal',
-        href: '/admin/agreements',
-        description: 'PDF • juridik • finalize • export',
-        permissionsAny: [
-          'agreements.read',
-          'agreements.write',
-          'admin.access',
-        ],
-      },
-    ],
-  },
-
-  {
-    title: 'Compliance',
-    items: [
-      {
-        label: 'Juridiska loggar',
-        href: '/admin/legal-acceptances',
-        description:
-          'IP • user agent • version hash • revisionsspår',
-        permissionsAny: [
-          'compliance.read',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Avtals-audit',
-        href: '/admin/audit/agreements',
-        description: 'finalize • sign • system events',
-        permissionsAny: [
-          'compliance.read',
-          'admin.access',
-        ],
-      },
-    ],
-  },
-
-  {
-    title: 'Priser',
-    items: [
-      {
-        label: 'Pricing-versioner',
-        href: '/admin/pricing',
-        description:
-          'Versioner • clone • skriv • publish',
-        permissionsAny: [
-          'pricing.write',
-          'pricing.publish',
-          'pricing.publish_prod',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Audit: pricing',
-        href: '/admin/audit/pricing',
-        description:
-          'pricing_version_audit • export',
-        permissionsAny: ['admin.access'],
-      },
-    ],
-  },
-
-  {
-    title: 'RBAC & Security',
-    items: [
-      {
-        label: 'RBAC översikt',
-        href: '/admin/rbac',
-        description:
-          'roller • permissions • assignments',
-        permissionsAny: [
-          'rbac.read',
-          'rbac.write',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Roles',
-        href: '/admin/rbac/roles',
-        description: 'Skapa/hantera roller',
-        permissionsAny: [
-          'rbac.write',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Permissions',
-        href: '/admin/rbac/permissions',
-        description: 'Skapa/hantera permissions',
-        permissionsAny: [
-          'rbac.write',
-          'admin.access',
-        ],
-      },
-      {
-        label: 'Assignments',
-        href: '/admin/rbac/assignments',
-        description:
-          'user_roles + user_permissions',
-        permissionsAny: [
-          'rbac.write',
-          'admin.access',
-        ],
-      },
-    ],
-  },
-]
-
 export default async function AdminShell({
-  email,
-  roles = [],
-  permissions = [],
   children,
+  ...props
 }: {
-  email: string | null
-  roles?: string[]
-  permissions?: string[]
   children: React.ReactNode
-}) {
+} & (LegacyProps | EnterpriseProps)) {
+
   const path = await getActivePathnameFromHeaders()
+
+  const email =
+    'ctx' in props ? props.ctx.email : props.email
+
+  const roles =
+    'ctx' in props ? props.ctx.roles : props.roles ?? []
+
+  const permissions =
+    'ctx' in props
+      ? props.ctx.permissions
+      : props.permissions ?? []
+
+  const navCtx: AdminContext =
+    'ctx' in props
+      ? props.ctx
+      : {
+          userId: '__legacy__',
+          email: email ?? null,
+          roles,
+          permissions,
+          isAdmin: true,
+          supabase: null as unknown as SupabaseClient,
+        }
 
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="grid lg:grid-cols-[300px_1fr]">
+
         <aside className="border-r border-gray-800 bg-gray-950/40">
           <div className="px-6 py-5 border-b border-gray-800">
+
             <div className="font-bold tracking-tight">
               Gridex Enterprise Admin
             </div>
@@ -275,25 +150,24 @@ export default async function AdminShell({
           </div>
 
           <nav className="px-4 py-4 space-y-4 text-sm">
-            {NAV.map((g) => (
-              <div key={g.title}>
+            {ADMIN_NAV.map((group) => (
+              <div key={group.title}>
+
                 <div className="px-3 pb-2 text-xs text-gray-500 uppercase tracking-wider">
-                  {g.title}
+                  {group.title}
                 </div>
 
                 <div className="space-y-1">
-                  {g.items.map((it) => {
+                  {group.items.map((it) => {
+
                     const active =
                       it.href === '/admin'
                         ? path === '/admin'
                         : path === it.href ||
                           path.startsWith(it.href + '/')
 
-                    const allowed = canAccess(
-                      it,
-                      roles,
-                      permissions
-                    )
+                    const allowed =
+                      canAccessByRule(navCtx, it.access)
 
                     return (
                       <SidebarLink
@@ -305,18 +179,22 @@ export default async function AdminShell({
                     )
                   })}
                 </div>
+
               </div>
             ))}
           </nav>
         </aside>
 
         <div>
+
           <div className="border-b border-gray-800">
             <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
               <div>
                 <div className="text-sm text-gray-300">
                   Enterprise Control Panel
                 </div>
+
                 <div className="text-[11px] text-gray-500">
                   RLS enforced • hashed legal docs • signed PDFs
                 </div>
@@ -325,13 +203,16 @@ export default async function AdminShell({
               <div className="text-xs text-gray-500">
                 {email ? 'Secure session active' : '—'}
               </div>
+
             </div>
           </div>
 
           <main className="max-w-7xl mx-auto px-6 py-8">
             {children}
           </main>
+
         </div>
+
       </div>
     </div>
   )

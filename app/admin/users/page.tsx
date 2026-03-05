@@ -1,8 +1,7 @@
 // app/admin/users/page.tsx
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { createUser, resetUserPassword, setUserActive, setUserRole, type AdminUserRole } from './actions'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,14 +35,8 @@ function fmt(iso: string) {
 }
 
 export default async function AdminUsersPage() {
-  const supabase = await createSupabaseServerClient()
-
-  // Gate: admin.access (RBAC) OR legacy admin_users
-  await requirePermissionServer('admin.access').catch(async () => {
-    // Legacy fallback
-    const { requireAdminRole } = await import('@/lib/auth/admin')
-    await requireAdminRole(supabase)
-  })
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   // 1️⃣ Auth users via RPC (admin_list_auth_users)
   const { data: rawUsers, error: authErr } = await supabase.rpc('admin_list_auth_users')

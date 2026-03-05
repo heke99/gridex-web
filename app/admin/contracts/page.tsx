@@ -1,8 +1,7 @@
 // app/admin/contracts/page.tsx
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { createClient } from '@supabase/supabase-js'
-import { requireAdminRole } from '@/lib/auth/admin'
 import { createContract, setContractActive } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -51,9 +50,8 @@ function classifyPublishState(nowIso: string, published: VersionRow | null): Pub
 }
 
 export default async function AdminContractsPage() {
-  // 🔐 Auth check (session client)
-  const supabase = await createSupabaseServerClient()
-  await requireAdminRole(supabase)
+  const ctx = await requireAdminPageAccess({ anyOf: ['contracts.read', 'contracts.write', 'admin.access'] })
+  const supabase = ctx.supabase
 
   // 🔥 Service client (bypass RLS)
   const service = getServiceClient()

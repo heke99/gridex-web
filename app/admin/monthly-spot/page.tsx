@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -77,28 +78,30 @@ export default async function AdminMonthlySpotPage({
 }: {
   searchParams?: Promise<{ year?: string; month?: string }>
 }) {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({
+    anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write', 'admin.access'],
+  })
+
+  const supabase = ctx.supabase
   const now = new Date()
   const fallback = prevYearMonth(now)
 
-  // Who is viewing? (May be anon if someone misroutes; handle gracefully)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // --------------------------------------------------
+// Enterprise compatibility layer (legacy admin API)
+// --------------------------------------------------
+const legacy = {
+  allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
+  role: ctx.roles.includes('admin') ? 'admin' : 'user',
+}
 
-  const isAuthed = Boolean(user?.id)
+const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
+  const canWrite =
+    isLegacyAdmin ||
+    ctx.permissions.includes('spot.write') ||
+    ctx.permissions.includes('pricing.write') ||
+    ctx.permissions.includes('admin.access')
 
-  // Permission flags (UI gating)
-  let canWrite = false
-  let canPublish = false
-  if (isAuthed) {
-    const r1 = await supabase.rpc('gridex_has_permission', { p_user_id: user!.id, p_permission: 'spot.write' })
-    const r2 = await supabase.rpc('gridex_has_permission', { p_user_id: user!.id, p_permission: 'pricing.write' })
-    const r3 = await supabase.rpc('gridex_has_permission', { p_user_id: user!.id, p_permission: 'spot.publish' })
-    const r4 = await supabase.rpc('gridex_has_permission', { p_user_id: user!.id, p_permission: 'admin.access' })
-    canWrite = r1.data === true || r2.data === true || r4.data === true
-    canPublish = r3.data === true || r4.data === true
-  }
+  const canPublish = isLegacyAdmin || ctx.permissions.includes('spot.publish') || ctx.permissions.includes('admin.access')
 
   // Active basis
   const { data: cfg } = await supabase

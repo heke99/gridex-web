@@ -1,7 +1,6 @@
 // app/admin/pricing/page.tsx
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,9 +27,8 @@ type Audit = {
 }
 
 export default async function AdminPricingIndexPage() {
-  const supabase = await createSupabaseServerClient()
-  // Legacy admin gate (layout + middleware + this)
-  await requireAdminRole(supabase)
+  const ctx = await requireAdminPageAccess({ anyOf: ['pricing.read', 'pricing.write', 'pricing.publish', 'pricing.publish_prod', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data: contracts, error: cErr } = await supabase
     .from('contract_products')

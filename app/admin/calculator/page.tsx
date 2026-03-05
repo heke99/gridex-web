@@ -1,6 +1,6 @@
 // app/admin/calculator/page.tsx
 import Link from 'next/link'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { logPermissionAudit } from '@/lib/auth/audit'
 import {
   computeCustomerSpec,
@@ -149,8 +149,16 @@ export default async function AdminCalculatorPreviewPage({
     run?: string
   }
 }) {
-  // 🔐 Access: admin.access (legacy admin allowed via requirePermissionServer fallback)
-  const { supabase: db, user } = await requirePermissionServer('admin.access')
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+const db = ctx.supabase
+
+// Enterprise compatibility layer
+// behåller gamla ctx.user API så resten av filen fungerar
+
+const user = {
+  id: ctx.userId,
+  email: ctx.email,
+}
 
   const { data: contractsRaw, error: cErr } = await db
     .from('contract_products')

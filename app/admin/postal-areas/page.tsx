@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminActionAccess, requireAdminPageAccess } from '@/lib/admin/guards'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -9,7 +10,8 @@ function normalizePostal(input: string): string {
 }
 
 export default async function AdminPostalAreasPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   const { data: recent } = await supabase
     .from('gridex_postal_code_price_area')
@@ -19,6 +21,7 @@ export default async function AdminPostalAreasPage() {
 
   async function upsertSingleAction(formData: FormData) {
     'use server'
+    await requireAdminActionAccess({ anyOf: ['admin.access'] })
     const supabase = await createSupabaseServerClient()
 
     const postal = normalizePostal(String(formData.get('postal_code') ?? ''))

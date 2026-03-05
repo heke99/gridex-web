@@ -1,13 +1,11 @@
 // app/admin/support-tickets/page.tsx
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminSupportTicketsPage() {
   // Support team can be allowed via permission, but admin.access always passes too.
-  await requirePermissionServer('admin.access').catch(async () => {
-    await requirePermissionServer('support.access')
-  })
+  await requireAdminPageAccess({ anyOf: ['admin.access', 'support.access'] })
 
   return (
     <div className="space-y-8">

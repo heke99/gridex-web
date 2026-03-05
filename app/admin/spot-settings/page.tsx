@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -17,7 +18,8 @@ type ContractRow = {
 export const dynamic = 'force-dynamic'
 
 export default async function AdminSpotSettingsPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data: contracts, error: cErr } = await supabase
     .from('contract_products')

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { createPermission } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +11,8 @@ type PermissionRow = {
 }
 
 export default async function PermissionsPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['rbac.write', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data, error } = await supabase
     .from('permissions')

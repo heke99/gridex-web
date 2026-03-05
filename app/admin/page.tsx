@@ -1,6 +1,6 @@
 // app/admin/page.tsx
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -146,19 +146,8 @@ function QuickAction({
 ================================ */
 
 export default async function AdminDashboard() {
-  const supabase = await createSupabaseServerClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white/70">
-        Session saknas.
-      </div>
-    )
-  }
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   /* ===============================
      KPI QUERIES

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { logPermissionAudit } from '@/lib/auth/audit'
 import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 
 function str(v: FormDataEntryValue | null): string {
   return typeof v === 'string' ? v.trim() : ''
@@ -12,7 +13,7 @@ function str(v: FormDataEntryValue | null): string {
 async function requireRbacWrite(actorId: string) {
   const supabase = await createSupabaseServerClient()
 
-  // Legacy: admin-only via admin_users (publish == admin)
+  // Legacy: admin-only via admin_users
   const legacy = await requireAdminRole(supabase).catch(() => null)
   if (legacy?.role === 'admin') return { supabase, actorId }
 
@@ -38,20 +39,14 @@ export async function createRole(formData: FormData) {
 
   if (!name) throw new Error('Missing role name')
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) throw new Error('Unauthorized')
-
-  const ctx = await requireRbacWrite(user.id)
+  const a = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireRbacWrite(a.userId)
 
   const { error } = await ctx.supabase.from('roles').insert({ name, description })
   if (error) throw new Error(error.message)
 
   await logPermissionAudit({
-    actorId: user.id,
+    actorId: a.userId,
     action: 'rbac.role.create',
     metadata: { name, description },
   })
@@ -66,13 +61,8 @@ export async function toggleRolePermission(formData: FormData) {
 
   if (!roleId || !permissionId) throw new Error('Missing role_id/permission_id')
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
-
-  const ctx = await requireRbacWrite(user.id)
+  const a = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireRbacWrite(a.userId)
 
   if (enabled) {
     const { error } = await ctx.supabase
@@ -89,7 +79,7 @@ export async function toggleRolePermission(formData: FormData) {
   }
 
   await logPermissionAudit({
-    actorId: user.id,
+    actorId: a.userId,
     action: 'rbac.role_permissions.toggle',
     metadata: { roleId, permissionId, enabled },
   })
@@ -106,19 +96,14 @@ export async function createPermission(formData: FormData) {
 
   if (!name) throw new Error('Missing permission name')
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
-
-  const ctx = await requireRbacWrite(user.id)
+  const a = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireRbacWrite(a.userId)
 
   const { error } = await ctx.supabase.from('permissions').insert({ name, description })
   if (error) throw new Error(error.message)
 
   await logPermissionAudit({
-    actorId: user.id,
+    actorId: a.userId,
     action: 'rbac.permission.create',
     metadata: { name, description },
   })
@@ -128,7 +113,6 @@ export async function createPermission(formData: FormData) {
 
 /* -------------------------
    Assignments (user_roles + user_permissions)
-   NOTE: you already use user_roles(user_id, role, is_active)
 ------------------------- */
 export async function setUserRoleActive(formData: FormData) {
   const userId = str(formData.get('user_id'))
@@ -137,15 +121,9 @@ export async function setUserRoleActive(formData: FormData) {
 
   if (!userId || !role) throw new Error('Missing user_id/role')
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user: actor },
-  } = await supabase.auth.getUser()
-  if (!actor) throw new Error('Unauthorized')
+  const a = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireRbacWrite(a.userId)
 
-  const ctx = await requireRbacWrite(actor.id)
-
-  // Try update first
   const { data: existing, error: readErr } = await ctx.supabase
     .from('user_roles')
     .select('user_id, role')
@@ -170,7 +148,7 @@ export async function setUserRoleActive(formData: FormData) {
   }
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId: a.userId,
     action: 'rbac.user_roles.set_active',
     targetUserId: userId,
     metadata: { role, active },
@@ -186,13 +164,8 @@ export async function setUserPermissionOverride(formData: FormData) {
 
   if (!userId || !permissionId) throw new Error('Missing user_id/permission_id')
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user: actor },
-  } = await supabase.auth.getUser()
-  if (!actor) throw new Error('Unauthorized')
-
-  const ctx = await requireRbacWrite(actor.id)
+  const a = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireRbacWrite(a.userId)
 
   if (enabled) {
     const { error } = await ctx.supabase
@@ -209,7 +182,7 @@ export async function setUserPermissionOverride(formData: FormData) {
   }
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId: a.userId,
     action: 'rbac.user_permissions.toggle',
     targetUserId: userId,
     metadata: { permissionId, enabled },

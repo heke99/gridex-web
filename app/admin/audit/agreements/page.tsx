@@ -1,5 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,9 +22,8 @@ type AuditRow = {
 }
 
 export default async function AgreementsAuditPage() {
-  await requireAdminServer()
-
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['compliance.read', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data, error } = await supabase
     .from('legal_acceptances')
@@ -82,8 +80,8 @@ export default async function AgreementsAuditPage() {
             </thead>
 
             <tbody>
-              {rows.map((row) => {
-                const agreement = row.contract_agreements[0] ?? null
+                {rows.map((row: AuditRow) => {
+                    const agreement = row.contract_agreements[0] ?? null
 
                 const fullName = agreement
                   ? `${agreement.first_name ?? ''} ${agreement.last_name ?? ''}`.trim()

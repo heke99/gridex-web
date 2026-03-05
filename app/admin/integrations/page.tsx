@@ -1,10 +1,10 @@
 // app/admin/integrations/page.tsx
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminIntegrationsPage() {
-  await requirePermissionServer('admin.access')
+  await requireAdminPageAccess({ anyOf: ['admin.access'] })
 
   return (
     <div className="space-y-8">

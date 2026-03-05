@@ -1,7 +1,6 @@
 // app/admin/audit/pricing/page.tsx
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,8 +38,8 @@ export default async function PricingAuditPage({
 }: {
   searchParams?: Promise<Search>
 }) {
-  const supabase = await createSupabaseServerClient()
-  await requireAdminRole(supabase)
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   const sp = (await searchParams) || {}
   const contract = (sp.contract ?? '').trim()

@@ -1,5 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminAccess } from '@/lib/auth/rbac'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,8 +10,8 @@ type AdminUserRow = {
 }
 
 export default async function AdminAccessPage() {
-  const supabase = await createSupabaseServerClient()
-  await requireAdminAccess(supabase)
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   // Read-only visning
   const { data, error } = await supabase

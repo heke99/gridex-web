@@ -1,7 +1,6 @@
 // app/admin/audit/pricing/export/route.ts
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole, assertCanPublish } from '@/lib/auth/admin'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 
 type AuditRow = {
   id: string
@@ -13,9 +12,8 @@ type AuditRow = {
 }
 
 export async function GET(req: Request) {
-  const supabase = await createSupabaseServerClient()
-  const { role } = await requireAdminRole(supabase)
-  assertCanPublish(role)
+  const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   const { data, error } = await supabase
     .from('pricing_version_audit')

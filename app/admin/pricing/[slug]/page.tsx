@@ -1,9 +1,7 @@
 // app/admin/pricing/[slug]/page.tsx
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
-import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { computeCustomerSpec, type PriceArea } from '@/lib/gridex/previewEngine'
 import {
   createVersionAction,
@@ -71,48 +69,24 @@ export default async function AdminPricingContractPage({
   const { slug } = await params
   const sp = searchParams ? await searchParams : undefined
 
-  const supabase = await createSupabaseServerClient()
-  const nowIso = new Date().toISOString()
-
-  // Gate: pricing.write OR pricing.publish
-  await requirePermissionServer('pricing.write').catch(async () => {
-    await requirePermissionServer('pricing.publish')
+  const ctx = await requireAdminPageAccess({
+    anyOf: ['pricing.read', 'pricing.write', 'pricing.publish', 'pricing.publish_prod', 'admin.access'],
   })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const supabase = ctx.supabase
+  const nowIso = new Date().toISOString()
 
-  // Determine UI capabilities
-  const legacy = await requireAdminRole(supabase).catch(() => null)
-  const isLegacyAdmin = legacy?.role === 'admin'
+  // --------------------------------------------------
+// Enterprise compatibility layer (legacy admin API)
+// --------------------------------------------------
+const legacy = {
+  allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
+  role: ctx.roles.includes('admin') ? 'admin' : 'user',
+}
 
-  let canWrite = isLegacyAdmin
-  if (!canWrite) {
-    try {
-      const r = await supabase.rpc('gridex_has_permission', {
-        p_user_id: user.id,
-        p_permission: 'pricing.write',
-      })
-      canWrite = r.data === true
-    } catch {
-      canWrite = false
-    }
-  }
-
-  let canPublish = isLegacyAdmin
-  if (!canPublish) {
-    try {
-      const r = await supabase.rpc('gridex_has_permission', {
-        p_user_id: user.id,
-        p_permission: 'pricing.publish',
-      })
-      canPublish = r.data === true
-    } catch {
-      canPublish = false
-    }
-  }
+const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
+  const canWrite = isLegacyAdmin || ctx.permissions.includes('pricing.write') || ctx.permissions.includes('pricing.publish')
+  const canPublish = isLegacyAdmin || ctx.permissions.includes('pricing.publish') || ctx.permissions.includes('pricing.publish_prod')
 
   const { data: contract } = await supabase
     .from('contract_products')

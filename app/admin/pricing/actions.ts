@@ -1,9 +1,8 @@
-// app/admin/pricing/actions.ts
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole, assertCanPublish } from '@/lib/auth/admin'
 
 type PricingVersionRow = {
   id: string
@@ -15,12 +14,42 @@ type PricingVersionRow = {
 }
 
 export async function publishPricingVersion(contractId: string, versionId: string) {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminActionAccess({
+    anyOf: ['pricing.publish', 'pricing.publish_prod'],
+  })
 
-  const { user, role } = await requireAdminRole(supabase)
-  assertCanPublish(role)
+  const supabase = ctx.supabase
 
-  // Säkerhetsvalidering: versionen måste tillhöra kontraktet
+  // --------------------------------------------------
+  // Enterprise RBAC compatibility layer
+  // --------------------------------------------------
+  const legacy = {
+    allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
+    role: ctx.roles.includes('admin') ? 'admin' : 'user',
+  }
+
+  const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
+
+  const isProd =
+    process.env.VERCEL_ENV === 'production' ||
+    process.env.NODE_ENV === 'production'
+
+  const hasPublish =
+    ctx.permissions.includes('pricing.publish') ||
+    ctx.permissions.includes('pricing.publish_prod')
+
+  const hasPublishProd =
+    ctx.permissions.includes('pricing.publish_prod')
+
+  if (isProd && !isLegacyAdmin && !hasPublishProd) {
+    throw new Error('Publish not allowed in prod (missing pricing.publish_prod)')
+  }
+
+  if (!isLegacyAdmin && !hasPublish) {
+    throw new Error('Publish not allowed (missing pricing.publish)')
+  }
+
+  // Validate version belongs to contract
   const { data: version, error: vErr } = await supabase
     .from('contract_pricing_versions')
     .select('id, contract_id, valid_from, is_published, status')
@@ -28,11 +57,12 @@ export async function publishPricingVersion(contractId: string, versionId: strin
     .maybeSingle<PricingVersionRow>()
 
   if (vErr) throw new Error(vErr.message)
+
   if (!version || version.contract_id !== contractId) {
     throw new Error('Invalid version for contract')
   }
 
-  // 1) Unpublish alla versioner för kontraktet (fail-safe)
+  // Unpublish all versions
   const { error: offErr } = await supabase
     .from('contract_pricing_versions')
     .update({ is_published: false, status: 'draft' })
@@ -40,7 +70,7 @@ export async function publishPricingVersion(contractId: string, versionId: strin
 
   if (offErr) throw new Error(offErr.message)
 
-  // 2) Publish vald version
+  // Publish selected version
   const { error: onErr } = await supabase
     .from('contract_pricing_versions')
     .update({ is_published: true, status: 'published' })
@@ -49,28 +79,27 @@ export async function publishPricingVersion(contractId: string, versionId: strin
 
   if (onErr) throw new Error(onErr.message)
 
-  // 3) Audit log (publish)
+  // Audit
   const { error: aErr } = await supabase.from('pricing_version_audit').insert({
     contract_id: contractId,
     version_id: versionId,
     action: 'publish',
-    performed_by: user.id,
-    reason: 'legacy publish',
+    performed_by: ctx.userId,
+    reason: isProd ? 'publish_prod' : 'publish',
   })
 
   if (aErr) throw new Error(aErr.message)
 
-  // 4) Revalidate (admin + publikt)
+  // Revalidate admin
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
 
-  // Publika ytor som använder publish-version
-  revalidatePath('/') // Hero
+  // Revalidate public
+  revalidatePath('/')
   revalidatePath('/avtal')
   revalidatePath('/teckna')
   revalidatePath('/kundservice')
 
-  // Kalkylator / programmatic SEO (om du har dem)
   revalidatePath('/elpris')
   revalidatePath('/elpris/se1')
   revalidatePath('/elpris/se2')
@@ -79,12 +108,31 @@ export async function publishPricingVersion(contractId: string, versionId: strin
 }
 
 export async function unpublishPricingForContract(contractId: string) {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminActionAccess({
+    anyOf: ['pricing.publish', 'pricing.publish_prod'],
+  })
 
-  const { user, role } = await requireAdminRole(supabase)
-  assertCanPublish(role)
+  const supabase = ctx.supabase
 
-  // hitta published version för audit
+  // --------------------------------------------------
+  // Enterprise RBAC compatibility layer
+  // --------------------------------------------------
+  const legacy = {
+    allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
+    role: ctx.roles.includes('admin') ? 'admin' : 'user',
+  }
+
+  const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
+
+  const hasPublish =
+    ctx.permissions.includes('pricing.publish') ||
+    ctx.permissions.includes('pricing.publish_prod')
+
+  if (!isLegacyAdmin && !hasPublish) {
+    throw new Error('Unpublish not allowed')
+  }
+
+  // find active version
   const { data: active, error: a1Err } = await supabase
     .from('contract_pricing_versions')
     .select('id')
@@ -94,6 +142,7 @@ export async function unpublishPricingForContract(contractId: string) {
 
   if (a1Err) throw new Error(a1Err.message)
 
+  // unpublish
   const { error: offErr } = await supabase
     .from('contract_pricing_versions')
     .update({ is_published: false, status: 'draft' })
@@ -102,26 +151,27 @@ export async function unpublishPricingForContract(contractId: string) {
 
   if (offErr) throw new Error(offErr.message)
 
-  // audit: om det fanns en aktiv version logga vilken som blev avpublicerad
+  // audit
   if (active?.id) {
     const { error: aErr } = await supabase.from('pricing_version_audit').insert({
       contract_id: contractId,
       version_id: active.id,
       action: 'unpublish',
-      performed_by: user.id,
-      reason: 'legacy unpublish',
+      performed_by: ctx.userId,
+      reason: 'manual unpublish',
     })
+
     if (aErr) throw new Error(aErr.message)
   }
 
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
 
-  // Publika ytor
   revalidatePath('/')
   revalidatePath('/avtal')
   revalidatePath('/teckna')
   revalidatePath('/kundservice')
+
   revalidatePath('/elpris')
   revalidatePath('/elpris/se1')
   revalidatePath('/elpris/se2')

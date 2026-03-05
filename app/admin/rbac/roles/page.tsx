@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { createRole, toggleRolePermission } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,8 @@ type RolePermissionRow = {
 }
 
 export default async function RolesPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['rbac.write', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data: roles, error: rErr } = await supabase
     .from('roles')

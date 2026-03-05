@@ -13,8 +13,13 @@ export async function requirePermissionServer(permission: string) {
   if (!user) throw new Error('Unauthorized')
 
   // 1) Legacy fallback: admin_users
+  // Keep backwards compatibility while NOT silently granting sensitive actions.
   const legacy = await requireAdminRole(supabase).catch(() => null)
   if (legacy?.role === 'admin') {
+    return { supabase, user, mode: 'legacy' as const }
+  }
+  // Legacy editors should still be able to access basic admin pages gated by admin.access.
+  if (legacy?.role === 'editor' && permission === 'admin.access') {
     return { supabase, user, mode: 'legacy' as const }
   }
 

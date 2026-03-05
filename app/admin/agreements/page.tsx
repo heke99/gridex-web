@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,8 @@ type AgreementRow = {
 }
 
 export default async function AgreementsPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
+  const supabase = ctx.supabase
 
   const { data, error } = await supabase
     .from('contract_agreements')

@@ -1,3 +1,4 @@
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { supabaseService } from '@/lib/supabase/service'
 import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
 import {
@@ -10,6 +11,8 @@ export default async function AgreementDetail({
 }: {
   params: { id: string }
 }) {
+  await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
+
   const { data: agreement } = await supabaseService
     .from('contract_agreements')
     .select('*')

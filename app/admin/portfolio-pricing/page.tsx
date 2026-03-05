@@ -1,6 +1,6 @@
 // app/admin/portfolio-pricing/page.tsx
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
 
@@ -17,7 +17,8 @@ type ContractRow = {
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPortfolioPricingPage() {
-  const supabase = await createSupabaseServerClient()
+  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = ctx.supabase
 
   const { data: contracts, error: cErr } = await supabase
     .from('contract_products')
