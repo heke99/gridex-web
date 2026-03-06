@@ -5,10 +5,10 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 
 function safeNext(next?: string | null): string {
-  if (!next) return '/admin'
+  if (!next) return '/dashboard'
   const n = String(next)
-  if (!n.startsWith('/')) return '/admin'
-  if (n.startsWith('//')) return '/admin'
+  if (!n.startsWith('/')) return '/dashboard'
+  if (n.startsWith('//')) return '/dashboard'
   return n
 }
 
@@ -23,7 +23,7 @@ function looksLikeEmail(v: string): boolean {
 export async function loginWithPassword(formData: FormData) {
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
-  const next = safeNext(String(formData.get('next') || '') || '/admin')
+  const next = safeNext(String(formData.get('next') || '') || '/dashboard')
 
   if (!email || !looksLikeEmail(email) || !password) {
     redirect(

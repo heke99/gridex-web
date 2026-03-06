@@ -1,26 +1,71 @@
-import { supabaseService } from '@/lib/supabase/service'
-import { ContractAgreement } from '@/lib/types/contracts'
+import { getCustomerContracts, getPortalSession } from '@/lib/customerPortal/service'
 
-export default async function DashboardContracts() {
-  const { data } = await supabaseService
-    .from('contract_agreements')
-    .select('*')
-    .order('created_at', { ascending: false })
+export const dynamic = 'force-dynamic'
 
-  const agreements = (data ?? []) as ContractAgreement[]
+function formatDate(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
+}
+
+export default async function DashboardContractsPage() {
+  const { supabase, user } = await getPortalSession()
+  const contracts = await getCustomerContracts(supabase, user.id)
 
   return (
-    <div>
-      <h1>Mina avtal</h1>
+    <div className="space-y-6">
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <h1 className="text-2xl font-semibold">Mina avtal</h1>
+        <p className="mt-2 text-sm text-white/60">
+          Endast kundens egna avtal visas här. Tabellen är förberedd för extern synk av status, avtalsspecifikation, prisbild och leveransreferenser.
+        </p>
+      </div>
 
-      {agreements.map((agreement) => (
-        <div key={agreement.id}>
-          <p>{agreement.contract_type}</p>
-          <a href={`/api/agreements/${agreement.id}/pdf`}>
-            Ladda ner PDF
-          </a>
-        </div>
-      ))}
+      <div className="space-y-4">
+        {contracts.map((contract) => (
+          <article key={contract.id} className="rounded-3xl border border-white/10 bg-black/30 p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">{contract.contract_name || contract.contract_slug || 'Avtal'}</h2>
+                <p className="mt-1 text-sm text-white/60">
+                  Status: <span className="text-white/80">{contract.status}</span>
+                </p>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60">
+                Agreement ID: {contract.agreement_id || '—'}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                <div className="text-white/45">Signerat</div>
+                <div className="mt-2">{formatDate(contract.signed_at)}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                <div className="text-white/45">Start</div>
+                <div className="mt-2">{formatDate(contract.starts_at)}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                <div className="text-white/45">Billing provider</div>
+                <div className="mt-2">{contract.billing_provider_key || 'Ej kopplad'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                <div className="text-white/45">Contract provider</div>
+                <div className="mt-2">{contract.contract_provider_key || 'Ej kopplad'}</div>
+              </div>
+            </div>
+          </article>
+        ))}
+
+        {contracts.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/60">
+            Du har ännu inga avtal i portalen.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const sp = (await searchParams) || {}
   const error = readParam(sp.error)
   const reason = readParam(sp.reason)
-  const next = readParam(sp.next) || '/admin'
+  const next = readParam(sp.next) || '/dashboard'
 
   const banner =
     reason === 'forbidden'

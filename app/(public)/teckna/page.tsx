@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ElectricityCalculator from '@/components/ElectricityCalculator'
 import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
+import { supabaseService } from '@/lib/supabase/service'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
@@ -195,40 +196,28 @@ export default async function TecknaPage() {
     // =========================================================
     let userId: string | null = null
 
-    const tempPassword = randomBytes(8).toString('hex')
-    const created = await supabase.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-    })
+    const { data: listedUsers } = await supabaseService.auth.admin.listUsers()
+    const existingUser = listedUsers?.users.find((u) => u.email?.toLowerCase() === email)
 
-    if (created.error) {
-      const msg = created.error.message.toLowerCase()
-      const already =
-        msg.includes('already') ||
-        msg.includes('exists') ||
-        msg.includes('registered')
-
-      if (!already) {
-        throw new Error(created.error.message)
-      }
-
-      // fallback: listUsers and find (GoTrue has no getUserByEmail)
-      const { data: existingUser } = await supabase.auth.admin.listUsers()
-      const found = existingUser?.users.find((u) => u.email?.toLowerCase() === email)
-
-      if (!found?.id) {
-        throw new Error('Kunde inte hämta befintlig användare trots att den verkar finnas.')
-      }
-
-      userId = found.id
+    if (existingUser?.id) {
+      userId = existingUser.id
     } else {
-      userId = created.data.user?.id ?? null
+      const invited = await supabaseService.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gridex.se'}/login?next=/dashboard`,
+        data: {
+          source: 'contract_signup',
+          first_name: firstName,
+          last_name: lastName,
+        },
+      })
+
+      if (invited.error) throw new Error(invited.error.message)
+      userId = invited.data.user?.id ?? null
 
       await supabase.from('system_emails').insert({
         to_email: email,
-        subject: 'Ditt konto hos Gridex',
-        body: `Ditt konto är skapat. Temporärt lösenord: ${tempPassword}`,
+        subject: 'Aktivera din kundportal hos Gridex',
+        body: 'Vi har skickat en aktiveringslänk till dig. Bekräfta e-postadressen för att slutföra ditt kundkonto och logga in på Mina sidor.',
       })
     }
 
