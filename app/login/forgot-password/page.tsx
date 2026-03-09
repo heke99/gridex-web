@@ -1,8 +1,27 @@
+//app/login/forgot-password/page.tsx
 'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+
+function normalizeEmail(v: string): string {
+  return v.trim().toLowerCase()
+}
+
+function looksLikeEmail(v: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+function humanizeAuthError(message: string): string {
+  const msg = message.toLowerCase()
+
+  if (msg.includes('email')) {
+    return 'Ange en giltig e-postadress.'
+  }
+
+  return 'Kunde inte skicka återställningslänken just nu.'
+}
 
 export default function ForgotPasswordPage() {
   const supabase = createSupabaseBrowserClient()
@@ -14,18 +33,29 @@ export default function ForgotPasswordPage() {
 
   async function handleReset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+
+    if (loading) return
+
     setError(null)
+
+    const cleanEmail = normalizeEmail(email)
+
+    if (!cleanEmail || !looksLikeEmail(cleanEmail)) {
+      setError('Ange en giltig e-postadress.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const redirectTo = `${window.location.origin}/login/reset-password`
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
       })
 
       if (error) {
-        setError(error.message)
+        setError(humanizeAuthError(error.message))
         return
       }
 
@@ -49,7 +79,7 @@ export default function ForgotPasswordPage() {
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
             Om adressen finns registrerad har vi skickat en återställningslänk.
             <div className="mt-3">
-              <Link href="/login" className="underline text-emerald-100 hover:text-white">
+              <Link href="/login?status=reset-sent" className="underline text-emerald-100 hover:text-white">
                 Tillbaka till inloggning
               </Link>
             </div>
@@ -61,6 +91,7 @@ export default function ForgotPasswordPage() {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
@@ -77,7 +108,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl bg-white text-black font-semibold hover:bg-white/90 disabled:opacity-60 transition"
+              className="w-full h-11 rounded-xl bg-white text-black font-semibold hover:bg-white/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
               {loading ? 'Skickar…' : 'Skicka återställningslänk'}
             </button>

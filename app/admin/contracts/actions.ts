@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 
@@ -17,12 +18,18 @@ type ContractInsertResult = {
   contract_type: ContractType
 }
 
+type ContractTypeLookupRow = {
+  contract_type: ContractType
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!url || !key) {
-    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL')
+    throw new Error(
+      'Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL'
+    )
   }
 
   return createClient(url, key, {
@@ -41,78 +48,94 @@ function slugify(input: string) {
     .replace(/(^-|-$)+/g, '')
 }
 
-/**
- * Enterprise admin check
- * - Prefer permission admin.access (RBAC)
- * - Fallback to legacy admin_users + user_roles
- */
 async function assertAdmin(): Promise<{ userId: string }> {
-  const supabase = await createSupabaseServerClient()
+  try {
+    const ctx = await requireAdminActionAccess({
+      anyOf: ['contracts.write', 'admin.access'],
+    })
 
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser()
+    return { userId: ctx.userId }
+  } catch {
+    const supabase = await createSupabaseServerClient()
 
-  if (userErr) throw new Error(userErr.message)
-  if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser()
 
-  // New: permission-based
-  const { data: hasPerm } = await supabase.rpc('gridex_has_permission', {
-    p_user_id: user.id,
-    p_permission: 'admin.access',
-  })
+    if (userErr) throw new Error(userErr.message)
+    if (!user) throw new Error('Not authenticated')
 
-  if (hasPerm === true) {
+    const { data: hasPerm, error: permError } = await supabase.rpc(
+      'gridex_has_permission',
+      {
+        p_user_id: user.id,
+        p_permission: 'admin.access',
+      }
+    )
+
+    if (permError) {
+      throw new Error(permError.message)
+    }
+
+    if (hasPerm === true) {
+      return { userId: user.id }
+    }
+
+    try {
+      await requireAdminRole(supabase)
+      return { userId: user.id }
+    } catch {}
+
+    const { data: roleRows, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role,is_active')
+      .eq('user_id', user.id)
+      .returns<UserRoleRow[]>()
+
+    if (roleError) {
+      throw new Error(roleError.message)
+    }
+
+    const roleNames =
+      roleRows
+        ?.filter((row) => row.is_active !== false)
+        .map((row) => row.role) ?? []
+
+    const isAdmin =
+      roleNames.includes('admin') || roleNames.includes('super_admin')
+
+    if (!isAdmin) {
+      throw new Error('Unauthorized')
+    }
+
     return { userId: user.id }
   }
-
-  // Legacy: admin_users
-  try {
-    await requireAdminRole(supabase)
-    return { userId: user.id }
-  } catch {}
-
-  // Extra fallback: user_roles
-  const { data: roleRows } = await supabase
-    .from('user_roles')
-    .select('role,is_active')
-    .eq('user_id', user.id)
-    .returns<UserRoleRow[]>()
-
-  const roleNames =
-    roleRows
-      ?.filter((r) => r.is_active !== false)
-      .map((r) => r.role) ?? []
-
-  const isAdmin = roleNames.includes('admin') || roleNames.includes('super_admin')
-  if (!isAdmin) throw new Error('Unauthorized')
-
-  return { userId: user.id }
 }
 
-/**
- * Create contract + auto draft pricing version
- * Ensures:
- * - contract_products row
- * - draft contract_pricing_versions row (is_published=false)
- * - optional: enforce one active per contract_type (via update)
- */
 export async function createContract(formData: FormData) {
   const { userId } = await assertAdmin()
   const service = getServiceClient()
 
   const name = String(formData.get('name') ?? '').trim()
   const slugInput = String(formData.get('slug') ?? '').trim()
-  const contractType = String(formData.get('contract_type') ?? 'spot_hourly') as ContractType
+  const contractType = String(
+    formData.get('contract_type') ?? 'spot_hourly'
+  ) as ContractType
   const isActive = formData.get('is_active') ? true : false
 
   if (!name) throw new Error('Name is required')
 
-  const slug = slugInput ? slugify(slugInput) : slugify(name)
-  if (!slug) throw new Error('Slug could not be generated')
+  if (!['spot_hourly', 'portfolio_managed', 'fixed'].includes(contractType)) {
+    throw new Error('Invalid contract_type')
+  }
 
-  // 1) Insert contract
+  const slug = slugInput ? slugify(slugInput) : slugify(name)
+
+  if (!slug) {
+    throw new Error('Slug could not be generated')
+  }
+
   const { data: contractRow, error: contractError } = await service
     .from('contract_products')
     .insert({
@@ -122,7 +145,7 @@ export async function createContract(formData: FormData) {
       is_active: isActive,
       created_by: userId,
     })
-    .select('id, contract_type')
+    .select('id,contract_type')
     .single()
     .returns<ContractInsertResult>()
 
@@ -131,7 +154,6 @@ export async function createContract(formData: FormData) {
 
   const contractId = contractRow.id
 
-  // 2) Enforce only one active per type (business rule)
   if (isActive) {
     const { error: deactivateError } = await service
       .from('contract_products')
@@ -142,8 +164,6 @@ export async function createContract(formData: FormData) {
     if (deactivateError) throw new Error(deactivateError.message)
   }
 
-  // 3) Create initial draft pricing version (NOW as valid_from, unpublished)
-  // NOTE: contract_pricing_versions is keyed by contract_id (NOT contract_product_id)
   const { error: pricingError } = await service
     .from('contract_pricing_versions')
     .insert({
@@ -151,21 +171,18 @@ export async function createContract(formData: FormData) {
       version_number: 1,
       valid_from: new Date().toISOString(),
       is_published: false,
+      status: 'draft',
     })
 
   if (pricingError) throw new Error(pricingError.message)
 
-  // 4) Revalidate admin + public routes that depend on contracts/pricing
+  revalidatePath('/admin')
   revalidatePath('/admin/contracts')
   revalidatePath('/admin/pricing')
   revalidatePath('/avtal')
   revalidatePath('/teckna')
 }
 
-/**
- * Toggle active state
- * Ensures only one active per type
- */
 export async function setContractActive(formData: FormData) {
   await assertAdmin()
   const service = getServiceClient()
@@ -173,24 +190,32 @@ export async function setContractActive(formData: FormData) {
   const id = String(formData.get('id') ?? '').trim()
   const isActiveStr = String(formData.get('is_active') ?? '').trim()
 
-  if (!id) throw new Error('Missing id')
+  if (!id) {
+    throw new Error('Missing id')
+  }
 
   const isActive =
     isActiveStr === 'true' ? true : isActiveStr === 'false' ? false : null
 
-  if (isActive === null) throw new Error('Invalid is_active value')
+  if (isActive === null) {
+    throw new Error('Invalid is_active value')
+  }
 
-  // Get contract type
-  const { data: contract } = await service
+  const { data: contract, error: contractError } = await service
     .from('contract_products')
     .select('contract_type')
     .eq('id', id)
-    .single()
+    .maybeSingle<ContractTypeLookupRow>()
 
-  if (!contract) throw new Error('Contract not found')
+  if (contractError) {
+    throw new Error(contractError.message)
+  }
+
+  if (!contract) {
+    throw new Error('Contract not found')
+  }
 
   if (isActive) {
-    // deactivate others of same type
     const { error: deactivateError } = await service
       .from('contract_products')
       .update({ is_active: false })
@@ -207,6 +232,7 @@ export async function setContractActive(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
+  revalidatePath('/admin')
   revalidatePath('/admin/contracts')
   revalidatePath('/admin/pricing')
   revalidatePath('/avtal')

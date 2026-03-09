@@ -11,18 +11,39 @@ import type {
   ExternalConnection,
 } from './types'
 
+type ContractAgreementFallbackRow = {
+  id: string
+  contract_slug: string | null
+  status: string | null
+  created_at: string
+  email_signed_at: string | null
+  bankid_signed_at: string | null
+}
+
+type CustomerProfileFallbackRow = {
+  user_id: string
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+}
+
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) throw new Error('Unauthorized')
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
   return user
 }
 
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
+
   return { supabase, user }
 }
 
@@ -36,7 +57,9 @@ export async function getCustomerProfile(
     .eq('user_id', userId)
     .maybeSingle<CustomerProfile>()
 
-  if (data) return data
+  if (data) {
+    return data
+  }
 
   const { data: fallback } = await supabase
     .from('contract_agreements')
@@ -44,22 +67,21 @@ export async function getCustomerProfile(
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle<{
-      user_id: string
-      email: string | null
-      first_name: string | null
-      last_name: string | null
-      phone: string | null
-    }>()
+    .maybeSingle<CustomerProfileFallbackRow>()
 
-  if (!fallback) return null
+  if (!fallback) {
+    return null
+  }
+
+  const fullName =
+    [fallback.first_name, fallback.last_name].filter(Boolean).join(' ') || null
 
   return {
     user_id: fallback.user_id,
     email: fallback.email,
     first_name: fallback.first_name,
     last_name: fallback.last_name,
-    full_name: [fallback.first_name, fallback.last_name].filter(Boolean).join(' ') || null,
+    full_name: fullName,
     phone: fallback.phone,
     language_code: 'sv',
     timezone: 'Europe/Stockholm',
@@ -68,6 +90,8 @@ export async function getCustomerProfile(
     billing_customer_ref: null,
     contract_customer_ref: null,
     metadata: {},
+    customer_type: null,
+    company_name: null,
   }
 }
 
@@ -81,18 +105,23 @@ export async function getCustomerContracts(
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
-  if ((data?.length ?? 0) > 0) return (data ?? []) as CustomerPortalContract[]
+  if ((data?.length ?? 0) > 0) {
+    return (data ?? []) as CustomerPortalContract[]
+  }
 
   const { data: agreements } = await supabase
     .from('contract_agreements')
-    .select('id,contract_slug,status,created_at,email_signed_at,bankid_signed_at')
+    .select(
+      'id,contract_slug,status,created_at,email_signed_at,bankid_signed_at'
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .returns<ContractAgreementFallbackRow[]>()
 
-  return (agreements ?? []).map((row: any) => ({
+  return (agreements ?? []).map((row) => ({
     id: row.id,
     agreement_id: row.id,
-    contract_slug: row.contract_slug ?? null,
+    contract_slug: row.contract_slug,
     contract_name: null,
     status: row.status ?? 'unknown',
     signed_at: row.email_signed_at ?? row.bankid_signed_at ?? null,
@@ -166,7 +195,9 @@ export async function getExternalConnections(
 ): Promise<ExternalConnection[]> {
   const { data } = await supabase
     .from('external_system_connections')
-    .select('id,provider_key,connection_name,domain,status,is_sandbox,last_success_at,health_payload')
+    .select(
+      'id,provider_key,connection_name,domain,status,is_sandbox,last_success_at,health_payload'
+    )
     .order('domain', { ascending: true })
 
   return (data ?? []) as ExternalConnection[]
@@ -175,14 +206,15 @@ export async function getExternalConnections(
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
 
-  const [profile, contracts, invoices, tickets, notifications, connections] = await Promise.all([
-    getCustomerProfile(supabase, user.id),
-    getCustomerContracts(supabase, user.id),
-    getCustomerInvoices(supabase, user.id),
-    getCustomerTickets(supabase, user.id),
-    getCustomerNotifications(supabase, user.id),
-    getExternalConnections(supabase),
-  ])
+  const [profile, contracts, invoices, tickets, notifications, connections] =
+    await Promise.all([
+      getCustomerProfile(supabase, user.id),
+      getCustomerContracts(supabase, user.id),
+      getCustomerInvoices(supabase, user.id),
+      getCustomerTickets(supabase, user.id),
+      getCustomerNotifications(supabase, user.id),
+      getExternalConnections(supabase),
+    ])
 
   return {
     profile,

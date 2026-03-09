@@ -1,4 +1,3 @@
-// app/admin/calculator/page.tsx
 import Link from 'next/link'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { logPermissionAudit } from '@/lib/auth/audit'
@@ -13,8 +12,22 @@ export const dynamic = 'force-dynamic'
 
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
-function toNumber(v: unknown, fallback: number): number {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
+type CalculatorSearchParams = {
+  contract?: string
+  compare?: string
+  area?: string
+  kwh?: string
+  run?: string
+}
+
+function toNumber(value: unknown, fallback: number): number {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+      ? Number(value)
+      : NaN
+
   return Number.isFinite(n) ? n : fallback
 }
 
@@ -22,16 +35,18 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
 
-function fmtOre(v: number) {
-  return `${new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 2 }).format(v)} öre/kWh`
+function fmtOre(value: number) {
+  return `${new Intl.NumberFormat('sv-SE', {
+    maximumFractionDigits: 2,
+  }).format(value)} öre/kWh`
 }
 
-function fmtMoney(v: number) {
+function fmtMoney(value: number) {
   return new Intl.NumberFormat('sv-SE', {
     style: 'currency',
     currency: 'SEK',
     maximumFractionDigits: 0,
-  }).format(v)
+  }).format(value)
 }
 
 function SpecTable({ spec }: { spec: CustomerSpecResult }) {
@@ -44,8 +59,8 @@ function SpecTable({ spec }: { spec: CustomerSpecResult }) {
             {spec.contract.name}
           </div>
           <div className="mt-1 text-[12px] text-white/55">
-            {spec.contract.slug} • {spec.contract.contract_type} • {spec.priceArea}{' '}
-            • {spec.kwh} kWh/mån
+            {spec.contract.slug} • {spec.contract.contract_type} •{' '}
+            {spec.priceArea} • {spec.kwh} kWh/mån
           </div>
           <div className="mt-3 text-[11px] text-white/50">
             Prisversion:{' '}
@@ -87,25 +102,27 @@ function SpecTable({ spec }: { spec: CustomerSpecResult }) {
               <th className="px-4 py-3 text-right text-xs font-semibold text-white/70">
                 SEK/mån
               </th>
-              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-white/70">
+              <th className="hidden px-4 py-3 text-left text-xs font-semibold text-white/70 md:table-cell">
                 Not
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
-            {spec.lines.map((l) => (
-              <tr key={l.key} className="bg-black/20">
-                <td className="px-4 py-3 text-white/85">{l.label}</td>
+            {spec.lines.map((line) => (
+              <tr key={line.key} className="bg-black/20">
+                <td className="px-4 py-3 text-white/85">{line.label}</td>
                 <td className="px-4 py-3 text-right text-white/85">
-                  {typeof l.orePerKwh === 'number' ? fmtOre(l.orePerKwh) : '—'}
-                </td>
-                <td className="px-4 py-3 text-right text-white/85">
-                  {typeof l.sekPerMonth === 'number'
-                    ? fmtMoney(l.sekPerMonth)
+                  {typeof line.orePerKwh === 'number'
+                    ? fmtOre(line.orePerKwh)
                     : '—'}
                 </td>
-                <td className="hidden md:table-cell px-4 py-3 text-[12px] text-white/55">
-                  {l.note ?? ''}
+                <td className="px-4 py-3 text-right text-white/85">
+                  {typeof line.sekPerMonth === 'number'
+                    ? fmtMoney(line.sekPerMonth)
+                    : '—'}
+                </td>
+                <td className="hidden px-4 py-3 text-[12px] text-white/55 md:table-cell">
+                  {line.note ?? ''}
                 </td>
               </tr>
             ))}
@@ -141,55 +158,53 @@ function SpecTable({ spec }: { spec: CustomerSpecResult }) {
 export default async function AdminCalculatorPreviewPage({
   searchParams,
 }: {
-  searchParams?: {
-    contract?: string
-    compare?: string
-    area?: string
-    kwh?: string
-    run?: string
-  }
+  searchParams?: Promise<CalculatorSearchParams> | CalculatorSearchParams
 }) {
   const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
-const db = ctx.supabase
+  const db = ctx.supabase
 
-// Enterprise compatibility layer
-// behåller gamla ctx.user API så resten av filen fungerar
+  const resolvedSearchParams =
+    searchParams && typeof (searchParams as Promise<CalculatorSearchParams>).then === 'function'
+      ? await (searchParams as Promise<CalculatorSearchParams>)
+      : ((searchParams as CalculatorSearchParams | undefined) ?? {})
 
-const user = {
-  id: ctx.userId,
-  email: ctx.email,
-}
-
-  const { data: contractsRaw, error: cErr } = await db
+  const { data: contractsRaw, error: contractsError } = await db
     .from('contract_products')
     .select('id,name,slug,contract_type,is_active')
     .order('name', { ascending: true })
 
-  if (cErr) throw new Error(cErr.message)
+  if (contractsError) throw new Error(contractsError.message)
+
   const contracts = (contractsRaw ?? []) as ContractProduct[]
 
-  const area = (searchParams?.area && AREAS.includes(searchParams.area as PriceArea)
-    ? (searchParams.area as PriceArea)
-    : 'SE3') as PriceArea
+  const area = (
+    resolvedSearchParams.area &&
+    AREAS.includes(resolvedSearchParams.area as PriceArea)
+      ? (resolvedSearchParams.area as PriceArea)
+      : 'SE3'
+  ) as PriceArea
 
-  const kwh = clamp(toNumber(searchParams?.kwh, 2000), 1, 200000)
+  const kwh = clamp(toNumber(resolvedSearchParams.kwh, 2000), 1, 200000)
 
-  const contractSlug = (searchParams?.contract ?? '').trim()
-  const compareSlug = (searchParams?.compare ?? '').trim()
+  const contractSlug = (resolvedSearchParams.contract ?? '').trim()
+  const compareSlug = (resolvedSearchParams.compare ?? '').trim()
 
   const contract =
-    contracts.find((c) => c.slug === contractSlug && c.is_active !== false) ??
-    null
+    contracts.find(
+      (item) => item.slug === contractSlug && item.is_active !== false
+    ) ?? null
+
   const compare =
-    contracts.find((c) => c.slug === compareSlug && c.is_active !== false) ??
-    null
+    contracts.find(
+      (item) => item.slug === compareSlug && item.is_active !== false
+    ) ?? null
 
   let primarySpec: CustomerSpecResult | null = null
   let compareSpec: CustomerSpecResult | null = null
   let primaryError: string | null = null
   let compareError: string | null = null
 
-  const shouldRun = (searchParams?.run ?? '') === '1' && !!contract
+  const shouldRun = (resolvedSearchParams.run ?? '') === '1' && !!contract
 
   if (shouldRun && contract) {
     try {
@@ -199,8 +214,8 @@ const user = {
         priceArea: area,
         kwh,
       })
-    } catch (e) {
-      primaryError = e instanceof Error ? e.message : String(e)
+    } catch (error) {
+      primaryError = error instanceof Error ? error.message : String(error)
     }
 
     if (compare && compare.slug !== contract.slug) {
@@ -211,14 +226,13 @@ const user = {
           priceArea: area,
           kwh,
         })
-      } catch (e) {
-        compareError = e instanceof Error ? e.message : String(e)
+      } catch (error) {
+        compareError = error instanceof Error ? error.message : String(error)
       }
     }
 
-    // ✅ Audit: log the preview action (permission_audit)
     await logPermissionAudit({
-      actorId: user.id,
+      actorId: ctx.userId,
       action: 'admin.preview.calculator',
       metadata: {
         area,
@@ -238,27 +252,32 @@ const user = {
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold">Kalkylator • Admin Preview</h1>
         <p className="mt-2 text-sm text-white/60">
-          Steg B: Kopplad mot publicerad pricing-version, area-priser och
-          spot/portfolio-inställningar. Validera exakt kundspec (prisrad) och
-          månadskostnad — inklusive jämförelse sida-vid-sida.
+          Kopplad mot publicerad pricing-version, area-priser och
+          spot/portfolio-inställningar. Validera exakt kundspec och månadskostnad,
+          inklusive jämförelse sida-vid-sida.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-          <form method="GET" className="rounded-3xl border border-white/10 bg-black/30 p-5">
+          <form
+            method="GET"
+            className="rounded-3xl border border-white/10 bg-black/30 p-5"
+          >
             <div className="grid gap-3 md:grid-cols-4">
               <div>
                 <label className="text-[11px] text-white/60">Avtal</label>
                 <select
                   name="contract"
-                  defaultValue={contractSlug || ''}
+                  defaultValue={contractSlug}
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black px-3 py-2 text-sm"
                 >
                   <option value="">Välj avtal…</option>
-                  {contracts.filter((c) => c.is_active !== false).map((c) => (
-                    <option key={c.id} value={c.slug}>
-                      {c.name} ({c.contract_type})
-                    </option>
-                  ))}
+                  {contracts
+                    .filter((item) => item.is_active !== false)
+                    .map((item) => (
+                      <option key={item.id} value={item.slug}>
+                        {item.name} ({item.contract_type})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -266,15 +285,17 @@ const user = {
                 <label className="text-[11px] text-white/60">Jämför med</label>
                 <select
                   name="compare"
-                  defaultValue={compareSlug || ''}
+                  defaultValue={compareSlug}
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black px-3 py-2 text-sm"
                 >
                   <option value="">Ingen</option>
-                  {contracts.filter((c) => c.is_active !== false).map((c) => (
-                    <option key={c.id} value={c.slug}>
-                      {c.name} ({c.contract_type})
-                    </option>
-                  ))}
+                  {contracts
+                    .filter((item) => item.is_active !== false)
+                    .map((item) => (
+                      <option key={item.id} value={item.slug}>
+                        {item.name} ({item.contract_type})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -285,9 +306,9 @@ const user = {
                   defaultValue={area}
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black px-3 py-2 text-sm"
                 >
-                  {AREAS.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
+                  {AREAS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
                     </option>
                   ))}
                 </select>
@@ -328,7 +349,7 @@ const user = {
 
           <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
             <div className="text-[11px] text-white/60">Datakällor</div>
-            <div className="mt-2 text-sm text-white/70 leading-6">
+            <div className="mt-2 text-sm leading-6 text-white/70">
               • contract_pricing_versions (published)
               <br />
               • contract_area_pricing (area)
@@ -355,13 +376,12 @@ const user = {
           </div>
           <div className="mt-2 text-sm opacity-90">{primaryError}</div>
           <div className="mt-3 text-[12px] opacity-80">
-            Kontrollera: pricing-version publicerad, area-priser satta och
-            spot/portfolio-inställningar per område.
+            Kontrollera pricing-version, area-priser och spot/portfolio-inställningar.
           </div>
         </div>
       )}
 
-      {primarySpec && <SpecTable spec={primarySpec} />}
+      {primarySpec ? <SpecTable spec={primarySpec} /> : null}
 
       {compare && compareError && (
         <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">

@@ -1,8 +1,10 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseService } from '@/lib/supabase/service'
-import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { logPermissionAudit } from '@/lib/auth/audit'
 
 type RoleForm = {
   user_id: string
@@ -23,20 +25,21 @@ type CreateUserForm = {
   role: string
 }
 
-async function audit(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  adminId: string,
-  action: string,
-  targetUser: string,
-  meta: Record<string, unknown>
-) {
-  await supabase.from('permission_audit').insert({
-    actor_id: adminId,
-    target_user_id: targetUser,
-    action,
-    meta,
-    created_at: new Date().toISOString(),
+type ExistingUserRoleRow = {
+  user_id: string
+  role: string
+}
+
+function str(value: FormDataEntryValue | null): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+async function requireAssignmentsWrite() {
+  const ctx = await requireAdminActionAccess({
+    anyOf: ['rbac.write', 'admin.access'],
   })
+
+  return ctx
 }
 
 /* ------------------------------------------
@@ -44,61 +47,83 @@ async function audit(
 ------------------------------------------ */
 
 export async function createUserWithRole(formData: FormData) {
-  const admin = await requireAdminServer()
+  const ctx = await requireAssignmentsWrite()
 
   const payload: CreateUserForm = {
-    email: String(formData.get('email')),
-    full_name: String(formData.get('full_name')),
-    phone: String(formData.get('phone') ?? ''),
-    role: String(formData.get('role')),
+    email: str(formData.get('email')),
+    full_name: str(formData.get('full_name')),
+    phone: str(formData.get('phone')),
+    role: str(formData.get('role')),
   }
 
   if (!payload.email || !payload.role) {
     throw new Error('Missing required fields')
   }
 
-  const { data: created, error } =
+  const { data: created, error: createError } =
     await supabaseService.auth.admin.createUser({
       email: payload.email,
       email_confirm: true,
-      user_metadata: { full_name: payload.full_name },
+      user_metadata: {
+        full_name: payload.full_name,
+      },
     })
 
-  if (error || !created.user) {
-    throw new Error(error?.message ?? 'User creation failed')
+  if (createError || !created.user) {
+    throw new Error(createError?.message ?? 'User creation failed')
   }
 
   const userId = created.user.id
 
-  await supabaseService.from('user_profiles').insert({
-    id: userId,
-    full_name: payload.full_name,
-    phone: payload.phone,
-  })
+  const { error: profileError } = await supabaseService
+    .from('user_profiles')
+    .upsert({
+      id: userId,
+      full_name: payload.full_name || null,
+      phone: payload.phone || null,
+    })
 
-  await supabaseService.from('user_roles').insert({
-    user_id: userId,
-    role: payload.role,
-    is_active: true,
-  })
+  if (profileError) {
+    throw new Error(profileError.message)
+  }
 
-  const supabase = await createSupabaseServerClient()
+  const { error: roleError } = await supabaseService
+    .from('user_roles')
+    .upsert({
+      user_id: userId,
+      role: payload.role,
+      is_active: true,
+    })
 
-  await audit(supabase, admin.id, 'user_created', userId, {
-    role: payload.role,
-    email: payload.email,
-  })
+  if (roleError) {
+    throw new Error(roleError.message)
+  }
+
+  await logPermissionAudit({
+    actorId: ctx.userId,
+    action: 'rbac.user.create',
+    targetUserId: userId,
+    metadata: {
+      email: payload.email,
+      full_name: payload.full_name,
+      phone: payload.phone,
+      role: payload.role,
+    },
+  }).catch(() => null)
+
+  revalidatePath('/admin/rbac')
+  revalidatePath('/admin/rbac/assignments')
 }
 
 /* ------------------------------------------
-   DEACTIVATE USER (NEW)
+   DEACTIVATE USER
 ------------------------------------------ */
 
 export async function deactivateUser(formData: FormData) {
-  const admin = await requireAdminServer()
+  const ctx = await requireAssignmentsWrite()
   const supabase = await createSupabaseServerClient()
 
-  const userId = String(formData.get('user_id'))
+  const userId = str(formData.get('user_id'))
 
   if (!userId) {
     throw new Error('Missing user_id')
@@ -109,11 +134,21 @@ export async function deactivateUser(formData: FormData) {
     .update({ is_active: false })
     .eq('user_id', userId)
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    throw new Error(error.message)
+  }
 
-  await audit(supabase, admin.id, 'user_deactivated', userId, {
-    reason: 'admin_action',
-  })
+  await logPermissionAudit({
+    actorId: ctx.userId,
+    action: 'rbac.user.deactivate',
+    targetUserId: userId,
+    metadata: {
+      reason: 'admin_action',
+    },
+  }).catch(() => null)
+
+  revalidatePath('/admin/rbac')
+  revalidatePath('/admin/rbac/assignments')
 }
 
 /* ------------------------------------------
@@ -121,31 +156,68 @@ export async function deactivateUser(formData: FormData) {
 ------------------------------------------ */
 
 export async function setUserRoleActive(formData: FormData) {
-  const admin = await requireAdminServer()
+  const ctx = await requireAssignmentsWrite()
   const supabase = await createSupabaseServerClient()
 
   const payload: RoleForm = {
-    user_id: String(formData.get('user_id')),
-    role: String(formData.get('role')),
-    active: String(formData.get('active')),
+    user_id: str(formData.get('user_id')),
+    role: str(formData.get('role')),
+    active: str(formData.get('active')),
+  }
+
+  if (!payload.user_id || !payload.role) {
+    throw new Error('Missing user_id/role')
   }
 
   const isActive = payload.active === 'true'
 
-  const { error } = await supabase
+  const { data: existing, error: readError } = await supabase
     .from('user_roles')
-    .upsert({
-      user_id: payload.user_id,
+    .select('user_id,role')
+    .eq('user_id', payload.user_id)
+    .eq('role', payload.role)
+    .maybeSingle<ExistingUserRoleRow>()
+
+  if (readError) {
+    throw new Error(readError.message)
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from('user_roles')
+      .update({ is_active: isActive })
+      .eq('user_id', payload.user_id)
+      .eq('role', payload.role)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+  } else {
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: payload.user_id,
+        role: payload.role,
+        is_active: isActive,
+      })
+
+    if (error) {
+      throw new Error(error.message)
+    }
+  }
+
+  await logPermissionAudit({
+    actorId: ctx.userId,
+    action: 'rbac.user_roles.set_active',
+    targetUserId: payload.user_id,
+    metadata: {
       role: payload.role,
-      is_active: isActive,
-    })
+      active: isActive,
+    },
+  }).catch(() => null)
 
-  if (error) throw new Error(error.message)
-
-  await audit(supabase, admin.id, 'role_update', payload.user_id, {
-    role: payload.role,
-    active: isActive,
-  })
+  revalidatePath('/admin/rbac')
+  revalidatePath('/admin/rbac/assignments')
 }
 
 /* ------------------------------------------
@@ -153,24 +225,32 @@ export async function setUserRoleActive(formData: FormData) {
 ------------------------------------------ */
 
 export async function setUserPermissionOverride(formData: FormData) {
-  const admin = await requireAdminServer()
+  const ctx = await requireAssignmentsWrite()
   const supabase = await createSupabaseServerClient()
 
   const payload: PermissionForm = {
-    user_id: String(formData.get('user_id')),
-    permission_id: String(formData.get('permission_id')),
-    enabled: String(formData.get('enabled')),
+    user_id: str(formData.get('user_id')),
+    permission_id: str(formData.get('permission_id')),
+    enabled: str(formData.get('enabled')),
+  }
+
+  if (!payload.user_id || !payload.permission_id) {
+    throw new Error('Missing user_id/permission_id')
   }
 
   const isEnabled = payload.enabled === 'true'
 
   if (isEnabled) {
-    const { error } = await supabase.from('user_permissions').upsert({
-      user_id: payload.user_id,
-      permission_id: payload.permission_id,
-    })
+    const { error } = await supabase
+      .from('user_permissions')
+      .upsert({
+        user_id: payload.user_id,
+        permission_id: payload.permission_id,
+      })
 
-    if (error) throw new Error(error.message)
+    if (error) {
+      throw new Error(error.message)
+    }
   } else {
     const { error } = await supabase
       .from('user_permissions')
@@ -178,17 +258,21 @@ export async function setUserPermissionOverride(formData: FormData) {
       .eq('user_id', payload.user_id)
       .eq('permission_id', payload.permission_id)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+      throw new Error(error.message)
+    }
   }
 
-  await audit(
-    supabase,
-    admin.id,
-    'permission_override',
-    payload.user_id,
-    {
-      permission_id: payload.permission_id,
+  await logPermissionAudit({
+    actorId: ctx.userId,
+    action: 'rbac.user_permissions.toggle',
+    targetUserId: payload.user_id,
+    metadata: {
+      permissionId: payload.permission_id,
       enabled: isEnabled,
-    }
-  )
+    },
+  }).catch(() => null)
+
+  revalidatePath('/admin/rbac')
+  revalidatePath('/admin/rbac/assignments')
 }

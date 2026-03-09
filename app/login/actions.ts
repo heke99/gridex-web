@@ -6,10 +6,13 @@ import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 
 function safeNext(next?: string | null): string {
   if (!next) return '/dashboard'
-  const n = String(next)
-  if (!n.startsWith('/')) return '/dashboard'
-  if (n.startsWith('//')) return '/dashboard'
-  return n
+
+  const normalized = String(next).trim()
+
+  if (!normalized.startsWith('/')) return '/dashboard'
+  if (normalized.startsWith('//')) return '/dashboard'
+
+  return normalized
 }
 
 function normalizeEmail(v: string): string {
@@ -18,6 +21,15 @@ function normalizeEmail(v: string): string {
 
 function looksLikeEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+type RoleRow = {
+  role: string
+  is_active: boolean | null
+}
+
+function isAdminRole(role: string): boolean {
+  return role === 'admin' || role === 'super_admin'
 }
 
 export async function loginWithPassword(formData: FormData) {
@@ -35,9 +47,12 @@ export async function loginWithPassword(formData: FormData) {
 
   const supabase = await createSupabaseServerActionClient()
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
 
-  if (error) {
+  if (signInError) {
     redirect(
       `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(
         next
@@ -45,24 +60,51 @@ export async function loginWithPassword(formData: FormData) {
     )
   }
 
-  // Enterprise-guard: om man försöker gå till /admin, kontrollera RBAC direkt.
-  if (next.startsWith('/admin')) {
-    const { data: u } = await supabase.auth.getUser()
-    if (!u?.user) {
-      await supabase.auth.signOut()
-      redirect(`/login?reason=${encodeURIComponent('forbidden')}`)
-    }
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-    const { data: adminRow, error: adminErr } = await supabase
-      .from('admin_users')
-      .select('user_id, is_active')
-      .eq('user_id', u.user.id)
-      .maybeSingle<{ user_id: string; is_active: boolean | null }>()
+  if (userError || !user) {
+    await supabase.auth.signOut()
+    redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera sessionen')}`)
+  }
 
-    if (adminErr || !adminRow || adminRow.is_active === false) {
-      await supabase.auth.signOut()
-      redirect(`/login?reason=${encodeURIComponent('forbidden')}`)
-    }
+  const [{ data: permissionsData, error: permissionsError }, { data: rolesData, error: rolesError }] =
+    await Promise.all([
+      supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
+      supabase
+        .from('user_roles')
+        .select('role,is_active')
+        .eq('user_id', user.id)
+        .returns<RoleRow[]>(),
+    ])
+
+  if (permissionsError || rolesError) {
+    await supabase.auth.signOut()
+    redirect(`/login?error=${encodeURIComponent('Kunde inte läsa behörigheter')}`)
+  }
+
+  const permissions = Array.isArray(permissionsData)
+    ? permissionsData.filter((v): v is string => typeof v === 'string')
+    : []
+
+  const roles = Array.isArray(rolesData)
+    ? rolesData
+        .filter((row) => row.is_active !== false && typeof row.role === 'string')
+        .map((row) => row.role)
+    : []
+
+  const isAdmin =
+    permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
+
+  if (next.startsWith('/admin') && !isAdmin) {
+    await supabase.auth.signOut()
+    redirect(`/login?reason=${encodeURIComponent('forbidden')}`)
+  }
+
+  if (next === '/dashboard' && isAdmin) {
+    redirect('/admin')
   }
 
   redirect(next)

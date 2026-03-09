@@ -2,100 +2,121 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireAdminActionAccess } from '@/lib/admin/guards'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 type PricingVersionRow = {
   id: string
   contract_id: string
-  version_number: number
+  version_number?: number | null
   valid_from: string
   is_published: boolean
   status?: string | null
 }
 
-export async function publishPricingVersion(contractId: string, versionId: string) {
+function hasAnyPermission(
+  permissions: string[],
+  required: string[]
+): boolean {
+  return required.some((permission) => permissions.includes(permission))
+}
+
+export async function publishPricingVersion(
+  contractId: string,
+  versionId: string
+) {
   const ctx = await requireAdminActionAccess({
-    anyOf: ['pricing.publish', 'pricing.publish_prod'],
+    anyOf: ['pricing.publish', 'pricing.publish_prod', 'admin.access'],
   })
 
   const supabase = ctx.supabase
-
-  // --------------------------------------------------
-  // Enterprise RBAC compatibility layer
-  // --------------------------------------------------
-  const legacy = {
-    allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
-    role: ctx.roles.includes('admin') ? 'admin' : 'user',
-  }
-
-  const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
   const isProd =
     process.env.VERCEL_ENV === 'production' ||
     process.env.NODE_ENV === 'production'
 
-  const hasPublish =
-    ctx.permissions.includes('pricing.publish') ||
-    ctx.permissions.includes('pricing.publish_prod')
+  const isAdmin =
+    ctx.isAdmin ||
+    ctx.roles.includes('admin') ||
+    ctx.permissions.includes('admin.access')
 
-  const hasPublishProd =
-    ctx.permissions.includes('pricing.publish_prod')
+  const hasPublish = hasAnyPermission(ctx.permissions, [
+    'pricing.publish',
+    'pricing.publish_prod',
+    'admin.access',
+  ])
 
-  if (isProd && !isLegacyAdmin && !hasPublishProd) {
-    throw new Error('Publish not allowed in prod (missing pricing.publish_prod)')
+  const hasPublishProd = hasAnyPermission(ctx.permissions, [
+    'pricing.publish_prod',
+    'admin.access',
+  ])
+
+  if (isProd && !isAdmin && !hasPublishProd) {
+    throw new Error(
+      'Publish not allowed in prod (missing pricing.publish_prod)'
+    )
   }
 
-  if (!isLegacyAdmin && !hasPublish) {
+  if (!isAdmin && !hasPublish) {
     throw new Error('Publish not allowed (missing pricing.publish)')
   }
 
-  // Validate version belongs to contract
-  const { data: version, error: vErr } = await supabase
+  const { data: version, error: versionError } = await supabase
     .from('contract_pricing_versions')
-    .select('id, contract_id, valid_from, is_published, status')
+    .select('id,contract_id,version_number,valid_from,is_published,status')
     .eq('id', versionId)
     .maybeSingle<PricingVersionRow>()
 
-  if (vErr) throw new Error(vErr.message)
+  if (versionError) {
+    throw new Error(versionError.message)
+  }
 
   if (!version || version.contract_id !== contractId) {
     throw new Error('Invalid version for contract')
   }
 
-  // Unpublish all versions
-  const { error: offErr } = await supabase
+  const { error: unpublishError } = await supabase
     .from('contract_pricing_versions')
-    .update({ is_published: false, status: 'draft' })
+    .update({
+      is_published: false,
+      status: 'draft',
+    })
     .eq('contract_id', contractId)
 
-  if (offErr) throw new Error(offErr.message)
+  if (unpublishError) {
+    throw new Error(unpublishError.message)
+  }
 
-  // Publish selected version
-  const { error: onErr } = await supabase
+  const { error: publishError } = await supabase
     .from('contract_pricing_versions')
-    .update({ is_published: true, status: 'published' })
+    .update({
+      is_published: true,
+      status: 'published',
+    })
     .eq('id', versionId)
     .eq('contract_id', contractId)
 
-  if (onErr) throw new Error(onErr.message)
+  if (publishError) {
+    throw new Error(publishError.message)
+  }
 
-  // Audit
-  const { error: aErr } = await supabase.from('pricing_version_audit').insert({
-    contract_id: contractId,
-    version_id: versionId,
-    action: 'publish',
-    performed_by: ctx.userId,
-    reason: isProd ? 'publish_prod' : 'publish',
-  })
+  const { error: auditError } = await supabase
+    .from('pricing_version_audit')
+    .insert({
+      contract_id: contractId,
+      version_id: versionId,
+      action: 'publish',
+      performed_by: ctx.userId,
+      reason: isProd ? 'publish_prod' : 'publish',
+    })
 
-  if (aErr) throw new Error(aErr.message)
+  if (auditError) {
+    throw new Error(auditError.message)
+  }
 
-  // Revalidate admin
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
-
-  // Revalidate public
+  revalidatePath(`/admin/pricing`)
   revalidatePath('/')
+
   revalidatePath('/avtal')
   revalidatePath('/teckna')
   revalidatePath('/kundservice')
@@ -109,65 +130,74 @@ export async function publishPricingVersion(contractId: string, versionId: strin
 
 export async function unpublishPricingForContract(contractId: string) {
   const ctx = await requireAdminActionAccess({
-    anyOf: ['pricing.publish', 'pricing.publish_prod'],
+    anyOf: ['pricing.publish', 'pricing.publish_prod', 'admin.access'],
   })
 
   const supabase = ctx.supabase
 
-  // --------------------------------------------------
-  // Enterprise RBAC compatibility layer
-  // --------------------------------------------------
-  const legacy = {
-    allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
-    role: ctx.roles.includes('admin') ? 'admin' : 'user',
-  }
+  const isAdmin =
+    ctx.isAdmin ||
+    ctx.roles.includes('admin') ||
+    ctx.permissions.includes('admin.access')
 
-  const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
+  const hasPublish = hasAnyPermission(ctx.permissions, [
+    'pricing.publish',
+    'pricing.publish_prod',
+    'admin.access',
+  ])
 
-  const hasPublish =
-    ctx.permissions.includes('pricing.publish') ||
-    ctx.permissions.includes('pricing.publish_prod')
-
-  if (!isLegacyAdmin && !hasPublish) {
+  if (!isAdmin && !hasPublish) {
     throw new Error('Unpublish not allowed')
   }
 
-  // find active version
-  const { data: active, error: a1Err } = await supabase
+  const { data: activeVersions, error: activeError } = await supabase
     .from('contract_pricing_versions')
-    .select('id')
+    .select('id,contract_id,version_number,valid_from,is_published,status')
     .eq('contract_id', contractId)
     .or('status.eq.published,is_published.eq.true')
-    .maybeSingle<{ id: string }>()
+    .order('valid_from', { ascending: false })
+    .returns<PricingVersionRow[]>()
 
-  if (a1Err) throw new Error(a1Err.message)
+  if (activeError) {
+    throw new Error(activeError.message)
+  }
 
-  // unpublish
-  const { error: offErr } = await supabase
+  const active = (activeVersions ?? [])[0] ?? null
+
+  const { error: unpublishError } = await supabase
     .from('contract_pricing_versions')
-    .update({ is_published: false, status: 'draft' })
-    .eq('contract_id', contractId)
-    .or('status.eq.published,is_published.eq.true')
-
-  if (offErr) throw new Error(offErr.message)
-
-  // audit
-  if (active?.id) {
-    const { error: aErr } = await supabase.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: active.id,
-      action: 'unpublish',
-      performed_by: ctx.userId,
-      reason: 'manual unpublish',
+    .update({
+      is_published: false,
+      status: 'draft',
     })
+    .eq('contract_id', contractId)
+    .or('status.eq.published,is_published.eq.true')
 
-    if (aErr) throw new Error(aErr.message)
+  if (unpublishError) {
+    throw new Error(unpublishError.message)
+  }
+
+  if (active?.id) {
+    const { error: auditError } = await supabase
+      .from('pricing_version_audit')
+      .insert({
+        contract_id: contractId,
+        version_id: active.id,
+        action: 'unpublish',
+        performed_by: ctx.userId,
+        reason: 'manual unpublish',
+      })
+
+    if (auditError) {
+      throw new Error(auditError.message)
+    }
   }
 
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
-
+  revalidatePath(`/admin/pricing`)
   revalidatePath('/')
+
   revalidatePath('/avtal')
   revalidatePath('/teckna')
   revalidatePath('/kundservice')

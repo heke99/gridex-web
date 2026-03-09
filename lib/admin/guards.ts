@@ -1,5 +1,3 @@
-// lib/admin/guards.ts
-
 import { redirect } from 'next/navigation'
 import { getAdminContext, type AdminContext } from './getAdminContext'
 
@@ -23,13 +21,13 @@ export function canAccessByRule(
   const userPermissions = permissionsOf(src)
 
   if (rule.allOf) {
-    if (!rule.allOf.every((p) => userPermissions.includes(p))) {
+    if (!rule.allOf.every((permission) => userPermissions.includes(permission))) {
       return false
     }
   }
 
   if (rule.anyOf) {
-    if (!rule.anyOf.some((p) => userPermissions.includes(p))) {
+    if (!rule.anyOf.some((permission) => userPermissions.includes(permission))) {
       return false
     }
   }

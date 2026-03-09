@@ -1,9 +1,6 @@
-// app/admin/monthly-spot/page.tsx
-
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
@@ -34,40 +31,62 @@ type PublishLogRow = {
   created_by: string | null
 }
 
-function ymLabel(y: number, m: number) {
-  return `${y}-${String(m).padStart(2, '0')}`
+type SearchParams = {
+  year?: string
+  month?: string
 }
 
-function isValidYM(y: number, m: number) {
-  return Number.isFinite(y) && Number.isFinite(m) && m >= 1 && m <= 12
+function ymLabel(year: number, month: number) {
+  return `${year}-${String(month).padStart(2, '0')}`
+}
+
+function isValidYM(year: number, month: number) {
+  return Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12
 }
 
 function prevYearMonth(now: Date): { year: number; month: number } {
-  const m = now.getMonth() + 1
-  if (m === 1) return { year: now.getFullYear() - 1, month: 12 }
-  return { year: now.getFullYear(), month: m - 1 }
+  const month = now.getMonth() + 1
+  if (month === 1) return { year: now.getFullYear() - 1, month: 12 }
+  return { year: now.getFullYear(), month: month - 1 }
 }
 
-function shiftMonth(ym: { year: number; month: number }, delta: number) {
+function shiftMonth(
+  ym: { year: number; month: number },
+  delta: number
+) {
   const d = new Date(Date.UTC(ym.year, ym.month - 1, 1))
   d.setUTCMonth(d.getUTCMonth() + delta)
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 }
 }
 
-function parseNumber(v: FormDataEntryValue | null): number {
-  if (v == null) return NaN
-  const cleaned = String(v).trim().replace(/\s+/g, '').replace(',', '.')
+function parseNumber(value: FormDataEntryValue | null): number {
+  if (value == null) return Number.NaN
+  const cleaned = String(value).trim().replace(/\s+/g, '').replace(',', '.')
   const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
+  return Number.isFinite(n) ? n : Number.NaN
 }
 
-function buildYearList(nowYear: number, minDb?: number | null, maxDb?: number | null) {
+function buildYearList(
+  nowYear: number,
+  minDb?: number | null,
+  maxDb?: number | null
+) {
   const defaultMin = nowYear - 15
   const defaultMax = nowYear + 3
-  const minYear = Number.isFinite(Number(minDb)) ? Math.min(Number(minDb), defaultMin) : defaultMin
-  const maxYear = Number.isFinite(Number(maxDb)) ? Math.max(Number(maxDb), defaultMax) : defaultMax
+
+  const minYear = Number.isFinite(Number(minDb))
+    ? Math.min(Number(minDb), defaultMin)
+    : defaultMin
+
+  const maxYear = Number.isFinite(Number(maxDb))
+    ? Math.max(Number(maxDb), defaultMax)
+    : defaultMax
+
   const years: number[] = []
-  for (let y = maxYear; y >= minYear; y--) years.push(y)
+  for (let year = maxYear; year >= minYear; year--) {
+    years.push(year)
+  }
+
   return years
 }
 
@@ -76,7 +95,7 @@ export const dynamic = 'force-dynamic'
 export default async function AdminMonthlySpotPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ year?: string; month?: string }>
+  searchParams?: Promise<SearchParams>
 }) {
   const ctx = await requireAdminPageAccess({
     anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write', 'admin.access'],
@@ -86,247 +105,347 @@ export default async function AdminMonthlySpotPage({
   const now = new Date()
   const fallback = prevYearMonth(now)
 
-  // --------------------------------------------------
-// Enterprise compatibility layer (legacy admin API)
-// --------------------------------------------------
-const legacy = {
-  allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
-  role: ctx.roles.includes('admin') ? 'admin' : 'user',
-}
-
-const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
-  const canWrite =
-    isLegacyAdmin ||
-    ctx.permissions.includes('spot.write') ||
-    ctx.permissions.includes('pricing.write') ||
+  const isAdmin =
+    ctx.isAdmin ||
+    ctx.roles.includes('admin') ||
     ctx.permissions.includes('admin.access')
 
-  const canPublish = isLegacyAdmin || ctx.permissions.includes('spot.publish') || ctx.permissions.includes('admin.access')
+  const canWrite =
+    isAdmin ||
+    ctx.permissions.includes('spot.write') ||
+    ctx.permissions.includes('pricing.write')
 
-  // Active basis
-  const { data: cfg } = await supabase
+  const canPublish =
+    isAdmin ||
+    ctx.permissions.includes('spot.publish')
+
+  const { data: cfg, error: cfgError } = await supabase
     .from('gridex_spot_basis_config')
     .select('active_year,active_month')
     .eq('id', 1)
     .maybeSingle<SpotBasisCfgRow>()
 
+  if (cfgError) {
+    throw new Error(cfgError.message)
+  }
+
   const activeYear = Number(cfg?.active_year)
   const activeMonth = Number(cfg?.active_month)
-  const active = isValidYM(activeYear, activeMonth) ? { year: activeYear, month: activeMonth } : fallback
+  const active = isValidYM(activeYear, activeMonth)
+    ? { year: activeYear, month: activeMonth }
+    : fallback
 
-  // Selected
   const sp = searchParams ? await searchParams : undefined
-  const qYear = sp?.year ? Number(sp.year) : NaN
-  const qMonth = sp?.month ? Number(sp.month) : NaN
-  const selected = isValidYM(qYear, qMonth) ? { year: qYear, month: qMonth } : active
+  const qYear = sp?.year ? Number(sp.year) : Number.NaN
+  const qMonth = sp?.month ? Number(sp.month) : Number.NaN
+
+  const selected = isValidYM(qYear, qMonth)
+    ? { year: qYear, month: qMonth }
+    : active
 
   const selectedLabel = ymLabel(selected.year, selected.month)
   const activeLabel = ymLabel(active.year, active.month)
-  const isSelectedActive = selected.year === active.year && selected.month === active.month
+  const isSelectedActive =
+    selected.year === active.year && selected.month === active.month
 
-  // Read selected rows
-  const { data: rows } = await supabase
+  const { data: rows, error: rowsError } = await supabase
     .from('gridex_monthly_spot_prices')
     .select('price_area,year,month,avg_spot_ore,updated_at')
     .eq('year', selected.year)
     .eq('month', selected.month)
     .order('price_area', { ascending: true })
+    .returns<SpotRow[]>()
+
+  if (rowsError) {
+    throw new Error(rowsError.message)
+  }
 
   const byArea = new Map<PriceArea, number>()
   const updatedAtByArea = new Map<PriceArea, string | null>()
-  ;(rows ?? []).forEach((r: SpotRow) => {
-    const a = r.price_area as PriceArea
-    if (AREAS.includes(a)) {
-      byArea.set(a, Number(r.avg_spot_ore))
-      updatedAtByArea.set(a, r.updated_at ?? null)
+
+  ;(rows ?? []).forEach((row) => {
+    const area = row.price_area as PriceArea
+    if (AREAS.includes(area)) {
+      byArea.set(area, Number(row.avg_spot_ore))
+      updatedAtByArea.set(area, row.updated_at ?? null)
     }
   })
 
-  const completeness = AREAS.reduce((acc, a) => acc + (byArea.has(a) ? 1 : 0), 0)
+  const completeness = AREAS.reduce(
+    (acc, area) => acc + (byArea.has(area) ? 1 : 0),
+    0
+  )
 
-  // Diff vs previous month (for same selected month)
   const prev = shiftMonth(selected, -1)
-  const { data: prevRows } = await supabase
+
+  const { data: prevRows, error: prevRowsError } = await supabase
     .from('gridex_monthly_spot_prices')
     .select('price_area,avg_spot_ore')
     .eq('year', prev.year)
     .eq('month', prev.month)
     .order('price_area', { ascending: true })
 
+  if (prevRowsError) {
+    throw new Error(prevRowsError.message)
+  }
+
   const prevByArea = new Map<PriceArea, number>()
-  ;(prevRows ?? []).forEach((r: { price_area: string; avg_spot_ore: number }) => {
-    const a = r.price_area as PriceArea
-    if (AREAS.includes(a)) prevByArea.set(a, Number(r.avg_spot_ore))
+  ;(prevRows ?? []).forEach((row: { price_area: string; avg_spot_ore: number }) => {
+    const area = row.price_area as PriceArea
+    if (AREAS.includes(area)) {
+      prevByArea.set(area, Number(row.avg_spot_ore))
+    }
   })
 
-  // Year list from DB extents (long-term)
-  const { data: minAgg } = await supabase.from('gridex_monthly_spot_prices').select('year').order('year', { ascending: true }).limit(1)
-  const { data: maxAgg } = await supabase.from('gridex_monthly_spot_prices').select('year').order('year', { ascending: false }).limit(1)
+  const { data: minAgg, error: minAggError } = await supabase
+    .from('gridex_monthly_spot_prices')
+    .select('year')
+    .order('year', { ascending: true })
+    .limit(1)
+
+  if (minAggError) {
+    throw new Error(minAggError.message)
+  }
+
+  const { data: maxAgg, error: maxAggError } = await supabase
+    .from('gridex_monthly_spot_prices')
+    .select('year')
+    .order('year', { ascending: false })
+    .limit(1)
+
+  if (maxAggError) {
+    throw new Error(maxAggError.message)
+  }
+
   const years = buildYearList(
     now.getFullYear(),
     (minAgg && minAgg[0]?.year) ?? null,
     (maxAgg && maxAgg[0]?.year) ?? null
   )
 
-  // Publish log (latest 10)
-  const { data: publishLog } = await supabase
+  const { data: publishLog, error: publishLogError } = await supabase
     .from('gridex_spot_basis_publish_log')
     .select('id,action,active_year,active_month,reason,created_at,created_by')
     .order('created_at', { ascending: false })
     .limit(10)
     .returns<PublishLogRow[]>()
 
-  // ---------- Actions ----------
+  if (publishLogError) {
+    throw new Error(publishLogError.message)
+  }
 
   async function navigateAction(formData: FormData) {
     'use server'
-    const y = Number(formData.get('year'))
-    const m = Number(formData.get('month'))
-    if (!isValidYM(y, m)) throw new Error('Ogiltigt year/month')
-    redirect(`/admin/monthly-spot?year=${y}&month=${m}`)
+
+    const year = Number(formData.get('year'))
+    const month = Number(formData.get('month'))
+
+    if (!isValidYM(year, month)) {
+      throw new Error('Ogiltigt year/month')
+    }
+
+    redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
   }
 
   async function navQuickAction(formData: FormData) {
     'use server'
-    const y = Number(formData.get('year'))
-    const m = Number(formData.get('month'))
+
+    const year = Number(formData.get('year'))
+    const month = Number(formData.get('month'))
     const delta = Number(formData.get('delta'))
-    if (!isValidYM(y, m) || !Number.isFinite(delta)) throw new Error('Ogiltig navigering')
-    const next = shiftMonth({ year: y, month: m }, delta)
+
+    if (!isValidYM(year, month) || !Number.isFinite(delta)) {
+      throw new Error('Ogiltig navigering')
+    }
+
+    const next = shiftMonth({ year, month }, delta)
     redirect(`/admin/monthly-spot?year=${next.year}&month=${next.month}`)
   }
 
   async function savePricesAction(formData: FormData) {
     'use server'
-    // Write permission: spot.write OR pricing.write
-    const { supabase: s, user: u } = await requirePermissionServer('spot.write').catch(async () => {
+
+    const { supabase: serverSupabase, user } = await requirePermissionServer(
+      'spot.write'
+    ).catch(async () => {
       return await requirePermissionServer('pricing.write')
     })
 
-    const y = Number(formData.get('year'))
-    const m = Number(formData.get('month'))
-    if (!isValidYM(y, m)) throw new Error('Ogiltigt year/month')
+    const year = Number(formData.get('year'))
+    const month = Number(formData.get('month'))
 
-    const payload: Array<{ price_area: PriceArea; year: number; month: number; avg_spot_ore: number }> = []
-    for (const a of AREAS) {
-      const v = parseNumber(formData.get(`${a}_avg_spot_ore`))
-      if (!Number.isFinite(v)) throw new Error(`Ogiltigt värde för ${a}`)
-      payload.push({ price_area: a, year: y, month: m, avg_spot_ore: v })
+    if (!isValidYM(year, month)) {
+      throw new Error('Ogiltigt year/month')
     }
 
-    const { error } = await s.from('gridex_monthly_spot_prices').upsert(payload, { onConflict: 'price_area,year,month' })
-    if (error) throw new Error(error.message)
+    const payload: Array<{
+      price_area: PriceArea
+      year: number
+      month: number
+      avg_spot_ore: number
+    }> = []
+
+    for (const area of AREAS) {
+      const value = parseNumber(formData.get(`${area}_avg_spot_ore`))
+      if (!Number.isFinite(value)) {
+        throw new Error(`Ogiltigt värde för ${area}`)
+      }
+
+      payload.push({
+        price_area: area,
+        year,
+        month,
+        avg_spot_ore: value,
+      })
+    }
+
+    const { error } = await serverSupabase
+      .from('gridex_monthly_spot_prices')
+      .upsert(payload, {
+        onConflict: 'price_area,year,month',
+      })
+
+    if (error) {
+      throw new Error(error.message)
+    }
 
     await logPermissionAudit({
-      actorId: u.id,
+      actorId: user.id,
       action: 'spot.monthly_prices.upsert',
       metadata: {
-        year: y,
-        month: m,
-        values: payload.map((p) => ({ area: p.price_area, avg_spot_ore: p.avg_spot_ore })),
+        year,
+        month,
+        values: payload.map((row) => ({
+          area: row.price_area,
+          avg_spot_ore: row.avg_spot_ore,
+        })),
       },
-    })
+    }).catch(() => null)
 
+    revalidatePath('/admin')
     revalidatePath('/admin/monthly-spot')
-    revalidatePath(`/admin/monthly-spot?year=${y}&month=${m}`)
     revalidatePath('/admin/pricing')
     revalidatePath('/admin/calculator')
+    revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
     revalidatePath('/teckna')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
+
+    redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
   }
 
   async function publishActiveAction(formData: FormData) {
     'use server'
-    // Publish permission: spot.publish (admin.access is already bridged by your requirePermissionServer legacy/admin)
-    const { supabase: s, user: u } = await requirePermissionServer('spot.publish').catch(async () => {
+
+    const { supabase: serverSupabase, user } = await requirePermissionServer(
+      'spot.publish'
+    ).catch(async () => {
       return await requirePermissionServer('admin.access')
     })
 
-    const y = Number(formData.get('year'))
-    const m = Number(formData.get('month'))
+    const year = Number(formData.get('year'))
+    const month = Number(formData.get('month'))
     const reason = String(formData.get('reason') ?? '').trim() || null
-    if (!isValidYM(y, m)) throw new Error('Ogiltigt year/month')
 
-    const { error } = await s.rpc('gridex_spot_publish_active_basis', {
-      p_year: y,
-      p_month: m,
+    if (!isValidYM(year, month)) {
+      throw new Error('Ogiltigt year/month')
+    }
+
+    const { error } = await serverSupabase.rpc('gridex_spot_publish_active_basis', {
+      p_year: year,
+      p_month: month,
       p_reason: reason,
     })
-    if (error) throw new Error(error.message)
+
+    if (error) {
+      throw new Error(error.message)
+    }
 
     await logPermissionAudit({
-      actorId: u.id,
+      actorId: user.id,
       action: 'spot.basis.publish_active',
-      metadata: { year: y, month: m, reason },
-    })
+      metadata: { year, month, reason },
+    }).catch(() => null)
 
+    revalidatePath('/admin')
     revalidatePath('/admin/monthly-spot')
-    revalidatePath(`/admin/monthly-spot?year=${y}&month=${m}`)
     revalidatePath('/admin/pricing')
     revalidatePath('/admin/calculator')
+    revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
     revalidatePath('/teckna')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
+
+    redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
   }
 
   async function rollbackAction(formData: FormData) {
     'use server'
-    const { supabase: s, user: u } = await requirePermissionServer('spot.publish').catch(async () => {
+
+    const { supabase: serverSupabase, user } = await requirePermissionServer(
+      'spot.publish'
+    ).catch(async () => {
       return await requirePermissionServer('admin.access')
     })
 
     const reason = String(formData.get('reason') ?? '').trim() || null
 
-    const { error } = await s.rpc('gridex_spot_rollback_last_publish', { p_reason: reason })
-    if (error) throw new Error(error.message)
-
-    await logPermissionAudit({
-      actorId: u.id,
-      action: 'spot.basis.rollback',
-      metadata: { reason },
+    const { error } = await serverSupabase.rpc('gridex_spot_rollback_last_publish', {
+      p_reason: reason,
     })
 
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    await logPermissionAudit({
+      actorId: user.id,
+      action: 'spot.basis.rollback',
+      metadata: { reason },
+    }).catch(() => null)
+
+    revalidatePath('/admin')
     revalidatePath('/admin/monthly-spot')
     revalidatePath('/admin/pricing')
     revalidatePath('/admin/calculator')
+    revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
     revalidatePath('/teckna')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
+
+    redirect('/admin/monthly-spot')
   }
 
-  // ---------- Calculations for UI (diff + impact) ----------
   const defaultKwh = 2000
-  const defaultCustomersPerArea = 250 // 1000 total baseline
+  const defaultCustomersPerArea = 250
 
-  // Render helpers
-  const diffFor = (a: PriceArea) => {
-    const cur = byArea.get(a)
-    const prevV = prevByArea.get(a)
-    if (cur == null || prevV == null) return null
-    return cur - prevV
+  const diffFor = (area: PriceArea) => {
+    const current = byArea.get(area)
+    const previous = prevByArea.get(area)
+    if (current == null || previous == null) return null
+    return current - previous
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Spot-basis (månadsgenomsnitt)</h1>
-          <p className="text-gray-400 max-w-3xl">
-            Detta är <span className="text-gray-200 font-semibold">kärn-data</span> för spot/tim-avtal:
-            preview + publika beräkningar använder <span className="text-gray-200 font-semibold">Aktiv period</span>.
-            Enterprise-flöde: <span className="text-gray-200 font-semibold">Spara</span> (write) →{' '}
-            <span className="text-gray-200 font-semibold">Publish aktiv</span> (publish) → snapshot → rollback möjligt.
+          <p className="max-w-3xl text-gray-400">
+            Detta är kärndata för spot/tim-avtal. Preview och publika beräkningar
+            använder aktiv period. Flöde: spara månadspriser → publish aktiv →
+            snapshot → rollback vid behov.
           </p>
           <div className="text-sm text-gray-400">
-            Aktiv period: <span className="text-gray-200 font-semibold">{activeLabel}</span>
+            Aktiv period:{' '}
+            <span className="font-semibold text-gray-200">{activeLabel}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/admin/pricing"
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-cyan-500/40"
@@ -342,26 +461,27 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-800 bg-gray-950 p-6 space-y-6">
-        {/* Selected header + badges */}
+      <div className="space-y-6 rounded-2xl border border-gray-800 bg-gray-950 p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1">
             <div className="text-sm text-gray-400">Vald period</div>
             <div className="flex items-center gap-2">
-              <div className="text-xl font-semibold text-gray-100">{selectedLabel}</div>
+              <div className="text-xl font-semibold text-gray-100">
+                {selectedLabel}
+              </div>
 
               {isSelectedActive ? (
-                <span className="text-[11px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-200">
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
                   AKTIV
                 </span>
               ) : (
-                <span className="text-[11px] rounded-full border border-white/10 bg-white/5 px-2 py-1 text-gray-300">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-gray-300">
                   ej aktiv
                 </span>
               )}
 
               <span
-                className={`text-[11px] rounded-full border px-2 py-1 ${
+                className={`rounded-full border px-2 py-1 text-[11px] ${
                   completeness === 4
                     ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
                     : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
@@ -373,12 +493,10 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
             </div>
 
             <div className="text-xs text-gray-500">
-              Ange värden i öre/kWh. Du kan skriva <span className="text-gray-300">92,5</span> eller{' '}
-              <span className="text-gray-300">92.5</span>.
+              Ange värden i öre/kWh. Du kan skriva 92,5 eller 92.5.
             </div>
           </div>
 
-          {/* Navigation */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <form action={navQuickAction} className="flex items-center gap-2">
               <input type="hidden" name="year" value={selected.year} />
@@ -395,9 +513,9 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                 className="h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm text-gray-200"
                 defaultValue={String(selected.year)}
               >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
                   </option>
                 ))}
               </select>
@@ -407,9 +525,9 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                 className="h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm text-gray-200"
                 defaultValue={String(selected.month)}
               >
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={m}>
-                    {String(m).padStart(2, '0')}
+                {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                  <option key={month} value={month}>
+                    {String(month).padStart(2, '0')}
                   </option>
                 ))}
               </select>
@@ -430,27 +548,34 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
           </div>
         </div>
 
-        {/* Input grid + diff */}
         <div className="grid gap-3 sm:grid-cols-2">
-          {AREAS.map((a) => {
-            const updatedAt = updatedAtByArea.get(a)
-            const d = diffFor(a)
+          {AREAS.map((area) => {
+            const updatedAt = updatedAtByArea.get(area)
+            const diff = diffFor(area)
+
             return (
-              <div key={a} className="border border-gray-800 rounded-lg p-4 space-y-2">
+              <div
+                key={area}
+                className="space-y-2 rounded-lg border border-gray-800 p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-semibold">{a}</div>
+                  <div className="font-semibold">{area}</div>
                   <div className="text-[11px] text-gray-500">
-                    {updatedAt ? new Date(updatedAt).toLocaleString('sv-SE') : 'Ej sparad ännu'}
+                    {updatedAt
+                      ? new Date(updatedAt).toLocaleString('sv-SE')
+                      : 'Ej sparad ännu'}
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-400">Avg spot (öre/kWh)</label>
+                  <label className="text-sm text-gray-400">
+                    Avg spot (öre/kWh)
+                  </label>
                   <input
-                    name={`${a}_avg_spot_ore`}
+                    name={`${area}_avg_spot_ore`}
                     form="prices-form"
-                    defaultValue={byArea.get(a) ?? ''}
-                    className="mt-1 w-full p-2 bg-black border border-gray-800 rounded-lg text-gray-100"
+                    defaultValue={byArea.get(area) ?? ''}
+                    className="mt-1 w-full rounded-lg border border-gray-800 bg-black p-2 text-gray-100"
                     placeholder="t.ex 92.5"
                     required
                     inputMode="decimal"
@@ -461,8 +586,16 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                   <div className="text-gray-500">
                     Diff vs {ymLabel(prev.year, prev.month)}:
                   </div>
-                  <div className={`${d == null ? 'text-gray-500' : d >= 0 ? 'text-emerald-200' : 'text-amber-200'}`}>
-                    {d == null ? '—' : `${d >= 0 ? '+' : ''}${d.toFixed(3)} öre`}
+                  <div
+                    className={
+                      diff == null
+                        ? 'text-gray-500'
+                        : diff >= 0
+                        ? 'text-emerald-200'
+                        : 'text-amber-200'
+                    }
+                  >
+                    {diff == null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(3)} öre`}
                   </div>
                 </div>
               </div>
@@ -470,14 +603,13 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
           })}
         </div>
 
-        {/* Save + Publish */}
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
             <form id="prices-form" action={savePricesAction} className="flex items-center gap-2">
               <input type="hidden" name="year" value={selected.year} />
               <input type="hidden" name="month" value={selected.month} />
               <button
-                className="rounded-xl bg-cyan-500 text-black font-bold px-4 py-2 hover:opacity-95 disabled:opacity-60"
+                className="rounded-xl bg-cyan-500 px-4 py-2 font-bold text-black hover:opacity-95 disabled:opacity-60"
                 disabled={!canWrite}
                 title={!canWrite ? 'Saknar spot.write / pricing.write' : 'Spara månadspriser'}
               >
@@ -490,7 +622,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
             </div>
           </div>
 
-          <div className="space-y-2 w-full md:w-[520px]">
+          <div className="w-full space-y-2 md:w-[520px]">
             <form action={publishActiveAction} className="space-y-2">
               <input type="hidden" name="year" value={selected.year} />
               <input type="hidden" name="month" value={selected.month} />
@@ -503,25 +635,25 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
               <button
                 className="w-full rounded-xl border border-gray-800 bg-black/40 px-4 py-2 text-gray-200 hover:border-cyan-500/40 disabled:opacity-60"
                 disabled={!canPublish}
-                title={!canPublish ? 'Saknar spot.publish' : 'Sätt vald period som AKTIV (enterprise publish)'}
+                title={!canPublish ? 'Saknar spot.publish' : 'Sätt vald period som aktiv'}
               >
                 Publish: sätt {selectedLabel} som aktiv
               </button>
               <div className="text-xs text-gray-500">
-                Publish validerar att alla 4 områden finns, skapar snapshot i publish_log och uppdaterar aktiv period.
+                Publish validerar att alla 4 områden finns, skapar snapshot och uppdaterar aktiv period.
               </div>
             </form>
           </div>
         </div>
 
-        {/* Impact estimator */}
-        <div className="rounded-2xl border border-gray-900 bg-black/30 p-5 space-y-3">
+        <div className="space-y-3 rounded-2xl border border-gray-900 bg-black/30 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-lg font-semibold text-gray-100">Impact estimator (fintech)</div>
+              <div className="text-lg font-semibold text-gray-100">
+                Impact estimator
+              </div>
               <div className="text-sm text-gray-400">
                 Visar påverkan i SEK om spot-basis ändras jämfört med {ymLabel(prev.year, prev.month)}.
-                Byggt för beslut: “vad betyder detta för 1000 kunder?”
               </div>
             </div>
             <div className="text-xs text-gray-500">
@@ -530,7 +662,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
           </div>
 
           <form className="grid gap-3 md:grid-cols-3">
-            <div className="border border-gray-900 rounded-lg p-3">
+            <div className="rounded-lg border border-gray-900 p-3">
               <div className="text-sm text-gray-400">kWh per kund / månad</div>
               <input
                 className="mt-1 w-full rounded-lg border border-gray-800 bg-black/40 p-2 text-gray-100"
@@ -538,48 +670,56 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                 name="kwh"
                 disabled
               />
-              <div className="text-xs text-gray-500 mt-1">
-                (UI-steg: gör detta justerbart senare. Bas = 2000 kWh.)
+              <div className="mt-1 text-xs text-gray-500">
+                Bas = 2000 kWh.
               </div>
             </div>
 
-            {AREAS.map((a) => (
-              <div key={a} className="border border-gray-900 rounded-lg p-3">
-                <div className="text-sm text-gray-400">Kunder i {a}</div>
+            {AREAS.map((area) => (
+              <div key={area} className="rounded-lg border border-gray-900 p-3">
+                <div className="text-sm text-gray-400">Kunder i {area}</div>
                 <input
                   className="mt-1 w-full rounded-lg border border-gray-800 bg-black/40 p-2 text-gray-100"
                   defaultValue={String(defaultCustomersPerArea)}
-                  name={`customers_${a}`}
+                  name={`customers_${area}`}
                   disabled
                 />
-                <div className="text-xs text-gray-500 mt-1">
-                  (UI-steg: gör detta justerbart senare. Bas = 250/område.)
+                <div className="mt-1 text-xs text-gray-500">
+                  Bas = 250/område.
                 </div>
               </div>
             ))}
           </form>
 
           <div className="grid gap-2 md:grid-cols-2">
-            {AREAS.map((a) => {
-              const d = diffFor(a)
-              const kwh = defaultKwh
-              const customers = defaultCustomersPerArea
-              const sekPerCustomer = d == null ? null : (d * kwh) / 100
-              const sekTotal = sekPerCustomer == null ? null : sekPerCustomer * customers
+            {AREAS.map((area) => {
+              const diff = diffFor(area)
+              const sekPerCustomer = diff == null ? null : (diff * defaultKwh) / 100
+              const sekTotal =
+                sekPerCustomer == null
+                  ? null
+                  : sekPerCustomer * defaultCustomersPerArea
+
               return (
-                <div key={a} className="border border-gray-900 rounded-lg p-3 flex items-center justify-between">
+                <div
+                  key={area}
+                  className="flex items-center justify-between rounded-lg border border-gray-900 p-3"
+                >
                   <div>
-                    <div className="font-semibold text-gray-100">{a}</div>
+                    <div className="font-semibold text-gray-100">{area}</div>
                     <div className="text-xs text-gray-500">
-                      Diff: {d == null ? '—' : `${d >= 0 ? '+' : ''}${d.toFixed(3)} öre/kWh`}
+                      Diff: {diff == null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(3)} öre/kWh`}
                     </div>
                   </div>
+
                   <div className="text-right">
                     <div className="text-sm text-gray-200">
-                      {sekTotal == null ? '—' : `${sekTotal >= 0 ? '+' : ''}${Math.round(sekTotal).toLocaleString('sv-SE')} kr/mån`}
+                      {sekTotal == null
+                        ? '—'
+                        : `${sekTotal >= 0 ? '+' : ''}${Math.round(sekTotal).toLocaleString('sv-SE')} kr/mån`}
                     </div>
                     <div className="text-xs text-gray-500">
-                      ({customers} kunder × {kwh} kWh)
+                      ({defaultCustomersPerArea} kunder × {defaultKwh} kWh)
                     </div>
                   </div>
                 </div>
@@ -588,21 +728,22 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
           </div>
 
           <div className="text-xs text-gray-500">
-            Enterprise nästa steg: göra inputs justerbara + spara “scenario presets” + visa total across areas med valfri distribution.
+            Nästa steg: göra inputs justerbara, spara scenarios och visa total över alla områden.
           </div>
         </div>
 
-        {/* Rollback + publish log */}
-        <div className="rounded-2xl border border-gray-900 bg-black/30 p-5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
+        <div className="space-y-3 rounded-2xl border border-gray-900 bg-black/30 p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="text-lg font-semibold text-gray-100">Rollback & Publish log</div>
+              <div className="text-lg font-semibold text-gray-100">
+                Rollback & Publish log
+              </div>
               <div className="text-sm text-gray-400">
                 Snapshot tas vid publish. Rollback sätter aktiv period till föregående logg-entry.
               </div>
             </div>
 
-            <form action={rollbackAction} className="w-full md:w-[420px] space-y-2">
+            <form action={rollbackAction} className="w-full space-y-2 md:w-[420px]">
               <label className="text-sm text-gray-400">Rollback reason (audit)</label>
               <input
                 name="reason"
@@ -619,8 +760,8 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
             </form>
           </div>
 
-          <div className="border border-gray-900 rounded-xl overflow-hidden">
-            <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-gray-500 bg-black/30">
+          <div className="overflow-hidden rounded-xl border border-gray-900">
+            <div className="grid grid-cols-12 gap-2 bg-black/30 px-4 py-2 text-xs text-gray-500">
               <div className="col-span-2">Tid</div>
               <div className="col-span-2">Action</div>
               <div className="col-span-2">Period</div>
@@ -628,39 +769,57 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
             </div>
 
             {(publishLog ?? []).length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">Ingen publish-logg ännu.</div>
+              <div className="p-4 text-sm text-gray-500">
+                Ingen publish-logg ännu.
+              </div>
             ) : (
-              (publishLog ?? []).map((r) => (
-                <div key={r.id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-gray-900">
-                  <div className="col-span-2 text-gray-400">{new Date(r.created_at).toLocaleString('sv-SE')}</div>
+              (publishLog ?? []).map((row) => (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-12 gap-2 border-t border-gray-900 px-4 py-3 text-sm"
+                >
+                  <div className="col-span-2 text-gray-400">
+                    {new Date(row.created_at).toLocaleString('sv-SE')}
+                  </div>
+
                   <div className="col-span-2">
                     <span
-                      className={`text-[11px] rounded-full border px-2 py-1 ${
-                        r.action === 'publish'
+                      className={`rounded-full border px-2 py-1 text-[11px] ${
+                        row.action === 'publish'
                           ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
                           : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
                       }`}
                     >
-                      {r.action.toUpperCase()}
+                      {row.action.toUpperCase()}
                     </span>
                   </div>
-                  <div className="col-span-2 text-gray-200 font-semibold">
-                    {ymLabel(r.active_year, r.active_month)}
+
+                  <div className="col-span-2 font-semibold text-gray-200">
+                    {ymLabel(row.active_year, row.active_month)}
                   </div>
-                  <div className="col-span-6 text-gray-300">{r.reason ?? <span className="text-gray-600">—</span>}</div>
+
+                  <div className="col-span-6 text-gray-300">
+                    {row.reason ?? <span className="text-gray-600">—</span>}
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* UX help */}
-        <div className="pt-2 border-t border-gray-900 text-sm text-gray-400">
-          <div className="font-semibold text-gray-200 mb-1">Enterprise-flöde</div>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><span className="text-gray-200">spot.write</span>: får spara månadspriser.</li>
-            <li><span className="text-gray-200">spot.publish</span>: får publish aktiv period och skapa snapshot (rollback möjligt).</li>
-            <li>Pricing-engine läser alltid aktiv period via <span className="text-gray-200">gridex_spot_basis_config</span>.</li>
+        <div className="border-t border-gray-900 pt-2 text-sm text-gray-400">
+          <div className="mb-1 font-semibold text-gray-200">Enterprise-flöde</div>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <span className="text-gray-200">spot.write</span>: får spara månadspriser.
+            </li>
+            <li>
+              <span className="text-gray-200">spot.publish</span>: får publish aktiv period och skapa snapshot.
+            </li>
+            <li>
+              Pricing-engine läser alltid aktiv period via{' '}
+              <span className="text-gray-200">gridex_spot_basis_config</span>.
+            </li>
           </ul>
         </div>
       </div>

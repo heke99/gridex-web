@@ -1,5 +1,3 @@
-// lib/admin/getAdminContext.ts
-
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -12,9 +10,15 @@ export type AdminContext = {
   supabase: SupabaseClient
 }
 
-type PermissionRow = {
-  permission_key: string
+type RoleRow = {
+  role: string
+  is_active: boolean | null
 }
+
+const ADMIN_CONSOLE_PERMISSIONS = new Set<string>([
+  'admin.access',
+  'support_tickets.manage',
+])
 
 export async function getAdminContext(): Promise<AdminContext> {
   const supabase = await createSupabaseServerClient()
@@ -34,32 +38,58 @@ export async function getAdminContext(): Promise<AdminContext> {
     }
   }
 
-  const { data, error } = await supabase.rpc('gridex_get_user_permissions', {
-    user_id_input: user.id,
-  })
+  const [
+    { data: permissionData, error: permissionError },
+    { data: roleData, error: roleError },
+  ] = await Promise.all([
+    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
+    supabase
+      .from('user_roles')
+      .select('role,is_active')
+      .eq('user_id', user.id)
+      .returns<RoleRow[]>(),
+  ])
 
-  if (error) {
-    throw new Error(error.message)
+  if (permissionError) {
+    throw new Error(permissionError.message)
   }
 
-  const rows: PermissionRow[] = Array.isArray(data)
-    ? data.filter(
-        (row): row is PermissionRow =>
-          typeof row === 'object' &&
-          row !== null &&
-          'permission_key' in row
+  if (roleError) {
+    throw new Error(roleError.message)
+  }
+
+  const permissions = Array.isArray(permissionData)
+    ? Array.from(
+        new Set(
+          permissionData.filter((value): value is string => typeof value === 'string')
+        )
       )
     : []
 
-  const permissions = rows.map((row) => row.permission_key)
+  const roles = Array.isArray(roleData)
+    ? Array.from(
+        new Set(
+          roleData
+            .filter(
+              (row): row is RoleRow =>
+                row.is_active !== false && typeof row.role === 'string'
+            )
+            .map((row) => row.role)
+        )
+      )
+    : []
 
-  const isAdmin = permissions.includes('admin.access')
+  const isAdmin =
+    roles.includes('admin') ||
+    permissions.some((permission) =>
+      ADMIN_CONSOLE_PERMISSIONS.has(permission)
+    )
 
   return {
     userId: user.id,
     email: user.email ?? null,
     permissions,
-    roles: [],
+    roles,
     isAdmin,
     supabase,
   }

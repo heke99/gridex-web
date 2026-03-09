@@ -1,4 +1,3 @@
-// components/account/LogoutForm.tsx
 'use client'
 
 import { useState } from 'react'
@@ -18,10 +17,10 @@ export default function LogoutForm({
 }: Props) {
   const [loading, setLoading] = useState(false)
 
-  const base =
+  const baseClassName =
     variant === 'ghost'
-      ? 'inline-flex h-9 w-full items-center justify-center rounded-xl border border-white/10 bg-black/30 px-3 text-xs font-semibold text-white/80 hover:bg-black/20'
-      : 'inline-flex h-9 w-full items-center justify-center rounded-xl bg-white px-3 text-xs font-semibold text-black hover:bg-white/90'
+      ? 'inline-flex h-10 w-full items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-3 text-sm font-semibold text-white/80 transition hover:bg-white/5'
+      : 'inline-flex h-10 w-full items-center justify-center rounded-2xl bg-white px-3 text-sm font-semibold text-black transition hover:bg-white/90'
 
   return (
     <form
@@ -33,7 +32,10 @@ export default function LogoutForm({
       <button
         type="submit"
         disabled={loading}
-        className={[base, loading ? 'opacity-70 cursor-not-allowed' : ''].join(' ')}
+        className={[
+          baseClassName,
+          loading ? 'cursor-not-allowed opacity-70' : '',
+        ].join(' ')}
       >
         {loading ? 'Loggar ut…' : label}
       </button>

@@ -8,30 +8,61 @@ export async function requirePermissionServer(permission: string) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
 
-  if (!user) throw new Error('Unauthorized')
+  if (userError) {
+    throw new Error(userError.message)
+  }
 
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // --------------------------------------------------
   // 1) Legacy fallback: admin_users
-  // Keep backwards compatibility while NOT silently granting sensitive actions.
+  // --------------------------------------------------
+  // Behåll bakåtkompatibilitet för äldre adminflöden,
+  // men håll detta strikt så att legacy editor inte får
+  // känsliga write/publish-rättigheter av misstag.
   const legacy = await requireAdminRole(supabase).catch(() => null)
+
   if (legacy?.role === 'admin') {
-    return { supabase, user, mode: 'legacy' as const }
-  }
-  // Legacy editors should still be able to access basic admin pages gated by admin.access.
-  if (legacy?.role === 'editor' && permission === 'admin.access') {
-    return { supabase, user, mode: 'legacy' as const }
+    return {
+      supabase,
+      user,
+      mode: 'legacy' as const,
+    }
   }
 
+  // Legacy editor tillåts endast för basic admin-access
+  if (legacy?.role === 'editor' && permission === 'admin.access') {
+    return {
+      supabase,
+      user,
+      mode: 'legacy' as const,
+    }
+  }
+
+  // --------------------------------------------------
   // 2) New permission system
+  // --------------------------------------------------
   const { data: allowed, error } = await supabase.rpc('gridex_has_permission', {
     p_user_id: user.id,
     p_permission: permission,
   })
 
-  if (error || allowed !== true) {
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  if (allowed !== true) {
     throw new Error(`Forbidden: missing permission ${permission}`)
   }
 
-  return { supabase, user, mode: 'permission' as const }
+  return {
+    supabase,
+    user,
+    mode: 'permission' as const,
+  }
 }

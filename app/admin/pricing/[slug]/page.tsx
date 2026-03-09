@@ -1,4 +1,3 @@
-// app/admin/pricing/[slug]/page.tsx
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
@@ -38,6 +37,12 @@ type AreaPricing = {
   monthly_fee_sek: number | null
 }
 
+type PageSearchParams = {
+  previewVersionId?: string
+  kwh?: string
+  area?: PriceArea
+}
+
 function fmtWhen(iso: string) {
   try {
     return new Date(iso).toLocaleString('sv-SE', {
@@ -50,11 +55,22 @@ function fmtWhen(iso: string) {
 }
 
 type PublishState = 'DRAFT' | 'LIVE' | 'SCHEDULED'
-function classify(nowIso: string, v: Version): PublishState {
-  const isPublished = v.is_published === true || v.status === 'published'
+
+function classify(nowIso: string, version: Version): PublishState {
+  const isPublished = version.is_published === true || version.status === 'published'
   if (!isPublished) return 'DRAFT'
-  if (v.valid_from > nowIso) return 'SCHEDULED'
+  if (version.valid_from > nowIso) return 'SCHEDULED'
   return 'LIVE'
+}
+
+function parsePreviewKwh(value: string | undefined): number {
+  const n = Number(value ?? 2000)
+  if (!Number.isFinite(n)) return 2000
+  return Math.min(200000, Math.max(1, n))
+}
+
+function parsePreviewArea(value: PriceArea | undefined): PriceArea {
+  return AREAS.includes(value as PriceArea) ? (value as PriceArea) : 'SE3'
 }
 
 export const dynamic = 'force-dynamic'
@@ -64,87 +80,119 @@ export default async function AdminPricingContractPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams?: Promise<{ previewVersionId?: string; kwh?: string; area?: PriceArea }>
+  searchParams?: Promise<PageSearchParams>
 }) {
   const { slug } = await params
   const sp = searchParams ? await searchParams : undefined
 
   const ctx = await requireAdminPageAccess({
-    anyOf: ['pricing.read', 'pricing.write', 'pricing.publish', 'pricing.publish_prod', 'admin.access'],
+    anyOf: [
+      'pricing.read',
+      'pricing.write',
+      'pricing.publish',
+      'pricing.publish_prod',
+      'admin.access',
+    ],
   })
 
   const supabase = ctx.supabase
   const nowIso = new Date().toISOString()
 
-  // --------------------------------------------------
-// Enterprise compatibility layer (legacy admin API)
-// --------------------------------------------------
-const legacy = {
-  allowed: ctx.isAdmin || ctx.permissions.includes('admin.access'),
-  role: ctx.roles.includes('admin') ? 'admin' : 'user',
-}
+  const isAdmin =
+    ctx.isAdmin ||
+    ctx.roles.includes('admin') ||
+    ctx.permissions.includes('admin.access')
 
-const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
-  const canWrite = isLegacyAdmin || ctx.permissions.includes('pricing.write') || ctx.permissions.includes('pricing.publish')
-  const canPublish = isLegacyAdmin || ctx.permissions.includes('pricing.publish') || ctx.permissions.includes('pricing.publish_prod')
+  const canWrite =
+    isAdmin ||
+    ctx.permissions.includes('pricing.write') ||
+    ctx.permissions.includes('pricing.publish') ||
+    ctx.permissions.includes('pricing.publish_prod')
 
-  const { data: contract } = await supabase
+  const canPublish =
+    isAdmin ||
+    ctx.permissions.includes('pricing.publish') ||
+    ctx.permissions.includes('pricing.publish_prod')
+
+  const { data: contract, error: contractError } = await supabase
     .from('contract_products')
     .select('id,name,slug,contract_type')
     .eq('slug', slug)
-    .single()
+    .maybeSingle<Contract>()
 
-  if (!contract) redirect('/admin/pricing')
-  const typedContract = contract as Contract
+  if (contractError) {
+    throw new Error(contractError.message)
+  }
 
-  const { data: versionsRaw } = await supabase
+  if (!contract) {
+    redirect('/admin/pricing')
+  }
+
+  const typedContract = contract
+
+  const { data: versionsRaw, error: versionsError } = await supabase
     .from('contract_pricing_versions')
     .select('id,contract_id,version_number,valid_from,is_published,status')
     .eq('contract_id', typedContract.id)
     .order('version_number', { ascending: false })
+    .returns<Version[]>()
 
-  const versions = (versionsRaw ?? []) as Version[]
+  if (versionsError) {
+    throw new Error(versionsError.message)
+  }
+
+  const versions = versionsRaw ?? []
 
   const live = versions
-    .filter((v) => classify(nowIso, v) === 'LIVE')
+    .filter((version) => classify(nowIso, version) === 'LIVE')
     .sort((a, b) => (a.valid_from < b.valid_from ? 1 : -1))[0]
 
   const scheduled = versions
-    .filter((v) => classify(nowIso, v) === 'SCHEDULED')
+    .filter((version) => classify(nowIso, version) === 'SCHEDULED')
     .sort((a, b) => (a.valid_from > b.valid_from ? 1 : -1))[0]
 
   const activePublished = live ?? scheduled ?? null
 
-  const previewVersionId = sp?.previewVersionId ?? activePublished?.id ?? versions[0]?.id
-  const previewKwh = Number(sp?.kwh ?? 2000)
-  const previewArea = (sp?.area ?? 'SE3') as PriceArea
+  const previewVersionId =
+    sp?.previewVersionId ?? activePublished?.id ?? versions[0]?.id ?? ''
 
-  const previewSpec = await computeCustomerSpec({
-    supabase,
-    contract: {
-      id: typedContract.id,
-      slug: typedContract.slug,
-      name: typedContract.name,
-      contract_type: typedContract.contract_type,
-      is_active: true,
-    },
-    priceArea: previewArea,
-    kwh: previewKwh,
-    selection: previewVersionId ? { mode: 'by_id', id: previewVersionId } : undefined,
-  }).catch(() => null)
+  const previewKwh = parsePreviewKwh(sp?.kwh)
+  const previewArea = parsePreviewArea(sp?.area)
+
+  const previewSpec = previewVersionId
+    ? await computeCustomerSpec({
+        supabase,
+        contract: {
+          id: typedContract.id,
+          slug: typedContract.slug,
+          name: typedContract.name,
+          contract_type: typedContract.contract_type,
+          is_active: true,
+        },
+        priceArea: previewArea,
+        kwh: previewKwh,
+        selection: { mode: 'by_id', id: previewVersionId },
+      }).catch(() => null)
+    : null
 
   const previewLines = previewSpec?.lines ?? []
 
-  const { data: pricingRows } = previewVersionId
+  const pricingRowsResult = previewVersionId
     ? await supabase
         .from('contract_area_pricing')
-        .select('pricing_version_id,price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek')
+        .select(
+          'pricing_version_id,price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek'
+        )
         .eq('pricing_version_id', previewVersionId)
         .returns<AreaPricing[]>()
-    : { data: null }
+    : { data: null, error: null }
+
+  if (pricingRowsResult.error) {
+    throw new Error(pricingRowsResult.error.message)
+  }
 
   const pricingMap = new Map<PriceArea, AreaPricing>()
-  ;(pricingRows ?? []).forEach((r) => pricingMap.set(r.price_area, r))
+  ;(pricingRowsResult.data ?? []).forEach((row) => pricingMap.set(row.price_area, row))
 
   type AreaNumericKey =
     | 'price_per_kwh_ore'
@@ -152,6 +200,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
     | 'variable_fee_ore'
     | 'elcert_ore'
     | 'monthly_fee_sek'
+
   function defaultVal(area: PriceArea, key: AreaNumericKey) {
     const row = pricingMap.get(area)
     if (!row) return '0'
@@ -161,10 +210,11 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="text-xs text-gray-500">Prishantering</div>
           <h1 className="text-3xl font-bold">{typedContract.name}</h1>
+
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-gray-200">
               {typedContract.contract_type}
@@ -175,7 +225,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/admin/contracts"
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-cyan-500/40"
@@ -191,40 +241,44 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         </div>
       </div>
 
-      {/* Publiceringsstatus */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-lg font-semibold">Publiceringsstatus</div>
-            <p className="text-gray-400 mt-1 text-sm">
-              Endast <span className="text-gray-200">publicerade</span> versioner med{' '}
-              <span className="text-gray-200">valid_from ≤ nu</span> är LIVE. Schemalagda versioner är publicerade men blir
-              LIVE först på datumet.
+            <p className="mt-1 text-sm text-gray-400">
+              Endast publicerade versioner med valid_from ≤ nu är LIVE.
+              Schemalagda versioner är publicerade men blir LIVE först på datumet.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {!activePublished && <span className="text-amber-200 text-sm">Draft saknar publicering</span>}
+            {!activePublished && (
+              <span className="text-sm text-amber-200">
+                Draft saknar publicering
+              </span>
+            )}
+
             {activePublished && classify(nowIso, activePublished) === 'LIVE' && (
-              <span className="text-emerald-300 text-sm">
+              <span className="text-sm text-emerald-300">
                 LIVE publicerad (fr.o.m. {fmtWhen(activePublished.valid_from)})
               </span>
             )}
-            {activePublished && classify(nowIso, activePublished) === 'SCHEDULED' && (
-              <span className="text-cyan-200 text-sm">
-                Schemalagd publicering (blir LIVE: {fmtWhen(activePublished.valid_from)})
-              </span>
-            )}
+
+            {activePublished &&
+              classify(nowIso, activePublished) === 'SCHEDULED' && (
+                <span className="text-sm text-cyan-200">
+                  Schemalagd publicering (blir LIVE: {fmtWhen(activePublished.valid_from)})
+                </span>
+              )}
           </div>
         </div>
       </div>
 
-      {/* Step 1: Create version */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">1) Skapa version</div>
-        <p className="text-gray-400 mt-1 text-sm">
-          Skapa en ny prisversion (Draft). Välj datum när den ska börja gälla. Vill du schemalägga? Sätt ett framtida datum
-          och publicera.
+        <p className="mt-1 text-sm text-gray-400">
+          Skapa en ny prisversion (Draft). Välj datum när den ska börja gälla.
+          Vill du schemalägga? Sätt ett framtida datum och publicera.
         </p>
 
         <form action={createVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
@@ -236,7 +290,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
             <input
               name="valid_from"
               defaultValue={new Date().toISOString().slice(0, 10)}
-              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+              className="mt-2 h-11 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
               placeholder="2026-02-27"
               disabled={!canWrite}
             />
@@ -251,18 +305,17 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         </form>
       </div>
 
-      {/* Step 2: Versions list */}
-      <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
-        <div className="p-6 border-b border-gray-800">
+      <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-950">
+        <div className="border-b border-gray-800 p-6">
           <div className="text-lg font-semibold">2) Versioner</div>
-          <p className="text-gray-400 mt-1 text-sm">
-            Välj version för att redigera priser och göra Preview. Publicera när allt är klart.
+          <p className="mt-1 text-sm text-gray-400">
+            Välj version för att redigera priser och göra preview. Publicera när allt är klart.
           </p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-gray-400 border-b border-gray-800">
+            <thead className="border-b border-gray-800 text-xs text-gray-400">
               <tr>
                 <th className="p-4">Version</th>
                 <th className="p-4">valid_from</th>
@@ -271,44 +324,50 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
               </tr>
             </thead>
             <tbody>
-              {versions.map((v) => {
-                const state = classify(nowIso, v)
-                const isSelected = v.id === previewVersionId
+              {versions.map((version) => {
+                const state = classify(nowIso, version)
+                const isSelected = version.id === previewVersionId
+
                 return (
-                  <tr key={v.id} className="border-t border-gray-800">
+                  <tr key={version.id} className="border-t border-gray-800">
                     <td className="p-4 text-gray-200">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">v{v.version_number}</span>
+                        <span className="font-semibold">v{version.version_number}</span>
                         {isSelected && (
-                          <span className="text-[11px] rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
+                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-200">
                             Preview
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1 font-mono">{v.id}</div>
+                      <div className="mt-1 font-mono text-xs text-gray-500">
+                        {version.id}
+                      </div>
                     </td>
-                    <td className="p-4 text-gray-300">{fmtWhen(v.valid_from)}</td>
+
+                    <td className="p-4 text-gray-300">{fmtWhen(version.valid_from)}</td>
+
                     <td className="p-4">
                       {state === 'DRAFT' && (
-                        <span className="text-[11px] rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
                           Draft
                         </span>
                       )}
                       {state === 'LIVE' && (
-                        <span className="text-[11px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-200">
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
                           LIVE
                         </span>
                       )}
                       {state === 'SCHEDULED' && (
-                        <span className="text-[11px] rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-200">
                           Schemalagd
                         </span>
                       )}
                     </td>
+
                     <td className="p-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/admin/pricing/${typedContract.slug}?previewVersionId=${v.id}&kwh=${previewKwh}&area=${previewArea}`}
+                          href={`/admin/pricing/${typedContract.slug}?previewVersionId=${version.id}&kwh=${previewKwh}&area=${previewArea}`}
                           className="rounded-xl border border-gray-800 bg-black/40 px-3 py-2 text-xs text-gray-200 hover:border-cyan-500/40"
                         >
                           Välj för preview
@@ -316,7 +375,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
                         <form action={cloneVersionAction} className="flex items-center gap-2">
                           <input type="hidden" name="contract_id" value={typedContract.id} />
-                          <input type="hidden" name="source_version_id" value={v.id} />
+                          <input type="hidden" name="source_version_id" value={version.id} />
                           <input type="hidden" name="slug" value={slug} />
                           <input
                             name="reason"
@@ -350,24 +409,19 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         </div>
       </div>
 
-      {/* Step 3: Edit prices */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">3) Fyll priser per område</div>
-        <p className="text-gray-400 mt-1 text-sm">
-          För <span className="text-gray-200">spot_hourly</span> använder vi{' '}
-          <span className="text-gray-200">markup_ore</span> +{' '}
-          <span className="text-gray-200">variable_fee_ore</span> +{' '}
-          <span className="text-gray-200">elcert_ore</span> +{' '}
-          <span className="text-gray-200">monthly_fee</span>. För{' '}
-          <span className="text-gray-200">fixed/portfolio_managed</span> använder vi{' '}
-          <span className="text-gray-200">price_per_kwh_ore</span> +{' '}
-          <span className="text-gray-200">variable_fee_ore</span> +{' '}
-          <span className="text-gray-200">elcert_ore</span> +{' '}
-          <span className="text-gray-200">monthly_fee</span>.
+        <p className="mt-1 text-sm text-gray-400">
+          För <span className="text-gray-200">spot_hourly</span> används markup_ore,
+          variable_fee_ore, elcert_ore och monthly_fee. För{' '}
+          <span className="text-gray-200">fixed/portfolio_managed</span> används
+          price_per_kwh_ore, variable_fee_ore, elcert_ore och monthly_fee.
         </p>
 
         {!previewVersionId ? (
-          <div className="mt-4 text-gray-500 text-sm">Välj eller skapa en version först.</div>
+          <div className="mt-4 text-sm text-gray-500">
+            Välj eller skapa en version först.
+          </div>
         ) : (
           <form action={savePricingAction} className="mt-5 space-y-4">
             <input type="hidden" name="pricing_version_id" value={previewVersionId} />
@@ -376,7 +430,10 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
             <div className="grid gap-4 md:grid-cols-4">
               {AREAS.map((area) => (
-                <div key={area} className="rounded-2xl border border-gray-800 bg-black/30 p-4">
+                <div
+                  key={area}
+                  className="rounded-2xl border border-gray-800 bg-black/30 p-4"
+                >
                   <div className="text-sm font-semibold text-gray-200">{area}</div>
 
                   {typedContract.contract_type === 'spot_hourly' ? (
@@ -385,7 +442,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                       <input
                         name={`${area}_markup_ore`}
                         defaultValue={defaultVal(area, 'markup_ore')}
-                        className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                        className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
                         disabled={!canWrite}
                       />
                     </div>
@@ -395,7 +452,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                       <input
                         name={`${area}_price_per_kwh_ore`}
                         defaultValue={defaultVal(area, 'price_per_kwh_ore')}
-                        className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                        className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
                         disabled={!canWrite}
                       />
                     </div>
@@ -406,7 +463,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                     <input
                       name={`${area}_variable_fee_ore`}
                       defaultValue={defaultVal(area, 'variable_fee_ore')}
-                      className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                      className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
                       disabled={!canWrite}
                     />
                   </div>
@@ -416,7 +473,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                     <input
                       name={`${area}_elcert_ore`}
                       defaultValue={defaultVal(area, 'elcert_ore')}
-                      className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                      className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
                       disabled={!canWrite}
                     />
                   </div>
@@ -426,7 +483,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
                     <input
                       name={`${area}_monthly_fee_sek`}
                       defaultValue={defaultVal(area, 'monthly_fee_sek')}
-                      className="w-full h-10 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
+                      className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
                       disabled={!canWrite}
                     />
                   </div>
@@ -436,8 +493,7 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
             <button
               disabled={!canWrite}
-              className="w-full h-11 rounded-xl bg-white text-black font-semibold hover:bg-white/90
-              disabled:opacity-60"
+              className="h-11 w-full rounded-xl bg-white font-semibold text-black hover:bg-white/90 disabled:opacity-60"
             >
               Spara priser
             </button>
@@ -445,11 +501,11 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         )}
       </div>
 
-      {/* Step 4: Preview */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">4) Preview</div>
-        <p className="text-gray-400 mt-1 text-sm">
-          Preview använder pricing-engine med selectionMode <span className="font-mono">by_id</span> (inkl draft).
+        <p className="mt-1 text-sm text-gray-400">
+          Preview använder pricing-engine med selectionMode{' '}
+          <span className="font-mono">by_id</span>.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -475,19 +531,34 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
 
         <div className="mt-6 rounded-2xl border border-gray-800 bg-black/30 p-4">
           <div className="text-sm font-semibold text-gray-200">Spec (engine)</div>
+
           {!previewSpec ? (
-            <div className="mt-2 text-sm text-amber-200">Preview kunde inte beräknas (saknar data).</div>
+            <div className="mt-2 text-sm text-amber-200">
+              Preview kunde inte beräknas (saknar data).
+            </div>
           ) : (
             <div className="mt-3 space-y-2 text-sm text-gray-200">
-              {previewLines.map((l) => (
-                <div key={l.key} className="flex items-center justify-between gap-3">
+              {previewLines.map((line) => (
+                <div
+                  key={line.key}
+                  className="flex items-center justify-between gap-3"
+                >
                   <div className="text-gray-300">
-                    {l.label}
-                    {l.note ? <span className="text-xs text-gray-500 ml-2">({l.note})</span> : null}
+                    {line.label}
+                    {line.note ? (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({line.note})
+                      </span>
+                    ) : null}
                   </div>
+
                   <div className="font-mono text-gray-200">
-                    {typeof l.orePerKwh === 'number' ? `${l.orePerKwh} öre/kWh` : ''}
-                    {typeof l.sekPerMonth === 'number' ? `  |  ${l.sekPerMonth} SEK/mån` : ''}
+                    {typeof line.orePerKwh === 'number'
+                      ? `${line.orePerKwh} öre/kWh`
+                      : ''}
+                    {typeof line.sekPerMonth === 'number'
+                      ? `  |  ${line.sekPerMonth} SEK/mån`
+                      : ''}
                   </div>
                 </div>
               ))}
@@ -496,24 +567,24 @@ const isLegacyAdmin = legacy.allowed && legacy.role === 'admin'
         </div>
       </div>
 
-      {/* Step 5: Publish */}
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">5) Publicera</div>
-        <p className="text-gray-400 mt-1 text-sm">
-          Publicera vald version. Detta avpublicerar automatiskt andra versioner för samma avtal. Om valid_from ligger i
-          framtiden blir den <span className="text-gray-200">Schemalagd</span> tills datumet.
+        <p className="mt-1 text-sm text-gray-400">
+          Publicera vald version. Detta avpublicerar automatiskt andra versioner
+          för samma avtal. Om valid_from ligger i framtiden blir den schemalagd
+          tills datumet.
         </p>
 
         <form action={publishVersionAction} className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
           <input type="hidden" name="contract_id" value={typedContract.id} />
-          <input type="hidden" name="version_id" value={previewVersionId ?? ''} />
+          <input type="hidden" name="version_id" value={previewVersionId} />
           <input type="hidden" name="slug" value={slug} />
 
           <div className="flex-1">
             <label className="text-xs text-gray-400">Anledning (audit)</label>
             <input
               name="reason"
-              className="mt-2 w-full h-11 rounded-xl border border-gray-800 bg-black/40 px-3 text-sm text-gray-200"
+              className="mt-2 h-11 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm text-gray-200"
               placeholder="Ex: Ny kampanj, justering av påslag, uppdaterade avgifter..."
               required
               disabled={!canPublish || !previewVersionId}

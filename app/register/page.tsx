@@ -1,4 +1,3 @@
-// app/register/page.tsx
 'use client'
 
 import { useMemo, useState } from 'react'
@@ -16,6 +15,28 @@ function calculateStrength(password: string): number {
 
 function normalizeEmail(v: string): string {
   return v.trim().toLowerCase()
+}
+
+function looksLikeEmail(v: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+function humanizeAuthError(message: string): string {
+  const msg = message.toLowerCase()
+
+  if (msg.includes('user already registered')) {
+    return 'Det finns redan ett konto med denna e-postadress.'
+  }
+
+  if (msg.includes('password')) {
+    return 'Lösenordet uppfyller inte kraven.'
+  }
+
+  if (msg.includes('database error saving new user')) {
+    return 'Kunde inte skapa konto just nu. Försök igen om en stund.'
+  }
+
+  return message
 }
 
 export default function RegisterPage() {
@@ -48,6 +69,11 @@ export default function RegisterPage() {
 
     const cleanEmail = normalizeEmail(email)
 
+    if (!cleanEmail || !looksLikeEmail(cleanEmail)) {
+      setError('Ange en giltig e-postadress.')
+      return
+    }
+
     if (!accepted) {
       setError('Du måste acceptera användarvillkoren.')
       return
@@ -64,8 +90,9 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
@@ -73,8 +100,8 @@ export default function RegisterPage() {
         },
       })
 
-      if (error) {
-        setError(error.message)
+      if (signUpError) {
+        setError(humanizeAuthError(signUpError.message))
         return
       }
 
@@ -106,6 +133,7 @@ export default function RegisterPage() {
               placeholder="E-post"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
             />
 
@@ -116,6 +144,7 @@ export default function RegisterPage() {
                 placeholder="Lösenord"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
                 className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
               />
 
@@ -137,6 +166,7 @@ export default function RegisterPage() {
               placeholder="Bekräfta lösenord"
               value={password2}
               onChange={(e) => setPassword2(e.target.value)}
+              autoComplete="new-password"
               className="w-full h-11 rounded-xl border border-white/10 bg-black/40 px-3"
             />
 

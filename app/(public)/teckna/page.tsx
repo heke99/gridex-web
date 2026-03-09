@@ -1,4 +1,3 @@
-// app/(public)/teckna/page.tsx
 import type { Metadata } from 'next'
 import { createHash, randomBytes } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -27,14 +26,24 @@ type LiveDoc = {
   version: string
 }
 
+type RateLimitRow = {
+  allowed?: boolean
+}
+
+type AgreementRow = {
+  id: string
+}
+
 function getClientIpFromHeaders(h: Headers): string | null {
   const xff = h.get('x-forwarded-for')
   if (xff) {
     const first = xff.split(',')[0]?.trim()
     if (first) return first
   }
+
   const xrip = h.get('x-real-ip')
   if (xrip) return xrip.trim()
+
   return null
 }
 
@@ -42,14 +51,31 @@ function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex')
 }
 
+function normalizeText(value: FormDataEntryValue | null): string {
+  return String(value || '').trim()
+}
+
+function normalizeEmail(value: FormDataEntryValue | null): string {
+  return String(value || '').trim().toLowerCase()
+}
+
+function isDuplicateError(message: string): boolean {
+  const msg = message.toLowerCase()
+  return (
+    msg.includes('duplicate') ||
+    msg.includes('unique') ||
+    msg.includes('idempotency')
+  )
+}
+
 async function fetchLiveLegalDocs(): Promise<LiveDoc[]> {
   const supabase = await createSupabaseServerClient()
+
   const { data, error } = await supabase
     .from('legal_documents_live')
     .select('slug,title,version')
 
   if (error || !data) {
-    // fallback: still allow flow, but log will store unknown versions
     return [
       { slug: 'villkor', title: 'Allmänna villkor', version: 'unknown' },
       { slug: 'integritet', title: 'Integritetspolicy', version: 'unknown' },
@@ -59,9 +85,8 @@ async function fetchLiveLegalDocs(): Promise<LiveDoc[]> {
 
   const wanted = new Set(['villkor', 'integritet', 'cookies'])
   const picked = (data as LiveDoc[]).filter((d) => wanted.has(d.slug))
-
-  // Ensure all 3 exist (enterprise-safe)
   const bySlug = new Map(picked.map((d) => [d.slug, d]))
+
   const ensure = (slug: string, title: string): LiveDoc =>
     bySlug.get(slug) ?? { slug, title, version: 'unknown' }
 
@@ -70,6 +95,213 @@ async function fetchLiveLegalDocs(): Promise<LiveDoc[]> {
     ensure('integritet', 'Integritetspolicy'),
     ensure('cookies', 'Cookiepolicy'),
   ]
+}
+
+async function ensureUserProfile(params: {
+  userId: string
+  email: string
+  fullName?: string | null
+  phone?: string | null
+  personalNumber?: string | null
+}) {
+  const { userId, email, fullName, phone, personalNumber } = params
+
+  const { error } = await supabaseService
+    .from('user_profiles')
+    .upsert(
+      {
+        id: userId,
+        user_id: userId,
+        email,
+        full_name: fullName || null,
+        phone: phone || null,
+        personal_number: personalNumber || null,
+      },
+      { onConflict: 'id' }
+    )
+
+  if (error) {
+    throw new Error(`Failed to sync user profile: ${error.message}`)
+  }
+}
+
+async function findUserByEmail(email: string) {
+  const { data, error } = await supabaseService.auth.admin.listUsers()
+
+  if (error) {
+    throw new Error(`Failed to list users: ${error.message}`)
+  }
+
+  return data.users.find((u) => u.email?.toLowerCase() === email) ?? null
+}
+
+async function ensurePortalUser(params: {
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+  personalNumber: string
+}) {
+  const { email, firstName, lastName, phone, personalNumber } = params
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
+
+  const existingUser = await findUserByEmail(email)
+
+  if (existingUser?.id) {
+    await ensureUserProfile({
+      userId: existingUser.id,
+      email,
+      fullName,
+      phone,
+      personalNumber,
+    })
+
+    return {
+      userId: existingUser.id,
+      created: false,
+    }
+  }
+
+  const redirectTo = `${
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gridex.se'
+  }/login?next=/dashboard`
+
+  const invited = await supabaseService.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: {
+      source: 'contract_signup',
+      first_name: firstName,
+      last_name: lastName,
+    },
+  })
+
+  if (invited.error || !invited.data.user?.id) {
+    throw new Error(invited.error?.message || 'Failed to invite user')
+  }
+
+  await ensureUserProfile({
+    userId: invited.data.user.id,
+    email,
+    fullName,
+    phone,
+    personalNumber,
+  })
+
+  return {
+    userId: invited.data.user.id,
+    created: true,
+  }
+}
+
+async function insertLegalAcceptances(params: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
+  userId: string
+  email: string
+  agreementId: string
+  ip: string | null
+  userAgent: string | null
+  villkorVersion: string
+  integritetVersion: string
+  cookiesVersion: string
+}) {
+  const {
+    supabase,
+    userId,
+    email,
+    agreementId,
+    ip,
+    userAgent,
+    villkorVersion,
+    integritetVersion,
+    cookiesVersion,
+  } = params
+
+  const payload = [
+    {
+      user_id: userId,
+      email,
+      agreement_id: agreementId,
+      document_slug: 'villkor',
+      document_version: villkorVersion,
+      ip,
+      user_agent: userAgent,
+      metadata: { source: 'teckna', accepted: true },
+    },
+    {
+      user_id: userId,
+      email,
+      agreement_id: agreementId,
+      document_slug: 'integritet',
+      document_version: integritetVersion,
+      ip,
+      user_agent: userAgent,
+      metadata: { source: 'teckna', accepted: true },
+    },
+    {
+      user_id: userId,
+      email,
+      agreement_id: agreementId,
+      document_slug: 'cookies',
+      document_version: cookiesVersion,
+      ip,
+      user_agent: userAgent,
+      metadata: { source: 'teckna', accepted: true },
+    },
+  ]
+
+  const { error } = await supabase.from('legal_acceptances').insert(payload)
+
+  if (error && !isDuplicateError(error.message)) {
+    throw new Error(error.message)
+  }
+}
+
+async function handleSigningFlow(params: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
+  agreementId: string
+  email: string
+  signMethod: string
+}) {
+  const { supabase, agreementId, email, signMethod } = params
+
+  if (signMethod === 'bankid') {
+    const { error } = await supabase
+      .from('contract_agreements')
+      .update({ status: 'bankid_started' })
+      .eq('id', agreementId)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    redirect(`/sign/bankid/${agreementId}`)
+  }
+
+  const token = randomBytes(32).toString('hex')
+
+  const { error: updateError } = await supabase
+    .from('contract_agreements')
+    .update({
+      email_sign_token: token,
+      status: 'email_sent',
+    })
+    .eq('id', agreementId)
+
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+
+  const { error: emailError } = await supabase.from('system_emails').insert({
+    to_email: email,
+    subject: 'Signera ditt elavtal',
+    body: `Klicka för att signera: https://gridex.se/sign/email/${token}`,
+  })
+
+  if (emailError) {
+    throw new Error(emailError.message)
+  }
+
+  redirect('/sign/check-email')
 }
 
 export default async function TecknaPage() {
@@ -83,7 +315,10 @@ export default async function TecknaPage() {
       name: c.contract.name,
       slug: c.contract.slug,
     }))
-    .filter((o): o is ContractOption => typeof o.slug === 'string' && o.slug.length > 0)
+    .filter(
+      (o): o is ContractOption =>
+        typeof o.slug === 'string' && o.slug.length > 0
+    )
 
   const legalDocs = await fetchLiveLegalDocs()
   const villkorDoc = legalDocs.find((d) => d.slug === 'villkor')
@@ -99,25 +334,23 @@ export default async function TecknaPage() {
     const ip = getClientIpFromHeaders(h)
     const userAgent = h.get('user-agent')
 
-    const contractSlug = String(formData.get('contract_slug') || '').trim()
-
-    const firstName = String(formData.get('first_name') || '').trim()
-    const lastName = String(formData.get('last_name') || '').trim()
-    const personalNumber = String(formData.get('personal_number') || '').trim()
-
-    const address = String(formData.get('address') || '').trim()
-    const postalCode = String(formData.get('postal_code') || '').trim()
-    const city = String(formData.get('city') || '').trim()
-    const apartment = String(formData.get('apartment') || '').trim()
-    const facilityId = String(formData.get('facility_id') || '').trim()
-    const moveInDate = String(formData.get('move_in_date') || '').trim()
-
-    const email = String(formData.get('email') || '').toLowerCase().trim()
-    const phone = String(formData.get('phone') || '').trim()
-    const signMethod = String(formData.get('sign_method') || 'email').trim()
+    const contractSlug = normalizeText(formData.get('contract_slug'))
+    const firstName = normalizeText(formData.get('first_name'))
+    const lastName = normalizeText(formData.get('last_name'))
+    const personalNumber = normalizeText(formData.get('personal_number'))
+    const address = normalizeText(formData.get('address'))
+    const postalCode = normalizeText(formData.get('postal_code'))
+    const city = normalizeText(formData.get('city'))
+    const apartment = normalizeText(formData.get('apartment'))
+    const facilityId = normalizeText(formData.get('facility_id'))
+    const moveInDate = normalizeText(formData.get('move_in_date'))
+    const email = normalizeEmail(formData.get('email'))
+    const phone = normalizeText(formData.get('phone'))
+    const signMethod = normalizeText(formData.get('sign_method')) || 'email'
 
     const acceptVillkor = String(formData.get('accept_villkor') || '') === 'on'
-    const acceptIntegritet = String(formData.get('accept_integritet') || '') === 'on'
+    const acceptIntegritet =
+      String(formData.get('accept_integritet') || '') === 'on'
     const acceptCookies = String(formData.get('accept_cookies') || '') === 'on'
 
     if (
@@ -129,23 +362,20 @@ export default async function TecknaPage() {
       !firstName ||
       !lastName ||
       !personalNumber ||
-      !contractSlug
+      !contractSlug ||
+      !phone
     ) {
       throw new Error('Missing required fields')
     }
 
     if (!acceptVillkor || !acceptIntegritet || !acceptCookies) {
-      throw new Error('Du måste acceptera villkor, integritetspolicy och cookiepolicy.')
+      throw new Error(
+        'Du måste acceptera villkor, integritetspolicy och cookiepolicy.'
+      )
     }
 
-    // =========================================================
-    // RATE LIMIT (DB-enforced)
-    //  - 5 requests / 10 min per IP
-    //  - 5 requests / 10 min per email
-    // =========================================================
     const windowSeconds = 600
     const maxRequests = 5
-
     const ipKey = ip ? `ip:${ip}` : 'ip:unknown'
     const emailKey = `email:${email}`
 
@@ -156,8 +386,15 @@ export default async function TecknaPage() {
       p_max_requests: maxRequests,
     })
 
-    if (ipRl.error) throw new Error(ipRl.error.message)
-    if (ipRl.data && ipRl.data[0] && ipRl.data[0].allowed === false) {
+    if (ipRl.error) {
+      throw new Error(ipRl.error.message)
+    }
+
+    const ipRlRows = Array.isArray(ipRl.data)
+      ? (ipRl.data as RateLimitRow[])
+      : []
+
+    if (ipRlRows[0]?.allowed === false) {
       throw new Error('För många försök. Vänta en stund och prova igen.')
     }
 
@@ -168,14 +405,20 @@ export default async function TecknaPage() {
       p_max_requests: maxRequests,
     })
 
-    if (emailRl.error) throw new Error(emailRl.error.message)
-    if (emailRl.data && emailRl.data[0] && emailRl.data[0].allowed === false) {
-      throw new Error('För många försök för denna e-post. Vänta en stund och prova igen.')
+    if (emailRl.error) {
+      throw new Error(emailRl.error.message)
     }
 
-    // =========================================================
-    // IDEMPOTENCY KEY (prevents duplicates)
-    // =========================================================
+    const emailRlRows = Array.isArray(emailRl.data)
+      ? (emailRl.data as RateLimitRow[])
+      : []
+
+    if (emailRlRows[0]?.allowed === false) {
+      throw new Error(
+        'För många försök för denna e-post. Vänta en stund och prova igen.'
+      )
+    }
+
     const idempotencyKey = sha256(
       [
         'sign_contract_v1',
@@ -188,216 +431,101 @@ export default async function TecknaPage() {
       ].join('|')
     )
 
-    // =========================================================
-    // CREATE OR FETCH USER (no getUserByEmail; enterprise-safe flow)
-    // Strategy:
-    // 1) Try createUser
-    // 2) If "already registered", then listUsers and match email
-    // =========================================================
-    let userId: string | null = null
+    const { userId, created } = await ensurePortalUser({
+      email,
+      firstName,
+      lastName,
+      phone,
+      personalNumber,
+    })
 
-    const { data: listedUsers } = await supabaseService.auth.admin.listUsers()
-    const existingUser = listedUsers?.users.find((u) => u.email?.toLowerCase() === email)
-
-    if (existingUser?.id) {
-      userId = existingUser.id
-    } else {
-      const invited = await supabaseService.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gridex.se'}/login?next=/dashboard`,
-        data: {
-          source: 'contract_signup',
-          first_name: firstName,
-          last_name: lastName,
-        },
-      })
-
-      if (invited.error) throw new Error(invited.error.message)
-      userId = invited.data.user?.id ?? null
-
-      await supabase.from('system_emails').insert({
+    if (created) {
+      const { error: systemEmailError } = await supabase.from('system_emails').insert({
         to_email: email,
         subject: 'Aktivera din kundportal hos Gridex',
         body: 'Vi har skickat en aktiveringslänk till dig. Bekräfta e-postadressen för att slutföra ditt kundkonto och logga in på Mina sidor.',
       })
+
+      if (systemEmailError) {
+        throw new Error(systemEmailError.message)
+      }
     }
 
-    if (!userId) throw new Error('User creation failed')
+    const agreementInsert = {
+      user_id: userId,
+      contract_slug: contractSlug,
+      first_name: firstName,
+      last_name: lastName,
+      personal_number: personalNumber,
+      address,
+      postal_code: postalCode,
+      city,
+      apartment: apartment || null,
+      facility_id: facilityId,
+      move_in_date: moveInDate || null,
+      phone,
+      email,
+      status: 'pending_signature',
+      sign_method: signMethod,
+      idempotency_key: idempotencyKey,
+    }
 
-    // =========================================================
-    // CREATE AGREEMENT (idempotent)
-    // =========================================================
     const { data: agreement, error: agreementError } = await supabase
       .from('contract_agreements')
-      .insert({
-        user_id: userId,
-        contract_slug: contractSlug,
-        first_name: firstName,
-        last_name: lastName,
-        personal_number: personalNumber,
-        address,
-        postal_code: postalCode,
-        city,
-        apartment,
-        facility_id: facilityId,
-        move_in_date: moveInDate || null,
-        phone,
-        email,
-        status: 'pending_signature',
-        sign_method: signMethod,
-        idempotency_key: idempotencyKey,
-      })
-      .select()
-      .single()
+      .insert(agreementInsert)
+      .select('id')
+      .single<AgreementRow>()
 
-    // If unique conflict on idempotency_key → fetch existing agreement
+    let agreementId: string
+
     if (agreementError) {
-      const msg = agreementError.message.toLowerCase()
-      const isDup =
-        msg.includes('duplicate') ||
-        msg.includes('unique') ||
-        msg.includes('idempotency')
-
-      if (!isDup) throw new Error(agreementError.message)
+      if (!isDuplicateError(agreementError.message)) {
+        throw new Error(agreementError.message)
+      }
 
       const { data: existingAgreement, error: fetchErr } = await supabase
         .from('contract_agreements')
-        .select()
+        .select('id')
         .eq('idempotency_key', idempotencyKey)
-        .maybeSingle()
+        .maybeSingle<AgreementRow>()
 
-      if (fetchErr) throw new Error(fetchErr.message)
-      if (!existingAgreement?.id) throw new Error('Idempotency triggered but existing agreement not found.')
-
-      // Continue flow with existing agreement
-      const agreementId = existingAgreement.id as string
-
-      await supabase.from('legal_acceptances').insert([
-        {
-          user_id: userId,
-          email,
-          agreement_id: agreementId,
-          document_slug: 'villkor',
-          document_version: villkorDoc?.version ?? 'unknown',
-          ip,
-          user_agent: userAgent,
-          metadata: { source: 'teckna', accepted: true },
-        },
-        {
-          user_id: userId,
-          email,
-          agreement_id: agreementId,
-          document_slug: 'integritet',
-          document_version: integritetDoc?.version ?? 'unknown',
-          ip,
-          user_agent: userAgent,
-          metadata: { source: 'teckna', accepted: true },
-        },
-        {
-          user_id: userId,
-          email,
-          agreement_id: agreementId,
-          document_slug: 'cookies',
-          document_version: cookiesDoc?.version ?? 'unknown',
-          ip,
-          user_agent: userAgent,
-          metadata: { source: 'teckna', accepted: true },
-        },
-      ])
-
-      if (signMethod === 'bankid') {
-        await supabase
-          .from('contract_agreements')
-          .update({ status: 'bankid_started' })
-          .eq('id', agreementId)
-
-        redirect(`/sign/bankid/${agreementId}`)
+      if (fetchErr) {
+        throw new Error(fetchErr.message)
       }
 
-      if (signMethod === 'email') {
-        const token = randomBytes(32).toString('hex')
-
-        await supabase
-          .from('contract_agreements')
-          .update({ email_sign_token: token })
-          .eq('id', agreementId)
-
-        await supabase.from('system_emails').insert({
-          to_email: email,
-          subject: 'Signera ditt elavtal',
-          body: `Klicka för att signera: https://gridex.se/sign/email/${token}`,
-        })
-
-        redirect('/sign/check-email')
+      if (!existingAgreement?.id) {
+        throw new Error(
+          'Idempotency triggered but existing agreement not found.'
+        )
       }
 
-      revalidatePath('/teckna')
-      return
+      agreementId = existingAgreement.id
+    } else {
+      if (!agreement?.id) {
+        throw new Error('Agreement created without id')
+      }
+
+      agreementId = agreement.id
     }
 
-    // =========================================================
-    // LEGAL ACCEPTANCE LOG (IP + UA)
-    // =========================================================
-    await supabase.from('legal_acceptances').insert([
-      {
-        user_id: userId,
-        email,
-        agreement_id: agreement.id,
-        document_slug: 'villkor',
-        document_version: villkorDoc?.version ?? 'unknown',
-        ip,
-        user_agent: userAgent,
-        metadata: { source: 'teckna', accepted: true },
-      },
-      {
-        user_id: userId,
-        email,
-        agreement_id: agreement.id,
-        document_slug: 'integritet',
-        document_version: integritetDoc?.version ?? 'unknown',
-        ip,
-        user_agent: userAgent,
-        metadata: { source: 'teckna', accepted: true },
-      },
-      {
-        user_id: userId,
-        email,
-        agreement_id: agreement.id,
-        document_slug: 'cookies',
-        document_version: cookiesDoc?.version ?? 'unknown',
-        ip,
-        user_agent: userAgent,
-        metadata: { source: 'teckna', accepted: true },
-      },
-    ])
+    await insertLegalAcceptances({
+      supabase,
+      userId,
+      email,
+      agreementId,
+      ip,
+      userAgent,
+      villkorVersion: villkorDoc?.version ?? 'unknown',
+      integritetVersion: integritetDoc?.version ?? 'unknown',
+      cookiesVersion: cookiesDoc?.version ?? 'unknown',
+    })
 
-    // =========================================================
-    // SIGN FLOW
-    // =========================================================
-    if (signMethod === 'bankid') {
-      await supabase
-        .from('contract_agreements')
-        .update({ status: 'bankid_started' })
-        .eq('id', agreement.id)
-
-      redirect(`/sign/bankid/${agreement.id}`)
-    }
-
-    if (signMethod === 'email') {
-      const token = randomBytes(32).toString('hex')
-
-      await supabase
-        .from('contract_agreements')
-        .update({ email_sign_token: token })
-        .eq('id', agreement.id)
-
-      await supabase.from('system_emails').insert({
-        to_email: email,
-        subject: 'Signera ditt elavtal',
-        body: `Klicka för att signera: https://gridex.se/sign/email/${token}`,
-      })
-
-      redirect('/sign/check-email')
-    }
+    await handleSigningFlow({
+      supabase,
+      agreementId,
+      email,
+      signMethod,
+    })
 
     revalidatePath('/teckna')
   }
@@ -542,7 +670,6 @@ export default async function TecknaPage() {
             </select>
           </div>
 
-          {/* ✅ Legal acceptance (enterprise) */}
           <div className="md:col-span-2 rounded-2xl border border-gray-800 bg-black/30 p-5 space-y-3">
             <div className="text-sm text-gray-300">
               För att teckna måste du acceptera:
@@ -552,7 +679,12 @@ export default async function TecknaPage() {
               <input type="checkbox" name="accept_villkor" required className="mt-1" />
               <span>
                 Jag accepterar{' '}
-                <a className="text-cyan-300 hover:text-cyan-200 underline" href="/villkor" target="_blank" rel="noreferrer">
+                <a
+                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  href="/villkor"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   allmänna villkor
                 </a>{' '}
                 {villkorDoc?.version ? (
@@ -565,7 +697,12 @@ export default async function TecknaPage() {
               <input type="checkbox" name="accept_integritet" required className="mt-1" />
               <span>
                 Jag accepterar{' '}
-                <a className="text-cyan-300 hover:text-cyan-200 underline" href="/integritet" target="_blank" rel="noreferrer">
+                <a
+                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  href="/integritet"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   integritetspolicy
                 </a>{' '}
                 {integritetDoc?.version ? (
@@ -578,7 +715,12 @@ export default async function TecknaPage() {
               <input type="checkbox" name="accept_cookies" required className="mt-1" />
               <span>
                 Jag har läst{' '}
-                <a className="text-cyan-300 hover:text-cyan-200 underline" href="/cookies" target="_blank" rel="noreferrer">
+                <a
+                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  href="/cookies"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   cookiepolicy
                 </a>{' '}
                 {cookiesDoc?.version ? (

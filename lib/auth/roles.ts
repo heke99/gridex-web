@@ -1,4 +1,3 @@
-// lib/auth/roles.ts
 import { cache } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -23,11 +22,14 @@ export const loadUserRoles = cache(async (userId: string): Promise<string[]> => 
   const rows = (data ?? []) as UserRoleRow[]
 
   return rows
-    .filter((r) => r.is_active !== false)
-    .map((r) => r.role)
+    .filter((row) => row.is_active !== false)
+    .map((row) => row.role)
 })
 
-export async function userHasRole(userId: string, roleName: string) {
+export async function userHasRole(
+  userId: string,
+  roleName: string
+): Promise<boolean> {
   const roles = await loadUserRoles(userId)
   return roles.includes(roleName)
 }

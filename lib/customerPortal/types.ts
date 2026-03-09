@@ -12,6 +12,8 @@ export type CustomerProfile = {
   billing_customer_ref: string | null
   contract_customer_ref: string | null
   metadata: Record<string, unknown>
+  customer_type?: string | null
+  company_name?: string | null
 }
 
 export type CustomerPortalContract = {
@@ -58,7 +60,12 @@ export type CustomerSupportTicket = {
   subject: string
   category: string
   priority: 'low' | 'normal' | 'high' | 'urgent'
-  status: 'open' | 'waiting_on_customer' | 'waiting_on_internal' | 'resolved' | 'closed'
+  status:
+    | 'open'
+    | 'waiting_on_customer'
+    | 'waiting_on_internal'
+    | 'resolved'
+    | 'closed'
   description: string
   created_at: string
   updated_at: string

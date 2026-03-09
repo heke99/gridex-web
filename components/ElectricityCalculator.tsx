@@ -4,7 +4,7 @@ import { useState } from 'react'
 import PriceResultCard from '@/components/PriceResultCard'
 
 const AREAS = ['SE1', 'SE2', 'SE3', 'SE4'] as const
-type PriceArea = typeof AREAS[number]
+type PriceArea = (typeof AREAS)[number]
 
 type ContractOption = {
   name: string
@@ -47,6 +47,11 @@ type PriceError = {
   error: string
 }
 
+function clampKwh(value: number) {
+  if (!Number.isFinite(value)) return 2000
+  return Math.min(200000, Math.max(1, value))
+}
+
 export default function ElectricityCalculator({
   contracts = [],
 }: {
@@ -68,33 +73,41 @@ export default function ElectricityCalculator({
     setLoading(true)
     setResult(null)
 
-    const res = await fetch('/api/price', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        postalCode,
-        manualPriceArea: manualArea || undefined,
-        kwh,
-        contractSlug,
-      }),
-    })
+    try {
+      const res = await fetch('/api/price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postalCode: postalCode.trim(),
+          manualPriceArea: manualArea || undefined,
+          kwh: clampKwh(kwh),
+          contractSlug,
+        }),
+      })
 
-    const data = await res.json()
-    setLoading(false)
+      const data = (await res.json()) as PriceResponse | PriceError
 
-    if (!res.ok) {
-      alert((data as PriceError).error)
-      return
+      if (!res.ok) {
+        alert((data as PriceError).error)
+        return
+      }
+
+      setResult(data as PriceResponse)
+    } catch {
+      alert('Kunde inte hämta pris just nu.')
+    } finally {
+      setLoading(false)
     }
-
-    setResult(data as PriceResponse)
   }
 
   return (
-    <section className="relative bg-[#0B0F17] rounded-2xl border border-white/10 p-10 overflow-hidden">
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0B0F17] p-10">
       <div className="relative space-y-8">
         <div>
           <h2 className="text-3xl font-bold">Räkna ditt elpris</h2>
+          <p className="mt-2 text-sm text-white/60">
+            Ange postnummer eller välj elområde manuellt, välj avtal och uppskattad förbrukning.
+          </p>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
@@ -102,17 +115,19 @@ export default function ElectricityCalculator({
             placeholder="Postnummer"
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
-            className="p-4 bg-black/40 border border-white/10 rounded-xl"
+            className="rounded-xl border border-white/10 bg-black/40 p-4"
           />
 
           <select
             value={manualArea}
-            onChange={(e) => setManualArea(e.target.value as PriceArea)}
-            className="p-4 bg-black/40 border border-white/10 rounded-xl"
+            onChange={(e) => setManualArea(e.target.value as PriceArea | '')}
+            className="rounded-xl border border-white/10 bg-black/40 p-4"
           >
             <option value="">Auto</option>
-            {AREAS.map((a) => (
-              <option key={a} value={a}>{a}</option>
+            {AREAS.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
             ))}
           </select>
 
@@ -120,18 +135,20 @@ export default function ElectricityCalculator({
             type="number"
             value={kwh}
             min={1}
-            onChange={(e) => setKwh(Number(e.target.value))}
-            className="p-4 bg-black/40 border border-white/10 rounded-xl"
+            onChange={(e) => setKwh(clampKwh(Number(e.target.value)))}
+            className="rounded-xl border border-white/10 bg-black/40 p-4"
           />
 
           <select
             value={contractSlug}
             onChange={(e) => setContractSlug(e.target.value)}
-            className="p-4 bg-black/40 border border-white/10 rounded-xl"
+            className="rounded-xl border border-white/10 bg-black/40 p-4"
           >
             <option value="">Välj avtal</option>
-            {contracts.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.name}</option>
+            {contracts.map((contract) => (
+              <option key={contract.slug} value={contract.slug}>
+                {contract.name}
+              </option>
             ))}
           </select>
         </div>
@@ -139,17 +156,12 @@ export default function ElectricityCalculator({
         <button
           onClick={calculate}
           disabled={loading}
-          className="w-full bg-cyan-500 text-black py-4 rounded-xl font-bold"
+          className="w-full rounded-xl bg-cyan-500 py-4 font-bold text-black disabled:opacity-60"
         >
           {loading ? 'Beräknar...' : 'Se ditt pris'}
         </button>
 
-        {result && (
-          <PriceResultCard
-            data={result}
-            updatedAt={new Date()}
-          />
-        )}
+        {result ? <PriceResultCard data={result} updatedAt={new Date()} /> : null}
       </div>
     </section>
   )

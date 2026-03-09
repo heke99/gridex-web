@@ -11,7 +11,10 @@ type PermissionRow = {
 }
 
 export default async function PermissionsPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['rbac.write', 'admin.access'] })
+  const ctx = await requireAdminPageAccess({
+    anyOf: ['rbac.write', 'admin.access'],
+  })
+
   const supabase = ctx.supabase
 
   const { data, error } = await supabase
@@ -20,7 +23,9 @@ export default async function PermissionsPage() {
     .order('name', { ascending: true })
     .returns<PermissionRow[]>()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    throw new Error(error.message)
+  }
 
   const permissions = data ?? []
 
@@ -28,12 +33,14 @@ export default async function PermissionsPage() {
     <div className="space-y-10">
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
         <h1 className="text-3xl font-bold">Permissions</h1>
-        <p className="text-gray-400 mt-3">
-          Skapa permissions (t.ex. <span className="text-gray-200">pricing.publish</span>,{' '}
-          <span className="text-gray-200">contracts.write</span>) och använd dem i guards + UI.
+        <p className="mt-3 text-gray-400">
+          Skapa permissions och använd dem i guards, adminnav och UI.
         </p>
 
-        <form action={createPermission} className="mt-6 grid gap-3 md:grid-cols-[280px_1fr_auto]">
+        <form
+          action={createPermission}
+          className="mt-6 grid gap-3 md:grid-cols-[280px_1fr_auto]"
+        >
           <input
             name="name"
             placeholder="permission (t.ex. pricing.publish)"
@@ -50,15 +57,17 @@ export default async function PermissionsPage() {
         </form>
       </div>
 
-      <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
-        <div className="p-6 border-b border-gray-800">
+      <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-950">
+        <div className="border-b border-gray-800 p-6">
           <div className="text-lg font-semibold">Registry</div>
-          <div className="text-xs text-gray-500 mt-1">Detta är “source of truth” för access control.</div>
+          <div className="mt-1 text-xs text-gray-500">
+            Source of truth för access control.
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-gray-400 border-b border-gray-800">
+            <thead className="border-b border-gray-800 text-xs text-gray-400">
               <tr>
                 <th className="p-4">Name</th>
                 <th className="p-4">Description</th>
@@ -66,12 +75,16 @@ export default async function PermissionsPage() {
               </tr>
             </thead>
             <tbody>
-              {permissions.map((p) => (
-                <tr key={p.id} className="border-t border-gray-800">
-                  <td className="p-4 text-gray-200 font-medium">{p.name}</td>
-                  <td className="p-4 text-gray-500">{p.description ?? '—'}</td>
+              {permissions.map((permission) => (
+                <tr key={permission.id} className="border-t border-gray-800">
+                  <td className="p-4 font-medium text-gray-200">
+                    {permission.name}
+                  </td>
                   <td className="p-4 text-gray-500">
-                    {new Date(p.created_at).toLocaleString('sv-SE')}
+                    {permission.description ?? '—'}
+                  </td>
+                  <td className="p-4 text-gray-500">
+                    {new Date(permission.created_at).toLocaleString('sv-SE')}
                   </td>
                 </tr>
               ))}

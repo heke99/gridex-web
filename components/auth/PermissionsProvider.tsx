@@ -1,3 +1,4 @@
+//components/auth/PermissionsProvider.tsx
 'use client'
 
 import { createContext, useContext } from 'react'

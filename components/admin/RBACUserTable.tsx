@@ -1,4 +1,3 @@
-//componenents/admin/RBACUserTable.tsx
 'use client'
 
 import {
@@ -19,9 +18,20 @@ type UserRoleRow = {
   is_active: boolean | null
 }
 
-type RoleRow = { id: string; name: string }
-type PermissionRow = { id: string; name: string }
-type UserPermissionRow = { user_id: string; permission_id: string }
+type RoleRow = {
+  id: string
+  name: string
+}
+
+type PermissionRow = {
+  id: string
+  name: string
+}
+
+type UserPermissionRow = {
+  user_id: string
+  permission_id: string
+}
 
 export default function RBACUserTable({
   users,
@@ -38,27 +48,26 @@ export default function RBACUserTable({
 }) {
   const activeRoleSet = new Set(
     userRoles
-      .filter((x) => x.is_active !== false)
-      .map((x) => `${x.user_id}:${x.role}`)
+      .filter((row) => row.is_active !== false)
+      .map((row) => `${row.user_id}:${row.role}`)
   )
 
   const overrideSet = new Set(
-    userPerms.map((x) => `${x.user_id}:${x.permission_id}`)
+    userPerms.map((row) => `${row.user_id}:${row.permission_id}`)
   )
 
   return (
-    <div className="rounded-3xl border border-gray-800 bg-gray-950 overflow-hidden">
-
-      <div className="p-6 border-b border-gray-800">
+    <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-950">
+      <div className="border-b border-gray-800 p-6">
         <div className="text-lg font-semibold">Users</div>
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="mt-1 text-xs text-gray-500">
           Alla ändringar loggas i permission_audit.
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs text-gray-400 border-b border-gray-800">
+          <thead className="border-b border-gray-800 text-xs text-gray-400">
             <tr>
               <th className="p-4">Email</th>
               <th className="p-4">Namn</th>
@@ -69,28 +78,22 @@ export default function RBACUserTable({
           </thead>
 
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-t border-gray-800 align-top">
+            {users.map((user) => (
+              <tr key={user.id} className="align-top border-t border-gray-800">
+                <td className="p-4 text-gray-200">{user.email ?? '—'}</td>
 
-                <td className="p-4 text-gray-200">
-                  {u.email ?? '—'}
-                </td>
+                <td className="p-4 text-gray-500">{user.full_name ?? '—'}</td>
 
-                <td className="p-4 text-gray-500">
-                  {u.full_name ?? '—'}
-                </td>
-
-                {/* Roles */}
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
-                    {roles.map((r) => {
-                      const key = `${u.id}:${r.name}`
+                    {roles.map((role) => {
+                      const key = `${user.id}:${role.name}`
                       const enabled = activeRoleSet.has(key)
 
                       return (
                         <form key={key} action={setUserRoleActive}>
-                          <input type="hidden" name="user_id" value={u.id} />
-                          <input type="hidden" name="role" value={r.name} />
+                          <input type="hidden" name="user_id" value={user.id} />
+                          <input type="hidden" name="role" value={role.name} />
                           <input
                             type="hidden"
                             name="active"
@@ -98,13 +101,13 @@ export default function RBACUserTable({
                           />
                           <button
                             className={[
-                              'text-[11px] border px-2 py-1 rounded-full transition',
+                              'rounded-full border px-2 py-1 text-[11px] transition',
                               enabled
                                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
                                 : 'border-white/10 bg-white/5 text-white/70',
                             ].join(' ')}
                           >
-                            {r.name}
+                            {role.name}
                           </button>
                         </form>
                       )
@@ -112,17 +115,20 @@ export default function RBACUserTable({
                   </div>
                 </td>
 
-                {/* Overrides */}
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
-                    {perms.map((p) => {
-                      const key = `${u.id}:${p.id}`
+                    {perms.map((perm) => {
+                      const key = `${user.id}:${perm.id}`
                       const enabled = overrideSet.has(key)
 
                       return (
                         <form key={key} action={setUserPermissionOverride}>
-                          <input type="hidden" name="user_id" value={u.id} />
-                          <input type="hidden" name="permission_id" value={p.id} />
+                          <input type="hidden" name="user_id" value={user.id} />
+                          <input
+                            type="hidden"
+                            name="permission_id"
+                            value={perm.id}
+                          />
                           <input
                             type="hidden"
                             name="enabled"
@@ -130,13 +136,13 @@ export default function RBACUserTable({
                           />
                           <button
                             className={[
-                              'text-[11px] border px-2 py-1 rounded-full transition',
+                              'rounded-full border px-2 py-1 text-[11px] transition',
                               enabled
                                 ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
                                 : 'border-white/10 bg-white/5 text-white/60',
                             ].join(' ')}
                           >
-                            {p.name}
+                            {perm.name}
                           </button>
                         </form>
                       )
@@ -144,16 +150,14 @@ export default function RBACUserTable({
                   </div>
                 </td>
 
-                {/* Deactivate */}
                 <td className="p-4">
                   <form action={deactivateUser}>
-                    <input type="hidden" name="user_id" value={u.id} />
-                    <button className="bg-red-600 text-xs px-3 py-1 rounded">
+                    <input type="hidden" name="user_id" value={user.id} />
+                    <button className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-500">
                       Deactivate
                     </button>
                   </form>
                 </td>
-
               </tr>
             ))}
 
@@ -167,7 +171,6 @@ export default function RBACUserTable({
           </tbody>
         </table>
       </div>
-
     </div>
   )
 }
