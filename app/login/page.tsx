@@ -1,3 +1,4 @@
+// app/login/page.tsx
 import Link from 'next/link'
 import { loginWithPassword } from './actions'
 
@@ -30,7 +31,7 @@ export default async function LoginPage({ searchParams }: Props) {
   let banner = ''
 
   if (reason === 'forbidden') {
-    banner = 'Du saknar behörighet för denna del av plattformen.'
+    banner = 'Du har inte tillgång till den sidan.'
   } else if (status === 'verified') {
     banner = 'Din e-post är verifierad. Du kan nu logga in.'
   } else if (status === 'registered') {
@@ -47,68 +48,80 @@ export default async function LoginPage({ searchParams }: Props) {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-14 md:flex-row md:items-center md:py-24">
-        <section className="flex-1">
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            Gridex Platform
+      <div className="mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-12 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-20">
+        <section className="space-y-8">
+          <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs text-cyan-300">
+            Säker kundportal • Enkel inloggning • Gridex
           </div>
 
-          <h1 className="mt-6 text-3xl font-semibold tracking-tight md:text-5xl">
-            Logga in till <span className="text-white/90">Gridex</span>
-          </h1>
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+              Logga in till
+              <br />
+              Mina sidor
+            </h1>
 
-          <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 md:text-base">
-            Säker autentisering till Gridex-plattformen.
-          </p>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-gray-300">
+              Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång
+              till din kundportal hos Gridex.
+            </p>
+          </div>
 
-          <div className="mt-8 grid max-w-xl grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-medium">Server-side säkerhet</div>
-              <div className="mt-1 text-xs text-white/70">
-                Alla sessioner verifieras på servernivå.
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                Säker inloggning
+              </div>
+              <div className="mt-2 text-sm text-gray-400">
+                Dina uppgifter hanteras i en skyddad inloggningsmiljö.
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-medium">Rollbaserad åtkomst</div>
-              <div className="mt-1 text-xs text-white/70">
-                Åtkomst kontrolleras via RBAC.
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                Mina sidor
+              </div>
+              <div className="mt-2 text-sm text-gray-400">
+                Se information kopplad till ditt avtal och din kundprofil.
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-medium">Spårbar publicering</div>
-              <div className="mt-1 text-xs text-white/70">
-                Alla ändringar loggas i audit-system.
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                Snabb åtkomst
+              </div>
+              <div className="mt-2 text-sm text-gray-400">
+                Logga in med din e-postadress och ditt lösenord.
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-medium">BankID-förberett</div>
-              <div className="mt-1 text-xs text-white/70">
-                Stark autentisering planerad.
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                Hjälp vid behov
+              </div>
+              <div className="mt-2 text-sm text-gray-400">
+                Behöver du hjälp finns kundservice alltid nära till hands.
               </div>
             </div>
           </div>
 
-          <div className="mt-8 text-xs text-white/60">
-            Behöver du tillbaka till publika sidan?{' '}
+          <div className="text-sm text-gray-400">
+            Behöver du gå tillbaka?{' '}
             <Link
-              className="text-white/80 underline decoration-white/20 underline-offset-4 hover:text-white"
+              className="text-white underline decoration-white/20 underline-offset-4 hover:text-cyan-300"
               href="/"
             >
-              Gå till startsidan
+              Till startsidan
             </Link>
           </div>
         </section>
 
-        <section className="w-full max-w-md">
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl">
+        <section className="w-full max-w-md md:ml-auto">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-xl md:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-lg font-semibold">Inloggning</div>
-                <div className="mt-1 text-xs text-white/70">
+                <div className="text-xl font-semibold text-white">Logga in</div>
+                <div className="mt-1 text-sm text-gray-400">
                   Ange dina uppgifter för att fortsätta.
                 </div>
               </div>
@@ -119,7 +132,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </div>
 
             {(banner || error) && (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-3 text-xs text-white/80">
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/80">
                 {banner ? <div className={error ? 'mb-2' : ''}>{banner}</div> : null}
                 {error ? <div className="text-rose-300">{error}</div> : null}
               </div>
@@ -129,30 +142,30 @@ export default async function LoginPage({ searchParams }: Props) {
               <input type="hidden" name="next" value={next} />
 
               <div className="space-y-2">
-                <label className="text-xs text-white/70">E-post</label>
+                <label className="text-sm text-white/75">E-post</label>
                 <input
                   name="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-cyan-400"
-                  placeholder="name@company.com"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-cyan-400"
+                  placeholder="name@example.com"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs text-white/70">Lösenord</label>
+                <label className="text-sm text-white/75">Lösenord</label>
                 <input
                   name="password"
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-cyan-400"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-cyan-400"
                   placeholder="••••••••"
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs text-white/60">
+              <div className="flex items-center justify-between text-sm text-gray-400">
                 <Link
                   href="/login/forgot-password"
                   className="underline decoration-white/20 underline-offset-4 hover:text-white"
@@ -170,18 +183,20 @@ export default async function LoginPage({ searchParams }: Props) {
 
               <button
                 type="submit"
-                className="h-11 w-full rounded-xl bg-white text-sm font-semibold text-black transition hover:bg-white/90"
+                className="h-12 w-full rounded-2xl bg-cyan-500 text-sm font-semibold text-black transition hover:bg-cyan-400"
               >
                 Logga in
               </button>
             </form>
 
-            <div className="mt-6 border-t border-white/10 pt-4">
+            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
               <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs text-white/60">Alternativ inloggning</div>
+                <div className="text-sm font-medium text-white">
+                  Alternativ inloggning
+                </div>
                 <Link
                   href="/login/bankid"
-                  className="text-xs text-white/80 underline decoration-white/20 underline-offset-4 hover:text-white"
+                  className="text-xs text-white/70 underline decoration-white/20 underline-offset-4 hover:text-white"
                 >
                   Läs mer
                 </Link>
@@ -190,13 +205,13 @@ export default async function LoginPage({ searchParams }: Props) {
               <button
                 type="button"
                 disabled
-                className="h-11 w-full cursor-not-allowed rounded-xl border border-white/10 bg-black/30 text-sm text-white/50"
+                className="h-12 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-white/5 text-sm text-white/45"
               >
                 Logga in med BankID (kommer snart)
               </button>
             </div>
 
-            <div className="mt-6 text-[11px] leading-5 text-white/55">
+            <div className="mt-6 text-xs leading-6 text-gray-500">
               Genom att logga in accepterar du våra{' '}
               <Link href="/villkor" className="text-white/70 underline hover:text-white">
                 användarvillkor

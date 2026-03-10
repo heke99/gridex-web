@@ -1,3 +1,4 @@
+// app/(public)/teckna/page.tsx
 import type { Metadata } from 'next'
 import { createHash, randomBytes } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -11,7 +12,7 @@ import { supabaseService } from '@/lib/supabase/service'
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
   description:
-    'Räkna ditt elpris och teckna elavtal direkt. Full specifikation innan du bekräftar.',
+    'Räkna ditt elpris och teckna elavtal direkt. Tydliga villkor, full specifikation och smidig signering.',
   alternates: { canonical: 'https://gridex.se/teckna' },
 }
 
@@ -531,148 +532,117 @@ export default async function TecknaPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
-      <div>
-        <h1 className="text-4xl font-bold">Teckna elavtal</h1>
-        <p className="text-gray-400 mt-3 max-w-2xl">
-          Börja med att räkna ditt elpris. När du är nöjd fyller du i uppgifterna och signerar.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-[120px]" />
+
+        <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+          <div className="space-y-5">
+            <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
+              Räkna först • Teckna tryggt • Signera smidigt
+            </div>
+
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+                Teckna elavtal
+                <br />
+                på ett tydligare sätt
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
+                Börja med att räkna på ditt pris. När du känner dig trygg med
+                valet fyller du i dina uppgifter och går vidare till signering.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                1. Räkna på ditt pris
+              </div>
+              <p className="mt-1 text-sm text-gray-400">
+                Ange elområde, förbrukning och välj avtal.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                2. Fyll i dina uppgifter
+              </div>
+              <p className="mt-1 text-sm text-gray-400">
+                Vi behöver information för att kunna starta ditt avtal korrekt.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">
+                3. Signera tryggt
+              </div>
+              <p className="mt-1 text-sm text-gray-400">
+                Signera via e-post eller BankID när det är tillgängligt.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <ElectricityCalculator contracts={options} />
 
-      <section className="rounded-3xl border border-gray-800 bg-gray-950 p-8">
-        <h2 className="text-2xl font-bold mb-6">Teckna avtal</h2>
+      <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
+        <div className="mb-8 max-w-2xl">
+          <h2 className="text-2xl font-bold text-white md:text-3xl">
+            Fyll i uppgifter för att teckna avtal
+          </h2>
+          <p className="mt-3 text-gray-400">
+            Kontrollera att uppgifterna stämmer. Det gör processen snabbare och
+            minskar risken för fel i signering och uppstart.
+          </p>
+        </div>
 
-        <form action={signContractAction} className="grid gap-6 md:grid-cols-2">
-          <div>
-            <label>Förnamn</label>
-            <input
-              name="first_name"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
+        <form action={signContractAction} className="space-y-8">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Field label="Förnamn" name="first_name" required />
+            <Field label="Efternamn" name="last_name" required />
+            <Field label="Personnummer" name="personal_number" required />
+            <Field label="Anläggnings-ID" name="facility_id" required />
+            <Field label="Adress" name="address" required />
+            <Field label="Postnummer" name="postal_code" required />
+            <Field label="Ort" name="city" required />
+            <Field label="Lägenhet" name="apartment" />
+            <Field label="Inflyttningsdatum" name="move_in_date" type="date" />
+            <Field label="E-post" name="email" type="email" required />
+            <Field label="Telefon" name="phone" required />
+
+            <div>
+              <label className="text-sm font-medium text-white/80">Avtal</label>
+              <select
+                name="contract_slug"
+                required
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+              >
+                {options.map((o) => (
+                  <option key={o.slug} value={o.slug}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-white/80">
+                Signeringsmetod
+              </label>
+              <select
+                name="sign_method"
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+              >
+                <option value="email">Signera via e-post</option>
+                <option value="bankid">Signera med BankID</option>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label>Efternamn</label>
-            <input
-              name="last_name"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Personnummer</label>
-            <input
-              name="personal_number"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Anläggnings-ID</label>
-            <input
-              name="facility_id"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Adress</label>
-            <input
-              name="address"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Postnummer</label>
-            <input
-              name="postal_code"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Ort</label>
-            <input
-              name="city"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Lägenhet</label>
-            <input
-              name="apartment"
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Inflyttningsdatum</label>
-            <input
-              type="date"
-              name="move_in_date"
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Email</label>
-            <input
-              name="email"
-              type="email"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Telefon</label>
-            <input
-              name="phone"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            />
-          </div>
-
-          <div>
-            <label>Avtal</label>
-            <select
-              name="contract_slug"
-              required
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            >
-              {options.map((o) => (
-                <option key={o.slug} value={o.slug}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label>Signeringsmetod</label>
-            <select
-              name="sign_method"
-              className="w-full mt-2 h-11 rounded-xl bg-black/40 border border-gray-800 px-3"
-            >
-              <option value="email">Signera via email</option>
-              <option value="bankid">Signera med BankID</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2 rounded-2xl border border-gray-800 bg-black/30 p-5 space-y-3">
-            <div className="text-sm text-gray-300">
-              För att teckna måste du acceptera:
+          <div className="rounded-3xl border border-white/10 bg-black/30 p-6 space-y-4">
+            <div className="text-sm font-medium text-white">
+              Godkänn villkor för att gå vidare
             </div>
 
             <label className="flex items-start gap-3 text-sm text-gray-300">
@@ -680,7 +650,7 @@ export default async function TecknaPage() {
               <span>
                 Jag accepterar{' '}
                 <a
-                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  className="text-cyan-300 underline hover:text-cyan-200"
                   href="/villkor"
                   target="_blank"
                   rel="noreferrer"
@@ -698,7 +668,7 @@ export default async function TecknaPage() {
               <span>
                 Jag accepterar{' '}
                 <a
-                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  className="text-cyan-300 underline hover:text-cyan-200"
                   href="/integritet"
                   target="_blank"
                   rel="noreferrer"
@@ -716,7 +686,7 @@ export default async function TecknaPage() {
               <span>
                 Jag har läst{' '}
                 <a
-                  className="text-cyan-300 hover:text-cyan-200 underline"
+                  className="text-cyan-300 underline hover:text-cyan-200"
                   href="/cookies"
                   target="_blank"
                   rel="noreferrer"
@@ -729,17 +699,48 @@ export default async function TecknaPage() {
               </span>
             </label>
 
-            <div className="text-xs text-gray-500">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
+              När du går vidare skapas ditt ärende och du skickas till signering
+              via vald metod.
             </div>
           </div>
 
-          <div className="md:col-span-2">
-            <button className="w-full h-12 rounded-xl bg-cyan-500 font-bold text-black hover:bg-cyan-400">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="text-sm text-gray-400">
+              Kontrollera gärna att e-postadress, telefonnummer och anläggnings-ID
+              är korrekta innan du fortsätter.
+            </div>
+
+            <button className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400">
               Gå vidare till signering
             </button>
           </div>
         </form>
       </section>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  name,
+  required = false,
+  type = 'text',
+}: {
+  label: string
+  name: string
+  required?: boolean
+  type?: string
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-white/80">{label}</label>
+      <input
+        name={name}
+        type={type}
+        required={required}
+        className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
+      />
     </div>
   )
 }
