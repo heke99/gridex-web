@@ -1,4 +1,3 @@
-//app/login/forgot-password/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -48,7 +47,8 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const redirectTo = `${window.location.origin}/login/reset-password`
+      const redirectNext = encodeURIComponent('/login/reset-password')
+      const redirectTo = `${window.location.origin}/auth/confirm?next=${redirectNext}`
 
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,

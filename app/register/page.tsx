@@ -92,11 +92,13 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
+      const redirectNext = encodeURIComponent('/login?status=verified')
+
       const { error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=${redirectNext}`,
         },
       })
 

@@ -1,4 +1,3 @@
-// app/login/page.tsx
 import Link from 'next/link'
 import { loginWithPassword } from './actions'
 
@@ -40,6 +39,10 @@ export default async function LoginPage({ searchParams }: Props) {
     banner = 'Om e-postadressen finns i systemet har en återställningslänk skickats.'
   } else if (status === 'password-updated') {
     banner = 'Lösenordet har uppdaterats. Du kan nu logga in.'
+  } else if (status === 'invited') {
+    banner = 'Din inbjudan är verifierad. Du kan nu logga in.'
+  } else if (status === 'email-updated') {
+    banner = 'Din e-postadress är nu uppdaterad.'
   }
 
   return (

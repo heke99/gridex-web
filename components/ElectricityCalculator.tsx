@@ -1,3 +1,4 @@
+//components/ElectricityCalculator.tsx
 'use client'
 
 import { useState } from 'react'
@@ -101,67 +102,131 @@ export default function ElectricityCalculator({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0B0F17] p-10">
+    <section
+      id="rakna-elpris"
+      className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 md:p-10"
+    >
+      <div className="pointer-events-none absolute -top-24 right-0 h-56 w-56 rounded-full bg-cyan-500/10 blur-[100px]" />
+
       <div className="relative space-y-8">
-        <div>
-          <h2 className="text-3xl font-bold">Räkna ditt elpris</h2>
-          <p className="mt-2 text-sm text-white/60">
-            Ange postnummer eller välj elområde manuellt, välj avtal och uppskattad förbrukning.
-          </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
+              Jämför snabbt • Se tydlig prisbild • Välj rätt avtal
+            </div>
+
+            <h2 className="mt-4 text-3xl font-bold text-white md:text-4xl">
+              Räkna ditt elpris
+            </h2>
+
+            <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
+              Ange postnummer eller välj elområde manuellt, välj avtal och fyll i
+              uppskattad förbrukning. Du får en tydlig överblick direkt.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
+            Tips: börja med ditt senaste månadsestimat i kWh
+          </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <input
-            placeholder="Postnummer"
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
-            className="rounded-xl border border-white/10 bg-black/40 p-4"
-          />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">
+              Postnummer
+            </label>
+            <input
+              placeholder="Till exempel 11455"
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
+            />
+            <p className="text-xs text-white/40">
+              Ange postnummer för automatisk områdesmatchning.
+            </p>
+          </div>
 
-          <select
-            value={manualArea}
-            onChange={(e) => setManualArea(e.target.value as PriceArea | '')}
-            className="rounded-xl border border-white/10 bg-black/40 p-4"
-          >
-            <option value="">Auto</option>
-            {AREAS.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">
+              Elområde
+            </label>
+            <select
+              value={manualArea}
+              onChange={(e) => setManualArea(e.target.value as PriceArea | '')}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
+            >
+              <option value="">Auto</option>
+              {AREAS.map((area) => (
+                <option key={area} value={area}>
+                  {area}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-white/40">
+              Välj manuellt om du redan vet vilket område du tillhör.
+            </p>
+          </div>
 
-          <input
-            type="number"
-            value={kwh}
-            min={1}
-            onChange={(e) => setKwh(clampKwh(Number(e.target.value)))}
-            className="rounded-xl border border-white/10 bg-black/40 p-4"
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">
+              Förbrukning (kWh / månad)
+            </label>
+            <input
+              type="number"
+              value={kwh}
+              min={1}
+              onChange={(e) => setKwh(clampKwh(Number(e.target.value)))}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
+            />
+            <p className="text-xs text-white/40">
+              Använd din uppskattade månadsförbrukning för bättre träff.
+            </p>
+          </div>
 
-          <select
-            value={contractSlug}
-            onChange={(e) => setContractSlug(e.target.value)}
-            className="rounded-xl border border-white/10 bg-black/40 p-4"
-          >
-            <option value="">Välj avtal</option>
-            {contracts.map((contract) => (
-              <option key={contract.slug} value={contract.slug}>
-                {contract.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">Elavtal</label>
+            <select
+              value={contractSlug}
+              onChange={(e) => setContractSlug(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
+            >
+              <option value="">Välj avtal</option>
+              {contracts.map((contract) => (
+                <option key={contract.slug} value={contract.slug}>
+                  {contract.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-white/40">
+              Välj det avtal du vill jämföra och räkna på.
+            </p>
+          </div>
         </div>
 
-        <button
-          onClick={calculate}
-          disabled={loading}
-          className="w-full rounded-xl bg-cyan-500 py-4 font-bold text-black disabled:opacity-60"
-        >
-          {loading ? 'Beräknar...' : 'Se ditt pris'}
-        </button>
+        <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
+          <button
+            onClick={calculate}
+            disabled={loading}
+            className="w-full rounded-2xl bg-cyan-500 py-4 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Beräknar...' : 'Se ditt pris'}
+          </button>
 
-        {result ? <PriceResultCard data={result} updatedAt={new Date()} /> : null}
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">
+            Du ser full specifikation innan teckning.
+          </div>
+        </div>
+
+        {result ? (
+          <div className="pt-2">
+            <PriceResultCard data={result} updatedAt={new Date()} />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">
+            Fyll i uppgifterna ovan och klicka på “Se ditt pris” för att visa
+            resultatet här.
+          </div>
+        )}
       </div>
     </section>
   )
