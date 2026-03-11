@@ -1,4 +1,4 @@
-// app/login/page.tsx
+//app/login/page.tsx
 import Link from 'next/link'
 import { loginWithPassword } from './actions'
 
@@ -212,9 +212,17 @@ export default async function LoginPage({ searchParams }: Props) {
             </div>
 
             <div className="mt-6 text-xs leading-6 text-gray-500">
-              Genom att logga in accepterar du våra{' '}
+              Genom att använda tjänsten godkänner du våra{' '}
               <Link href="/villkor" className="text-white/70 underline hover:text-white">
                 användarvillkor
+              </Link>
+              , vår{' '}
+              <Link href="/integritet" className="text-white/70 underline hover:text-white">
+                integritetspolicy
+              </Link>{' '}
+              och våra{' '}
+              <Link href="/cookies" className="text-white/70 underline hover:text-white">
+                cookiepolicy
               </Link>
               .
             </div>
