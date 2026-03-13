@@ -1,5 +1,3 @@
-// lib/gridex/pricing/db.ts
-
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PostgrestSingleResponse, PostgrestError } from '@supabase/postgrest-js'
 import type {
@@ -48,7 +46,6 @@ export async function tryQuery<T>(
 ============================================================ */
 
 function toIsoDate(isoOrDate: string): string {
-  // Accepts "YYYY-MM-DD" or full ISO -> returns "YYYY-MM-DD"
   if (isoOrDate.length >= 10) return isoOrDate.slice(0, 10)
   return isoOrDate
 }
@@ -67,7 +64,6 @@ export async function fetchActivePublishedPricingVersion(
 ): Promise<PublishedPricingVersion | null> {
   const selectCommon = 'id,contract_id,version_number,valid_from,status,is_published'
 
-  // Probe if status exists (legacy-compatible)
   const probe = await tryQuery<{ status: string | null } | null>(
     supabase
       .from('contract_pricing_versions')
@@ -80,7 +76,6 @@ export async function fetchActivePublishedPricingVersion(
   const hasStatus = !looksLikeMissingColumn(probe.error, 'status')
   const today = toIsoDate(nowIso)
 
-  // 1) Primary attempt: DB-side live filter (fast path)
   const baseQuery = supabase
     .from('contract_pricing_versions')
     .select(selectCommon)
@@ -101,8 +96,6 @@ export async function fetchActivePublishedPricingVersion(
     if (res.data) return res.data
   }
 
-  // 2) Enterprise fallback: fetch most recent published regardless of valid_from,
-  //    then validate in code.
   const fallbackQuery = supabase
     .from('contract_pricing_versions')
     .select(selectCommon)
@@ -114,7 +107,9 @@ export async function fetchActivePublishedPricingVersion(
     ? await tryQuery<PublishedPricingVersion[]>(fallbackQuery.eq('status', 'published'))
     : await tryQuery<PublishedPricingVersion[]>(fallbackQuery.eq('is_published', true))
 
-  if (fallbackRes.error || !fallbackRes.data || fallbackRes.data.length === 0) return null
+  if (fallbackRes.error || !fallbackRes.data || fallbackRes.data.length === 0) {
+    return null
+  }
 
   const now = new Date(nowIso)
   const todayDate = new Date(`${today}T00:00:00.000Z`)
@@ -124,7 +119,9 @@ export async function fetchActivePublishedPricingVersion(
     if (!vf) continue
 
     const isDateOnly = String(v.valid_from).length === 10
-    const isLive = isDateOnly ? vf.getTime() <= todayDate.getTime() : vf.getTime() <= now.getTime()
+    const isLive = isDateOnly
+      ? vf.getTime() <= todayDate.getTime()
+      : vf.getTime() <= now.getTime()
 
     if (isLive) return v
   }
@@ -257,7 +254,12 @@ export async function fetchPrevMonthlySpotAvg(
 ): Promise<{ year: number; month: number; avgSpotOre: number } | null> {
   const active = await fetchActiveSpotBasisPeriod(supabase, now)
 
-  const avg = await fetchPrevMonthSpotAvgOre(supabase, priceArea, active.year, active.month)
+  const avg = await fetchPrevMonthSpotAvgOre(
+    supabase,
+    priceArea,
+    active.year,
+    active.month
+  )
 
   if (!Number.isFinite(avg) || avg <= 0) return null
 
@@ -284,7 +286,11 @@ export async function fetchSpotSettings(
   keyMode: 'pricing_version_id'
   probes: { spotHasElcertOre: boolean }
 }> {
-  const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
+  const row = await fetchAreaPricing(
+    supabase,
+    params.pricingVersionId,
+    params.priceArea
+  )
 
   const spotHasElcertOre = row ? row.elcert_ore !== undefined : false
 
@@ -306,7 +312,11 @@ export async function fetchSpotSettings(
     elcert_ore: row.elcert_ore ?? 0,
   }
 
-  return { settings, keyMode: 'pricing_version_id', probes: { spotHasElcertOre } }
+  return {
+    settings,
+    keyMode: 'pricing_version_id',
+    probes: { spotHasElcertOre },
+  }
 }
 
 /* ============================================================
@@ -325,7 +335,11 @@ export async function fetchPortfolioPricing(
   keyMode: 'pricing_version_id'
   probes: { portfolioHasElcertOre: boolean }
 }> {
-  const row = await fetchAreaPricing(supabase, params.pricingVersionId, params.priceArea)
+  const row = await fetchAreaPricing(
+    supabase,
+    params.pricingVersionId,
+    params.priceArea
+  )
 
   const portfolioHasElcertOre = row ? row.elcert_ore !== undefined : false
 
@@ -347,7 +361,11 @@ export async function fetchPortfolioPricing(
     elcert_ore: row.elcert_ore ?? 0,
   }
 
-  return { row: out, keyMode: 'pricing_version_id', probes: { portfolioHasElcertOre } }
+  return {
+    row: out,
+    keyMode: 'pricing_version_id',
+    probes: { portfolioHasElcertOre },
+  }
 }
 
 /* ============================================================
@@ -363,14 +381,21 @@ export type LivePublishedContract = {
     contract_type: string
     is_active: boolean
     created_at?: string
+    short_description?: string
+    badge_text?: string
+    sort_order?: number | null
+    is_featured?: boolean
   }
   pricingVersion: PublishedPricingVersion
 
-  // 🔥 ROOT LEVEL FIELDS FOR BACKWARD COMPATIBILITY
   id: string
   name: string
   slug?: string
   contract_type: string
+  short_description?: string
+  badge_text?: string
+  sort_order?: number | null
+  is_featured?: boolean
 }
 
 type ContractProductRow = {
@@ -381,6 +406,9 @@ type ContractProductRow = {
   is_active: boolean
   created_at: string | null
   sort_order?: number | null
+  short_description?: string | null
+  badge_text?: string | null
+  is_featured?: boolean | null
 }
 
 async function fetchActiveContractsOrdered(
@@ -438,14 +466,21 @@ export async function fetchLivePublishedContracts(
         contract_type: contract.contract_type,
         is_active: contract.is_active,
         created_at: contract.created_at ?? undefined,
+        short_description: contract.short_description ?? undefined,
+        badge_text: contract.badge_text ?? undefined,
+        sort_order: contract.sort_order ?? null,
+        is_featured: Boolean(contract.is_featured),
       },
       pricingVersion: version,
 
-      // 🔥 ROOT LEVEL MIRROR (ENTERPRISE SAFE)
       id: contract.id,
       name: contract.name,
       slug: contract.slug ?? undefined,
       contract_type: contract.contract_type,
+      short_description: contract.short_description ?? undefined,
+      badge_text: contract.badge_text ?? undefined,
+      sort_order: contract.sort_order ?? null,
+      is_featured: Boolean(contract.is_featured),
     })
   }
 

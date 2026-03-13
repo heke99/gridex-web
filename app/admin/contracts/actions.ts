@@ -48,6 +48,23 @@ function slugify(input: string) {
     .replace(/(^-|-$)+/g, '')
 }
 
+function toNullableText(value: FormDataEntryValue | null): string | null {
+  const out = String(value ?? '').trim()
+  return out.length > 0 ? out : null
+}
+
+function toNullableInteger(value: FormDataEntryValue | null): number | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+
+  const parsed = Number(raw)
+  if (!Number.isInteger(parsed)) {
+    throw new Error('Sort order must be an integer')
+  }
+
+  return parsed
+}
+
 async function assertAdmin(): Promise<{ userId: string }> {
   try {
     const ctx = await requireAdminActionAccess({
@@ -113,6 +130,15 @@ async function assertAdmin(): Promise<{ userId: string }> {
   }
 }
 
+function revalidateContractPaths() {
+  revalidatePath('/')
+  revalidatePath('/admin')
+  revalidatePath('/admin/contracts')
+  revalidatePath('/admin/pricing')
+  revalidatePath('/avtal')
+  revalidatePath('/teckna')
+}
+
 export async function createContract(formData: FormData) {
   const { userId } = await assertAdmin()
   const service = getServiceClient()
@@ -123,6 +149,10 @@ export async function createContract(formData: FormData) {
     formData.get('contract_type') ?? 'spot_hourly'
   ) as ContractType
   const isActive = formData.get('is_active') ? true : false
+  const shortDescription = toNullableText(formData.get('short_description'))
+  const badgeText = toNullableText(formData.get('badge_text'))
+  const sortOrder = toNullableInteger(formData.get('sort_order'))
+  const isFeatured = formData.get('is_featured') ? true : false
 
   if (!name) throw new Error('Name is required')
 
@@ -144,6 +174,10 @@ export async function createContract(formData: FormData) {
       contract_type: contractType,
       is_active: isActive,
       created_by: userId,
+      short_description: shortDescription,
+      badge_text: badgeText,
+      sort_order: sortOrder,
+      is_featured: isFeatured,
     })
     .select('id,contract_type')
     .single()
@@ -176,11 +210,42 @@ export async function createContract(formData: FormData) {
 
   if (pricingError) throw new Error(pricingError.message)
 
-  revalidatePath('/admin')
-  revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
-  revalidatePath('/avtal')
-  revalidatePath('/teckna')
+  revalidateContractPaths()
+}
+
+export async function updateContractMetadata(formData: FormData) {
+  await assertAdmin()
+  const service = getServiceClient()
+
+  const id = String(formData.get('id') ?? '').trim()
+  const name = String(formData.get('name') ?? '').trim()
+  const slugInput = String(formData.get('slug') ?? '').trim()
+  const shortDescription = toNullableText(formData.get('short_description'))
+  const badgeText = toNullableText(formData.get('badge_text'))
+  const sortOrder = toNullableInteger(formData.get('sort_order'))
+  const isFeatured = formData.get('is_featured') ? true : false
+
+  if (!id) throw new Error('Missing id')
+  if (!name) throw new Error('Name is required')
+
+  const slug = slugify(slugInput || name)
+  if (!slug) throw new Error('Slug could not be generated')
+
+  const { error } = await service
+    .from('contract_products')
+    .update({
+      name,
+      slug,
+      short_description: shortDescription,
+      badge_text: badgeText,
+      sort_order: sortOrder,
+      is_featured: isFeatured,
+    })
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+
+  revalidateContractPaths()
 }
 
 export async function setContractActive(formData: FormData) {
@@ -232,9 +297,5 @@ export async function setContractActive(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
-  revalidatePath('/admin')
-  revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
-  revalidatePath('/avtal')
-  revalidatePath('/teckna')
+  revalidateContractPaths()
 }

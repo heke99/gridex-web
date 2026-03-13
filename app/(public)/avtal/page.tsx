@@ -1,5 +1,3 @@
-//app/(public)/avtal/page.tsx
-
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -38,6 +36,80 @@ function contractTypeLabel(type: string) {
   }
 }
 
+function getContractDescription(item: LivePublishedContract) {
+  if (item.contract.short_description?.trim()) {
+    return item.contract.short_description
+  }
+
+  switch (item.contract.contract_type) {
+    case 'spot_hourly':
+      return 'LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.'
+    case 'portfolio_managed':
+      return 'För dig som vill ha en mer aktiv prissättning med fokus på balans mellan risk och stabilitet.'
+    case 'fixed':
+      return 'För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.'
+    default:
+      return 'LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.'
+  }
+}
+
+function ContractCard({ item }: { item: LivePublishedContract }) {
+  const { contract, pricingVersion } = item
+
+  return (
+    <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-lg font-semibold text-white">{contract.name}</div>
+
+              {contract.badge_text ? (
+                <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-200">
+                  {contract.badge_text}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-1 text-sm text-gray-400">
+              {contractTypeLabel(contract.contract_type)}
+            </div>
+          </div>
+
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
+            LIVE
+          </span>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+          {getContractDescription(item)}
+        </div>
+
+        <div className="mt-4 text-xs text-gray-500">
+          Version {pricingVersion.version_number ?? '—'} • Giltig från{' '}
+          {formatDate(pricingVersion.valid_from)}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3">
+        <Link
+          href={`/teckna?contract=${contract.slug ?? contract.id}`}
+          className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
+        >
+          Teckna avtal
+        </Link>
+
+        <Link
+          href="/kundservice"
+          className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
+        >
+          Frågor om avtalet?
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export default async function AvtalPage() {
   const supabase = await createSupabaseServerClient()
 
@@ -61,6 +133,13 @@ export default async function AvtalPage() {
   ]
 
   const hasLiveContracts = visibleContracts.length > 0
+
+  const featuredContracts = visibleContracts.filter(
+    (item) => item.contract.is_featured === true
+  )
+  const regularContracts = visibleContracts.filter(
+    (item) => item.contract.is_featured !== true
+  )
 
   return (
     <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
@@ -157,6 +236,23 @@ export default async function AvtalPage() {
         </div>
       </section>
 
+      {featuredContracts.length > 0 && (
+        <section className="space-y-6">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-bold text-white">Utvalda elavtal</h2>
+            <p className="mt-3 text-gray-400">
+              Avtal markerade som utvalda i admin visas här först.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {featuredContracts.map((item) => (
+              <ContractCard key={item.contract.id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="space-y-6">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold text-white">Våra elavtal</h2>
@@ -166,59 +262,9 @@ export default async function AvtalPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {visibleContracts.map((item) => {
-            const { contract, pricingVersion } = item
-
-            return (
-              <div
-                key={contract.id}
-                className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-semibold text-white">
-                        {contract.name}
-                      </div>
-                      <div className="mt-1 text-sm text-gray-400">
-                        {contractTypeLabel(contract.contract_type)}
-                      </div>
-                    </div>
-
-                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-                      LIVE
-                    </span>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
-                    LIVE-priser per elområde (SE1–SE4). Full specifikation visas
-                    innan teckning.
-                  </div>
-
-                  <div className="mt-4 text-xs text-gray-500">
-                    Version {pricingVersion.version_number ?? '—'} • Giltig från{' '}
-                    {formatDate(pricingVersion.valid_from)}
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-3">
-                  <Link
-                    href={`/teckna?contract=${contract.slug ?? contract.id}`}
-                    className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
-                  >
-                    Teckna avtal
-                  </Link>
-
-                  <Link
-                    href="/kundservice"
-                    className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
-                  >
-                    Frågor om avtalet?
-                  </Link>
-                </div>
-              </div>
-            )
-          })}
+          {regularContracts.map((item) => (
+            <ContractCard key={item.contract.id} item={item} />
+          ))}
 
           {!hasLiveContracts && (
             <div className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:col-span-3">
