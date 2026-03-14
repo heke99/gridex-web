@@ -1,32 +1,61 @@
 export type AgreementStatus =
   | 'draft'
+  | 'pending_signature'
+  | 'email_sent'
   | 'email_signed'
+  | 'bankid_started'
   | 'bankid_signed'
   | 'finalized'
 
 export interface ContractAgreement {
   id: string
-  customer_name: string
-  personal_number: string
-  address: string
-  postal_code: string
-  contract_type: string
-  start_date: string
-  email_token: string | null
+  user_id?: string | null
+  customer_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+  phone?: string | null
+  personal_number?: string | null
+  address?: string | null
+  postal_code?: string | null
+  city?: string | null
+  apartment?: string | null
+  facility_id?: string | null
+  contract_type?: string | null
+  contract_slug?: string | null
+  start_date?: string | null
+  email_token?: string | null
+  email_sign_token?: string | null
   email_signed_at: string | null
-  bankid_signed_at: string | null
+  bankid_signed_at?: string | null
+  bankid_completed_at?: string | null
   contract_pdf_path: string | null
   welcome_email_sent_at: string | null
-  status: AgreementStatus
+  activated_at?: string | null
+  sign_method?: string | null
+  status: string
   created_at: string
+  customer_number?: string | null
+  agreement_reference?: string | null
 }
 
 export interface LegalAcceptance {
   id: string
   agreement_id: string
-  type: 'terms' | 'privacy' | 'cookies'
-  version: string
-  ip_address: string | null
-  user_agent: string | null
+  user_id?: string | null
+  email?: string | null
+
+  type?: string | null
+  acceptance_type?: string | null
+  kind?: string | null
+  category?: string | null
+
+  version?: string | null
+  document_hash?: string | null
+  ip_address?: string | null
+  user_agent?: string | null
   accepted_at: string
+
+  bankid_signed_at?: string | null
+  bankid_completed_at?: string | null
 }

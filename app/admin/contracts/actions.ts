@@ -137,6 +137,12 @@ function revalidateContractPaths() {
   revalidatePath('/admin/pricing')
   revalidatePath('/avtal')
   revalidatePath('/teckna')
+  revalidatePath('/kundservice')
+  revalidatePath('/elpris')
+  revalidatePath('/elpris/se1')
+  revalidatePath('/elpris/se2')
+  revalidatePath('/elpris/se3')
+  revalidatePath('/elpris/se4')
 }
 
 export async function createContract(formData: FormData) {

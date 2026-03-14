@@ -1,354 +1,472 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
-import { logPermissionAudit } from '@/lib/auth/audit'
+import { createClient } from '@supabase/supabase-js'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { requireAdminRole } from '@/lib/auth/admin'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 
-const AREAS = ['SE1', 'SE2', 'SE3', 'SE4'] as const
-type PriceArea = (typeof AREAS)[number]
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
+type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 
-type VersionNumberRow = {
-  version_number: number
+type UserRoleRow = {
+  role: string
+  is_active: boolean | null
 }
 
-type InsertedVersionRow = {
+type ContractLookupRow = {
   id: string
+  slug: string
+  contract_type: ContractType
 }
 
-type VersionOwnershipRow = {
+type VersionLookupRow = {
   id: string
   contract_id: string
+  version_number: number
+  valid_from: string
+  is_published: boolean | null
+  status?: string | null
 }
 
-type AreaPricingCloneRow = {
-  price_area: PriceArea
-  price_per_kwh_ore: number | null
-  markup_ore: number | null
-  variable_fee_ore: number | null
-  elcert_ore: number | null
-  monthly_fee_sek: number | null
-}
+const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
-function isoFromDateInput(dateStr: string): string {
-  const value = (dateStr || '').trim()
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)) {
-    const parsed = new Date(value)
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
-    throw new Error('Invalid valid_from date')
+  if (!url || !key) {
+    throw new Error(
+      'Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL'
+    )
   }
 
-  const date = new Date(`${value}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) {
-    throw new Error('Invalid valid_from date')
-  }
-
-  return date.toISOString()
-}
-
-function num(value: FormDataEntryValue | null): number {
-  if (!value) return 0
-  const cleaned = String(value).replace(',', '.').trim()
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : 0
-}
-
-function assertContractType(value: string): ContractType {
-  if (value === 'spot_hourly' || value === 'portfolio_managed' || value === 'fixed') {
-    return value
-  }
-  throw new Error('Invalid contract_type')
-}
-
-export async function createVersionAction(formData: FormData) {
-  const contractId = String(formData.get('contract_id') || '').trim()
-  const slug = String(formData.get('slug') || '').trim()
-  const validFrom = isoFromDateInput(String(formData.get('valid_from') || ''))
-
-  if (!contractId) throw new Error('Missing contract_id')
-  if (!slug) throw new Error('Missing slug')
-
-  const { supabase, user } = await requirePermissionServer('pricing.write')
-
-  const { data: latest, error: latestError } = await supabase
-    .from('contract_pricing_versions')
-    .select('version_number')
-    .eq('contract_id', contractId)
-    .order('version_number', { ascending: false })
-    .limit(1)
-    .maybeSingle<VersionNumberRow>()
-
-  if (latestError) throw new Error(latestError.message)
-
-  const nextVersion = (latest?.version_number ?? 0) + 1
-
-  const { data: inserted, error: insertError } = await supabase
-    .from('contract_pricing_versions')
-    .insert({
-      contract_id: contractId,
-      version_number: nextVersion,
-      valid_from: validFrom,
-      is_published: false,
-      status: 'draft',
-    })
-    .select('id')
-    .single<InsertedVersionRow>()
-
-  if (insertError) throw new Error(insertError.message)
-  if (!inserted) throw new Error('Failed to create version')
-
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'pricing.version.create',
-    metadata: {
-      contractId,
-      nextVersion,
-      validFrom,
-      versionId: inserted.id,
-    },
-  }).catch(() => null)
-
-  revalidatePath('/admin')
-  revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
-  revalidatePath(`/admin/pricing/${slug}`)
-
-  redirect(`/admin/pricing/${slug}?previewVersionId=${inserted.id}`)
-}
-
-export async function savePricingAction(formData: FormData) {
-  const pricingVersionId = String(formData.get('pricing_version_id') || '').trim()
-  const contractType = assertContractType(String(formData.get('contract_type') || '').trim())
-  const slug = String(formData.get('slug') || '').trim()
-
-  if (!pricingVersionId) throw new Error('Missing pricing_version_id')
-  if (!slug) throw new Error('Missing slug')
-
-  const { supabase, user } = await requirePermissionServer('pricing.write')
-
-  for (const area of AREAS) {
-    const monthlyFee = num(formData.get(`${area}_monthly_fee_sek`))
-    const variableFee = num(formData.get(`${area}_variable_fee_ore`))
-    const elcert = num(formData.get(`${area}_elcert_ore`))
-
-    if (contractType === 'spot_hourly') {
-      const markup = num(formData.get(`${area}_markup_ore`))
-
-      const { error } = await supabase.from('contract_area_pricing').upsert(
-        {
-          pricing_version_id: pricingVersionId,
-          price_area: area,
-          monthly_fee_sek: monthlyFee,
-          markup_ore: markup,
-          price_per_kwh_ore: null,
-          variable_fee_ore: variableFee,
-          elcert_ore: elcert,
-        },
-        { onConflict: 'pricing_version_id,price_area' }
-      )
-
-      if (error) throw new Error(error.message)
-    } else {
-      const price = num(formData.get(`${area}_price_per_kwh_ore`))
-
-      const { error } = await supabase.from('contract_area_pricing').upsert(
-        {
-          pricing_version_id: pricingVersionId,
-          price_area: area,
-          monthly_fee_sek: monthlyFee,
-          price_per_kwh_ore: price,
-          markup_ore: null,
-          variable_fee_ore: variableFee,
-          elcert_ore: elcert,
-        },
-        { onConflict: 'pricing_version_id,price_area' }
-      )
-
-      if (error) throw new Error(error.message)
-    }
-  }
-
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'pricing.write',
-    metadata: { pricingVersionId },
-  }).catch(() => null)
-
-  revalidatePath('/admin')
-  revalidatePath('/admin/pricing')
-  revalidatePath(`/admin/pricing/${slug}`)
-
-  redirect(`/admin/pricing/${slug}?previewVersionId=${pricingVersionId}`)
-}
-
-export async function publishVersionAction(formData: FormData) {
-  const contractId = String(formData.get('contract_id') || '').trim()
-  const versionId = String(formData.get('version_id') || '').trim()
-  const slug = String(formData.get('slug') || '').trim()
-  const reason = String(formData.get('reason') || '').trim()
-
-  if (!contractId) throw new Error('Missing contract_id')
-  if (!versionId) throw new Error('Missing version_id')
-  if (!slug) throw new Error('Missing slug')
-  if (!reason) throw new Error('Audit reason required')
-
-  const { supabase, user } = await requirePermissionServer('pricing.publish')
-
-  const { data: version, error: versionError } = await supabase
-    .from('contract_pricing_versions')
-    .select('id,contract_id')
-    .eq('id', versionId)
-    .maybeSingle<VersionOwnershipRow>()
-
-  if (versionError) throw new Error(versionError.message)
-  if (!version || version.contract_id !== contractId) {
-    throw new Error('Invalid version for contract')
-  }
-
-  const { error: unpublishError } = await supabase
-    .from('contract_pricing_versions')
-    .update({ is_published: false, status: 'draft' })
-    .eq('contract_id', contractId)
-
-  if (unpublishError) throw new Error(unpublishError.message)
-
-  const { error: publishError } = await supabase
-    .from('contract_pricing_versions')
-    .update({ is_published: true, status: 'published' })
-    .eq('id', versionId)
-    .eq('contract_id', contractId)
-
-  if (publishError) throw new Error(publishError.message)
-
-  const { error: auditError } = await supabase.from('pricing_version_audit').insert({
-    contract_id: contractId,
-    version_id: versionId,
-    action: 'publish',
-    performed_by: user.id,
-    reason,
+  return createClient(url, key, {
+    auth: { persistSession: false },
   })
+}
 
-  if (auditError) throw new Error(auditError.message)
+function normalizeDateInput(value: string): string {
+  const v = value.trim()
+  if (!v) throw new Error('valid_from is required')
 
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'pricing.publish',
-    metadata: { contractId, versionId, reason },
-  }).catch(() => null)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return `${v}T00:00:00.000Z`
+  }
 
-  revalidatePath('/admin')
-  revalidatePath('/admin/contracts')
-  revalidatePath('/admin/pricing')
-  revalidatePath(`/admin/pricing/${slug}`)
+  const d = new Date(v)
+  if (!Number.isFinite(d.getTime())) {
+    throw new Error('Invalid valid_from date')
+  }
 
+  return d.toISOString()
+}
+
+function parseNumberField(
+  formData: FormData,
+  key: string,
+  fallback = 0
+): number {
+  const raw = String(formData.get(key) ?? '').trim()
+  if (!raw) return fallback
+
+  const normalized = raw.replace(',', '.')
+  const parsed = Number(normalized)
+
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid number for ${key}`)
+  }
+
+  return parsed
+}
+
+async function assertAdmin(): Promise<{ userId: string }> {
+  try {
+    const ctx = await requireAdminActionAccess({
+      anyOf: [
+        'pricing.write',
+        'pricing.publish',
+        'pricing.publish_prod',
+        'admin.access',
+      ],
+    })
+
+    return { userId: ctx.userId }
+  } catch {
+    const supabase = await createSupabaseServerClient()
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser()
+
+    if (userErr) throw new Error(userErr.message)
+    if (!user) throw new Error('Not authenticated')
+
+    const { data: hasPerm, error: permError } = await supabase.rpc(
+      'gridex_has_permission',
+      {
+        p_user_id: user.id,
+        p_permission: 'admin.access',
+      }
+    )
+
+    if (permError) {
+      throw new Error(permError.message)
+    }
+
+    if (hasPerm === true) {
+      return { userId: user.id }
+    }
+
+    try {
+      await requireAdminRole(supabase)
+      return { userId: user.id }
+    } catch {}
+
+    const { data: roleRows, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role,is_active')
+      .eq('user_id', user.id)
+      .returns<UserRoleRow[]>()
+
+    if (roleError) {
+      throw new Error(roleError.message)
+    }
+
+    const roleNames =
+      roleRows
+        ?.filter((row) => row.is_active !== false)
+        .map((row) => row.role) ?? []
+
+    const isAdmin =
+      roleNames.includes('admin') || roleNames.includes('super_admin')
+
+    if (!isAdmin) {
+      throw new Error('Unauthorized')
+    }
+
+    return { userId: user.id }
+  }
+}
+
+function revalidatePricingPaths(slug?: string | null) {
   revalidatePath('/')
   revalidatePath('/avtal')
   revalidatePath('/teckna')
+  revalidatePath('/admin')
+  revalidatePath('/admin/pricing')
+  revalidatePath('/admin/contracts')
   revalidatePath('/kundservice')
-
   revalidatePath('/elpris')
   revalidatePath('/elpris/se1')
   revalidatePath('/elpris/se2')
   revalidatePath('/elpris/se3')
   revalidatePath('/elpris/se4')
 
-  redirect(`/admin/pricing/${slug}?previewVersionId=${versionId}`)
+  if (slug) {
+    revalidatePath(`/admin/pricing/${slug}`)
+  }
 }
 
-export async function cloneVersionAction(formData: FormData) {
-  const contractId = String(formData.get('contract_id') || '').trim()
-  const sourceVersionId = String(formData.get('source_version_id') || '').trim()
-  const slug = String(formData.get('slug') || '').trim()
-  const reason = String(formData.get('reason') || '').trim()
+async function getContractOrThrow(
+  service: ReturnType<typeof getServiceClient>,
+  contractId: string
+): Promise<ContractLookupRow> {
+  const { data, error } = await service
+    .from('contract_products')
+    .select('id,slug,contract_type')
+    .eq('id', contractId)
+    .maybeSingle<ContractLookupRow>()
 
-  if (!contractId) throw new Error('Missing contract_id')
-  if (!sourceVersionId) throw new Error('Missing source_version_id')
-  if (!slug) throw new Error('Missing slug')
-  if (!reason) throw new Error('Audit reason required')
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Contract not found')
 
-  const { supabase, user } = await requirePermissionServer('pricing.write')
+  return data
+}
 
-  const { data: latest, error: latestError } = await supabase
+async function getVersionOrThrow(
+  service: ReturnType<typeof getServiceClient>,
+  versionId: string
+): Promise<VersionLookupRow> {
+  const { data, error } = await service
+    .from('contract_pricing_versions')
+    .select('id,contract_id,version_number,valid_from,is_published,status')
+    .eq('id', versionId)
+    .maybeSingle<VersionLookupRow>()
+
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Version not found')
+
+  return data
+}
+
+export async function createVersionAction(formData: FormData) {
+  const { userId } = await assertAdmin()
+  const service = getServiceClient()
+
+  const contractId = String(formData.get('contract_id') ?? '').trim()
+  const slug = String(formData.get('slug') ?? '').trim() || null
+  const validFrom = normalizeDateInput(String(formData.get('valid_from') ?? ''))
+
+  if (!contractId) throw new Error('contract_id is required')
+
+  const contract = await getContractOrThrow(service, contractId)
+
+  const { data: latestVersion, error: latestError } = await service
     .from('contract_pricing_versions')
     .select('version_number')
     .eq('contract_id', contractId)
     .order('version_number', { ascending: false })
     .limit(1)
-    .maybeSingle<VersionNumberRow>()
+    .maybeSingle<{ version_number: number }>()
 
   if (latestError) throw new Error(latestError.message)
 
-  const nextVersion = (latest?.version_number ?? 0) + 1
+  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1
 
-  const { data: newVersion, error: newVersionError } = await supabase
+  const { error: insertError } = await service
     .from('contract_pricing_versions')
     .insert({
       contract_id: contractId,
-      version_number: nextVersion,
-      valid_from: new Date().toISOString(),
+      version_number: nextVersionNumber,
+      valid_from: validFrom,
       is_published: false,
       status: 'draft',
+      created_by: userId,
+    })
+
+  if (insertError) throw new Error(insertError.message)
+
+  revalidatePricingPaths(slug ?? contract.slug)
+}
+
+export async function savePricingAction(formData: FormData) {
+  await assertAdmin()
+  const service = getServiceClient()
+
+  const pricingVersionId = String(formData.get('pricing_version_id') ?? '').trim()
+  const contractType = String(formData.get('contract_type') ?? '').trim() as ContractType
+  const slug = String(formData.get('slug') ?? '').trim() || null
+
+  if (!pricingVersionId) throw new Error('pricing_version_id is required')
+
+  if (!['spot_hourly', 'portfolio_managed', 'fixed'].includes(contractType)) {
+    throw new Error('Invalid contract_type')
+  }
+
+  const rows = AREAS.map((area) => {
+    const common = {
+      pricing_version_id: pricingVersionId,
+      price_area: area,
+      variable_fee_ore: parseNumberField(formData, `${area}_variable_fee_ore`, 0),
+      elcert_ore: parseNumberField(formData, `${area}_elcert_ore`, 0),
+      monthly_fee_sek: parseNumberField(formData, `${area}_monthly_fee_sek`, 0),
+    }
+
+    if (contractType === 'spot_hourly') {
+      return {
+        ...common,
+        price_per_kwh_ore: 0,
+        markup_ore: parseNumberField(formData, `${area}_markup_ore`, 0),
+      }
+    }
+
+    return {
+      ...common,
+      price_per_kwh_ore: parseNumberField(
+        formData,
+        `${area}_price_per_kwh_ore`,
+        0
+      ),
+      markup_ore: 0,
+    }
+  })
+
+  const { error: deleteError } = await service
+    .from('contract_area_pricing')
+    .delete()
+    .eq('pricing_version_id', pricingVersionId)
+
+  if (deleteError) throw new Error(deleteError.message)
+
+  const { error: insertError } = await service
+    .from('contract_area_pricing')
+    .insert(rows)
+
+  if (insertError) throw new Error(insertError.message)
+
+  revalidatePricingPaths(slug)
+}
+
+export async function publishVersionAction(formData: FormData) {
+  const { userId } = await assertAdmin()
+  const service = getServiceClient()
+
+  const contractId = String(formData.get('contract_id') ?? '').trim()
+  const versionId = String(formData.get('version_id') ?? '').trim()
+  const reason = String(formData.get('reason') ?? '').trim()
+  const slug = String(formData.get('slug') ?? '').trim() || null
+
+  if (!contractId) throw new Error('contract_id is required')
+  if (!versionId) throw new Error('version_id is required')
+  if (!reason) throw new Error('reason is required')
+
+  const contract = await getContractOrThrow(service, contractId)
+  const version = await getVersionOrThrow(service, versionId)
+
+  if (version.contract_id !== contractId) {
+    throw new Error('Version does not belong to contract')
+  }
+
+  const { error: unpublishError } = await service
+    .from('contract_pricing_versions')
+    .update({
+      is_published: false,
+      status: 'draft',
+      published_at: null,
+      published_by: null,
+    })
+    .eq('contract_id', contractId)
+    .or('is_published.eq.true,status.eq.published')
+
+  if (unpublishError) throw new Error(unpublishError.message)
+
+  const { error: publishError } = await service
+    .from('contract_pricing_versions')
+    .update({
+      is_published: true,
+      status: 'published',
+      published_at: new Date().toISOString(),
+      published_by: userId,
+    })
+    .eq('id', versionId)
+
+  if (publishError) throw new Error(publishError.message)
+
+  const { error: auditError } = await service
+    .from('pricing_version_audit')
+    .insert({
+      contract_id: contractId,
+      version_id: versionId,
+      action: 'publish',
+      reason,
+      performed_by: userId,
+      performed_at: new Date().toISOString(),
+    })
+
+  if (auditError) {
+    const fallbackAudit = await service.from('pricing_version_audit').insert({
+      contract_id: contractId,
+      version_id: versionId,
+      reason,
+      performed_by: userId,
+      performed_at: new Date().toISOString(),
+    })
+
+    if (fallbackAudit.error) throw new Error(fallbackAudit.error.message)
+  }
+
+  revalidatePricingPaths(slug ?? contract.slug)
+}
+
+export async function cloneVersionAction(formData: FormData) {
+  const { userId } = await assertAdmin()
+  const service = getServiceClient()
+
+  const contractId = String(formData.get('contract_id') ?? '').trim()
+  const sourceVersionId = String(formData.get('source_version_id') ?? '').trim()
+  const reason = String(formData.get('reason') ?? '').trim()
+  const slug = String(formData.get('slug') ?? '').trim() || null
+
+  if (!contractId) throw new Error('contract_id is required')
+  if (!sourceVersionId) throw new Error('source_version_id is required')
+  if (!reason) throw new Error('reason is required')
+
+  const contract = await getContractOrThrow(service, contractId)
+  const sourceVersion = await getVersionOrThrow(service, sourceVersionId)
+
+  if (sourceVersion.contract_id !== contractId) {
+    throw new Error('Source version does not belong to contract')
+  }
+
+  const { data: latestVersion, error: latestError } = await service
+    .from('contract_pricing_versions')
+    .select('version_number')
+    .eq('contract_id', contractId)
+    .order('version_number', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ version_number: number }>()
+
+  if (latestError) throw new Error(latestError.message)
+
+  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1
+
+  const { data: createdVersion, error: createError } = await service
+    .from('contract_pricing_versions')
+    .insert({
+      contract_id: contractId,
+      version_number: nextVersionNumber,
+      valid_from: sourceVersion.valid_from,
+      is_published: false,
+      status: 'draft',
+      created_by: userId,
     })
     .select('id')
-    .single<InsertedVersionRow>()
+    .single<{ id: string }>()
 
-  if (newVersionError) throw new Error(newVersionError.message)
-  if (!newVersion) throw new Error('Failed to clone version')
+  if (createError) throw new Error(createError.message)
+  if (!createdVersion) throw new Error('Failed to create cloned version')
 
-  const { data: oldRows, error: oldRowsError } = await supabase
+  const { data: sourceRows, error: sourceRowsError } = await service
     .from('contract_area_pricing')
     .select(
       'price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek'
     )
     .eq('pricing_version_id', sourceVersionId)
-    .returns<AreaPricingCloneRow[]>()
 
-  if (oldRowsError) throw new Error(oldRowsError.message)
+  if (sourceRowsError) throw new Error(sourceRowsError.message)
 
-  if (oldRows?.length) {
-    const rowsToInsert = oldRows.map((row) => ({
-      pricing_version_id: newVersion.id,
+  if ((sourceRows ?? []).length > 0) {
+    const clonedRows = (sourceRows ?? []).map((row) => ({
+      pricing_version_id: createdVersion.id,
       price_area: row.price_area,
-      price_per_kwh_ore: row.price_per_kwh_ore,
-      markup_ore: row.markup_ore,
-      variable_fee_ore: row.variable_fee_ore,
-      elcert_ore: row.elcert_ore,
-      monthly_fee_sek: row.monthly_fee_sek,
+      price_per_kwh_ore: row.price_per_kwh_ore ?? 0,
+      markup_ore: row.markup_ore ?? 0,
+      variable_fee_ore: row.variable_fee_ore ?? 0,
+      elcert_ore: row.elcert_ore ?? 0,
+      monthly_fee_sek: row.monthly_fee_sek ?? 0,
     }))
 
-    const { error } = await supabase
+    const { error: insertRowsError } = await service
       .from('contract_area_pricing')
-      .insert(rowsToInsert)
+      .insert(clonedRows)
 
-    if (error) throw new Error(error.message)
+    if (insertRowsError) throw new Error(insertRowsError.message)
   }
 
-  const { error: auditError } = await supabase.from('pricing_version_audit').insert({
-    contract_id: contractId,
-    version_id: newVersion.id,
-    action: 'clone',
-    performed_by: user.id,
-    reason,
-  })
-
-  if (auditError) throw new Error(auditError.message)
-
-  await logPermissionAudit({
-    actorId: user.id,
-    action: 'pricing.clone',
-    metadata: {
-      contractId,
-      sourceVersionId,
-      newVersionId: newVersion.id,
+  const { error: auditError } = await service
+    .from('pricing_version_audit')
+    .insert({
+      contract_id: contractId,
+      version_id: createdVersion.id,
+      action: 'clone',
       reason,
-    },
-  }).catch(() => null)
+      performed_by: userId,
+      performed_at: new Date().toISOString(),
+    })
 
-  revalidatePath('/admin')
-  revalidatePath('/admin/pricing')
-  revalidatePath(`/admin/pricing/${slug}`)
+  if (auditError) {
+    const fallbackAudit = await service.from('pricing_version_audit').insert({
+      contract_id: contractId,
+      version_id: createdVersion.id,
+      reason,
+      performed_by: userId,
+      performed_at: new Date().toISOString(),
+    })
 
-  redirect(`/admin/pricing/${slug}?previewVersionId=${newVersion.id}`)
+    if (fallbackAudit.error) throw new Error(fallbackAudit.error.message)
+  }
+
+  revalidatePricingPaths(slug ?? contract.slug)
 }

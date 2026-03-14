@@ -84,6 +84,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     title: 'Operations',
     items: [
       {
+        label: 'Customers',
+        href: '/admin/customers',
+        description: 'Customer cards, signatures, legal acceptance & documents',
+        access: { anyOf: ['agreements.read', 'agreements.write', 'admin.access'] },
+      },
+      {
         label: 'Contracts',
         href: '/admin/contracts',
         description: 'Contract lifecycle & settings',
@@ -93,7 +99,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: 'Agreements',
         href: '/admin/agreements',
         description: 'Customer agreements and signing flows',
-        access: { anyOf: ['contracts.read', 'admin.access'] },
+        access: { anyOf: ['agreements.read', 'agreements.write', 'admin.access'] },
       },
       {
         label: 'Settlements',

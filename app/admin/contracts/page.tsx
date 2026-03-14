@@ -91,18 +91,34 @@ export default async function AdminContractsPage() {
   const service = getServiceClient()
   const nowIso = new Date().toISOString()
 
-  const { data, error } = await service
+  const baseQuery = service
     .from('contract_products')
     .select(
       'id,name,slug,contract_type,is_active,created_at,short_description,badge_text,sort_order,is_featured'
     )
+
+  const resWithSort = await baseQuery
     .order('sort_order', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
     .returns<ContractRow[]>()
 
-  if (error) throw new Error(error.message)
+  let contracts: ContractRow[] = []
 
-  const contracts = data ?? []
+  if (!resWithSort.error) {
+    contracts = resWithSort.data ?? []
+  } else {
+    const fallback = await service
+      .from('contract_products')
+      .select(
+        'id,name,slug,contract_type,is_active,created_at,short_description,badge_text,is_featured'
+      )
+      .order('created_at', { ascending: false })
+      .returns<ContractRow[]>()
+
+    if (fallback.error) throw new Error(fallback.error.message)
+    contracts = fallback.data ?? []
+  }
+
   const ids = contracts.map((contract) => contract.id)
   const safeIds = ids.length
     ? ids
@@ -445,6 +461,12 @@ export default async function AdminContractsPage() {
             </div>
           )
         })}
+
+        {contracts.length === 0 && (
+          <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6 text-sm text-gray-400">
+            Inga avtalsprodukter hittades ännu. Skapa första avtalet ovan.
+          </div>
+        )}
       </div>
     </div>
   )

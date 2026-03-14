@@ -1,4 +1,3 @@
-// app/login/actions.ts
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -39,9 +38,7 @@ export async function loginWithPassword(formData: FormData) {
 
   if (!email || !looksLikeEmail(email) || !password) {
     redirect(
-      `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(
-        next
-      )}`
+      `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(next)}`
     )
   }
 
@@ -54,9 +51,7 @@ export async function loginWithPassword(formData: FormData) {
 
   if (signInError) {
     redirect(
-      `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(
-        next
-      )}`
+      `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(next)}`
     )
   }
 
@@ -90,13 +85,16 @@ export async function loginWithPassword(formData: FormData) {
     : []
 
   const roles = Array.isArray(rolesData)
-    ? rolesData
-        .filter((row) => row.is_active !== false && typeof row.role === 'string')
-        .map((row) => row.role)
+    ? rolesData.filter((row) => row.is_active !== false && typeof row.role === 'string').map((row) => row.role)
     : []
 
-  const isAdmin =
-    permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
+  const isAdmin = permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
+
+  try {
+    await supabase.rpc('gridex_log_customer_login', { p_user_id: user.id })
+  } catch (error) {
+    console.error('[loginWithPassword] gridex_log_customer_login failed', error)
+  }
 
   if (next.startsWith('/admin') && !isAdmin) {
     await supabase.auth.signOut()
