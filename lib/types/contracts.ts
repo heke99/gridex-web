@@ -27,16 +27,21 @@ export interface ContractAgreement {
   email_token?: string | null
   email_sign_token?: string | null
   email_signed_at: string | null
-  bankid_signed_at?: string | null
+  bankid_order_ref?: string | null
   bankid_completed_at?: string | null
   contract_pdf_path: string | null
   welcome_email_sent_at: string | null
   activated_at?: string | null
   sign_method?: string | null
-  status: string
+  status: AgreementStatus | string
   created_at: string
+  updated_at?: string | null
   customer_number?: string | null
   agreement_reference?: string | null
+  street?: string | null
+  move_in_date?: string | null
+  pricing_version_id?: string | null
+  idempotency_key?: string | null
 }
 
 export interface LegalAcceptance {
@@ -44,18 +49,13 @@ export interface LegalAcceptance {
   agreement_id: string
   user_id?: string | null
   email?: string | null
-
   type?: string | null
   acceptance_type?: string | null
   kind?: string | null
   category?: string | null
-
   version?: string | null
   document_hash?: string | null
   ip_address?: string | null
   user_agent?: string | null
   accepted_at: string
-
-  bankid_signed_at?: string | null
-  bankid_completed_at?: string | null
 }
