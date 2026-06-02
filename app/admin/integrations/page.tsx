@@ -1,318 +1,151 @@
 import { requireAdminPageAccess } from '@/lib/admin/guards'
+import CisActionButton from '@/components/admin/CisActionButton'
 
 export const dynamic = 'force-dynamic'
 
-type ProviderRow = {
-  provider_key: string
-  provider_name: string
-  domain: string
-  capabilities: unknown
-  documentation_url: string | null
-}
-
-type ConnectionRow = {
-  id: string
-  provider_key: string
-  connection_name: string
-  domain: string
-  status: string
-  base_url: string | null
-  is_sandbox: boolean
-  last_healthcheck_at: string | null
-  last_success_at: string | null
-}
-
-type SyncJobRow = {
+type SyncJob = {
   id: string
   provider_key: string | null
   entity_type: string
   entity_id: string | null
   direction: string
   status: string
+  last_error: string | null
+  created_at: string
+}
+
+type CisAction = {
+  id: string
+  action_type: string
+  status: string
+  provider_key: string
   attempts: number
   last_error: string | null
   created_at: string
-  updated_at: string
+  signup_order_id: string | null
 }
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
-
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}
-
-function formatCapabilities(value: unknown) {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === 'string')
-}
-
-function EnvBadge({ configured }: { configured: boolean }) {
-  return (
-    <span
-      className={`rounded-full border px-2 py-1 text-[11px] ${
-        configured
-          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-          : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
-      }`}
-    >
-      {configured ? 'konfigurerad' : 'saknas'}
-    </span>
-  )
+  return new Date(value).toLocaleString('sv-SE', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 }
 
 export default async function AdminIntegrationsPage() {
   const ctx = await requireAdminPageAccess({
-    anyOf: ['integrations.read', 'admin.access'],
+    anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
   })
 
-  const [providersRes, connectionsRes, jobsRes] = await Promise.all([
-    ctx.supabase
-      .from('external_provider_catalog')
-      .select('provider_key,provider_name,domain,capabilities,documentation_url')
-      .order('domain', { ascending: true })
-      .returns<ProviderRow[]>(),
-    ctx.supabase
-      .from('external_system_connections')
-      .select(
-        'id,provider_key,connection_name,domain,status,base_url,is_sandbox,last_healthcheck_at,last_success_at'
-      )
-      .order('domain', { ascending: true })
-      .returns<ConnectionRow[]>(),
+  const [jobsRes, cisRes] = await Promise.all([
     ctx.supabase
       .from('integration_sync_jobs')
-      .select(
-        'id,provider_key,entity_type,entity_id,direction,status,attempts,last_error,created_at,updated_at'
-      )
+      .select('id,provider_key,entity_type,entity_id,direction,status,last_error,created_at')
       .order('created_at', { ascending: false })
-      .limit(12)
-      .returns<SyncJobRow[]>(),
+      .limit(20)
+      .returns<SyncJob[]>(),
+    ctx.supabase
+      .from('cis_sync_actions')
+      .select('id,action_type,status,provider_key,attempts,last_error,created_at,signup_order_id')
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .returns<CisAction[]>(),
   ])
 
-  if (providersRes.error) throw new Error(providersRes.error.message)
-  if (connectionsRes.error) throw new Error(connectionsRes.error.message)
-  if (jobsRes.error) throw new Error(jobsRes.error.message)
-
-  const providers = providersRes.data ?? []
-  const connections = connectionsRes.data ?? []
   const jobs = jobsRes.data ?? []
+  const cisActions = cisRes.data ?? []
 
   return (
     <div className="space-y-8">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold">Integrationer</h1>
         <p className="mt-2 text-sm text-white/60">
-          Status och kontrakt för externa system: CIS/fakturering, kundportal,
-          datafeeds och marknadsprisimport.
+          Status för CIS, fakturaimport, elprisimport och webhooks. Här ser du
+          köade jobb, fel och actions som kan skickas om eller avbrytas.
         </p>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-          <div className="text-xs uppercase tracking-[0.18em] text-white/45">
-            Providers
-          </div>
-          <div className="mt-3 text-3xl font-semibold">{providers.length}</div>
-          <div className="mt-2 text-xs text-white/60">
-            Registrerade externa systemtyper.
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-          <div className="text-xs uppercase tracking-[0.18em] text-white/45">
-            Aktiva kopplingar
-          </div>
-          <div className="mt-3 text-3xl font-semibold">
-            {connections.filter((connection) => connection.status === 'active').length}
-          </div>
-          <div className="mt-2 text-xs text-white/60">
-            Kopplingar med status active.
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-          <div className="text-xs uppercase tracking-[0.18em] text-white/45">
-            Senaste jobb
-          </div>
-          <div className="mt-3 text-3xl font-semibold">{jobs.length}</div>
-          <div className="mt-2 text-xs text-white/60">
-            Inbound/outbound sync-jobb i loggen.
-          </div>
-        </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <Kpi label="Sync-jobb" value={jobs.length} />
+        <Kpi
+          label="CIS-actions"
+          value={cisActions.length}
+        />
+        <Kpi
+          label="Fel/dead-letter"
+          value={
+            jobs.filter((job) => ['failed', 'dead_letter'].includes(job.status)).length +
+            cisActions.filter((action) => ['failed', 'dead_letter'].includes(action.status)).length
+          }
+        />
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-lg font-semibold">Vercel miljövariabler</h2>
-        <p className="mt-2 text-sm text-white/60">
-          Dessa behövs för deploy och server-side integrationer. Secrets visas
-          aldrig här, bara om de är satta i miljön.
-        </p>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <h2 className="text-lg font-semibold">Miljö och lägen</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[
-            {
-              name: 'NEXT_PUBLIC_SUPABASE_URL',
-              configured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-            },
-            {
-              name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-              configured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-            },
-            {
-              name: 'SUPABASE_SERVICE_ROLE_KEY',
-              configured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-            },
-            {
-              name: 'GRIDEX_INTEGRATION_API_KEY',
-              configured: Boolean(process.env.GRIDEX_INTEGRATION_API_KEY),
-            },
-            {
-              name: 'CRON_SECRET',
-              configured: Boolean(process.env.CRON_SECRET),
-            },
-            {
-              name: 'SPOT_PRICE_API_URL_TEMPLATE',
-              configured: Boolean(process.env.SPOT_PRICE_API_URL_TEMPLATE),
-            },
-          ].map((item) => (
+            ['SUPABASE_SERVICE_ROLE_KEY', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)],
+            ['GRIDEX_INTEGRATION_API_KEY', Boolean(process.env.GRIDEX_INTEGRATION_API_KEY)],
+            ['CRON_SECRET', Boolean(process.env.CRON_SECRET)],
+            ['CIS_API_BASE_URL', Boolean(process.env.CIS_API_BASE_URL)],
+            ['CIS_API_KEY', Boolean(process.env.CIS_API_KEY)],
+            ['CIS_SANDBOX_MODE', process.env.CIS_SANDBOX_MODE !== 'false'],
+            ['PII_ENCRYPTION_KEY', Boolean(process.env.PII_ENCRYPTION_KEY)],
+            ['PII_HASH_PEPPER', Boolean(process.env.PII_HASH_PEPPER)],
+          ].map(([name, ok]) => (
             <div
-              key={item.name}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 p-4"
+              key={String(name)}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-4"
             >
-              <code className="text-xs text-white/75">{item.name}</code>
-              <EnvBadge configured={item.configured} />
+              <code className="text-xs text-white/70">{name}</code>
+              <span
+                className={`rounded-full border px-2 py-1 text-[11px] ${
+                  ok
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                }`}
+              >
+                {ok ? 'ok' : 'saknas'}
+              </span>
             </div>
           ))}
         </div>
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-lg font-semibold">API-kontrakt</h2>
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-            <div className="text-sm font-semibold">Fakturaimport från CIS</div>
-            <code className="mt-3 block rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-cyan-100">
-              POST /api/integrations/invoices
-            </code>
-            <p className="mt-3 text-sm text-white/60">
-              Kräver Authorization Bearer eller x-gridex-integration-key. Payload
-              matchas mot befintlig kund via userId, billingCustomerRef,
-              contractCustomerRef, externalIdentityRef eller email och upsertar
-              kundfaktura idempotent på providerKey + externalInvoiceRef.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-            <div className="text-sm font-semibold">Marknadsprisimport</div>
-            <code className="mt-3 block rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-cyan-100">
-              POST /api/integrations/spot-prices/import
-            </code>
-            <p className="mt-3 text-sm text-white/60">
-              Hämtar dagspriser från elprisetjustnu.se för SE1-SE4, räknar
-              månadsgenomsnitt i öre/kWh och skriver till gridex_monthly_spot_prices.
-              Samma route kan köras av Vercel Cron via CRON_SECRET.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-lg font-semibold">Provider-katalog</h2>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-          <div className="grid grid-cols-12 gap-3 border-b border-white/10 bg-black/30 px-4 py-3 text-xs uppercase tracking-[0.16em] text-white/45">
-            <div className="col-span-3">Provider</div>
-            <div className="col-span-2">Domän</div>
-            <div className="col-span-5">Capabilities</div>
-            <div className="col-span-2">Dokumentation</div>
-          </div>
-
-          {providers.map((provider) => (
+        <h2 className="text-lg font-semibold">CIS-actions</h2>
+        <div className="mt-4 space-y-3">
+          {cisActions.map((action) => (
             <div
-              key={provider.provider_key}
-              className="grid grid-cols-12 gap-3 border-b border-white/5 px-4 py-4 text-sm"
+              key={action.id}
+              className="rounded-2xl border border-white/10 bg-black/30 p-4"
             >
-              <div className="col-span-3">
-                <div className="font-medium text-white/90">
-                  {provider.provider_name}
-                </div>
-                <div className="mt-1 text-xs text-white/45">
-                  {provider.provider_key}
-                </div>
-              </div>
-              <div className="col-span-2 text-white/70">{provider.domain}</div>
-              <div className="col-span-5 flex flex-wrap gap-2">
-                {formatCapabilities(provider.capabilities).map((capability) => (
-                  <span
-                    key={capability}
-                    className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/65"
-                  >
-                    {capability}
-                  </span>
-                ))}
-              </div>
-              <div className="col-span-2 text-xs text-white/60">
-                {provider.documentation_url ? (
-                  <a
-                    href={provider.documentation_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline decoration-white/20 underline-offset-4 hover:text-white"
-                  >
-                    Öppna
-                  </a>
-                ) : (
-                  '—'
-                )}
-              </div>
-            </div>
-          ))}
-
-          {providers.length === 0 ? (
-            <div className="px-4 py-5 text-sm text-white/55">
-              Inga providers registrerade.
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-lg font-semibold">Systemanslutningar</h2>
-        <div className="mt-4 grid gap-4 xl:grid-cols-2">
-          {connections.map((connection) => (
-            <article
-              key={connection.id}
-              className="rounded-2xl border border-white/10 bg-black/30 p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h3 className="font-medium">{connection.connection_name}</h3>
+                  <div className="font-medium">{action.action_type}</div>
                   <div className="mt-1 text-xs text-white/50">
-                    {connection.provider_key} • {connection.domain}
+                    {action.provider_key} • {formatDate(action.created_at)} • försök {action.attempts}
                   </div>
+                  {action.last_error ? (
+                    <div className="mt-2 text-xs text-rose-200">{action.last_error}</div>
+                  ) : null}
                 </div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70">
-                  {connection.status}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70">
+                    {action.status}
+                  </span>
+                  <CisActionButton actionId={action.id} operation="retry" label="Retry" />
+                  <CisActionButton actionId={action.id} operation="resend_signature" label="Skicka signering igen" />
+                  <CisActionButton actionId={action.id} operation="cancel" label="Avbryt" />
+                </div>
               </div>
-
-              <div className="mt-4 grid gap-2 text-xs text-white/60 sm:grid-cols-2">
-                <div>Sandbox: {connection.is_sandbox ? 'ja' : 'nej'}</div>
-                <div>Base URL: {connection.base_url ?? '—'}</div>
-                <div>Healthcheck: {formatDate(connection.last_healthcheck_at)}</div>
-                <div>Senast lyckad: {formatDate(connection.last_success_at)}</div>
-              </div>
-            </article>
+            </div>
           ))}
 
-          {connections.length === 0 ? (
+          {cisActions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/55">
-              Inga systemanslutningar är registrerade ännu.
+              Inga CIS-actions ännu.
             </div>
           ) : null}
         </div>
@@ -320,53 +153,32 @@ export default async function AdminIntegrationsPage() {
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-lg font-semibold">Senaste sync-jobb</h2>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-          <div className="grid grid-cols-12 gap-3 border-b border-white/10 bg-black/30 px-4 py-3 text-xs uppercase tracking-[0.16em] text-white/45">
-            <div className="col-span-2">Tid</div>
-            <div className="col-span-2">Provider</div>
-            <div className="col-span-2">Entity</div>
-            <div className="col-span-2">Riktning</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2">Fel</div>
-          </div>
-
+        <div className="mt-4 space-y-3">
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="grid grid-cols-12 gap-3 border-b border-white/5 px-4 py-4 text-sm"
+              className="grid gap-2 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm md:grid-cols-5"
             >
-              <div className="col-span-2 text-xs text-white/55">
-                {formatDate(job.created_at)}
-              </div>
-              <div className="col-span-2 text-white/75">
-                {job.provider_key ?? '—'}
-              </div>
-              <div className="col-span-2">
-                <div className="text-white/75">{job.entity_type}</div>
-                <div className="mt-1 truncate text-xs text-white/45">
-                  {job.entity_id ?? '—'}
-                </div>
-              </div>
-              <div className="col-span-2 text-white/65">{job.direction}</div>
-              <div className="col-span-2">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70">
-                  {job.status}
-                </span>
-              </div>
-              <div className="col-span-2 truncate text-xs text-white/50">
-                {job.last_error ?? '—'}
-              </div>
+              <div>{formatDate(job.created_at)}</div>
+              <div>{job.provider_key ?? '—'}</div>
+              <div>{job.entity_type}</div>
+              <div>{job.direction} / {job.status}</div>
+              <div className="truncate text-white/50">{job.last_error ?? job.entity_id ?? '—'}</div>
             </div>
           ))}
-
-          {jobs.length === 0 ? (
-            <div className="px-4 py-5 text-sm text-white/55">
-              Inga sync-jobb ännu.
-            </div>
-          ) : null}
         </div>
       </section>
+    </div>
+  )
+}
+
+function Kpi({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+      <div className="text-xs uppercase tracking-[0.18em] text-white/45">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold">{value}</div>
     </div>
   )
 }

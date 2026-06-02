@@ -15,7 +15,7 @@ type SpotBasis = {
 }
 
 type FixedBasis = {
-  type: 'admin_fixed_price'
+  type: 'admin_fixed_price' | 'fixed_price'
   fixedPriceOre: number
 }
 
@@ -29,6 +29,10 @@ type PriceResponse = {
   kwh: number
   pricePerKwhOre: number
   totalMonthlyCostSek: number
+  totalMonthlyCostInclVatSek?: number
+  totalYearlyCostSek?: number
+  customerNotice?: string
+  legalText?: string
   specification?: {
     basis?: SpotBasis | FixedBasis
     fees?: {
@@ -89,8 +93,11 @@ export default function PriceResultCard({
       return `Spot (snitt ${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
     }
 
-    if (specification.basis.type === 'admin_fixed_price') {
-      return 'Fast pris (admin)'
+    if (
+      specification.basis.type === 'admin_fixed_price' ||
+      specification.basis.type === 'fixed_price'
+    ) {
+      return 'Fast elpris'
     }
 
     return 'Okänd prisbas'
@@ -103,7 +110,10 @@ export default function PriceResultCard({
       return specification.basis.spotAvgOre ?? 0
     }
 
-    if (specification.basis.type === 'admin_fixed_price') {
+    if (
+      specification.basis.type === 'admin_fixed_price' ||
+      specification.basis.type === 'fixed_price'
+    ) {
       return specification.basis.fixedPriceOre ?? 0
     }
 
@@ -153,6 +163,18 @@ export default function PriceResultCard({
           </div>
         </div>
 
+        {data.customerNotice ? (
+          <div
+            className={`rounded-2xl border p-4 text-sm ${
+              contract.contractType === 'spot_hourly'
+                ? 'border-amber-500/25 bg-amber-500/10 text-amber-100'
+                : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-100'
+            }`}
+          >
+            {data.customerNotice}
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="text-sm text-gray-400">Beräknad månadskostnad</div>
@@ -199,6 +221,12 @@ export default function PriceResultCard({
             <span className="text-gray-100">{formatNumber(monthlyFeeSek)} kr</span>
           </div>
         </div>
+
+        {data.legalText ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-xs leading-relaxed text-gray-300">
+            {data.legalText}
+          </div>
+        ) : null}
 
         <div className="grid gap-3 md:grid-cols-2">
           {onSelect ? (
