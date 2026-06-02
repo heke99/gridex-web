@@ -8,6 +8,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ElectricityCalculator from '@/components/ElectricityCalculator'
 import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
 import { supabaseService } from '@/lib/supabase/service'
+import {
+  createSignupOrder,
+  hashPersonalNumber,
+  maskPersonalNumber,
+} from '@/lib/customerSignup/service'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
@@ -347,7 +352,7 @@ export default async function TecknaPage() {
     const moveInDate = normalizeText(formData.get('move_in_date'))
     const email = normalizeEmail(formData.get('email'))
     const phone = normalizeText(formData.get('phone'))
-    const signMethod = normalizeText(formData.get('sign_method')) || 'cis'
+    const signMethod = normalizeText(formData.get('sign_method')) || 'email'
 
     const acceptVillkor = String(formData.get('accept_villkor') || '') === 'on'
     const acceptIntegritet =
@@ -420,9 +425,6 @@ export default async function TecknaPage() {
       )
     }
 
-    const personalNumberMasked = maskPersonalNumber(personalNumber)
-    const personalNumberHash = hashPersonalNumber(personalNumber)
-
     const idempotencyKey = sha256(
       [
         'sign_contract_v1',
@@ -460,9 +462,7 @@ export default async function TecknaPage() {
       contract_slug: contractSlug,
       first_name: firstName,
       last_name: lastName,
-      personal_number: personalNumberMasked,
-      personal_number_hash: personalNumberHash,
-      personal_number_masked: personalNumberMasked,
+      personal_number: personalNumber,
       address,
       postal_code: postalCode,
       city,
