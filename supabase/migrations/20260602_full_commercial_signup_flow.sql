@@ -439,7 +439,7 @@ set provider_name = excluded.provider_name,
     documentation_url = excluded.documentation_url;
 
 -- Seed permission catalog when compatible RBAC tables are present.
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -455,4 +455,4 @@ BEGIN
       ('cis.signature.write', 'Resend or manage CIS signature emails')
     ON CONFLICT (permission) DO NOTHING;
   END IF;
-END $;
+END $$;
