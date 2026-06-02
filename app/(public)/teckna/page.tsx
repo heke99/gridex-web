@@ -8,6 +8,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ElectricityCalculator from '@/components/ElectricityCalculator'
 import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
 import { supabaseService } from '@/lib/supabase/service'
+import {
+  createSignupOrder,
+  hashPersonalNumber,
+  maskPersonalNumber,
+} from '@/lib/customerSignup/service'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
@@ -265,6 +270,10 @@ async function handleSigningFlow(params: {
 }) {
   const { supabase, agreementId, email, signMethod } = params
 
+  if (signMethod === 'cis') {
+    redirect('/sign/pending')
+  }
+
   if (signMethod === 'bankid') {
     const { error } = await supabase
       .from('contract_agreements')
@@ -347,7 +356,8 @@ export default async function TecknaPage() {
     const moveInDate = normalizeText(formData.get('move_in_date'))
     const email = normalizeEmail(formData.get('email'))
     const phone = normalizeText(formData.get('phone'))
-    const signMethod = normalizeText(formData.get('sign_method')) || 'email'
+    const signMethod = normalizeText(formData.get('sign_method')) || 'cis'
+    const monthlyConsumptionKwh = Number(formData.get('monthly_consumption_kwh') ?? 2000)
 
     const acceptVillkor = String(formData.get('accept_villkor') || '') === 'on'
     const acceptIntegritet =
@@ -420,6 +430,9 @@ export default async function TecknaPage() {
       )
     }
 
+    const personalNumberMasked = maskPersonalNumber(personalNumber)
+    const personalNumberHash = hashPersonalNumber(personalNumber)
+
     const idempotencyKey = sha256(
       [
         'sign_contract_v1',
@@ -437,7 +450,7 @@ export default async function TecknaPage() {
       firstName,
       lastName,
       phone,
-      personalNumber,
+      personalNumber: personalNumberMasked,
     })
 
     if (created) {
@@ -457,7 +470,10 @@ export default async function TecknaPage() {
       contract_slug: contractSlug,
       first_name: firstName,
       last_name: lastName,
-      personal_number: personalNumber,
+      personal_number: personalNumberMasked,
+      personal_number_hash: personalNumberHash,
+      personal_number_masked: personalNumberMasked,
+      monthly_consumption_kwh: monthlyConsumptionKwh,
       address,
       postal_code: postalCode,
       city,
@@ -519,6 +535,34 @@ export default async function TecknaPage() {
       villkorVersion: villkorDoc?.version ?? 'unknown',
       integritetVersion: integritetDoc?.version ?? 'unknown',
       cookiesVersion: cookiesDoc?.version ?? 'unknown',
+    })
+
+    await createSignupOrder({
+      userId,
+      agreementId,
+      email,
+      phone,
+      firstName,
+      lastName,
+      personalNumber,
+      address,
+      postalCode,
+      city,
+      apartment: apartment || null,
+      facilityId,
+      moveInDate: moveInDate || null,
+      contractSlug,
+      monthlyConsumptionKwh,
+      legalSnapshot: {
+        villkorVersion: villkorDoc?.version ?? 'unknown',
+        integritetVersion: integritetDoc?.version ?? 'unknown',
+        cookiesVersion: cookiesDoc?.version ?? 'unknown',
+        ip,
+        userAgent,
+      },
+      idempotencyKey,
+      signingProvider:
+        signMethod === 'bankid' || signMethod === 'email' ? signMethod : 'cis',
     })
 
     await handleSigningFlow({
@@ -602,6 +646,12 @@ export default async function TecknaPage() {
             <Field label="Förnamn" name="first_name" required />
             <Field label="Efternamn" name="last_name" required />
             <Field label="Personnummer" name="personal_number" required />
+            <Field
+              label="Förbrukning (kWh / månad)"
+              name="monthly_consumption_kwh"
+              type="number"
+              required
+            />
             <Field label="Anläggnings-ID" name="facility_id" required />
             <Field label="Adress" name="address" required />
             <Field label="Postnummer" name="postal_code" required />
@@ -634,7 +684,8 @@ export default async function TecknaPage() {
                 name="sign_method"
                 className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
               >
-                <option value="email">Signera via e-post</option>
+                <option value="cis">CIS skickar signeringsmail</option>
+                <option value="email">Lokal e-postsignering (fallback)</option>
                 <option value="bankid">Signera med BankID</option>
               </select>
             </div>
@@ -700,8 +751,11 @@ export default async function TecknaPage() {
             </label>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
-              När du går vidare skapas ditt ärende och du skickas till signering
-              via vald metod.
+              När du går vidare sparas ett pris-snapshot, personnummer skickas
+              säkert till CIS och signeringsmail skickas via valt signeringsflöde.
+              Rörligt månadspris är en prismodell baserad på föregående månads
+              snittpris och kan ändras månad för månad. Endast fastprisavtal har
+              fast kWh-pris.
             </div>
           </div>
 

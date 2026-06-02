@@ -6,6 +6,8 @@ import type {
   CustomerPortalContract,
   CustomerPortalOverview,
   CustomerProfile,
+  CustomerAgreementEvent,
+  CustomerSignupOrder,
   CustomerSupportMessage,
   CustomerSupportTicket,
   ExternalConnection,
@@ -190,6 +192,34 @@ export async function getCustomerNotifications(
   return (data ?? []) as CustomerNotification[]
 }
 
+export async function getCustomerSignupOrders(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerSignupOrder[]> {
+  const { data } = await supabase
+    .from('customer_signup_orders')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  return (data ?? []) as CustomerSignupOrder[]
+}
+
+export async function getCustomerAgreementEvents(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerAgreementEvent[]> {
+  const { data } = await supabase
+    .from('customer_agreement_events')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('customer_visible', true)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  return (data ?? []) as CustomerAgreementEvent[]
+}
+
 export async function getExternalConnections(
   supabase: SupabaseClient
 ): Promise<ExternalConnection[]> {
@@ -206,13 +236,24 @@ export async function getExternalConnections(
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
 
-  const [profile, contracts, invoices, tickets, notifications, connections] =
+  const [
+    profile,
+    contracts,
+    invoices,
+    tickets,
+    notifications,
+    signupOrders,
+    agreementEvents,
+    connections,
+  ] =
     await Promise.all([
       getCustomerProfile(supabase, user.id),
       getCustomerContracts(supabase, user.id),
       getCustomerInvoices(supabase, user.id),
       getCustomerTickets(supabase, user.id),
       getCustomerNotifications(supabase, user.id),
+      getCustomerSignupOrders(supabase, user.id),
+      getCustomerAgreementEvents(supabase, user.id),
       getExternalConnections(supabase),
     ])
 
@@ -222,6 +263,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     invoices,
     tickets,
     notifications,
+    signupOrders,
+    agreementEvents,
     connections,
   }
 }

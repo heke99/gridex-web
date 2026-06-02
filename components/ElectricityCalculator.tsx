@@ -75,7 +75,7 @@ export default function ElectricityCalculator({
     setResult(null)
 
     try {
-      const res = await fetch('/api/price', {
+      const res = await fetch('/api/offers/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

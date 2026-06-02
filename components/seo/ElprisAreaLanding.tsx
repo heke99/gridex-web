@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
+import { getLivePriceSummary } from '@/lib/gridex/livePrices'
 
 type Area = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 
@@ -22,6 +23,12 @@ function formatNumber(n: number) {
   return new Intl.NumberFormat('sv-SE').format(n)
 }
 
+function formatPrice(n: number) {
+  return new Intl.NumberFormat('sv-SE', {
+    maximumFractionDigits: 2,
+  }).format(n)
+}
+
 export default async function ElprisAreaLanding({ area }: { area: Area }) {
   const supabase = await createSupabaseServerClient()
   const { year, month } = prevYearMonth(new Date())
@@ -37,6 +44,10 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
     .maybeSingle()
 
   const spotAvgOre = spotRow?.avg_spot_ore != null ? Number(spotRow.avg_spot_ore) : null
+  const live = await getLivePriceSummary({
+    supabase,
+    area,
+  }).catch(() => null)
 
   const faqItems = [
     {
@@ -68,6 +79,30 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-8">
+          <div className="text-white font-semibold">Aktuellt elpris just nu</div>
+          <div className="text-xs text-cyan-100/70 mt-1">
+            {live?.current
+              ? `${new Date(live.current.timeStart).toLocaleTimeString('sv-SE', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}–${new Date(live.current.timeEnd).toLocaleTimeString('sv-SE', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : 'Livepris saknas just nu'}
+          </div>
+          <div className="text-3xl font-bold mt-4">
+            {live?.current
+              ? `${formatPrice(live.current.sekPerKwh * 100)} öre`
+              : '—'}
+          </div>
+          <div className="text-xs text-cyan-100/70 mt-2">
+            Källa: Elpriset just nu.se. Utan moms, skatter, elnätsavgifter och
+            påslag.
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-8">
           <div className="text-white font-semibold">Senaste spot-snitt</div>
           <div className="text-xs text-gray-500 mt-1">
@@ -91,7 +126,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-gray-950 p-8">
+        <div className="rounded-2xl border border-white/10 bg-gray-950 p-8 md:col-span-3">
           <div className="text-white font-semibold">Räkna din total</div>
           <p className="text-gray-400 mt-2 text-sm">
             Totalen är baspris + påslag + rörliga avgifter + månadsavgift. Gridex visar allt öppet.

@@ -93,6 +93,39 @@ export type CustomerNotification = {
   created_at: string
 }
 
+export type CustomerSignupOrder = {
+  id: string
+  agreement_id: string | null
+  contract_slug: string
+  contract_name: string | null
+  contract_type: string
+  status: string
+  customer_status_label: string
+  customer_status_step: number
+  price_area: string
+  monthly_consumption_kwh: number
+  price_snapshot: Record<string, unknown>
+  cis_customer_ref: string | null
+  cis_contract_ref: string | null
+  cis_status: string | null
+  signing_provider: string
+  signing_status: string
+  created_at: string
+  updated_at: string
+}
+
+export type CustomerAgreementEvent = {
+  id: string
+  agreement_id: string | null
+  signup_order_id: string | null
+  event_type: string
+  customer_visible: boolean
+  customer_label: string | null
+  summary: string | null
+  payload: Record<string, unknown>
+  created_at: string
+}
+
 export type ExternalConnection = {
   id: string
   provider_key: string
@@ -110,5 +143,7 @@ export type CustomerPortalOverview = {
   invoices: CustomerInvoice[]
   tickets: CustomerSupportTicket[]
   notifications: CustomerNotification[]
+  signupOrders: CustomerSignupOrder[]
+  agreementEvents: CustomerAgreementEvent[]
   connections: ExternalConnection[]
 }
