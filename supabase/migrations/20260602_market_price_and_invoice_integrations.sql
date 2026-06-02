@@ -60,6 +60,8 @@ create or replace trigger trg_gridex_monthly_spot_prices_updated_at
 before update on public.gridex_monthly_spot_prices
 for each row execute function public.set_current_timestamp_updated_at();
 
+drop function if exists public.gridex_spot_publish_active_basis(integer, integer, text);
+
 create or replace function public.gridex_spot_publish_active_basis(
   p_year integer,
   p_month integer,
@@ -122,6 +124,8 @@ begin
   );
 end;
 $$;
+
+drop function if exists public.gridex_spot_rollback_last_publish(text);
 
 create or replace function public.gridex_spot_rollback_last_publish(
   p_reason text default null
