@@ -425,6 +425,9 @@ export default async function TecknaPage() {
       )
     }
 
+    const personalNumberMasked = maskPersonalNumber(personalNumber)
+    const personalNumberHash = hashPersonalNumber(personalNumber)
+
     const idempotencyKey = sha256(
       [
         'sign_contract_v1',
