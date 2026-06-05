@@ -198,7 +198,7 @@ export async function fetchActiveSpotBasisPeriod(
 }
 
 /* ============================================================
-   SPOT AVG (ADMIN TABLE FIRST)
+   SPOT AVG (API FIRST, DB SAME-PERIOD FALLBACK)
 ============================================================ */
 
 type MonthlySpotRow = {
@@ -219,7 +219,7 @@ type SpotAverageResult = {
     | 'elprisetjustnu_api'
 }
 
-export async function fetchPrevMonthSpotAvgOre(
+async function fetchStoredMonthlySpotAvgOre(
   supabase: SupabaseClient,
   priceArea: PriceArea,
   year: number,
@@ -269,6 +269,15 @@ export async function fetchPrevMonthSpotAvgOre(
     }
   }
 
+  return null
+}
+
+export async function fetchPrevMonthSpotAvgOre(
+  supabase: SupabaseClient,
+  priceArea: PriceArea,
+  year: number,
+  month: number
+): Promise<SpotAverageResult | null> {
   const apiAverage = await fetchMonthlySpotAverageFromElprisetJustNu({
     year,
     month,
@@ -284,7 +293,10 @@ export async function fetchPrevMonthSpotAvgOre(
     }
   }
 
-  return null
+  // Fallback is allowed only for the exact same period.
+  // Never fall back to an older manually published active month, because that
+  // makes the public calculator show stale periods such as 2026-02.
+  return fetchStoredMonthlySpotAvgOre(supabase, priceArea, year, month)
 }
 
 export async function fetchPrevMonthlySpotAvg(
@@ -292,13 +304,13 @@ export async function fetchPrevMonthlySpotAvg(
   priceArea: PriceArea,
   now: Date
 ): Promise<SpotAverageResult | null> {
-  const active = await fetchActiveSpotBasisPeriod(supabase, now)
+  const previousMonth = prevYearMonth(now)
 
   return fetchPrevMonthSpotAvgOre(
     supabase,
     priceArea,
-    active.year,
-    active.month
+    previousMonth.year,
+    previousMonth.month
   )
 }
 

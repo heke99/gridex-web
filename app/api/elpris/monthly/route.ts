@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server'
 import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
+import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 
 export const dynamic = 'force-dynamic'
 
 const AREAS = new Set<PriceArea>(['SE1', 'SE2', 'SE3', 'SE4'])
-
-function previousMonth(now = new Date()) {
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
-  if (month === 1) return { year: year - 1, month: 12 }
-  return { year, month: month - 1 }
-}
 
 function parseArea(value: string | null): PriceArea {
   const area = (value ?? 'SE3').toUpperCase() as PriceArea
@@ -31,7 +25,7 @@ function parseYear(value: string | null, fallback: number): number {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const fallbackPeriod = previousMonth()
+    const fallbackPeriod = prevYearMonth(new Date())
     const area = parseArea(url.searchParams.get('area'))
     const year = parseYear(url.searchParams.get('year'), fallbackPeriod.year)
     const month = parseMonth(url.searchParams.get('month'), fallbackPeriod.month)

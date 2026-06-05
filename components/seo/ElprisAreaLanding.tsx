@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
 import { getLivePriceSummary } from '@/lib/gridex/livePrices'
+import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
+import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 
 type Area = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 
@@ -11,12 +13,6 @@ function areaTitle(area: Area) {
 
 function areaDescription(area: Area) {
   return `Se elpris idag i ${area}. Datadrivna elavtal med transparent specifikation: spot/portfölj/fastpris, påslag och månadsavgift.`
-}
-
-function prevYearMonth(now: Date): { year: number; month: number } {
-  const m = now.getMonth() + 1
-  if (m === 1) return { year: now.getFullYear() - 1, month: 12 }
-  return { year: now.getFullYear(), month: m - 1 }
 }
 
 function formatNumber(n: number) {
@@ -33,21 +29,21 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
   const supabase = await createSupabaseServerClient()
   const { year, month } = prevYearMonth(new Date())
 
-  // Vi visar ett stabilt “senast kända” spot-snittutdrag (föregående månad)
-  // och pekar sedan användaren till kalkylatorn för full specifikation.
-  const { data: spotRow } = await supabase
-    .from('gridex_monthly_spot_prices')
-    .select('avg_spot_ore')
-    .eq('price_area', area)
-    .eq('year', year)
-    .eq('month', month)
-    .maybeSingle()
+  // Public SEO pages should show the same API-based previous-month spot
+  // basis as the calculator. Admin/manual DB rows are only fallback data.
+  const [spotAverage, live] = await Promise.all([
+    fetchMonthlySpotAverageFromElprisetJustNu({
+      year,
+      month,
+      priceArea: area,
+    }).catch(() => null),
+    getLivePriceSummary({
+      supabase,
+      area,
+    }).catch(() => null),
+  ])
 
-  const spotAvgOre = spotRow?.avg_spot_ore != null ? Number(spotRow.avg_spot_ore) : null
-  const live = await getLivePriceSummary({
-    supabase,
-    area,
-  }).catch(() => null)
+  const spotAvgOre = spotAverage?.avgSpotOre ?? null
 
   const faqItems = [
     {
@@ -104,7 +100,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-8">
-          <div className="text-white font-semibold">Senaste spot-snitt</div>
+          <div className="text-white font-semibold">Föregående månads spot-snitt</div>
           <div className="text-xs text-gray-500 mt-1">
             Föregående månad ({year}-{String(month).padStart(2, '0')})
           </div>
@@ -112,7 +108,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
             {spotAvgOre == null ? '—' : `${formatNumber(spotAvgOre)} öre`}
           </div>
           <div className="text-xs text-gray-500 mt-2">
-            Spot-snitt är underlag. Totalpris beror på avtalsform, påslag och månadsavgift.
+            Spot-snitt hämtas från elprisetjustnu API. Totalpris beror på avtalsform, påslag och månadsavgift.
           </div>
         </div>
 

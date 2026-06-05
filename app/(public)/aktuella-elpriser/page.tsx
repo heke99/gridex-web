@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getLivePriceSummary } from '@/lib/gridex/livePrices'
 import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
+import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
@@ -23,16 +24,9 @@ function formatOre(value: number | null | undefined) {
   }).format(value)} öre/kWh`
 }
 
-function previousMonth(now = new Date()) {
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
-  if (month === 1) return { year: year - 1, month: 12 }
-  return { year, month: month - 1 }
-}
-
 export default async function AktuellaElpriserPage() {
   const supabase = await createSupabaseServerClient()
-  const period = previousMonth()
+  const period = prevYearMonth(new Date())
 
   const [summaries, previousMonthAverages] = await Promise.all([
     Promise.all(

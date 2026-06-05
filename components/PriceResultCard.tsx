@@ -82,11 +82,11 @@ function contractTypeLabel(type: ContractType) {
 function sourceLabel(source: SpotBasis['source']) {
   switch (source) {
     case 'elprisetjustnu_api':
-      return 'Hämtat från elprisetjustnu API'
+      return 'Spotpris från elprisetjustnu API'
     case 'gridex_spot_monthly_avg':
-      return 'Hämtat från äldre Gridex-prisbas'
+      return 'Fallback: äldre Gridex-prisbas'
     case 'gridex_monthly_spot_prices':
-      return 'Hämtat från Gridex prisbas'
+      return 'Fallback: Gridex prisbas'
     default:
       return 'Föregående månads snittspot'
   }
@@ -111,7 +111,9 @@ export default function PriceResultCard({
     if (!specification?.basis) return 'Prisbas saknas'
 
     if (specification.basis.type === 'previous_month_avg_spot') {
-      return `Föregående månads spotpris (${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
+      const sourceSuffix =
+        specification.basis.source === 'elprisetjustnu_api' ? ' från API' : ''
+      return `Föregående månads spotpris${sourceSuffix} (${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
     }
 
     if (

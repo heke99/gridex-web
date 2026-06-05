@@ -123,13 +123,14 @@ Föregående månads spotpris • SE1–SE4 • Transparent pris
 
             <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
               Ange postnummer eller välj elområde manuellt, välj avtal och fyll i
-              uppskattad förbrukning. Rörligt pris beräknas med föregående månads
-              snittspot från Gridex prisbas eller elprisetjustnu API.
+              uppskattad förbrukning. Rörligt pris beräknas med föregående
+              kalendermånads snittspot från elprisetjustnu API. Förbrukningen
+              påverkar totalen, inte själva spotpriset.
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-Spotpris: föregående månads snitt, inte ett livepris
+Spotpris: föregående kalendermånads API-snitt, inte ett manuellt pris
           </div>
         </div>
 

@@ -24,8 +24,36 @@ export function clampVatRate(v: number): number {
   return v
 }
 
-export function prevYearMonth(now: Date): { year: number; month: number } {
-  const m = now.getMonth() + 1
-  if (m === 1) return { year: now.getFullYear() - 1, month: 12 }
-  return { year: now.getFullYear(), month: m - 1 }
+function getMonthPartsInTimeZone(
+  now: Date,
+  timeZone: string
+): { year: number; month: number } {
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(now)
+
+  const year = Number(parts.find((part) => part.type === 'year')?.value)
+  const month = Number(parts.find((part) => part.type === 'month')?.value)
+
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    const fallbackMonth = now.getMonth() + 1
+    return { year: now.getFullYear(), month: fallbackMonth }
+  }
+
+  return { year, month }
+}
+
+export function prevYearMonth(
+  now: Date,
+  timeZone = 'Europe/Stockholm'
+): { year: number; month: number } {
+  const current = getMonthPartsInTimeZone(now, timeZone)
+  if (current.month === 1) return { year: current.year - 1, month: 12 }
+  return { year: current.year, month: current.month - 1 }
+}
+
+export function formatYearMonth(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`
 }

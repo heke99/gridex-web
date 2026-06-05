@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { formatYearMonth } from '@/lib/gridex/pricing/validators'
 import { computeCustomerSpec } from '@/lib/gridex/previewEngine'
 import type {
   ContractProduct,
@@ -70,16 +71,16 @@ function clampKwh(value: unknown): number {
   return Math.min(200000, Math.max(1, n))
 }
 
-function formatYm(year: number, month: number) {
-  return `${year}-${String(month).padStart(2, '0')}`
-}
-
 function legalTextFor(spec: CustomerSpecResult): string {
   if (spec.contract.contract_type === 'spot_hourly') {
     const basis = spec.diagnostics.spotBasis
-    const basisLabel = basis ? formatYm(basis.year, basis.month) : 'föregående månad'
+    const basisLabel = basis ? formatYearMonth(basis.year, basis.month) : 'föregående månad'
+    const sourceLabel =
+      basis?.source === 'elprisetjustnu_api'
+        ? 'elprisetjustnu API'
+        : 'Gridex prisbas för samma period'
 
-    return `Detta är ett rörligt månadspris. Priset du ser är ett exempel baserat på föregående månads genomsnittliga spotpris (${basisLabel}) i ditt elområde. Spotpriset hämtas från Gridex prisbas eller elprisetjustnu API när prisbas saknas. Ditt faktiska pris kan ändras varje månad beroende på marknadspriset. Endast fasta elprisavtal har ett fast kWh-pris. Avtalade påslag och månadsavgifter framgår i specifikationen.`
+    return `Detta är ett rörligt månadspris. Priset du ser är ett exempel baserat på föregående kalendermånads genomsnittliga spotpris (${basisLabel}) i ditt elområde. Spotpriset hämtas från ${sourceLabel}. Din angivna förbrukning påverkar månadskostnaden, men inte själva spotpriset. Ditt faktiska pris kan ändras varje månad beroende på marknadspriset. Endast fasta elprisavtal har ett fast kWh-pris. Avtalade påslag och månadsavgifter framgår i specifikationen.`
   }
 
   return 'Detta är ett fastprisavtal. Kunden accepterar ett fast kWh-pris enligt den publicerade prisversionen, plus de månadsavgifter och villkor som framgår i specifikationen.'
@@ -184,7 +185,7 @@ export async function calculateCustomerOffer(params: {
     },
     legalText,
     customerNotice: isVariable
-      ? 'Rörligt månadspris – baseras på föregående månads genomsnittliga spotpris för ditt elområde.'
+      ? 'Rörligt månadspris – spotpriset hämtas för föregående kalendermånad från elprisetjustnu API. Din kWh-förbrukning påverkar bara totalen.'
       : 'Fast elpris - kWh-priset ändras inte under avtalad fastprisperiod.',
     snapshot: {},
   }
