@@ -1,4 +1,3 @@
-//api/signup/orders/route.ts
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { createSignupOrder } from '@/lib/customerSignup/service'
