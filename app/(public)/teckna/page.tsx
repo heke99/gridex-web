@@ -314,7 +314,12 @@ async function handleSigningFlow(params: {
   redirect('/sign/check-email')
 }
 
-export default async function TecknaPage() {
+export default async function TecknaPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ contract?: string }>
+}) {
+  const params = (await searchParams) ?? {}
   const supabase = await createSupabaseServerClient()
   const nowIso = new Date().toISOString()
 
@@ -329,6 +334,10 @@ export default async function TecknaPage() {
       (o): o is ContractOption =>
         typeof o.slug === 'string' && o.slug.length > 0
     )
+
+  const selectedContract = options.some((option) => option.slug === params.contract)
+    ? params.contract ?? ''
+    : options[0]?.slug ?? ''
 
   const legalDocs = await fetchLiveLegalDocs()
   const villkorDoc = legalDocs.find((d) => d.slug === 'villkor')
@@ -356,7 +365,8 @@ export default async function TecknaPage() {
     const moveInDate = normalizeText(formData.get('move_in_date'))
     const email = normalizeEmail(formData.get('email'))
     const phone = normalizeText(formData.get('phone'))
-    const signMethod = normalizeText(formData.get('sign_method')) || 'cis'
+    const rawSignMethod = normalizeText(formData.get('sign_method'))
+    const signMethod = rawSignMethod === 'email' ? 'email' : 'cis'
     const monthlyConsumptionKwh = Number(formData.get('monthly_consumption_kwh') ?? 2000)
 
     const acceptVillkor = String(formData.get('accept_villkor') || '') === 'on'
@@ -562,7 +572,7 @@ export default async function TecknaPage() {
       },
       idempotencyKey,
       signingProvider:
-        signMethod === 'bankid' || signMethod === 'email' ? signMethod : 'cis',
+        signMethod === 'email' ? 'email' : 'cis',
     })
 
     await handleSigningFlow({
@@ -583,7 +593,7 @@ export default async function TecknaPage() {
         <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Räkna först • Teckna tryggt • Signera smidigt
+              Räkna först • Teckna tryggt • E-postsignering
             </div>
 
             <div>
@@ -621,7 +631,7 @@ export default async function TecknaPage() {
                 3. Signera tryggt
               </div>
               <p className="mt-1 text-sm text-gray-400">
-                Signera via e-post eller BankID när det är tillgängligt.
+                Signera via e-post eller signeringsmail när avtalet är klart.
               </p>
             </div>
           </div>
@@ -652,7 +662,12 @@ export default async function TecknaPage() {
               type="number"
               required
             />
-            <Field label="Anläggnings-ID" name="facility_id" required />
+            <Field
+              label="Anläggnings-ID"
+              name="facility_id"
+              required
+              help="Du hittar anläggnings-ID på din elnätsfaktura. Det börjar ofta med 735999."
+            />
             <Field label="Adress" name="address" required />
             <Field label="Postnummer" name="postal_code" required />
             <Field label="Ort" name="city" required />
@@ -666,6 +681,7 @@ export default async function TecknaPage() {
               <select
                 name="contract_slug"
                 required
+                defaultValue={selectedContract}
                 className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
               >
                 {options.map((o) => (
@@ -684,9 +700,8 @@ export default async function TecknaPage() {
                 name="sign_method"
                 className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
               >
-                <option value="cis">CIS skickar signeringsmail</option>
-                <option value="email">Lokal e-postsignering (fallback)</option>
-                <option value="bankid">Signera med BankID</option>
+                <option value="cis">Signeringsmail via Gridex</option>
+                <option value="email">Lokal e-postsignering</option>
               </select>
             </div>
           </div>
@@ -752,7 +767,7 @@ export default async function TecknaPage() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
               När du går vidare sparas ett pris-snapshot, personnummer skickas
-              säkert till CIS och signeringsmail skickas via valt signeringsflöde.
+              säkert i systemet och signeringsmail skickas via valt signeringsflöde.
               Rörligt månadspris är en prismodell baserad på föregående månads
               snittpris och kan ändras månad för månad. Endast fastprisavtal har
               fast kWh-pris.
@@ -780,11 +795,13 @@ function Field({
   name,
   required = false,
   type = 'text',
+  help,
 }: {
   label: string
   name: string
   required?: boolean
   type?: string
+  help?: string
 }) {
   return (
     <div>
@@ -795,6 +812,7 @@ function Field({
         required={required}
         className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
       />
+      {help ? <p className="mt-2 text-xs text-white/45">{help}</p> : null}
     </div>
   )
 }

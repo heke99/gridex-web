@@ -132,10 +132,10 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
             Totalen är baspris + påslag + rörliga avgifter + månadsavgift. Gridex visar allt öppet.
           </p>
           <Link
-            href="/#kalkylator"
+            href="/#rakna-elpris"
             className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm"
           >
-            Gå till kalkylatorn →
+            Gå till prisräknaren →
           </Link>
         </div>
       </div>

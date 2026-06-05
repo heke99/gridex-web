@@ -43,13 +43,13 @@ function getContractDescription(item: LivePublishedContract) {
 
   switch (item.contract.contract_type) {
     case 'spot_hourly':
-      return 'LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.'
+      return 'Föregående månads spotpris per elområde (SE1–SE4). Full specifikation visas innan teckning.'
     case 'portfolio_managed':
       return 'För dig som vill ha en mer aktiv prissättning med fokus på balans mellan risk och stabilitet.'
     case 'fixed':
       return 'För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.'
     default:
-      return 'LIVE-priser per elområde (SE1–SE4). Full specifikation visas innan teckning.'
+      return 'Föregående månads spotpris per elområde (SE1–SE4). Full specifikation visas innan teckning.'
   }
 }
 
@@ -77,7 +77,7 @@ function ContractCard({ item }: { item: LivePublishedContract }) {
           </div>
 
           <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-            LIVE
+            Publicerat
           </span>
         </div>
 
@@ -257,7 +257,7 @@ export default async function AvtalPage() {
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold text-white">Våra elavtal</h2>
           <p className="mt-3 text-gray-400">
-            Alla LIVE-avtal nedan är publicerade och tillgängliga för teckning.
+            Alla publicerade avtal nedan är tillgängliga för teckning.
           </p>
         </div>
 
@@ -269,7 +269,7 @@ export default async function AvtalPage() {
           {!hasLiveContracts && (
             <div className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:col-span-3">
               <div className="text-lg font-semibold text-white">
-                Inga LIVE-avtal ännu
+                Inga publicerade avtal ännu
               </div>
               <p className="mt-2 max-w-2xl text-sm text-gray-400">
                 När en prisversion publiceras och dess <span className="text-gray-200">valid_from</span>{' '}

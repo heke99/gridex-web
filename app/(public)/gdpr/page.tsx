@@ -8,7 +8,7 @@ export default function GDPRPage() {
           1. Personuppgiftsansvarig
         </h2>
         <p>
-          Div3rsa AB, org.nr [559416-7149], är personuppgiftsansvarig.
+          Gridex AB, org.nr 559416-7149, är personuppgiftsansvarig.
         </p>
       </section>
 

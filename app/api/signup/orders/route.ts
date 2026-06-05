@@ -46,9 +46,7 @@ export async function POST(req: Request) {
           : {},
       idempotencyKey: String(body.idempotencyKey ?? randomUUID()),
       signingProvider:
-        body.signingProvider === 'bankid' || body.signingProvider === 'email'
-          ? body.signingProvider
-          : 'cis',
+        body.signingProvider === 'email' ? 'email' : 'cis',
     })
 
     return NextResponse.json({ ok: true, result })

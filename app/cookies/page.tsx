@@ -31,7 +31,7 @@ export default function CookiePolicyPage() {
         <h2 className="text-xl font-semibold text-white">3. Tredjepartscookies</h2>
         <p>
           Vi kan använda tredjepartsleverantörer såsom betalningsleverantörer,
-          BankID, analysverktyg och hostingtjänster.
+          signeringsleverantörer, analysverktyg och hostingtjänster.
         </p>
       </section>
 

@@ -79,16 +79,18 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
             </div>
 
             <div className="leading-tight">
-              <div className="font-bold tracking-tight text-white">Gridex</div>
+              <div className="font-bold tracking-tight text-white">Gridex AB</div>
               <div className="hidden text-xs text-gray-400 sm:block">
-                Elavtal • kundservice • mina sidor
+                Elhandelsbolag • kundservice • mina sidor
               </div>
             </div>
           </Link>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <DesktopNavLink href="/#rakna-elpris" label="Räkna elpris" pathname={pathname} />
           <DesktopNavLink href="/avtal" label="Elavtal" pathname={pathname} />
+          <DesktopNavLink href="/aktuella-elpriser" label="Elpris idag" pathname={pathname} />
           <DesktopNavLink
             href="/kundservice"
             label="Kundservice"
@@ -131,11 +133,27 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
         <div className="border-t border-white/10 bg-black/80 md:hidden">
           <div className="mx-auto grid w-full max-w-7xl gap-2 px-6 py-4">
             <Link
+              href="/#rakna-elpris"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
+              onClick={() => setMobileOpen(false)}
+            >
+              Räkna elpris
+            </Link>
+
+            <Link
               href="/avtal"
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
               onClick={() => setMobileOpen(false)}
             >
               Elavtal
+            </Link>
+
+            <Link
+              href="/aktuella-elpriser"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
+              onClick={() => setMobileOpen(false)}
+            >
+              Elpris idag
             </Link>
 
             <Link

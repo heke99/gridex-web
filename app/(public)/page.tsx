@@ -68,6 +68,7 @@ export default async function HomePage() {
       <ElectricityCalculator contracts={options} />
       <HowItWorks />
       <ValueBlocks />
+      <ArticleColumns />
       <HomeSeoBlocks />
     </div>
   )
@@ -82,20 +83,18 @@ function HeroBlock() {
       <div className="relative grid gap-10 md:grid-cols-2 md:items-center">
         <div className="space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-            Tydliga elavtal • Inga dolda påslag • SE1–SE4
+            Gridex AB • Elhandelsbolag • SE1–SE4
           </div>
 
           <div className="space-y-4">
             <h1 className="text-4xl font-bold leading-tight tracking-tight text-white md:text-6xl">
-              Betalar du för mycket
+              Elavtal utan dolda avgifter
               <br />
-              för din el?
+              se ditt pris innan du tecknar
             </h1>
 
             <p className="max-w-2xl text-lg leading-relaxed text-gray-300 md:text-xl">
-              Många hushåll betalar onödigt höga avgifter och sitter i avtal som
-              är svåra att förstå. Gridex hjälper dig att jämföra elavtal med
-              tydliga villkor, transparent prisbild och mindre krångel.
+              Gridex AB är ett svenskt elhandelsbolag som gör det enklare att förstå elpriset. Räkna på föregående månads spotpris, se påslag, avgifter och moms innan du går vidare till teckning.
             </p>
           </div>
 
@@ -158,7 +157,7 @@ function HeroBlock() {
               </div>
 
               <div className="shrink-0 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs text-green-300">
-                Live priser
+                Spotpris
               </div>
             </div>
 
@@ -339,12 +338,10 @@ function ValueBlocks() {
           För dig som vill ha kontroll
         </div>
         <h2 className="mt-3 text-3xl font-bold text-white">
-          Elavtal utan onödigt krångel
+          Elavtal med tydlig prisrad
         </h2>
         <p className="mt-4 text-gray-400">
-          Oavsett om du vill ha spotpris, portföljförvaltning eller fastpris ska
-          det vara enkelt att förstå upplägget. Du ska inte behöva gissa dig
-          fram till avgifter eller vad som ingår.
+          Oavsett om du vill ha rörligt månadspris, portföljförvaltning eller fastpris ska det vara enkelt att förstå upplägget. Du ska se spotpris, påslag, rörliga avgifter, månadsavgift och moms innan du tecknar.
         </p>
 
         <div className="mt-8">
@@ -355,6 +352,75 @@ function ValueBlocks() {
             Jämför elavtal
           </Link>
         </div>
+      </div>
+    </section>
+  )
+}
+
+
+function ArticleColumns() {
+  const articles = [
+    {
+      title: 'Så fungerar rörligt månadspris',
+      text: 'Rörligt månadspris bygger på föregående månads genomsnittliga spotpris i ditt elområde, plus avtalade avgifter och påslag.',
+      href: '/aktuella-elpriser',
+      cta: 'Se spotpris',
+    },
+    {
+      title: 'Vad är elområde SE1–SE4?',
+      text: 'Sverige är indelat i fyra elområden. Ditt elområde påverkar spotpriset och därför även prisbilden för rörliga avtal.',
+      href: '/elpris-se3',
+      cta: 'Läs om elområden',
+    },
+    {
+      title: 'Så byter du elavtal',
+      text: 'Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.',
+      href: '/teckna',
+      cta: 'Teckna elavtal',
+    },
+    {
+      title: 'Vad ingår inte i elhandelspriset?',
+      text: 'Elnätsavgift, nätägarens fasta avgifter och eventuell effektavgift ingår normalt inte i elhandelspriset och faktureras av nätägaren.',
+      href: '/kundservice',
+      cta: 'Fråga kundservice',
+    },
+  ]
+
+  return (
+    <section className="space-y-6">
+      <div className="max-w-3xl">
+        <div className="text-sm uppercase tracking-[0.18em] text-cyan-300/80">
+          Artiklar och guider
+        </div>
+        <h2 className="mt-3 text-3xl font-bold text-white">
+          Förstå elpriset innan du väljer avtal
+        </h2>
+        <p className="mt-3 text-gray-400">
+          Snabba guider i tydliga spalter för kunder som vill förstå pris,
+          elområde, avtal och vad som faktiskt ingår.
+        </p>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {articles.map((article) => (
+          <article
+            key={article.title}
+            className="flex min-h-[260px] flex-col justify-between rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40"
+          >
+            <div>
+              <h3 className="text-lg font-semibold text-white">{article.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                {article.text}
+              </p>
+            </div>
+            <Link
+              href={article.href}
+              className="mt-6 inline-flex text-sm font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              {article.cta} →
+            </Link>
+          </article>
+        ))}
       </div>
     </section>
   )

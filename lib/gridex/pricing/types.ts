@@ -81,7 +81,15 @@ export type MoneySpecLine = {
 
 export type PricingDiagnostics = {
   vatRate: number
-  spotBasis?: { year: number; month: number; avgSpotOre: number }
+  spotBasis?: {
+    year: number
+    month: number
+    avgSpotOre: number
+    source?:
+      | 'gridex_monthly_spot_prices'
+      | 'gridex_spot_monthly_avg'
+      | 'elprisetjustnu_api'
+  }
   sources: {
     versionSelection: 'status' | 'is_published'
     spotSettingsKey: 'pricing_version_id' | 'contract_id'

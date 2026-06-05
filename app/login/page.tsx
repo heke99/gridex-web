@@ -189,26 +189,9 @@ export default async function LoginPage({ searchParams }: Props) {
               </button>
             </form>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-medium text-white">
-                  Alternativ inloggning
-                </div>
-                <Link
-                  href="/login/bankid"
-                  className="text-xs text-white/70 underline decoration-white/20 underline-offset-4 hover:text-white"
-                >
-                  Läs mer
-                </Link>
-              </div>
-
-              <button
-                type="button"
-                disabled
-                className="h-12 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-white/5 text-sm text-white/45"
-              >
-                Logga in med BankID (kommer snart)
-              </button>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-gray-400">
+              Logga in med e-post och lösenord. Andra signerings- och
+              inloggningsmetoder aktiveras först när de är klara för produktion.
             </div>
 
             <div className="mt-6 text-xs leading-6 text-gray-500">

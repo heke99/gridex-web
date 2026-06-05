@@ -11,7 +11,7 @@ export default function VillkorPage() {
           1. Om bolaget
         </h2>
         <p>
-          Div3rsa AB, org.nr [559416-7149], är ett svenskt elhandelsföretag.
+          Gridex AB, org.nr 559416-7149, är ett svenskt elhandelsföretag.
           Bolaget är registrerat hos Energimarknadsinspektionen och följer
           ellagen (1997:857) samt tillämplig konsumentskyddslagstiftning.
         </p>
@@ -26,7 +26,7 @@ export default function VillkorPage() {
           2. Avtalets ingående
         </h2>
         <p>
-          Avtal ingås digitalt via BankID eller e-postsignering.
+          Avtal ingås digitalt via e-postsignering eller annat signeringsflöde som Gridex AB aktiverar.
           Avtalet blir bindande när kunden har signerat och Gridex har bekräftat avtalet.
         </p>
         <p>
@@ -90,7 +90,7 @@ export default function VillkorPage() {
           6. Personuppgifter (GDPR)
         </h2>
         <p>
-          Gridex är personuppgiftsansvarig för behandling av personuppgifter.
+          Gridex AB är personuppgiftsansvarig för behandling av personuppgifter.
           Behandling sker i enlighet med EU:s dataskyddsförordning (GDPR).
         </p>
         <p>

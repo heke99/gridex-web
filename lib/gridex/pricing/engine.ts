@@ -65,7 +65,17 @@ export async function computeCustomerSpecDomain(params: {
   let elcertOre = 0
   let monthlyFeeSek = 0
 
-  let spotBasis: { year: number; month: number; avgSpotOre: number } | undefined
+  let spotBasis:
+    | {
+        year: number
+        month: number
+        avgSpotOre: number
+        source?:
+          | 'gridex_monthly_spot_prices'
+          | 'gridex_spot_monthly_avg'
+          | 'elprisetjustnu_api'
+      }
+    | undefined
 
   // These are kept to preserve existing diagnostics shape (enterprise)
   let spotKey: 'pricing_version_id' | 'contract_id' = 'pricing_version_id'
@@ -110,7 +120,7 @@ export async function computeCustomerSpecDomain(params: {
 
     lines.push({
       key: 'spot',
-      label: 'Elpris (snitt spot, aktiv period)',
+      label: 'Elpris (föregående månads spotpris)',
       orePerKwh: baseEnergyOre,
       note: `${spot.year}-${String(spot.month).padStart(2, '0')}`,
     })

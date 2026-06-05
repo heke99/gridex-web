@@ -8,6 +8,7 @@ import type {
   SpotAreaSettings,
 } from './types'
 import { prevYearMonth, safeNumber } from './validators'
+import { fetchMonthlySpotAverageFromElprisetJustNu } from './elprisetjustnu'
 import { looksLikeMissingColumn } from './schema'
 
 /* ============================================================
@@ -208,12 +209,22 @@ type LegacySpotRow = {
   avg_ore: number
 }
 
+type SpotAverageResult = {
+  year: number
+  month: number
+  avgSpotOre: number
+  source:
+    | 'gridex_monthly_spot_prices'
+    | 'gridex_spot_monthly_avg'
+    | 'elprisetjustnu_api'
+}
+
 export async function fetchPrevMonthSpotAvgOre(
   supabase: SupabaseClient,
   priceArea: PriceArea,
   year: number,
   month: number
-): Promise<number> {
+): Promise<SpotAverageResult | null> {
   const res = await tryQuery<MonthlySpotRow | null>(
     supabase
       .from('gridex_monthly_spot_prices')
@@ -226,7 +237,14 @@ export async function fetchPrevMonthSpotAvgOre(
 
   if (res.data?.avg_spot_ore != null) {
     const v = safeNumber(res.data.avg_spot_ore, 0)
-    if (v > 0) return v
+    if (v > 0) {
+      return {
+        year,
+        month,
+        avgSpotOre: v,
+        source: 'gridex_monthly_spot_prices',
+      }
+    }
   }
 
   const legacy = await tryQuery<LegacySpotRow | null>(
@@ -241,33 +259,47 @@ export async function fetchPrevMonthSpotAvgOre(
 
   if (legacy.data?.avg_ore != null) {
     const v = safeNumber(legacy.data.avg_ore, 0)
-    if (v > 0) return v
+    if (v > 0) {
+      return {
+        year,
+        month,
+        avgSpotOre: v,
+        source: 'gridex_spot_monthly_avg',
+      }
+    }
   }
 
-  return 0
+  const apiAverage = await fetchMonthlySpotAverageFromElprisetJustNu({
+    year,
+    month,
+    priceArea,
+  })
+
+  if (apiAverage?.avgSpotOre && apiAverage.avgSpotOre > 0) {
+    return {
+      year,
+      month,
+      avgSpotOre: apiAverage.avgSpotOre,
+      source: 'elprisetjustnu_api',
+    }
+  }
+
+  return null
 }
 
 export async function fetchPrevMonthlySpotAvg(
   supabase: SupabaseClient,
   priceArea: PriceArea,
   now: Date
-): Promise<{ year: number; month: number; avgSpotOre: number } | null> {
+): Promise<SpotAverageResult | null> {
   const active = await fetchActiveSpotBasisPeriod(supabase, now)
 
-  const avg = await fetchPrevMonthSpotAvgOre(
+  return fetchPrevMonthSpotAvgOre(
     supabase,
     priceArea,
     active.year,
     active.month
   )
-
-  if (!Number.isFinite(avg) || avg <= 0) return null
-
-  return {
-    year: active.year,
-    month: active.month,
-    avgSpotOre: avg,
-  }
 }
 
 /* ============================================================

@@ -16,7 +16,7 @@ type SearchParams = {
 
 type AdminSupportTicket = {
   id: string
-  user_id: string
+  user_id: string | null
   subject: string
   category: string
   priority: string
@@ -214,8 +214,8 @@ export default async function AdminSupportTicketsPage({
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-white/60">
               Hantera inkommande kundärenden, tilldelning, statusförändringar och
-              svar till kund. Sidan är kopplad till befintliga support-actions och
-              tabeller för tickets och messages.
+              svar till kund. Ärenden kan komma från kundportalen eller det
+              publika kundserviceformuläret på hemsidan.
             </p>
           </div>
 

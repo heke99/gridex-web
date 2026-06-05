@@ -1,4 +1,4 @@
-//components/layout/PublicHeader.tsx
+// components/layout/PublicHeader.tsx
 'use client'
 
 import Link from 'next/link'
@@ -46,32 +46,31 @@ export default function PublicHeader() {
           </div>
 
           <div className="leading-tight">
-            <div className="font-bold tracking-tight text-white">Gridex</div>
-            <div className="text-xs text-gray-400">
-              Tydliga elavtal för hushåll
-            </div>
+            <div className="font-bold tracking-tight text-white">Gridex AB</div>
+            <div className="text-xs text-gray-400">Svenskt elhandelsbolag</div>
           </div>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
+          <NavLink href="/#rakna-elpris" label="Räkna elpris" />
           <NavLink href="/avtal" label="Elavtal" />
-          <NavLink href="/teckna" label="Teckna elavtal" />
+          <NavLink href="/aktuella-elpriser" label="Elpris idag" />
           <NavLink href="/kundservice" label="Kundservice" />
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <a
-            href="mailto:support@gridex.se"
-            className="text-sm text-gray-300 transition hover:text-white"
-          >
-            support@gridex.se
-          </a>
-
           <Link
             href="/login"
-            className="rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500 hover:text-black"
+            className="text-sm text-gray-300 transition hover:text-white"
           >
-            Logga in
+            Mina sidor
+          </Link>
+
+          <Link
+            href="/teckna"
+            className="rounded-xl border border-cyan-500/50 bg-cyan-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-cyan-400"
+          >
+            Teckna elavtal
           </Link>
         </div>
 
@@ -89,13 +88,18 @@ export default function PublicHeader() {
           <div className="mx-auto grid max-w-6xl gap-3 px-6 py-4">
             <div className="grid gap-2">
               <NavLink
+                href="/#rakna-elpris"
+                label="Räkna elpris"
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
                 href="/avtal"
                 label="Elavtal"
                 onClick={() => setOpen(false)}
               />
               <NavLink
-                href="/teckna"
-                label="Teckna elavtal"
+                href="/aktuella-elpriser"
+                label="Elpris idag"
                 onClick={() => setOpen(false)}
               />
               <NavLink
@@ -106,20 +110,20 @@ export default function PublicHeader() {
             </div>
 
             <div className="mt-2 border-t border-white/10 pt-4">
-              <a
-                href="mailto:support@gridex.se"
+              <Link
+                href="/login"
                 className="block text-sm text-cyan-300"
                 onClick={() => setOpen(false)}
               >
-                support@gridex.se
-              </a>
+                Mina sidor
+              </Link>
 
               <Link
-                href="/login"
-                className="mt-3 block rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-3 text-center text-sm font-semibold text-cyan-300"
+                href="/teckna"
+                className="mt-3 block rounded-xl border border-cyan-500/50 bg-cyan-500 px-4 py-3 text-center text-sm font-semibold text-black"
                 onClick={() => setOpen(false)}
               >
-                Logga in
+                Teckna elavtal
               </Link>
             </div>
           </div>

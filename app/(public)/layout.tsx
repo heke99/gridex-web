@@ -6,11 +6,11 @@ const SITE_URL = 'https://gridex.se'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Elpris idag – Billiga & datadrivna elavtal | Gridex',
+    default: 'Elpris idag – tydliga elavtal | Gridex AB',
     template: '%s | Gridex',
   },
   description:
-    'Jämför elpris idag per elområde (SE1–SE4). Datadrivna elavtal med full transparens: spot/portfölj/fastpris, påslag och månadsavgift innan du tecknar.',
+    'Jämför elpris idag per elområde (SE1–SE4). Tydliga elavtal med full transparens: spot/portfölj/fastpris, påslag och månadsavgift innan du tecknar.',
   keywords: [
     'elpris idag',
     'elpris',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description:
       'Elpris per elområde (SE1–SE4). Transparent prismotor och tydlig specifikation innan teckning.',
     url: SITE_URL,
-    siteName: 'Gridex',
+    siteName: 'Gridex AB',
     locale: 'sv_SE',
     type: 'website',
   },
@@ -67,7 +67,7 @@ export default function PublicLayout({
               {
                 '@context': 'https://schema.org',
                 '@type': 'WebSite',
-                name: 'Gridex',
+                name: 'Gridex AB',
                 url: SITE_URL,
               },
             ],
@@ -80,7 +80,6 @@ export default function PublicLayout({
       <div className="min-h-screen flex flex-col">
         <PublicHeader />
         <main className="flex-1">{children}</main>
-        {/* ❌ Footer tas bort här – den renderas i root layout */}
       </div>
     </>
   )

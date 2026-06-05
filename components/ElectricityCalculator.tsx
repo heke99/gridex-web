@@ -61,17 +61,19 @@ export default function ElectricityCalculator({
   const [postalCode, setPostalCode] = useState('')
   const [manualArea, setManualArea] = useState<PriceArea | ''>('')
   const [kwh, setKwh] = useState(2000)
-  const [contractSlug, setContractSlug] = useState('')
+  const [contractSlug, setContractSlug] = useState(contracts[0]?.slug ?? '')
   const [result, setResult] = useState<PriceResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function calculate() {
     if (!contractSlug) {
-      alert('Välj ett avtal för att räkna pris.')
+      setError('Välj ett avtal för att räkna pris.')
       return
     }
 
     setLoading(true)
+    setError(null)
     setResult(null)
 
     try {
@@ -89,13 +91,13 @@ export default function ElectricityCalculator({
       const data = (await res.json()) as PriceResponse | PriceError
 
       if (!res.ok) {
-        alert((data as PriceError).error)
+        setError((data as PriceError).error || 'Kunde inte beräkna priset.')
         return
       }
 
       setResult(data as PriceResponse)
     } catch {
-      alert('Kunde inte hämta pris just nu.')
+      setError('Kunde inte hämta pris just nu.')
     } finally {
       setLoading(false)
     }
@@ -112,7 +114,7 @@ export default function ElectricityCalculator({
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Jämför snabbt • Se tydlig prisbild • Välj rätt avtal
+Föregående månads spotpris • SE1–SE4 • Transparent pris
             </div>
 
             <h2 className="mt-4 text-3xl font-bold text-white md:text-4xl">
@@ -121,12 +123,13 @@ export default function ElectricityCalculator({
 
             <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
               Ange postnummer eller välj elområde manuellt, välj avtal och fyll i
-              uppskattad förbrukning. Du får en tydlig överblick direkt.
+              uppskattad förbrukning. Rörligt pris beräknas med föregående månads
+              snittspot från Gridex prisbas eller elprisetjustnu API.
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-            Tips: börja med ditt senaste månadsestimat i kWh
+Spotpris: föregående månads snitt, inte ett livepris
           </div>
         </div>
 
@@ -217,14 +220,22 @@ export default function ElectricityCalculator({
           </div>
         </div>
 
+        <div aria-live="polite">
+          {error ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
         {result ? (
-          <div className="pt-2">
+          <div className="pt-2" aria-live="polite">
             <PriceResultCard data={result} updatedAt={new Date()} />
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">
             Fyll i uppgifterna ovan och klicka på “Se ditt pris” för att visa
-            resultatet här.
+            föregående månads spotbaserade pris här.
           </div>
         )}
       </div>

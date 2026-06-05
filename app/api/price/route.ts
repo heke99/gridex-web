@@ -189,6 +189,10 @@ export async function POST(req: Request) {
       (l: MoneySpecLine) => l.key === 'monthly'
     )
 
+    const elcertLine = spec.lines.find(
+      (l: MoneySpecLine) => l.key === 'elcert'
+    )
+
     const isSpot = contract.contract_type === 'spot_hourly'
 
     const basis = isSpot
@@ -197,6 +201,7 @@ export async function POST(req: Request) {
           year: spec.diagnostics?.spotBasis?.year ?? new Date().getFullYear(),
           month: spec.diagnostics?.spotBasis?.month ?? new Date().getMonth() + 1,
           spotAvgOre: energyLine?.orePerKwh ?? 0,
+          source: spec.diagnostics?.spotBasis?.source,
         }
       : {
           type: 'admin_fixed_price' as const,
@@ -206,6 +211,7 @@ export async function POST(req: Request) {
     const fees = {
       markupOre: markupLine?.orePerKwh,
       variableFeeOre: variableLine?.orePerKwh ?? 0,
+      elcertOre: elcertLine?.orePerKwh ?? 0,
       monthlyFeeSek: monthlyLine?.sekPerMonth ?? 0,
     }
 
@@ -219,6 +225,8 @@ export async function POST(req: Request) {
       kwh,
       pricePerKwhOre: spec.totalOrePerKwh,
       totalMonthlyCostSek: spec.totalMonthlyCostSek,
+      totalMonthlyCostInclVatSek: spec.totalMonthlyCostInclVatSek,
+      totalYearlyCostSek: spec.totalMonthlyCostSek * 12,
       specification: {
         basis,
         fees,

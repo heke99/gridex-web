@@ -1,4 +1,4 @@
-//components/PriceResultCard.tsx
+// components/PriceResultCard.tsx
 'use client'
 
 import Link from 'next/link'
@@ -12,6 +12,10 @@ type SpotBasis = {
   year: number
   month: number
   spotAvgOre: number
+  source?:
+    | 'gridex_monthly_spot_prices'
+    | 'gridex_spot_monthly_avg'
+    | 'elprisetjustnu_api'
 }
 
 type FixedBasis = {
@@ -38,6 +42,7 @@ type PriceResponse = {
     fees?: {
       markupOre?: number
       variableFeeOre?: number
+      elcertOre?: number
       monthlyFeeSek?: number
     }
   }
@@ -50,7 +55,9 @@ type Props = {
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat('sv-SE').format(value)
+  return new Intl.NumberFormat('sv-SE', {
+    maximumFractionDigits: 0,
+  }).format(value)
 }
 
 function formatOre(value: number) {
@@ -62,13 +69,26 @@ function formatOre(value: number) {
 function contractTypeLabel(type: ContractType) {
   switch (type) {
     case 'spot_hourly':
-      return 'Spot / timpris'
+      return 'Rörligt månadspris'
     case 'portfolio_managed':
       return 'Portföljförvaltat'
     case 'fixed':
       return 'Fastpris'
     default:
       return 'Elavtal'
+  }
+}
+
+function sourceLabel(source: SpotBasis['source']) {
+  switch (source) {
+    case 'elprisetjustnu_api':
+      return 'Hämtat från elprisetjustnu API'
+    case 'gridex_spot_monthly_avg':
+      return 'Hämtat från äldre Gridex-prisbas'
+    case 'gridex_monthly_spot_prices':
+      return 'Hämtat från Gridex prisbas'
+    default:
+      return 'Föregående månads snittspot'
   }
 }
 
@@ -79,6 +99,7 @@ export default function PriceResultCard({
 }: Props) {
   const {
     totalMonthlyCostSek,
+    totalMonthlyCostInclVatSek,
     pricePerKwhOre,
     priceArea,
     kwh,
@@ -90,7 +111,7 @@ export default function PriceResultCard({
     if (!specification?.basis) return 'Prisbas saknas'
 
     if (specification.basis.type === 'previous_month_avg_spot') {
-      return `Spot (snitt ${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
+      return `Föregående månads spotpris (${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
     }
 
     if (
@@ -120,9 +141,14 @@ export default function PriceResultCard({
     return 0
   }, [specification])
 
+  const spotSource =
+    specification?.basis?.type === 'previous_month_avg_spot'
+      ? specification.basis.source
+      : undefined
   const variableFeeOre = specification?.fees?.variableFeeOre ?? 0
   const monthlyFeeSek = specification?.fees?.monthlyFeeSek ?? 0
   const markupOre = specification?.fees?.markupOre
+  const elcertOre = specification?.fees?.elcertOre ?? 0
   const contractHref = contract?.slug
     ? `/teckna?contract=${encodeURIComponent(contract.slug)}`
     : '/teckna'
@@ -148,12 +174,12 @@ export default function PriceResultCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
-            Live
+          <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-gray-300">
+            {sourceLabel(spotSource)}
             {updatedAt ? (
               <span>
-                •{' '}
+                {' '}
+                • beräknat{' '}
                 {updatedAt.toLocaleTimeString('sv-SE', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -177,23 +203,25 @@ export default function PriceResultCard({
 
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="text-sm text-gray-400">Beräknad månadskostnad</div>
+            <div className="text-sm text-gray-400">
+              Beräknad månadskostnad inkl. moms
+            </div>
             <div className="mt-2 text-4xl font-bold tracking-tight text-white">
-              {formatNumber(totalMonthlyCostSek ?? 0)} kr
+              {formatNumber(totalMonthlyCostInclVatSek ?? totalMonthlyCostSek ?? 0)} kr
               <span className="ml-2 text-lg text-gray-400">/ mån</span>
             </div>
             <div className="mt-2 text-sm text-gray-400">
-              {formatOre(pricePerKwhOre ?? 0)} öre/kWh
+              {formatOre(pricePerKwhOre ?? 0)} öre/kWh exkl. moms före månadsavgift
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
             <div className="text-sm font-medium text-white">
-              Vad ingår i priset?
+              Detta ingår i beräkningen
             </div>
             <p className="mt-2 text-sm leading-relaxed text-gray-400">
-              Du ser grunden för priset samt avgifter och eventuella påslag innan
-              du går vidare till teckning.
+              Spot-/baspris, Gridex påslag, rörliga avgifter, elcertifikat,
+              månadsavgift och moms. Elnätsavgift från nätägaren ingår inte.
             </p>
           </div>
         </div>
@@ -201,25 +229,52 @@ export default function PriceResultCard({
         <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm">
           <div className="flex justify-between gap-4">
             <span className="text-gray-300">{basisLabel}</span>
-            <span className="text-gray-100">{formatOre(basisValue)} öre</span>
+            <span className="text-gray-100">{formatOre(basisValue)} öre/kWh</span>
           </div>
 
           {markupOre !== undefined ? (
             <div className="flex justify-between gap-4">
-              <span className="text-gray-300">Påslag</span>
-              <span className="text-gray-100">{formatOre(markupOre)} öre</span>
+              <span className="text-gray-300">Gridex påslag</span>
+              <span className="text-gray-100">{formatOre(markupOre)} öre/kWh</span>
             </div>
           ) : null}
 
           <div className="flex justify-between gap-4">
             <span className="text-gray-300">Rörlig avgift</span>
-            <span className="text-gray-100">{formatOre(variableFeeOre)} öre</span>
+            <span className="text-gray-100">{formatOre(variableFeeOre)} öre/kWh</span>
+          </div>
+
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-300">Elcertifikat</span>
+            <span className="text-gray-100">{formatOre(elcertOre)} öre/kWh</span>
           </div>
 
           <div className="flex justify-between gap-4">
             <span className="text-gray-300">Månadsavgift</span>
-            <span className="text-gray-100">{formatNumber(monthlyFeeSek)} kr</span>
+            <span className="text-gray-100">{formatNumber(monthlyFeeSek)} kr/mån</span>
           </div>
+
+          <div className="border-t border-white/10 pt-3">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Beräknat exkl. moms</span>
+              <span className="text-gray-100">
+                {formatNumber(totalMonthlyCostSek ?? 0)} kr/mån
+              </span>
+            </div>
+            <div className="mt-2 flex justify-between gap-4">
+              <span className="text-gray-300">Beräknat inkl. moms</span>
+              <span className="font-semibold text-white">
+                {formatNumber(totalMonthlyCostInclVatSek ?? totalMonthlyCostSek ?? 0)} kr/mån
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">
+          Rörligt månadspris bygger på föregående månads genomsnittliga spotpris
+          i ditt elområde. Faktiskt pris kan ändras månad för månad. Elnätsavgift,
+          eventuell effektavgift och nätägarens fasta avgifter faktureras normalt
+          separat av nätägaren och ingår inte i denna beräkning.
         </div>
 
         {data.legalText ? (

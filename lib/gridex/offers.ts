@@ -38,6 +38,10 @@ export type OfferCalculation = {
           year: number
           month: number
           spotAvgOre: number
+          source?:
+            | 'gridex_monthly_spot_prices'
+            | 'gridex_spot_monthly_avg'
+            | 'elprisetjustnu_api'
         }
       | {
           type: 'fixed_price'
@@ -75,7 +79,7 @@ function legalTextFor(spec: CustomerSpecResult): string {
     const basis = spec.diagnostics.spotBasis
     const basisLabel = basis ? formatYm(basis.year, basis.month) : 'föregående månad'
 
-    return `Detta är ett rörligt månadspris. Priset du ser är ett exempel baserat på föregående månads genomsnittliga spotpris (${basisLabel}) i ditt elområde. Ditt faktiska pris kan ändras varje månad beroende på marknadspriset. Endast fasta elprisavtal har ett fast kWh-pris. Avtalade påslag och månadsavgifter framgår i specifikationen.`
+    return `Detta är ett rörligt månadspris. Priset du ser är ett exempel baserat på föregående månads genomsnittliga spotpris (${basisLabel}) i ditt elområde. Spotpriset hämtas från Gridex prisbas eller elprisetjustnu API när prisbas saknas. Ditt faktiska pris kan ändras varje månad beroende på marknadspriset. Endast fasta elprisavtal har ett fast kWh-pris. Avtalade påslag och månadsavgifter framgår i specifikationen.`
   }
 
   return 'Detta är ett fastprisavtal. Kunden accepterar ett fast kWh-pris enligt den publicerade prisversionen, plus de månadsavgifter och villkor som framgår i specifikationen.'
@@ -146,6 +150,7 @@ export async function calculateCustomerOffer(params: {
         year: spotBasis?.year ?? new Date().getFullYear(),
         month: spotBasis?.month ?? new Date().getMonth() + 1,
         spotAvgOre: spotBasis?.avgSpotOre ?? safeNumber(energyLine?.orePerKwh),
+        source: spotBasis?.source,
       }
     : {
         type: 'fixed_price' as const,
@@ -179,7 +184,7 @@ export async function calculateCustomerOffer(params: {
     },
     legalText,
     customerNotice: isVariable
-      ? 'Rörligt månadspris - ändras månadsvis och baseras på föregående månads snittpris.'
+      ? 'Rörligt månadspris – baseras på föregående månads genomsnittliga spotpris för ditt elområde.'
       : 'Fast elpris - kWh-priset ändras inte under avtalad fastprisperiod.',
     snapshot: {},
   }
