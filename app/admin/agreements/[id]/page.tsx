@@ -24,14 +24,15 @@ function acceptanceTypeLabel(item: {
 export default async function AgreementDetail({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
 
   const { data: agreement, error: agreementError } = await supabaseService
     .from('contract_agreements')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single<ContractAgreement>()
 
   if (agreementError) {
@@ -41,7 +42,7 @@ export default async function AgreementDetail({
   const { data: legalData, error: legalError } = await supabaseService
     .from('legal_acceptances')
     .select('*')
-    .eq('agreement_id', params.id)
+    .eq('agreement_id', id)
     .order('accepted_at', { ascending: false })
 
   if (legalError) {
@@ -106,7 +107,7 @@ export default async function AgreementDetail({
             <form
               action={async () => {
                 'use server'
-                await finalizeAgreement(params.id)
+                await finalizeAgreement(id)
               }}
             >
               <button
@@ -118,7 +119,7 @@ export default async function AgreementDetail({
             </form>
 
             <a
-              href={`/api/agreements/${params.id}/pdf`}
+              href={`/api/agreements/${id}/pdf`}
               className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm hover:bg-white/10"
             >
               Ladda ner PDF

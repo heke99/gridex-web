@@ -23,13 +23,14 @@ function acceptanceTypeLabel(item: {
 export default async function AdminCustomerDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   await requireAdminPageAccess({
     anyOf: ['agreements.read', 'agreements.write', 'admin.access'],
   })
 
-  const detail = await getCustomerAdminDetail(params.id)
+  const detail = await getCustomerAdminDetail(id)
 
   if (!detail.card) {
     notFound()

@@ -7,15 +7,16 @@ export const dynamic = 'force-dynamic'
 export default async function EmailSign({
   params,
 }: {
-  params: { token: string }
+  params: Promise<{ token: string }>
 }) {
+  const { token } = await params
   const { data, error } = await supabaseService
     .from('contract_agreements')
     .update({
       email_signed_at: new Date().toISOString(),
       status: 'email_signed',
     })
-    .eq('email_sign_token', params.token)
+    .eq('email_sign_token', token)
     .is('email_signed_at', null)
     .select('*')
     .maybeSingle<ContractAgreement>()

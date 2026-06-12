@@ -7,13 +7,14 @@ export const dynamic = 'force-dynamic'
 export default async function AdminCustomersPage({
   searchParams,
 }: {
-  searchParams?: { q?: string }
+  searchParams?: Promise<{ q?: string }>
 }) {
   await requireAdminPageAccess({
     anyOf: ['agreements.read', 'agreements.write', 'admin.access'],
   })
 
-  const q = searchParams?.q?.trim() ?? ''
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const q = resolvedSearchParams.q?.trim() ?? ''
   const overview = await getCustomerAdminOverview(q)
 
   return (

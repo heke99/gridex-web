@@ -1,43 +1,41 @@
-// app/(public)/teckna/page.tsx
 import type { Metadata } from 'next'
-import { createHash, randomBytes } from 'crypto'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import type { ReactNode } from 'react'
 import { headers } from 'next/headers'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import ElectricityCalculator from '@/components/ElectricityCalculator'
-import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
-import { supabaseService } from '@/lib/supabase/service'
+import { redirect } from 'next/navigation'
+import ElectricityCalculator, { type ContractOption } from '@/components/ElectricityCalculator'
 import {
-  createSignupOrder,
-  hashPersonalNumber,
-  maskPersonalNumber,
-} from '@/lib/customerSignup/service'
+  createApplicationIdempotencyKey,
+  createExternalApplicationId,
+  fetchOpsPublicContracts,
+  getOpsClientStatus,
+  hashIp,
+  isOpsError,
+  submitOpsCustomerApplication,
+  type OpsPublicContract,
+} from '@/lib/ops/client'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
   description:
-    'Räkna ditt elpris och teckna elavtal direkt. Tydliga villkor, full specifikation och smidig signering.',
+    'Teckna elavtal hos Gridex. Hemsidan samlar in uppgifter och Gridex OPS skapar kund, avtal, kundnummer, avtalsnummer, snapshot och nästa steg.',
   alternates: { canonical: 'https://gridex.se/teckna' },
 }
 
-type ContractOption = {
-  name: string
-  slug: string
+type PageParams = {
+  planVersion?: string
+  contract?: string
+  error?: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
 }
 
-type LiveDoc = {
-  slug: string
-  title: string
-  version: string
+function normalizeText(value: FormDataEntryValue | null): string {
+  return String(value || '').trim()
 }
 
-type RateLimitRow = {
-  allowed?: boolean
-}
-
-type AgreementRow = {
-  id: string
+function normalizeEmail(value: FormDataEntryValue | null): string {
+  return String(value || '').trim().toLowerCase()
 }
 
 function getClientIpFromHeaders(h: Headers): string | null {
@@ -53,536 +51,241 @@ function getClientIpFromHeaders(h: Headers): string | null {
   return null
 }
 
-function sha256(input: string): string {
-  return createHash('sha256').update(input).digest('hex')
-}
-
-function normalizeText(value: FormDataEntryValue | null): string {
-  return String(value || '').trim()
-}
-
-function normalizeEmail(value: FormDataEntryValue | null): string {
-  return String(value || '').trim().toLowerCase()
-}
-
-function isDuplicateError(message: string): boolean {
-  const msg = message.toLowerCase()
-  return (
-    msg.includes('duplicate') ||
-    msg.includes('unique') ||
-    msg.includes('idempotency')
-  )
-}
-
-async function fetchLiveLegalDocs(): Promise<LiveDoc[]> {
-  const supabase = await createSupabaseServerClient()
-
-  const { data, error } = await supabase
-    .from('legal_documents_live')
-    .select('slug,title,version')
-
-  if (error || !data) {
-    return [
-      { slug: 'villkor', title: 'Allmänna villkor', version: 'unknown' },
-      { slug: 'integritet', title: 'Integritetspolicy', version: 'unknown' },
-      { slug: 'cookies', title: 'Cookiepolicy', version: 'unknown' },
-    ]
-  }
-
-  const wanted = new Set(['villkor', 'integritet', 'cookies'])
-  const picked = (data as LiveDoc[]).filter((d) => wanted.has(d.slug))
-  const bySlug = new Map(picked.map((d) => [d.slug, d]))
-
-  const ensure = (slug: string, title: string): LiveDoc =>
-    bySlug.get(slug) ?? { slug, title, version: 'unknown' }
-
-  return [
-    ensure('villkor', 'Allmänna villkor'),
-    ensure('integritet', 'Integritetspolicy'),
-    ensure('cookies', 'Cookiepolicy'),
-  ]
-}
-
-async function ensureUserProfile(params: {
-  userId: string
-  email: string
-  fullName?: string | null
-  phone?: string | null
-  personalNumber?: string | null
-}) {
-  const { userId, email, fullName, phone, personalNumber } = params
-
-  const { error } = await supabaseService
-    .from('user_profiles')
-    .upsert(
-      {
-        id: userId,
-        user_id: userId,
-        email,
-        full_name: fullName || null,
-        phone: phone || null,
-        personal_number: personalNumber || null,
-      },
-      { onConflict: 'id' }
-    )
-
-  if (error) {
-    throw new Error(`Failed to sync user profile: ${error.message}`)
-  }
-}
-
-async function findUserByEmail(email: string) {
-  const { data, error } = await supabaseService.auth.admin.listUsers()
-
-  if (error) {
-    throw new Error(`Failed to list users: ${error.message}`)
-  }
-
-  return data.users.find((u) => u.email?.toLowerCase() === email) ?? null
-}
-
-async function ensurePortalUser(params: {
-  email: string
-  firstName: string
-  lastName: string
-  phone: string
-  personalNumber: string
-}) {
-  const { email, firstName, lastName, phone, personalNumber } = params
-  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
-
-  const existingUser = await findUserByEmail(email)
-
-  if (existingUser?.id) {
-    await ensureUserProfile({
-      userId: existingUser.id,
-      email,
-      fullName,
-      phone,
-      personalNumber,
-    })
-
-    return {
-      userId: existingUser.id,
-      created: false,
-    }
-  }
-
-  const redirectTo = `${
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gridex.se'
-  }/login?next=/dashboard`
-
-  const invited = await supabaseService.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-    data: {
-      source: 'contract_signup',
-      first_name: firstName,
-      last_name: lastName,
-    },
-  })
-
-  if (invited.error || !invited.data.user?.id) {
-    throw new Error(invited.error?.message || 'Failed to invite user')
-  }
-
-  await ensureUserProfile({
-    userId: invited.data.user.id,
-    email,
-    fullName,
-    phone,
-    personalNumber,
-  })
-
+function toContractOption(item: OpsPublicContract): ContractOption {
   return {
-    userId: invited.data.user.id,
-    created: true,
+    name: item.name,
+    value: item.price_plan_version_id,
+    productCode: item.product_code,
+    pricePlanId: item.price_plan_id,
+    pricePlanVersionId: item.price_plan_version_id,
+    type: item.type,
+    monthlyFeeSek: item.monthly_fee_sek,
+    invoiceFeeSek: item.invoice_fee_sek,
+    markupOrePerKwh: item.markup_ore_per_kwh,
+    variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
+    fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
   }
 }
 
-async function insertLegalAcceptances(params: {
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
-  userId: string
-  email: string
-  agreementId: string
-  ip: string | null
-  userAgent: string | null
-  villkorVersion: string
-  integritetVersion: string
-  cookiesVersion: string
-}) {
-  const {
-    supabase,
-    userId,
-    email,
-    agreementId,
-    ip,
-    userAgent,
-    villkorVersion,
-    integritetVersion,
-    cookiesVersion,
-  } = params
+function selectedContractFromParams(
+  contracts: OpsPublicContract[],
+  params: PageParams
+): OpsPublicContract | null {
+  const wanted = params.planVersion ?? params.contract ?? ''
+  if (wanted) {
+    const match = contracts.find(
+      (contract) =>
+        contract.price_plan_version_id === wanted ||
+        contract.price_plan_id === wanted ||
+        contract.product_code === wanted
+    )
+    if (match) return match
+  }
 
-  const payload = [
-    {
-      user_id: userId,
-      email,
-      agreement_id: agreementId,
-      document_slug: 'villkor',
-      document_version: villkorVersion,
-      ip,
-      user_agent: userAgent,
-      metadata: { source: 'teckna', accepted: true },
-    },
-    {
-      user_id: userId,
-      email,
-      agreement_id: agreementId,
-      document_slug: 'integritet',
-      document_version: integritetVersion,
-      ip,
-      user_agent: userAgent,
-      metadata: { source: 'teckna', accepted: true },
-    },
-    {
-      user_id: userId,
-      email,
-      agreement_id: agreementId,
-      document_slug: 'cookies',
-      document_version: cookiesVersion,
-      ip,
-      user_agent: userAgent,
-      metadata: { source: 'teckna', accepted: true },
-    },
-  ]
+  return contracts[0] ?? null
+}
 
-  const { error } = await supabase.from('legal_acceptances').insert(payload)
-
-  if (error && !isDuplicateError(error.message)) {
-    throw new Error(error.message)
+function errorText(code?: string) {
+  switch (code) {
+    case 'validation':
+      return 'Kontrollera obligatoriska uppgifter och försök igen.'
+    case 'consent':
+      return 'Du behöver godkänna villkor, integritet, fullmakt, ångerrätt och leverantörsbyte för att skicka ansökan.'
+    case 'honeypot':
+      return 'Ansökan kunde inte skickas. Kontrollera uppgifterna och försök igen.'
+    case 'not_configured':
+      return 'Teckning är inte aktiverad just nu eftersom OPS-kopplingen saknar konfiguration.'
+    case 'ops_unavailable':
+      return 'Vi kunde inte skicka din ansökan just nu. Försök igen om en stund.'
+    case 'live_disabled':
+      return 'Teckning är inte aktiverad för produktion ännu.'
+    case 'offer':
+      return 'Valt avtal kunde inte verifieras mot OPS. Välj ett publicerat avtal och försök igen.'
+    default:
+      return null
   }
 }
 
-async function handleSigningFlow(params: {
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
-  agreementId: string
-  email: string
-  signMethod: string
-}) {
-  const { supabase, agreementId, email, signMethod } = params
-
-  if (signMethod === 'cis') {
-    redirect('/sign/pending')
-  }
-
-  if (signMethod === 'bankid') {
-    const { error } = await supabase
-      .from('contract_agreements')
-      .update({ status: 'bankid_started' })
-      .eq('id', agreementId)
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    redirect(`/sign/bankid/${agreementId}`)
-  }
-
-  const token = randomBytes(32).toString('hex')
-
-  const { error: updateError } = await supabase
-    .from('contract_agreements')
-    .update({
-      email_sign_token: token,
-      status: 'email_sent',
-    })
-    .eq('id', agreementId)
-
-  if (updateError) {
-    throw new Error(updateError.message)
-  }
-
-  const { error: emailError } = await supabase.from('system_emails').insert({
-    to_email: email,
-    subject: 'Signera ditt elavtal',
-    body: `Klicka för att signera: https://gridex.se/sign/email/${token}`,
-  })
-
-  if (emailError) {
-    throw new Error(emailError.message)
-  }
-
-  redirect('/sign/check-email')
+function missingFieldsToQuery(fields: string[]) {
+  return fields.slice(0, 8).join(',')
 }
 
 export default async function TecknaPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ contract?: string }>
+  searchParams?: Promise<PageParams>
 }) {
   const params = (await searchParams) ?? {}
-  const supabase = await createSupabaseServerClient()
-  const nowIso = new Date().toISOString()
+  const status = getOpsClientStatus()
+  let contracts: OpsPublicContract[] = []
+  let loadError: string | null = null
 
-  const visible = await fetchLivePublishedContracts(supabase, nowIso)
+  if (status.configured) {
+    try {
+      contracts = await fetchOpsPublicContracts()
+    } catch (error) {
+      loadError =
+        error instanceof Error
+          ? error.message
+          : 'Kunde inte hämta publicerade avtal från OPS.'
+    }
+  } else {
+    loadError = 'OPS-kopplingen saknar serverkonfiguration.'
+  }
 
-  const options: ContractOption[] = visible
-    .map((c) => ({
-      name: c.contract.name,
-      slug: c.contract.slug,
-    }))
-    .filter(
-      (o): o is ContractOption =>
-        typeof o.slug === 'string' && o.slug.length > 0
-    )
+  const options = contracts.map(toContractOption)
+  const selectedContract = selectedContractFromParams(contracts, params)
+  const selectedValue = selectedContract?.price_plan_version_id ?? ''
+  const pageError = errorText(params.error)
+  const canSubmit =
+    status.configured && status.liveSignupEnabled && !loadError && contracts.length > 0
 
-  const selectedContract = options.some((option) => option.slug === params.contract)
-    ? params.contract ?? ''
-    : options[0]?.slug ?? ''
-
-  const legalDocs = await fetchLiveLegalDocs()
-  const villkorDoc = legalDocs.find((d) => d.slug === 'villkor')
-  const integritetDoc = legalDocs.find((d) => d.slug === 'integritet')
-  const cookiesDoc = legalDocs.find((d) => d.slug === 'cookies')
-
-  async function signContractAction(formData: FormData) {
+  async function submitApplicationAction(formData: FormData) {
     'use server'
 
-    const supabase = await createSupabaseServerClient()
-    const h = await headers()
+    const currentStatus = getOpsClientStatus()
+    if (!currentStatus.configured) redirect('/teckna?error=not_configured')
+    if (!currentStatus.liveSignupEnabled) redirect('/teckna?error=live_disabled')
 
+    const h = await headers()
     const ip = getClientIpFromHeaders(h)
     const userAgent = h.get('user-agent')
 
-    const contractSlug = normalizeText(formData.get('contract_slug'))
+    const honeypot = normalizeText(formData.get('company_website'))
+    if (honeypot) redirect('/teckna?error=honeypot')
+
+    const selectedOffer = normalizeText(formData.get('selected_offer'))
+    const liveContracts = await fetchOpsPublicContracts().catch(() => [])
+    const offer = liveContracts.find(
+      (contract) => contract.price_plan_version_id === selectedOffer
+    )
+
+    if (!offer) redirect('/teckna?error=offer')
+
+    const customerTypeRaw = normalizeText(formData.get('customer_type'))
+    const customerType = customerTypeRaw === 'company' ? 'company' : 'private'
     const firstName = normalizeText(formData.get('first_name'))
     const lastName = normalizeText(formData.get('last_name'))
+    const companyName = normalizeText(formData.get('company_name'))
     const personalNumber = normalizeText(formData.get('personal_number'))
+    const organizationNumber = normalizeText(formData.get('organization_number'))
+    const email = normalizeEmail(formData.get('email'))
+    const phone = normalizeText(formData.get('phone'))
     const address = normalizeText(formData.get('address'))
     const postalCode = normalizeText(formData.get('postal_code'))
     const city = normalizeText(formData.get('city'))
     const apartment = normalizeText(formData.get('apartment'))
     const facilityId = normalizeText(formData.get('facility_id'))
-    const moveInDate = normalizeText(formData.get('move_in_date'))
-    const email = normalizeEmail(formData.get('email'))
-    const phone = normalizeText(formData.get('phone'))
-    const rawSignMethod = normalizeText(formData.get('sign_method'))
-    const signMethod = rawSignMethod === 'email' ? 'email' : 'cis'
-    const monthlyConsumptionKwh = Number(formData.get('monthly_consumption_kwh') ?? 2000)
+    const meteringPointId = normalizeText(formData.get('metering_point_id'))
+    const requestedStartModeRaw = normalizeText(formData.get('requested_start_mode'))
+    const requestedStartMode =
+      requestedStartModeRaw === 'specific_date' ? 'specific_date' : 'asap'
+    const requestedStartDate = normalizeText(formData.get('requested_start_date'))
 
-    const acceptVillkor = String(formData.get('accept_villkor') || '') === 'on'
-    const acceptIntegritet =
-      String(formData.get('accept_integritet') || '') === 'on'
-    const acceptCookies = String(formData.get('accept_cookies') || '') === 'on'
+    const acceptTerms = String(formData.get('accept_terms') || '') === 'on'
+    const acceptPrivacy = String(formData.get('accept_privacy') || '') === 'on'
+    const acceptPowerOfAttorney =
+      String(formData.get('accept_power_of_attorney') || '') === 'on'
+    const acceptCancellation =
+      String(formData.get('accept_cancellation_right') || '') === 'on'
+    const acceptSwitch = String(formData.get('accept_supplier_switch') || '') === 'on'
+
+    const hasIdentity =
+      customerType === 'company'
+        ? Boolean(companyName && organizationNumber)
+        : Boolean(firstName && lastName && personalNumber)
+
+    if (!email || !phone || !address || !postalCode || !city || !hasIdentity) {
+      redirect('/teckna?error=validation')
+    }
 
     if (
-      !email ||
-      !facilityId ||
-      !address ||
-      !postalCode ||
-      !city ||
-      !firstName ||
-      !lastName ||
-      !personalNumber ||
-      !contractSlug ||
-      !phone
+      !acceptTerms ||
+      !acceptPrivacy ||
+      !acceptPowerOfAttorney ||
+      !acceptCancellation ||
+      !acceptSwitch
     ) {
-      throw new Error('Missing required fields')
+      redirect('/teckna?error=consent')
     }
 
-    if (!acceptVillkor || !acceptIntegritet || !acceptCookies) {
-      throw new Error(
-        'Du måste acceptera villkor, integritetspolicy och cookiepolicy.'
-      )
-    }
-
-    const windowSeconds = 600
-    const maxRequests = 5
-    const ipKey = ip ? `ip:${ip}` : 'ip:unknown'
-    const emailKey = `email:${email}`
-
-    const ipRl = await supabase.rpc('gridex_rate_limit_check_and_inc', {
-      p_action: 'sign_contract',
-      p_key: ipKey,
-      p_window_seconds: windowSeconds,
-      p_max_requests: maxRequests,
-    })
-
-    if (ipRl.error) {
-      throw new Error(ipRl.error.message)
-    }
-
-    const ipRlRows = Array.isArray(ipRl.data)
-      ? (ipRl.data as RateLimitRow[])
-      : []
-
-    if (ipRlRows[0]?.allowed === false) {
-      throw new Error('För många försök. Vänta en stund och prova igen.')
-    }
-
-    const emailRl = await supabase.rpc('gridex_rate_limit_check_and_inc', {
-      p_action: 'sign_contract',
-      p_key: emailKey,
-      p_window_seconds: windowSeconds,
-      p_max_requests: maxRequests,
-    })
-
-    if (emailRl.error) {
-      throw new Error(emailRl.error.message)
-    }
-
-    const emailRlRows = Array.isArray(emailRl.data)
-      ? (emailRl.data as RateLimitRow[])
-      : []
-
-    if (emailRlRows[0]?.allowed === false) {
-      throw new Error(
-        'För många försök för denna e-post. Vänta en stund och prova igen.'
-      )
-    }
-
-    const personalNumberMasked = maskPersonalNumber(personalNumber)
-    const personalNumberHash = hashPersonalNumber(personalNumber)
-
-    const idempotencyKey = sha256(
-      [
-        'sign_contract_v1',
-        email,
-        personalNumber,
-        facilityId,
-        contractSlug,
-        postalCode,
-        moveInDate || 'no_move_in_date',
-      ].join('|')
-    )
-
-    const { userId, created } = await ensurePortalUser({
+    const idempotencyKey = createApplicationIdempotencyKey([
+      'gridex_website_application_v1',
       email,
-      firstName,
-      lastName,
-      phone,
-      personalNumber: personalNumberMasked,
-    })
-
-    if (created) {
-      const { error: systemEmailError } = await supabase.from('system_emails').insert({
-        to_email: email,
-        subject: 'Aktivera din kundportal hos Gridex',
-        body: 'Vi har skickat en aktiveringslänk till dig. Bekräfta e-postadressen för att slutföra ditt kundkonto och logga in på Mina sidor.',
-      })
-
-      if (systemEmailError) {
-        throw new Error(systemEmailError.message)
-      }
-    }
-
-    const agreementInsert = {
-      user_id: userId,
-      contract_slug: contractSlug,
-      first_name: firstName,
-      last_name: lastName,
-      personal_number: personalNumberMasked,
-      personal_number_hash: personalNumberHash,
-      personal_number_masked: personalNumberMasked,
-      monthly_consumption_kwh: monthlyConsumptionKwh,
-      address,
-      postal_code: postalCode,
-      city,
-      apartment: apartment || null,
-      facility_id: facilityId,
-      move_in_date: moveInDate || null,
-      phone,
-      email,
-      status: 'pending_signature',
-      sign_method: signMethod,
-      idempotency_key: idempotencyKey,
-    }
-
-    const { data: agreement, error: agreementError } = await supabase
-      .from('contract_agreements')
-      .insert(agreementInsert)
-      .select('id')
-      .single<AgreementRow>()
-
-    let agreementId: string
-
-    if (agreementError) {
-      if (!isDuplicateError(agreementError.message)) {
-        throw new Error(agreementError.message)
-      }
-
-      const { data: existingAgreement, error: fetchErr } = await supabase
-        .from('contract_agreements')
-        .select('id')
-        .eq('idempotency_key', idempotencyKey)
-        .maybeSingle<AgreementRow>()
-
-      if (fetchErr) {
-        throw new Error(fetchErr.message)
-      }
-
-      if (!existingAgreement?.id) {
-        throw new Error(
-          'Idempotency triggered but existing agreement not found.'
-        )
-      }
-
-      agreementId = existingAgreement.id
-    } else {
-      if (!agreement?.id) {
-        throw new Error('Agreement created without id')
-      }
-
-      agreementId = agreement.id
-    }
-
-    await insertLegalAcceptances({
-      supabase,
-      userId,
-      email,
-      agreementId,
-      ip,
-      userAgent,
-      villkorVersion: villkorDoc?.version ?? 'unknown',
-      integritetVersion: integritetDoc?.version ?? 'unknown',
-      cookiesVersion: cookiesDoc?.version ?? 'unknown',
-    })
-
-    await createSignupOrder({
-      userId,
-      agreementId,
-      email,
-      phone,
-      firstName,
-      lastName,
-      personalNumber,
+      customerType,
+      customerType === 'company' ? organizationNumber : personalNumber,
       address,
       postalCode,
-      city,
-      apartment: apartment || null,
-      facilityId,
-      moveInDate: moveInDate || null,
-      contractSlug,
-      monthlyConsumptionKwh,
-      legalSnapshot: {
-        villkorVersion: villkorDoc?.version ?? 'unknown',
-        integritetVersion: integritetDoc?.version ?? 'unknown',
-        cookiesVersion: cookiesDoc?.version ?? 'unknown',
-        ip,
-        userAgent,
-      },
-      idempotencyKey,
-      signingProvider:
-        signMethod === 'email' ? 'email' : 'cis',
-    })
+      offer.price_plan_version_id,
+      requestedStartMode,
+      requestedStartDate || 'asap',
+    ])
 
-    await handleSigningFlow({
-      supabase,
-      agreementId,
-      email,
-      signMethod,
-    })
+    let successRedirect = ''
 
-    revalidatePath('/teckna')
+    try {
+      const result = await submitOpsCustomerApplication({
+        customer_type: customerType,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        company_name: companyName || null,
+        personal_number: personalNumber || null,
+        organization_number: organizationNumber || null,
+        email,
+        phone,
+        address,
+        postal_code: postalCode,
+        city,
+        apartment: apartment || null,
+        facility_id: facilityId || null,
+        metering_point_id: meteringPointId || null,
+        requested_start_mode: requestedStartMode,
+        requested_start_date:
+          requestedStartMode === 'specific_date' ? requestedStartDate || null : null,
+        price_plan_id: offer.price_plan_id,
+        price_plan_version_id: offer.price_plan_version_id,
+        product_code: offer.product_code,
+        source: 'gridex_website',
+        idempotency_key: idempotencyKey,
+        external_application_id: createExternalApplicationId(),
+        utm_source: normalizeText(formData.get('utm_source')) || null,
+        utm_medium: normalizeText(formData.get('utm_medium')) || null,
+        utm_campaign: normalizeText(formData.get('utm_campaign')) || null,
+        user_agent: userAgent,
+        ip_hash: hashIp(ip),
+        consents: {
+          terms: true,
+          privacy: true,
+          power_of_attorney: true,
+          cancellation_right: true,
+          supplier_switch: true,
+          terms_version: offer.terms_version ?? null,
+          privacy_policy_version: offer.privacy_policy_version ?? null,
+          cancellation_right_version: offer.cancellation_right_version ?? null,
+          power_of_attorney_version: offer.power_of_attorney_version ?? null,
+        },
+      })
+
+      const qs = new URLSearchParams()
+      qs.set('status', result.status)
+      if (result.customer_number) qs.set('customerNumber', result.customer_number)
+      if (result.contract_number) qs.set('contractNumber', result.contract_number)
+      if (result.application_number) qs.set('applicationNumber', result.application_number)
+      if (result.next_step) qs.set('nextStep', result.next_step)
+      if (result.missing_fields.length > 0) {
+        qs.set('missing', missingFieldsToQuery(result.missing_fields))
+      }
+
+      successRedirect = `/teckna/tack?${qs.toString()}`
+    } catch (error) {
+      if (isOpsError(error)) {
+        if (error.status === 503) redirect('/teckna?error=live_disabled')
+        redirect('/teckna?error=ops_unavailable')
+      }
+      redirect('/teckna?error=ops_unavailable')
+    }
+
+    redirect(successRedirect)
   }
 
   return (
@@ -593,7 +296,7 @@ export default async function TecknaPage({
         <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Räkna först • Teckna tryggt • E-postsignering
+              Räkna först • Teckna tryggt • OPS skapar avtalet
             </div>
 
             <div>
@@ -603,37 +306,17 @@ export default async function TecknaPage({
                 på ett tydligare sätt
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-                Börja med att räkna på ditt pris. När du känner dig trygg med
-                valet fyller du i dina uppgifter och går vidare till signering.
+                Hemsidan samlar in dina uppgifter och skickar ansökan säkert till
+                Gridex OPS. OPS skapar kundnummer, avtal, avtalsnummer, snapshot
+                och nästa steg.
               </p>
             </div>
           </div>
 
           <div className="grid gap-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">
-                1. Räkna på ditt pris
-              </div>
-              <p className="mt-1 text-sm text-gray-400">
-                Ange elområde, förbrukning och välj avtal.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">
-                2. Fyll i dina uppgifter
-              </div>
-              <p className="mt-1 text-sm text-gray-400">
-                Vi behöver information för att kunna starta ditt avtal korrekt.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">
-                3. Signera tryggt
-              </div>
-              <p className="mt-1 text-sm text-gray-400">
-                Signera via e-post eller signeringsmail när avtalet är klart.
-              </p>
-            </div>
+            <StepCard title="1. Välj avtal" text="Endast publicerade OPS-avtal visas." />
+            <StepCard title="2. Fyll i uppgifter" text="Anläggnings-ID och mätpunkt kan lämnas tomma om du inte har dem." />
+            <StepCard title="3. OPS tar över" text="Gridex OPS verifierar anläggning, fullmakt och leverantörsbyte." />
           </div>
         </div>
       </section>
@@ -643,149 +326,166 @@ export default async function TecknaPage({
       <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
         <div className="mb-8 max-w-2xl">
           <h2 className="text-2xl font-bold text-white md:text-3xl">
-            Fyll i uppgifter för att teckna avtal
+            Fyll i uppgifter för att ansöka
           </h2>
           <p className="mt-3 text-gray-400">
-            Kontrollera att uppgifterna stämmer. Det gör processen snabbare och
-            minskar risken för fel i signering och uppstart.
+            När ansökan skickas skapar OPS kund, avtal, status och loggar rätt
+            samtycken. Hemsidan skapar inga lokala kundnummer eller avtalsnummer.
           </p>
         </div>
 
-        <form action={signContractAction} className="space-y-8">
+        {pageError ? (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+            {pageError}
+          </div>
+        ) : null}
+
+        {loadError ? (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            {loadError} Teckning är blockerad tills publicerade avtal kan hämtas från OPS.
+          </div>
+        ) : null}
+
+        {!status.liveSignupEnabled ? (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            Live-teckning är avstängd. Sätt GRIDEX_ENABLE_LIVE_SIGNUP=true när OPS-token,
+            tenant och endpoint är verifierade.
+          </div>
+        ) : null}
+
+        <form action={submitApplicationAction} className="space-y-8">
+          <input type="hidden" name="utm_source" value={params.utm_source ?? ''} />
+          <input type="hidden" name="utm_medium" value={params.utm_medium ?? ''} />
+          <input type="hidden" name="utm_campaign" value={params.utm_campaign ?? ''} />
+          <div className="hidden" aria-hidden="true">
+            <label>
+              Företagswebbplats
+              <input name="company_website" tabIndex={-1} autoComplete="off" />
+            </label>
+          </div>
+
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label="Förnamn" name="first_name" required />
-            <Field label="Efternamn" name="last_name" required />
-            <Field label="Personnummer" name="personal_number" required />
-            <Field
-              label="Förbrukning (kWh / månad)"
-              name="monthly_consumption_kwh"
-              type="number"
-              required
-            />
-            <Field
-              label="Anläggnings-ID"
-              name="facility_id"
-              required
-              help="Du hittar anläggnings-ID på din elnätsfaktura. Det börjar ofta med 735999."
-            />
-            <Field label="Adress" name="address" required />
-            <Field label="Postnummer" name="postal_code" required />
-            <Field label="Ort" name="city" required />
-            <Field label="Lägenhet" name="apartment" />
-            <Field label="Inflyttningsdatum" name="move_in_date" type="date" />
-            <Field label="E-post" name="email" type="email" required />
-            <Field label="Telefon" name="phone" required />
+            <div>
+              <label className="text-sm font-medium text-white/80">Kundtyp</label>
+              <select
+                name="customer_type"
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+              >
+                <option value="private">Privatkund</option>
+                <option value="company">Företag</option>
+              </select>
+            </div>
 
             <div>
               <label className="text-sm font-medium text-white/80">Avtal</label>
               <select
-                name="contract_slug"
+                name="selected_offer"
                 required
-                defaultValue={selectedContract}
-                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+                defaultValue={selectedValue}
+                disabled={contracts.length === 0}
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40 disabled:opacity-60"
               >
-                {options.map((o) => (
-                  <option key={o.slug} value={o.slug}>
-                    {o.name}
+                {contracts.map((contract) => (
+                  <option
+                    key={contract.price_plan_version_id}
+                    value={contract.price_plan_version_id}
+                  >
+                    {contract.name}
                   </option>
                 ))}
               </select>
+              <p className="mt-2 text-xs text-white/45">
+                Avtalets price_plan_id och price_plan_version_id skickas till OPS.
+              </p>
             </div>
+
+            <Field label="Förnamn" name="first_name" />
+            <Field label="Efternamn" name="last_name" />
+            <Field label="Personnummer" name="personal_number" />
+            <Field label="Företagsnamn" name="company_name" />
+            <Field label="Organisationsnummer" name="organization_number" />
+            <Field label="E-post" name="email" type="email" required />
+            <Field label="Telefon" name="phone" required />
+            <Field label="Adress" name="address" required />
+            <Field label="Postnummer" name="postal_code" required />
+            <Field label="Ort" name="city" required />
+            <Field label="Lägenhet" name="apartment" />
+            <Field
+              label="Anläggnings-ID"
+              name="facility_id"
+              help="Valfritt. Om du saknar uppgiften begär OPS den från nätägaren med fullmakt där det är möjligt."
+            />
+            <Field
+              label="Mätpunkts-ID"
+              name="metering_point_id"
+              help="Valfritt. Leverantörsbyte blockeras tills anläggningsuppgifter är verifierade i OPS."
+            />
 
             <div>
-              <label className="text-sm font-medium text-white/80">
-                Signeringsmetod
-              </label>
+              <label className="text-sm font-medium text-white/80">Start</label>
               <select
-                name="sign_method"
+                name="requested_start_mode"
                 className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
               >
-                <option value="cis">Signeringsmail via Gridex</option>
-                <option value="email">Lokal e-postsignering</option>
+                <option value="asap">Så snart som möjligt</option>
+                <option value="specific_date">Jag vill välja datum</option>
               </select>
             </div>
+            <Field label="Önskat startdatum" name="requested_start_date" type="date" />
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-6 space-y-4">
+          <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-6">
             <div className="text-sm font-medium text-white">
-              Godkänn villkor för att gå vidare
+              Godkänn villkor för att skicka ansökan
             </div>
 
-            <label className="flex items-start gap-3 text-sm text-gray-300">
-              <input type="checkbox" name="accept_villkor" required className="mt-1" />
-              <span>
-                Jag accepterar{' '}
-                <a
-                  className="text-cyan-300 underline hover:text-cyan-200"
-                  href="/villkor"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  allmänna villkor
-                </a>{' '}
-                {villkorDoc?.version ? (
-                  <span className="text-xs text-gray-500">({villkorDoc.version})</span>
-                ) : null}
-              </span>
-            </label>
-
-            <label className="flex items-start gap-3 text-sm text-gray-300">
-              <input type="checkbox" name="accept_integritet" required className="mt-1" />
-              <span>
-                Jag accepterar{' '}
-                <a
-                  className="text-cyan-300 underline hover:text-cyan-200"
-                  href="/integritet"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  integritetspolicy
-                </a>{' '}
-                {integritetDoc?.version ? (
-                  <span className="text-xs text-gray-500">({integritetDoc.version})</span>
-                ) : null}
-              </span>
-            </label>
-
-            <label className="flex items-start gap-3 text-sm text-gray-300">
-              <input type="checkbox" name="accept_cookies" required className="mt-1" />
-              <span>
-                Jag har läst{' '}
-                <a
-                  className="text-cyan-300 underline hover:text-cyan-200"
-                  href="/cookies"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  cookiepolicy
-                </a>{' '}
-                {cookiesDoc?.version ? (
-                  <span className="text-xs text-gray-500">({cookiesDoc.version})</span>
-                ) : null}
-              </span>
-            </label>
+            <Checkbox name="accept_terms">
+              Jag godkänner Gridex avtalsvillkor och den villkorsversion som OPS kopplar till vald prisversion.
+            </Checkbox>
+            <Checkbox name="accept_privacy">
+              Jag godkänner behandling av personuppgifter enligt integritetspolicyn.
+            </Checkbox>
+            <Checkbox name="accept_power_of_attorney">
+              Jag ger Gridex fullmakt att begära och hantera anläggningsuppgifter från nätägare.
+            </Checkbox>
+            <Checkbox name="accept_cancellation_right">
+              Jag har tagit del av information om ångerrätt.
+            </Checkbox>
+            <Checkbox name="accept_supplier_switch">
+              Jag godkänner att Gridex hanterar leverantörsbyte när uppgifterna är verifierade.
+            </Checkbox>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
-              När du går vidare sparas ett pris-snapshot, personnummer skickas
-              säkert i systemet och signeringsmail skickas via valt signeringsflöde.
-              Rörligt månadspris är en prismodell baserad på föregående månads
-              snittpris och kan ändras månad för månad. Endast fastprisavtal har
-              fast kWh-pris.
+              När du skickar ansökan sparar OPS samtycken, fullmakt, ångerrätt,
+              vald prisversion, idempotency key, IP-hash och user agent. Hemsidan
+              skickar inga affärskritiska kundmail och skapar inga egna nummer.
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div className="text-sm text-gray-400">
-              Kontrollera gärna att e-postadress, telefonnummer och anläggnings-ID
-              är korrekta innan du fortsätter.
+              Kontrollera uppgifterna innan du skickar. Om du klickar två gånger
+              ska OPS använda samma idempotency key och inte skapa dubletter.
             </div>
 
-            <button className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400">
-              Gå vidare till signering
+            <button
+              disabled={!canSubmit}
+              className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Skicka ansökan
             </button>
           </div>
         </form>
       </section>
+    </div>
+  )
+}
+
+function StepCard({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+      <div className="text-sm font-semibold text-white">{title}</div>
+      <p className="mt-1 text-sm text-gray-400">{text}</p>
     </div>
   )
 }
@@ -814,5 +514,14 @@ function Field({
       />
       {help ? <p className="mt-2 text-xs text-white/45">{help}</p> : null}
     </div>
+  )
+}
+
+function Checkbox({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <label className="flex items-start gap-3 text-sm text-gray-300">
+      <input type="checkbox" name={name} required className="mt-1" />
+      <span>{children}</span>
+    </label>
   )
 }

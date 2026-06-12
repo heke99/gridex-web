@@ -1,10 +1,10 @@
 //app/(public)/page.tsx
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ElectricityCalculator from '@/components/ElectricityCalculator'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
-import { fetchLivePublishedContracts } from '@/lib/gridex/pricing/db'
+import { fetchOpsPublicContracts } from '@/lib/ops/client'
+import type { ContractOption } from '@/components/ElectricityCalculator'
 
 export const metadata: Metadata = {
   title: 'Elpris idag – Billiga & datadrivna elavtal',
@@ -15,26 +15,27 @@ export const metadata: Metadata = {
   },
 }
 
-type ContractOption = {
-  name: string
-  slug: string
-}
-
 export default async function HomePage() {
-  const supabase = await createSupabaseServerClient()
-  const nowIso = new Date().toISOString()
+  let options: ContractOption[] = []
 
-  const visibleContracts = await fetchLivePublishedContracts(supabase, nowIso)
-
-  const options: ContractOption[] = visibleContracts
-    .map((item) => ({
-      name: item.contract.name,
-      slug: item.contract.slug,
+  try {
+    const visibleContracts = await fetchOpsPublicContracts()
+    options = visibleContracts.map((item) => ({
+      name: item.name,
+      value: item.price_plan_version_id,
+      productCode: item.product_code,
+      pricePlanId: item.price_plan_id,
+      pricePlanVersionId: item.price_plan_version_id,
+      type: item.type,
+      monthlyFeeSek: item.monthly_fee_sek,
+      invoiceFeeSek: item.invoice_fee_sek,
+      markupOrePerKwh: item.markup_ore_per_kwh,
+      variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
+      fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
     }))
-    .filter(
-      (o): o is ContractOption =>
-        typeof o.slug === 'string' && o.slug.length > 0
-    )
+  } catch {
+    options = []
+  }
 
   const faqItems = [
     {

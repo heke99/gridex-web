@@ -26,11 +26,12 @@ type AgreementRow = {
 export default async function AgreementsPage({
   searchParams,
 }: {
-  searchParams?: { q?: string }
+  searchParams?: Promise<{ q?: string }>
 }) {
   const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
   const supabase = ctx.supabase
-  const q = searchParams?.q?.trim() ?? ''
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const q = resolvedSearchParams.q?.trim() ?? ''
 
   const { data, error } = await supabase
     .from('contract_agreements')

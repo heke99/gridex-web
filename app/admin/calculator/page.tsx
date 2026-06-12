@@ -158,15 +158,12 @@ function SpecTable({ spec }: { spec: CustomerSpecResult }) {
 export default async function AdminCalculatorPreviewPage({
   searchParams,
 }: {
-  searchParams?: Promise<CalculatorSearchParams> | CalculatorSearchParams
+  searchParams?: Promise<CalculatorSearchParams>
 }) {
   const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
   const db = ctx.supabase
 
-  const resolvedSearchParams =
-    searchParams && typeof (searchParams as Promise<CalculatorSearchParams>).then === 'function'
-      ? await (searchParams as Promise<CalculatorSearchParams>)
-      : ((searchParams as CalculatorSearchParams | undefined) ?? {})
+  const resolvedSearchParams = (await searchParams) ?? {}
 
   const { data: contractsRaw, error: contractsError } = await db
     .from('contract_products')
