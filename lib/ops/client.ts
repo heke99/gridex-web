@@ -9,6 +9,7 @@ export type OpsContractType =
   | string
 
 export type OpsPublicContract = {
+  contract_id?: string | null
   price_plan_id: string
   price_plan_version_id: string
   product_code: string
@@ -52,6 +53,14 @@ export type OpsCustomerApplicationInput = {
   price_plan_id: string
   price_plan_version_id: string
   product_code: string
+  price_area_code?: string | null
+  grid_area_code?: string | null
+  grid_owner_id?: string | null
+  grid_owner_name?: string | null
+  energy_resolution_status?: string | null
+  energy_resolution_confidence?: number | null
+  estimated_monthly_kwh?: number | null
+  pricing_preview_snapshot?: Record<string, unknown> | null
   source: 'gridex_website'
   idempotency_key: string
   external_application_id: string
@@ -109,6 +118,60 @@ export type OpsPricePlan = {
   type: OpsContractType
   status?: string | null
   is_public?: boolean | null
+  raw?: Record<string, unknown>
+}
+
+export type OpsWebsitePriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
+
+export type OpsWebsiteEnergyResolutionInput = {
+  postal_code: string
+  city?: string | null
+  street?: string | null
+  address?: string | null
+  apartment?: string | null
+}
+
+export type OpsWebsiteEnergyResolution = {
+  status: string
+  price_area_code: OpsWebsitePriceArea | null
+  grid_area_code?: string | null
+  grid_owner_id?: string | null
+  grid_owner_name?: string | null
+  confidence?: number | null
+  source?: string | null
+  source_chain?: string[]
+  customer_message?: string | null
+  raw?: Record<string, unknown>
+}
+
+export type OpsWebsitePricingPreviewInput = {
+  contract_id?: string | null
+  price_plan_id?: string | null
+  price_plan_version_id?: string | null
+  product_code?: string | null
+  price_area_code: OpsWebsitePriceArea
+  postal_code?: string | null
+  city?: string | null
+  address?: string | null
+  estimated_monthly_kwh: number
+}
+
+export type OpsWebsitePricingPreview = {
+  contract: {
+    slug: string
+    name: string
+    contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed'
+  }
+  priceArea: OpsWebsitePriceArea
+  price_area_code?: OpsWebsitePriceArea
+  kwh: number
+  pricePerKwhOre: number
+  totalMonthlyCostSek: number
+  totalMonthlyCostInclVatSek?: number
+  totalYearlyCostSek?: number
+  customerNotice?: string
+  legalText?: string
+  specification?: Record<string, unknown>
   raw?: Record<string, unknown>
 }
 
@@ -224,6 +287,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (!pricePlanId || !pricePlanVersionId || !productCode || !name) return null
 
   return {
+    contract_id: pickString(r, ['contract_id', 'contractId', 'contract_product_id', 'contractProductId']),
     price_plan_id: pricePlanId,
     price_plan_version_id: pricePlanVersionId,
     product_code: productCode,
@@ -352,6 +416,107 @@ async function opsFetchWithFallback(paths: string[], init?: RequestInit): Promis
   throw lastError instanceof Error ? lastError : new OpsError('Tjänsten kunde inte nås.', 502)
 }
 
+
+function extractObject(payload: unknown): Record<string, unknown> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {}
+  const p = payload as Record<string, unknown>
+  const data = p.data
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as Record<string, unknown>
+  }
+  return p
+}
+
+function isOpsWebsitePriceArea(value: unknown): value is OpsWebsitePriceArea {
+  return typeof value === 'string' && ['SE1', 'SE2', 'SE3', 'SE4'].includes(value)
+}
+
+function pickStringArray(row: Record<string, unknown>, keys: string[]): string[] | undefined {
+  for (const key of keys) {
+    const value = row[key]
+    if (Array.isArray(value)) return value.map(String).filter(Boolean)
+  }
+  return undefined
+}
+
+function mapWebsiteEnergyResolution(payload: unknown): OpsWebsiteEnergyResolution {
+  const row = extractObject(payload)
+  const nested = row.resolution
+  const r =
+    nested && typeof nested === 'object' && !Array.isArray(nested)
+      ? { ...row, ...(nested as Record<string, unknown>) }
+      : row
+
+  const area =
+    pickString(r, ['price_area_code', 'priceAreaCode', 'price_area', 'priceArea', 'area']) ?? null
+
+  return {
+    status:
+      pickString(r, ['status', 'resolution_status', 'resolutionStatus']) ??
+      (isOpsWebsitePriceArea(area) ? 'resolved' : 'needs_review'),
+    price_area_code: isOpsWebsitePriceArea(area) ? area : null,
+    grid_area_code: pickString(r, ['grid_area_code', 'gridAreaCode', 'network_area_code', 'networkAreaCode']),
+    grid_owner_id: pickString(r, ['grid_owner_id', 'gridOwnerId', 'network_owner_id', 'networkOwnerId']),
+    grid_owner_name: pickString(r, ['grid_owner_name', 'gridOwnerName', 'network_owner_name', 'networkOwnerName']),
+    confidence: normalizeNumber(r.confidence ?? r.match_confidence ?? r.matchConfidence),
+    source: pickString(r, ['source', 'match_source', 'matchSource']),
+    source_chain: pickStringArray(r, ['source_chain', 'sourceChain']),
+    customer_message: pickString(r, ['customer_message', 'customerMessage', 'message']),
+    raw: row,
+  }
+}
+
+function normalizePreviewContractType(value: unknown): 'spot_hourly' | 'portfolio_managed' | 'fixed' {
+  const type = typeof value === 'string' ? value : ''
+  if (type === 'fixed') return 'fixed'
+  if (type === 'portfolio' || type === 'portfolio_managed') return 'portfolio_managed'
+  return 'spot_hourly'
+}
+
+function mapWebsitePricingPreview(
+  payload: unknown,
+  fallbackArea: OpsWebsitePriceArea
+): OpsWebsitePricingPreview {
+  const row = extractObject(payload)
+  const contractRow =
+    row.contract && typeof row.contract === 'object' && !Array.isArray(row.contract)
+      ? (row.contract as Record<string, unknown>)
+      : row
+  const area = pickString(row, ['priceArea', 'price_area_code', 'priceAreaCode', 'price_area'])
+  const safeArea: OpsWebsitePriceArea = isOpsWebsitePriceArea(area) ? area : fallbackArea
+
+  return {
+    contract: {
+      slug:
+        pickString(contractRow, ['slug', 'product_code', 'productCode', 'contract_slug', 'contractSlug']) ??
+        pickString(row, ['product_code', 'productCode']) ??
+        'elavtal',
+      name: pickString(contractRow, ['name', 'title', 'contract_name']) ?? 'Elavtal',
+      contractType: normalizePreviewContractType(
+        contractRow.contractType ?? contractRow.contract_type ?? contractRow.type ?? row.contract_type
+      ),
+    },
+    priceArea: safeArea,
+    price_area_code: safeArea,
+    kwh: normalizeNumber(row.kwh ?? row.estimated_monthly_kwh ?? row.monthly_kwh) ?? 0,
+    pricePerKwhOre: normalizeNumber(row.pricePerKwhOre ?? row.price_per_kwh_ore ?? row.totalOrePerKwh) ?? 0,
+    totalMonthlyCostSek:
+      normalizeNumber(row.totalMonthlyCostSek ?? row.total_monthly_cost_sek) ?? 0,
+    totalMonthlyCostInclVatSek:
+      normalizeNumber(row.totalMonthlyCostInclVatSek ?? row.total_monthly_cost_inc_vat_sek) ??
+      undefined,
+    totalYearlyCostSek:
+      normalizeNumber(row.totalYearlyCostSek ?? row.total_yearly_cost_sek) ?? undefined,
+    customerNotice: pickString(row, ['customerNotice', 'customer_notice']) ?? undefined,
+    legalText: pickString(row, ['legalText', 'legal_text']) ?? undefined,
+    specification:
+      row.specification && typeof row.specification === 'object' && !Array.isArray(row.specification)
+        ? (row.specification as Record<string, unknown>)
+        : undefined,
+    raw: row,
+  }
+}
+
 export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
   const payload = await opsFetchWithFallback([
     '/api/v1/website/contracts',
@@ -427,6 +592,42 @@ export async function fetchOpsPricePlans(): Promise<OpsPricePlan[]> {
     .filter((item): item is OpsPricePlan => item !== null)
 }
 
+
+
+export async function resolveOpsWebsiteEnergyArea(
+  input: OpsWebsiteEnergyResolutionInput
+): Promise<OpsWebsiteEnergyResolution> {
+  const payload = await opsFetchWithFallback(
+    [
+      '/api/v1/website/energy/resolve',
+      '/api/v1/website/energy-area/resolve',
+      '/api/v1/website/resolve-energy-area',
+      '/api/platform/energy/resolve',
+    ],
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }
+  )
+  return mapWebsiteEnergyResolution(payload)
+}
+
+export async function fetchOpsWebsitePricingPreview(
+  input: OpsWebsitePricingPreviewInput
+): Promise<OpsWebsitePricingPreview> {
+  const payload = await opsFetchWithFallback(
+    [
+      '/api/v1/website/pricing/preview',
+      '/api/v1/website/price-preview',
+      '/api/v1/website/pricing-preview',
+    ],
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }
+  )
+  return mapWebsitePricingPreview(payload, input.price_area_code)
+}
 
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput

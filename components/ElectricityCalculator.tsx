@@ -2,9 +2,17 @@
 
 import { useMemo, useState } from 'react'
 import PriceResultCard from '@/components/PriceResultCard'
+import {
+  isWebsitePriceArea,
+  normalizeWebsitePostalCode,
+  previewWebsitePricing,
+  resolveWebsiteEnergyArea,
+  type WebsiteEnergyResolution,
+  type WebsitePriceArea,
+  type WebsitePricingPreview,
+} from '@/lib/website/publicApi'
 
 const AREAS = ['SE1', 'SE2', 'SE3', 'SE4'] as const
-type PriceArea = (typeof AREAS)[number]
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 
@@ -14,49 +22,13 @@ export type ContractOption = {
   productCode: string
   pricePlanId: string
   pricePlanVersionId: string
+  contractId?: string | null
   type: string
   monthlyFeeSek?: number | null
   invoiceFeeSek?: number | null
   markupOrePerKwh?: number | null
   variableMarkupOrePerKwh?: number | null
   fixedPriceOrePerKwh?: number | null
-}
-
-type PriceResponse = {
-  contract: {
-    slug: string
-    name: string
-    contractType: ContractType
-  }
-  priceArea: PriceArea
-  kwh: number
-  pricePerKwhOre: number
-  totalMonthlyCostSek: number
-  specification: {
-    basis:
-      | {
-          type: 'previous_month_avg_spot'
-          year: number
-          month: number
-          spotAvgOre: number
-        }
-      | {
-          type: 'admin_fixed_price'
-          fixedPriceOre: number
-        }
-    fees: {
-      markupOre?: number
-      variableFeeOre: number
-      monthlyFeeSek: number
-    }
-  }
-}
-
-type MonthlySpotResponse = {
-  priceArea: PriceArea
-  year: number
-  month: number
-  avgSpotOre: number
 }
 
 function clampKwh(value: number) {
@@ -70,34 +42,29 @@ function normalizeContractType(type: string): ContractType {
   return 'spot_hourly'
 }
 
-function safeNumber(value: number | null | undefined, fallback = 0) {
-  return Number.isFinite(Number(value)) ? Number(value) : fallback
-}
-
-async function fetchMonthlySpot(area: PriceArea): Promise<MonthlySpotResponse> {
-  const res = await fetch(`/api/elpris/monthly?area=${area}`, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  })
-  const data = await res.json()
-
-  if (!res.ok) {
-    throw new Error(data?.error || 'Kunde inte hämta spotpris.')
-  }
-
-  return data as MonthlySpotResponse
+function areaLabel(area: WebsitePriceArea | null) {
+  return area ? `${area} elområde` : 'Elområde saknas'
 }
 
 export default function ElectricityCalculator({
   contracts = [],
+  initialSelectedValue = '',
 }: {
   contracts?: ContractOption[]
+  initialSelectedValue?: string
 }) {
+  const initialValue = contracts.some((contract) => contract.value === initialSelectedValue)
+    ? initialSelectedValue
+    : contracts[0]?.value ?? ''
+
   const [postalCode, setPostalCode] = useState('')
-  const [manualArea, setManualArea] = useState<PriceArea | ''>('')
+  const [city, setCity] = useState('')
+  const [address, setAddress] = useState('')
+  const [manualArea, setManualArea] = useState<WebsitePriceArea | ''>('')
   const [kwh, setKwh] = useState(2000)
-  const [selectedValue, setSelectedValue] = useState(contracts[0]?.value ?? '')
-  const [result, setResult] = useState<PriceResponse | null>(null)
+  const [selectedValue, setSelectedValue] = useState(initialValue)
+  const [resolution, setResolution] = useState<WebsiteEnergyResolution | null>(null)
+  const [result, setResult] = useState<WebsitePricingPreview | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -105,6 +72,45 @@ export default function ElectricityCalculator({
     () => contracts.find((contract) => contract.value === selectedValue) ?? null,
     [contracts, selectedValue]
   )
+
+  const effectiveArea = manualArea || resolution?.price_area_code || null
+  const hasContracts = contracts.length > 0
+
+  async function resolveArea(): Promise<WebsitePriceArea | null> {
+    if (manualArea) {
+      const manualResolution: WebsiteEnergyResolution = {
+        status: 'manual',
+        price_area_code: manualArea,
+        customer_message: 'Du har valt elområde själv.',
+        source: 'manual',
+      }
+      setResolution(manualResolution)
+      return manualArea
+    }
+
+    const normalizedPostalCode = normalizeWebsitePostalCode(postalCode)
+    if (!/^\d{5}$/.test(normalizedPostalCode)) {
+      throw new Error('Ange ett svenskt postnummer med 5 siffror.')
+    }
+
+    const resolved = await resolveWebsiteEnergyArea({
+      postal_code: normalizedPostalCode,
+      city: city || null,
+      address: address || null,
+      street: address || null,
+    })
+
+    setResolution(resolved)
+
+    if (!resolved.price_area_code) {
+      throw new Error(
+        resolved.customer_message ||
+          'Vi kunde inte fastställa elområde automatiskt. Kontrollera adressen eller välj elområde själv om du vet det.'
+      )
+    }
+
+    return resolved.price_area_code
+  }
 
   async function calculate() {
     if (!selectedContract) {
@@ -117,71 +123,26 @@ export default function ElectricityCalculator({
     setResult(null)
 
     try {
-      const area = manualArea || 'SE3'
-      const contractType = normalizeContractType(selectedContract.type)
-      const usage = clampKwh(kwh)
-      const monthlyFeeSek = safeNumber(selectedContract.monthlyFeeSek)
-      const invoiceFeeSek = safeNumber(selectedContract.invoiceFeeSek)
-      const markupOre = safeNumber(selectedContract.markupOrePerKwh)
-      const variableFeeOre = safeNumber(selectedContract.variableMarkupOrePerKwh)
+      const resolvedArea = await resolveArea()
+      if (!resolvedArea) return
 
-      if (contractType === 'fixed') {
-        const fixedPriceOre = safeNumber(selectedContract.fixedPriceOrePerKwh)
-        if (fixedPriceOre <= 0) {
-          setError('Fastpris saknar kWh-pris just nu.')
-          return
-        }
-
-        const pricePerKwhOre = fixedPriceOre + markupOre + variableFeeOre
-        setResult({
-          contract: {
-            slug: selectedContract.productCode,
-            name: selectedContract.name,
-            contractType,
-          },
-          priceArea: area,
-          kwh: usage,
-          pricePerKwhOre,
-          totalMonthlyCostSek:
-            (pricePerKwhOre * usage) / 100 + monthlyFeeSek + invoiceFeeSek,
-          specification: {
-            basis: { type: 'admin_fixed_price', fixedPriceOre },
-            fees: {
-              markupOre,
-              variableFeeOre,
-              monthlyFeeSek: monthlyFeeSek + invoiceFeeSek,
-            },
-          },
-        })
-        return
-      }
-
-      const spot = await fetchMonthlySpot(area)
-      const pricePerKwhOre = spot.avgSpotOre + markupOre + variableFeeOre
+      const preview = await previewWebsitePricing({
+        contract_id: selectedContract.contractId ?? null,
+        price_plan_id: selectedContract.pricePlanId,
+        price_plan_version_id: selectedContract.pricePlanVersionId,
+        product_code: selectedContract.productCode,
+        price_area_code: resolvedArea,
+        postal_code: normalizeWebsitePostalCode(postalCode) || null,
+        city: city || null,
+        address: address || null,
+        estimated_monthly_kwh: clampKwh(kwh),
+      })
 
       setResult({
+        ...preview,
         contract: {
-          slug: selectedContract.productCode,
-          name: selectedContract.name,
-          contractType,
-        },
-        priceArea: area,
-        kwh: usage,
-        pricePerKwhOre,
-        totalMonthlyCostSek:
-          (pricePerKwhOre * usage) / 100 + monthlyFeeSek + invoiceFeeSek,
-        specification: {
-          basis: {
-            type: 'previous_month_avg_spot',
-            year: spot.year,
-            month: spot.month,
-            spotAvgOre: spot.avgSpotOre,
-          },
-          fees: {
-            markupOre,
-            variableFeeOre,
-            monthlyFeeSek: monthlyFeeSek + invoiceFeeSek,
-          },
+          ...preview.contract,
+          contractType: normalizeContractType(preview.contract.contractType),
         },
       })
     } catch (err) {
@@ -190,8 +151,6 @@ export default function ElectricityCalculator({
       setLoading(false)
     }
   }
-
-  const hasContracts = contracts.length > 0
 
   return (
     <section
@@ -204,7 +163,7 @@ export default function ElectricityCalculator({
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Föregående månads spotpris • SE1–SE4 • Transparent pris
+              Postnummer → elområde → rätt pris
             </div>
 
             <h2 className="mt-4 text-3xl font-bold text-white md:text-4xl">
@@ -212,14 +171,13 @@ export default function ElectricityCalculator({
             </h2>
 
             <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
-              Välj elområde, uppskatta din förbrukning och jämför våra aktuella elavtal.
-              Beräkningen är en uppskattning; när du skickar in ansökan får du
-              en bekräftelse med valt avtal och nästa steg.
+              Ange postnummer och gärna adress. Vi kontrollerar elområdet innan priset räknas,
+              så uppskattningen baseras på rätt område i Sverige.
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-            Aktuella avtal och avgifter
+            {areaLabel(effectiveArea)}
           </div>
         </div>
 
@@ -231,30 +189,66 @@ export default function ElectricityCalculator({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-white/80">
-              Postnummer
-            </label>
+            <label className="text-sm font-medium text-white/80">Postnummer</label>
             <input
-              placeholder="Till exempel 11455"
+              placeholder="Till exempel 19145"
+              inputMode="numeric"
               value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
+              onChange={(e) => {
+                setPostalCode(e.target.value)
+                setResolution(null)
+                setResult(null)
+              }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
             <p className="text-xs text-white/40">
-              Postnummer hjälper oss att ge en bättre uppskattning. Nätinformation kontrolleras när ansökan behandlas.
+              Postnumret används för att hitta rätt elområde. Full adress ger säkrare träff.
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-white/80">
-              Elområde
-            </label>
+            <label className="text-sm font-medium text-white/80">Ort</label>
+            <input
+              placeholder="Till exempel Sollentuna"
+              value={city}
+              onChange={(e) => {
+                setCity(e.target.value)
+                setResolution(null)
+                setResult(null)
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
+            />
+            <p className="text-xs text-white/40">Valfritt, men hjälper kontrollen.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">Adress</label>
+            <input
+              placeholder="Gata och nummer"
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value)
+                setResolution(null)
+                setResult(null)
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
+            />
+            <p className="text-xs text-white/40">Används endast för att få bättre prisområdesmatchning.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white/80">Elområde om du redan vet det</label>
             <select
               value={manualArea}
-              onChange={(e) => setManualArea(e.target.value as PriceArea | '')}
+              onChange={(e) => {
+                const value = e.target.value
+                setManualArea(isWebsitePriceArea(value) ? value : '')
+                setResolution(null)
+                setResult(null)
+              }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
             >
-              <option value="">SE3 som standard</option>
+              <option value="">Hämta automatiskt från adressen</option>
               {AREAS.map((area) => (
                 <option key={area} value={area}>
                   {area}
@@ -262,7 +256,7 @@ export default function ElectricityCalculator({
               ))}
             </select>
             <p className="text-xs text-white/40">
-              Välj manuellt om du redan vet vilket område du tillhör.
+              Normalt behöver du inte välja detta manuellt.
             </p>
           </div>
 
@@ -274,11 +268,14 @@ export default function ElectricityCalculator({
               type="number"
               value={kwh}
               min={1}
-              onChange={(e) => setKwh(clampKwh(Number(e.target.value)))}
+              onChange={(e) => {
+                setKwh(clampKwh(Number(e.target.value)))
+                setResult(null)
+              }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
             />
             <p className="text-xs text-white/40">
-              Använd din uppskattade månadsförbrukning för bättre träff.
+              Använd uppskattad månadsförbrukning för bättre träff.
             </p>
           </div>
 
@@ -286,7 +283,10 @@ export default function ElectricityCalculator({
             <label className="text-sm font-medium text-white/80">Elavtal</label>
             <select
               value={selectedValue}
-              onChange={(e) => setSelectedValue(e.target.value)}
+              onChange={(e) => {
+                setSelectedValue(e.target.value)
+                setResult(null)
+              }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
             >
               <option value="">Välj avtal</option>
@@ -296,23 +296,36 @@ export default function ElectricityCalculator({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-white/40">
-              Endast aktuella elavtal visas här.
-            </p>
+            <p className="text-xs text-white/40">Endast aktuella elavtal visas här.</p>
           </div>
         </div>
 
+        {resolution ? (
+          <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            <div className="font-semibold">
+              {resolution.price_area_code
+                ? `Prisområdet är ${resolution.price_area_code}`
+                : 'Prisområde behöver kontrolleras'}
+            </div>
+            <div className="mt-1 text-emerald-50/80">
+              {resolution.grid_owner_name ? `${resolution.grid_owner_name}` : 'Vi kontrollerar nätinformation i nästa steg.'}
+              {resolution.confidence != null ? ` • träffsäkerhet ${Math.round(resolution.confidence * 100)}%` : ''}
+            </div>
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
           <button
+            type="button"
             onClick={calculate}
             disabled={loading || !hasContracts}
             className="w-full rounded-2xl bg-cyan-500 py-4 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Beräknar...' : 'Se ditt pris'}
+            {loading ? 'Beräknar...' : 'Kontrollera elområde och se pris'}
           </button>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">
-            Du ser full specifikation innan teckning.
+            Priset räknas på valt avtal och rätt elområde.
           </div>
         </div>
 
@@ -330,8 +343,8 @@ export default function ElectricityCalculator({
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">
-            Fyll i uppgifterna ovan och klicka på “Se ditt pris” för att visa
-            föregående månads spotbaserade pris här.
+            Fyll i uppgifterna ovan och klicka på “Kontrollera elområde och se pris”. Då visas
+            en prisuppskattning baserad på rätt SE-område.
           </div>
         )}
       </div>
