@@ -89,7 +89,7 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
 
         <div className="hidden items-center gap-2 md:flex">
           <DesktopNavLink href="/#rakna-elpris" label="Räkna elpris" pathname={pathname} />
-          <DesktopNavLink href="/avtal" label="Elavtal" pathname={pathname} />
+          <DesktopNavLink href="/elavtal" label="Elavtal" pathname={pathname} />
           <DesktopNavLink href="/aktuella-elpriser" label="Elpris idag" pathname={pathname} />
           <DesktopNavLink
             href="/kundservice"
@@ -106,7 +106,7 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
         <div className="flex items-center gap-3">
           {!userEmail ? (
             <Link
-              href="/login"
+              href="/mina-sidor"
               className="hidden rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500 hover:text-black md:inline-flex"
             >
               Logga in
@@ -141,7 +141,7 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
             </Link>
 
             <Link
-              href="/avtal"
+              href="/elavtal"
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
               onClick={() => setMobileOpen(false)}
             >
@@ -174,7 +174,7 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
 
             {!userEmail ? (
               <Link
-                href="/login"
+                href="/mina-sidor"
                 className="rounded-2xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-300"
                 onClick={() => setMobileOpen(false)}
               >

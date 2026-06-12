@@ -104,7 +104,9 @@ export default async function AdminPortfolioPricingPage() {
     revalidatePath('/admin/calculator')
     revalidatePath('/admin/customer-spec')
     revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
     revalidatePath('/avtal')
+  revalidatePath('/elavtal')
   }
 
   return (

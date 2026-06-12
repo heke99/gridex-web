@@ -7,7 +7,7 @@ export async function POST() {
   return NextResponse.json(
     {
       error:
-        'Detta lokala beställningsflöde är stängt. Gridex-hemsidan ska skicka teckning server-side till Gridex OPS via /api/v1/website/customer-applications.',
+        'Det tidigare beställningsflödet är stängt. Använd sidan Teckna elavtal.',
     },
     { status: 410 }
   )

@@ -27,10 +27,10 @@ export default function Footer() {
           <Link href="/aktuella-elpriser" className="block hover:text-white">
             Elpris idag
           </Link>
-          <Link href="/avtal" className="block hover:text-white">
+          <Link href="/elavtal" className="block hover:text-white">
             Elavtal
           </Link>
-          <Link href="/teckna" className="block hover:text-white">
+          <Link href="/teckna-avtal" className="block hover:text-white">
             Teckna elavtal
           </Link>
           <Link href="/kundservice" className="block hover:text-white">
@@ -40,20 +40,23 @@ export default function Footer() {
 
         <div className="space-y-2">
           <div className="font-semibold text-white">Juridik</div>
-          <Link href="/villkor" className="block hover:text-white">
+          <Link href="/allmanna-villkor" className="block hover:text-white">
             Allmänna villkor
           </Link>
-          <Link href="/integritet" className="block hover:text-white">
+          <Link href="/integritetspolicy" className="block hover:text-white">
             Integritetspolicy
           </Link>
+          <Link href="/angerratt" className="block hover:text-white">
+            Ångerrätt
+          </Link>
+          <Link href="/prisvillkor" className="block hover:text-white">
+            Prisvillkor
+          </Link>
           <Link href="/cookies" className="block hover:text-white">
-            Cookiepolicy
+            Cookies
           </Link>
           <Link href="/angerblankett" className="block hover:text-white">
             Ångerblankett
-          </Link>
-          <Link href="/foretagsvillkor" className="block hover:text-white">
-            Företagsvillkor
           </Link>
         </div>
 

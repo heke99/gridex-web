@@ -106,6 +106,7 @@ export default async function AdminSpotSettingsPage() {
     revalidatePath('/admin/spot-settings')
     revalidatePath('/admin/calculator')
     revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
   }
 
   return (

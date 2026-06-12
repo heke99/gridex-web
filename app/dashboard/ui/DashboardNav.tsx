@@ -44,14 +44,19 @@ const BASE_NAV: NavItem[] = [
     description: 'Belopp och underlag',
   },
   {
+    label: 'Dokument',
+    href: '/dashboard/documents',
+    description: 'Avtal och underlag',
+  },
+  {
+    label: 'Godkännanden',
+    href: '/dashboard/approvals',
+    description: 'Villkor och fullmakt',
+  },
+  {
     label: 'Profil',
     href: '/dashboard/profile',
     description: 'Konto och kontaktuppgifter',
-  },
-  {
-    label: 'Support',
-    href: '/dashboard/support',
-    description: 'Ärenden och meddelanden',
   },
 ]
 
@@ -168,7 +173,7 @@ export default function DashboardNav({
           </div>
 
           <div className="mt-1 text-xs text-white/60">
-            Hantera konto, avtal, fakturor och support.
+            Hantera konto, avtal, fakturor och dokument.
           </div>
         </div>
 

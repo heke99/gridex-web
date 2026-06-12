@@ -144,7 +144,7 @@ export default async function DashboardLayout({
               </div>
 
               <div className="text-xs text-white/60">
-                Konto • avtal • fakturor • support
+                Konto • avtal • fakturor • dokument
               </div>
 
               {roleBadges.length > 0 ? (
@@ -162,13 +162,6 @@ export default async function DashboardLayout({
             </div>
 
             <div className="hidden items-center gap-3 lg:flex">
-              <Link
-                href="/dashboard/support"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-white/80 transition hover:bg-black/20"
-              >
-                Support
-              </Link>
-
               <UserMenu
                 email={user.email ?? '—'}
                 showAdminLink={isAdmin}

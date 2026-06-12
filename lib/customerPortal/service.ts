@@ -5,14 +5,18 @@ import {
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
 import type {
+  CustomerDocument,
   CustomerInvoice,
+  CustomerLegalAcceptance,
   CustomerMeteringValue,
   CustomerNotification,
   CustomerPortalContract,
   CustomerPortalEvent,
   CustomerPortalOverview,
+  CustomerPowerOfAttorney,
   CustomerProfile,
   CustomerSite,
+  CustomerSwitchStatus,
   CustomerSupportMessage,
   CustomerSupportTicket,
 } from './types'
@@ -206,6 +210,97 @@ function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
   }
 }
 
+function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
+  return {
+    id: pick(row, ['id', 'document_id']) ?? crypto.randomUUID(),
+    title: pick(row, ['title', 'name', 'document_name']),
+    document_type: pick(row, ['document_type', 'type']),
+    status: pick(row, ['status']) ?? 'available',
+    created_at: pickDate(row, ['created_at', 'issued_at', 'published_at']),
+    file_url: pick(row, ['file_url', 'url', 'pdf_url']),
+    download_url: pick(row, ['download_url']),
+    version: pick(row, ['version', 'legal_version']),
+  }
+}
+
+function acceptanceTitle(type: string) {
+  switch (type) {
+    case 'terms':
+    case 'terms_accepted':
+      return 'Allmänna villkor'
+    case 'privacy_policy':
+    case 'privacy_policy_seen':
+      return 'Integritetspolicy'
+    case 'withdrawal_info':
+    case 'cancellation_right':
+      return 'Ångerrätt'
+    case 'power_of_attorney':
+      return 'Fullmakt för anläggningsuppgifter'
+    case 'price_snapshot':
+      return 'Prisinformation'
+    default:
+      return type ? type.replaceAll('_', ' ') : 'Godkännande'
+  }
+}
+
+function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAcceptance {
+  const type = pick(row, ['acceptance_type', 'type', 'legal_type']) ?? 'acceptance'
+  return {
+    id: pick(row, ['id', 'acceptance_id']) ?? crypto.randomUUID(),
+    acceptance_type: type,
+    title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
+    version: pick(row, ['version', 'legal_version', 'version_key']),
+    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    source: pick(row, ['source', 'accepted_source']),
+    status: pick(row, ['status']) ?? 'accepted',
+  }
+}
+
+function poaScopeLabel(scope: string | null) {
+  switch (scope) {
+    case 'facility_data_request':
+      return 'Begära anläggningsuppgifter'
+    case 'metering_point_lookup':
+      return 'Hämta mätpunktsuppgifter'
+    case 'supplier_switch':
+      return 'Hantera leverantörsbyte'
+    case 'metering_values':
+      return 'Ta emot mätvärden'
+    default:
+      return scope ? scope.replaceAll('_', ' ') : 'Anläggningsuppgifter'
+  }
+}
+
+function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAttorney {
+  const scope = pick(row, ['scope', 'poa_scope'])
+  return {
+    id: pick(row, ['id', 'power_of_attorney_id']) ?? crypto.randomUUID(),
+    status: pick(row, ['status']) ?? 'active',
+    scope,
+    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    revoked_at: pickDate(row, ['revoked_at']),
+    valid_until: pickDate(row, ['valid_until', 'expires_at']),
+    title: pick(row, ['title', 'name']) ?? poaScopeLabel(scope),
+    version: pick(row, ['version', 'legal_version', 'power_of_attorney_version']),
+  }
+}
+
+function mapOpsSwitchStatus(row: Record<string, unknown> | null): CustomerSwitchStatus | null {
+  if (!row) return null
+  const rawMissing = row.missing_fields ?? row.missingFields
+  const missing = Array.isArray(rawMissing) ? rawMissing.map(String) : []
+  return {
+    status: pick(row, ['status', 'switch_status']),
+    next_step: pick(row, ['next_step', 'nextStep']),
+    requested_start_date: pickDate(row, ['requested_start_date', 'requestedStartDate']),
+    confirmed_start_date: pickDate(row, ['confirmed_start_date', 'confirmedStartDate']),
+    missing_fields: missing,
+    grid_owner_name: pick(row, ['grid_owner_name', 'gridOwnerName']),
+    facility_id: pick(row, ['facility_id', 'facilityId']),
+    metering_point_id: pick(row, ['metering_point_id', 'meteringPointId']),
+  }
+}
+
 function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValue {
   return {
     id: pick(row, ['id', 'metering_value_id']) ?? crypto.randomUUID(),
@@ -361,6 +456,10 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     contracts: (ops.bundle?.contracts ?? []).map(mapOpsContract),
     sites: (ops.bundle?.sites ?? []).map(mapOpsSite),
     invoices: (ops.bundle?.invoices ?? []).map(mapOpsInvoice),
+    documents: (ops.bundle?.documents ?? []).map(mapOpsDocument),
+    legalAcceptances: (ops.bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance),
+    powersOfAttorney: (ops.bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney),
+    switchStatus: mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null),
     meteringValues: (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue),
     events: (ops.bundle?.events ?? []).map(mapOpsEvent),
     tickets,

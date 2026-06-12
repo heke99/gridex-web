@@ -53,21 +53,21 @@ export default function PublicHeader() {
 
         <nav className="hidden items-center gap-8 md:flex">
           <NavLink href="/#rakna-elpris" label="Räkna elpris" />
-          <NavLink href="/avtal" label="Elavtal" />
+          <NavLink href="/elavtal" label="Elavtal" />
           <NavLink href="/aktuella-elpriser" label="Elpris idag" />
           <NavLink href="/kundservice" label="Kundservice" />
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
           <Link
-            href="/login"
+            href="/mina-sidor"
             className="text-sm text-gray-300 transition hover:text-white"
           >
             Mina sidor
           </Link>
 
           <Link
-            href="/teckna"
+            href="/teckna-avtal"
             className="rounded-xl border border-cyan-500/50 bg-cyan-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-cyan-400"
           >
             Teckna elavtal
@@ -93,7 +93,7 @@ export default function PublicHeader() {
                 onClick={() => setOpen(false)}
               />
               <NavLink
-                href="/avtal"
+                href="/elavtal"
                 label="Elavtal"
                 onClick={() => setOpen(false)}
               />
@@ -111,7 +111,7 @@ export default function PublicHeader() {
 
             <div className="mt-2 border-t border-white/10 pt-4">
               <Link
-                href="/login"
+                href="/mina-sidor"
                 className="block text-sm text-cyan-300"
                 onClick={() => setOpen(false)}
               >
@@ -119,7 +119,7 @@ export default function PublicHeader() {
               </Link>
 
               <Link
-                href="/teckna"
+                href="/teckna-avtal"
                 className="mt-3 block rounded-xl border border-cyan-500/50 bg-cyan-500 px-4 py-3 text-center text-sm font-semibold text-black"
                 onClick={() => setOpen(false)}
               >

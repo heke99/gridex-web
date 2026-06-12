@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: 'Elavtal – jämför rörligt, portfölj och fastpris',
   description:
     'Jämför Gridex elavtal: rörligt elpris, portföljavtal och fastpris. Se aktuella priser och villkor innan du går vidare.',
-  alternates: { canonical: 'https://gridex.se/avtal' },
+  alternates: { canonical: 'https://gridex.se/elavtal' },
 }
 
 function contractTypeLabel(type: string) {
@@ -53,7 +53,7 @@ function getContractDescription(contract: OpsPublicContract) {
 }
 
 function ContractCard({ contract }: { contract: OpsPublicContract }) {
-  const tecknaHref = `/teckna?planVersion=${encodeURIComponent(
+  const tecknaHref = `/teckna-avtal?planVersion=${encodeURIComponent(
     contract.price_plan_version_id
   )}`
 
@@ -184,7 +184,7 @@ export default async function AvtalPage() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/teckna"
+                href="/teckna-avtal"
                 className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
               >
                 Teckna elavtal

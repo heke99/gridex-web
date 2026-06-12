@@ -10,8 +10,7 @@ export async function GET() {
   if (!status.configured) {
     return NextResponse.json(
       {
-        error: 'OPS API är inte konfigurerat för hemsidan.',
-        missing: status.missing,
+        error: 'Aktuella elavtal kan inte hämtas just nu.',
       },
       { status: 503 }
     )
@@ -25,8 +24,8 @@ export async function GET() {
       {
         error:
           error instanceof Error
-            ? error.message
-            : 'Kunde inte hämta publicerade avtal från OPS.',
+            ? 'Aktuella elavtal kan inte hämtas just nu.'
+            : 'Aktuella elavtal kan inte hämtas just nu.',
       },
       { status: 502 }
     )

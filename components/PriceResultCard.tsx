@@ -82,7 +82,7 @@ function contractTypeLabel(type: ContractType) {
 function sourceLabel(source: SpotBasis['source']) {
   switch (source) {
     case 'elprisetjustnu_api':
-      return 'Spotpris från elprisetjustnu API'
+      return 'Spotpris från elprisetjustnu.se'
     case 'gridex_spot_monthly_avg':
       return 'Fallback: äldre Gridex-prisbas'
     case 'gridex_monthly_spot_prices':
@@ -112,7 +112,7 @@ export default function PriceResultCard({
 
     if (specification.basis.type === 'previous_month_avg_spot') {
       const sourceSuffix =
-        specification.basis.source === 'elprisetjustnu_api' ? ' från API' : ''
+        specification.basis.source === 'elprisetjustnu_api' ? ' från prisdatakälla' : ''
       return `Föregående månads spotpris${sourceSuffix} (${String(specification.basis.month).padStart(2, '0')}/${specification.basis.year})`
     }
 
@@ -152,8 +152,8 @@ export default function PriceResultCard({
   const markupOre = specification?.fees?.markupOre
   const elcertOre = specification?.fees?.elcertOre ?? 0
   const contractHref = contract?.slug
-    ? `/teckna?contract=${encodeURIComponent(contract.slug)}`
-    : '/teckna'
+    ? `/teckna-avtal?contract=${encodeURIComponent(contract.slug)}`
+    : '/teckna-avtal'
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">
@@ -303,7 +303,7 @@ export default function PriceResultCard({
           )}
 
           <Link
-            href="/avtal"
+            href="/elavtal"
             className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             Jämför fler elavtal

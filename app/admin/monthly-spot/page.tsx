@@ -328,7 +328,9 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/admin/calculator')
     revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
+  revalidatePath('/elavtal')
     revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
 
@@ -374,7 +376,9 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/admin/calculator')
     revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
+  revalidatePath('/elavtal')
     revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
 
@@ -412,7 +416,9 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/admin/calculator')
     revalidatePath('/admin/customer-spec')
     revalidatePath('/avtal')
+  revalidatePath('/elavtal')
     revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
     revalidatePath('/api/price')
 

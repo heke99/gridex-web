@@ -14,9 +14,9 @@ function readParam(v: string | string[] | undefined): string {
 }
 
 function safeNext(next: string): string {
-  if (!next) return '/dashboard'
-  if (!next.startsWith('/')) return '/dashboard'
-  if (next.startsWith('//')) return '/dashboard'
+  if (!next) return '/mina-sidor'
+  if (!next.startsWith('/')) return '/mina-sidor'
+  if (next.startsWith('//')) return '/mina-sidor'
   return next
 }
 
@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const error = readParam(sp.error)
   const reason = readParam(sp.reason)
   const status = readParam(sp.status)
-  const next = safeNext(readParam(sp.next) || '/dashboard')
+  const next = safeNext(readParam(sp.next) || '/mina-sidor')
 
   let banner = ''
 
@@ -127,7 +127,7 @@ export default async function LoginPage({ searchParams }: Props) {
               </div>
 
               <div className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[10px] text-white/70">
-                Secure
+                Tryggt
               </div>
             </div>
 
@@ -190,17 +190,16 @@ export default async function LoginPage({ searchParams }: Props) {
             </form>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-gray-400">
-              Logga in med e-post och lösenord. Andra signerings- och
-              inloggningsmetoder aktiveras först när de är klara för produktion.
+              Logga in med e-post och lösenord. När fler inloggningssätt är tillgängliga visas de här.
             </div>
 
             <div className="mt-6 text-xs leading-6 text-gray-500">
               Genom att använda tjänsten godkänner du våra{' '}
-              <Link href="/villkor" className="text-white/70 underline hover:text-white">
+              <Link href="/allmanna-villkor" className="text-white/70 underline hover:text-white">
                 användarvillkor
               </Link>
               , vår{' '}
-              <Link href="/integritet" className="text-white/70 underline hover:text-white">
+              <Link href="/integritetspolicy" className="text-white/70 underline hover:text-white">
                 integritetspolicy
               </Link>{' '}
               och våra{' '}

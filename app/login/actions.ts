@@ -5,12 +5,12 @@ import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { sendOpsCustomerEvent } from '@/lib/ops/client'
 
 function safeNext(next?: string | null): string {
-  if (!next) return '/dashboard'
+  if (!next) return '/mina-sidor'
 
   const normalized = String(next).trim()
 
-  if (!normalized.startsWith('/')) return '/dashboard'
-  if (normalized.startsWith('//')) return '/dashboard'
+  if (!normalized.startsWith('/')) return '/mina-sidor'
+  if (normalized.startsWith('//')) return '/mina-sidor'
 
   return normalized
 }
@@ -35,7 +35,7 @@ function isAdminRole(role: string): boolean {
 export async function loginWithPassword(formData: FormData) {
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
-  const next = safeNext(String(formData.get('next') || '') || '/dashboard')
+  const next = safeNext(String(formData.get('next') || '') || '/mina-sidor')
 
   if (!email || !looksLikeEmail(email) || !password) {
     redirect(

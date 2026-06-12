@@ -92,6 +92,31 @@ export type OpsCustomerApplicationResult = {
   raw?: Record<string, unknown>
 }
 
+export type OpsLegalText = {
+  type: 'terms' | 'privacy_policy' | 'withdrawal' | 'power_of_attorney' | 'price_terms' | string
+  version: string
+  title: string
+  body: string
+  published_at?: string | null
+  raw?: Record<string, unknown>
+}
+
+export type OpsPricePlan = {
+  price_plan_id: string
+  price_plan_version_id: string
+  product_code: string
+  name: string
+  type: OpsContractType
+  status?: string | null
+  is_public?: boolean | null
+  raw?: Record<string, unknown>
+}
+
+export type OpsCustomerDocument = Record<string, unknown>
+export type OpsCustomerLegalAcceptance = Record<string, unknown>
+export type OpsCustomerPowerOfAttorney = Record<string, unknown>
+export type OpsCustomerSwitchStatus = Record<string, unknown> | null
+
 export type OpsClientStatus = {
   configured: boolean
   liveSignupEnabled: boolean
@@ -251,6 +276,10 @@ function extractRows(payload: unknown): unknown[] {
   const p = payload as Record<string, unknown>
   if (Array.isArray(p.data)) return p.data
   if (Array.isArray(p.contracts)) return p.contracts
+  if (Array.isArray(p.price_plans)) return p.price_plans
+  if (Array.isArray(p.pricePlans)) return p.pricePlans
+  if (Array.isArray(p.legal_texts)) return p.legal_texts
+  if (Array.isArray(p.legalTexts)) return p.legalTexts
   if (Array.isArray(p.items)) return p.items
   return []
 }
@@ -261,7 +290,7 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const tenantId = env('GRIDEX_WEBSITE_TENANT_ID')
 
   if (!baseUrl || !apiKey) {
-    throw new OpsError('OPS API är inte konfigurerat för hemsidan.', 503, {
+    throw new OpsError('Tjänsten är inte tillgänglig just nu.', 503, {
       missing: getOpsClientStatus().missing,
     })
   }
@@ -297,17 +326,37 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
         ? String(
             (payload as Record<string, unknown>).message ??
               (payload as Record<string, unknown>).error ??
-              'OPS-anropet misslyckades.'
+              'Tjänsten kunde inte slutföra åtgärden.'
           )
-        : 'OPS-anropet misslyckades.'
+        : 'Tjänsten kunde inte slutföra åtgärden.'
     throw new OpsError(message, res.status, payload)
   }
 
   return payload
 }
 
+async function opsFetchWithFallback(paths: string[], init?: RequestInit): Promise<unknown> {
+  let lastError: unknown = null
+
+  for (const path of paths) {
+    try {
+      return await opsFetch(path, init)
+    } catch (error) {
+      lastError = error
+      if (isOpsError(error) && error.status !== 404) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new OpsError('Tjänsten kunde inte nås.', 502)
+}
+
 export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
-  const payload = await opsFetch('/api/v1/website/public-contracts')
+  const payload = await opsFetchWithFallback([
+    '/api/v1/website/contracts',
+    '/api/v1/website/public-contracts',
+  ])
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
@@ -319,6 +368,65 @@ export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
       return a.name.localeCompare(b.name, 'sv')
     })
 }
+
+function mapLegalText(row: unknown): OpsLegalText | null {
+  if (!row || typeof row !== 'object') return null
+  const r = row as Record<string, unknown>
+  const type = pickString(r, ['type', 'text_type', 'legal_type'])
+  const version = pickString(r, ['version', 'version_key', 'legal_version'])
+  const title = pickString(r, ['title', 'name'])
+  const body = pickString(r, ['body', 'content', 'text', 'markdown'])
+
+  if (!type || !version || !title || !body) return null
+
+  return {
+    type,
+    version,
+    title,
+    body,
+    published_at: pickString(r, ['published_at', 'publishedAt']),
+    raw: r,
+  }
+}
+
+function mapPricePlan(row: unknown): OpsPricePlan | null {
+  if (!row || typeof row !== 'object') return null
+  const mapped = mapPublicContract(row)
+  if (!mapped) return null
+  const r = row as Record<string, unknown>
+  return {
+    price_plan_id: mapped.price_plan_id,
+    price_plan_version_id: mapped.price_plan_version_id,
+    product_code: mapped.product_code,
+    name: mapped.name,
+    type: mapped.type,
+    status: pickString(r, ['status', 'version_status']),
+    is_public: mapped.is_public,
+    raw: r,
+  }
+}
+
+export async function fetchOpsLegalTextsCurrent(): Promise<OpsLegalText[]> {
+  const payload = await opsFetchWithFallback([
+    '/api/v1/website/legal-texts/current',
+    '/api/v1/website/legal-texts',
+  ])
+  return extractRows(payload)
+    .map(mapLegalText)
+    .filter((item): item is OpsLegalText => item !== null)
+}
+
+export async function fetchOpsPricePlans(): Promise<OpsPricePlan[]> {
+  const payload = await opsFetchWithFallback([
+    '/api/v1/website/price-plans',
+    '/api/v1/website/contracts',
+    '/api/v1/website/public-contracts',
+  ])
+  return extractRows(payload)
+    .map(mapPricePlan)
+    .filter((item): item is OpsPricePlan => item !== null)
+}
+
 
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput
@@ -383,6 +491,10 @@ export type OpsPortalBundle = {
   contracts: Record<string, unknown>[]
   sites: Record<string, unknown>[]
   invoices: Record<string, unknown>[]
+  documents: Record<string, unknown>[]
+  legalAcceptances: Record<string, unknown>[]
+  powersOfAttorney: Record<string, unknown>[]
+  switchStatus: Record<string, unknown> | null
   events: Record<string, unknown>[]
   meteringValues: Record<string, unknown>[]
 }
@@ -427,24 +539,63 @@ function rowsAsObjects(payload: unknown): Record<string, unknown>[] {
   )
 }
 
+async function customerRows(path: string, identity: OpsPortalIdentity): Promise<Record<string, unknown>[]> {
+  try {
+    return await opsCustomerFetch(path, identity).then(rowsAsObjects)
+  } catch (error) {
+    if (isOpsError(error) && error.status === 404) return []
+    throw error
+  }
+}
+
+async function customerObject(
+  path: string,
+  identity: OpsPortalIdentity
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await opsCustomerFetch(path, identity).then(firstObject)
+  } catch (error) {
+    if (isOpsError(error) && error.status === 404) return null
+    throw error
+  }
+}
+
 export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity
 ): Promise<OpsPortalBundle> {
-  const [profile, contracts, sites, invoices, events, meteringValues] =
-    await Promise.all([
-      opsCustomerFetch('/api/v1/customer/me', identity).then(firstObject),
-      opsCustomerFetch('/api/v1/customer/contracts', identity).then(rowsAsObjects),
-      opsCustomerFetch('/api/v1/customer/sites', identity).then(rowsAsObjects),
-      opsCustomerFetch('/api/v1/customer/invoices', identity).then(rowsAsObjects),
-      opsCustomerFetch('/api/v1/customer/events', identity).then(rowsAsObjects),
-      opsCustomerFetch('/api/v1/customer/metering-values', identity).then(rowsAsObjects),
-    ])
+  const [
+    profile,
+    contracts,
+    sites,
+    invoices,
+    documents,
+    legalAcceptances,
+    powersOfAttorney,
+    switchStatus,
+    events,
+    meteringValues,
+  ] = await Promise.all([
+    customerObject('/api/v1/customer/me', identity),
+    customerRows('/api/v1/customer/contracts', identity),
+    customerRows('/api/v1/customer/sites', identity),
+    customerRows('/api/v1/customer/invoices', identity),
+    customerRows('/api/v1/customer/documents', identity),
+    customerRows('/api/v1/customer/legal-acceptances', identity),
+    customerRows('/api/v1/customer/powers-of-attorney', identity),
+    customerObject('/api/v1/customer/switch-status', identity),
+    customerRows('/api/v1/customer/events', identity),
+    customerRows('/api/v1/customer/metering-values', identity),
+  ])
 
   return {
     profile,
     contracts,
     sites,
     invoices,
+    documents,
+    legalAcceptances,
+    powersOfAttorney,
+    switchStatus,
     events,
     meteringValues,
   }

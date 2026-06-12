@@ -119,7 +119,9 @@ export async function publishPricingVersion(
   revalidatePath('/')
 
   revalidatePath('/avtal')
+  revalidatePath('/elavtal')
   revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
   revalidatePath('/kundservice')
 
   revalidatePath('/elpris')
@@ -200,7 +202,9 @@ export async function unpublishPricingForContract(contractId: string) {
   revalidatePath('/')
 
   revalidatePath('/avtal')
+  revalidatePath('/elavtal')
   revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
   revalidatePath('/kundservice')
 
   revalidatePath('/elpris')

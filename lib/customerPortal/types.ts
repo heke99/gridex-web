@@ -143,11 +143,59 @@ export type CustomerNotification = {
   priority?: string | null
 }
 
+
+export type CustomerDocument = {
+  id: string
+  title: string | null
+  document_type: string | null
+  status: string | null
+  created_at: string | null
+  file_url: string | null
+  download_url?: string | null
+  version?: string | null
+}
+
+export type CustomerLegalAcceptance = {
+  id: string
+  acceptance_type: string
+  title: string | null
+  version: string | null
+  accepted_at: string | null
+  source: string | null
+  status: string | null
+}
+
+export type CustomerPowerOfAttorney = {
+  id: string
+  status: string
+  scope: string | null
+  accepted_at: string | null
+  revoked_at: string | null
+  valid_until: string | null
+  title: string | null
+  version: string | null
+}
+
+export type CustomerSwitchStatus = {
+  status: string | null
+  next_step: string | null
+  requested_start_date: string | null
+  confirmed_start_date: string | null
+  missing_fields: string[]
+  grid_owner_name: string | null
+  facility_id: string | null
+  metering_point_id: string | null
+}
+
 export type CustomerPortalOverview = {
   profile: CustomerProfile | null
   contracts: CustomerPortalContract[]
   sites: CustomerSite[]
   invoices: CustomerInvoice[]
+  documents: CustomerDocument[]
+  legalAcceptances: CustomerLegalAcceptance[]
+  powersOfAttorney: CustomerPowerOfAttorney[]
+  switchStatus: CustomerSwitchStatus | null
   meteringValues: CustomerMeteringValue[]
   events: CustomerPortalEvent[]
   tickets: CustomerSupportTicket[]

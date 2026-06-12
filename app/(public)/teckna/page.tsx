@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import ElectricityCalculator, { type ContractOption } from '@/components/ElectricityCalculator'
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
   description:
     'Teckna elavtal hos Gridex. Fyll i dina uppgifter, välj avtal och få bekräftelse på nästa steg.',
-  alternates: { canonical: 'https://gridex.se/teckna' },
+  alternates: { canonical: 'https://gridex.se/teckna-avtal' },
 }
 
 type PageParams = {
@@ -91,7 +92,7 @@ function errorText(code?: string) {
     case 'validation':
       return 'Kontrollera obligatoriska uppgifter och försök igen.'
     case 'consent':
-      return 'Du behöver godkänna villkor, integritet, fullmakt, ångerrätt och leverantörsbyte för att skicka ansökan.'
+      return 'Du behöver godkänna villkor, ångerrätt, integritetspolicy och fullmakt för att teckna elavtal.'
     case 'honeypot':
       return 'Ansökan kunde inte skickas. Kontrollera uppgifterna och försök igen.'
     case 'not_configured':
@@ -99,7 +100,7 @@ function errorText(code?: string) {
     case 'ops_unavailable':
       return 'Vi kunde inte skicka din ansökan just nu. Försök igen om en stund.'
     case 'live_disabled':
-      return 'Teckning är inte aktiverad för produktion ännu.'
+      return 'Teckning online är inte aktiverad just nu.'
     case 'offer':
       return 'Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.'
     case 'rate_limit':
@@ -147,8 +148,8 @@ export default async function TecknaPage({
     'use server'
 
     const currentStatus = getOpsClientStatus()
-    if (!currentStatus.configured) redirect('/teckna?error=not_configured')
-    if (!currentStatus.liveSignupEnabled) redirect('/teckna?error=live_disabled')
+    if (!currentStatus.configured) redirect('/teckna-avtal?error=not_configured')
+    if (!currentStatus.liveSignupEnabled) redirect('/teckna-avtal?error=live_disabled')
 
     const h = await headers()
     const ip = getClientIpFromHeaders(h)
@@ -157,10 +158,10 @@ export default async function TecknaPage({
       limit: 8,
       windowMs: 15 * 60 * 1000,
     })
-    if (!rate.allowed) redirect('/teckna?error=rate_limit')
+    if (!rate.allowed) redirect('/teckna-avtal?error=rate_limit')
 
     const honeypot = normalizeText(formData.get('company_website'))
-    if (honeypot) redirect('/teckna?error=honeypot')
+    if (honeypot) redirect('/teckna-avtal?error=honeypot')
 
     const selectedOffer = normalizeText(formData.get('selected_offer'))
     const liveContracts = await fetchOpsPublicContracts().catch(() => [])
@@ -168,7 +169,7 @@ export default async function TecknaPage({
       (contract) => contract.price_plan_version_id === selectedOffer
     )
 
-    if (!offer) redirect('/teckna?error=offer')
+    if (!offer) redirect('/teckna-avtal?error=offer')
 
     const customerTypeRaw = normalizeText(formData.get('customer_type'))
     const customerType = customerTypeRaw === 'company' ? 'company' : 'private'
@@ -196,7 +197,6 @@ export default async function TecknaPage({
       String(formData.get('accept_power_of_attorney') || '') === 'on'
     const acceptCancellation =
       String(formData.get('accept_cancellation_right') || '') === 'on'
-    const acceptSwitch = String(formData.get('accept_supplier_switch') || '') === 'on'
 
     const hasIdentity =
       customerType === 'company'
@@ -204,17 +204,16 @@ export default async function TecknaPage({
         : Boolean(firstName && lastName && personalNumber)
 
     if (!email || !phone || !address || !postalCode || !city || !hasIdentity) {
-      redirect('/teckna?error=validation')
+      redirect('/teckna-avtal?error=validation')
     }
 
     if (
       !acceptTerms ||
       !acceptPrivacy ||
       !acceptPowerOfAttorney ||
-      !acceptCancellation ||
-      !acceptSwitch
+      !acceptCancellation
     ) {
-      redirect('/teckna?error=consent')
+      redirect('/teckna-avtal?error=consent')
     }
 
     const idempotencyKey = createApplicationIdempotencyKey([
@@ -284,13 +283,13 @@ export default async function TecknaPage({
         qs.set('missing', missingFieldsToQuery(result.missing_fields))
       }
 
-      successRedirect = `/teckna/tack?${qs.toString()}`
+      successRedirect = `/teckna-avtal/tack?${qs.toString()}`
     } catch (error) {
       if (isOpsError(error)) {
-        if (error.status === 503) redirect('/teckna?error=live_disabled')
-        redirect('/teckna?error=ops_unavailable')
+        if (error.status === 503) redirect('/teckna-avtal?error=live_disabled')
+        redirect('/teckna-avtal?error=ops_unavailable')
       }
-      redirect('/teckna?error=ops_unavailable')
+      redirect('/teckna-avtal?error=ops_unavailable')
     }
 
     redirect(successRedirect)
@@ -304,7 +303,7 @@ export default async function TecknaPage({
         <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Räkna först • Teckna tryggt • Vi hjälper dig vidare
+              Välj avtal • Godkänn tydligt • Vi hanterar nästa steg
             </div>
 
             <div>
@@ -314,8 +313,9 @@ export default async function TecknaPage({
                 på ett tydligare sätt
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-                Fyll i dina uppgifter och välj det elavtal som passar dig. När
-                ansökan är skickad får du en bekräftelse med nästa steg.
+                Välj elavtal, fyll i dina uppgifter och godkänn villkor, ångerrätt,
+                integritetspolicy och fullmakt. När ansökan är skickad får du en
+                bekräftelse med nästa steg.
               </p>
             </div>
           </div>
@@ -323,7 +323,8 @@ export default async function TecknaPage({
           <div className="grid gap-4">
             <StepCard title="1. Välj avtal" text="Välj bland aktuella elavtal." />
             <StepCard title="2. Fyll i uppgifter" text="Anläggnings-ID och mätpunkt kan lämnas tomma om du inte har dem." />
-            <StepCard title="3. Vi går vidare" text="Vi kontrollerar anläggning, fullmakt och leverantörsbyte." />
+            <StepCard title="3. Kontrollera sammanfattningen" text="Du ser valt avtal, pris, avgifter, start och vad som händer härnäst." />
+            <StepCard title="4. Godkänn och teckna" text="Godkänn villkor, ångerrätt, integritetspolicy och fullmakt var för sig." />
           </div>
         </div>
       </section>
@@ -333,11 +334,10 @@ export default async function TecknaPage({
       <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
         <div className="mb-8 max-w-2xl">
           <h2 className="text-2xl font-bold text-white md:text-3xl">
-            Fyll i uppgifter för att ansöka
+            Fyll i uppgifter för att teckna
           </h2>
           <p className="mt-3 text-gray-400">
-            När ansökan skickas sparas dina uppgifter och samtycken säkert.
-            Vi återkommer med bekräftelse och nästa steg.
+            När du skickar in ansökan sparas dina uppgifter säkert. Gridex använder dem för att behandla din ansökan, begära nödvändiga anläggningsuppgifter och starta ditt elavtal när allt är klart.
           </p>
         </div>
 
@@ -401,7 +401,7 @@ export default async function TecknaPage({
                 ))}
               </select>
               <p className="mt-2 text-xs text-white/45">
-                Ditt valda avtal används när ansökan skickas.
+                Valt avtal, prisversion och prisinformation sparas när ansökan skickas.
               </p>
             </div>
 
@@ -419,7 +419,7 @@ export default async function TecknaPage({
             <Field
               label="Anläggnings-ID"
               name="facility_id"
-              help="Valfritt. Om du saknar uppgiften hjälper vi dig att kontrollera den där det är möjligt."
+              help="Valfritt. Det går bra att fortsätta utan uppgiften. Gridex kan behöva komplettera den från ditt elnätsföretag innan avtalet kan starta."
             />
             <Field
               label="Mätpunkts-ID"
@@ -440,35 +440,68 @@ export default async function TecknaPage({
             <Field label="Önskat startdatum" name="requested_start_date" type="date" />
           </div>
 
-          <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-6">
-            <div className="text-sm font-medium text-white">
-              Godkänn villkor för att skicka ansökan
+          <div className="space-y-5 rounded-3xl border border-white/10 bg-black/30 p-6">
+            <div>
+              <div className="text-sm font-medium text-white">Sammanfattning och godkännanden</div>
+              <p className="mt-2 text-sm leading-6 text-gray-400">
+                Läs igenom avtalet och länkarna nedan. Varje godkännande sparas med
+                version, tidpunkt och koppling till din ansökan.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-gray-300">
+              <div className="font-semibold text-white">Vad händer när du tecknar?</div>
+              <p className="mt-2">
+                Gridex tar emot din ansökan, sparar valt avtal och prisversion,
+                kontrollerar anläggningsuppgifter och återkommer om något behöver kompletteras.
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Om du saknar anläggnings-ID eller mätpunkts-ID kan du fortsätta ändå.
+                Uppgifterna behöver verifieras innan leverantörsbytet kan gå vidare.
+              </p>
             </div>
 
             <Checkbox name="accept_terms">
-              Jag godkänner Gridex avtalsvillkor för valt elavtal.
-            </Checkbox>
-            <Checkbox name="accept_privacy">
-              Jag godkänner behandling av personuppgifter enligt integritetspolicyn.
-            </Checkbox>
-            <Checkbox name="accept_power_of_attorney">
-              Jag ger Gridex fullmakt att begära och hantera anläggningsuppgifter från nätägare.
+              Jag har tagit del av och godkänner{' '}
+              <Link href="/allmanna-villkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                allmänna villkor
+              </Link>{' '}
+              samt{' '}
+              <Link href="/prisvillkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                prisinformationen
+              </Link>{' '}
+              för valt elavtal.
             </Checkbox>
             <Checkbox name="accept_cancellation_right">
-              Jag har tagit del av information om ångerrätt.
+              Jag bekräftar att jag har fått information om min{' '}
+              <Link href="/angerratt" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                ångerrätt
+              </Link>
+              .
             </Checkbox>
-            <Checkbox name="accept_supplier_switch">
-              Jag godkänner att Gridex hanterar leverantörsbyte när uppgifterna är verifierade.
+            <Checkbox name="accept_privacy">
+              Jag har tagit del av hur Gridex behandlar mina personuppgifter i{' '}
+              <Link href="/integritetspolicy" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                integritetspolicyn
+              </Link>
+              .
+            </Checkbox>
+            <Checkbox name="accept_power_of_attorney">
+              Jag ger Gridex fullmakt att begära, ta emot och hantera de anläggningsuppgifter
+              som behövs för att starta och administrera mitt elavtal.
             </Checkbox>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
-              När du skickar ansökan sparas dina uppgifter, samtycken, fullmakt och ångerrätt säkert. Vi skickar bekräftelse och återkommer om något behöver kompletteras.
+            <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-relaxed text-cyan-50/85">
+              Fullmakten används för uppgifter från elnätsföretaget, till exempel
+              anläggnings-ID, mätpunkts-ID, nätområde, nätägare och information som
+              behövs för leverantörsbyte. Den sparas tillsammans med ansökan och visas
+              på Mina sidor när kundprofilen är kopplad.
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div className="text-sm text-gray-400">
-              Kontrollera uppgifterna innan du skickar. Om du klickar två gånger
+              Kontrollera uppgifterna innan du tecknar. Om du klickar två gånger
               ska det inte skapa dubbla ansökningar.
             </div>
 
@@ -476,7 +509,7 @@ export default async function TecknaPage({
               disabled={!canSubmit}
               className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Skicka ansökan
+              Teckna elavtal
             </button>
           </div>
         </form>

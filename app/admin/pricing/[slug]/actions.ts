@@ -153,7 +153,9 @@ async function assertAdmin(): Promise<{ userId: string }> {
 function revalidatePricingPaths(slug?: string | null) {
   revalidatePath('/')
   revalidatePath('/avtal')
+  revalidatePath('/elavtal')
   revalidatePath('/teckna')
+  revalidatePath('/teckna-avtal')
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
   revalidatePath('/admin/contracts')

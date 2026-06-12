@@ -71,7 +71,7 @@ export default async function DashboardPage() {
             <h1 className="text-2xl font-semibold">Översikt</h1>
             <p className="mt-2 text-sm text-white/60">
               Välkommen tillbaka {displayName}. Här ser du dina avtal, fakturor,
-              anläggningar, meddelanden och supportärenden.
+              anläggningar, meddelanden och dokument.
             </p>
           </div>
 
@@ -86,7 +86,7 @@ export default async function DashboardPage() {
       {!overview.opsAvailable ? (
         <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
           Vi kunde inte hämta alla kunduppgifter just nu. Försök igen om en stund.
-          Supportärenden visas fortfarande om du har några.
+          Vissa uppgifter kan visas igen när anslutningen är tillbaka.
         </div>
       ) : null}
 

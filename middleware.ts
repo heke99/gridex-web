@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
   const user = data.user
 
   // Dashboard kräver bara session
-  if (req.nextUrl.pathname.startsWith('/dashboard')) {
+  if (req.nextUrl.pathname.startsWith('/dashboard') || req.nextUrl.pathname === '/mina-sidor') {
     if (!user) return buildLoginRedirect(req)
     return res
   }
@@ -82,5 +82,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/dashboard/:path*'],
+  matcher: ['/admin/:path*', '/dashboard/:path*', '/mina-sidor'],
 }

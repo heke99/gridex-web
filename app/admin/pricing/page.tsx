@@ -163,7 +163,7 @@ export default async function AdminPricingIndexPage() {
             Till avtal
           </Link>
           <Link
-            href="/avtal"
+            href="/elavtal"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-cyan-500 px-4 text-sm font-bold text-black"
           >
             Visa publikt

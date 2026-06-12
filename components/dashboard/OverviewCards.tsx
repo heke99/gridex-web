@@ -15,9 +15,6 @@ export default function OverviewCards({
 }: {
   overview: CustomerPortalOverview
 }) {
-  const openTickets = overview.tickets.filter(
-    (ticket) => ticket.status !== 'resolved' && ticket.status !== 'closed'
-  ).length
   const latestInvoice = overview.invoices[0] ?? null
   const unreadNotifications = overview.notifications.filter(
     (notification) => !notification.is_read
@@ -51,11 +48,11 @@ export default function OverviewCards({
 
       <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
-          Öppna ärenden
+          Dokument
         </div>
-        <div className="mt-3 text-3xl font-semibold">{openTickets}</div>
+        <div className="mt-3 text-3xl font-semibold">{overview.documents.length}</div>
         <div className="mt-2 text-xs text-white/60">
-          Pågående supportärenden hos Gridex kundservice.
+          Avtal, villkor, fullmakter och andra underlag.
         </div>
       </div>
 

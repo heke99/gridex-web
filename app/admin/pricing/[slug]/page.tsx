@@ -306,7 +306,7 @@ export default async function AdminPricingContractPage({
             Alla prisversioner
           </Link>
           <Link
-            href="/avtal"
+            href="/elavtal"
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-200 hover:border-cyan-500/40"
           >
             Visa publikt

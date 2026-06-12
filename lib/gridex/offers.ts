@@ -77,7 +77,7 @@ function legalTextFor(spec: CustomerSpecResult): string {
     const basisLabel = basis ? formatYearMonth(basis.year, basis.month) : 'föregående månad'
     const sourceLabel =
       basis?.source === 'elprisetjustnu_api'
-        ? 'elprisetjustnu API'
+        ? 'elprisetjustnu.se'
         : 'Gridex prisbas för samma period'
 
     return `Detta är ett rörligt månadspris. Priset du ser är ett exempel baserat på föregående kalendermånads genomsnittliga spotpris (${basisLabel}) i ditt elområde. Spotpriset hämtas från ${sourceLabel}. Din angivna förbrukning påverkar månadskostnaden, men inte själva spotpriset. Ditt faktiska pris kan ändras varje månad beroende på marknadspriset. Endast fasta elprisavtal har ett fast kWh-pris. Avtalade påslag och månadsavgifter framgår i specifikationen.`
@@ -185,7 +185,7 @@ export async function calculateCustomerOffer(params: {
     },
     legalText,
     customerNotice: isVariable
-      ? 'Rörligt månadspris – spotpriset hämtas för föregående kalendermånad från elprisetjustnu API. Din kWh-förbrukning påverkar bara totalen.'
+      ? 'Rörligt månadspris – spotpriset hämtas för föregående kalendermånad från elprisetjustnu.se. Din kWh-förbrukning påverkar bara totalen.'
       : 'Fast elpris - kWh-priset ändras inte under avtalad fastprisperiod.',
     snapshot: {},
   }

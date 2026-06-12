@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Elpris idag och föregående månads spotpris – SE1, SE2, SE3, SE4',
   description:
-    'Se dagens elpris och föregående månads genomsnittliga spotpris per svenskt elområde. Priser hämtas från elprisetjustnu API.',
+    'Se dagens elpris och föregående månads genomsnittliga spotpris per svenskt elområde. Priser hämtas från en extern prisdatakälla.',
   alternates: { canonical: 'https://gridex.se/aktuella-elpriser' },
 }
 
@@ -49,7 +49,7 @@ export default async function AktuellaElpriserPage() {
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-16">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-8">
         <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-          elprisetjustnu API • spotpris • SE1-SE4
+          spotpris • SE1-SE4 • dagspris
         </div>
         <h1 className="mt-4 text-4xl font-bold">
           Elpris idag och föregående månads spotpris
@@ -70,7 +70,7 @@ export default async function AktuellaElpriserPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-400">
               Snitt för {String(period.month).padStart(2, '0')}/{period.year},
-              hämtat från elprisetjustnu API.
+              hämtat från vår prisdatakälla.
             </p>
           </div>
           <Link
@@ -147,7 +147,7 @@ export default async function AktuellaElpriserPage() {
       </section>
 
       <section className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-6 text-sm leading-relaxed text-amber-100">
-        API-priserna kommer från elprisetjustnu.se. Spotpris visas utan moms,
+        Prisuppgifterna kommer från elprisetjustnu.se. Spotpris visas utan moms,
         skatter, elnätsavgifter och elhandlarens påslag. I Gridex offertflöde
         visas totalen med avtalade avgifter och moms innan teckning.
       </section>

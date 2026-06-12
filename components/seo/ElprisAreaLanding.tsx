@@ -29,7 +29,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
   const supabase = await createSupabaseServerClient()
   const { year, month } = prevYearMonth(new Date())
 
-  // Public SEO pages should show the same API-based previous-month spot
+  // Public SEO pages should show the same previous-month spot price
   // basis as the calculator. Admin/manual DB rows are only fallback data.
   const [spotAverage, live] = await Promise.all([
     fetchMonthlySpotAverageFromElprisetJustNu({
@@ -108,7 +108,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
             {spotAvgOre == null ? '—' : `${formatNumber(spotAvgOre)} öre`}
           </div>
           <div className="text-xs text-gray-500 mt-2">
-            Spot-snitt hämtas från elprisetjustnu API. Totalpris beror på avtalsform, påslag och månadsavgift.
+            Spot-snitt hämtas från elprisetjustnu.se. Totalpris beror på avtalsform, påslag och månadsavgift.
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
           <p className="text-gray-400 mt-2 text-sm">
             Jämför tim/spot, portfölj och fastpris. Se alltid specifikation innan du tecknar.
           </p>
-          <Link href="/avtal" className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm">
+          <Link href="/elavtal" className="inline-block mt-5 text-cyan-300 hover:text-cyan-200 text-sm">
             Se våra elavtal →
           </Link>
         </div>
@@ -152,7 +152,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Link
-          href="/teckna"
+          href="/teckna-avtal"
           className="bg-cyan-500 hover:bg-cyan-400 transition text-black font-bold px-6 py-3 rounded-xl text-center"
         >
           Teckna elavtal i {area}

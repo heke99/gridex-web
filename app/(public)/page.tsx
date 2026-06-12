@@ -108,7 +108,7 @@ function HeroBlock() {
             </Link>
 
             <Link
-              href="/avtal"
+              href="/elavtal"
               className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-100 transition hover:border-cyan-500/40 hover:bg-white/5"
             >
               Se våra elavtal
@@ -347,7 +347,7 @@ function ValueBlocks() {
 
         <div className="mt-8">
           <Link
-            href="/avtal"
+            href="/elavtal"
             className="inline-flex rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black transition hover:bg-cyan-400"
           >
             Jämför elavtal
@@ -376,7 +376,7 @@ function ArticleColumns() {
     {
       title: 'Så byter du elavtal',
       text: 'Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.',
-      href: '/teckna',
+      href: '/teckna-avtal',
       cta: 'Teckna elavtal',
     },
     {
@@ -440,7 +440,7 @@ function HomeSeoBlocks() {
             det som passar ditt hem bäst.
           </p>
           <Link
-            href="/avtal"
+            href="/elavtal"
             className="mt-5 inline-block text-sm text-cyan-300 hover:text-cyan-200"
           >
             Läs mer →
