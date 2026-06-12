@@ -123,8 +123,29 @@ function opsBaseUrl(): string | undefined {
 
 export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = []
-  if (!opsBaseUrl()) missing.push('GRIDEX_OPS_API_URL')
+  const baseUrl = opsBaseUrl()
+  if (!baseUrl) missing.push('GRIDEX_OPS_API_URL')
   if (!env('GRIDEX_WEBSITE_API_KEY')) missing.push('GRIDEX_WEBSITE_API_KEY')
+
+  let unsafeProductionUrl = false
+  if (
+    process.env.NODE_ENV === 'production' &&
+    env('GRIDEX_ALLOW_UNSAFE_OPS_URL') !== 'true' &&
+    baseUrl
+  ) {
+    try {
+      const host = new URL(baseUrl).hostname
+      unsafeProductionUrl =
+        /localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(baseUrl) ||
+        /test|staging|preview/i.test(host)
+    } catch {
+      unsafeProductionUrl = true
+    }
+  }
+
+  if (unsafeProductionUrl) {
+    missing.push('GRIDEX_OPS_API_URL_PRODUCTION_GUARD')
+  }
 
   return {
     configured: missing.length === 0,
@@ -348,6 +369,101 @@ export async function submitOpsCustomerApplication(
     message: pickString(row, ['message']),
     raw: row,
   }
+}
+
+
+export type OpsPortalIdentity = {
+  userId: string
+  email?: string | null
+  customerNumber?: string | null
+}
+
+export type OpsPortalBundle = {
+  profile: Record<string, unknown> | null
+  contracts: Record<string, unknown>[]
+  sites: Record<string, unknown>[]
+  invoices: Record<string, unknown>[]
+  events: Record<string, unknown>[]
+  meteringValues: Record<string, unknown>[]
+}
+
+function portalHeaders(identity: OpsPortalIdentity): Headers {
+  const headers = new Headers()
+  headers.set('X-Gridex-Portal-User-Id', identity.userId)
+  if (identity.email) headers.set('X-Gridex-Customer-Email', identity.email)
+  if (identity.customerNumber) {
+    headers.set('X-Gridex-Customer-Number', identity.customerNumber)
+  }
+  return headers
+}
+
+async function opsCustomerFetch(
+  path: string,
+  identity: OpsPortalIdentity,
+  init?: RequestInit
+): Promise<unknown> {
+  const headers = new Headers(init?.headers)
+  portalHeaders(identity).forEach((value, key) => headers.set(key, value))
+  return opsFetch(path, { ...init, headers })
+}
+
+function firstObject(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== 'object') return null
+  const p = payload as Record<string, unknown>
+  const data = p.data
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as Record<string, unknown>
+  }
+  if (Array.isArray(data) && data[0] && typeof data[0] === 'object') {
+    return data[0] as Record<string, unknown>
+  }
+  return p
+}
+
+function rowsAsObjects(payload: unknown): Record<string, unknown>[] {
+  return extractRows(payload).filter(
+    (item): item is Record<string, unknown> =>
+      Boolean(item && typeof item === 'object' && !Array.isArray(item))
+  )
+}
+
+export async function fetchOpsCustomerPortalBundle(
+  identity: OpsPortalIdentity
+): Promise<OpsPortalBundle> {
+  const [profile, contracts, sites, invoices, events, meteringValues] =
+    await Promise.all([
+      opsCustomerFetch('/api/v1/customer/me', identity).then(firstObject),
+      opsCustomerFetch('/api/v1/customer/contracts', identity).then(rowsAsObjects),
+      opsCustomerFetch('/api/v1/customer/sites', identity).then(rowsAsObjects),
+      opsCustomerFetch('/api/v1/customer/invoices', identity).then(rowsAsObjects),
+      opsCustomerFetch('/api/v1/customer/events', identity).then(rowsAsObjects),
+      opsCustomerFetch('/api/v1/customer/metering-values', identity).then(rowsAsObjects),
+    ])
+
+  return {
+    profile,
+    contracts,
+    sites,
+    invoices,
+    events,
+    meteringValues,
+  }
+}
+
+export async function sendOpsCustomerEvent(
+  identity: OpsPortalIdentity,
+  event: {
+    event_type: string
+    source: 'gridex_website'
+    entity_type?: string | null
+    entity_id?: string | null
+    metadata?: Record<string, unknown>
+  }
+): Promise<void> {
+  await opsCustomerFetch('/api/v1/customer/events', identity, {
+    method: 'POST',
+    body: JSON.stringify(event),
+  })
 }
 
 export function hashIp(ip: string | null): string | null {

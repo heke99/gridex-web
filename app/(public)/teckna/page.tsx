@@ -13,11 +13,12 @@ import {
   submitOpsCustomerApplication,
   type OpsPublicContract,
 } from '@/lib/ops/client'
+import { checkRateLimit } from '@/lib/security/rateLimit'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – snabbt & transparent',
   description:
-    'Teckna elavtal hos Gridex. Hemsidan samlar in uppgifter och Gridex OPS skapar kund, avtal, kundnummer, avtalsnummer, snapshot och nästa steg.',
+    'Teckna elavtal hos Gridex. Fyll i dina uppgifter, välj avtal och få bekräftelse på nästa steg.',
   alternates: { canonical: 'https://gridex.se/teckna' },
 }
 
@@ -94,13 +95,15 @@ function errorText(code?: string) {
     case 'honeypot':
       return 'Ansökan kunde inte skickas. Kontrollera uppgifterna och försök igen.'
     case 'not_configured':
-      return 'Teckning är inte aktiverad just nu eftersom OPS-kopplingen saknar konfiguration.'
+      return 'Teckning är inte aktiverad just nu.'
     case 'ops_unavailable':
       return 'Vi kunde inte skicka din ansökan just nu. Försök igen om en stund.'
     case 'live_disabled':
       return 'Teckning är inte aktiverad för produktion ännu.'
     case 'offer':
-      return 'Valt avtal kunde inte verifieras mot OPS. Välj ett publicerat avtal och försök igen.'
+      return 'Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.'
+    case 'rate_limit':
+      return 'För många försök på kort tid. Vänta en stund och försök igen.'
     default:
       return null
   }
@@ -127,10 +130,10 @@ export default async function TecknaPage({
       loadError =
         error instanceof Error
           ? error.message
-          : 'Kunde inte hämta publicerade avtal från OPS.'
+          : 'Kunde inte hämta aktuella elavtal.'
     }
   } else {
-    loadError = 'OPS-kopplingen saknar serverkonfiguration.'
+    loadError = 'Teckning är inte tillgänglig just nu.'
   }
 
   const options = contracts.map(toContractOption)
@@ -150,6 +153,11 @@ export default async function TecknaPage({
     const h = await headers()
     const ip = getClientIpFromHeaders(h)
     const userAgent = h.get('user-agent')
+    const rate = checkRateLimit(`signup:${ip ?? 'unknown'}`, {
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!rate.allowed) redirect('/teckna?error=rate_limit')
 
     const honeypot = normalizeText(formData.get('company_website'))
     if (honeypot) redirect('/teckna?error=honeypot')
@@ -296,7 +304,7 @@ export default async function TecknaPage({
         <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Räkna först • Teckna tryggt • OPS skapar avtalet
+              Räkna först • Teckna tryggt • Vi hjälper dig vidare
             </div>
 
             <div>
@@ -306,17 +314,16 @@ export default async function TecknaPage({
                 på ett tydligare sätt
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-                Hemsidan samlar in dina uppgifter och skickar ansökan säkert till
-                Gridex OPS. OPS skapar kundnummer, avtal, avtalsnummer, snapshot
-                och nästa steg.
+                Fyll i dina uppgifter och välj det elavtal som passar dig. När
+                ansökan är skickad får du en bekräftelse med nästa steg.
               </p>
             </div>
           </div>
 
           <div className="grid gap-4">
-            <StepCard title="1. Välj avtal" text="Endast publicerade OPS-avtal visas." />
+            <StepCard title="1. Välj avtal" text="Välj bland aktuella elavtal." />
             <StepCard title="2. Fyll i uppgifter" text="Anläggnings-ID och mätpunkt kan lämnas tomma om du inte har dem." />
-            <StepCard title="3. OPS tar över" text="Gridex OPS verifierar anläggning, fullmakt och leverantörsbyte." />
+            <StepCard title="3. Vi går vidare" text="Vi kontrollerar anläggning, fullmakt och leverantörsbyte." />
           </div>
         </div>
       </section>
@@ -329,8 +336,8 @@ export default async function TecknaPage({
             Fyll i uppgifter för att ansöka
           </h2>
           <p className="mt-3 text-gray-400">
-            När ansökan skickas skapar OPS kund, avtal, status och loggar rätt
-            samtycken. Hemsidan skapar inga lokala kundnummer eller avtalsnummer.
+            När ansökan skickas sparas dina uppgifter och samtycken säkert.
+            Vi återkommer med bekräftelse och nästa steg.
           </p>
         </div>
 
@@ -342,14 +349,13 @@ export default async function TecknaPage({
 
         {loadError ? (
           <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            {loadError} Teckning är blockerad tills publicerade avtal kan hämtas från OPS.
+            {loadError} Teckning är därför tillfälligt pausad.
           </div>
         ) : null}
 
         {!status.liveSignupEnabled ? (
           <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            Live-teckning är avstängd. Sätt GRIDEX_ENABLE_LIVE_SIGNUP=true när OPS-token,
-            tenant och endpoint är verifierade.
+            Teckning online är inte aktiverad just nu. Kontakta kundservice om du vill ha hjälp.
           </div>
         ) : null}
 
@@ -395,7 +401,7 @@ export default async function TecknaPage({
                 ))}
               </select>
               <p className="mt-2 text-xs text-white/45">
-                Avtalets price_plan_id och price_plan_version_id skickas till OPS.
+                Ditt valda avtal används när ansökan skickas.
               </p>
             </div>
 
@@ -413,12 +419,12 @@ export default async function TecknaPage({
             <Field
               label="Anläggnings-ID"
               name="facility_id"
-              help="Valfritt. Om du saknar uppgiften begär OPS den från nätägaren med fullmakt där det är möjligt."
+              help="Valfritt. Om du saknar uppgiften hjälper vi dig att kontrollera den där det är möjligt."
             />
             <Field
               label="Mätpunkts-ID"
               name="metering_point_id"
-              help="Valfritt. Leverantörsbyte blockeras tills anläggningsuppgifter är verifierade i OPS."
+              help="Valfritt. Leverantörsbyte går vidare först när anläggningsuppgifterna är verifierade."
             />
 
             <div>
@@ -440,7 +446,7 @@ export default async function TecknaPage({
             </div>
 
             <Checkbox name="accept_terms">
-              Jag godkänner Gridex avtalsvillkor och den villkorsversion som OPS kopplar till vald prisversion.
+              Jag godkänner Gridex avtalsvillkor för valt elavtal.
             </Checkbox>
             <Checkbox name="accept_privacy">
               Jag godkänner behandling av personuppgifter enligt integritetspolicyn.
@@ -456,16 +462,14 @@ export default async function TecknaPage({
             </Checkbox>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-gray-400">
-              När du skickar ansökan sparar OPS samtycken, fullmakt, ångerrätt,
-              vald prisversion, idempotency key, IP-hash och user agent. Hemsidan
-              skickar inga affärskritiska kundmail och skapar inga egna nummer.
+              När du skickar ansökan sparas dina uppgifter, samtycken, fullmakt och ångerrätt säkert. Vi skickar bekräftelse och återkommer om något behöver kompletteras.
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div className="text-sm text-gray-400">
               Kontrollera uppgifterna innan du skickar. Om du klickar två gånger
-              ska OPS använda samma idempotency key och inte skapa dubletter.
+              ska det inte skapa dubbla ansökningar.
             </div>
 
             <button

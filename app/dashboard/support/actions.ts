@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/security/rateLimit'
 
 type TicketInsertRow = {
   id: string
@@ -31,6 +32,14 @@ export async function createSupportTicketAction(formData: FormData) {
 
   if (!user) {
     throw new Error('Unauthorized')
+  }
+
+  const rate = checkRateLimit(`support-ticket:${user.id}`, {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  })
+  if (!rate.allowed) {
+    throw new Error('För många ärenden på kort tid. Vänta en stund och försök igen.')
   }
 
   const subject = pick(formData, 'subject')
@@ -119,6 +128,14 @@ export async function addSupportMessageAction(formData: FormData) {
 
   if (!user) {
     throw new Error('Unauthorized')
+  }
+
+  const rate = checkRateLimit(`support-reply:${user.id}`, {
+    limit: 20,
+    windowMs: 15 * 60 * 1000,
+  })
+  if (!rate.allowed) {
+    throw new Error('För många meddelanden på kort tid. Vänta en stund och försök igen.')
   }
 
   const ticketId = pick(formData, 'ticket_id')

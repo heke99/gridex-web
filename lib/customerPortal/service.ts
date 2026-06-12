@@ -1,26 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import {
+  fetchOpsCustomerPortalBundle,
+  type OpsPortalIdentity,
+} from '@/lib/ops/client'
 import type {
   CustomerInvoice,
+  CustomerMeteringValue,
   CustomerNotification,
   CustomerPortalContract,
+  CustomerPortalEvent,
   CustomerPortalOverview,
   CustomerProfile,
-  CustomerAgreementEvent,
-  CustomerSignupOrder,
+  CustomerSite,
   CustomerSupportMessage,
   CustomerSupportTicket,
-  ExternalConnection,
 } from './types'
-
-type ContractAgreementFallbackRow = {
-  id: string
-  contract_slug: string | null
-  status: string | null
-  created_at: string
-  email_signed_at: string | null
-  bankid_signed_at: string | null
-}
 
 type CustomerProfileFallbackRow = {
   user_id: string
@@ -40,6 +35,188 @@ async function getUserOrThrow(supabase: SupabaseClient) {
   }
 
   return user
+}
+
+function asText(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function asNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function pick(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = asText(row[key])
+    if (value) return value
+  }
+  return null
+}
+
+function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
+  return pick(row, keys)
+}
+
+function mapOpsProfile(
+  row: Record<string, unknown> | null,
+  fallback: CustomerProfile | null,
+  userId: string,
+  userEmail?: string | null
+): CustomerProfile | null {
+  if (!row && fallback) return fallback
+  if (!row) return fallback
+
+  const firstName = pick(row, ['first_name', 'firstName']) ?? fallback?.first_name ?? null
+  const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
+  const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
+  const fullName =
+    pick(row, ['full_name', 'fullName', 'name']) ??
+    fallback?.full_name ??
+    computedFullName
+
+  return {
+    user_id: userId,
+    email: pick(row, ['email', 'customer_email']) ?? fallback?.email ?? userEmail ?? null,
+    first_name: firstName,
+    last_name: lastName,
+    full_name: fullName,
+    phone: pick(row, ['phone', 'customer_phone']) ?? fallback?.phone ?? null,
+    language_code: fallback?.language_code ?? 'sv',
+    timezone: fallback?.timezone ?? 'Europe/Stockholm',
+    email_verified_at: fallback?.email_verified_at ?? null,
+    onboarding_state:
+      pick(row, ['onboarding_state', 'onboarding_status', 'status']) ??
+      fallback?.onboarding_state ??
+      'active',
+    billing_customer_ref:
+      pick(row, ['billing_customer_ref', 'billing_customer_id']) ??
+      fallback?.billing_customer_ref ??
+      null,
+    contract_customer_ref:
+      pick(row, ['customer_number', 'contract_customer_ref']) ??
+      fallback?.contract_customer_ref ??
+      null,
+    customer_number: pick(row, ['customer_number', 'customerNumber']) ?? null,
+    metadata: { source: 'ops_customer_api', raw: row },
+    customer_type: pick(row, ['customer_type', 'customerType']) ?? fallback?.customer_type ?? null,
+    company_name: pick(row, ['company_name', 'companyName']) ?? fallback?.company_name ?? null,
+  }
+}
+
+function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
+  const id = pick(row, ['id', 'contract_id', 'contractId']) ?? crypto.randomUUID()
+  const name = pick(row, ['contract_name', 'name', 'product_name', 'productCode'])
+  const contractNumber = pick(row, ['contract_number', 'contractNumber'])
+  return {
+    id,
+    agreement_id: pick(row, ['agreement_id', 'application_id', 'contract_application_id']),
+    contract_slug: pick(row, ['product_code', 'slug', 'type']),
+    contract_name: name,
+    contract_number: contractNumber,
+    status: pick(row, ['status', 'contract_status']) ?? 'unknown',
+    customer_status_label: pick(row, ['customer_status_label', 'status_label']),
+    signed_at: pickDate(row, ['signed_at', 'accepted_at', 'created_at']),
+    starts_at: pickDate(row, [
+      'actual_start_date',
+      'confirmed_start_date',
+      'requested_start_date',
+      'starts_at',
+      'start_date',
+    ]),
+    ends_at: pickDate(row, ['ends_at', 'end_date']),
+    requested_start_date: pickDate(row, ['requested_start_date', 'requestedStartDate']),
+    confirmed_start_date: pickDate(row, ['confirmed_start_date', 'confirmedStartDate']),
+    actual_start_date: pickDate(row, ['actual_start_date', 'actualStartDate']),
+    billing_provider_key: pick(row, ['billing_provider_key', 'billing_provider']),
+    contract_provider_key: pick(row, ['contract_provider_key', 'provider']),
+    contract_external_ref: contractNumber ?? pick(row, ['external_ref', 'contract_external_ref']),
+    billing_contract_ref: pick(row, ['billing_contract_ref', 'billing_ref']),
+    price_plan_id: pick(row, ['price_plan_id', 'pricePlanId']),
+    price_plan_version_id: pick(row, ['price_plan_version_id', 'pricePlanVersionId']),
+    contract_price_snapshot_id: pick(row, [
+      'contract_price_snapshot_id',
+      'contractPriceSnapshotId',
+    ]),
+    pricing_snapshot: asRecord(row.pricing_snapshot ?? row.price_snapshot),
+    metadata: { source: 'ops_customer_api', raw: row },
+    created_at: pickDate(row, ['created_at', 'createdAt']) ?? new Date().toISOString(),
+  }
+}
+
+function mapOpsSite(row: Record<string, unknown>): CustomerSite {
+  return {
+    id: pick(row, ['id', 'customer_site_id', 'site_id']) ?? crypto.randomUUID(),
+    address: pick(row, ['address', 'street_address', 'facility_address']),
+    postal_code: pick(row, ['postal_code', 'zip', 'postcode']),
+    city: pick(row, ['city', 'postal_city']),
+    facility_id: pick(row, ['facility_id', 'site_facility_id']),
+    metering_point_id: pick(row, ['metering_point_id', 'mpan']),
+    grid_area_code: pick(row, ['grid_area_code', 'network_area_code']),
+    price_area: pick(row, ['price_area', 'price_area_code', 'electricity_area']),
+    grid_owner_name: pick(row, ['grid_owner_name', 'grid_owner', 'dso_name']),
+    verification_status: pick(row, ['verification_status', 'facility_verification_status']),
+    onboarding_status: pick(row, ['onboarding_status', 'site_status']),
+    data_quality_status: pick(row, ['data_quality_status']),
+    resolution_status: pick(row, ['resolution_status', 'energy_resolution_status']),
+  }
+}
+
+function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
+  return {
+    id: pick(row, ['id', 'invoice_id']) ?? crypto.randomUUID(),
+    invoice_number: pick(row, ['invoice_number', 'invoiceNumber']),
+    provider_key: pick(row, ['provider_key', 'provider']) ?? 'billing_partner',
+    external_invoice_ref: pick(row, ['external_invoice_ref', 'provider_invoice_id']),
+    currency_code: pick(row, ['currency_code', 'currency']) ?? 'SEK',
+    invoice_period_start: pickDate(row, ['invoice_period_start', 'period_start']),
+    invoice_period_end: pickDate(row, ['invoice_period_end', 'period_end']),
+    issued_at: pickDate(row, ['issued_at', 'invoice_date', 'created_at']),
+    due_at: pickDate(row, ['due_at', 'due_date']),
+    paid_at: pickDate(row, ['paid_at', 'payment_date']),
+    status: pick(row, ['status', 'payment_status']) ?? 'unknown',
+    total_amount: asNumber(row.total_amount ?? row.amount_inc_vat ?? row.amount) ?? 0,
+    vat_amount: asNumber(row.vat_amount) ?? 0,
+    ocr_number: pick(row, ['ocr_number', 'ocr']),
+    payment_reference: pick(row, ['payment_reference', 'reference']),
+    pdf_url: pick(row, ['pdf_url', 'download_url']),
+    pdf_storage_path: pick(row, ['pdf_storage_path']),
+    line_items: Array.isArray(row.line_items) ? row.line_items : [],
+  }
+}
+
+function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
+  return {
+    id: pick(row, ['id', 'event_id']) ?? crypto.randomUUID(),
+    event_type: pick(row, ['event_type', 'type']) ?? 'customer.event',
+    title: pick(row, ['title', 'customer_label']),
+    summary: pick(row, ['summary', 'message', 'body']),
+    status: pick(row, ['status']),
+    created_at: pickDate(row, ['created_at', 'occurred_at']) ?? new Date().toISOString(),
+    metadata: asRecord(row.metadata ?? row.payload),
+  }
+}
+
+function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValue {
+  return {
+    id: pick(row, ['id', 'metering_value_id']) ?? crypto.randomUUID(),
+    metering_point_id: pick(row, ['metering_point_id', 'mpan']),
+    facility_id: pick(row, ['facility_id']),
+    period_start: pickDate(row, ['period_start', 'from_at', 'start_time']),
+    period_end: pickDate(row, ['period_end', 'to_at', 'end_time']),
+    quantity_kwh: asNumber(row.quantity_kwh ?? row.kwh ?? row.value),
+    quality: pick(row, ['quality', 'quality_status']),
+    source: pick(row, ['source']),
+  }
 }
 
 export async function getPortalSession() {
@@ -88,68 +265,13 @@ export async function getCustomerProfile(
     language_code: 'sv',
     timezone: 'Europe/Stockholm',
     email_verified_at: null,
-    onboarding_state: 'pending_migration',
+    onboarding_state: 'pending',
     billing_customer_ref: null,
     contract_customer_ref: null,
     metadata: {},
     customer_type: null,
     company_name: null,
   }
-}
-
-export async function getCustomerContracts(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerPortalContract[]> {
-  const { data } = await supabase
-    .from('customer_contract_portal_links')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if ((data?.length ?? 0) > 0) {
-    return (data ?? []) as CustomerPortalContract[]
-  }
-
-  const { data: agreements } = await supabase
-    .from('contract_agreements')
-    .select(
-      'id,contract_slug,status,created_at,email_signed_at,bankid_signed_at'
-    )
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .returns<ContractAgreementFallbackRow[]>()
-
-  return (agreements ?? []).map((row) => ({
-    id: row.id,
-    agreement_id: row.id,
-    contract_slug: row.contract_slug,
-    contract_name: null,
-    status: row.status ?? 'unknown',
-    signed_at: row.email_signed_at ?? row.bankid_signed_at ?? null,
-    starts_at: null,
-    ends_at: null,
-    billing_provider_key: null,
-    contract_provider_key: null,
-    contract_external_ref: null,
-    billing_contract_ref: null,
-    pricing_snapshot: {},
-    metadata: { source: 'contract_agreements_fallback' },
-    created_at: row.created_at,
-  }))
-}
-
-export async function getCustomerInvoices(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerInvoice[]> {
-  const { data } = await supabase
-    .from('customer_invoices')
-    .select('*')
-    .eq('user_id', userId)
-    .order('issued_at', { ascending: false })
-
-  return (data ?? []) as CustomerInvoice[]
 }
 
 export async function getCustomerTickets(
@@ -180,91 +302,70 @@ export async function getTicketMessages(
 
 export async function getCustomerNotifications(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  profile?: CustomerProfile | null
 ): Promise<CustomerNotification[]> {
-  const { data } = await supabase
+  let query = supabase
     .from('customer_notifications')
     .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(10)
-
-  return (data ?? []) as CustomerNotification[]
-}
-
-export async function getCustomerSignupOrders(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerSignupOrder[]> {
-  const { data } = await supabase
-    .from('customer_signup_orders')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  return (data ?? []) as CustomerSignupOrder[]
-}
-
-export async function getCustomerAgreementEvents(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerAgreementEvent[]> {
-  const { data } = await supabase
-    .from('customer_agreement_events')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('customer_visible', true)
     .order('created_at', { ascending: false })
     .limit(20)
 
-  return (data ?? []) as CustomerAgreementEvent[]
-}
+  const customerNumber = profile?.customer_number ?? profile?.contract_customer_ref
+  const email = profile?.email
+  if (customerNumber || email) {
+    const filters = [`user_id.eq.${userId}`]
+    if (customerNumber) filters.push(`customer_number.eq.${customerNumber}`)
+    if (email) filters.push(`customer_email.eq.${email}`)
+    query = query.or(filters.join(','))
+  } else {
+    query = query.eq('user_id', userId)
+  }
 
-export async function getExternalConnections(
-  supabase: SupabaseClient
-): Promise<ExternalConnection[]> {
-  const { data } = await supabase
-    .from('external_system_connections')
-    .select(
-      'id,provider_key,connection_name,domain,status,is_sandbox,last_success_at,health_payload'
-    )
-    .order('domain', { ascending: true })
-
-  return (data ?? []) as ExternalConnection[]
+  const { data } = await query
+  return (data ?? []) as CustomerNotification[]
 }
 
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
+  const localProfile = await getCustomerProfile(supabase, user.id)
+  const identity: OpsPortalIdentity = {
+    userId: user.id,
+    email: user.email ?? localProfile?.email ?? null,
+    customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
+  }
 
-  const [
-    profile,
-    contracts,
-    invoices,
-    tickets,
-    notifications,
-    signupOrders,
-    agreementEvents,
-    connections,
-  ] =
-    await Promise.all([
-      getCustomerProfile(supabase, user.id),
-      getCustomerContracts(supabase, user.id),
-      getCustomerInvoices(supabase, user.id),
-      getCustomerTickets(supabase, user.id),
-      getCustomerNotifications(supabase, user.id),
-      getCustomerSignupOrders(supabase, user.id),
-      getCustomerAgreementEvents(supabase, user.id),
-      getExternalConnections(supabase),
-    ])
+  const [tickets, ops] = await Promise.all([
+    getCustomerTickets(supabase, user.id),
+    fetchOpsCustomerPortalBundle(identity)
+      .then((bundle) => ({ bundle, error: null as string | null }))
+      .catch((error) => ({
+        bundle: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Kunduppgifterna kunde inte hämtas just nu.',
+      })),
+  ])
+
+  const profile = mapOpsProfile(
+    ops.bundle?.profile ?? null,
+    localProfile,
+    user.id,
+    user.email ?? null
+  )
+  const notifications = await getCustomerNotifications(supabase, user.id, profile)
 
   return {
     profile,
-    contracts,
-    invoices,
+    contracts: (ops.bundle?.contracts ?? []).map(mapOpsContract),
+    sites: (ops.bundle?.sites ?? []).map(mapOpsSite),
+    invoices: (ops.bundle?.invoices ?? []).map(mapOpsInvoice),
+    meteringValues: (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue),
+    events: (ops.bundle?.events ?? []).map(mapOpsEvent),
     tickets,
     notifications,
-    signupOrders,
-    agreementEvents,
-    connections,
+    opsAvailable: Boolean(ops.bundle),
+    opsError: ops.error,
   }
 }

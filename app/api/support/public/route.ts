@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseService } from '@/lib/supabase/service'
+import { checkRateLimit } from '@/lib/security/rateLimit'
+import { hashIp } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +62,17 @@ export async function POST(req: Request) {
     }
 
     const ip = clientIp(h)
+    const rate = checkRateLimit(`public-support:${ip ?? email}`, {
+      limit: 6,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: 'För många meddelanden på kort tid. Vänta en stund och försök igen.' },
+        { status: 429 }
+      )
+    }
+
     const userAgent = h.get('user-agent')
     const clientRequestId = `public:${email}:${Date.now()}`
 
@@ -78,7 +91,7 @@ export async function POST(req: Request) {
           customer_email: email,
           customer_phone: phone || null,
           client_request_id: clientRequestId,
-          ip,
+          ip_hash: hashIp(ip),
           user_agent: userAgent,
         },
       })

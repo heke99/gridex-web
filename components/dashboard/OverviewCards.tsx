@@ -18,10 +18,9 @@ export default function OverviewCards({
   const openTickets = overview.tickets.filter(
     (ticket) => ticket.status !== 'resolved' && ticket.status !== 'closed'
   ).length
-
   const latestInvoice = overview.invoices[0] ?? null
-  const activeConnections = overview.connections.filter(
-    (connection) => connection.status === 'active'
+  const unreadNotifications = overview.notifications.filter(
+    (notification) => !notification.is_read
   ).length
 
   return (
@@ -34,7 +33,7 @@ export default function OverviewCards({
           {overview.contracts.length}
         </div>
         <div className="mt-2 text-xs text-white/60">
-          Antal avtal som visas i portalen.
+          Aktiva och tidigare avtal som visas på Mina sidor.
         </div>
       </div>
 
@@ -56,17 +55,17 @@ export default function OverviewCards({
         </div>
         <div className="mt-3 text-3xl font-semibold">{openTickets}</div>
         <div className="mt-2 text-xs text-white/60">
-          Pågående supportärenden i portalen.
+          Pågående supportärenden hos Gridex kundservice.
         </div>
       </div>
 
       <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
-          Systemstatus
+          Nya meddelanden
         </div>
-        <div className="mt-3 text-3xl font-semibold">{activeConnections}</div>
+        <div className="mt-3 text-3xl font-semibold">{unreadNotifications}</div>
         <div className="mt-2 text-xs text-white/60">
-          Aktiva systemkopplingar.
+          Olästa notiser och uppdateringar på Mina sidor.
         </div>
       </div>
     </div>

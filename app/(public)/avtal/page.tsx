@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: 'Elavtal – jämför rörligt, portfölj och fastpris',
   description:
-    'Jämför Gridex elavtal: rörligt elpris, portföljavtal och fastpris. Publicerade avtal hämtas från Gridex OPS så rätt prisversion och villkor används vid teckning.',
+    'Jämför Gridex elavtal: rörligt elpris, portföljavtal och fastpris. Se aktuella priser och villkor innan du går vidare.',
   alternates: { canonical: 'https://gridex.se/avtal' },
 }
 
@@ -41,14 +41,14 @@ function getContractDescription(contract: OpsPublicContract) {
   switch (contract.type) {
     case 'variable_spot':
     case 'spot_hourly':
-      return 'För dig som vill följa marknadspriset och ha tydliga avgifter och påslag från publicerad prisversion.'
+      return 'För dig som vill följa marknadspriset och ha tydliga avgifter och påslag.'
     case 'portfolio':
     case 'portfolio_managed':
       return 'För dig som vill ha en mer aktiv prissättning med fokus på balans mellan risk och stabilitet.'
     case 'fixed':
       return 'För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.'
     default:
-      return 'Ett publicerat elavtal från Gridex OPS. Det faktiska avtalet skapas i OPS när du tecknar.'
+      return 'Ett aktuellt elavtal från Gridex. När du går vidare får du en tydlig sammanställning av valt avtal.'
   }
 }
 
@@ -137,17 +137,17 @@ export default async function AvtalPage() {
       loadError =
         error instanceof Error
           ? error.message
-          : 'Kunde inte hämta publicerade avtal från OPS.'
+          : 'Kunde inte hämta aktuella elavtal.'
     }
   } else {
-    loadError = 'Publicerade avtal kan inte hämtas eftersom OPS-kopplingen saknar serverkonfiguration.'
+    loadError = 'Aktuella elavtal kan inte hämtas just nu.'
   }
 
   const faqItems = [
     {
       question: 'Vilket elavtal är billigast?',
       answer:
-        'Det beror på marknadsläget, din förbrukning och vilken risknivå du är bekväm med. Gridex visar publicerade avtal från OPS så att prisversion och villkor stämmer när du går vidare.',
+        'Det beror på marknadsläget, din förbrukning och vilken risknivå du är bekväm med. Gridex visar aktuella elavtal så att du kan jämföra innan du går vidare.',
     },
     {
       question: 'Vad är skillnaden mellan rörligt och fast elpris?',
@@ -166,7 +166,7 @@ export default async function AvtalPage() {
         <div className="relative grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Jämför elavtal • Tydliga villkor • OPS-styrda prisversioner
+              Jämför elavtal • Tydliga villkor • Aktuella priser
             </div>
 
             <div>
@@ -177,8 +177,8 @@ export default async function AvtalPage() {
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
                 Jämför rörligt, portfölj och fastpris på ett sätt som är lätt att
-                förstå. De valbara avtalen hämtas från Gridex OPS, som äger prisplan,
-                prisversion, villkor och avtalssnapshot.
+                förstå. Här ser du våra aktuella elavtal och villkor innan du
+                går vidare med din ansökan.
               </p>
             </div>
 
@@ -200,9 +200,9 @@ export default async function AvtalPage() {
 
           <div className="grid gap-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">Rätt källa</div>
+              <div className="text-sm font-semibold text-white">Aktuella villkor</div>
               <p className="mt-1 text-sm text-gray-400">
-                Hemsidan visar avtalen. OPS äger den juridiska och prismässiga sanningen.
+                Här ser du våra aktuella elavtal, priser och villkor.
               </p>
             </div>
 
@@ -248,7 +248,7 @@ export default async function AvtalPage() {
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold text-white">Våra elavtal</h2>
           <p className="mt-3 text-gray-400">
-            Alla valbara avtal nedan kommer från publicerade prisversioner i Gridex OPS.
+            Alla valbara avtal nedan visar aktuella priser och villkor.
           </p>
         </div>
 
@@ -258,7 +258,7 @@ export default async function AvtalPage() {
               Avtalen kan inte laddas just nu
             </div>
             <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
-              {loadError} Teckning är därför blockerad tills OPS kan returnera publicerade avtal.
+              {loadError} Teckning är därför tillfälligt pausad.
             </p>
           </div>
         ) : null}
@@ -266,10 +266,10 @@ export default async function AvtalPage() {
         {!loadError && contracts.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8">
             <div className="text-lg font-semibold text-white">
-              Inga publicerade avtal finns just nu
+              Inga elavtal finns att visa just nu
             </div>
             <p className="mt-2 max-w-2xl text-sm text-gray-400">
-              När Gridex publicerar en aktiv prisversion i OPS visas avtalet automatiskt här.
+              När nya avtal finns tillgängliga visas de här.
             </p>
           </div>
         ) : null}

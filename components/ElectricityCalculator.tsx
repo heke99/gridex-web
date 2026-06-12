@@ -128,7 +128,7 @@ export default function ElectricityCalculator({
       if (contractType === 'fixed') {
         const fixedPriceOre = safeNumber(selectedContract.fixedPriceOrePerKwh)
         if (fixedPriceOre <= 0) {
-          setError('Fastpris saknar publicerat kWh-pris från OPS.')
+          setError('Fastpris saknar kWh-pris just nu.')
           return
         }
 
@@ -212,20 +212,20 @@ export default function ElectricityCalculator({
             </h2>
 
             <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
-              Välj elområde, uppskattad förbrukning och ett publicerat avtal från
-              OPS. Beräkningen är en preliminär prisbild; det faktiska avtalet
-              skapas och sparas alltid i OPS när du tecknar.
+              Välj elområde, uppskatta din förbrukning och jämför våra aktuella elavtal.
+              Beräkningen är en uppskattning; när du skickar in ansökan får du
+              en bekräftelse med valt avtal och nästa steg.
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-            Avtal och avgifter hämtas från OPS
+            Aktuella avtal och avgifter
           </div>
         </div>
 
         {!hasContracts ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            Det finns inga publicerade avtal att räkna på just nu.
+            Det finns inga aktuella elavtal att räkna på just nu.
           </div>
         ) : null}
 
@@ -241,7 +241,7 @@ export default function ElectricityCalculator({
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
             <p className="text-xs text-white/40">
-              Postnummer används som kundhjälp. Verifierad nätinformation hanteras i OPS.
+              Postnummer hjälper oss att ge en bättre uppskattning. Nätinformation kontrolleras när ansökan behandlas.
             </p>
           </div>
 
@@ -297,7 +297,7 @@ export default function ElectricityCalculator({
               ))}
             </select>
             <p className="text-xs text-white/40">
-              Endast avtal som OPS markerat som publicerade visas här.
+              Endast aktuella elavtal visas här.
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { sendOpsCustomerEvent } from '@/lib/ops/client'
 
 function getRedirectToFromRequest(req: Request): string {
   const url = new URL(req.url)
@@ -13,6 +14,21 @@ function getRedirectToFromRequest(req: Request): string {
 
 async function performLogout(req: Request) {
   const supabase = await createSupabaseServerActionClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    try {
+      await sendOpsCustomerEvent(
+        { userId: user.id, email: user.email ?? null },
+        { event_type: 'customer.logout', source: 'gridex_website' }
+      )
+    } catch {
+      // Utloggning ska inte stoppas om händelseloggning är tillfälligt otillgänglig.
+    }
+  }
+
   await supabase.auth.signOut()
 
   const redirectTo = getRedirectToFromRequest(req)
