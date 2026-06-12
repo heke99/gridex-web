@@ -42,8 +42,19 @@ function normalizeContractType(type: string): ContractType {
   return 'spot_hourly'
 }
 
+function customerSafeError(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Kunde inte hämta pris just nu.'
+  if (
+    /NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|redirect/i.test(message) ||
+    /<!doctype|<html|text\/html/i.test(message)
+  ) {
+    return 'Priset kunde inte hämtas just nu. Kontrollera adressen och försök igen om en stund.'
+  }
+  return message || 'Kunde inte hämta pris just nu.'
+}
+
 function areaLabel(area: WebsitePriceArea | null) {
-  return area ? `${area} elområde` : 'Elområde saknas'
+  return area ? `${area} elområde` : 'Ange adress för elområde'
 }
 
 export default function ElectricityCalculator({
@@ -76,12 +87,12 @@ export default function ElectricityCalculator({
   const effectiveArea = manualArea || resolution?.price_area_code || null
   const hasContracts = contracts.length > 0
 
-  async function resolveArea(): Promise<WebsitePriceArea | null> {
+  async function resolveArea(): Promise<WebsitePriceArea> {
     if (manualArea) {
       const manualResolution: WebsiteEnergyResolution = {
         status: 'manual',
         price_area_code: manualArea,
-        customer_message: 'Du har valt elområde själv.',
+        customer_message: 'Elområdet är valt manuellt.',
         source: 'manual',
       }
       setResolution(manualResolution)
@@ -105,7 +116,7 @@ export default function ElectricityCalculator({
     if (!resolved.price_area_code) {
       throw new Error(
         resolved.customer_message ||
-          'Vi kunde inte fastställa elområde automatiskt. Kontrollera adressen eller välj elområde själv om du vet det.'
+          'Vi kunde inte fastställa elområde automatiskt. Kontrollera adressen eller välj elområde själv om du redan vet det.'
       )
     }
 
@@ -124,8 +135,6 @@ export default function ElectricityCalculator({
 
     try {
       const resolvedArea = await resolveArea()
-      if (!resolvedArea) return
-
       const preview = await previewWebsitePricing({
         contract_id: selectedContract.contractId ?? null,
         price_plan_id: selectedContract.pricePlanId,
@@ -146,7 +155,7 @@ export default function ElectricityCalculator({
         },
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunde inte hämta pris just nu.')
+      setError(customerSafeError(err))
     } finally {
       setLoading(false)
     }
@@ -233,11 +242,15 @@ export default function ElectricityCalculator({
               }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
-            <p className="text-xs text-white/40">Används endast för att få bättre prisområdesmatchning.</p>
+            <p className="text-xs text-white/40">
+              Används endast för att få bättre prisområdesmatchning.
+            </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-white/80">Elområde om du redan vet det</label>
+            <label className="text-sm font-medium text-white/80">
+              Elområde om du redan vet det
+            </label>
             <select
               value={manualArea}
               onChange={(e) => {
@@ -308,8 +321,12 @@ export default function ElectricityCalculator({
                 : 'Prisområde behöver kontrolleras'}
             </div>
             <div className="mt-1 text-emerald-50/80">
-              {resolution.grid_owner_name ? `${resolution.grid_owner_name}` : 'Vi kontrollerar nätinformation i nästa steg.'}
-              {resolution.confidence != null ? ` • träffsäkerhet ${Math.round(resolution.confidence * 100)}%` : ''}
+              {resolution.grid_owner_name
+                ? resolution.grid_owner_name
+                : 'Vi kontrollerar nätinformation i nästa steg.'}
+              {resolution.confidence != null
+                ? ` • träffsäkerhet ${Math.round(resolution.confidence * 100)}%`
+                : ''}
             </div>
           </div>
         ) : null}

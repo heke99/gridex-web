@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import ElectricityCalculator, { type ContractOption } from '@/components/ElectricityCalculator'
-import CustomerApplicationForm, { type SignupContractOption } from '@/components/signup/CustomerApplicationForm'
 import {
   createApplicationIdempotencyKey,
   createExternalApplicationId,
@@ -56,32 +57,16 @@ function toContractOption(item: OpsPublicContract): ContractOption {
   return {
     name: item.name,
     value: item.price_plan_version_id,
-    contractId: item.contract_id ?? null,
     productCode: item.product_code,
     pricePlanId: item.price_plan_id,
     pricePlanVersionId: item.price_plan_version_id,
+    contractId: item.contract_id ?? null,
     type: item.type,
     monthlyFeeSek: item.monthly_fee_sek,
     invoiceFeeSek: item.invoice_fee_sek,
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
     fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
-  }
-}
-
-function toSignupContract(item: OpsPublicContract): SignupContractOption {
-  return {
-    name: item.name,
-    value: item.price_plan_version_id,
-    productCode: item.product_code,
-    pricePlanId: item.price_plan_id,
-    pricePlanVersionId: item.price_plan_version_id,
-    contractId: item.contract_id ?? null,
-    type: item.type,
-    termsVersion: item.terms_version ?? null,
-    privacyPolicyVersion: item.privacy_policy_version ?? null,
-    cancellationRightVersion: item.cancellation_right_version ?? null,
-    powerOfAttorneyVersion: item.power_of_attorney_version ?? null,
   }
 }
 
@@ -154,7 +139,6 @@ export default async function TecknaPage({
   }
 
   const options = contracts.map(toContractOption)
-  const signupContracts = contracts.map(toSignupContract)
   const selectedContract = selectedContractFromParams(contracts, params)
   const selectedValue = selectedContract?.price_plan_version_id ?? ''
   const pageError = errorText(params.error)
@@ -207,32 +191,6 @@ export default async function TecknaPage({
     const requestedStartMode =
       requestedStartModeRaw === 'specific_date' ? 'specific_date' : 'asap'
     const requestedStartDate = normalizeText(formData.get('requested_start_date'))
-    const priceAreaCode = normalizeText(formData.get('price_area_code'))
-    const gridAreaCode = normalizeText(formData.get('grid_area_code'))
-    const gridOwnerId = normalizeText(formData.get('grid_owner_id'))
-    const gridOwnerName = normalizeText(formData.get('grid_owner_name'))
-    const energyResolutionStatus = normalizeText(formData.get('energy_resolution_status'))
-    const energyResolutionConfidenceRaw = normalizeText(
-      formData.get('energy_resolution_confidence')
-    )
-    const estimatedMonthlyKwhRaw = normalizeText(formData.get('estimated_monthly_kwh'))
-    const pricingPreviewSnapshotRaw = normalizeText(
-      formData.get('pricing_preview_snapshot')
-    )
-    const energyResolutionConfidence = Number(energyResolutionConfidenceRaw)
-    const estimatedMonthlyKwh = Number(estimatedMonthlyKwhRaw)
-    let pricingPreviewSnapshot: Record<string, unknown> | null = null
-
-    if (pricingPreviewSnapshotRaw) {
-      try {
-        const parsed = JSON.parse(pricingPreviewSnapshotRaw) as unknown
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          pricingPreviewSnapshot = parsed as Record<string, unknown>
-        }
-      } catch {
-        pricingPreviewSnapshot = null
-      }
-    }
 
     const acceptTerms = String(formData.get('accept_terms') || '') === 'on'
     const acceptPrivacy = String(formData.get('accept_privacy') || '') === 'on'
@@ -267,8 +225,6 @@ export default async function TecknaPage({
       address,
       postalCode,
       offer.price_plan_version_id,
-      priceAreaCode || 'unresolved_area',
-      Number.isFinite(estimatedMonthlyKwh) ? String(estimatedMonthlyKwh) : 'unknown_kwh',
       requestedStartMode,
       requestedStartDate || 'asap',
     ])
@@ -297,18 +253,6 @@ export default async function TecknaPage({
         price_plan_id: offer.price_plan_id,
         price_plan_version_id: offer.price_plan_version_id,
         product_code: offer.product_code,
-        price_area_code: priceAreaCode || null,
-        grid_area_code: gridAreaCode || null,
-        grid_owner_id: gridOwnerId || null,
-        grid_owner_name: gridOwnerName || null,
-        energy_resolution_status: energyResolutionStatus || null,
-        energy_resolution_confidence: Number.isFinite(energyResolutionConfidence)
-          ? energyResolutionConfidence
-          : null,
-        estimated_monthly_kwh: Number.isFinite(estimatedMonthlyKwh)
-          ? estimatedMonthlyKwh
-          : null,
-        pricing_preview_snapshot: pricingPreviewSnapshot,
         source: 'gridex_website',
         idempotency_key: idempotencyKey,
         external_application_id: createExternalApplicationId(),
@@ -416,17 +360,160 @@ export default async function TecknaPage({
           </div>
         ) : null}
 
-        <CustomerApplicationForm
-          contracts={signupContracts}
-          initialSelectedValue={selectedValue}
-          canSubmit={canSubmit}
-          utm={{
-            utm_source: params.utm_source ?? '',
-            utm_medium: params.utm_medium ?? '',
-            utm_campaign: params.utm_campaign ?? '',
-          }}
-          action={submitApplicationAction}
-        />
+        <form action={submitApplicationAction} className="space-y-8">
+          <input type="hidden" name="utm_source" value={params.utm_source ?? ''} />
+          <input type="hidden" name="utm_medium" value={params.utm_medium ?? ''} />
+          <input type="hidden" name="utm_campaign" value={params.utm_campaign ?? ''} />
+          <div className="hidden" aria-hidden="true">
+            <label>
+              Företagswebbplats
+              <input name="company_website" tabIndex={-1} autoComplete="off" />
+            </label>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium text-white/80">Kundtyp</label>
+              <select
+                name="customer_type"
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+              >
+                <option value="private">Privatkund</option>
+                <option value="company">Företag</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-white/80">Avtal</label>
+              <select
+                name="selected_offer"
+                required
+                defaultValue={selectedValue}
+                disabled={contracts.length === 0}
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40 disabled:opacity-60"
+              >
+                {contracts.map((contract) => (
+                  <option
+                    key={contract.price_plan_version_id}
+                    value={contract.price_plan_version_id}
+                  >
+                    {contract.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-white/45">
+                Valt avtal, prisversion och prisinformation sparas när ansökan skickas.
+              </p>
+            </div>
+
+            <Field label="Förnamn" name="first_name" />
+            <Field label="Efternamn" name="last_name" />
+            <Field label="Personnummer" name="personal_number" />
+            <Field label="Företagsnamn" name="company_name" />
+            <Field label="Organisationsnummer" name="organization_number" />
+            <Field label="E-post" name="email" type="email" required />
+            <Field label="Telefon" name="phone" required />
+            <Field label="Adress" name="address" required />
+            <Field label="Postnummer" name="postal_code" required />
+            <Field label="Ort" name="city" required />
+            <Field label="Lägenhet" name="apartment" />
+            <Field
+              label="Anläggnings-ID"
+              name="facility_id"
+              help="Valfritt. Det går bra att fortsätta utan uppgiften. Gridex kan behöva komplettera den från ditt elnätsföretag innan avtalet kan starta."
+            />
+            <Field
+              label="Mätpunkts-ID"
+              name="metering_point_id"
+              help="Valfritt. Leverantörsbyte går vidare först när anläggningsuppgifterna är verifierade."
+            />
+
+            <div>
+              <label className="text-sm font-medium text-white/80">Start</label>
+              <select
+                name="requested_start_mode"
+                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
+              >
+                <option value="asap">Så snart som möjligt</option>
+                <option value="specific_date">Jag vill välja datum</option>
+              </select>
+            </div>
+            <Field label="Önskat startdatum" name="requested_start_date" type="date" />
+          </div>
+
+          <div className="space-y-5 rounded-3xl border border-white/10 bg-black/30 p-6">
+            <div>
+              <div className="text-sm font-medium text-white">Sammanfattning och godkännanden</div>
+              <p className="mt-2 text-sm leading-6 text-gray-400">
+                Läs igenom avtalet och länkarna nedan. Varje godkännande sparas med
+                version, tidpunkt och koppling till din ansökan.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-gray-300">
+              <div className="font-semibold text-white">Vad händer när du tecknar?</div>
+              <p className="mt-2">
+                Gridex tar emot din ansökan, sparar valt avtal och prisversion,
+                kontrollerar anläggningsuppgifter och återkommer om något behöver kompletteras.
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Om du saknar anläggnings-ID eller mätpunkts-ID kan du fortsätta ändå.
+                Uppgifterna behöver verifieras innan leverantörsbytet kan gå vidare.
+              </p>
+            </div>
+
+            <Checkbox name="accept_terms">
+              Jag har tagit del av och godkänner{' '}
+              <Link href="/allmanna-villkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                allmänna villkor
+              </Link>{' '}
+              samt{' '}
+              <Link href="/prisvillkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                prisinformationen
+              </Link>{' '}
+              för valt elavtal.
+            </Checkbox>
+            <Checkbox name="accept_cancellation_right">
+              Jag bekräftar att jag har fått information om min{' '}
+              <Link href="/angerratt" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                ångerrätt
+              </Link>
+              .
+            </Checkbox>
+            <Checkbox name="accept_privacy">
+              Jag har tagit del av hur Gridex behandlar mina personuppgifter i{' '}
+              <Link href="/integritetspolicy" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">
+                integritetspolicyn
+              </Link>
+              .
+            </Checkbox>
+            <Checkbox name="accept_power_of_attorney">
+              Jag ger Gridex fullmakt att begära, ta emot och hantera de anläggningsuppgifter
+              som behövs för att starta och administrera mitt elavtal.
+            </Checkbox>
+
+            <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-relaxed text-cyan-50/85">
+              Fullmakten används för uppgifter från elnätsföretaget, till exempel
+              anläggnings-ID, mätpunkts-ID, nätområde, nätägare och information som
+              behövs för leverantörsbyte. Den sparas tillsammans med ansökan och visas
+              på Mina sidor när kundprofilen är kopplad.
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="text-sm text-gray-400">
+              Kontrollera uppgifterna innan du tecknar. Om du klickar två gånger
+              ska det inte skapa dubbla ansökningar.
+            </div>
+
+            <button
+              disabled={!canSubmit}
+              className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Teckna elavtal
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   )
@@ -441,3 +528,38 @@ function StepCard({ title, text }: { title: string; text: string }) {
   )
 }
 
+function Field({
+  label,
+  name,
+  required = false,
+  type = 'text',
+  help,
+}: {
+  label: string
+  name: string
+  required?: boolean
+  type?: string
+  help?: string
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-white/80">{label}</label>
+      <input
+        name={name}
+        type={type}
+        required={required}
+        className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
+      />
+      {help ? <p className="mt-2 text-xs text-white/45">{help}</p> : null}
+    </div>
+  )
+}
+
+function Checkbox({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <label className="flex items-start gap-3 text-sm text-gray-300">
+      <input type="checkbox" name={name} required className="mt-1" />
+      <span>{children}</span>
+    </label>
+  )
+}

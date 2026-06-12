@@ -76,19 +76,44 @@ export type WebsitePricingPreview = {
   raw?: Record<string, unknown>
 }
 
+function extractErrorMessage(data: unknown, fallback: string): string {
+  const raw =
+    data && typeof data === 'object'
+      ? (data as Record<string, unknown>).customer_message ??
+        (data as Record<string, unknown>).message ??
+        (data as Record<string, unknown>).error
+      : typeof data === 'string'
+        ? data
+        : null
+
+  const message = typeof raw === 'string' ? raw.trim() : ''
+
+  if (
+    !message ||
+    /NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|redirect|<!doctype|<html|text\/html|login|logga in/i.test(
+      message
+    )
+  ) {
+    return fallback
+  }
+
+  return message
+}
+
 function assertOkResponse(res: Response, data: unknown, fallback: string): void {
   if (res.ok) return
+  throw new Error(extractErrorMessage(data, fallback))
+}
 
-  const message =
-    data && typeof data === 'object'
-      ? String(
-          (data as Record<string, unknown>).message ??
-            (data as Record<string, unknown>).error ??
-            fallback
-        )
-      : fallback
+async function readJsonResponse(res: Response): Promise<unknown> {
+  const contentType = res.headers.get('content-type') ?? ''
 
-  throw new Error(message)
+  if (!contentType.includes('application/json')) {
+    await res.text().catch(() => '')
+    return null
+  }
+
+  return res.json().catch(() => null)
 }
 
 export function normalizeWebsitePostalCode(value: string): string {
@@ -110,7 +135,7 @@ export async function resolveWebsiteEnergyArea(
     },
     body: JSON.stringify(input),
   })
-  const data = await res.json().catch(() => null)
+  const data = await readJsonResponse(res)
   assertOkResponse(res, data, 'Kunde inte kontrollera elområde just nu.')
   return (data && typeof data === 'object' && 'data' in data
     ? (data as { data: WebsiteEnergyResolution }).data
@@ -128,7 +153,7 @@ export async function previewWebsitePricing(
     },
     body: JSON.stringify(input),
   })
-  const data = await res.json().catch(() => null)
+  const data = await readJsonResponse(res)
   assertOkResponse(res, data, 'Kunde inte räkna pris just nu.')
   return (data && typeof data === 'object' && 'data' in data
     ? (data as { data: WebsitePricingPreview }).data

@@ -348,10 +348,52 @@ function extractRows(payload: unknown): unknown[] {
   return []
 }
 
+function looksLikeRedirectOrHtml(value: unknown): boolean {
+  const text =
+    typeof value === 'string'
+      ? value
+      : value && typeof value === 'object'
+        ? String(
+            (value as Record<string, unknown>).message ??
+              (value as Record<string, unknown>).error ??
+              ''
+          )
+        : ''
+
+  return /NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|<html|<!doctype|text\/html|login|logga in|redirect/i.test(
+    text
+  )
+}
+
+function customerSafeOpsMessage(payload: unknown, fallback: string): string {
+  if (looksLikeRedirectOrHtml(payload)) return fallback
+
+  if (payload && typeof payload === 'object') {
+    const raw =
+      (payload as Record<string, unknown>).customer_message ??
+      (payload as Record<string, unknown>).customerMessage ??
+      (payload as Record<string, unknown>).message ??
+      (payload as Record<string, unknown>).error
+
+    if (typeof raw === 'string' && raw.trim()) {
+      const trimmed = raw.trim()
+      return looksLikeRedirectOrHtml(trimmed) ? fallback : trimmed
+    }
+  }
+
+  if (typeof payload === 'string' && payload.trim()) {
+    const trimmed = payload.trim()
+    return looksLikeRedirectOrHtml(trimmed) ? fallback : trimmed
+  }
+
+  return fallback
+}
+
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const baseUrl = opsBaseUrl()
   const apiKey = env('GRIDEX_WEBSITE_API_KEY')
   const tenantId = env('GRIDEX_WEBSITE_TENANT_ID')
+  const fallbackMessage = 'Tjänsten kunde inte slutföra åtgärden just nu.'
 
   if (!baseUrl || !apiKey) {
     throw new OpsError('Tjänsten är inte tillgänglig just nu.', 503, {
@@ -373,27 +415,43 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
     ...init,
     headers,
     cache: 'no-store',
+    redirect: 'manual',
   })
 
-  let payload: unknown = null
   const contentType = res.headers.get('content-type') ?? ''
+  const location = res.headers.get('location')
+
+  if (res.status >= 300 && res.status < 400) {
+    throw new OpsError(fallbackMessage, 502, {
+      redirected: true,
+      status: res.status,
+      location,
+      path,
+    })
+  }
+
+  let payload: unknown = null
   if (contentType.includes('application/json')) {
     payload = await res.json().catch(() => null)
   } else {
     const text = await res.text().catch(() => '')
-    payload = text ? { message: text } : null
+    payload = text ? { message: text, content_type: contentType } : null
+  }
+
+  if (contentType.includes('text/html') || looksLikeRedirectOrHtml(payload)) {
+    throw new OpsError(fallbackMessage, res.ok ? 502 : res.status || 502, {
+      path,
+      status: res.status,
+      content_type: contentType,
+    })
   }
 
   if (!res.ok) {
-    const message =
-      payload && typeof payload === 'object'
-        ? String(
-            (payload as Record<string, unknown>).message ??
-              (payload as Record<string, unknown>).error ??
-              'Tjänsten kunde inte slutföra åtgärden.'
-          )
-        : 'Tjänsten kunde inte slutföra åtgärden.'
-    throw new OpsError(message, res.status, payload)
+    throw new OpsError(
+      customerSafeOpsMessage(payload, fallbackMessage),
+      res.status,
+      payload
+    )
   }
 
   return payload
