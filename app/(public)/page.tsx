@@ -1,64 +1,65 @@
 //app/(public)/page.tsx
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import ElectricityCalculator from '@/components/ElectricityCalculator'
-import FaqJsonLd from '@/components/seo/FaqJsonLd'
-import { fetchOpsPublicContracts } from '@/lib/ops/client'
-import type { ContractOption } from '@/components/ElectricityCalculator'
+import Link from "next/link";
+import type { Metadata } from "next";
+import ElectricityCalculator from "@/components/ElectricityCalculator";
+import FaqJsonLd from "@/components/seo/FaqJsonLd";
+import { fetchOpsPublicContracts } from "@/lib/ops/client";
+import type { ContractOption } from "@/components/ElectricityCalculator";
 
 export const metadata: Metadata = {
-  title: 'Elpris idag – Billiga & datadrivna elavtal',
+  title: "Elpris idag – Billiga & datadrivna elavtal",
   description:
-    'Jämför elpris idag per elområde (SE1–SE4). Gridex visar tydliga elavtal med full transparens kring pris, påslag och månadsavgift.',
+    "Jämför elpris idag per elområde (SE1–SE4). Gridex visar tydliga elavtal med full transparens kring pris, påslag och månadsavgift.",
   alternates: {
-    canonical: 'https://gridex.se',
+    canonical: "https://gridex.se",
   },
-}
+};
 
 export default async function HomePage() {
-  let options: ContractOption[] = []
+  let options: ContractOption[] = [];
 
   try {
-    const visibleContracts = await fetchOpsPublicContracts()
+    const visibleContracts = await fetchOpsPublicContracts();
     options = visibleContracts.map((item) => ({
       name: item.name,
       value: item.price_plan_version_id,
       productCode: item.product_code,
       pricePlanId: item.price_plan_id,
       pricePlanVersionId: item.price_plan_version_id,
+      contractId: item.contract_id ?? null,
       type: item.type,
       monthlyFeeSek: item.monthly_fee_sek,
       invoiceFeeSek: item.invoice_fee_sek,
       markupOrePerKwh: item.markup_ore_per_kwh,
       variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
       fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
-    }))
+    }));
   } catch {
-    options = []
+    options = [];
   }
 
   const faqItems = [
     {
-      question: 'Vad är elpris idag?',
+      question: "Vad är elpris idag?",
       answer:
-        'Elpris idag beror på ditt elområde (SE1–SE4), marknadsläget och vilken avtalsform du väljer. Hos Gridex ser du tydligt hur priset är uppbyggt innan du tecknar.',
+        "Elpris idag beror på ditt elområde (SE1–SE4), marknadsläget och vilken avtalsform du väljer. Hos Gridex ser du tydligt hur priset är uppbyggt innan du tecknar.",
     },
     {
-      question: 'Hur vet jag om jag betalar för mycket?',
+      question: "Hur vet jag om jag betalar för mycket?",
       answer:
-        'Många hushåll betalar höga avgifter eller sitter i avtal med otydliga villkor. Med Gridex kan du jämföra olika avtalsformer och se vad som faktiskt ingår i ditt pris.',
+        "Många hushåll betalar höga avgifter eller sitter i avtal med otydliga villkor. Med Gridex kan du jämföra olika avtalsformer och se vad som faktiskt ingår i ditt pris.",
     },
     {
-      question: 'Hur tecknar jag elavtal hos Gridex?',
+      question: "Hur tecknar jag elavtal hos Gridex?",
       answer:
-        'Du kan börja med att räkna på ditt pris direkt på hemsidan. Därefter väljer du avtal och går vidare till teckningsflödet online.',
+        "Du kan börja med att räkna på ditt pris direkt på hemsidan. Därefter väljer du avtal och går vidare till teckningsflödet online.",
     },
     {
-      question: 'Vad är skillnaden mellan elområden (SE1–SE4)?',
+      question: "Vad är skillnaden mellan elområden (SE1–SE4)?",
       answer:
-        'Sverige är indelat i fyra elområden. Prisskillnader uppstår bland annat på grund av produktion, efterfrågan och överföringskapacitet i elsystemet.',
+        "Sverige är indelat i fyra elområden. Prisskillnader uppstår bland annat på grund av produktion, efterfrågan och överföringskapacitet i elsystemet.",
     },
-  ]
+  ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-16 px-6 py-12 md:py-16">
@@ -72,7 +73,7 @@ export default async function HomePage() {
       <ArticleColumns />
       <HomeSeoBlocks />
     </div>
-  )
+  );
 }
 
 function HeroBlock() {
@@ -95,7 +96,9 @@ function HeroBlock() {
             </h1>
 
             <p className="max-w-2xl text-lg leading-relaxed text-gray-300 md:text-xl">
-              Gridex AB är ett svenskt elhandelsbolag som gör det enklare att förstå elpriset. Räkna på föregående månads spotpris, se påslag, avgifter och moms innan du går vidare till teckning.
+              Gridex AB är ett svenskt elhandelsbolag som gör det enklare att
+              förstå elpriset. Räkna på föregående månads spotpris, se påslag,
+              avgifter och moms innan du går vidare till teckning.
             </p>
           </div>
 
@@ -210,7 +213,7 @@ function HeroBlock() {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function TrustBar() {
@@ -250,7 +253,7 @@ function TrustBar() {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function HowItWorks() {
@@ -302,7 +305,7 @@ function HowItWorks() {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function ValueBlocks() {
@@ -342,7 +345,9 @@ function ValueBlocks() {
           Elavtal med tydlig prisrad
         </h2>
         <p className="mt-4 text-gray-400">
-          Oavsett om du vill ha rörligt månadspris, portföljförvaltning eller fastpris ska det vara enkelt att förstå upplägget. Du ska se spotpris, påslag, rörliga avgifter, månadsavgift och moms innan du tecknar.
+          Oavsett om du vill ha rörligt månadspris, portföljförvaltning eller
+          fastpris ska det vara enkelt att förstå upplägget. Du ska se spotpris,
+          påslag, rörliga avgifter, månadsavgift och moms innan du tecknar.
         </p>
 
         <div className="mt-8">
@@ -355,37 +360,36 @@ function ValueBlocks() {
         </div>
       </div>
     </section>
-  )
+  );
 }
-
 
 function ArticleColumns() {
   const articles = [
     {
-      title: 'Så fungerar rörligt månadspris',
-      text: 'Rörligt månadspris bygger på föregående månads genomsnittliga spotpris i ditt elområde, plus avtalade avgifter och påslag.',
-      href: '/aktuella-elpriser',
-      cta: 'Se spotpris',
+      title: "Så fungerar rörligt månadspris",
+      text: "Rörligt månadspris bygger på föregående månads genomsnittliga spotpris i ditt elområde, plus avtalade avgifter och påslag.",
+      href: "/aktuella-elpriser",
+      cta: "Se spotpris",
     },
     {
-      title: 'Vad är elområde SE1–SE4?',
-      text: 'Sverige är indelat i fyra elområden. Ditt elområde påverkar spotpriset och därför även prisbilden för rörliga avtal.',
-      href: '/elpris-se3',
-      cta: 'Läs om elområden',
+      title: "Vad är elområde SE1–SE4?",
+      text: "Sverige är indelat i fyra elområden. Ditt elområde påverkar spotpriset och därför även prisbilden för rörliga avtal.",
+      href: "/elpris-se3",
+      cta: "Läs om elområden",
     },
     {
-      title: 'Så byter du elavtal',
-      text: 'Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.',
-      href: '/teckna-avtal',
-      cta: 'Teckna elavtal',
+      title: "Så byter du elavtal",
+      text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.",
+      href: "/teckna-avtal",
+      cta: "Teckna elavtal",
     },
     {
-      title: 'Vad ingår inte i elhandelspriset?',
-      text: 'Elnätsavgift, nätägarens fasta avgifter och eventuell effektavgift ingår normalt inte i elhandelspriset och faktureras av nätägaren.',
-      href: '/kundservice',
-      cta: 'Fråga kundservice',
+      title: "Vad ingår inte i elhandelspriset?",
+      text: "Elnätsavgift, nätägarens fasta avgifter och eventuell effektavgift ingår normalt inte i elhandelspriset och faktureras av nätägaren.",
+      href: "/kundservice",
+      cta: "Fråga kundservice",
     },
-  ]
+  ];
 
   return (
     <section className="space-y-6">
@@ -409,7 +413,9 @@ function ArticleColumns() {
             className="flex min-h-[260px] flex-col justify-between rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40"
           >
             <div>
-              <h3 className="text-lg font-semibold text-white">{article.title}</h3>
+              <h3 className="text-lg font-semibold text-white">
+                {article.title}
+              </h3>
               <p className="mt-3 text-sm leading-relaxed text-gray-400">
                 {article.text}
               </p>
@@ -424,7 +430,7 @@ function ArticleColumns() {
         ))}
       </div>
     </section>
-  )
+  );
 }
 
 function HomeSeoBlocks() {
@@ -514,5 +520,5 @@ function HomeSeoBlocks() {
         </div>
       </section>
     </>
-  )
+  );
 }
