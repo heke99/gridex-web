@@ -50,6 +50,12 @@ type GridAreaRow = {
   price_area_code?: string | null
 }
 
+type LegacyPostalAreaRow = {
+  postal_code: string
+  price_area?: string | null
+  source?: string | null
+}
+
 type PapiliteResult = {
   postal_code?: unknown
   city?: unknown
@@ -65,6 +71,7 @@ type ArcgisFeature = {
 
 type ArcgisResponse = {
   features?: ArcgisFeature[]
+  fields?: Array<{ name?: string; alias?: string; type?: string }>
   error?: { message?: string; details?: string[] }
 }
 
@@ -172,6 +179,91 @@ async function readPostalCache(
   }
 }
 
+
+async function readLegacyPostalArea(
+  supabase: SupabaseClient | null,
+  postalCode: string
+): Promise<WebsitePriceAreaResolution | null> {
+  if (!supabase) return null
+
+  try {
+    const { data, error } = await supabase
+      .from('gridex_postal_code_price_area')
+      .select('postal_code,price_area,source')
+      .eq('postal_code', postalCode)
+      .maybeSingle<LegacyPostalAreaRow>()
+
+    if (error || !data || !isPriceArea(data.price_area)) return null
+
+    return toResolution({
+      priceArea: data.price_area,
+      confidence: 0.78,
+      source: data.source ?? 'gridex_postal_code_price_area',
+      sourceChain: ['legacy_postal_code_price_area'],
+      customerMessage: `Elområde ${data.price_area} används för prisvisningen.`,
+      raw: {
+        postal_code: data.postal_code,
+        used_for: 'pricing_preview_only',
+      },
+    })
+  } catch {
+    return null
+  }
+}
+
+async function readPostalPrefixFallback(
+  supabase: SupabaseClient | null,
+  postalCode: string
+): Promise<WebsitePriceAreaResolution | null> {
+  if (!supabase || postalCode.length !== 5) return null
+
+  const prefix = postalCode.slice(0, 3)
+  const sources = [
+    { table: 'website_postal_code_price_areas', areaColumn: 'price_area_code' },
+    { table: 'gridex_postal_code_price_area', areaColumn: 'price_area' },
+  ] as const
+
+  for (const source of sources) {
+    try {
+      const { data, error } = await supabase
+        .from(source.table)
+        .select(`postal_code,${source.areaColumn}`)
+        .gte('postal_code', `${prefix}00`)
+        .lte('postal_code', `${prefix}99`)
+        .limit(50)
+
+      if (error || !Array.isArray(data) || data.length < 3) continue
+
+      const areas = new Set(
+        data
+          .map((row: Record<string, unknown>) => row[source.areaColumn])
+          .filter(isPriceArea)
+      )
+
+      if (areas.size === 1) {
+        const [area] = [...areas]
+        return toResolution({
+          priceArea: area,
+          confidence: 0.62,
+          source: `${source.table}_prefix`,
+          sourceChain: [source.table, 'postal_prefix_fallback'],
+          customerMessage: `Elområde ${area} används för prisvisningen.`,
+          raw: {
+            postal_code: postalCode,
+            postal_prefix: prefix,
+            matched_rows: data.length,
+            used_for: 'pricing_preview_only',
+          },
+        })
+      }
+    } catch {
+      // Try next source.
+    }
+  }
+
+  return null
+}
+
 async function fetchPapilitePostalCode(postalCode: string): Promise<{
   city: string | null
   latitude: number
@@ -204,7 +296,10 @@ async function fetchPapilitePostalCode(postalCode: string): Promise<{
   }
 
   const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
-  const results = Array.isArray(data?.results) ? (data.results as PapiliteResult[]) : []
+  const topLevelResult = data && !Array.isArray(data.results) && ('postal_code' in data || 'latitude' in data)
+    ? (data as PapiliteResult)
+    : null
+  const results = Array.isArray(data?.results) ? (data.results as PapiliteResult[]) : topLevelResult ? [topLevelResult] : []
   const exact =
     results.find((item) => textOrNull(item.postal_code)?.replace(/\s+/g, '') === postalCode) ??
     results[0]
@@ -224,25 +319,73 @@ async function fetchPapilitePostalCode(postalCode: string): Promise<{
   }
 }
 
+function readAttribute(attributes: Record<string, unknown>, wantedKeys: string[]) {
+  const normalizedLookup = new Map(
+    Object.entries(attributes).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9åäö]/gi, ''), value])
+  )
+
+  for (const key of wantedKeys) {
+    const direct = attributes[key]
+    if (direct !== undefined && direct !== null) return direct
+
+    const normalized = key.toLowerCase().replace(/[^a-z0-9åäö]/gi, '')
+    if (normalizedLookup.has(normalized)) return normalizedLookup.get(normalized)
+  }
+
+  return null
+}
+
+function extractPriceAreaFromArcgis(features: ArcgisFeature[]): WebsitePriceAreaCode | null {
+  const preferredKeys = [
+    'Elomrade',
+    'Elområde',
+    'EL_OMRADE',
+    'EL_OMR',
+    'SE',
+    'price_area_code',
+    'PriceArea',
+  ]
+
+  for (const feature of features) {
+    const attributes = feature.attributes ?? {}
+    const direct = readAttribute(attributes, preferredKeys)
+    if (isPriceArea(typeof direct === 'string' ? direct.toUpperCase() : direct)) {
+      return String(direct).toUpperCase() as WebsitePriceAreaCode
+    }
+
+    for (const value of Object.values(attributes)) {
+      if (isPriceArea(typeof value === 'string' ? value.toUpperCase() : value)) {
+        return String(value).toUpperCase() as WebsitePriceAreaCode
+      }
+    }
+  }
+
+  return null
+}
+
 function extractGridAreaCode(features: ArcgisFeature[]): string | null {
   const preferredKeys = [
     'Natomrade',
     'NATOMRADE',
     'Nätområde',
+    'Nätområdeskod',
+    'NATOMRÅDE',
     'NAT_OMR',
     'NATOMR',
     'OmrKod',
     'OMRKOD',
+    'OMR_KOD',
+    'omradeskod',
+    'Omradeskod',
     'grid_area_code',
   ]
 
   for (const feature of features) {
     const attributes = feature.attributes ?? {}
 
-    for (const key of preferredKeys) {
-      const normalized = normalizeGridAreaCode(attributes[key])
-      if (normalized) return normalized
-    }
+    const preferred = readAttribute(attributes, preferredKeys)
+    const normalizedPreferred = normalizeGridAreaCode(preferred)
+    if (normalizedPreferred) return normalizedPreferred
 
     for (const value of Object.values(attributes)) {
       const normalized = normalizeGridAreaCode(value)
@@ -254,45 +397,97 @@ function extractGridAreaCode(features: ArcgisFeature[]): string | null {
 }
 
 async function fetchArcgisGridArea(latitude: number, longitude: number): Promise<{
-  gridAreaCode: string
+  gridAreaCode: string | null
+  priceAreaCode: WebsitePriceAreaCode | null
   raw: Record<string, unknown>
 }> {
-  const url = new URL(
-    env('WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL') ?? DEFAULT_ARCGIS_GRID_AREAS_QUERY_URL
-  )
+  const baseUrl = env('WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL') ?? DEFAULT_ARCGIS_GRID_AREAS_QUERY_URL
+  const attempts = [
+    {
+      name: 'point_intersects_4326',
+      geometry: `${longitude},${latitude}`,
+      inSR: '4326',
+      spatialRel: 'esriSpatialRelIntersects',
+    },
+    {
+      name: 'point_contains_4326',
+      geometry: `${longitude},${latitude}`,
+      inSR: '4326',
+      spatialRel: 'esriSpatialRelContains',
+    },
+    {
+      name: 'nearest_5000m_4326',
+      geometry: `${longitude},${latitude}`,
+      inSR: '4326',
+      spatialRel: 'esriSpatialRelIntersects',
+      distance: '5000',
+    },
+    {
+      name: 'nearest_15000m_4326',
+      geometry: `${longitude},${latitude}`,
+      inSR: '4326',
+      spatialRel: 'esriSpatialRelIntersects',
+      distance: '15000',
+    },
+  ]
 
-  url.searchParams.set('f', 'json')
-  url.searchParams.set('geometry', `${longitude},${latitude}`)
-  url.searchParams.set('geometryType', 'esriGeometryPoint')
-  url.searchParams.set('inSR', '4326')
-  url.searchParams.set('spatialRel', 'esriSpatialRelIntersects')
-  url.searchParams.set('outFields', 'Natomrade,OBJECTID,NATOMRADE,NAT_OMR,OmrKod')
-  url.searchParams.set('returnGeometry', 'false')
+  const rawAttempts: Record<string, unknown>[] = []
 
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  })
+  for (const attempt of attempts) {
+    const url = new URL(baseUrl)
+    url.searchParams.set('f', 'json')
+    url.searchParams.set('geometry', attempt.geometry)
+    url.searchParams.set('geometryType', 'esriGeometryPoint')
+    url.searchParams.set('inSR', attempt.inSR)
+    url.searchParams.set('spatialRel', attempt.spatialRel)
+    url.searchParams.set('outFields', '*')
+    url.searchParams.set('returnGeometry', 'false')
+    url.searchParams.set('resultRecordCount', '5')
+    url.searchParams.set('cacheHint', 'true')
 
-  if (!res.ok) {
-    throw Object.assign(new Error('Elområde kunde inte hämtas från karttjänsten.'), {
-      status: res.status,
+    if (attempt.distance) {
+      url.searchParams.set('distance', attempt.distance)
+      url.searchParams.set('units', 'esriSRUnit_Meter')
+    }
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
     })
+
+    if (!res.ok) {
+      rawAttempts.push({ attempt: attempt.name, status: res.status })
+      continue
+    }
+
+    const data = (await res.json().catch(() => null)) as ArcgisResponse | null
+    const features = Array.isArray(data?.features) ? data.features : []
+    const gridAreaCode = extractGridAreaCode(features)
+    const priceAreaCode = extractPriceAreaFromArcgis(features)
+
+    rawAttempts.push({
+      attempt: attempt.name,
+      feature_count: features.length,
+      grid_area_code: gridAreaCode,
+      price_area_code: priceAreaCode,
+      field_names: Array.isArray(data?.fields) ? data.fields.map((field) => field.name).filter(Boolean) : undefined,
+      first_attributes: features[0]?.attributes ?? null,
+      error: data?.error ?? null,
+    })
+
+    if (gridAreaCode || priceAreaCode) {
+      return {
+        gridAreaCode,
+        priceAreaCode,
+        raw: { attempts: rawAttempts, selected_attempt: attempt.name, response: data ?? {} },
+      }
+    }
   }
 
-  const data = (await res.json().catch(() => null)) as ArcgisResponse | null
-  const features = Array.isArray(data?.features) ? data.features : []
-  const gridAreaCode = extractGridAreaCode(features)
-
-  if (!gridAreaCode) {
-    throw new Error('Postnumret kunde inte matchas mot ett nätområde.')
-  }
-
-  return {
-    gridAreaCode,
-    raw: data ? (data as Record<string, unknown>) : {},
-  }
+  throw Object.assign(new Error('Postnumret kunde inte matchas mot ett nätområde.'), {
+    rawAttempts,
+  })
 }
 
 async function readPriceAreaForGridArea(
@@ -431,33 +626,42 @@ export async function resolveWebsitePriceAreaForPricing(
   const cached = await readPostalCache(supabase, postalCode)
   if (cached) return cached
 
+  const legacy = await readLegacyPostalArea(supabase, postalCode)
+  if (legacy) return legacy
+
   let raw: Record<string, unknown> = {}
 
   try {
     const papilite = await fetchPapilitePostalCode(postalCode)
     const arcgis = await fetchArcgisGridArea(papilite.latitude, papilite.longitude)
-    const mapping = await readPriceAreaForGridArea(supabase, arcgis.gridAreaCode)
+    const mapping = arcgis.gridAreaCode
+      ? await readPriceAreaForGridArea(supabase, arcgis.gridAreaCode)
+      : null
+
+    const priceArea = mapping?.priceArea ?? arcgis.priceAreaCode ?? null
+    const mappingSource = mapping?.source ?? (arcgis.priceAreaCode ? 'arcgis_price_area_direct' : null)
 
     raw = {
       papilite: papilite.raw,
       arcgis: arcgis.raw,
-      mapping_source: mapping?.source ?? null,
+      mapping_source: mappingSource,
     }
 
-    if (!mapping) {
+    if (!priceArea) {
       throw new Error('Nätområdet saknar koppling till elområde för prisvisning.')
     }
 
-    const sourceChain = ['papilite', 'arcgis_feature_server_layer_4', mapping.source]
-    const confidence = 0.88
+    const sourceChain = ['papilite', 'arcgis_feature_server_layer_4', mappingSource ?? 'price_area_direct']
+    const confidence = arcgis.gridAreaCode && mapping ? 0.88 : 0.82
+    const gridAreaCode = arcgis.gridAreaCode ?? 'UNKNOWN'
 
     await writeSuccessCache(supabase, {
       postalCode,
       city: textOrNull(input.city, 120) ?? papilite.city,
       latitude: papilite.latitude,
       longitude: papilite.longitude,
-      gridAreaCode: arcgis.gridAreaCode,
-      priceArea: mapping.priceArea,
+      gridAreaCode,
+      priceArea,
       confidence,
       source: 'papilite_arcgis_esett',
       sourceChain,
@@ -465,17 +669,17 @@ export async function resolveWebsitePriceAreaForPricing(
     })
 
     return toResolution({
-      priceArea: mapping.priceArea,
+      priceArea,
       gridAreaCode: arcgis.gridAreaCode,
       confidence,
       source: 'papilite_arcgis_esett',
       sourceChain,
-      customerMessage: `Elområde ${mapping.priceArea} används för prisvisningen.`,
+      customerMessage: `Elområde ${priceArea} används för prisvisningen.`,
       raw: {
         postal_code: postalCode,
         city: papilite.city,
         grid_area_code: arcgis.gridAreaCode,
-        grid_area_label: mapping.label,
+        grid_area_label: mapping?.label ?? null,
         used_for: 'pricing_preview_only',
       },
     })
@@ -486,6 +690,9 @@ export async function resolveWebsitePriceAreaForPricing(
         : 'Elområde kunde inte kontrolleras automatiskt just nu.'
 
     await writeFailureCache(supabase, postalCode, message, raw)
+
+    const prefixFallback = await readPostalPrefixFallback(supabase, postalCode)
+    if (prefixFallback) return prefixFallback
 
     const missingConfig =
       typeof error === 'object' &&
