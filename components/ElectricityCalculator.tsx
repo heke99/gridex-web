@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import PriceResultCard from '@/components/PriceResultCard'
 import {
-  isWebsitePriceArea,
   normalizeWebsitePostalCode,
   previewWebsitePricing,
   resolveWebsiteEnergyArea,
@@ -12,7 +11,6 @@ import {
   type WebsitePricingPreview,
 } from '@/lib/website/publicApi'
 
-const AREAS = ['SE1', 'SE2', 'SE3', 'SE4'] as const
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 
@@ -71,7 +69,6 @@ export default function ElectricityCalculator({
   const [postalCode, setPostalCode] = useState('')
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
-  const [manualArea, setManualArea] = useState<WebsitePriceArea | ''>('')
   const [kwh, setKwh] = useState(2000)
   const [selectedValue, setSelectedValue] = useState(initialValue)
   const [resolution, setResolution] = useState<WebsiteEnergyResolution | null>(null)
@@ -84,21 +81,10 @@ export default function ElectricityCalculator({
     [contracts, selectedValue]
   )
 
-  const effectiveArea = manualArea || resolution?.price_area_code || null
+  const effectiveArea = resolution?.price_area_code || null
   const hasContracts = contracts.length > 0
 
   async function resolveArea(): Promise<WebsitePriceArea> {
-    if (manualArea) {
-      const manualResolution: WebsiteEnergyResolution = {
-        status: 'manual',
-        price_area_code: manualArea,
-        customer_message: 'Elområdet är valt manuellt.',
-        source: 'manual',
-      }
-      setResolution(manualResolution)
-      return manualArea
-    }
-
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode)
     if (!/^\d{5}$/.test(normalizedPostalCode)) {
       throw new Error('Ange ett svenskt postnummer med 5 siffror.')
@@ -180,8 +166,7 @@ export default function ElectricityCalculator({
             </h2>
 
             <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">
-              Ange postnummer och gärna adress. Vi kontrollerar elområdet innan priset räknas,
-              så uppskattningen baseras på rätt område i Sverige.
+              Ange postnummer. Vi använder det enbart för att hitta rätt elområde för prisvisningen.
             </p>
           </div>
 
@@ -211,7 +196,7 @@ export default function ElectricityCalculator({
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
             <p className="text-xs text-white/40">
-              Postnumret används för att hitta rätt elområde. Full adress ger säkrare träff.
+              Postnumret används bara för att visa pris för rätt elområde.
             </p>
           </div>
 
@@ -227,7 +212,7 @@ export default function ElectricityCalculator({
               }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
-            <p className="text-xs text-white/40">Valfritt, men hjälper kontrollen.</p>
+            <p className="text-xs text-white/40">Valfritt, används bara som stöd i prisvisningen.</p>
           </div>
 
           <div className="space-y-2">
@@ -243,33 +228,7 @@ export default function ElectricityCalculator({
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
             />
             <p className="text-xs text-white/40">
-              Används endast för att få bättre prisområdesmatchning.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-white/80">
-              Elområde om du redan vet det
-            </label>
-            <select
-              value={manualArea}
-              onChange={(e) => {
-                const value = e.target.value
-                setManualArea(isWebsitePriceArea(value) ? value : '')
-                setResolution(null)
-                setResult(null)
-              }}
-              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40"
-            >
-              <option value="">Hämta automatiskt från adressen</option>
-              {AREAS.map((area) => (
-                <option key={area} value={area}>
-                  {area}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-white/40">
-              Normalt behöver du inte välja detta manuellt.
+              Valfritt, används inte för anläggningsverifiering.
             </p>
           </div>
 
@@ -321,9 +280,7 @@ export default function ElectricityCalculator({
                 : 'Prisområde behöver kontrolleras'}
             </div>
             <div className="mt-1 text-emerald-50/80">
-              {resolution.grid_owner_name
-                ? resolution.grid_owner_name
-                : 'Vi kontrollerar nätinformation i nästa steg.'}
+              Uppgiften används endast för att visa pris, inte för anläggningskontroll.
               {resolution.confidence != null
                 ? ` • träffsäkerhet ${Math.round(resolution.confidence * 100)}%`
                 : ''}
@@ -338,11 +295,11 @@ export default function ElectricityCalculator({
             disabled={loading || !hasContracts}
             className="w-full rounded-2xl bg-cyan-500 py-4 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Beräknar...' : 'Kontrollera elområde och se pris'}
+            {loading ? 'Beräknar...' : 'Hämta pris för postnumret'}
           </button>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">
-            Priset räknas på valt avtal och rätt elområde.
+            Priset räknas på valt avtal och elområdet för postnumret.
           </div>
         </div>
 
@@ -360,7 +317,7 @@ export default function ElectricityCalculator({
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">
-            Fyll i uppgifterna ovan och klicka på “Kontrollera elområde och se pris”. Då visas
+            Fyll i uppgifterna ovan och klicka på “Hämta pris för postnumret”. Då visas
             en prisuppskattning baserad på rätt SE-område.
           </div>
         )}

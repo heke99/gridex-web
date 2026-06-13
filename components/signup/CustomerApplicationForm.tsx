@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import PriceResultCard from '@/components/PriceResultCard'
 import {
-  isWebsitePriceArea,
   normalizeWebsitePostalCode,
   previewWebsitePricing,
   resolveWebsiteEnergyArea,
@@ -42,7 +41,6 @@ type Props = {
   action: (formData: FormData) => void | Promise<void>
 }
 
-const AREAS = ['SE1', 'SE2', 'SE3', 'SE4'] as const
 
 function clampKwh(value: number) {
   if (!Number.isFinite(value)) return 2000
@@ -64,12 +62,11 @@ function stringifySnapshot(value: unknown): string {
 }
 
 function resolutionMessage(resolution: WebsiteEnergyResolution | null) {
-  if (!resolution) return 'Ange adress och kontrollera prisområdet.'
+  if (!resolution) return 'Ange postnummer och kontrollera priset.'
   if (resolution.price_area_code) {
-    const owner = resolution.grid_owner_name ? ` hos ${resolution.grid_owner_name}` : ''
-    return `Prisområdet är ${resolution.price_area_code}${owner}.`
+    return `Elområdet är ${resolution.price_area_code}.`
   }
-  return resolution.customer_message || 'Prisområde behöver kontrolleras innan avtalet startar.'
+  return resolution.customer_message || 'Elområde behöver kontrolleras för prisvisning.'
 }
 
 export default function CustomerApplicationForm({
@@ -90,7 +87,6 @@ export default function CustomerApplicationForm({
   const [city, setCity] = useState('')
   const [apartment, setApartment] = useState('')
   const [monthlyKwh, setMonthlyKwh] = useState(2000)
-  const [manualArea, setManualArea] = useState<WebsitePriceArea | ''>('')
   const [resolution, setResolution] = useState<WebsiteEnergyResolution | null>(null)
   const [preview, setPreview] = useState<WebsitePricingPreview | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -101,7 +97,7 @@ export default function CustomerApplicationForm({
     [contracts, selectedValue]
   )
 
-  const resolvedArea = manualArea || resolution?.price_area_code || null
+  const resolvedArea = resolution?.price_area_code || null
   const previewSnapshot = preview
     ? {
         price_area_code: preview.priceArea,
@@ -114,17 +110,6 @@ export default function CustomerApplicationForm({
     : null
 
   async function resolveArea(): Promise<WebsitePriceArea | null> {
-    if (manualArea) {
-      const manualResolution: WebsiteEnergyResolution = {
-        status: 'manual',
-        price_area_code: manualArea,
-        source: 'manual',
-        customer_message: 'Du har valt elområde själv.',
-      }
-      setResolution(manualResolution)
-      return manualArea
-    }
-
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode)
     if (!/^\d{5}$/.test(normalizedPostalCode)) {
       throw new Error('Ange ett svenskt postnummer med 5 siffror.')
@@ -206,9 +191,6 @@ export default function CustomerApplicationForm({
       <input type="hidden" name="utm_medium" value={utm.utm_medium ?? ''} />
       <input type="hidden" name="utm_campaign" value={utm.utm_campaign ?? ''} />
       <input type="hidden" name="price_area_code" value={resolvedArea ?? ''} />
-      <input type="hidden" name="grid_area_code" value={resolution?.grid_area_code ?? ''} />
-      <input type="hidden" name="grid_owner_id" value={resolution?.grid_owner_id ?? ''} />
-      <input type="hidden" name="grid_owner_name" value={resolution?.grid_owner_name ?? ''} />
       <input type="hidden" name="energy_resolution_status" value={resolution?.status ?? ''} />
       <input
         type="hidden"
@@ -326,29 +308,6 @@ export default function CustomerApplicationForm({
           }}
         />
 
-        <div>
-          <label className="text-sm font-medium text-white/80">Elområde om du redan vet det</label>
-          <select
-            value={manualArea}
-            onChange={(event) => {
-              const value = event.target.value
-              setManualArea(isWebsitePriceArea(value) ? value : '')
-              resetEnergyState()
-            }}
-            className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/40"
-          >
-            <option value="">Hämta automatiskt från adressen</option>
-            {AREAS.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-white/45">
-            Normalt räcker postnummer och adress. Manuell väljare finns som säker reserv.
-          </p>
-        </div>
-
         <Field
           label="Uppskattad förbrukning"
           name="monthly_kwh_display"
@@ -390,8 +349,7 @@ export default function CustomerApplicationForm({
           <div>
             <div className="text-sm font-semibold text-white">Prisområde och pris</div>
             <p className="mt-2 text-sm leading-6 text-gray-400">
-              {resolutionMessage(resolution)} Priset uppdateras när du byter avtal,
-              adress eller förbrukning.
+              {resolutionMessage(resolution)} Vi använder postnumret enbart för prisvisning.
             </p>
           </div>
           <button
@@ -400,14 +358,13 @@ export default function CustomerApplicationForm({
             disabled={loadingPreview || !selectedContract}
             className="h-12 rounded-2xl bg-cyan-500 px-6 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loadingPreview ? 'Kontrollerar...' : 'Kontrollera pris'}
+            {loadingPreview ? 'Hämtar pris...' : 'Hämta pris för postnumret'}
           </button>
         </div>
 
         {resolution?.price_area_code ? (
           <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-            {resolution.price_area_code} är valt prisområde.
-            {resolution.grid_owner_name ? ` Nätägare: ${resolution.grid_owner_name}.` : ''}
+            Elområde: {resolution.price_area_code}. Används endast för att visa pris.
             {resolution.confidence != null ? ` Träffsäkerhet: ${Math.round(resolution.confidence * 100)}%.` : ''}
           </div>
         ) : null}
