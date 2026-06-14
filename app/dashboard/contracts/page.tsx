@@ -1,4 +1,12 @@
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import type { Metadata } from 'next'
+// Import status helper to translate raw status codes
+import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
+
+// Private page: prevent search engine indexing
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -12,24 +20,8 @@ function formatDate(value: string | null | undefined) {
 }
 
 function statusLabel(status: string | null | undefined) {
-  switch (status) {
-    case 'active_customer':
-    case 'active':
-      return 'Aktivt'
-    case 'switch_confirmed':
-      return 'Leverantörsbyte bekräftat'
-    case 'switch_requested':
-      return 'Leverantörsbyte påbörjat'
-    case 'facility_verified':
-      return 'Anläggning verifierad'
-    case 'facility_data_requested':
-    case 'needs_facility_data':
-      return 'Uppgifter kontrolleras'
-    case 'application_received':
-      return 'Ansökan mottagen'
-    default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
-  }
+  // Delegate to central status helper for customer-friendly text
+  return friendlyStatusLabel(status ?? undefined)
 }
 
 export default async function DashboardContractsPage() {

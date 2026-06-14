@@ -1,6 +1,14 @@
 import Link from 'next/link'
 import OverviewCards from '@/components/dashboard/OverviewCards'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import type { Metadata } from 'next'
+
+// Private dashboard pages should not be indexed by search engines
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
+// Import centralized status helper to translate backend statuses
+import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,24 +23,8 @@ function formatDate(value: string | null | undefined) {
 }
 
 function customerStatusText(status: string | null | undefined) {
-  switch (status) {
-    case 'active_customer':
-    case 'active':
-      return 'Aktiv kund'
-    case 'switch_confirmed':
-      return 'Leverantörsbyte bekräftat'
-    case 'switch_requested':
-      return 'Leverantörsbyte påbörjat'
-    case 'facility_verified':
-      return 'Anläggningsuppgifter verifierade'
-    case 'facility_data_requested':
-    case 'needs_facility_data':
-      return 'Vi kontrollerar anläggningsuppgifter'
-    case 'application_received':
-      return 'Ansökan mottagen'
-    default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
-  }
+  // Delegate to the central status helper for customer-friendly text
+  return friendlyStatusLabel(status ?? undefined)
 }
 
 function getDisplayName(profile: { full_name?: string | null; email?: string | null } | null) {

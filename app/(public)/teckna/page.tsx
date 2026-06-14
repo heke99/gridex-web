@@ -335,10 +335,10 @@ export default async function TecknaPage({
       <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
         <div className="mb-8 max-w-2xl">
           <h2 className="text-2xl font-bold text-white md:text-3xl">
-            Fyll i uppgifter för att teckna
+            Fyll i uppgifter för din ansökan
           </h2>
           <p className="mt-3 text-gray-400">
-            När du skickar in ansökan sparas dina uppgifter säkert. Gridex använder dem för att behandla din ansökan, begära nödvändiga anläggningsuppgifter och starta ditt elavtal när allt är klart.
+            När du skickar in ansökan sparas dina uppgifter säkert. Gridex använder dem för att behandla din ansökan, begära nödvändiga anläggningsuppgifter och påbörja ditt elavtal när allt är klart.
           </p>
         </div>
 
@@ -402,19 +402,37 @@ export default async function TecknaPage({
                 ))}
               </select>
               <p className="mt-2 text-xs text-white/45">
-                Valt avtal, prisversion och prisinformation sparas när ansökan skickas.
+                Valt avtal och prislista sparas när ansökan skickas.
               </p>
             </div>
 
             <Field label="Förnamn" name="first_name" />
             <Field label="Efternamn" name="last_name" />
-            <Field label="Personnummer" name="personal_number" />
+            <Field
+              label="Personnummer"
+              name="personal_number"
+              help="Ange ditt personnummer i format ååååmmddnnnn."
+            />
             <Field label="Företagsnamn" name="company_name" />
-            <Field label="Organisationsnummer" name="organization_number" />
+            <Field
+              label="Organisationsnummer"
+              name="organization_number"
+              help="Ange företagets organisationsnummer."
+            />
             <Field label="E-post" name="email" type="email" required />
-            <Field label="Telefon" name="phone" required />
+            <Field
+              label="Telefon"
+              name="phone"
+              required
+              help="Ange ditt telefonnummer utan mellanslag eller bindestreck."
+            />
             <Field label="Adress" name="address" required />
-            <Field label="Postnummer" name="postal_code" required />
+            <Field
+              label="Postnummer"
+              name="postal_code"
+              required
+              help="Ange ditt femsiffriga postnummer."
+            />
             <Field label="Ort" name="city" required />
             <Field label="Lägenhet" name="apartment" />
             <Field
@@ -510,7 +528,7 @@ export default async function TecknaPage({
               disabled={!canSubmit}
               className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Teckna elavtal
+              Skicka ansökan
             </button>
           </div>
         </form>
@@ -534,13 +552,49 @@ function Field({
   required = false,
   type = 'text',
   help,
+  autoComplete,
 }: {
   label: string
   name: string
   required?: boolean
   type?: string
   help?: string
+  autoComplete?: string
 }) {
+  // Determine a sensible default autocomplete attribute based on field name or explicit prop
+  let autocompleteAttr = autoComplete
+  if (!autocompleteAttr) {
+    switch (name) {
+      case 'first_name':
+        autocompleteAttr = 'given-name'
+        break
+      case 'last_name':
+        autocompleteAttr = 'family-name'
+        break
+      case 'email':
+        autocompleteAttr = 'email'
+        break
+      case 'phone':
+        autocompleteAttr = 'tel'
+        break
+      case 'address':
+        autocompleteAttr = 'street-address'
+        break
+      case 'postal_code':
+        autocompleteAttr = 'postal-code'
+        break
+      case 'city':
+        autocompleteAttr = 'address-level2'
+        break
+      case 'apartment':
+        autocompleteAttr = 'address-line2'
+        break
+      default:
+        // Do not expose metering/facility IDs for autocomplete
+        autocompleteAttr = 'off'
+    }
+  }
+
   return (
     <div>
       <label className="text-sm font-medium text-white/80">{label}</label>
@@ -548,6 +602,7 @@ function Field({
         name={name}
         type={type}
         required={required}
+        autoComplete={autocompleteAttr}
         className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40"
       />
       {help ? <p className="mt-2 text-xs text-white/45">{help}</p> : null}

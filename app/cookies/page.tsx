@@ -5,9 +5,10 @@ export default function CookiePolicyPage() {
 
       <section className="space-y-4 text-gray-300 text-sm leading-6">
         <p>
-          Denna webbplats använder cookies och liknande tekniker för att
-          säkerställa funktionalitet, förbättra användarupplevelsen och
-          analysera trafik.
+          Gridex använder cookies och liknande tekniker för att säkerställa
+          grundläggande funktionalitet och en bättre användarupplevelse. Vi
+          sparar inga icke-nödvändiga cookies utan ditt samtycke och spårar
+          inte ditt beteende för marknadsföring eller analys.
         </p>
       </section>
 
@@ -20,25 +21,36 @@ export default function CookiePolicyPage() {
 
       <section className="space-y-4 text-gray-300 text-sm leading-6">
         <h2 className="text-xl font-semibold text-white">2. Vilka typer använder vi?</h2>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Nödvändiga cookies (inloggning, säkerhet)</li>
-          <li>Analyscookies (statistik och förbättring)</li>
-          <li>Funktionella cookies (val och inställningar)</li>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            <strong>Nödvändiga cookies</strong> – krävs för att webbplatsen ska
+            fungera, till exempel för inloggning, säkerhet och formulär.
+          </li>
+          <li>
+            <strong>Dina val</strong> – vi sparar endast ditt cookie-samtycke i en
+            lokal cookie så att bannern inte visas varje gång. Inga
+            statistik‑ eller funktionella cookies sätts utan samtycke.
+          </li>
         </ul>
       </section>
 
       <section className="space-y-4 text-gray-300 text-sm leading-6">
-        <h2 className="text-xl font-semibold text-white">3. Tredjepartscookies</h2>
+        <h2 className="text-xl font-semibold text-white">3. Tredjepartsleverantörer</h2>
         <p>
-          Vi kan använda tredjepartsleverantörer såsom betalningsleverantörer,
-          signeringsleverantörer, analysverktyg och hostingtjänster.
+          Vi använder leverantörer som hjälper oss att leverera tjänsten, till
+          exempel hosting, betalning och signering. Dessa kan sätta sina egna
+          cookies för att leverera sina tjänster. Vi delar inte dina
+          personuppgifter med tredje part för marknadsföring.
         </p>
       </section>
 
       <section className="space-y-4 text-gray-300 text-sm leading-6">
         <h2 className="text-xl font-semibold text-white">4. Hantering av cookies</h2>
         <p>
-          Du kan när som helst ändra dina cookie-inställningar i din webbläsare.
+          Du kan när som helst ändra dina cookie-inställningar genom att klicka på
+          “Hantera val” i cookie-bannern eller genom att besöka denna sida
+          igen. Du kan även göra justeringar i din webbläsare. Om du avvisar
+          cookies kan vissa funktioner sluta fungera.
         </p>
       </section>
 

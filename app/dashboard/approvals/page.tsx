@@ -1,4 +1,12 @@
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import type { Metadata } from 'next'
+// Import status helper to translate status codes to customer-friendly labels
+import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
+
+// Private page: prevent indexing by search engines
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -12,20 +20,8 @@ function formatDate(value: string | null | undefined) {
 }
 
 function statusLabel(status: string | null | undefined) {
-  switch (status) {
-    case 'accepted':
-      return 'Godkänt'
-    case 'active':
-      return 'Aktiv'
-    case 'revoked':
-      return 'Återkallad'
-    case 'expired':
-      return 'Utgången'
-    case 'superseded':
-      return 'Ersatt'
-    default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
-  }
+  // Delegate to central helper. Unknown statuses fall back to safe default.
+  return friendlyStatusLabel(status ?? undefined)
 }
 
 export default async function DashboardApprovalsPage() {

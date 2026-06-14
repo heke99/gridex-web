@@ -7,8 +7,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
+        // Allow all public pages by default
         allow: '/',
-        disallow: ['/admin'],
+        // Disallow admin and private/auth pages from indexing
+        disallow: [
+          '/admin',
+          '/login',
+          '/register',
+          '/login/forgot-password',
+          '/login/reset-password',
+          '/dashboard',
+          '/dashboard/',
+          '/dashboard/*',
+          '/mina-sidor',
+        ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

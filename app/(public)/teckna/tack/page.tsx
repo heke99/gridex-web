@@ -1,5 +1,12 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+// Import centralized status helpers to avoid exposing raw status codes
+import {
+  statusLabel as friendlyStatusLabel,
+  statusDescription as friendlyStatusDescription,
+  nextStepDescription as friendlyNextStepDescription,
+  missingFieldLabel as friendlyMissingFieldLabel,
+} from '@/lib/customerPortal/statusHelper'
 
 export const metadata: Metadata = {
   title: 'Ansökan mottagen – Gridex',
@@ -7,93 +14,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-function customerTextForStatus(status: string) {
-  switch (status) {
-    case 'needs_facility_data':
-    case 'facility_data_requested':
-      return 'Vi har tagit emot din ansökan och kontrollerar dina anläggningsuppgifter. Du behöver inte skicka in en ny ansökan.'
-    case 'awaiting_customer_action':
-      return 'Vi har tagit emot din ansökan. Om vi behöver komplettering kontaktar vi dig.'
-    case 'awaiting_grid_owner_response':
-      return 'Vi har tagit emot din ansökan och väntar på uppgifter från nätägaren.'
-    case 'facility_verified':
-      return 'Dina anläggningsuppgifter är verifierade och vi förbereder nästa steg.'
-    case 'ready_for_switch':
-      return 'Din ansökan är mottagen och uppgifterna är redo för nästa steg.'
-    case 'switch_requested':
-      return 'Din ansökan är mottagen och leverantörsbytet är påbörjat.'
-    case 'switch_confirmed':
-      return 'Ditt leverantörsbyte är bekräftat.'
-    case 'active_customer':
-      return 'Ditt avtal är aktivt. Du kan följa dina uppgifter på Mina sidor.'
-    case 'rejected_or_cancelled':
-      return 'Ansökan kunde inte gå vidare. Kontakta oss om du vill veta mer.'
-    default:
-      return 'Vi har tagit emot din ansökan och går vidare med nästa steg.'
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case 'application_received':
-      return 'Ansökan mottagen'
-    case 'needs_facility_data':
-    case 'facility_data_requested':
-      return 'Anläggningsuppgifter kontrolleras'
-    case 'awaiting_customer_action':
-      return 'Komplettering kan behövas'
-    case 'awaiting_grid_owner_response':
-      return 'Väntar på nätägare'
-    case 'facility_verified':
-      return 'Anläggning verifierad'
-    case 'ready_for_switch':
-      return 'Redo för nästa steg'
-    case 'switch_requested':
-      return 'Leverantörsbyte påbörjat'
-    case 'switch_confirmed':
-      return 'Leverantörsbyte bekräftat'
-    case 'active_customer':
-      return 'Aktiv kund'
-    case 'rejected_or_cancelled':
-      return 'Avbruten eller nekad'
-    default:
-      return status.replaceAll('_', ' ')
-  }
-}
-
-function nextStepText(step?: string) {
-  switch (step) {
-    case 'facility_data_requested':
-      return 'Vi begär eller kontrollerar anläggningsuppgifter.'
-    case 'awaiting_grid_owner_response':
-      return 'Vi väntar på svar från nätägaren.'
-    case 'awaiting_customer_action':
-      return 'Vi kontaktar dig om något behöver kompletteras.'
-    case 'ready_for_switch':
-      return 'Vi förbereder leverantörsbyte.'
-    case 'switch_requested':
-      return 'Leverantörsbytet är skickat för behandling.'
-    default:
-      return step ? step.replaceAll('_', ' ') : 'Vi återkommer om vi behöver något mer.'
-  }
-}
-
-function labelForMissing(field: string) {
-  switch (field) {
-    case 'metering_point_id':
-      return 'Mätpunkts-ID saknas eller behöver kontrolleras.'
-    case 'facility_id':
-      return 'Anläggnings-ID saknas eller behöver kontrolleras.'
-    case 'facility_verified':
-      return 'Anläggningsuppgifter behöver verifieras.'
-    case 'power_of_attorney':
-      return 'Fullmakt behöver sparas eller verifieras.'
-    case 'requested_start_date':
-      return 'Startdatum behöver kontrolleras.'
-    default:
-      return 'En uppgift behöver kontrolleras innan nästa steg.'
-  }
-}
 
 export default async function TackPage({
   searchParams,
@@ -127,7 +47,7 @@ export default async function TackPage({
         </h1>
 
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-          {customerTextForStatus(status)}
+          {friendlyStatusDescription(status)}
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -138,9 +58,9 @@ export default async function TackPage({
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
           <div className="text-sm font-semibold text-white">Status</div>
-          <div className="mt-1 text-sm text-gray-300">{statusLabel(status)}</div>
+          <div className="mt-1 text-sm text-gray-300">{friendlyStatusLabel(status)}</div>
           <div className="mt-2 text-xs text-gray-500">
-            Nästa steg: {nextStepText(params.nextStep)}
+            Nästa steg: {friendlyNextStepDescription(params.nextStep)}
           </div>
         </div>
 
@@ -151,7 +71,7 @@ export default async function TackPage({
             </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-amber-50/80">
               {missing.map((field) => (
-                <li key={field}>{labelForMissing(field)}</li>
+                <li key={field}>{friendlyMissingFieldLabel(field)}</li>
               ))}
             </ul>
             <p className="mt-3 text-xs text-amber-50/70">

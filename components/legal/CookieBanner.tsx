@@ -46,16 +46,14 @@ export default function CookieBanner() {
     <div className="fixed inset-x-0 bottom-0 z-[999999] px-4 pb-4">
       <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-[#0B0F17] p-6 shadow-2xl">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-gray-300 leading-6">
-            <div className="text-white font-semibold mb-1">
-              Vi använder cookies
-            </div>
+          <div className="text-sm leading-6 text-gray-300">
+            <div className="mb-1 font-semibold text-white">Vi använder cookies</div>
             <div className="text-gray-400">
-              Gridex använder cookies för funktionalitet och förbättrad
-              användarupplevelse. Läs mer i vår{' '}
+              Gridex använder endast nödvändiga cookies för funktionalitet och
+              förbättrad användarupplevelse. Läs mer eller ändra dina inställningar i vår{' '}
               <Link
                 href="/cookies"
-                className="text-cyan-300 hover:text-cyan-200 underline"
+                className="text-cyan-300 underline hover:text-cyan-200"
               >
                 cookiepolicy
               </Link>
@@ -63,22 +61,27 @@ export default function CookieBanner() {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={reject}
-              className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-gray-200 hover:border-cyan-500/40 transition"
+              className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-gray-200 transition hover:border-cyan-500/40"
             >
               Avvisa
             </button>
-
             <button
               type="button"
               onClick={accept}
-              className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-bold text-black hover:bg-cyan-400 transition"
+              className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-bold text-black transition hover:bg-cyan-400"
             >
               Acceptera
             </button>
+            <Link
+              href="/cookies"
+              className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-gray-200 transition hover:border-cyan-500/40 flex items-center"
+            >
+              Hantera val
+            </Link>
           </div>
         </div>
       </div>

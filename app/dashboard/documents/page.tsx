@@ -1,5 +1,11 @@
 import EventLink from '@/components/customer/EventLink'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import type { Metadata } from 'next'
+
+// Private page: ensure search engines do not index this page
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export const dynamic = 'force-dynamic'
 

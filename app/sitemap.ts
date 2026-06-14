@@ -7,7 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '',
     '/elavtal',
     '/teckna-avtal',
-    '/mina-sidor',
+    // '/mina-sidor' intentionally excluded from sitemap as det inte ska indexeras
     '/kundservice',
     '/aktuella-elpriser',
     '/integritetspolicy',

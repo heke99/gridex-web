@@ -18,7 +18,15 @@ export default function RootLayout({
       <body className="bg-black text-white min-h-screen flex flex-col">
         <AuthSessionSync />
 
-        <main className="flex-1">
+        {/* Skip link for improved accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only absolute left-0 top-0 m-2 rounded bg-cyan-500 px-3 py-2 text-black"
+        >
+          Hoppa till innehåll
+        </a>
+
+        <main id="main-content" className="flex-1">
           {children}
         </main>
 
