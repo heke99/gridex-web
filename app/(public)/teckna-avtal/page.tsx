@@ -8,6 +8,7 @@ import {
   createApplicationIdempotencyKey,
   createExternalApplicationId,
   fetchOpsPublicContracts,
+  fetchOpsWebsitePricingPreview,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -15,6 +16,11 @@ import {
   type OpsPublicContract,
 } from '@/lib/ops/client'
 import { checkRateLimit } from '@/lib/security/rateLimit'
+import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import {
+  validateContractDisplaySnapshot,
+  validatePricingPreviewSnapshot,
+} from '@/lib/website/snapshotValidation'
 
 export const metadata: Metadata = {
   title: 'Ansök om elavtal – Gridex',
@@ -119,6 +125,8 @@ function errorText(code?: string) {
       return 'Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.'
     case 'snapshot':
       return 'Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.'
+    case 'price_snapshot':
+      return 'Prisberäkningen har uppdaterats sedan sidan laddades. Räkna priset igen och kontrollera sammanfattningen.'
     case 'rate_limit':
       return 'För många försök på kort tid. Vänta en stund och försök igen.'
     default:
@@ -147,6 +155,14 @@ function parseJsonSnapshot(value: string): Record<string, unknown> | null {
   } catch {
     return null
   }
+}
+
+function isPriceAreaCode(value: string): value is 'SE1' | 'SE2' | 'SE3' | 'SE4' {
+  return value === 'SE1' || value === 'SE2' || value === 'SE3' || value === 'SE4'
+}
+
+function sameContractSnapshot(offer: OpsPublicContract, snapshot: Record<string, unknown> | null): boolean {
+  return validateContractDisplaySnapshot(offer, snapshot).ok
 }
 
 export default async function TecknaPage({
@@ -248,14 +264,61 @@ export default async function TecknaPage({
       redirect('/teckna-avtal?error=consent')
     }
 
+    const pricingPreviewSnapshot = parseJsonSnapshot(
+      normalizeText(formData.get('pricing_preview_snapshot'))
+    )
     const contractDisplaySnapshot = parseJsonSnapshot(
       normalizeText(formData.get('contract_display_snapshot'))
     )
-    if (
-      contractDisplaySnapshot &&
-      String(contractDisplaySnapshot.price_plan_version_id || '') !== offer.price_plan_version_id
-    ) {
+
+    if (!pricingPreviewSnapshot || !contractDisplaySnapshot) {
       redirect('/teckna-avtal?error=snapshot')
+    }
+
+    if (!sameContractSnapshot(offer, contractDisplaySnapshot)) {
+      redirect('/teckna-avtal?error=snapshot')
+    }
+
+    const priceAreaCode = normalizeText(formData.get('price_area_code'))
+    const estimatedMonthlyKwh = parseOptionalNumber(
+      normalizeText(formData.get('estimated_monthly_kwh'))
+    )
+
+    if (!isPriceAreaCode(priceAreaCode) || !estimatedMonthlyKwh) {
+      redirect('/teckna-avtal?error=price_snapshot')
+    }
+
+    const liveDisplay = buildPublicContractDisplay(offer)
+    if (!liveDisplay.ready) {
+      redirect('/teckna-avtal?error=offer')
+    }
+
+    const livePreview = await fetchOpsWebsitePricingPreview({
+      contract_id: offer.contract_id ?? null,
+      price_plan_id: offer.price_plan_id,
+      price_plan_version_id: offer.price_plan_version_id,
+      product_code: offer.product_code,
+      price_area_code: priceAreaCode,
+      postal_code: postalCode,
+      city,
+      address,
+      estimated_monthly_kwh: estimatedMonthlyKwh,
+    }).catch(() => null)
+
+    if (!livePreview) {
+      redirect('/teckna-avtal?error=price_snapshot')
+    }
+
+    const previewCheck = validatePricingPreviewSnapshot({
+      contract: offer,
+      snapshot: pricingPreviewSnapshot,
+      livePreview,
+      expectedPriceArea: priceAreaCode,
+      expectedMonthlyKwh: estimatedMonthlyKwh,
+    })
+
+    if (!previewCheck.ok) {
+      redirect('/teckna-avtal?error=price_snapshot')
     }
 
     const idempotencyKey = createApplicationIdempotencyKey([
@@ -294,7 +357,7 @@ export default async function TecknaPage({
         price_plan_id: offer.price_plan_id,
         price_plan_version_id: offer.price_plan_version_id,
         product_code: offer.product_code,
-        price_area_code: normalizeText(formData.get('price_area_code')) || null,
+        price_area_code: priceAreaCode,
         grid_area_code: normalizeText(formData.get('grid_area_code')) || null,
         grid_owner_id: normalizeText(formData.get('grid_owner_id')) || null,
         grid_owner_name: normalizeText(formData.get('grid_owner_name')) || null,
@@ -303,15 +366,9 @@ export default async function TecknaPage({
         energy_resolution_confidence: parseOptionalNumber(
           normalizeText(formData.get('energy_resolution_confidence'))
         ),
-        estimated_monthly_kwh: parseOptionalNumber(
-          normalizeText(formData.get('estimated_monthly_kwh'))
-        ),
-        pricing_preview_snapshot: parseJsonSnapshot(
-          normalizeText(formData.get('pricing_preview_snapshot'))
-        ),
-        contract_display_snapshot: parseJsonSnapshot(
-          normalizeText(formData.get('contract_display_snapshot'))
-        ),
+        estimated_monthly_kwh: estimatedMonthlyKwh,
+        pricing_preview_snapshot: pricingPreviewSnapshot,
+        contract_display_snapshot: contractDisplaySnapshot,
         source: 'gridex_website',
         idempotency_key: idempotencyKey,
         external_application_id: createExternalApplicationId(),

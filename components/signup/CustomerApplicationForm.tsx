@@ -318,6 +318,8 @@ export default function CustomerApplicationForm({
     }
 
     if (step === 2) {
+      if (!pricingPreviewSnapshot) nextErrors.pricing_preview_snapshot = 'Räkna priset innan du skickar ansökan.'
+      if (!contractDisplaySnapshot) nextErrors.contract_display_snapshot = 'Valt avtal kunde inte verifieras. Välj avtalet igen.'
       if (!consents.accept_terms) nextErrors.accept_terms = 'Du behöver godkänna villkoren.'
       if (!consents.accept_cancellation_right) nextErrors.accept_cancellation_right = 'Du behöver bekräfta information om ångerrätt.'
       if (!consents.accept_privacy) nextErrors.accept_privacy = 'Du behöver ta del av integritetspolicyn.'
@@ -340,9 +342,9 @@ export default function CustomerApplicationForm({
 
   const errorList = Object.values(errors)
   const allConsentsAccepted = Object.values(consents).every(Boolean)
-  const submitDisabled = !canSubmit || !allConsentsAccepted
   const pricingPreviewSnapshot = pricingPreview ? JSON.stringify(pricingPreview) : ''
   const contractDisplaySnapshot = activeDisplay ? JSON.stringify(activeDisplay.snapshot) : ''
+  const submitDisabled = !canSubmit || !allConsentsAccepted || !pricingPreviewSnapshot || !contractDisplaySnapshot
 
   return (
     <div className="space-y-8" aria-live="polite">
@@ -507,6 +509,11 @@ export default function CustomerApplicationForm({
             <div>
               <h2 className="text-2xl font-bold text-white md:text-3xl">Granska innan du skickar</h2>
               <p className="mt-2 text-sm leading-6 text-gray-400">Detta är en ansökan. Gridex bekräftar nästa steg när uppgifterna är mottagna och kontrollerade.</p>
+              {!pricingPreviewSnapshot ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="alert">
+                  Räkna priset i kalkylatorn innan du skickar ansökan. Då sparas samma prisunderlag som du granskar här.
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
