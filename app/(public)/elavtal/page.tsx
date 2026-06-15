@@ -6,6 +6,7 @@ import {
   getOpsClientStatus,
   type OpsPublicContract,
 } from '@/lib/ops/client'
+import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 
 export const metadata: Metadata = {
   title: 'Elavtal – jämför rörligt, portfölj och fastpris',
@@ -14,48 +15,8 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://gridex.se/elavtal' },
 }
 
-function contractTypeLabel(type: string) {
-  switch (type) {
-    case 'variable_spot':
-    case 'spot_hourly':
-      return 'Rörligt elpris'
-    case 'portfolio':
-    case 'portfolio_managed':
-      return 'Portföljavtal'
-    case 'fixed':
-      return 'Fastpris'
-    default:
-      return 'Elavtal'
-  }
-}
-
-function formatNumber(value: number | null | undefined, suffix: string) {
-  if (value == null || !Number.isFinite(Number(value))) return '—'
-  return `${Number(value).toLocaleString('sv-SE')} ${suffix}`
-}
-
-function getContractDescription(contract: OpsPublicContract) {
-  if (contract.short_description?.trim()) return contract.short_description
-  if (contract.marketing_description?.trim()) return contract.marketing_description
-
-  switch (contract.type) {
-    case 'variable_spot':
-    case 'spot_hourly':
-      return 'För dig som vill följa marknadspriset och ha tydliga avgifter och påslag.'
-    case 'portfolio':
-    case 'portfolio_managed':
-      return 'För dig som vill ha en mer aktiv prissättning med fokus på balans mellan risk och stabilitet.'
-    case 'fixed':
-      return 'För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.'
-    default:
-      return 'Ett aktuellt elavtal från Gridex. När du går vidare får du en tydlig sammanställning av valt avtal.'
-  }
-}
-
 function ContractCard({ contract }: { contract: OpsPublicContract }) {
-  const tecknaHref = `/teckna-avtal?planVersion=${encodeURIComponent(
-    contract.price_plan_version_id
-  )}`
+  const display = buildPublicContractDisplay(contract)
 
   return (
     <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
@@ -63,7 +24,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-lg font-semibold text-white">{contract.name}</div>
+              <div className="text-lg font-semibold text-white">{display.headline}</div>
 
               {contract.badge_text ? (
                 <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-200">
@@ -72,9 +33,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
               ) : null}
             </div>
 
-            <div className="mt-1 text-sm text-gray-400">
-              {contractTypeLabel(contract.type)}
-            </div>
+            <div className="mt-1 text-sm text-gray-400">{display.typeLabel}</div>
           </div>
 
           <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
@@ -83,40 +42,37 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
-          {getContractDescription(contract)}
+          {display.description}
         </div>
 
         <div className="mt-5 grid gap-2 text-sm text-gray-300">
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Månadsavgift</span>
-            <span>{formatNumber(contract.monthly_fee_sek, 'kr/mån')}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Fakturaavgift</span>
-            <span>{formatNumber(contract.invoice_fee_sek, 'kr')}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Påslag</span>
-            <span>{formatNumber(contract.markup_ore_per_kwh, 'öre/kWh')}</span>
-          </div>
+          {display.rows.map((row) => (
+            <div key={row.key} className="flex justify-between gap-4">
+              <span className="text-gray-500">{row.label}</span>
+              <span>{row.formatted}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 text-xs text-gray-500">
-          Villkorsversion {contract.terms_version ?? 'anges vid teckning'}
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs leading-6 text-gray-400">
+          <div>Allmänna villkor: version {display.legalVersions.terms}</div>
+          <div>Integritetspolicy: version {display.legalVersions.privacyPolicy}</div>
+          <div>Ångerrätt: version {display.legalVersions.cancellationRight}</div>
+          <div>Fullmakt: version {display.legalVersions.powerOfAttorney}</div>
         </div>
       </div>
 
       <div className="mt-6 grid gap-3">
         <Link
-          href={tecknaHref}
-          className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
+          href={display.ctaHref}
+          className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
         >
           Ansök om avtal
         </Link>
 
         <Link
           href="/kundservice"
-          className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
+          className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
         >
           Frågor om avtalet?
         </Link>

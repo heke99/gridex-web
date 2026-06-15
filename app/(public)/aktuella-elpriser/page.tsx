@@ -56,9 +56,8 @@ export default async function AktuellaElpriserPage() {
         </h1>
         <p className="mt-3 max-w-3xl text-gray-400">
           Här visas aktuellt marknadspris samt föregående månads genomsnittliga
-          spotpris per elområde. Gridex använder föregående månads snittspot som
-          prisbas i rörliga månadsavtal, innan avtalade påslag, avgifter och moms
-          läggs till.
+          spotpris per elområde. På sidan ser du marknadspriset innan avtalade
+          påslag, avgifter och moms läggs till.
         </p>
       </section>
 

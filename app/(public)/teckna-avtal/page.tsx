@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import ElectricityCalculator, { type ContractOption } from '@/components/ElectricityCalculator'
-import CustomerApplicationForm, { type SignupContractOption } from '@/components/signup/CustomerApplicationForm'
+import SignupFlowClient from '@/components/signup/SignupFlowClient'
+import { type SignupContractOption } from '@/components/signup/CustomerApplicationForm'
 import {
   createApplicationIdempotencyKey,
   createExternalApplicationId,
@@ -53,23 +53,6 @@ function getClientIpFromHeaders(h: Headers): string | null {
   return null
 }
 
-function toContractOption(item: OpsPublicContract): ContractOption {
-  return {
-    name: item.name,
-    value: item.price_plan_version_id,
-    productCode: item.product_code,
-    pricePlanId: item.price_plan_id,
-    pricePlanVersionId: item.price_plan_version_id,
-    contractId: item.contract_id ?? null,
-    type: item.type,
-    monthlyFeeSek: item.monthly_fee_sek,
-    invoiceFeeSek: item.invoice_fee_sek,
-    markupOrePerKwh: item.markup_ore_per_kwh,
-    variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
-    fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
-  }
-}
-
 function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
   return {
     name: item.name,
@@ -84,10 +67,19 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
     fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
+    validFrom: item.valid_from ?? null,
+    validTo: item.valid_to ?? null,
+    bindingPeriodMonths: item.binding_period_months ?? null,
+    noticePeriodDays: item.notice_period_days ?? null,
+    included: item.included ?? null,
+    excluded: item.excluded ?? null,
+    startInfo: item.start_info ?? null,
+    customerTypes: item.customer_types ?? null,
     termsVersion: item.terms_version ?? null,
     privacyPolicyVersion: item.privacy_policy_version ?? null,
     cancellationRightVersion: item.cancellation_right_version ?? null,
     powerOfAttorneyVersion: item.power_of_attorney_version ?? null,
+    priceTermsVersion: item.price_terms_version ?? null,
   }
 }
 
@@ -125,6 +117,8 @@ function errorText(code?: string) {
       return 'Ansökan online är inte aktiverad just nu.'
     case 'offer':
       return 'Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.'
+    case 'snapshot':
+      return 'Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.'
     case 'rate_limit':
       return 'För många försök på kort tid. Vänta en stund och försök igen.'
     default:
@@ -175,7 +169,6 @@ export default async function TecknaPage({
     loadError = 'Ansökan online är inte tillgänglig just nu.'
   }
 
-  const options = contracts.map(toContractOption)
   const signupOptions = contracts.map(toSignupContractOption)
   const selectedContract = selectedContractFromParams(contracts, params)
   const selectedValue = selectedContract?.price_plan_version_id ?? ''
@@ -255,6 +248,16 @@ export default async function TecknaPage({
       redirect('/teckna-avtal?error=consent')
     }
 
+    const contractDisplaySnapshot = parseJsonSnapshot(
+      normalizeText(formData.get('contract_display_snapshot'))
+    )
+    if (
+      contractDisplaySnapshot &&
+      String(contractDisplaySnapshot.price_plan_version_id || '') !== offer.price_plan_version_id
+    ) {
+      redirect('/teckna-avtal?error=snapshot')
+    }
+
     const idempotencyKey = createApplicationIdempotencyKey([
       'gridex_website_application_v1',
       email,
@@ -305,6 +308,9 @@ export default async function TecknaPage({
         ),
         pricing_preview_snapshot: parseJsonSnapshot(
           normalizeText(formData.get('pricing_preview_snapshot'))
+        ),
+        contract_display_snapshot: parseJsonSnapshot(
+          normalizeText(formData.get('contract_display_snapshot'))
         ),
         source: 'gridex_website',
         idempotency_key: idempotencyKey,
@@ -395,48 +401,35 @@ export default async function TecknaPage({
         </div>
       </section>
 
-      <ElectricityCalculator contracts={options} initialSelectedValue={selectedValue} />
-
-      <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
-        <div className="mb-8 max-w-2xl">
-          <h2 className="text-2xl font-bold text-white md:text-3xl">
-            Starta din ansökan
-          </h2>
-          <p className="mt-3 text-gray-400">
-            Uppgifterna används för att behandla ansökan, verifiera anläggningen och återkomma med nästa steg. Du kan granska allt innan något skickas.
-          </p>
+      {pageError ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
+          {pageError}
         </div>
+      ) : null}
 
-        {pageError ? (
-          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
-            {pageError}
-          </div>
-        ) : null}
+      {loadError ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          {loadError} Ansökan är därför tillfälligt pausad.
+        </div>
+      ) : null}
 
-        {loadError ? (
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            {loadError} Ansökan är därför tillfälligt pausad.
-          </div>
-        ) : null}
+      {!status.liveSignupEnabled ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          Ansökan online är inte aktiverad just nu. Kontakta kundservice om du vill ha hjälp.
+        </div>
+      ) : null}
 
-        {!status.liveSignupEnabled ? (
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            Ansökan online är inte aktiverad just nu. Kontakta kundservice om du vill ha hjälp.
-          </div>
-        ) : null}
-
-        <CustomerApplicationForm
-          contracts={signupOptions}
-          initialSelectedValue={selectedValue}
-          canSubmit={canSubmit}
-          utm={{
-            utm_source: params.utm_source,
-            utm_medium: params.utm_medium,
-            utm_campaign: params.utm_campaign,
-          }}
-          action={submitApplicationAction}
-        />
-      </section>
+      <SignupFlowClient
+        contracts={signupOptions}
+        initialSelectedValue={selectedValue}
+        canSubmit={canSubmit}
+        utm={{
+          utm_source: params.utm_source,
+          utm_medium: params.utm_medium,
+          utm_campaign: params.utm_campaign,
+        }}
+        action={submitApplicationAction}
+      />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
 
 export type OpsContractType =
   | "variable_spot"
@@ -23,10 +24,19 @@ export type OpsPublicContract = {
   markup_ore_per_kwh?: number | null;
   variable_markup_ore_per_kwh?: number | null;
   fixed_price_ore_per_kwh?: number | null;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  binding_period_months?: number | null;
+  notice_period_days?: number | null;
+  included?: string[] | string | null;
+  excluded?: string[] | string | null;
+  start_info?: string | null;
+  customer_types?: string[] | null;
   terms_version?: string | null;
   privacy_policy_version?: string | null;
   cancellation_right_version?: string | null;
   power_of_attorney_version?: string | null;
+  price_terms_version?: string | null;
   is_public?: boolean | null;
   is_active?: boolean | null;
   sort_order?: number | null;
@@ -61,6 +71,7 @@ export type OpsCustomerApplicationInput = {
   energy_resolution_confidence?: number | null;
   estimated_monthly_kwh?: number | null;
   pricing_preview_snapshot?: Record<string, unknown> | null;
+  contract_display_snapshot?: Record<string, unknown> | null;
   source: "gridex_website";
   idempotency_key: string;
   external_application_id: string;
@@ -167,6 +178,10 @@ export type OpsWebsitePricingPreview = {
     slug: string;
     name: string;
     contractType: "spot_hourly" | "portfolio_managed" | "fixed";
+    price_plan_version_id?: string | null;
+    price_plan_id?: string | null;
+    product_code?: string | null;
+    contract_id?: string | null;
   };
   priceArea: OpsWebsitePriceArea;
   price_area_code?: OpsWebsitePriceArea;
@@ -218,8 +233,13 @@ function opsBaseUrl(): string | undefined {
 export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = [];
   const baseUrl = opsBaseUrl();
+  const apiKey = env("GRIDEX_WEBSITE_API_KEY");
+  const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
   if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
-  if (!env("GRIDEX_WEBSITE_API_KEY")) missing.push("GRIDEX_WEBSITE_API_KEY");
+  if (!apiKey) missing.push("GRIDEX_WEBSITE_API_KEY");
+  if (process.env.NODE_ENV === "production" && baseUrl && apiKey && !tenantId) {
+    missing.push("GRIDEX_WEBSITE_TENANT_ID");
+  }
 
   let unsafeProductionUrl = false;
   if (
@@ -522,9 +542,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     "version_id",
     "pricing_version_id",
   ]);
-  const productCode =
-    pickString(r, ["product_code", "productCode", "slug", "code"]) ??
-    pricePlanId;
+  const productCode = pickString(r, ["product_code", "productCode", "code"]);
   const name = pickString(r, ["name", "title", "contract_name"]);
 
   if (!pricePlanId || !pricePlanVersionId || !productCode || !name) return null;
@@ -557,6 +575,26 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     markup_ore_per_kwh: components.markup_ore_per_kwh ?? null,
     variable_markup_ore_per_kwh: components.variable_markup_ore_per_kwh ?? null,
     fixed_price_ore_per_kwh: components.fixed_price_ore_per_kwh ?? null,
+    valid_from: pickString(r, ["valid_from", "validFrom"]),
+    valid_to: pickString(r, ["valid_to", "validTo"]),
+    binding_period_months: normalizeNumber(
+      r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
+    ),
+    notice_period_days: normalizeNumber(
+      r.notice_period_days ?? r.noticePeriodDays ?? r.notice_days,
+    ),
+    included: Array.isArray(r.included)
+      ? r.included.map(String).filter(Boolean)
+      : pickString(r, ["included"]),
+    excluded: Array.isArray(r.excluded)
+      ? r.excluded.map(String).filter(Boolean)
+      : pickString(r, ["excluded"]),
+    start_info: pickString(r, ["start_info", "startInfo"]),
+    customer_types: Array.isArray(r.customer_types)
+      ? r.customer_types.map(String).filter(Boolean)
+      : Array.isArray(r.customerTypes)
+        ? r.customerTypes.map(String).filter(Boolean)
+        : null,
     terms_version: pickString(r, ["terms_version", "termsVersion"]),
     privacy_policy_version: pickString(r, [
       "privacy_policy_version",
@@ -569,6 +607,12 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     power_of_attorney_version: pickString(r, [
       "power_of_attorney_version",
       "powerOfAttorneyVersion",
+    ]),
+    price_terms_version: pickString(r, [
+      "price_terms_version",
+      "priceTermsVersion",
+      "price_terms",
+      "priceTerms",
     ]),
     is_public: pickBoolean(r, ["is_public", "isPublic"]),
     is_active: pickBoolean(r, ["is_active", "isActive"]),
@@ -639,7 +683,7 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
   const fallbackMessage = "Tjänsten kunde inte slutföra åtgärden just nu.";
 
-  if (!baseUrl || !apiKey) {
+  if (!baseUrl || !apiKey || (process.env.NODE_ENV === "production" && !tenantId)) {
     throw new OpsError("Tjänsten är inte tillgänglig just nu.", 503, {
       missing: getOpsClientStatus().missing,
     });
@@ -707,7 +751,9 @@ async function opsFetchWithFallback(
 ): Promise<unknown> {
   let lastError: unknown = null;
 
-  for (const path of paths) {
+  const effectivePaths = process.env.NODE_ENV === "production" ? paths.slice(0, 1) : paths;
+
+  for (const path of effectivePaths) {
     try {
       return await opsFetch(path, init);
     } catch (error) {
@@ -859,6 +905,16 @@ function mapWebsitePricingPreview(
           contractRow.type ??
           row.contract_type,
       ),
+      price_plan_version_id: pickString(contractRow, [
+        "price_plan_version_id",
+        "pricePlanVersionId",
+      ]) ?? pickString(row, ["price_plan_version_id", "pricePlanVersionId"]),
+      price_plan_id: pickString(contractRow, ["price_plan_id", "pricePlanId"]) ??
+        pickString(row, ["price_plan_id", "pricePlanId"]),
+      product_code: pickString(contractRow, ["product_code", "productCode"]) ??
+        pickString(row, ["product_code", "productCode"]),
+      contract_id: pickString(contractRow, ["contract_id", "contractId"]) ??
+        pickString(row, ["contract_id", "contractId"]),
     },
     priceArea: safeArea,
     price_area_code: safeArea,
@@ -869,10 +925,10 @@ function mapWebsitePricingPreview(
     pricePerKwhOre:
       normalizeNumber(
         row.pricePerKwhOre ?? row.price_per_kwh_ore ?? row.totalOrePerKwh,
-      ) ?? 0,
+      ) ?? Number.NaN,
     totalMonthlyCostSek:
       normalizeNumber(row.totalMonthlyCostSek ?? row.total_monthly_cost_sek) ??
-      0,
+      Number.NaN,
     totalMonthlyCostInclVatSek:
       normalizeNumber(
         row.totalMonthlyCostInclVatSek ?? row.total_monthly_cost_inc_vat_sek,
@@ -955,7 +1011,7 @@ export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
-    .filter((item) => item.is_public !== false && item.is_active !== false)
+    .filter(isPublicContractReady)
     .sort((a, b) => {
       const sa = a.sort_order ?? 10_000;
       const sb = b.sort_order ?? 10_000;

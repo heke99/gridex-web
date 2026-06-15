@@ -30,7 +30,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
   const { year, month } = prevYearMonth(new Date())
 
   // Public SEO pages should show the same previous-month spot price
-  // basis as the calculator. Admin/manual DB rows are only fallback data.
+  // as the calculator when spot data is available.
   const [spotAverage, live] = await Promise.all([
     fetchMonthlySpotAverageFromElprisetJustNu({
       year,

@@ -72,6 +72,7 @@ export default async function HomePage() {
       <ValueBlocks />
       <ArticleColumns />
       <HomeSeoBlocks />
+      <HomeFaq items={faqItems} />
     </div>
   );
 }
@@ -521,4 +522,23 @@ function HomeSeoBlocks() {
       </section>
     </>
   );
+}
+
+
+function HomeFaq({ items }: { items: Array<{ question: string; answer: string }> }) {
+  return (
+    <section className="rounded-3xl border border-white/10 bg-gray-950 p-6 md:p-8">
+      <h2 className="text-2xl font-bold text-white">Vanliga frågor</h2>
+      <div className="mt-6 space-y-4">
+        {items.map((item) => (
+          <details key={item.question} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/40">
+              {item.question}
+            </summary>
+            <p className="mt-3 text-sm leading-6 text-gray-300">{item.answer}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+  )
 }

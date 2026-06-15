@@ -40,6 +40,10 @@ export type WebsitePricingPreview = {
     slug: string
     name: string
     contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed'
+    price_plan_version_id?: string | null
+    price_plan_id?: string | null
+    product_code?: string | null
+    contract_id?: string | null
   }
   priceArea: WebsitePriceArea
   price_area_code?: WebsitePriceArea
@@ -71,6 +75,7 @@ export type WebsitePricingPreview = {
       variableFeeOre?: number
       elcertOre?: number
       monthlyFeeSek?: number
+      invoiceFeeSek?: number
     }
   }
   raw?: Record<string, unknown>
