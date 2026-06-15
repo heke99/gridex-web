@@ -11,6 +11,16 @@ export type RateLimitResult = {
   resetAt: number
 }
 
+/**
+ * Lightweight in-process rate limiter.
+ *
+ * Production note:
+ * This limiter protects a single running server process only. In a distributed
+ * deployment such as Vercel serverless/functions, multiple instances do not share
+ * this Map, and cold starts reset the counters. Keep this guard as a safe local
+ * fallback, but use a shared store such as Redis/Upstash or an edge/network rate
+ * limiter before public forms for full production protection.
+ */
 export function checkRateLimit(
   key: string,
   options: { limit: number; windowMs: number }

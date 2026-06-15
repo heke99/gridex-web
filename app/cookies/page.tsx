@@ -1,62 +1,64 @@
+import type { Metadata } from 'next'
+import CookieSettings from '@/components/legal/CookieSettings'
+
+export const metadata: Metadata = {
+  title: 'Cookiepolicy – Gridex',
+  description: 'Information om hur Gridex använder nödvändiga cookies och hur du ändrar ditt cookieval.',
+  alternates: { canonical: 'https://gridex.se/cookies' },
+}
+
+const UPDATED_AT = '2026-06-15'
+
 export default function CookiePolicyPage() {
   return (
-    <div className="max-w-4xl mx-auto px-6 py-16 space-y-10">
-      <h1 className="text-4xl font-bold">Cookiepolicy</h1>
-
-      <section className="space-y-4 text-gray-300 text-sm leading-6">
-        <p>
-          Gridex använder cookies och liknande tekniker för att säkerställa
-          grundläggande funktionalitet och en bättre användarupplevelse. Vi
-          sparar inga icke-nödvändiga cookies utan ditt samtycke och spårar
-          inte ditt beteende för marknadsföring eller analys.
+    <div className="mx-auto max-w-4xl space-y-8 px-6 py-16">
+      <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-10">
+        <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
+          Cookiepolicy • Version 1.0 • Gäller från {UPDATED_AT}
+        </div>
+        <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Cookiepolicy</h1>
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300 md:text-base">
+          Den här sidan beskriver den faktiska cookieanvändningen på Gridex webbplats. Vi beskriver inte analys- eller marknadsföringscookies som aktiva eftersom webbplatsen i nuläget inte sätter sådana cookies via samtyckesflödet.
         </p>
       </section>
 
-      <section className="space-y-4 text-gray-300 text-sm leading-6">
+      <CookieSettings />
+
+      <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
         <h2 className="text-xl font-semibold text-white">1. Vad är cookies?</h2>
-        <p>
-          Cookies är små textfiler som lagras på din enhet när du besöker en webbplats.
+        <p className="mt-4 text-sm leading-7 text-gray-300">
+          Cookies är små textfiler som kan sparas i webbläsaren. Liknande tekniker, till exempel lokal lagring i webbläsaren, kan användas för att spara ett val eller hålla en session aktiv.
         </p>
       </section>
 
-      <section className="space-y-4 text-gray-300 text-sm leading-6">
-        <h2 className="text-xl font-semibold text-white">2. Vilka typer använder vi?</h2>
-        <ul className="list-disc space-y-1 pl-5">
-          <li>
-            <strong>Nödvändiga cookies</strong> – krävs för att webbplatsen ska
-            fungera, till exempel för inloggning, säkerhet och formulär.
-          </li>
-          <li>
-            <strong>Dina val</strong> – vi sparar endast ditt cookie-samtycke i en
-            lokal cookie så att bannern inte visas varje gång. Inga
-            statistik‑ eller funktionella cookies sätts utan samtycke.
-          </li>
+      <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
+        <h2 className="text-xl font-semibold text-white">2. Vad använder Gridex?</h2>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-gray-300">
+          <li><strong className="text-white">Nödvändiga cookies</strong> används för inloggning, säkerhet och formulärfunktioner.</li>
+          <li><strong className="text-white">Cookieval</strong> sparas lokalt i webbläsaren så att vi vet om bannern ska visas igen.</li>
+          <li><strong className="text-white">Icke-nödvändiga cookies</strong> sätts inte av Gridex webbplats innan du har accepterat dem.</li>
         </ul>
       </section>
 
-      <section className="space-y-4 text-gray-300 text-sm leading-6">
-        <h2 className="text-xl font-semibold text-white">3. Tredjepartsleverantörer</h2>
-        <p>
-          Vi använder leverantörer som hjälper oss att leverera tjänsten, till
-          exempel hosting, betalning och signering. Dessa kan sätta sina egna
-          cookies för att leverera sina tjänster. Vi delar inte dina
-          personuppgifter med tredje part för marknadsföring.
+      <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
+        <h2 className="text-xl font-semibold text-white">3. Tredjepartstjänster</h2>
+        <p className="mt-4 text-sm leading-7 text-gray-300">
+          Tjänster för hosting, inloggning, signering, betalning eller drift kan behöva tekniska cookies för att fungera. Gridex delar inte personuppgifter med tredje part för marknadsföring via denna webbplats.
         </p>
       </section>
 
-      <section className="space-y-4 text-gray-300 text-sm leading-6">
-        <h2 className="text-xl font-semibold text-white">4. Hantering av cookies</h2>
-        <p>
-          Du kan när som helst ändra dina cookie-inställningar genom att klicka på
-          “Hantera val” i cookie-bannern eller genom att besöka denna sida
-          igen. Du kan även göra justeringar i din webbläsare. Om du avvisar
-          cookies kan vissa funktioner sluta fungera.
+      <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
+        <h2 className="text-xl font-semibold text-white">4. Ändra eller ta bort cookies</h2>
+        <p className="mt-4 text-sm leading-7 text-gray-300">
+          Du kan ändra ditt val på den här sidan när som helst. Du kan också rensa cookies och lokal webbplatsdata direkt i webbläsaren.
         </p>
       </section>
 
-      <div className="text-xs text-gray-500">
-        Senast uppdaterad: {new Date().toLocaleDateString('sv-SE')}
-      </div>
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-7 text-gray-300">
+        <h2 className="text-lg font-semibold text-white">Kontakt</h2>
+        <p className="mt-3">Gridex AB, org.nr 559416-7149.</p>
+        <p>E-post: <a href="mailto:support@gridex.se" className="text-cyan-300 underline underline-offset-4">support@gridex.se</a></p>
+      </section>
     </div>
   )
 }

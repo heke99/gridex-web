@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 space-y-6">
         <div>
           <h1 className="text-xl font-semibold">Återställ lösenord</h1>
@@ -121,6 +121,6 @@ export default function ForgotPasswordPage() {
           </form>
         )}
       </div>
-    </main>
+    </div>
   )
 }

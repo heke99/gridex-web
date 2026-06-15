@@ -1,7 +1,12 @@
 import EventLink from '@/components/customer/EventLink'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
@@ -35,7 +40,7 @@ function invoiceStatus(status: string) {
     case 'draft':
       return 'Förbereds'
     default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
+      return 'Status uppdateras'
   }
 }
 

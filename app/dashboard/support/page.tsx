@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import type { Metadata } from 'next'
 import {
   getCustomerTickets,
   getPortalSession,
@@ -7,6 +8,10 @@ import {
 import { addSupportMessageAction, createSupportTicketAction } from './actions'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
@@ -57,7 +62,7 @@ function getStatusLabel(status: string) {
     case 'closed':
       return 'Avslutat'
     default:
-      return status
+      return 'Status uppdateras'
   }
 }
 
@@ -72,7 +77,7 @@ function getPriorityLabel(priority: string) {
     case 'urgent':
       return 'Akut'
     default:
-      return priority
+      return 'Normal'
   }
 }
 
@@ -87,7 +92,7 @@ function getCategoryLabel(category: string) {
     case 'contract':
       return 'Avtal'
     default:
-      return category
+      return 'Övrigt'
   }
 }
 
@@ -108,8 +113,25 @@ function getStatusBadgeClass(status: string) {
   }
 }
 
-export default async function DashboardSupportPage() {
+function statusMessage(status?: string) {
+  switch (status) {
+    case 'created':
+      return 'Ditt ärende har skapats.'
+    case 'message-sent':
+      return 'Ditt meddelande har skickats.'
+    default:
+      return null
+  }
+}
+
+export default async function DashboardSupportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ status?: string }>
+}) {
   const { supabase, user } = await getPortalSession()
+  const params = (await searchParams) ?? {}
+  const banner = statusMessage(params.status)
   const tickets = await getCustomerTickets(supabase, user.id)
 
   const expanded = await Promise.all(
@@ -130,6 +152,12 @@ export default async function DashboardSupportPage() {
           Här kan du skapa nya ärenden, följa tidigare kontakt och läsa svar från kundservice.
         </p>
       </div>
+
+      {banner ? (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" aria-live="polite">
+          {banner}
+        </div>
+      ) : null}
 
       <form
         action={createSupportTicketAction}
@@ -298,7 +326,7 @@ export default async function DashboardSupportPage() {
 
         {tickets.length === 0 && (
           <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/60 sm:p-6">
-            Inga supportärenden ännu.
+            Inga supportärenden ännu. Skapa ett ärende ovan om du behöver hjälp med avtal, faktura, flytt eller anläggningsuppgifter.
           </div>
         )}
       </div>

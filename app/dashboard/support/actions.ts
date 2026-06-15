@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/security/rateLimit'
 
@@ -31,7 +32,7 @@ export async function createSupportTicketAction(formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    throw new Error('Du behöver logga in igen.')
   }
 
   const rate = checkRateLimit(`support-ticket:${user.id}`, {
@@ -49,11 +50,11 @@ export async function createSupportTicketAction(formData: FormData) {
   const clientRequestId = pick(formData, 'client_request_id')
 
   if (!subject || !description) {
-    throw new Error('Missing subject or description')
+    throw new Error('Ange ämne och beskrivning.')
   }
 
   if (!clientRequestId) {
-    throw new Error('Missing client_request_id')
+    throw new Error('Vi kunde inte skicka ärendet just nu. Försök igen.')
   }
 
   const { data: ticket, error: ticketError } = await supabase
@@ -76,7 +77,7 @@ export async function createSupportTicketAction(formData: FormData) {
       ticketError.message.toLowerCase().includes('duplicate')
 
     if (!isDuplicate) {
-      throw new Error(ticketError.message)
+      throw new Error('Vi kunde inte hämta ärendet just nu. Försök igen.')
     }
 
     const { data: existingTicket, error: existingTicketError } = await supabase
@@ -86,12 +87,12 @@ export async function createSupportTicketAction(formData: FormData) {
       .maybeSingle<TicketInsertRow>()
 
     if (existingTicketError || !existingTicket?.id) {
-      throw new Error(existingTicketError?.message || 'Failed to load existing ticket')
+      throw new Error('Vi kunde inte kontrollera ärendet just nu. Försök igen.')
     }
 
     revalidatePath('/dashboard/support')
     revalidatePath('/dashboard')
-    return
+    redirect('/dashboard/support?status=created')
   }
 
   const { error: messageError } = await supabase
@@ -105,7 +106,7 @@ export async function createSupportTicketAction(formData: FormData) {
     })
 
   if (messageError) {
-    throw new Error(messageError.message)
+    throw new Error('Vi kunde inte spara meddelandet just nu. Försök igen.')
   }
 
   await supabase
@@ -117,6 +118,7 @@ export async function createSupportTicketAction(formData: FormData) {
 
   revalidatePath('/dashboard/support')
   revalidatePath('/dashboard')
+  redirect('/dashboard/support?status=created')
 }
 
 export async function addSupportMessageAction(formData: FormData) {
@@ -127,7 +129,7 @@ export async function addSupportMessageAction(formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    throw new Error('Du behöver logga in igen.')
   }
 
   const rate = checkRateLimit(`support-reply:${user.id}`, {
@@ -143,11 +145,11 @@ export async function addSupportMessageAction(formData: FormData) {
   const clientRequestId = pick(formData, 'client_request_id')
 
   if (!ticketId || !body) {
-    throw new Error('Missing ticket_id or body')
+    throw new Error('Skriv ett meddelande innan du skickar.')
   }
 
   if (!clientRequestId) {
-    throw new Error('Missing client_request_id')
+    throw new Error('Vi kunde inte skicka ärendet just nu. Försök igen.')
   }
 
   const { data: ticket, error: ticketError } = await supabase
@@ -158,11 +160,11 @@ export async function addSupportMessageAction(formData: FormData) {
     .maybeSingle<TicketLookupRow>()
 
   if (ticketError) {
-    throw new Error(ticketError.message)
+    throw new Error('Vi kunde inte hämta ärendet just nu. Försök igen.')
   }
 
   if (!ticket) {
-    throw new Error('Ticket not found')
+    throw new Error('Vi kunde inte hitta ärendet.')
   }
 
   if (isClosedStatus(ticket.status)) {
@@ -182,11 +184,11 @@ export async function addSupportMessageAction(formData: FormData) {
       error.code === '23505' || error.message.toLowerCase().includes('duplicate')
 
     if (!isDuplicate) {
-      throw new Error(error.message)
+      throw new Error('Vi kunde inte spara meddelandet just nu. Försök igen.')
     }
 
     revalidatePath('/dashboard/support')
-    return
+    redirect('/dashboard/support?status=message-sent')
   }
 
   await supabase

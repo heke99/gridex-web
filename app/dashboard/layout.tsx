@@ -1,5 +1,6 @@
 //app/dashboard/layout.tsx
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import UserMenu from '@/components/account/UserMenu'
@@ -8,6 +9,10 @@ import { loadUserPermissions } from '@/lib/auth/permissions'
 import { PermissionsProvider } from '@/components/auth/PermissionsProvider'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 type Role =
   | 'admin'
@@ -182,7 +187,7 @@ export default async function DashboardLayout({
             <DashboardNav roles={roles} permissions={permissions} />
           </aside>
 
-          <main className="min-w-0">{children}</main>
+          <div className="min-w-0">{children}</div>
         </div>
       </div>
     </PermissionsProvider>

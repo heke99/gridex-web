@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/prisvillkor',
     '/cookies',
     '/angerblankett',
+    '/foretagsvillkor',
     '/elpris-se1',
     '/elpris-se2',
     '/elpris-se3',

@@ -35,8 +35,7 @@ export function statusLabel(status?: string | null): string {
     case 'rejected_or_cancelled':
       return 'Avbruten eller nekad'
     default:
-      // For unknown codes, replace underscores with spaces and fall back to a neutral message
-      return code ? code.replaceAll('_', ' ') : 'Status uppdateras'
+      return 'Status uppdateras'
   }
 }
 
@@ -84,7 +83,7 @@ export function nextStepDescription(step?: string | null): string {
     case 'switch_requested':
       return 'Leverantörsbytet är skickat för behandling.'
     default:
-      return code ? code.replaceAll('_', ' ') : 'Vi återkommer om vi behöver något mer.'
+      return 'Vi återkommer om vi behöver något mer.'
   }
 }
 

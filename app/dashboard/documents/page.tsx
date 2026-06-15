@@ -28,7 +28,7 @@ function statusLabel(status: string | null | undefined) {
     case 'draft':
       return 'Förbereds'
     default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
+      return 'Status uppdateras'
   }
 }
 

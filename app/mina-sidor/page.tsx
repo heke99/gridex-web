@@ -1,10 +1,16 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { statusLabel, nextStepDescription } from '@/lib/customerPortal/statusHelper'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 function buildLoginRedirect() {
   const qs = new URLSearchParams()
@@ -19,35 +25,6 @@ function formatDate(value: string | null | undefined) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(value))
-}
-
-function statusLabel(status: string | null | undefined) {
-  switch (status) {
-    case 'active_customer':
-    case 'active':
-      return 'Aktiv kund'
-    case 'switch_confirmed':
-      return 'Leverantörsbyte bekräftat'
-    case 'switch_requested':
-      return 'Leverantörsbyte påbörjat'
-    case 'ready_for_switch':
-      return 'Redo för leverantörsbyte'
-    case 'facility_verified':
-      return 'Anläggning verifierad'
-    case 'facility_data_requested':
-    case 'needs_facility_data':
-      return 'Anläggningsuppgifter kontrolleras'
-    case 'application_received':
-      return 'Ansökan mottagen'
-    case 'accepted':
-      return 'Godkänt'
-    case 'revoked':
-      return 'Återkallad'
-    case 'expired':
-      return 'Utgången'
-    default:
-      return status ? status.replaceAll('_', ' ') : 'Status uppdateras'
-  }
 }
 
 function displayName(profile: { full_name?: string | null; email?: string | null } | null) {
@@ -71,7 +48,7 @@ export default async function MinaSidorPage() {
   ) ?? overview.powersOfAttorney[0] ?? null
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-10">
         <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#0B0F17] p-6 md:flex-row md:items-center md:justify-between md:p-8">
           <div>
@@ -130,7 +107,7 @@ export default async function MinaSidorPage() {
             <h2 className="text-xl font-semibold">Status för mitt byte</h2>
             <div className="mt-4 space-y-3 text-sm text-gray-300">
               <p>Status: <span className="text-white">{statusLabel(overview.switchStatus?.status || latestContract?.status)}</span></p>
-              <p>Nästa steg: <span className="text-white">{overview.switchStatus?.next_step ? statusLabel(overview.switchStatus.next_step) : 'Vi uppdaterar när nästa steg är klart.'}</span></p>
+              <p>Nästa steg: <span className="text-white">{overview.switchStatus?.next_step ? nextStepDescription(overview.switchStatus.next_step) : 'Vi uppdaterar när nästa steg är klart.'}</span></p>
               <p>Önskat startdatum: <span className="text-white">{formatDate(overview.switchStatus?.requested_start_date || latestContract?.requested_start_date)}</span></p>
               <p>Bekräftat startdatum: <span className="text-white">{formatDate(overview.switchStatus?.confirmed_start_date || latestContract?.confirmed_start_date)}</span></p>
             </div>
@@ -252,8 +229,36 @@ export default async function MinaSidorPage() {
             </div>
           </section>
         </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <h2 className="text-xl font-semibold">Data och rättigheter</h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Du kan begära hjälp med dina personuppgifter. Vissa åtgärder behöver hanteras av kundservice för att vi ska kunna identifiera dig korrekt.
+            </p>
+            <div className="mt-4 grid gap-3">
+              <ActionLink href="/dashboard/support" title="Begär datautdrag" text="Få en sammanställning av uppgifter kopplade till din kundprofil." />
+              <ActionLink href="/dashboard/profile" title="Begär rättelse" text="Uppdatera uppgifter eller be oss rätta felaktig information." />
+              <ActionLink href="/dashboard/support" title="Begär radering eller avslut" text="Kontakta kundservice om du vill avsluta kundrelation eller begära radering där det är möjligt enligt lag." />
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <h2 className="text-xl font-semibold">Säkerhet</h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Håll dina inloggningsuppgifter privata. Kontakta oss direkt om du misstänker obehörig åtkomst.
+            </p>
+            <div className="mt-4 grid gap-3">
+              <ActionLink href="/dashboard/profile" title="Byt lösenord" text="Uppdatera ditt lösenord från profilsidan." />
+              <ActionLink href="/dashboard/support" title="Misstänkt aktivitet" text="Skapa ett ärende så hjälper kundservice dig att kontrollera kontot." />
+              <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/70">
+                Senaste inloggning visas när uppgiften finns tillgänglig i kundportalen.
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </main>
+    </div>
   )
 }
 
@@ -285,5 +290,14 @@ function EmptyText({ children }: { children: ReactNode }) {
     <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
       {children}
     </div>
+  )
+}
+
+function ActionLink({ href, title, text }: { href: string; title: string; text: string }) {
+  return (
+    <Link href={href} className="rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-cyan-500/40 hover:bg-white/5">
+      <div className="text-sm font-semibold text-white">{title}</div>
+      <div className="mt-1 text-xs leading-5 text-white/55">{text}</div>
+    </Link>
   )
 }

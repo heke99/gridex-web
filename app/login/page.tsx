@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white">
       <div className="mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-12 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-20">
         <section className="space-y-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs text-cyan-300">
@@ -211,6 +211,6 @@ export default async function LoginPage({ searchParams }: Props) {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 
 function pick(formData: FormData, key: string): string {
@@ -28,7 +29,7 @@ export async function updateCustomerProfileAction(formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    throw new Error('Du behöver logga in igen.')
   }
 
   const firstName = pick(formData, 'first_name')
@@ -52,11 +53,12 @@ export async function updateCustomerProfileAction(formData: FormData) {
   )
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
   }
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
+  redirect('/dashboard/profile?status=profile-updated')
 }
 
 export async function updateCustomerEmailAction(formData: FormData) {
@@ -64,17 +66,18 @@ export async function updateCustomerEmailAction(formData: FormData) {
   const email = normalizeEmail(pick(formData, 'email'))
 
   if (!email) {
-    throw new Error('Missing email')
+    throw new Error('Ange en giltig e-postadress.')
   }
 
   const { error } = await supabase.auth.updateUser({ email })
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
   }
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
+  redirect('/dashboard/profile?status=email-updated')
 }
 
 export async function updateCustomerPasswordAction(formData: FormData) {
@@ -89,8 +92,9 @@ export async function updateCustomerPasswordAction(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ password })
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
   }
 
   revalidatePath('/dashboard/profile')
+  redirect('/dashboard/profile?status=password-updated')
 }

@@ -239,7 +239,7 @@ function acceptanceTitle(type: string) {
     case 'price_snapshot':
       return 'Prisinformation'
     default:
-      return type ? type.replaceAll('_', ' ') : 'Godkännande'
+      return 'Godkännande'
   }
 }
 
@@ -267,7 +267,7 @@ function poaScopeLabel(scope: string | null) {
     case 'metering_values':
       return 'Ta emot mätvärden'
     default:
-      return scope ? scope.replaceAll('_', ' ') : 'Anläggningsuppgifter'
+      return 'Anläggningsuppgifter'
   }
 }
 
