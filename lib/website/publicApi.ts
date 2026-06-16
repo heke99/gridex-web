@@ -24,6 +24,7 @@ export type WebsiteEnergyResolveInput = {
 }
 
 export type WebsitePricingPreviewInput = {
+  offer_reference?: string | null
   contract_id?: string | null
   price_plan_id?: string | null
   price_plan_version_id?: string | null
@@ -38,6 +39,7 @@ export type WebsitePricingPreviewInput = {
 export type WebsitePricingPreview = {
   contract: {
     slug: string
+    offer_reference?: string | null
     name: string
     contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed'
     price_plan_version_id?: string | null

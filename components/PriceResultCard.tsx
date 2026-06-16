@@ -21,6 +21,7 @@ type FixedBasis = {
 type PriceResponse = {
   contract: {
     slug: string
+    offer_reference?: string | null
     name: string
     contractType: ContractType
     price_plan_version_id?: string | null
@@ -97,9 +98,11 @@ function basisValue(basis?: SpotBasis | FixedBasis) {
 export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
   const { totalMonthlyCostSek, totalMonthlyCostInclVatSek, pricePerKwhOre, priceArea, kwh, specification, contract } = data
   const fees = specification?.fees ?? {}
-  const contractHref = contract?.price_plan_version_id
-    ? `/teckna-avtal?planVersion=${encodeURIComponent(contract.price_plan_version_id)}`
-    : '/teckna-avtal'
+  const contractHref = contract?.offer_reference
+    ? `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}`
+    : contract?.price_plan_version_id
+      ? `/teckna-avtal?planVersion=${encodeURIComponent(contract.price_plan_version_id)}`
+      : '/teckna-avtal'
   const basisName = basisLabel(specification?.basis)
   const basisOre = basisValue(specification?.basis)
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek)

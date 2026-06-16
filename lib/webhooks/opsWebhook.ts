@@ -16,19 +16,20 @@ export type OpsWebhookEvent = {
 }
 
 const ALLOWED_EVENT_TYPES = new Set([
-  'customer.application.received',
-  'customer.application.needs_facility_data',
-  'customer.facility_data.requested',
-  'customer.facility.verified',
-  'customer.switch.requested',
-  'customer.switch.confirmed',
-  'customer.contract.active',
-  'customer.invoice.created',
-  'customer.invoice.due_soon',
-  'customer.invoice.paid',
-  'customer.metering_values.updated',
-  'customer.document.created',
-  'customer.message.created',
+  'customer.created',
+  'customer.updated',
+  'customer_number.assigned',
+  'contract.application_received',
+  'contract.confirmation_sent',
+  'contract.cooling_off_sent',
+  'invoice.created',
+  'invoice.sent',
+  'invoice.disputed',
+  'metering_values.updated',
+  'contract.activated',
+  'supplier_switch.started',
+  'supplier_switch.completed',
+  'invoice.paid',
 ])
 
 function text(value: unknown): string | null {
@@ -133,90 +134,91 @@ export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null
 
 export function customerNotificationForEvent(event: OpsWebhookEvent) {
   switch (event.event_type) {
-    case 'customer.application.received':
+    case 'customer.created':
+    case 'customer_number.assigned':
+      return {
+        category: 'customer',
+        title: 'Ditt kundkonto är skapat',
+        body: 'Ditt kundkonto är skapat och kan användas på Mina sidor när inloggningen är klar.',
+        link_href: '/mina-sidor',
+      }
+    case 'customer.updated':
+      return {
+        category: 'customer',
+        title: 'Dina kunduppgifter är uppdaterade',
+        body: 'Dina uppgifter har uppdaterats.',
+        link_href: '/mina-sidor',
+      }
+    case 'contract.application_received':
       return {
         category: 'application',
         title: 'Vi har tagit emot din ansökan',
         body: 'Din ansökan är mottagen. Vi går igenom uppgifterna och återkommer om något behöver kompletteras.',
         link_href: '/mina-sidor',
       }
-    case 'customer.application.needs_facility_data':
-    case 'customer.facility_data.requested':
+    case 'contract.confirmation_sent':
       return {
-        category: 'facility',
-        title: 'Vi kontrollerar dina anläggningsuppgifter',
-        body: 'Vi arbetar med att verifiera uppgifterna för din anläggning. Du behöver inte skicka in en ny ansökan.',
+        category: 'contract',
+        title: 'Avtalsbekräftelse har skickats',
+        body: 'Vi har skickat en bekräftelse för ditt elavtal.',
         link_href: '/mina-sidor',
       }
-    case 'customer.facility.verified':
+    case 'contract.cooling_off_sent':
       return {
-        category: 'facility',
-        title: 'Dina anläggningsuppgifter är verifierade',
-        body: 'Vi har verifierat uppgifterna och kan gå vidare med nästa steg.',
-        link_href: '/dashboard/contracts',
+        category: 'contract',
+        title: 'Information om ångerrätt har skickats',
+        body: 'Information om ångerrätt finns nu kopplad till ditt avtal.',
+        link_href: '/mina-sidor',
       }
-    case 'customer.switch.requested':
-      return {
-        category: 'switch',
-        title: 'Leverantörsbytet är påbörjat',
-        body: 'Vi har skickat vidare leverantörsbytet för behandling.',
-        link_href: '/dashboard/contracts',
-      }
-    case 'customer.switch.confirmed':
-      return {
-        category: 'switch',
-        title: 'Leverantörsbytet är bekräftat',
-        body: 'Ditt leverantörsbyte är bekräftat. Du kan följa statusen på Mina sidor.',
-        link_href: '/dashboard/contracts',
-      }
-    case 'customer.contract.active':
+    case 'contract.activated':
       return {
         category: 'contract',
         title: 'Ditt avtal är aktivt',
         body: 'Ditt elavtal är nu aktivt.',
-        link_href: '/dashboard/contracts',
+        link_href: '/mina-sidor',
       }
-    case 'customer.invoice.created':
+    case 'supplier_switch.started':
+      return {
+        category: 'switch',
+        title: 'Leverantörsbytet är påbörjat',
+        body: 'Vi har påbörjat leverantörsbytet för din anläggning.',
+        link_href: '/mina-sidor',
+      }
+    case 'supplier_switch.completed':
+      return {
+        category: 'switch',
+        title: 'Leverantörsbytet är klart',
+        body: 'Leverantörsbytet är klart. Du kan följa avtalet på Mina sidor.',
+        link_href: '/mina-sidor',
+      }
+    case 'invoice.created':
+    case 'invoice.sent':
       return {
         category: 'invoice',
         title: 'Ny faktura finns på Mina sidor',
         body: 'En ny faktura finns nu tillgänglig.',
-        link_href: '/dashboard/invoices',
+        link_href: '/mina-sidor',
       }
-    case 'customer.invoice.due_soon':
+    case 'invoice.disputed':
       return {
         category: 'invoice',
-        title: 'Faktura förfaller snart',
-        body: 'Du har en faktura som snart förfaller.',
-        link_href: '/dashboard/invoices',
+        title: 'Faktura markerad för granskning',
+        body: 'En faktura har markerats för granskning.',
+        link_href: '/mina-sidor',
       }
-    case 'customer.invoice.paid':
+    case 'invoice.paid':
       return {
         category: 'invoice',
         title: 'Faktura markerad som betald',
         body: 'Vi har registrerat betalningen.',
-        link_href: '/dashboard/invoices',
+        link_href: '/mina-sidor',
       }
-    case 'customer.metering_values.updated':
+    case 'metering_values.updated':
       return {
         category: 'metering',
         title: 'Mätvärden har uppdaterats',
         body: 'Dina mätvärden har uppdaterats på Mina sidor.',
         link_href: '/mina-sidor',
-      }
-    case 'customer.document.created':
-      return {
-        category: 'document',
-        title: 'Ett nytt dokument finns tillgängligt',
-        body: 'Ett nytt dokument finns nu på Mina sidor.',
-        link_href: '/mina-sidor',
-      }
-    case 'customer.message.created':
-      return {
-        category: 'message',
-        title: event.title || 'Nytt meddelande',
-        body: event.message || 'Du har ett nytt meddelande på Mina sidor.',
-        link_href: event.link_href || '/mina-sidor',
       }
     default:
       return null

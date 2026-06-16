@@ -16,6 +16,7 @@ import type { WebsiteEnergyResolution, WebsitePricingPreview } from '@/lib/websi
 export type SignupContractOption = {
   name: string
   value: string
+  offerReference: string
   productCode: string
   pricePlanId: string
   pricePlanVersionId: string
@@ -38,6 +39,7 @@ export type SignupContractOption = {
   privacyPolicyVersion?: string | null
   cancellationRightVersion?: string | null
   powerOfAttorneyVersion?: string | null
+  powerOfAttorneyRequired?: boolean | null
   priceTermsVersion?: string | null
 }
 
@@ -114,6 +116,7 @@ function normalizePostalCode(value: string) {
 
 function optionAsOpsContract(contract: SignupContractOption) {
   return {
+    offer_reference: contract.offerReference,
     contract_id: contract.contractId ?? null,
     price_plan_id: contract.pricePlanId,
     price_plan_version_id: contract.pricePlanVersionId,
@@ -137,6 +140,7 @@ function optionAsOpsContract(contract: SignupContractOption) {
     privacy_policy_version: contract.privacyPolicyVersion ?? null,
     cancellation_right_version: contract.cancellationRightVersion ?? null,
     power_of_attorney_version: contract.powerOfAttorneyVersion ?? null,
+    power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
     price_terms_version: contract.priceTermsVersion ?? null,
     is_public: true,
     is_active: true,
@@ -555,7 +559,7 @@ export default function CustomerApplicationForm({
                 <div>Prisvillkor: version {activeDisplay?.legalVersions.priceTerms ?? activeDisplay?.legalVersions.terms ?? 'saknas'}</div>
                 <div>Integritetspolicy: version {activeDisplay?.legalVersions.privacyPolicy ?? 'saknas'}</div>
                 <div>Ångerrätt: version {activeDisplay?.legalVersions.cancellationRight ?? 'saknas'}</div>
-                <div>Fullmakt: version {activeDisplay?.legalVersions.powerOfAttorney ?? 'saknas'}</div>
+                <div>Fullmakt: {activeDisplay?.legalVersions.powerOfAttorneyRequired ? (activeDisplay.legalVersions.powerOfAttorney ? `version ${activeDisplay.legalVersions.powerOfAttorney}` : 'krävs') : 'krävs inte'}</div>
               </div>
               <Checkbox id="accept_terms" name="accept_terms" checked={consents.accept_terms} onChange={updateConsent}>
                 Jag har tagit del av och godkänner <Link href="/allmanna-villkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">allmänna villkor</Link> och <Link href="/prisvillkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">prisinformationen</Link> för valt elavtal.

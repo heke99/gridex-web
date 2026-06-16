@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Webhooks are disabled.' }, { status: 404 })
   }
 
-  const secret = env('GRIDEX_OPS_WEBHOOK_SECRET')
+  const secret = env('GRIDEX_OPS_WEBHOOK_SECRET') ?? env('GRIDEX_WEBHOOK_SIGNING_SECRET')
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }

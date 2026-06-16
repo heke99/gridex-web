@@ -22,6 +22,7 @@ type Props = {
 
 function optionAsOpsContract(contract: SignupContractOption) {
   return {
+    offer_reference: contract.offerReference,
     contract_id: contract.contractId ?? null,
     price_plan_id: contract.pricePlanId,
     price_plan_version_id: contract.pricePlanVersionId,
@@ -45,6 +46,7 @@ function optionAsOpsContract(contract: SignupContractOption) {
     privacy_policy_version: contract.privacyPolicyVersion ?? null,
     cancellation_right_version: contract.cancellationRightVersion ?? null,
     power_of_attorney_version: contract.powerOfAttorneyVersion ?? null,
+    power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
     price_terms_version: contract.priceTermsVersion ?? null,
     is_public: true,
     is_active: true,

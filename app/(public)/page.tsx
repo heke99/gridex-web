@@ -22,7 +22,8 @@ export default async function HomePage() {
     const visibleContracts = await fetchOpsPublicContracts();
     options = visibleContracts.map((item) => ({
       name: item.name,
-      value: item.price_plan_version_id,
+      value: item.offer_reference,
+      offerReference: item.offer_reference,
       productCode: item.product_code,
       pricePlanId: item.price_plan_id,
       pricePlanVersionId: item.price_plan_version_id,

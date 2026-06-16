@@ -31,6 +31,7 @@ export const metadata: Metadata = {
 }
 
 type PageParams = {
+  offer?: string
   planVersion?: string
   contract?: string
   error?: string
@@ -63,7 +64,8 @@ function getClientIpFromHeaders(h: Headers): string | null {
 function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
   return {
     name: item.name,
-    value: item.price_plan_version_id,
+    value: item.offer_reference,
+    offerReference: item.offer_reference,
     productCode: item.product_code,
     pricePlanId: item.price_plan_id,
     pricePlanVersionId: item.price_plan_version_id,
@@ -86,6 +88,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     privacyPolicyVersion: item.privacy_policy_version ?? null,
     cancellationRightVersion: item.cancellation_right_version ?? null,
     powerOfAttorneyVersion: item.power_of_attorney_version ?? null,
+    powerOfAttorneyRequired: item.power_of_attorney_required ?? false,
     priceTermsVersion: item.price_terms_version ?? null,
   }
 }
@@ -94,10 +97,11 @@ function selectedContractFromParams(
   contracts: OpsPublicContract[],
   params: PageParams
 ): OpsPublicContract | null {
-  const wanted = params.planVersion ?? params.contract ?? ''
+  const wanted = params.offer ?? params.planVersion ?? params.contract ?? ''
   if (wanted) {
     const match = contracts.find(
       (contract) =>
+        contract.offer_reference === wanted ||
         contract.price_plan_version_id === wanted ||
         contract.price_plan_id === wanted ||
         contract.product_code === wanted
@@ -239,7 +243,7 @@ export default async function TecknaPage({
 
   const signupOptions = contracts.map(toSignupContractOption)
   const selectedContract = selectedContractFromParams(contracts, params)
-  const selectedValue = selectedContract?.price_plan_version_id ?? ''
+  const selectedValue = selectedContract?.offer_reference ?? ''
   const pageError = errorText(params.error)
   const canSubmit =
     status.configured && status.liveSignupEnabled && !loadError && contracts.length > 0
@@ -266,7 +270,10 @@ export default async function TecknaPage({
     const selectedOffer = normalizeText(formData.get('selected_offer'))
     const liveContracts = await fetchOpsPublicContracts().catch(() => [])
     const offer = liveContracts.find(
-      (contract) => contract.price_plan_version_id === selectedOffer
+      (contract) =>
+        contract.offer_reference === selectedOffer ||
+        contract.price_plan_version_id === selectedOffer ||
+        contract.product_code === selectedOffer
     )
 
     if (!offer) redirect('/teckna-avtal?error=offer')
@@ -372,6 +379,7 @@ export default async function TecknaPage({
     }
 
     const livePreview = await fetchOpsWebsitePricingPreview({
+      offer_reference: offer.offer_reference,
       contract_id: offer.contract_id ?? null,
       price_plan_id: offer.price_plan_id,
       price_plan_version_id: offer.price_plan_version_id,
@@ -406,7 +414,7 @@ export default async function TecknaPage({
       customerType === 'company' ? organizationNumber : personalNumber,
       address,
       postalCode,
-      offer.price_plan_version_id,
+      offer.offer_reference,
       requestedStartMode,
       requestedStartDate || 'asap',
     ])
@@ -415,6 +423,7 @@ export default async function TecknaPage({
 
     try {
       const result = await submitOpsCustomerApplication({
+        offer_reference: offer.offer_reference,
         customer_type: customerType,
         first_name: firstName || null,
         last_name: lastName || null,
@@ -454,14 +463,10 @@ export default async function TecknaPage({
         ip_hash: hashIp(ip),
         consents: {
           terms: true,
-          privacy: true,
+          privacy_policy: true,
+          withdrawal: true,
           power_of_attorney: true,
-          cancellation_right: true,
-          supplier_switch: true,
-          terms_version: offer.terms_version ?? null,
-          privacy_policy_version: offer.privacy_policy_version ?? null,
-          cancellation_right_version: offer.cancellation_right_version ?? null,
-          power_of_attorney_version: offer.power_of_attorney_version ?? null,
+          price_terms: true,
         },
       })
 

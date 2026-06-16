@@ -10,6 +10,8 @@ export type OpsContractType =
   | string;
 
 export type OpsPublicContract = {
+  id?: string | null;
+  offer_reference: string;
   contract_id?: string | null;
   price_plan_id: string;
   price_plan_version_id: string;
@@ -24,6 +26,8 @@ export type OpsPublicContract = {
   markup_ore_per_kwh?: number | null;
   variable_markup_ore_per_kwh?: number | null;
   fixed_price_ore_per_kwh?: number | null;
+  spot_share?: number | null;
+  portfolio_share?: number | null;
   valid_from?: string | null;
   valid_to?: string | null;
   binding_period_months?: number | null;
@@ -35,7 +39,9 @@ export type OpsPublicContract = {
   terms_version?: string | null;
   privacy_policy_version?: string | null;
   cancellation_right_version?: string | null;
+  withdrawal_version?: string | null;
   power_of_attorney_version?: string | null;
+  power_of_attorney_required?: boolean | null;
   price_terms_version?: string | null;
   is_public?: boolean | null;
   is_active?: boolean | null;
@@ -44,6 +50,7 @@ export type OpsPublicContract = {
 };
 
 export type OpsCustomerApplicationInput = {
+  offer_reference: string;
   customer_type: "private" | "company";
   first_name?: string | null;
   last_name?: string | null;
@@ -60,9 +67,9 @@ export type OpsCustomerApplicationInput = {
   metering_point_id?: string | null;
   requested_start_mode: "asap" | "specific_date";
   requested_start_date?: string | null;
-  price_plan_id: string;
-  price_plan_version_id: string;
-  product_code: string;
+  price_plan_id?: string | null;
+  price_plan_version_id?: string | null;
+  product_code?: string | null;
   price_area_code?: string | null;
   grid_area_code?: string | null;
   grid_owner_id?: string | null;
@@ -82,14 +89,10 @@ export type OpsCustomerApplicationInput = {
   ip_hash?: string | null;
   consents: {
     terms: boolean;
-    privacy: boolean;
+    privacy_policy: boolean;
+    withdrawal: boolean;
     power_of_attorney: boolean;
-    cancellation_right: boolean;
-    supplier_switch: boolean;
-    terms_version?: string | null;
-    privacy_policy_version?: string | null;
-    cancellation_right_version?: string | null;
-    power_of_attorney_version?: string | null;
+    price_terms: boolean;
   };
 };
 
@@ -99,6 +102,8 @@ export type OpsCustomerApplicationResult = {
   customer_number?: string | null;
   application_id?: string | null;
   application_number?: string | null;
+  external_customer_id?: string | null;
+  portal_identity_id?: string | null;
   contract_id?: string | null;
   contract_number?: string | null;
   customer_site_id?: string | null;
@@ -106,7 +111,10 @@ export type OpsCustomerApplicationResult = {
   price_plan_id?: string | null;
   price_plan_version_id?: string | null;
   contract_price_snapshot_id?: string | null;
+  offer_reference?: string | null;
   missing_fields: string[];
+  blocking_reasons: string[];
+  warnings: string[];
   next_step?: string | null;
   message?: string | null;
   raw?: Record<string, unknown>;
@@ -162,6 +170,7 @@ export type OpsWebsiteEnergyResolution = {
 };
 
 export type OpsWebsitePricingPreviewInput = {
+  offer_reference?: string | null;
   contract_id?: string | null;
   price_plan_id?: string | null;
   price_plan_version_id?: string | null;
@@ -176,6 +185,7 @@ export type OpsWebsitePricingPreviewInput = {
 export type OpsWebsitePricingPreview = {
   contract: {
     slug: string;
+    offer_reference?: string | null;
     name: string;
     contractType: "spot_hourly" | "portfolio_managed" | "fixed";
     price_plan_version_id?: string | null;
@@ -225,7 +235,7 @@ function env(name: string): string | undefined {
 }
 
 function opsBaseUrl(): string | undefined {
-  const value = env("GRIDEX_OPS_API_URL");
+  const value = env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL");
   if (!value) return undefined;
   return value.replace(/\/+$/, "");
 }
@@ -234,12 +244,8 @@ export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = [];
   const baseUrl = opsBaseUrl();
   const apiKey = env("GRIDEX_WEBSITE_API_KEY");
-  const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
   if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
   if (!apiKey) missing.push("GRIDEX_WEBSITE_API_KEY");
-  if (process.env.NODE_ENV === "production" && baseUrl && apiKey && !tenantId) {
-    missing.push("GRIDEX_WEBSITE_TENANT_ID");
-  }
 
   let unsafeProductionUrl = false;
   if (
@@ -284,6 +290,43 @@ function normalizeText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function pickFromRecords(
+  rows: Array<Record<string, unknown> | null | undefined>,
+  keys: string[],
+): string | null {
+  for (const row of rows) {
+    if (!row) continue;
+    const picked = pickString(row, keys);
+    if (picked) return picked;
+  }
+  return null;
+}
+
+function pickBooleanFromRecords(
+  rows: Array<Record<string, unknown> | null | undefined>,
+  keys: string[],
+): boolean | null {
+  for (const row of rows) {
+    if (!row) continue;
+    const picked = pickBoolean(row, keys);
+    if (picked !== null) return picked;
+  }
+  return null;
+}
+
+function amountFromObject(value: unknown): number | null {
+  const row = recordValue(value);
+  if (!row) return normalizeNumber(value);
+  return normalizeNumber(row.amount ?? row.value ?? row.price ?? row.rate);
 }
 
 function pickString(
@@ -463,28 +506,38 @@ function extractOpsPriceComponents(
   if (!input || typeof input !== "object") return result;
 
   const row = input as Record<string, unknown>;
+  const pricing = recordValue(row.pricing);
 
-  result.monthly_fee_sek = normalizeNumber(
-    row.monthly_fee_sek ??
-      row.monthlyFeeSek ??
-      row.monthly_fee ??
-      row.monthlyFee,
+  result.monthly_fee_sek = coalesceNumber(
+    amountFromObject(pricing?.monthly_fee ?? pricing?.monthlyFee),
+    normalizeNumber(
+      row.monthly_fee_sek ??
+        row.monthlyFeeSek ??
+        row.monthly_fee ??
+        row.monthlyFee,
+    ),
   );
-  result.invoice_fee_sek = normalizeNumber(
-    row.invoice_fee_sek ??
-      row.invoiceFeeSek ??
-      row.invoice_fee ??
-      row.invoiceFee,
+  result.invoice_fee_sek = coalesceNumber(
+    amountFromObject(pricing?.invoice_fee ?? pricing?.invoiceFee),
+    normalizeNumber(
+      row.invoice_fee_sek ??
+        row.invoiceFeeSek ??
+        row.invoice_fee ??
+        row.invoiceFee,
+    ),
   );
-  result.markup_ore_per_kwh = normalizeNumber(
-    row.markup_ore_per_kwh ??
-      row.markupOrePerKwh ??
-      row.markup_ore ??
-      row.markupOre ??
-      row.energy_markup_ore_per_kwh ??
-      row.energyMarkupOrePerKwh ??
-      row.supplier_markup_ore_per_kwh ??
-      row.supplierMarkupOrePerKwh,
+  result.markup_ore_per_kwh = coalesceNumber(
+    amountFromObject(pricing?.markup),
+    normalizeNumber(
+      row.markup_ore_per_kwh ??
+        row.markupOrePerKwh ??
+        row.markup_ore ??
+        row.markupOre ??
+        row.energy_markup_ore_per_kwh ??
+        row.energyMarkupOrePerKwh ??
+        row.supplier_markup_ore_per_kwh ??
+        row.supplierMarkupOrePerKwh,
+    ),
   );
   result.variable_markup_ore_per_kwh = normalizeNumber(
     row.variable_markup_ore_per_kwh ??
@@ -534,36 +587,92 @@ function coalesceNumber(
 function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (!row || typeof row !== "object") return null;
   const r = row as Record<string, unknown>;
+  const pricing = recordValue(r.pricing);
+  const legal = recordValue(r.legal);
 
-  const pricePlanId = pickString(r, ["price_plan_id", "pricePlanId", "id"]);
-  const pricePlanVersionId = pickString(r, [
+  const offerReference = pickFromRecords([r], [
+    "offer_reference",
+    "offerReference",
+    "contract_offer_id",
+    "contractOfferId",
+    "public_offer_id",
+    "publicOfferId",
+    "id",
+  ]);
+  const productCode = pickFromRecords([r], [
+    "product_code",
+    "productCode",
+    "code",
+    "offer_code",
+    "offerCode",
+  ]);
+  const name = pickFromRecords([r], [
+    "name",
+    "public_name",
+    "publicName",
+    "title",
+    "contract_name",
+    "offer_name",
+    "offerName",
+    "display_name",
+    "displayName",
+  ]);
+
+  if (!offerReference || !productCode || !name) return null;
+
+  const pricePlanId = pickFromRecords([r], [
+    "price_plan_id",
+    "pricePlanId",
+    "plan_id",
+    "planId",
+  ]) ?? offerReference;
+  const pricePlanVersionId = pickFromRecords([r], [
     "price_plan_version_id",
     "pricePlanVersionId",
     "version_id",
+    "versionId",
     "pricing_version_id",
-  ]);
-  const productCode = pickString(r, ["product_code", "productCode", "code"]);
-  const name = pickString(r, ["name", "title", "contract_name"]);
-
-  if (!pricePlanId || !pricePlanVersionId || !productCode || !name) return null;
+    "pricingVersionId",
+    "price_version_id",
+    "priceVersionId",
+  ]) ?? offerReference;
 
   const components = extractOpsPriceComponents(r);
+  const withdrawalVersion = pickFromRecords([legal, r], [
+    "withdrawal_version",
+    "withdrawalVersion",
+    "cancellation_right_version",
+    "cancellationRightVersion",
+  ]);
+
+  const singleCustomerType = pickFromRecords([r], ["customer_type", "customerType"]);
+  const customerTypes = Array.isArray(r.customer_types)
+    ? r.customer_types.map(String).filter(Boolean)
+    : Array.isArray(r.customerTypes)
+      ? r.customerTypes.map(String).filter(Boolean)
+      : singleCustomerType
+        ? [singleCustomerType]
+        : null;
 
   return {
+    id: pickString(r, ["id"]),
+    offer_reference: offerReference,
     contract_id: pickString(r, [
       "contract_id",
       "contractId",
       "contract_product_id",
       "contractProductId",
+      "contract_offer_id",
+      "contractOfferId",
     ]),
     price_plan_id: pricePlanId,
     price_plan_version_id: pricePlanVersionId,
     product_code: productCode,
     name,
     type:
-      pickString(r, ["type", "contract_type", "product_type"]) ??
+      pickString(r, ["type", "contract_type", "contractType", "product_type"]) ??
       "variable_spot",
-    short_description: pickString(r, ["short_description", "shortDescription"]),
+    short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
     marketing_description: pickString(r, [
       "marketing_description",
       "description",
@@ -575,6 +684,8 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     markup_ore_per_kwh: components.markup_ore_per_kwh ?? null,
     variable_markup_ore_per_kwh: components.variable_markup_ore_per_kwh ?? null,
     fixed_price_ore_per_kwh: components.fixed_price_ore_per_kwh ?? null,
+    spot_share: normalizeNumber(pricing?.spot_share ?? pricing?.spotShare),
+    portfolio_share: normalizeNumber(pricing?.portfolio_share ?? pricing?.portfolioShare),
     valid_from: pickString(r, ["valid_from", "validFrom"]),
     valid_to: pickString(r, ["valid_to", "validTo"]),
     binding_period_months: normalizeNumber(
@@ -590,25 +701,23 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       ? r.excluded.map(String).filter(Boolean)
       : pickString(r, ["excluded"]),
     start_info: pickString(r, ["start_info", "startInfo"]),
-    customer_types: Array.isArray(r.customer_types)
-      ? r.customer_types.map(String).filter(Boolean)
-      : Array.isArray(r.customerTypes)
-        ? r.customerTypes.map(String).filter(Boolean)
-        : null,
-    terms_version: pickString(r, ["terms_version", "termsVersion"]),
-    privacy_policy_version: pickString(r, [
+    customer_types: customerTypes,
+    terms_version: pickFromRecords([legal, r], ["terms_version", "termsVersion"]),
+    privacy_policy_version: pickFromRecords([legal, r], [
       "privacy_policy_version",
       "privacyPolicyVersion",
     ]),
-    cancellation_right_version: pickString(r, [
-      "cancellation_right_version",
-      "cancellationRightVersion",
-    ]),
-    power_of_attorney_version: pickString(r, [
+    cancellation_right_version: withdrawalVersion,
+    withdrawal_version: withdrawalVersion,
+    power_of_attorney_version: pickFromRecords([legal, r], [
       "power_of_attorney_version",
       "powerOfAttorneyVersion",
     ]),
-    price_terms_version: pickString(r, [
+    power_of_attorney_required: pickBooleanFromRecords([legal, r], [
+      "power_of_attorney_required",
+      "powerOfAttorneyRequired",
+    ]),
+    price_terms_version: pickFromRecords([legal, r], [
       "price_terms_version",
       "priceTermsVersion",
       "price_terms",
@@ -626,13 +735,32 @@ function extractRows(payload: unknown): unknown[] {
   if (!payload || typeof payload !== "object") return [];
 
   const p = payload as Record<string, unknown>;
-  if (Array.isArray(p.data)) return p.data;
-  if (Array.isArray(p.contracts)) return p.contracts;
-  if (Array.isArray(p.price_plans)) return p.price_plans;
-  if (Array.isArray(p.pricePlans)) return p.pricePlans;
-  if (Array.isArray(p.legal_texts)) return p.legal_texts;
-  if (Array.isArray(p.legalTexts)) return p.legalTexts;
-  if (Array.isArray(p.items)) return p.items;
+  const directKeys = [
+    "data",
+    "contracts",
+    "public_contracts",
+    "publicContracts",
+    "offers",
+    "price_plans",
+    "pricePlans",
+    "legal_texts",
+    "legalTexts",
+    "items",
+  ];
+
+  for (const key of directKeys) {
+    const value = p[key];
+    if (Array.isArray(value)) return value;
+  }
+
+  const data = recordValue(p.data);
+  if (data) {
+    for (const key of directKeys) {
+      const value = data[key];
+      if (Array.isArray(value)) return value;
+    }
+  }
+
   return [];
 }
 
@@ -680,10 +808,9 @@ function customerSafeOpsMessage(payload: unknown, fallback: string): string {
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const baseUrl = opsBaseUrl();
   const apiKey = env("GRIDEX_WEBSITE_API_KEY");
-  const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
   const fallbackMessage = "Tjänsten kunde inte slutföra åtgärden just nu.";
 
-  if (!baseUrl || !apiKey || (process.env.NODE_ENV === "production" && !tenantId)) {
+  if (!baseUrl || !apiKey) {
     throw new OpsError("Tjänsten är inte tillgänglig just nu.", 503, {
       missing: getOpsClientStatus().missing,
     });
@@ -695,8 +822,9 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   if (!headers.has("Content-Type") && init?.body) {
     headers.set("Content-Type", "application/json");
   }
-  if (tenantId) {
-    headers.set("X-Gridex-Tenant-Id", tenantId);
+  if (env("GRIDEX_SEND_LEGACY_TENANT_HEADER") === "true") {
+    const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
+    if (tenantId) headers.set("X-Gridex-Tenant-Id", tenantId);
   }
 
   const res = await fetch(`${baseUrl}${path}`, {
@@ -751,9 +879,7 @@ async function opsFetchWithFallback(
 ): Promise<unknown> {
   let lastError: unknown = null;
 
-  const effectivePaths = process.env.NODE_ENV === "production" ? paths.slice(0, 1) : paths;
-
-  for (const path of effectivePaths) {
+  for (const path of paths) {
     try {
       return await opsFetch(path, init);
     } catch (error) {
@@ -889,15 +1015,20 @@ function mapWebsitePricingPreview(
       slug:
         pickString(contractRow, [
           "slug",
+          "offer_reference",
+          "offerReference",
           "product_code",
           "productCode",
           "contract_slug",
           "contractSlug",
         ]) ??
-        pickString(row, ["product_code", "productCode"]) ??
+        pickString(row, ["offer_reference", "offerReference", "product_code", "productCode"]) ??
         "elavtal",
+      offer_reference:
+        pickString(contractRow, ["offer_reference", "offerReference"]) ??
+        pickString(row, ["offer_reference", "offerReference"]),
       name:
-        pickString(contractRow, ["name", "title", "contract_name"]) ??
+        pickString(contractRow, ["name", "public_name", "publicName", "title", "contract_name"]) ??
         "Elavtal",
       contractType: normalizePreviewContractType(
         contractRow.contractType ??
@@ -1005,8 +1136,8 @@ function normalizeWebsitePricingSpecification(
 
 export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
   const payload = await opsFetchWithFallback([
-    "/api/v1/website/contracts",
     "/api/v1/website/public-contracts",
+    "/api/v1/website/contracts",
   ]);
   return extractRows(payload)
     .map(mapPublicContract)
@@ -1070,8 +1201,8 @@ export async function fetchOpsLegalTextsCurrent(): Promise<OpsLegalText[]> {
 export async function fetchOpsPricePlans(): Promise<OpsPricePlan[]> {
   const payload = await opsFetchWithFallback([
     "/api/v1/website/price-plans",
-    "/api/v1/website/contracts",
     "/api/v1/website/public-contracts",
+    "/api/v1/website/contracts",
   ]);
   return extractRows(payload)
     .map(mapPricePlan)
@@ -1120,11 +1251,68 @@ export async function submitOpsCustomerApplication(
     throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
   }
 
+  const applicationPayload = {
+    external_customer_id: input.external_application_id,
+    source: input.source,
+    customer: {
+      customer_type: input.customer_type,
+      first_name: input.first_name ?? null,
+      last_name: input.last_name ?? null,
+      company_name: input.company_name ?? null,
+      personal_number: input.personal_number ?? null,
+      organization_number: input.organization_number ?? null,
+      email: input.email,
+      phone: input.phone,
+    },
+    site: {
+      facility_id: input.facility_id ?? input.metering_point_id ?? null,
+      metering_point_id: input.metering_point_id ?? null,
+      street: input.address,
+      address: input.address,
+      apartment: input.apartment ?? null,
+      postal_code: input.postal_code,
+      city: input.city,
+      price_area_code: input.price_area_code ?? null,
+      grid_area_code: input.grid_area_code ?? null,
+      grid_owner_id: input.grid_owner_id ?? null,
+      grid_owner_name: input.grid_owner_name ?? null,
+      move_in_date:
+        input.requested_start_mode === "specific_date"
+          ? input.requested_start_date ?? null
+          : null,
+    },
+    contract: {
+      offer_reference: input.offer_reference,
+      requested_start_date:
+        input.requested_start_mode === "specific_date"
+          ? input.requested_start_date ?? null
+          : null,
+    },
+    consents: input.consents,
+    metadata: {
+      requested_start_mode: input.requested_start_mode,
+      price_plan_id: input.price_plan_id ?? null,
+      price_plan_version_id: input.price_plan_version_id ?? null,
+      product_code: input.product_code ?? null,
+      energy_resolution_status: input.energy_resolution_status ?? null,
+      energy_resolution_confidence: input.energy_resolution_confidence ?? null,
+      estimated_monthly_kwh: input.estimated_monthly_kwh ?? null,
+      pricing_preview_snapshot: input.pricing_preview_snapshot ?? null,
+      contract_display_snapshot: input.contract_display_snapshot ?? null,
+      utm_source: input.utm_source ?? null,
+      utm_medium: input.utm_medium ?? null,
+      utm_campaign: input.utm_campaign ?? null,
+      user_agent: input.user_agent ?? null,
+      ip_hash: input.ip_hash ?? null,
+    },
+  };
+
   const payload = await opsFetchWithFallback(
-    ["/api/v1/website/customer-applications", "/api/v1/website/applications"],
+    ["/api/v1/website/customer-applications"],
     {
       method: "POST",
-      body: JSON.stringify(input),
+      headers: { "Idempotency-Key": input.idempotency_key },
+      body: JSON.stringify(applicationPayload),
     },
   );
 
@@ -1141,6 +1329,14 @@ export async function submitOpsCustomerApplication(
     : Array.isArray(row.missingFields)
       ? row.missingFields.map(String)
       : [];
+  const blockingReasons = Array.isArray(row.blocking_reasons)
+    ? row.blocking_reasons.map(String)
+    : Array.isArray(row.blockingReasons)
+      ? row.blockingReasons.map(String)
+      : [];
+  const warnings = Array.isArray(row.warnings)
+    ? row.warnings.map(String)
+    : [];
 
   return {
     status: pickString(row, ["status"]) ?? "application_received",
@@ -1151,6 +1347,8 @@ export async function submitOpsCustomerApplication(
       "application_number",
       "applicationNumber",
     ]),
+    external_customer_id: pickString(row, ["external_customer_id", "externalCustomerId"]),
+    portal_identity_id: pickString(row, ["portal_identity_id", "portalIdentityId"]),
     contract_id: pickString(row, ["contract_id", "contractId"]),
     contract_number: pickString(row, ["contract_number", "contractNumber"]),
     customer_site_id: pickString(row, ["customer_site_id", "customerSiteId"]),
@@ -1167,7 +1365,10 @@ export async function submitOpsCustomerApplication(
       "contract_price_snapshot_id",
       "contractPriceSnapshotId",
     ]),
+    offer_reference: pickString(row, ["offer_reference", "offerReference"]),
     missing_fields: missing,
+    blocking_reasons: blockingReasons,
+    warnings,
     next_step: pickString(row, ["next_step", "nextStep"]),
     message: pickString(row, ["message"]),
     raw: row,
@@ -1178,6 +1379,7 @@ export type OpsPortalIdentity = {
   userId: string;
   email?: string | null;
   customerNumber?: string | null;
+  externalCustomerId?: string | null;
 };
 
 export type OpsPortalBundle = {
@@ -1195,6 +1397,8 @@ export type OpsPortalBundle = {
 
 function portalHeaders(identity: OpsPortalIdentity): Headers {
   const headers = new Headers();
+  const customerRef = identity.externalCustomerId ?? identity.customerNumber ?? null;
+  if (customerRef) headers.set("x-gridex-external-customer-id", customerRef);
   headers.set("X-Gridex-Portal-User-Id", identity.userId);
   if (identity.email) headers.set("X-Gridex-Customer-Email", identity.email);
   if (identity.customerNumber) {
@@ -1331,9 +1535,16 @@ export async function sendOpsCustomerEvent(
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
-  await opsCustomerFetch("/api/v1/customer/events", identity, {
+  const headers = portalHeaders(identity);
+  await opsFetch("/api/v1/website/customer-events", {
     method: "POST",
-    body: JSON.stringify(event),
+    headers,
+    body: JSON.stringify({
+      ...event,
+      external_customer_id: identity.externalCustomerId ?? identity.customerNumber ?? null,
+      customer_email: identity.email ?? null,
+      portal_user_id: identity.userId,
+    }),
   });
 }
 

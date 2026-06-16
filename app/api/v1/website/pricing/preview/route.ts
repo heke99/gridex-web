@@ -17,6 +17,8 @@ export const runtime = 'nodejs'
 const AREAS = new Set<OpsWebsitePriceArea>(['SE1', 'SE2', 'SE3', 'SE4'])
 
 type PreviewPayload = {
+  offer_reference?: unknown
+  offerReference?: unknown
   contract_id?: unknown
   contractId?: unknown
   price_plan_id?: unknown
@@ -71,12 +73,13 @@ function preferContractComponent(
 }
 
 function matchesContract(contract: OpsPublicContract, input: OpsWebsitePricingPreviewInput) {
-  const wanted = [input.contract_id, input.price_plan_id, input.price_plan_version_id, input.product_code]
+  const wanted = [input.offer_reference, input.contract_id, input.price_plan_id, input.price_plan_version_id, input.product_code]
     .map((value) => value?.trim())
     .filter(Boolean)
 
   return wanted.some(
     (value) =>
+      value === contract.offer_reference ||
       value === contract.contract_id ||
       value === contract.price_plan_id ||
       value === contract.price_plan_version_id ||
@@ -122,7 +125,8 @@ function enrichPreviewWithContract(
     ...data,
     contract: {
       ...data.contract,
-      slug: contract.product_code,
+      slug: contract.offer_reference,
+      offer_reference: contract.offer_reference,
       name: contract.name,
       price_plan_id: contract.price_plan_id,
       price_plan_version_id: contract.price_plan_version_id,
@@ -155,6 +159,7 @@ export async function POST(req: Request) {
   }
 
   const input: OpsWebsitePricingPreviewInput = {
+    offer_reference: text(body?.offer_reference ?? body?.offerReference),
     contract_id: text(body?.contract_id ?? body?.contractId),
     price_plan_id: text(body?.price_plan_id ?? body?.pricePlanId),
     price_plan_version_id: text(body?.price_plan_version_id ?? body?.pricePlanVersionId),

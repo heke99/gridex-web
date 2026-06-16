@@ -58,7 +58,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           <div>Allmänna villkor: version {display.legalVersions.terms}</div>
           <div>Integritetspolicy: version {display.legalVersions.privacyPolicy}</div>
           <div>Ångerrätt: version {display.legalVersions.cancellationRight}</div>
-          <div>Fullmakt: version {display.legalVersions.powerOfAttorney}</div>
+          <div>Fullmakt: {display.legalVersions.powerOfAttorneyRequired ? (display.legalVersions.powerOfAttorney ? `version ${display.legalVersions.powerOfAttorney}` : 'krävs') : 'krävs inte'}</div>
         </div>
       </div>
 
@@ -233,7 +233,7 @@ export default async function AvtalPage() {
         {contracts.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-3">
             {contracts.map((contract) => (
-              <ContractCard key={contract.price_plan_version_id} contract={contract} />
+              <ContractCard key={contract.offer_reference} contract={contract} />
             ))}
           </div>
         ) : null}
