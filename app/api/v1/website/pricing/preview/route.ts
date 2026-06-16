@@ -141,6 +141,64 @@ function enrichPreviewWithContract(
   }
 }
 
+
+function previewContractType(type: string): OpsWebsitePricingPreview['contract']['contractType'] {
+  if (type === 'fixed') return 'fixed'
+  if (type === 'portfolio' || type === 'portfolio_managed') return 'portfolio_managed'
+  return 'spot_hourly'
+}
+
+function contractFallbackPreview(
+  contract: OpsPublicContract,
+  input: OpsWebsitePricingPreviewInput,
+): OpsWebsitePricingPreview {
+  const monthlyKwh = number(input.estimated_monthly_kwh, 2000)
+  const monthlyFee = normalizeOptionalNumber(contract.monthly_fee_sek) ?? 0
+  const invoiceFee = normalizeOptionalNumber(contract.invoice_fee_sek) ?? 0
+  const fixedOre = normalizeOptionalNumber(contract.fixed_price_ore_per_kwh)
+  const markupOre = normalizeOptionalNumber(contract.markup_ore_per_kwh) ?? 0
+  const variableOre = normalizeOptionalNumber(contract.variable_markup_ore_per_kwh) ?? 0
+  const knownOre = fixedOre ?? markupOre + variableOre
+  const knownEnergyCostSek = (monthlyKwh * knownOre) / 100
+  const totalMonthlyCostSek = monthlyFee + invoiceFee + knownEnergyCostSek
+
+  return enrichPreviewWithContract(
+    {
+      contract: {
+        slug: contract.offer_reference,
+        offer_reference: contract.offer_reference,
+        name: contract.name,
+        contractType: previewContractType(contract.type),
+        price_plan_id: contract.price_plan_id,
+        price_plan_version_id: contract.price_plan_version_id,
+        product_code: contract.product_code,
+        contract_id: contract.contract_id ?? null,
+      },
+      priceArea: input.price_area_code,
+      price_area_code: input.price_area_code,
+      kwh: monthlyKwh,
+      pricePerKwhOre: knownOre,
+      totalMonthlyCostSek,
+      totalMonthlyCostInclVatSek: totalMonthlyCostSek * 1.25,
+      totalYearlyCostSek: totalMonthlyCostSek * 12,
+      customerNotice:
+        'Vi kunde inte hämta en fullständig prisberäkning just nu. Du kan ändå gå vidare med valt avtal; Gridex använder avtalet och dina uppgifter som underlag när ansökan kontrolleras.',
+      specification: {
+        fees: {
+          markupOre,
+          variableFeeOre: variableOre,
+          monthlyFeeSek: monthlyFee,
+          invoiceFeeSek: invoiceFee,
+        },
+        contract_display_snapshot: buildPublicContractDisplay(contract).snapshot,
+        fallback_preview: true,
+      },
+      raw: { fallback_preview: true },
+    },
+    contract,
+  )
+}
+
 export async function POST(req: Request) {
   const status = getOpsClientStatus()
 
@@ -179,29 +237,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
 
-    const data = await fetchOpsWebsitePricingPreview(input)
-    if (!Number.isFinite(data.totalMonthlyCostSek) && !Number.isFinite(data.totalMonthlyCostInclVatSek)) {
-      return NextResponse.json({ error: 'Vi kunde inte beräkna priset just nu.' }, { status: 502 })
+    try {
+      const data = await fetchOpsWebsitePricingPreview(input)
+      if (Number.isFinite(data.totalMonthlyCostSek) || Number.isFinite(data.totalMonthlyCostInclVatSek)) {
+        return NextResponse.json({ data: enrichPreviewWithContract(data, contract) })
+      }
+    } catch (error) {
+      if (!isOpsError(error)) {
+        console.error('[website pricing preview] OPS preview failed', error)
+      }
     }
-    return NextResponse.json({ data: enrichPreviewWithContract(data, contract) })
+
+    return NextResponse.json({ data: contractFallbackPreview(contract, input) })
   } catch (error) {
-    const allowLocalFallback =
-      process.env.NODE_ENV !== 'production' && process.env.GRIDEX_ENABLE_LOCAL_PRICE_FALLBACK === 'true'
-
-    if (allowLocalFallback) {
-      return NextResponse.json(
-        { error: 'OPS-pris kunde inte hämtas. Lokal prisfallback är inte längre bindande och är därför stoppad i detta flöde.' },
-        { status: 502 },
-      )
-    }
-
     if (isOpsError(error)) {
       return NextResponse.json(
-        { error: error.message || 'Vi kunde inte beräkna priset just nu.' },
+        { error: error.message || 'Vi kunde inte hämta prisuppgifter just nu.' },
         { status: error.status || 502 },
       )
     }
 
-    return NextResponse.json({ error: 'Vi kunde inte beräkna priset just nu.' }, { status: 502 })
+    return NextResponse.json({ error: 'Vi kunde inte hämta prisuppgifter just nu.' }, { status: 502 })
   }
 }

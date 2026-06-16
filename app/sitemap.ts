@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/allmanna-villkor',
     '/angerratt',
     '/prisvillkor',
+    '/fullmakt',
     '/cookies',
     '/angerblankett',
     '/foretagsvillkor',

@@ -87,6 +87,7 @@ type FormValues = {
 
 type Consents = {
   accept_terms: boolean
+  accept_price_terms: boolean
   accept_cancellation_right: boolean
   accept_privacy: boolean
   accept_power_of_attorney: boolean
@@ -206,12 +207,14 @@ function Checkbox({
   checked,
   onChange,
   children,
+  required = true,
 }: {
   id: string
   name: keyof Consents
   checked: boolean
   onChange: (name: keyof Consents, value: boolean) => void
   children: React.ReactNode
+  required?: boolean
 }) {
   return (
     <label htmlFor={id} className="flex items-start gap-3 text-sm leading-6 text-gray-300">
@@ -221,7 +224,7 @@ function Checkbox({
         name={name}
         checked={checked}
         onChange={(event) => onChange(name, event.target.checked)}
-        required
+        required={required}
         className="mt-1 h-4 w-4 rounded border-white/20 bg-black/40 focus:ring-2 focus:ring-cyan-500/40"
       />
       <span>{children}</span>
@@ -264,6 +267,7 @@ export default function CustomerApplicationForm({
   })
   const [consents, setConsents] = useState<Consents>({
     accept_terms: false,
+    accept_price_terms: false,
     accept_cancellation_right: false,
     accept_privacy: false,
     accept_power_of_attorney: false,
@@ -281,6 +285,7 @@ export default function CustomerApplicationForm({
     [selectedContract],
   )
   const activeDisplay = contractDisplay ?? fallbackDisplay
+  const powerOfAttorneyRequired = activeDisplay?.legalVersions.powerOfAttorneyRequired === true
 
   function updateField(name: keyof FormValues, value: string) {
     setForm((current) => ({ ...current, [name]: value }))
@@ -322,12 +327,12 @@ export default function CustomerApplicationForm({
     }
 
     if (step === 2) {
-      if (!pricingPreviewSnapshot) nextErrors.pricing_preview_snapshot = 'Räkna priset innan du skickar ansökan.'
       if (!contractDisplaySnapshot) nextErrors.contract_display_snapshot = 'Valt avtal kunde inte verifieras. Välj avtalet igen.'
       if (!consents.accept_terms) nextErrors.accept_terms = 'Du behöver godkänna villkoren.'
+      if (!consents.accept_price_terms) nextErrors.accept_price_terms = 'Du behöver godkänna prisvillkoren.'
       if (!consents.accept_cancellation_right) nextErrors.accept_cancellation_right = 'Du behöver bekräfta information om ångerrätt.'
       if (!consents.accept_privacy) nextErrors.accept_privacy = 'Du behöver ta del av integritetspolicyn.'
-      if (!consents.accept_power_of_attorney) nextErrors.accept_power_of_attorney = 'Du behöver godkänna fullmakten för att Gridex ska kunna hämta anläggningsuppgifter.'
+      if (powerOfAttorneyRequired && !consents.accept_power_of_attorney) nextErrors.accept_power_of_attorney = 'Du behöver godkänna fullmakten för att Gridex ska kunna hämta anläggningsuppgifter.'
     }
 
     setErrors(nextErrors)
@@ -345,10 +350,15 @@ export default function CustomerApplicationForm({
   }
 
   const errorList = Object.values(errors)
-  const allConsentsAccepted = Object.values(consents).every(Boolean)
+  const allConsentsAccepted =
+    consents.accept_terms &&
+    consents.accept_price_terms &&
+    consents.accept_cancellation_right &&
+    consents.accept_privacy &&
+    (!powerOfAttorneyRequired || consents.accept_power_of_attorney)
   const pricingPreviewSnapshot = pricingPreview ? JSON.stringify(pricingPreview) : ''
   const contractDisplaySnapshot = activeDisplay ? JSON.stringify(activeDisplay.snapshot) : ''
-  const submitDisabled = !canSubmit || !allConsentsAccepted || !pricingPreviewSnapshot || !contractDisplaySnapshot
+  const submitDisabled = !canSubmit || !allConsentsAccepted || !contractDisplaySnapshot
 
   return (
     <div className="space-y-8" aria-live="polite">
@@ -513,11 +523,6 @@ export default function CustomerApplicationForm({
             <div>
               <h2 className="text-2xl font-bold text-white md:text-3xl">Granska innan du skickar</h2>
               <p className="mt-2 text-sm leading-6 text-gray-400">Detta är en ansökan. Gridex bekräftar nästa steg när uppgifterna är mottagna och kontrollerade.</p>
-              {!pricingPreviewSnapshot ? (
-                <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="alert">
-                  Räkna priset i kalkylatorn innan du skickar ansökan. Då sparas samma prisunderlag som du granskar här.
-                </div>
-              ) : null}
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
@@ -553,21 +558,24 @@ export default function CustomerApplicationForm({
             </div>
 
             <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
-              <div className="text-base font-semibold text-white">Juridiska godkännanden</div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs leading-6 text-gray-300">
-                <div>Allmänna villkor: version {activeDisplay?.legalVersions.terms ?? 'saknas'}</div>
-                <div>Prisvillkor: version {activeDisplay?.legalVersions.priceTerms ?? activeDisplay?.legalVersions.terms ?? 'saknas'}</div>
-                <div>Integritetspolicy: version {activeDisplay?.legalVersions.privacyPolicy ?? 'saknas'}</div>
-                <div>Ångerrätt: version {activeDisplay?.legalVersions.cancellationRight ?? 'saknas'}</div>
-                <div>Fullmakt: {activeDisplay?.legalVersions.powerOfAttorneyRequired ? (activeDisplay.legalVersions.powerOfAttorney ? `version ${activeDisplay.legalVersions.powerOfAttorney}` : 'krävs') : 'krävs inte'}</div>
+              <div>
+                <div className="text-base font-semibold text-white">Villkor och godkännanden</div>
+                <p className="mt-1 text-sm leading-6 text-gray-400">Läs igenom dokumenten innan du skickar ansökan. Dina godkännanden sparas säkert tillsammans med din ansökan.</p>
               </div>
               <Checkbox id="accept_terms" name="accept_terms" checked={consents.accept_terms} onChange={updateConsent}>
-                Jag har tagit del av och godkänner <Link href="/allmanna-villkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">allmänna villkor</Link> och <Link href="/prisvillkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">prisinformationen</Link> för valt elavtal.
+                Jag godkänner Gridex <Link href="/allmanna-villkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">allmänna villkor</Link>.
               </Checkbox>
-              <Checkbox id="accept_cancellation_right" name="accept_cancellation_right" checked={consents.accept_cancellation_right} onChange={updateConsent}>Jag bekräftar att jag har fått information om min <Link href="/angerratt" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">ångerrätt</Link>.</Checkbox>
+              <Checkbox id="accept_price_terms" name="accept_price_terms" checked={consents.accept_price_terms} onChange={updateConsent}>
+                Jag godkänner <Link href="/prisvillkor" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">prisvillkoren</Link> för valt elavtal.
+              </Checkbox>
+              <Checkbox id="accept_cancellation_right" name="accept_cancellation_right" checked={consents.accept_cancellation_right} onChange={updateConsent}>Jag har tagit del av informationen om <Link href="/angerratt" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">ångerrätt</Link>.</Checkbox>
               <Checkbox id="accept_privacy" name="accept_privacy" checked={consents.accept_privacy} onChange={updateConsent}>Jag har tagit del av hur Gridex behandlar mina personuppgifter i <Link href="/integritetspolicy" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">integritetspolicyn</Link>.</Checkbox>
-              <Checkbox id="accept_power_of_attorney" name="accept_power_of_attorney" checked={consents.accept_power_of_attorney} onChange={updateConsent}>Jag ger Gridex tillstånd att hämta de uppgifter om min elanläggning som behövs för att starta och administrera avtalet.</Checkbox>
-              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-relaxed text-cyan-50/85">Fullmakten används för uppgifter från elnätsföretaget, till exempel anläggnings-ID, mätpunkts-ID, nätområde, nätägare och information som behövs för leverantörsbyte.</div>
+              {powerOfAttorneyRequired ? (
+                <>
+                  <Checkbox id="accept_power_of_attorney" name="accept_power_of_attorney" checked={consents.accept_power_of_attorney} onChange={updateConsent}>Jag godkänner <Link href="/fullmakt" className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank">fullmakten</Link> och ger Gridex rätt att begära och hantera uppgifter från nätägaren för att behandla ansökan och starta elavtalet.</Checkbox>
+                  <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-relaxed text-cyan-50/85">Fullmakten används för uppgifter från elnätsföretaget, till exempel anläggnings-ID, mätpunkts-ID, nätområde, nätägare och information som behövs för leverantörsbyte.</div>
+                </>
+              ) : null}
             </div>
           </section>
 

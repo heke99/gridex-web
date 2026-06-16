@@ -46,14 +46,19 @@ for (const path of ['app/api/price/route.ts', 'app/api/offers/calculate/route.ts
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.ok(signup.includes('validateContractDisplaySnapshot'), 'submit must validate contract display snapshot')
-assert.ok(signup.includes('validatePricingPreviewSnapshot'), 'submit must validate pricing preview snapshot')
-assert.ok(signup.includes('fetchOpsWebsitePricingPreview'), 'submit must verify current live OPS preview')
-assert.ok(signup.includes("redirect('/teckna-avtal?error=price_snapshot')"), 'submit must stop changed/missing price snapshots')
+assert.ok(signup.includes('offer_reference'), 'submit must use OPS offer_reference as the binding contract reference')
+assert.ok(signup.includes('Idempotency-Key') || read('lib/ops/client.ts').includes('Idempotency-Key'), 'customer application writes must use Idempotency-Key header')
+assert.ok(!signup.includes('validatePricingPreviewSnapshot'), 'submit must not require pricing preview snapshot')
+assert.ok(!signup.includes('fetchOpsWebsitePricingPreview'), 'submit must not block on live pricing preview')
 
 const form = read('components/signup/CustomerApplicationForm.tsx')
-assert.ok(form.includes('pricing_preview_snapshot'), 'form must post pricing preview snapshot')
+assert.ok(form.includes('pricing_preview_snapshot'), 'form may post optional pricing preview snapshot as metadata')
 assert.ok(form.includes('contract_display_snapshot'), 'form must post contract display snapshot')
-assert.ok(form.includes('Räkna priset innan du skickar ansökan'), 'form must require a price preview before submit')
+assert.ok(!form.includes('Räkna priset innan du skickar ansökan'), 'form must not require a price preview before submit')
+assert.ok(form.includes('accept_price_terms'), 'form must require separate price terms consent')
+assert.ok(form.includes('/fullmakt'), 'form must link to the public power of attorney page')
+assert.ok(!form.includes('Allmänna villkor: version'), 'form must not show technical legal version labels to customers')
+assertIncludes('app/(public)/fullmakt/page.tsx', 'Fullmakt för anläggningsuppgifter', 'public power of attorney page must exist')
 
 const envExample = read('env.example')
 for (const variable of [
