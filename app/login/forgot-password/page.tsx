@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -10,6 +10,10 @@ function normalizeEmail(v: string): string {
 
 function looksLikeEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+function shouldHideAccountExistence(message: string): boolean {
+  return /not found|user|account|registered|exists/i.test(message)
 }
 
 function humanizeAuthError(message: string): string {
@@ -24,11 +28,15 @@ function humanizeAuthError(message: string): string {
 
 export default function ForgotPasswordPage() {
   const supabase = createSupabaseBrowserClient()
-
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [linkError, setLinkError] = useState(false)
+
+  useEffect(() => {
+    setLinkError(new URLSearchParams(window.location.search).has('error'))
+  }, [])
 
   async function handleReset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -54,7 +62,7 @@ export default function ForgotPasswordPage() {
         redirectTo,
       })
 
-      if (error) {
+      if (error && !shouldHideAccountExistence(error.message)) {
         setError(humanizeAuthError(error.message))
         return
       }
@@ -74,6 +82,12 @@ export default function ForgotPasswordPage() {
             Ange din e-post så skickar vi en länk där du kan skapa ett nytt lösenord.
           </p>
         </div>
+
+        {linkError ? (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+            Länken är ogiltig eller har gått ut. Skicka en ny återställningslänk nedan.
+          </div>
+        ) : null}
 
         {sent ? (
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">

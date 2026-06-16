@@ -66,19 +66,33 @@ export async function loginWithPassword(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera sessionen')}`)
   }
 
-  const [{ data: permissionsData, error: permissionsError }, { data: rolesData, error: rolesError }] =
-    await Promise.all([
-      supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
-      supabase
-        .from('user_roles')
-        .select('role,is_active')
-        .eq('user_id', user.id)
-        .returns<RoleRow[]>(),
-    ])
+  const [permissionsResult, rolesResult] = await Promise.allSettled([
+    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
+    supabase
+      .from('user_roles')
+      .select('role,is_active')
+      .eq('user_id', user.id)
+      .returns<RoleRow[]>(),
+  ])
 
-  if (permissionsError || rolesError) {
+  const permissionsData =
+    permissionsResult.status === 'fulfilled' && !permissionsResult.value.error
+      ? permissionsResult.value.data
+      : []
+  const rolesData =
+    rolesResult.status === 'fulfilled' && !rolesResult.value.error
+      ? rolesResult.value.data
+      : []
+
+  if (
+    next.startsWith('/admin') &&
+    ((permissionsResult.status === 'fulfilled' && permissionsResult.value.error) ||
+      (rolesResult.status === 'fulfilled' && rolesResult.value.error) ||
+      permissionsResult.status === 'rejected' ||
+      rolesResult.status === 'rejected')
+  ) {
     await supabase.auth.signOut()
-    redirect(`/login?error=${encodeURIComponent('Kunde inte läsa behörigheter')}`)
+    redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera adminbehörighet')}`)
   }
 
   const permissions = Array.isArray(permissionsData)

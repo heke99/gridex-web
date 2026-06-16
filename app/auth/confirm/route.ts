@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { supabaseService } from '@/lib/supabase/service'
 
 const ALLOWED_TYPES = new Set<EmailOtpType>([
   'email',
@@ -40,33 +39,38 @@ async function syncConfirmedUserProfile(params: {
   email: string | null
   type: EmailOtpType
 }) {
-  const { userId, email, type } = params
-  const now = new Date().toISOString()
+  try {
+    const { supabaseService } = await import('@/lib/supabase/service')
+    const { userId, email, type } = params
+    const now = new Date().toISOString()
 
-  const customerProfilePatch: Record<string, unknown> = {
-    user_id: userId,
-    email,
-    email_verified_at: now,
+    const customerProfilePatch: Record<string, unknown> = {
+      user_id: userId,
+      email,
+      email_verified_at: now,
+    }
+
+    if (type === 'email' || type === 'invite') {
+      customerProfilePatch.onboarding_state = 'verified'
+    }
+
+    await Promise.allSettled([
+      supabaseService.from('customer_profiles').upsert(customerProfilePatch, {
+        onConflict: 'user_id',
+      }),
+
+      supabaseService.from('user_profiles').upsert(
+        {
+          id: userId,
+          user_id: userId,
+          email,
+        },
+        { onConflict: 'id' }
+      ),
+    ])
+  } catch (error) {
+    console.warn('[auth confirm] profile sync skipped', error)
   }
-
-  if (type === 'email' || type === 'invite') {
-    customerProfilePatch.onboarding_state = 'verified'
-  }
-
-  await Promise.allSettled([
-    supabaseService.from('customer_profiles').upsert(customerProfilePatch, {
-      onConflict: 'user_id',
-    }),
-
-    supabaseService.from('user_profiles').upsert(
-      {
-        id: userId,
-        user_id: userId,
-        email,
-      },
-      { onConflict: 'id' }
-    ),
-  ])
 }
 
 export async function GET(request: NextRequest) {

@@ -16,6 +16,7 @@ import {
   type OpsPublicContract,
 } from '@/lib/ops/client'
 import { checkRateLimit } from '@/lib/security/rateLimit'
+import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import {
   validateContractDisplaySnapshot,
@@ -127,6 +128,8 @@ function errorText(code?: string) {
       return 'Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.'
     case 'price_snapshot':
       return 'Prisberäkningen har uppdaterats sedan sidan laddades. Räkna priset igen och kontrollera sammanfattningen.'
+    case 'area_mismatch':
+      return 'Adressen i ansökan matchar inte prisberäkningen. Räkna priset igen med samma adress som i ansökan.'
     case 'rate_limit':
       return 'För många försök på kort tid. Vänta en stund och försök igen.'
     default:
@@ -143,6 +146,55 @@ function parseOptionalNumber(value: string): number | null {
   if (!normalized) return null
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, '')
+}
+
+function normalizePostalCodeForApplication(value: string): string {
+  return digitsOnly(value).slice(0, 5)
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isValidSwedishPostalCode(value: string): boolean {
+  return /^\d{5}$/.test(value)
+}
+
+function isValidIdentityNumber(value: string): boolean {
+  const digits = digitsOnly(value)
+  return digits.length === 10 || digits.length === 12
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = digitsOnly(value)
+  return digits.length >= 7 && digits.length <= 15
+}
+
+function todayInStockholm(): string {
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Stockholm',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  const day = parts.find((part) => part.type === 'day')?.value
+  return year && month && day ? `${year}-${month}-${day}` : new Date().toISOString().slice(0, 10)
+}
+
+function isValidRequestedStartDate(mode: 'asap' | 'specific_date', value: string): boolean {
+  if (mode === 'asap') return true
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime())) return false
+  return value >= todayInStockholm()
 }
 
 function parseJsonSnapshot(value: string): Record<string, unknown> | null {
@@ -229,7 +281,7 @@ export default async function TecknaPage({
     const email = normalizeEmail(formData.get('email'))
     const phone = normalizeText(formData.get('phone'))
     const address = normalizeText(formData.get('address'))
-    const postalCode = normalizeText(formData.get('postal_code'))
+    const postalCode = normalizePostalCodeForApplication(normalizeText(formData.get('postal_code')))
     const city = normalizeText(formData.get('city'))
     const apartment = normalizeText(formData.get('apartment'))
     const facilityId = normalizeText(formData.get('facility_id'))
@@ -251,7 +303,20 @@ export default async function TecknaPage({
         ? Boolean(companyName && organizationNumber)
         : Boolean(firstName && lastName && personalNumber)
 
-    if (!email || !phone || !address || !postalCode || !city || !hasIdentity) {
+    const invalidBaseFields =
+      !email ||
+      !isValidEmail(email) ||
+      !phone ||
+      !isValidPhone(phone) ||
+      !address ||
+      !isValidSwedishPostalCode(postalCode) ||
+      !city ||
+      !hasIdentity ||
+      (customerType === 'company' && !isValidIdentityNumber(organizationNumber)) ||
+      (customerType === 'private' && !isValidIdentityNumber(personalNumber)) ||
+      !isValidRequestedStartDate(requestedStartMode, requestedStartDate)
+
+    if (invalidBaseFields) {
       redirect('/teckna-avtal?error=validation')
     }
 
@@ -287,6 +352,19 @@ export default async function TecknaPage({
     if (!isPriceAreaCode(priceAreaCode) || !estimatedMonthlyKwh) {
       redirect('/teckna-avtal?error=price_snapshot')
     }
+
+    const serverResolution = await resolveWebsitePriceAreaForPricing({
+      postal_code: postalCode,
+      city,
+      address,
+      street: address,
+    }).catch(() => null)
+
+    if (!serverResolution?.price_area_code || serverResolution.price_area_code !== priceAreaCode) {
+      redirect('/teckna-avtal?error=area_mismatch')
+    }
+
+    const serverPriceAreaCode = serverResolution.price_area_code
 
     const liveDisplay = buildPublicContractDisplay(offer)
     if (!liveDisplay.ready) {
@@ -357,15 +435,12 @@ export default async function TecknaPage({
         price_plan_id: offer.price_plan_id,
         price_plan_version_id: offer.price_plan_version_id,
         product_code: offer.product_code,
-        price_area_code: priceAreaCode,
-        grid_area_code: normalizeText(formData.get('grid_area_code')) || null,
+        price_area_code: serverPriceAreaCode,
+        grid_area_code: serverResolution.grid_area_code ?? null,
         grid_owner_id: normalizeText(formData.get('grid_owner_id')) || null,
         grid_owner_name: normalizeText(formData.get('grid_owner_name')) || null,
-        energy_resolution_status:
-          normalizeText(formData.get('energy_resolution_status')) || null,
-        energy_resolution_confidence: parseOptionalNumber(
-          normalizeText(formData.get('energy_resolution_confidence'))
-        ),
+        energy_resolution_status: serverResolution.status,
+        energy_resolution_confidence: serverResolution.confidence ?? null,
         estimated_monthly_kwh: estimatedMonthlyKwh,
         pricing_preview_snapshot: pricingPreviewSnapshot,
         contract_display_snapshot: contractDisplaySnapshot,

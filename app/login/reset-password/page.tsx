@@ -1,17 +1,19 @@
 //app/login/reset-password/page.tsx
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
+type RecoveryStatus = 'checking' | 'ready' | 'expired'
+
 function calculateStrength(password: string): number {
   let score = 0
   if (password.length >= 8) score++
-  if (/[A-Z]/.test(password)) score++
+  if (/[A-ZÅÄÖ]/.test(password)) score++
   if (/[0-9]/.test(password)) score++
-  if (/[^A-Za-z0-9]/.test(password)) score++
+  if (/[^A-Za-zÅÄÖåäö0-9]/.test(password)) score++
   return score
 }
 
@@ -26,17 +28,31 @@ function humanizeAuthError(message: string): string {
     return 'Lösenordet uppfyller inte kraven.'
   }
 
-  if (msg.includes('session')) {
+  if (msg.includes('session') || msg.includes('jwt') || msg.includes('expired')) {
     return 'Länken är ogiltig eller har gått ut. Begär en ny återställningslänk.'
   }
 
   return 'Kunde inte uppdatera lösenordet.'
 }
 
+function passwordRequirementText(strength: number): string {
+  if (strength >= 3) return 'Lösenordet uppfyller kraven.'
+  return 'Minst 8 tecken och gärna versal, siffra och specialtecken.'
+}
+
+async function logPasswordResetCompleted() {
+  await fetch('/api/customer/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_type: 'customer.password_reset_completed' }),
+  }).catch(() => null)
+}
+
 export default function ResetPasswordPage() {
   const supabase = createSupabaseBrowserClient()
   const router = useRouter()
 
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>('checking')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -53,10 +69,29 @@ export default function ResetPasswordPage() {
       'bg-emerald-500',
     ][strength - 1] as string) || 'bg-gray-700'
 
+  useEffect(() => {
+    let active = true
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return
+      setRecoveryStatus(!error && data.session?.user ? 'ready' : 'expired')
+    })
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return
+      if (session?.user) setRecoveryStatus('ready')
+    })
+
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
+  }, [supabase])
+
   async function handleSetPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
-    if (loading) return
+    if (loading || recoveryStatus !== 'ready') return
 
     setError(null)
 
@@ -82,9 +117,11 @@ export default function ResetPasswordPage() {
 
       if (error) {
         setError(humanizeAuthError(error.message))
+        if (/session|jwt|expired/i.test(error.message)) setRecoveryStatus('expired')
         return
       }
 
+      await logPasswordResetCompleted()
       setSuccess(true)
 
       window.setTimeout(() => {
@@ -105,11 +142,28 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
+        {recoveryStatus === 'checking' ? (
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/70">
+            Kontrollerar återställningslänken…
+          </div>
+        ) : null}
+
+        {recoveryStatus === 'expired' ? (
+          <div className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <p>Länken är ogiltig eller har gått ut. Begär en ny återställningslänk.</p>
+            <Link href="/login/forgot-password" className="inline-flex h-11 items-center rounded-xl bg-white px-4 font-semibold text-black transition hover:bg-white/90">
+              Skicka ny länk
+            </Link>
+          </div>
+        ) : null}
+
         {success ? (
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
             Lösenord uppdaterat. Du omdirigeras…
           </div>
-        ) : (
+        ) : null}
+
+        {recoveryStatus === 'ready' && !success ? (
           <form onSubmit={handleSetPassword} className="space-y-4">
             <div>
               <label className="text-xs text-white/70">Nytt lösenord</label>
@@ -130,7 +184,7 @@ export default function ResetPasswordPage() {
               </div>
 
               <div className="text-xs text-white/60 mt-1">
-                Minst 8 tecken, versal, siffra och specialtecken.
+                {passwordRequirementText(strength)}
               </div>
             </div>
 
@@ -166,7 +220,7 @@ export default function ResetPasswordPage() {
               </Link>
             </div>
           </form>
-        )}
+        ) : null}
       </div>
     </div>
   )

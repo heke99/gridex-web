@@ -1120,10 +1120,13 @@ export async function submitOpsCustomerApplication(
     throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
   }
 
-  const payload = await opsFetch("/api/v1/website/customer-applications", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  const payload = await opsFetchWithFallback(
+    ["/api/v1/website/customer-applications", "/api/v1/website/applications"],
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 
   const data =
     payload && typeof payload === "object" && "data" in payload
@@ -1253,13 +1256,40 @@ async function customerObject(
   }
 }
 
+async function optionalCustomerRows(
+  path: string,
+  identity: OpsPortalIdentity,
+): Promise<Record<string, unknown>[]> {
+  try {
+    return await customerRows(path, identity);
+  } catch (error) {
+    console.warn(`[ops customer portal] optional rows failed for ${path}`, error);
+    return [];
+  }
+}
+
+async function optionalCustomerObject(
+  path: string,
+  identity: OpsPortalIdentity,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await customerObject(path, identity);
+  } catch (error) {
+    console.warn(`[ops customer portal] optional object failed for ${path}`, error);
+    return null;
+  }
+}
+
 export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
+  const [profile, contracts, sites] = await Promise.all([
+    customerObject("/api/v1/customer/me", identity),
+    customerRows("/api/v1/customer/contracts", identity),
+    customerRows("/api/v1/customer/sites", identity),
+  ]);
+
   const [
-    profile,
-    contracts,
-    sites,
     invoices,
     documents,
     legalAcceptances,
@@ -1268,16 +1298,13 @@ export async function fetchOpsCustomerPortalBundle(
     events,
     meteringValues,
   ] = await Promise.all([
-    customerObject("/api/v1/customer/me", identity),
-    customerRows("/api/v1/customer/contracts", identity),
-    customerRows("/api/v1/customer/sites", identity),
-    customerRows("/api/v1/customer/invoices", identity),
-    customerRows("/api/v1/customer/documents", identity),
-    customerRows("/api/v1/customer/legal-acceptances", identity),
-    customerRows("/api/v1/customer/powers-of-attorney", identity),
-    customerObject("/api/v1/customer/switch-status", identity),
-    customerRows("/api/v1/customer/events", identity),
-    customerRows("/api/v1/customer/metering-values", identity),
+    optionalCustomerRows("/api/v1/customer/invoices", identity),
+    optionalCustomerRows("/api/v1/customer/documents", identity),
+    optionalCustomerRows("/api/v1/customer/legal-acceptances", identity),
+    optionalCustomerRows("/api/v1/customer/powers-of-attorney", identity),
+    optionalCustomerObject("/api/v1/customer/switch-status", identity),
+    optionalCustomerRows("/api/v1/customer/events", identity),
+    optionalCustomerRows("/api/v1/customer/metering-values", identity),
   ]);
 
   return {

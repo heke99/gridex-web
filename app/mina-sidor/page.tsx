@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import LogoutForm from '@/components/account/LogoutForm'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
@@ -70,12 +71,11 @@ export default async function MinaSidorPage() {
             >
               Uppdatera profil
             </Link>
-            <Link
-              href="/logout"
-              className="rounded-xl bg-cyan-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:bg-cyan-400"
-            >
-              Logga ut
-            </Link>
+            <LogoutForm
+              redirectTo="/login"
+              label="Logga ut"
+              className="sm:w-auto"
+            />
           </div>
         </header>
 

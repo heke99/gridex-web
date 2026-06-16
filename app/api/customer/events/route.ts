@@ -14,6 +14,7 @@ const ALLOWED = new Set([
   'customer.accepted_power_of_attorney',
   'customer.completed_facility_data',
   'customer.viewed_switch_status',
+  'customer.password_reset_completed',
 ])
 
 function text(value: unknown, max = 160) {
