@@ -1393,17 +1393,31 @@ export type OpsPortalBundle = {
   switchStatus: Record<string, unknown> | null;
   events: Record<string, unknown>[];
   meteringValues: Record<string, unknown>[];
+  notifications: Record<string, unknown>[];
 };
 
 function portalHeaders(identity: OpsPortalIdentity): Headers {
   const headers = new Headers();
   const customerRef = identity.externalCustomerId ?? identity.customerNumber ?? null;
-  if (customerRef) headers.set("x-gridex-external-customer-id", customerRef);
-  headers.set("X-Gridex-Portal-User-Id", identity.userId);
-  if (identity.email) headers.set("X-Gridex-Customer-Email", identity.email);
-  if (identity.customerNumber) {
-    headers.set("X-Gridex-Customer-Number", identity.customerNumber);
+
+  // OPS links the external customer session to the correct tenant customer by
+  // Supabase auth user id plus one stable customer key. Keep the older header
+  // names for backwards compatibility while sending the new contract explicitly.
+  headers.set("x-gridex-customer-portal-user-id", identity.userId);
+  headers.set("x-gridex-auth-user-id", identity.userId);
+  headers.set("x-gridex-portal-user-id", identity.userId);
+
+  if (identity.externalCustomerId) {
+    headers.set("x-gridex-external-customer-id", identity.externalCustomerId);
+  } else if (customerRef) {
+    headers.set("x-gridex-external-customer-id", customerRef);
   }
+
+  if (identity.customerNumber) {
+    headers.set("x-gridex-customer-number", identity.customerNumber);
+  }
+
+  if (identity.email) headers.set("x-gridex-customer-email", identity.email);
   return headers;
 }
 
@@ -1484,7 +1498,74 @@ async function optionalCustomerObject(
   }
 }
 
-export async function fetchOpsCustomerPortalBundle(
+function portalBundleSource(payload: unknown): Record<string, unknown> {
+  const root = extractObject(payload);
+  const bundle = recordValue(root.bundle) ?? recordValue(root.portalBundle);
+  return bundle ? { ...root, ...bundle } : root;
+}
+
+function portalBundleRows(
+  source: Record<string, unknown>,
+  keys: string[],
+): Record<string, unknown>[] {
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object" && !Array.isArray(item)),
+      );
+    }
+  }
+  return [];
+}
+
+function portalBundleObject(
+  source: Record<string, unknown>,
+  keys: string[],
+): Record<string, unknown> | null {
+  for (const key of keys) {
+    const value = source[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  return null;
+}
+
+function mapPortalBundle(payload: unknown): OpsPortalBundle {
+  const source = portalBundleSource(payload);
+  return {
+    profile: portalBundleObject(source, ["profile", "customer", "me"]),
+    contracts: portalBundleRows(source, ["contracts", "agreements"]),
+    sites: portalBundleRows(source, ["sites", "customer_sites", "facilities"]),
+    invoices: portalBundleRows(source, ["invoices"]),
+    documents: portalBundleRows(source, ["documents"]),
+    legalAcceptances: portalBundleRows(source, [
+      "legalAcceptances",
+      "legal_acceptances",
+      "acceptances",
+    ]),
+    powersOfAttorney: portalBundleRows(source, [
+      "powersOfAttorney",
+      "powers_of_attorney",
+      "powerOfAttorney",
+    ]),
+    switchStatus: portalBundleObject(source, [
+      "switchStatus",
+      "switch_status",
+      "supplierSwitch",
+    ]),
+    events: portalBundleRows(source, ["events"]),
+    meteringValues: portalBundleRows(source, [
+      "meteringValues",
+      "metering_values",
+      "measurements",
+    ]),
+    notifications: portalBundleRows(source, ["notifications"]),
+  };
+}
+
+async function fetchOpsCustomerPortalBundleLegacy(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
   const [profile, contracts, sites] = await Promise.all([
@@ -1501,6 +1582,7 @@ export async function fetchOpsCustomerPortalBundle(
     switchStatus,
     events,
     meteringValues,
+    notifications,
   ] = await Promise.all([
     optionalCustomerRows("/api/v1/customer/invoices", identity),
     optionalCustomerRows("/api/v1/customer/documents", identity),
@@ -1509,6 +1591,7 @@ export async function fetchOpsCustomerPortalBundle(
     optionalCustomerObject("/api/v1/customer/switch-status", identity),
     optionalCustomerRows("/api/v1/customer/events", identity),
     optionalCustomerRows("/api/v1/customer/metering-values", identity),
+    optionalCustomerRows("/api/v1/customer/notifications", identity),
   ]);
 
   return {
@@ -1522,7 +1605,24 @@ export async function fetchOpsCustomerPortalBundle(
     switchStatus,
     events,
     meteringValues,
+    notifications,
   };
+}
+
+export async function fetchOpsCustomerPortalBundle(
+  identity: OpsPortalIdentity,
+): Promise<OpsPortalBundle> {
+  try {
+    const payload = await opsCustomerFetch(
+      "/api/v1/customer/portal-bundle",
+      identity,
+    );
+    return mapPortalBundle(payload);
+  } catch (error) {
+    if (!isOpsError(error) || error.status !== 404) throw error;
+  }
+
+  return fetchOpsCustomerPortalBundleLegacy(identity);
 }
 
 export async function sendOpsCustomerEvent(
@@ -1536,14 +1636,16 @@ export async function sendOpsCustomerEvent(
   },
 ): Promise<void> {
   const headers = portalHeaders(identity);
-  await opsFetch("/api/v1/website/customer-events", {
+  await opsFetchWithFallback(["/api/v1/events", "/api/v1/website/customer-events"], {
     method: "POST",
     headers,
     body: JSON.stringify({
       ...event,
-      external_customer_id: identity.externalCustomerId ?? identity.customerNumber ?? null,
+      external_customer_id: identity.externalCustomerId ?? null,
+      customer_number: identity.customerNumber ?? null,
       customer_email: identity.email ?? null,
       portal_user_id: identity.userId,
+      auth_user_id: identity.userId,
     }),
   });
 }

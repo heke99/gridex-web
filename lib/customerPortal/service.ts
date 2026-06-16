@@ -291,6 +291,23 @@ function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
   }
 }
 
+
+function mapOpsNotification(row: Record<string, unknown>): CustomerNotification {
+  return {
+    id: pick(row, ['id', 'notification_id']) ?? crypto.randomUUID(),
+    category: pick(row, ['category', 'type']) ?? 'general',
+    title: pick(row, ['title', 'subject']) ?? 'Meddelande',
+    body: pick(row, ['body', 'message', 'summary']) ?? '',
+    is_read: row.is_read === true || row.read === true,
+    read_at: pickDate(row, ['read_at', 'readAt']),
+    created_at: pickDate(row, ['created_at', 'createdAt', 'occurred_at']) ?? new Date().toISOString(),
+    related_entity_type: pick(row, ['related_entity_type', 'entity_type']),
+    related_entity_id: pick(row, ['related_entity_id', 'entity_id']),
+    link_href: pick(row, ['link_href', 'href', 'url']),
+    priority: pick(row, ['priority']),
+  }
+}
+
 function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
   return {
     id: pick(row, ['id', 'document_id']) ?? crypto.randomUUID(),
@@ -690,7 +707,11 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     user.id,
     user.email ?? null
   )
-  const notifications = await getCustomerNotifications(supabase, user.id, profile)
+  const localNotifications = await getCustomerNotifications(supabase, user.id, profile)
+  const notifications = mergeById(
+    (ops.bundle?.notifications ?? []).map(mapOpsNotification),
+    localNotifications
+  )
   const contracts = mergeById((ops.bundle?.contracts ?? []).map(mapOpsContract), localContracts)
   const sites = mergeById((ops.bundle?.sites ?? []).map(mapOpsSite), localSites)
   const invoices = mergeById((ops.bundle?.invoices ?? []).map(mapOpsInvoice), localInvoices)
