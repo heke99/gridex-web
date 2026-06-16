@@ -15,6 +15,8 @@ export type CustomerProfile = {
   customer_type?: string | null
   company_name?: string | null
   customer_number?: string | null
+  external_customer_id?: string | null
+  portal_identity_id?: string | null
 }
 
 export type CustomerPortalContract = {

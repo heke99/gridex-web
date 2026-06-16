@@ -18,6 +18,7 @@ import { checkRateLimit } from '@/lib/security/rateLimit'
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import { validateContractDisplaySnapshot } from '@/lib/website/snapshotValidation'
+import { ensureCustomerPortalOnboarding } from '@/lib/customerPortal/onboarding'
 
 export const metadata: Metadata = {
   title: 'Ansök om elavtal – Gridex',
@@ -439,8 +440,27 @@ export default async function TecknaPage({
         },
       })
 
+      const portalOnboarding = await ensureCustomerPortalOnboarding({
+        application: result,
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        companyName: companyName || null,
+        phone,
+        customerType,
+        address,
+        postalCode,
+        city,
+        facilityId: facilityId || null,
+        meteringPointId: meteringPointId || null,
+        offerReference: offer.offer_reference,
+        productCode: offer.product_code,
+        contractName: offer.name,
+      })
+
       const qs = new URLSearchParams()
       qs.set('status', result.status)
+      qs.set('portal', portalOnboarding.status)
       if (result.customer_number) qs.set('customerNumber', result.customer_number)
       if (result.contract_number) qs.set('contractNumber', result.contract_number)
       if (result.application_number) qs.set('applicationNumber', result.application_number)

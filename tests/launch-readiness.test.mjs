@@ -60,8 +60,61 @@ assert.ok(form.includes('/fullmakt'), 'form must link to the public power of att
 assert.ok(!form.includes('Allmänna villkor: version'), 'form must not show technical legal version labels to customers')
 assertIncludes('app/(public)/fullmakt/page.tsx', 'Fullmakt för anläggningsuppgifter', 'public power of attorney page must exist')
 
+
+assertIncludes(
+  'lib/customerPortal/onboarding.ts',
+  'inviteUserByEmail',
+  'new customers must receive a Supabase email confirmation/password setup link',
+)
+assertIncludes(
+  'lib/customerPortal/onboarding.ts',
+  "return { status: 'profile_linked'",
+  'existing customers must be linked and told to log in without sending invite/reset links',
+)
+assertNotIncludes(
+  'lib/customerPortal/onboarding.ts',
+  'resetPasswordForEmail',
+  'portal onboarding must not send password reset links to existing customers automatically',
+)
+assertIncludes(
+  'lib/customerPortal/onboarding.ts',
+  'customer_number',
+  'portal onboarding must persist OPS customer number locally',
+)
+assertIncludes(
+  'app/(public)/teckna-avtal/page.tsx',
+  'ensureCustomerPortalOnboarding',
+  'signup submit must link OPS application results to customer portal onboarding',
+)
+assertIncludes(
+  'app/(public)/teckna/tack/page.tsx',
+  'Ny kund: bekräfta din e-post',
+  'thank-you page must explain email verification for new customers',
+)
+assertIncludes(
+  'app/(public)/teckna/tack/page.tsx',
+  'Redan kund? Logga in',
+  'thank-you page must tell existing customers to log in',
+)
+assertNotIncludes(
+  'app/(public)/teckna/tack/page.tsx',
+  'Gå till Mina sidor',
+  'thank-you page must not send customers to Mina sidor before password setup',
+)
+assertIncludes(
+  'app/auth/confirm/route.ts',
+  "return '/login/reset-password'",
+  'invite confirmation must land on the password creation page',
+)
+assertIncludes(
+  'supabase/migrations/20260616_customer_portal_onboarding_links.sql',
+  'portal_identity_id',
+  'migration must add OPS portal identity link columns',
+)
+
 const envExample = read('env.example')
 for (const variable of [
+  'GRIDEX_ENABLE_PORTAL_ONBOARDING',
   'GRIDEX_ENABLE_LOCAL_PRICE_FALLBACK',
   'GRIDEX_ALLOW_UNSAFE_OPS_URL',
   'GRIDEX_ENABLE_OPS_WEBHOOKS',

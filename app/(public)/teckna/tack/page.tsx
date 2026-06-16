@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-// Import centralized status helpers to avoid exposing raw status codes
 import {
   statusLabel as friendlyStatusLabel,
   statusDescription as friendlyStatusDescription,
@@ -14,6 +13,62 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+type PortalStatus =
+  | 'email_confirmation_sent'
+  | 'invite_sent'
+  | 'profile_linked'
+  | 'pending'
+  | 'failed'
+  | 'skipped'
+  | string
+
+function portalMessage(status: PortalStatus | undefined) {
+  switch (status) {
+    case 'email_confirmation_sent':
+    case 'invite_sent':
+      return {
+        title: 'Ny kund: bekräfta din e-post',
+        body: 'Vi har skickat ett mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor.',
+        tone: 'success' as const,
+      }
+    case 'profile_linked':
+      return {
+        title: 'Redan kund? Logga in',
+        body: 'Din ansökan är kopplad till ditt befintliga kundkonto. Logga in med ditt nuvarande lösenord för att se Mina sidor.',
+        tone: 'info' as const,
+      }
+    case 'pending':
+    case 'failed':
+      return {
+        title: 'Inloggning skickas separat',
+        body: 'Ansökan är mottagen. Om inloggningsmailet inte kommer fram skickar vi ny länk när kundprofilen är färdigkopplad.',
+        tone: 'warning' as const,
+      }
+    case 'skipped':
+      return {
+        title: 'Inloggning kommer separat',
+        body: 'Ansökan är mottagen. Du får information om Mina sidor när kundprofilen är klar.',
+        tone: 'info' as const,
+      }
+    default:
+      return {
+        title: 'Nästa steg kommer via e-post',
+        body: 'Vi har tagit emot ansökan. Kontrollera din inkorg för bekräftelse och nästa steg.',
+        tone: 'info' as const,
+      }
+  }
+}
+
+function uniqueMissingFields(value: string | undefined) {
+  return Array.from(
+    new Set(
+      (value ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  )
+}
 
 export default async function TackPage({
   searchParams,
@@ -25,15 +80,14 @@ export default async function TackPage({
     applicationNumber?: string
     nextStep?: string
     missing?: string
+    portal?: PortalStatus
   }>
 }) {
   const params = (await searchParams) ?? {}
-  const missing = (params.missing ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-
+  const missing = uniqueMissingFields(params.missing)
   const status = params.status ?? 'application_received'
+  const portal = portalMessage(params.portal)
+  const showLogin = params.portal === 'profile_linked'
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -47,7 +101,7 @@ export default async function TackPage({
         </h1>
 
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-          {friendlyStatusDescription(status)}
+          {friendlyStatusDescription(status)} Om du är ny kund får du ett separat mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor. Om du redan är kund loggar du in som vanligt.
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -62,6 +116,20 @@ export default async function TackPage({
           <div className="mt-2 text-xs text-gray-500">
             Nästa steg: {friendlyNextStepDescription(params.nextStep)}
           </div>
+        </div>
+
+        <div
+          className={[
+            'mt-6 rounded-2xl border p-5',
+            portal.tone === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : portal.tone === 'warning'
+                ? 'border-amber-500/30 bg-amber-500/10'
+                : 'border-cyan-500/20 bg-cyan-500/10',
+          ].join(' ')}
+        >
+          <div className="text-sm font-semibold text-white">{portal.title}</div>
+          <p className="mt-2 text-sm leading-6 text-gray-200">{portal.body}</p>
         </div>
 
         {missing.length > 0 ? (
@@ -87,17 +155,19 @@ export default async function TackPage({
           >
             Till startsidan
           </Link>
-          <Link
-            href="/mina-sidor"
-            className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
-          >
-            Gå till Mina sidor
-          </Link>
+          {showLogin ? (
+            <Link
+              href="/login"
+              className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
+            >
+              Logga in
+            </Link>
+          ) : null}
           <Link
             href="/kundservice"
             className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
           >
-            Kontakta kundservice
+            Kontakta oss
           </Link>
         </div>
       </section>

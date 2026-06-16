@@ -110,7 +110,15 @@ function mapOpsProfile(
       pick(row, ['customer_number', 'contract_customer_ref']) ??
       fallback?.contract_customer_ref ??
       null,
-    customer_number: pick(row, ['customer_number', 'customerNumber']) ?? null,
+    customer_number: pick(row, ['customer_number', 'customerNumber']) ?? fallback?.customer_number ?? null,
+    external_customer_id:
+      pick(row, ['external_customer_id', 'externalCustomerId']) ??
+      fallback?.external_customer_id ??
+      null,
+    portal_identity_id:
+      pick(row, ['portal_identity_id', 'portalIdentityId']) ??
+      fallback?.portal_identity_id ??
+      null,
     metadata: { source: 'ops_customer_api', raw: row },
     customer_type: pick(row, ['customer_type', 'customerType']) ?? fallback?.customer_type ?? null,
     company_name: pick(row, ['company_name', 'companyName']) ?? fallback?.company_name ?? null,
@@ -366,6 +374,9 @@ export async function getCustomerProfile(
     metadata: {},
     customer_type: null,
     company_name: null,
+    customer_number: null,
+    external_customer_id: null,
+    portal_identity_id: null,
   }
 }
 
@@ -428,6 +439,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     userId: user.id,
     email: user.email ?? localProfile?.email ?? null,
     customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
+    externalCustomerId: localProfile?.external_customer_id ?? localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
   }
 
   const [tickets, ops] = await Promise.all([

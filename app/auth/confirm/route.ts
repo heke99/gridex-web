@@ -25,7 +25,7 @@ function fallbackForType(type: EmailOtpType): string {
     case 'recovery':
       return '/login/reset-password'
     case 'invite':
-      return '/login?status=invited'
+      return '/login/reset-password'
     case 'email_change':
       return '/dashboard/profile?status=email-updated'
     case 'email':
