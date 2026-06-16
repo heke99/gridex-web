@@ -81,7 +81,10 @@ export type OpsCustomerApplicationInput = {
   contract_display_snapshot?: Record<string, unknown> | null;
   source: "gridex_website";
   idempotency_key: string;
+  external_customer_id: string;
   external_application_id: string;
+  customer_portal_user_id?: string | null;
+  auth_user_id?: string | null;
   utm_source?: string | null;
   utm_medium?: string | null;
   utm_campaign?: string | null;
@@ -1251,8 +1254,14 @@ export async function submitOpsCustomerApplication(
     throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
   }
 
+  const portalUserId = input.customer_portal_user_id ?? input.auth_user_id ?? null;
+  const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
+
   const applicationPayload = {
-    external_customer_id: input.external_application_id,
+    external_customer_id: input.external_customer_id,
+    external_application_id: input.external_application_id,
+    customer_portal_user_id: portalUserId,
+    auth_user_id: authUserId,
     source: input.source,
     customer: {
       customer_type: input.customer_type,
@@ -1398,19 +1407,16 @@ export type OpsPortalBundle = {
 
 function portalHeaders(identity: OpsPortalIdentity): Headers {
   const headers = new Headers();
-  const customerRef = identity.externalCustomerId ?? identity.customerNumber ?? null;
 
   // OPS links the external customer session to the correct tenant customer by
-  // Supabase auth user id plus one stable customer key. Keep the older header
-  // names for backwards compatibility while sending the new contract explicitly.
+  // Supabase auth user id plus one stable customer key. Do not send customer
+  // number as external_customer_id; OPS treats those as different identifiers.
   headers.set("x-gridex-customer-portal-user-id", identity.userId);
   headers.set("x-gridex-auth-user-id", identity.userId);
   headers.set("x-gridex-portal-user-id", identity.userId);
 
   if (identity.externalCustomerId) {
     headers.set("x-gridex-external-customer-id", identity.externalCustomerId);
-  } else if (customerRef) {
-    headers.set("x-gridex-external-customer-id", customerRef);
   }
 
   if (identity.customerNumber) {
@@ -1650,6 +1656,19 @@ export async function sendOpsCustomerEvent(
   });
 }
 
+export async function markOpsCustomerNotificationsRead(
+  identity: OpsPortalIdentity,
+  notificationIds: string[],
+): Promise<void> {
+  const ids = notificationIds.map((id) => id.trim()).filter(Boolean).slice(0, 100);
+  if (ids.length === 0) return;
+
+  await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
+    method: "POST",
+    body: JSON.stringify({ notification_ids: ids }),
+  });
+}
+
 export function hashIp(ip: string | null): string | null {
   if (!ip) return null;
   const pepper =
@@ -1661,6 +1680,20 @@ export function createApplicationIdempotencyKey(parts: string[]): string {
   return createHash("sha256")
     .update(parts.map((p) => p.trim().toLowerCase()).join("|"))
     .digest("hex");
+}
+
+export function createExternalCustomerId(parts: string[]): string {
+  const prefix = env("GRIDEX_WEBSITE_CUSTOMER_PREFIX") ?? "GRIDEX-WEB-CUSTOMER";
+  const stable = parts
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean)
+    .join("|");
+  const pepper = env("GRIDEX_WEBSITE_HASH_PEPPER") ?? env("PII_HASH_PEPPER") ?? "";
+  const digest = createHash("sha256")
+    .update(`${pepper}:${stable}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `${prefix}-${digest}`;
 }
 
 export function createExternalApplicationId(): string {

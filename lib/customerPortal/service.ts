@@ -680,7 +680,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     userId: user.id,
     email: user.email ?? localProfile?.email ?? null,
     customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
-    externalCustomerId: localProfile?.external_customer_id ?? localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
+    externalCustomerId: localProfile?.external_customer_id ?? null,
   }
 
   const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([

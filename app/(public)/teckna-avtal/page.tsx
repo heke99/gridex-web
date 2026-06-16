@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import SignupFlowClient from '@/components/signup/SignupFlowClient'
 import { type SignupContractOption } from '@/components/signup/CustomerApplicationForm'
 import {
   createApplicationIdempotencyKey,
   createExternalApplicationId,
+  createExternalCustomerId,
   fetchOpsPublicContracts,
   getOpsClientStatus,
   hashIp,
@@ -222,6 +224,24 @@ function sameContractSnapshot(offer: OpsPublicContract, snapshot: Record<string,
   return validateContractDisplaySnapshot(offer, snapshot).ok
 }
 
+function sameEmail(left: string | null | undefined, right: string): boolean {
+  return Boolean(left && left.trim().toLowerCase() === right.trim().toLowerCase())
+}
+
+async function getCurrentPortalAuth() {
+  try {
+    const supabase = await createSupabaseServerActionClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    return user ? { id: user.id, email: user.email ?? null } : null
+  } catch {
+    return null
+  }
+}
+
+
 export default async function TecknaPage({
   searchParams,
 }: {
@@ -389,6 +409,16 @@ export default async function TecknaPage({
       requestedStartDate || 'asap',
     ])
 
+    const currentAuth = await getCurrentPortalAuth()
+    const canLinkCurrentAuth = !currentAuth?.email || sameEmail(currentAuth.email, email)
+    const linkedAuthUserId = canLinkCurrentAuth ? currentAuth?.id ?? null : null
+    const externalCustomerId = createExternalCustomerId([
+      'gridex_website_customer_v1',
+      email,
+      customerType,
+      customerType === 'company' ? organizationNumber : personalNumber,
+    ])
+
     let successRedirect = ''
 
     try {
@@ -425,7 +455,10 @@ export default async function TecknaPage({
         contract_display_snapshot: contractDisplaySnapshot,
         source: 'gridex_website',
         idempotency_key: idempotencyKey,
+        external_customer_id: externalCustomerId,
         external_application_id: createExternalApplicationId(),
+        customer_portal_user_id: linkedAuthUserId,
+        auth_user_id: linkedAuthUserId,
         utm_source: normalizeText(formData.get('utm_source')) || null,
         utm_medium: normalizeText(formData.get('utm_medium')) || null,
         utm_campaign: normalizeText(formData.get('utm_campaign')) || null,

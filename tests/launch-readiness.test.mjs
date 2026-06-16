@@ -129,4 +129,18 @@ for (const variable of [
   assert.ok(envExample.includes(variable), `env.example must document ${variable}`)
 }
 
+
+const opsClient = read('lib/ops/client.ts')
+assertIncludes('lib/ops/client.ts', 'x-gridex-customer-portal-user-id', 'customer portal calls must send the explicit OPS auth-link header')
+assertIncludes('lib/ops/client.ts', 'x-gridex-auth-user-id', 'customer portal calls must send the auth user header')
+assertIncludes('lib/ops/client.ts', 'createExternalCustomerId', 'signup must create a stable external customer id')
+assertIncludes('lib/ops/client.ts', 'external_application_id: input.external_application_id', 'signup must keep application id separate from customer id')
+assert.ok(!opsClient.includes('identity.externalCustomerId ?? identity.customerNumber'), 'customer number must not be sent as external customer id')
+assertIncludes('app/(public)/teckna-avtal/page.tsx', 'customer_portal_user_id: linkedAuthUserId', 'logged-in signup must send customer_portal_user_id to OPS')
+assertIncludes('app/api/v1/customer/portal-bundle/route.ts', 'overview', 'web must expose local portal-bundle route')
+assertIncludes('app/api/v1/customer/events/route.ts', 'overview.events', 'web must expose customer events route')
+assertIncludes('app/api/v1/customer/metering-values/route.ts', 'overview.meteringValues', 'web must expose metering values route')
+assertIncludes('app/api/v1/customer/notifications/read/route.ts', 'markOpsCustomerNotificationsRead', 'web must expose notification read route')
+assertIncludes('docs/external-website-api-integration-guide.md', 'Customer Portal External Auth Linking', 'repo must document the tenant-to-OPS linking contract')
+
 console.log('Launch-readiness checks passed')

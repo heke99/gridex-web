@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { getCustomerProfile } from '@/lib/customerPortal/service'
 import { sendOpsCustomerEvent } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
@@ -39,9 +40,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unsupported event.' }, { status: 400 })
   }
 
+  const profile = await getCustomerProfile(supabase, user.id, user).catch(() => null)
+
   try {
     await sendOpsCustomerEvent(
-      { userId: user.id, email: user.email ?? null },
+      {
+        userId: user.id,
+        email: user.email ?? profile?.email ?? null,
+        customerNumber: profile?.customer_number ?? profile?.contract_customer_ref ?? null,
+        externalCustomerId: profile?.external_customer_id ?? null,
+      },
       {
         event_type: eventType,
         source: 'gridex_website',
