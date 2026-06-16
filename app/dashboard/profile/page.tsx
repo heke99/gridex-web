@@ -32,7 +32,7 @@ function statusMessage(status?: string) {
 
 export default async function DashboardProfilePage({ searchParams }: Props) {
   const { supabase, user } = await getPortalSession()
-  const profile = await getCustomerProfile(supabase, user.id)
+  const profile = await getCustomerProfile(supabase, user.id, user)
   const params = (await searchParams) ?? {}
   const message = statusMessage(params.status)
 

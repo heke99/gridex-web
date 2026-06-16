@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:launch": "node tests/launch-readiness.test.mjs"
+    "test:launch": "node tests/launch-readiness.test.mjs",
+    "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
+    "dotenv": "^17.4.2",
     "next": "^16.2.7",
     "pdfkit": "^0.17.2",
     "react": "19.2.3",

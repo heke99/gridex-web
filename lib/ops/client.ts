@@ -1488,9 +1488,9 @@ export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
   const [profile, contracts, sites] = await Promise.all([
-    customerObject("/api/v1/customer/me", identity),
-    customerRows("/api/v1/customer/contracts", identity),
-    customerRows("/api/v1/customer/sites", identity),
+    optionalCustomerObject("/api/v1/customer/me", identity),
+    optionalCustomerRows("/api/v1/customer/contracts", identity),
+    optionalCustomerRows("/api/v1/customer/sites", identity),
   ]);
 
   const [

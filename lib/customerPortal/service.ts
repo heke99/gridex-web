@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
@@ -29,6 +29,12 @@ type CustomerProfileFallbackRow = {
   phone: string | null
 }
 
+type LocalPortalLinkRow = Record<string, unknown>
+type LocalDeliveryPointRow = Record<string, unknown>
+type LocalInvoiceRow = Record<string, unknown>
+type LocalDocumentRow = Record<string, unknown>
+type LocalLegalAcceptanceRow = Record<string, unknown>
+
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
@@ -57,6 +63,73 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
+}
+
+function authMetadata(user?: User | null): Record<string, unknown> {
+  return asRecord(user?.user_metadata)
+}
+
+function looksLikeEmail(value: string | null | undefined): boolean {
+  return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+}
+
+function pickAuthText(user: User | null | undefined, keys: string[]): string | null {
+  const metadata = authMetadata(user)
+  return pick(metadata, keys)
+}
+
+function mergeProfileWithAuth(
+  profile: CustomerProfile,
+  user?: User | null
+): CustomerProfile {
+  const firstName =
+    profile.first_name ?? pickAuthText(user, ['first_name', 'firstName', 'given_name'])
+  const lastName =
+    profile.last_name ?? pickAuthText(user, ['last_name', 'lastName', 'family_name'])
+  const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
+  const authFullName = pickAuthText(user, [
+    'full_name',
+    'fullName',
+    'name',
+    'display_name',
+    'displayName',
+  ])
+  const existingFullName = looksLikeEmail(profile.full_name) ? null : profile.full_name
+
+  return {
+    ...profile,
+    email: profile.email ?? user?.email ?? null,
+    first_name: firstName,
+    last_name: lastName,
+    full_name: existingFullName ?? authFullName ?? computedFullName,
+    phone: profile.phone ?? pickAuthText(user, ['phone', 'phone_number', 'phoneNumber']),
+  }
+}
+
+function profileFromAuth(user: User): CustomerProfile {
+  return mergeProfileWithAuth(
+    {
+      user_id: user.id,
+      email: user.email ?? null,
+      first_name: null,
+      last_name: null,
+      full_name: null,
+      phone: null,
+      language_code: 'sv',
+      timezone: 'Europe/Stockholm',
+      email_verified_at: user.email_confirmed_at ?? null,
+      onboarding_state: user.email_confirmed_at ? 'verified' : 'pending_verification',
+      billing_customer_ref: null,
+      contract_customer_ref: null,
+      metadata: { source: 'auth_user' },
+      customer_type: null,
+      company_name: null,
+      customer_number: null,
+      external_customer_id: null,
+      portal_identity_id: null,
+    },
+    user
+  )
 }
 
 function pick(row: Record<string, unknown>, keys: string[]): string | null {
@@ -172,9 +245,9 @@ function mapOpsSite(row: Record<string, unknown>): CustomerSite {
     postal_code: pick(row, ['postal_code', 'zip', 'postcode']),
     city: pick(row, ['city', 'postal_city']),
     facility_id: pick(row, ['facility_id', 'site_facility_id']),
-    metering_point_id: pick(row, ['metering_point_id', 'mpan']),
-    grid_area_code: pick(row, ['grid_area_code', 'network_area_code']),
-    price_area: pick(row, ['price_area', 'price_area_code', 'electricity_area']),
+    metering_point_id: pick(row, ['metering_point_id', 'mpan', 'external_metering_ref']),
+    grid_area_code: pick(row, ['grid_area_code', 'network_area_code', 'network_area_ref']),
+    price_area: pick(row, ['price_area', 'price_area_code', 'electricity_area', 'area_code']),
     grid_owner_name: pick(row, ['grid_owner_name', 'grid_owner', 'dso_name']),
     verification_status: pick(row, ['verification_status', 'facility_verification_status']),
     onboarding_status: pick(row, ['onboarding_status', 'site_status']),
@@ -322,6 +395,156 @@ function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValu
   }
 }
 
+function mapLocalDocument(row: LocalDocumentRow): CustomerDocument {
+  const title =
+    pick(row, ['title', 'document_name', 'file_name']) ??
+    pick(row, ['document_type', 'type'])
+
+  return {
+    id: pick(row, ['id', 'document_id']) ?? crypto.randomUUID(),
+    title,
+    document_type: pick(row, ['document_type', 'type']),
+    status: pick(row, ['status']) ?? 'available',
+    created_at: pickDate(row, ['created_at', 'issued_at', 'published_at']),
+    file_url: pick(row, ['file_url', 'url', 'pdf_url']),
+    download_url: pick(row, ['download_url']),
+    version: pick(row, ['version', 'legal_version']),
+  }
+}
+
+function mapLocalLegalAcceptance(row: LocalLegalAcceptanceRow): CustomerLegalAcceptance {
+  return mapOpsLegalAcceptance({ ...row, acceptance_type: row.acceptance_type ?? row.type })
+}
+
+function localPowersOfAttorneyFromAcceptances(
+  acceptances: CustomerLegalAcceptance[]
+): CustomerPowerOfAttorney[] {
+  return acceptances
+    .filter((item) => item.acceptance_type === 'power_of_attorney')
+    .map((item) => ({
+      id: `poa-${item.id}`,
+      status: item.status ?? 'accepted',
+      scope: 'facility_data_request',
+      accepted_at: item.accepted_at,
+      revoked_at: null,
+      valid_until: null,
+      title: item.title ?? 'Fullmakt för anläggningsuppgifter',
+      version: item.version,
+    }))
+}
+
+function mergeById<T extends { id: string }>(primary: T[], fallback: T[]): T[] {
+  const seen = new Set<string>()
+  const merged: T[] = []
+
+  for (const item of [...primary, ...fallback]) {
+    if (seen.has(item.id)) continue
+    seen.add(item.id)
+    merged.push(item)
+  }
+
+  return merged
+}
+
+async function getLocalContracts(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerPortalContract[]> {
+  const { data, error } = await supabase
+    .from('customer_contract_portal_links')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return ((data ?? []) as LocalPortalLinkRow[]).map(mapOpsContract)
+}
+
+async function getLocalSites(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerSite[]> {
+  const { data, error } = await supabase
+    .from('customer_delivery_points')
+    .select('*')
+    .eq('user_id', userId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return ((data ?? []) as LocalDeliveryPointRow[]).map(mapOpsSite)
+}
+
+async function getLocalInvoices(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerInvoice[]> {
+  const { data, error } = await supabase
+    .from('customer_invoices')
+    .select('*')
+    .eq('user_id', userId)
+    .order('issued_at', { ascending: false })
+    .limit(50)
+
+  if (error) return []
+  return ((data ?? []) as LocalInvoiceRow[]).map(mapOpsInvoice)
+}
+
+async function getLocalDocuments(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<CustomerDocument[]> {
+  const { data, error } = await supabase
+    .from('customer_documents')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) return []
+  return ((data ?? []) as LocalDocumentRow[]).map(mapLocalDocument)
+}
+
+async function getLocalLegalAcceptances(
+  supabase: SupabaseClient,
+  contracts: CustomerPortalContract[]
+): Promise<CustomerLegalAcceptance[]> {
+  const agreementIds = contracts
+    .map((contract) => contract.agreement_id)
+    .filter((id): id is string => Boolean(id))
+
+  if (agreementIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('legal_acceptances')
+    .select('*')
+    .in('agreement_id', agreementIds)
+    .order('accepted_at', { ascending: false })
+
+  if (error) return []
+  return ((data ?? []) as LocalLegalAcceptanceRow[]).map(mapLocalLegalAcceptance)
+}
+
+function deriveSwitchStatus(
+  contracts: CustomerPortalContract[],
+  sites: CustomerSite[]
+): CustomerSwitchStatus | null {
+  const contract = contracts[0]
+  const site = sites[0]
+  if (!contract && !site) return null
+
+  return {
+    status: contract?.status ?? site?.verification_status ?? site?.resolution_status ?? null,
+    next_step: null,
+    requested_start_date: contract?.requested_start_date ?? null,
+    confirmed_start_date: contract?.confirmed_start_date ?? null,
+    missing_fields: [],
+    grid_owner_name: site?.grid_owner_name ?? null,
+    facility_id: site?.facility_id ?? null,
+    metering_point_id: site?.metering_point_id ?? null,
+  }
+}
+
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
@@ -331,7 +554,8 @@ export async function getPortalSession() {
 
 export async function getCustomerProfile(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  user?: User | null
 ): Promise<CustomerProfile | null> {
   const { data } = await supabase
     .from('customer_profiles')
@@ -340,7 +564,7 @@ export async function getCustomerProfile(
     .maybeSingle<CustomerProfile>()
 
   if (data) {
-    return data
+    return mergeProfileWithAuth(data, user)
   }
 
   const { data: fallback } = await supabase
@@ -352,13 +576,13 @@ export async function getCustomerProfile(
     .maybeSingle<CustomerProfileFallbackRow>()
 
   if (!fallback) {
-    return null
+    return user ? profileFromAuth(user) : null
   }
 
   const fullName =
     [fallback.first_name, fallback.last_name].filter(Boolean).join(' ') || null
 
-  return {
+  return mergeProfileWithAuth({
     user_id: fallback.user_id,
     email: fallback.email,
     first_name: fallback.first_name,
@@ -377,7 +601,7 @@ export async function getCustomerProfile(
     customer_number: null,
     external_customer_id: null,
     portal_identity_id: null,
-  }
+  }, user)
 }
 
 export async function getCustomerTickets(
@@ -434,7 +658,7 @@ export async function getCustomerNotifications(
 
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
-  const localProfile = await getCustomerProfile(supabase, user.id)
+  const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity: OpsPortalIdentity = {
     userId: user.id,
     email: user.email ?? localProfile?.email ?? null,
@@ -442,8 +666,12 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     externalCustomerId: localProfile?.external_customer_id ?? localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
   }
 
-  const [tickets, ops] = await Promise.all([
+  const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
     getCustomerTickets(supabase, user.id),
+    getLocalContracts(supabase, user.id),
+    getLocalSites(supabase, user.id),
+    getLocalInvoices(supabase, user.id),
+    getLocalDocuments(supabase, user.id),
     fetchOpsCustomerPortalBundle(identity)
       .then((bundle) => ({ bundle, error: null as string | null }))
       .catch((error) => ({
@@ -455,6 +683,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
       })),
   ])
 
+  const localLegalAcceptances = await getLocalLegalAcceptances(supabase, localContracts)
   const profile = mapOpsProfile(
     ops.bundle?.profile ?? null,
     localProfile,
@@ -462,21 +691,47 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     user.email ?? null
   )
   const notifications = await getCustomerNotifications(supabase, user.id, profile)
+  const contracts = mergeById((ops.bundle?.contracts ?? []).map(mapOpsContract), localContracts)
+  const sites = mergeById((ops.bundle?.sites ?? []).map(mapOpsSite), localSites)
+  const invoices = mergeById((ops.bundle?.invoices ?? []).map(mapOpsInvoice), localInvoices)
+  const documents = mergeById((ops.bundle?.documents ?? []).map(mapOpsDocument), localDocuments)
+  const legalAcceptances = mergeById(
+    (ops.bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance),
+    localLegalAcceptances
+  )
+  const powersOfAttorney = mergeById(
+    (ops.bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney),
+    localPowersOfAttorneyFromAcceptances(legalAcceptances)
+  )
+  const switchStatus =
+    mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null) ?? deriveSwitchStatus(contracts, sites)
+  const meteringValues = (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue)
+  const events = (ops.bundle?.events ?? []).map(mapOpsEvent)
+  const hasCustomerData = Boolean(
+    profile ||
+      contracts.length ||
+      sites.length ||
+      invoices.length ||
+      documents.length ||
+      legalAcceptances.length ||
+      powersOfAttorney.length ||
+      notifications.length
+  )
 
   return {
     profile,
-    contracts: (ops.bundle?.contracts ?? []).map(mapOpsContract),
-    sites: (ops.bundle?.sites ?? []).map(mapOpsSite),
-    invoices: (ops.bundle?.invoices ?? []).map(mapOpsInvoice),
-    documents: (ops.bundle?.documents ?? []).map(mapOpsDocument),
-    legalAcceptances: (ops.bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance),
-    powersOfAttorney: (ops.bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney),
-    switchStatus: mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null),
-    meteringValues: (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue),
-    events: (ops.bundle?.events ?? []).map(mapOpsEvent),
+    contracts,
+    sites,
+    invoices,
+    documents,
+    legalAcceptances,
+    powersOfAttorney,
+    switchStatus,
+    meteringValues,
+    events,
     tickets,
     notifications,
-    opsAvailable: Boolean(ops.bundle),
+    opsAvailable: hasCustomerData,
     opsError: ops.error,
   }
 }

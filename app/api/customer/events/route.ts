@@ -10,6 +10,8 @@ const ALLOWED = new Set([
   'customer.downloaded_contract',
   'customer.opened_invoice',
   'customer.downloaded_invoice',
+  'customer.opened_document',
+  'customer.downloaded_document',
   'customer.updated_contact_details',
   'customer.accepted_power_of_attorney',
   'customer.completed_facility_data',

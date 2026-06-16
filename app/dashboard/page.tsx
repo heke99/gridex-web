@@ -27,9 +27,17 @@ function customerStatusText(status: string | null | undefined) {
   return friendlyStatusLabel(status ?? undefined)
 }
 
-function getDisplayName(profile: { full_name?: string | null; email?: string | null } | null) {
+function getDisplayName(
+  profile: {
+    company_name?: string | null
+    first_name?: string | null
+    full_name?: string | null
+    last_name?: string | null
+  } | null
+) {
   if (!profile) return 'kund'
-  return profile.full_name || profile.email || 'kund'
+  const personalName = [profile.first_name, profile.last_name].filter(Boolean).join(' ')
+  return profile.company_name || profile.full_name || personalName || 'kund'
 }
 
 function getCustomerLabel(
