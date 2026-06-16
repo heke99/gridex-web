@@ -87,14 +87,18 @@ function mergeProfileWithAuth(
   const lastName =
     profile.last_name ?? pickAuthText(user, ['last_name', 'lastName', 'family_name'])
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const authFullName = pickAuthText(user, [
+  const authFullNameRaw = pickAuthText(user, [
     'full_name',
     'fullName',
     'name',
     'display_name',
     'displayName',
   ])
+  const authFullName = looksLikeEmail(authFullNameRaw) ? null : authFullNameRaw
   const existingFullName = looksLikeEmail(profile.full_name) ? null : profile.full_name
+  const authCustomerNumber = pickAuthText(user, ['customer_number', 'customerNumber'])
+  const authExternalCustomerId = pickAuthText(user, ['external_customer_id', 'externalCustomerId'])
+  const authPortalIdentityId = pickAuthText(user, ['portal_identity_id', 'portalIdentityId'])
 
   return {
     ...profile,
@@ -103,6 +107,10 @@ function mergeProfileWithAuth(
     last_name: lastName,
     full_name: existingFullName ?? authFullName ?? computedFullName,
     phone: profile.phone ?? pickAuthText(user, ['phone', 'phone_number', 'phoneNumber']),
+    customer_number: profile.customer_number ?? authCustomerNumber,
+    contract_customer_ref: profile.contract_customer_ref ?? authCustomerNumber,
+    external_customer_id: profile.external_customer_id ?? authExternalCustomerId,
+    portal_identity_id: profile.portal_identity_id ?? authPortalIdentityId,
   }
 }
 
@@ -156,9 +164,10 @@ function mapOpsProfile(
   const firstName = pick(row, ['first_name', 'firstName']) ?? fallback?.first_name ?? null
   const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
+  const opsFullName = pick(row, ['full_name', 'fullName', 'name'])
   const fullName =
-    pick(row, ['full_name', 'fullName', 'name']) ??
-    fallback?.full_name ??
+    (looksLikeEmail(opsFullName) ? null : opsFullName) ??
+    (looksLikeEmail(fallback?.full_name) ? null : fallback?.full_name) ??
     computedFullName
 
   return {
@@ -728,15 +737,16 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null) ?? deriveSwitchStatus(contracts, sites)
   const meteringValues = (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue)
   const events = (ops.bundle?.events ?? []).map(mapOpsEvent)
-  const hasCustomerData = Boolean(
-    profile ||
-      contracts.length ||
-      sites.length ||
-      invoices.length ||
-      documents.length ||
-      legalAcceptances.length ||
-      powersOfAttorney.length ||
-      notifications.length
+  const hasOpsData = Boolean(
+    ops.bundle &&
+      (ops.bundle.profile ||
+        ops.bundle.contracts.length ||
+        ops.bundle.sites.length ||
+        ops.bundle.invoices.length ||
+        ops.bundle.documents.length ||
+        ops.bundle.legalAcceptances.length ||
+        ops.bundle.powersOfAttorney.length ||
+        ops.bundle.notifications.length)
   )
 
   return {
@@ -752,7 +762,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     events,
     tickets,
     notifications,
-    opsAvailable: hasCustomerData,
+    opsAvailable: !ops.error && hasOpsData,
     opsError: ops.error,
   }
 }
