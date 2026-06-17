@@ -81,7 +81,7 @@ export type OpsCustomerApplicationInput = {
   contract_display_snapshot?: Record<string, unknown> | null;
   source: "gridex_website";
   idempotency_key: string;
-  external_customer_id: string;
+  external_customer_id?: string | null;
   external_application_id: string;
   customer_portal_user_id?: string | null;
   auth_user_id?: string | null;
@@ -237,12 +237,11 @@ function env(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-const OPS_BASE_URL_ENV_NAMES = [
-  "GRIDEX_OPS_API_URL",
-  "GRIDEX_OPS_BASE_URL",
-  "GRIDEX_OPS_URL",
-  "OPS_API_URL",
-] as const;
+function opsBaseUrl(): string | undefined {
+  const value = env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL");
+  if (!value) return undefined;
+  return value.replace(/\/+$/, "");
+}
 
 const OPS_API_KEY_ENV_NAMES = [
   "GRIDEX_WEBSITE_API_KEY",
@@ -252,60 +251,28 @@ const OPS_API_KEY_ENV_NAMES = [
   "OPS_API_KEY",
 ] as const;
 
-function firstConfiguredEnv(names: readonly string[]): string | undefined {
-  for (const name of names) {
+function opsApiKey(): { value?: string; source?: string; invalidReason?: string } {
+  for (const name of OPS_API_KEY_ENV_NAMES) {
     const value = env(name);
-    if (value) return value;
-  }
-  return undefined;
-}
+    if (!value) continue;
 
-function opsBaseUrl(): string | undefined {
-  const value = firstConfiguredEnv(OPS_BASE_URL_ENV_NAMES);
-  if (!value) return undefined;
-  return value.replace(/\/+$/, "");
-}
+    const prefixOnly = /^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18;
+    if (prefixOnly) {
+      return { source: name, invalidReason: `${name} innehåller bara API-nyckelns prefix, inte hela token.` };
+    }
 
-function opsApiKey(): string | undefined {
-  return firstConfiguredEnv(OPS_API_KEY_ENV_NAMES);
-}
-
-function looksLikeApiKeyPrefixOnly(value: string | undefined): boolean {
-  if (!value) return false;
-  return /^gdxp_[a-z0-9]{6,16}$/i.test(value.trim());
-}
-
-function safeOpsErrorDetails(error: unknown): Record<string, unknown> {
-  if (isOpsError(error)) {
-    const details =
-      error.details && typeof error.details === "object" && !Array.isArray(error.details)
-        ? (error.details as Record<string, unknown>)
-        : {};
-    return {
-      name: error.name,
-      status: error.status,
-      message: error.message,
-      code: details.code,
-      path: details.path,
-      missing: details.missing,
-      configured_env: details.configured_env,
-      content_type: details.content_type,
-    };
+    return { value, source: name };
   }
 
-  return {
-    name: error instanceof Error ? error.name : typeof error,
-    message: error instanceof Error ? error.message : String(error),
-  };
+  return {};
 }
 
 export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = [];
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
-  if (!baseUrl) missing.push(OPS_BASE_URL_ENV_NAMES.join("|"));
-  if (!apiKey) missing.push(OPS_API_KEY_ENV_NAMES.join("|"));
-  if (looksLikeApiKeyPrefixOnly(apiKey)) missing.push("OPS_API_KEY_FULL_SECRET_NOT_PREFIX");
+  if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
+  if (!apiKey.value) missing.push(apiKey.invalidReason ?? "GRIDEX_WEBSITE_API_KEY");
 
   let unsafeProductionUrl = false;
   if (
@@ -870,23 +837,17 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const apiKey = opsApiKey();
   const fallbackMessage = "Tjänsten kunde inte slutföra åtgärden just nu.";
 
-  if (!baseUrl || !apiKey || looksLikeApiKeyPrefixOnly(apiKey)) {
-    const status = getOpsClientStatus();
-    const configuredApiKeyEnv = OPS_API_KEY_ENV_NAMES.find((name) => Boolean(env(name))) ?? null;
-    const configuredBaseUrlEnv = OPS_BASE_URL_ENV_NAMES.find((name) => Boolean(env(name))) ?? null;
+  if (!baseUrl || !apiKey.value) {
     throw new OpsError("Tjänsten är inte tillgänglig just nu.", 503, {
-      path,
-      missing: status.missing,
-      configured_env: {
-        api_key: configuredApiKeyEnv,
-        base_url: configuredBaseUrlEnv,
-      },
+      missing: getOpsClientStatus().missing,
+      key_source: apiKey.source ?? null,
+      invalid_reason: apiKey.invalidReason ?? null,
     });
   }
 
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");
-  headers.set("Authorization", `Bearer ${apiKey}`);
+  headers.set("Authorization", `Bearer ${apiKey.value}`);
   if (!headers.has("Content-Type") && init?.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -931,14 +892,10 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   }
 
   if (!res.ok) {
-    const payloadDetails =
-      payload && typeof payload === "object" && !Array.isArray(payload)
-        ? (payload as Record<string, unknown>)
-        : { payload };
     throw new OpsError(
       customerSafeOpsMessage(payload, fallbackMessage),
       res.status,
-      { ...payloadDetails, path, status: res.status },
+      payload,
     );
   }
 
@@ -1327,7 +1284,7 @@ export async function submitOpsCustomerApplication(
   const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
 
   const applicationPayload = {
-    external_customer_id: input.external_customer_id,
+    external_customer_id: input.external_customer_id ?? null,
     external_application_id: input.external_application_id,
     customer_portal_user_id: portalUserId,
     auth_user_id: authUserId,
@@ -1476,23 +1433,19 @@ export type OpsPortalBundle = {
 
 function portalHeaders(identity: OpsPortalIdentity): Headers {
   const headers = new Headers();
+  const externalCustomerId =
+    identity.externalCustomerId && identity.externalCustomerId !== identity.customerNumber
+      ? identity.externalCustomerId
+      : null;
 
-  // OPS links the external customer session to the correct tenant customer by
-  // Supabase auth user id plus one stable customer key. Do not send customer
-  // number as external_customer_id; OPS treats those as different identifiers.
   headers.set("x-gridex-customer-portal-user-id", identity.userId);
   headers.set("x-gridex-auth-user-id", identity.userId);
   headers.set("x-gridex-portal-user-id", identity.userId);
 
-  if (identity.externalCustomerId) {
-    headers.set("x-gridex-external-customer-id", identity.externalCustomerId);
-  }
-
-  if (identity.customerNumber) {
-    headers.set("x-gridex-customer-number", identity.customerNumber);
-  }
-
+  if (externalCustomerId) headers.set("x-gridex-external-customer-id", externalCustomerId);
+  if (identity.customerNumber) headers.set("x-gridex-customer-number", identity.customerNumber);
   if (identity.email) headers.set("x-gridex-customer-email", identity.email);
+
   return headers;
 }
 
@@ -1556,8 +1509,8 @@ async function optionalCustomerRows(
   try {
     return await customerRows(path, identity);
   } catch (error) {
-    console.warn(`[ops customer portal] optional rows failed for ${path}`, error);
-    return [];
+    if (isOpsError(error) && error.status === 404) return [];
+    throw error;
   }
 }
 
@@ -1568,79 +1521,65 @@ async function optionalCustomerObject(
   try {
     return await customerObject(path, identity);
   } catch (error) {
-    console.warn(`[ops customer portal] optional object failed for ${path}`, error);
-    return null;
+    if (isOpsError(error) && error.status === 404) return null;
+    throw error;
   }
 }
 
-function portalBundleSource(payload: unknown): Record<string, unknown> {
-  const root = extractObject(payload);
-  const bundle = recordValue(root.bundle) ?? recordValue(root.portalBundle);
-  return bundle ? { ...root, ...bundle } : root;
+function objectArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object" && !Array.isArray(item)),
+      )
+    : [];
 }
 
-function portalBundleRows(
-  source: Record<string, unknown>,
-  keys: string[],
-): Record<string, unknown>[] {
+function nestedArray(row: Record<string, unknown>, keys: string[]): Record<string, unknown>[] {
   for (const key of keys) {
-    const value = source[key];
-    if (Array.isArray(value)) {
-      return value.filter((item): item is Record<string, unknown> =>
-        Boolean(item && typeof item === "object" && !Array.isArray(item)),
-      );
-    }
+    const value = row[key];
+    if (Array.isArray(value)) return objectArray(value);
   }
   return [];
 }
 
-function portalBundleObject(
-  source: Record<string, unknown>,
-  keys: string[],
-): Record<string, unknown> | null {
-  for (const key of keys) {
-    const value = source[key];
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
-    }
-  }
-  return null;
-}
+function normalizePortalBundle(payload: unknown): OpsPortalBundle {
+  const root = extractObject(payload);
+  const data = recordValue(root.data) ?? root;
+  const customer = recordValue(data.customer) ?? recordValue(data.profile) ?? recordValue(data.me);
 
-function mapPortalBundle(payload: unknown): OpsPortalBundle {
-  const source = portalBundleSource(payload);
   return {
-    profile: portalBundleObject(source, ["profile", "customer", "me"]),
-    contracts: portalBundleRows(source, ["contracts", "agreements"]),
-    sites: portalBundleRows(source, ["sites", "customer_sites", "facilities"]),
-    invoices: portalBundleRows(source, ["invoices"]),
-    documents: portalBundleRows(source, ["documents"]),
-    legalAcceptances: portalBundleRows(source, [
+    profile: customer,
+    contracts: nestedArray(data, ["contracts", "customer_contracts", "customerContracts"]),
+    sites: nestedArray(data, ["sites", "customer_sites", "customerSites", "facilities"]),
+    invoices: nestedArray(data, ["invoices", "customer_invoices", "customerInvoices"]),
+    documents: nestedArray(data, ["documents", "customer_documents", "customerDocuments"]),
+    legalAcceptances: nestedArray(data, [
       "legalAcceptances",
       "legal_acceptances",
-      "acceptances",
+      "customer_legal_acceptances",
+      "customerLegalAcceptances",
     ]),
-    powersOfAttorney: portalBundleRows(source, [
+    powersOfAttorney: nestedArray(data, [
       "powersOfAttorney",
       "powers_of_attorney",
-      "powerOfAttorney",
+      "power_of_attorney",
+      "customer_power_of_attorney",
     ]),
-    switchStatus: portalBundleObject(source, [
-      "switchStatus",
-      "switch_status",
-      "supplierSwitch",
-    ]),
-    events: portalBundleRows(source, ["events"]),
-    meteringValues: portalBundleRows(source, [
+    switchStatus:
+      recordValue(data.switchStatus) ??
+      recordValue(data.switch_status) ??
+      recordValue(data.supplier_switch_status),
+    events: nestedArray(data, ["events", "customer_events", "portal_events"]),
+    meteringValues: nestedArray(data, [
       "meteringValues",
       "metering_values",
-      "measurements",
+      "normalized_metering_values",
     ]),
-    notifications: portalBundleRows(source, ["notifications"]),
+    notifications: nestedArray(data, ["notifications", "customer_notifications", "customerNotifications"]),
   };
 }
 
-async function fetchOpsCustomerPortalBundleLegacy(
+async function fetchLegacyCustomerPortalBundle(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
   const [profile, contracts, sites] = await Promise.all([
@@ -1688,22 +1627,20 @@ export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
   try {
-    const payload = await opsCustomerFetch(
-      "/api/v1/customer/portal-bundle",
-      identity,
+    return normalizePortalBundle(
+      await opsCustomerFetch("/api/v1/customer/portal-bundle", identity),
     );
-    return mapPortalBundle(payload);
   } catch (error) {
-    if (!isOpsError(error) || error.status !== 404) {
-      console.warn(
-        "[ops customer portal] portal-bundle failed",
-        safeOpsErrorDetails(error),
-      );
-      throw error;
+    if (isOpsError(error) && error.status === 404) {
+      return fetchLegacyCustomerPortalBundle(identity);
     }
-  }
 
-  return fetchOpsCustomerPortalBundleLegacy(identity);
+    console.warn("[ops customer portal] portal-bundle failed", {
+      status: isOpsError(error) ? error.status : null,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export async function sendOpsCustomerEvent(
@@ -1717,30 +1654,15 @@ export async function sendOpsCustomerEvent(
   },
 ): Promise<void> {
   const headers = portalHeaders(identity);
-  await opsFetchWithFallback(["/api/v1/events", "/api/v1/website/customer-events"], {
+  await opsFetch("/api/v1/website/customer-events", {
     method: "POST",
     headers,
     body: JSON.stringify({
       ...event,
-      external_customer_id: identity.externalCustomerId ?? null,
-      customer_number: identity.customerNumber ?? null,
+      external_customer_id: identity.externalCustomerId ?? identity.customerNumber ?? null,
       customer_email: identity.email ?? null,
       portal_user_id: identity.userId,
-      auth_user_id: identity.userId,
     }),
-  });
-}
-
-export async function markOpsCustomerNotificationsRead(
-  identity: OpsPortalIdentity,
-  notificationIds: string[],
-): Promise<void> {
-  const ids = notificationIds.map((id) => id.trim()).filter(Boolean).slice(0, 100);
-  if (ids.length === 0) return;
-
-  await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
-    method: "POST",
-    body: JSON.stringify({ notification_ids: ids }),
   });
 }
 

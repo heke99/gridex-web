@@ -87,18 +87,14 @@ function mergeProfileWithAuth(
   const lastName =
     profile.last_name ?? pickAuthText(user, ['last_name', 'lastName', 'family_name'])
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const authFullNameRaw = pickAuthText(user, [
+  const authFullName = pickAuthText(user, [
     'full_name',
     'fullName',
     'name',
     'display_name',
     'displayName',
   ])
-  const authFullName = looksLikeEmail(authFullNameRaw) ? null : authFullNameRaw
   const existingFullName = looksLikeEmail(profile.full_name) ? null : profile.full_name
-  const authCustomerNumber = pickAuthText(user, ['customer_number', 'customerNumber'])
-  const authExternalCustomerId = pickAuthText(user, ['external_customer_id', 'externalCustomerId'])
-  const authPortalIdentityId = pickAuthText(user, ['portal_identity_id', 'portalIdentityId'])
 
   return {
     ...profile,
@@ -107,10 +103,6 @@ function mergeProfileWithAuth(
     last_name: lastName,
     full_name: existingFullName ?? authFullName ?? computedFullName,
     phone: profile.phone ?? pickAuthText(user, ['phone', 'phone_number', 'phoneNumber']),
-    customer_number: profile.customer_number ?? authCustomerNumber,
-    contract_customer_ref: profile.contract_customer_ref ?? authCustomerNumber,
-    external_customer_id: profile.external_customer_id ?? authExternalCustomerId,
-    portal_identity_id: profile.portal_identity_id ?? authPortalIdentityId,
   }
 }
 
@@ -164,10 +156,9 @@ function mapOpsProfile(
   const firstName = pick(row, ['first_name', 'firstName']) ?? fallback?.first_name ?? null
   const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const opsFullName = pick(row, ['full_name', 'fullName', 'name'])
   const fullName =
-    (looksLikeEmail(opsFullName) ? null : opsFullName) ??
-    (looksLikeEmail(fallback?.full_name) ? null : fallback?.full_name) ??
+    pick(row, ['full_name', 'fullName', 'name']) ??
+    fallback?.full_name ??
     computedFullName
 
   return {
@@ -250,11 +241,11 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
 function mapOpsSite(row: Record<string, unknown>): CustomerSite {
   return {
     id: pick(row, ['id', 'customer_site_id', 'site_id']) ?? crypto.randomUUID(),
-    address: pick(row, ['address', 'street', 'street_address', 'facility_address']),
-    postal_code: pick(row, ['postal_code', 'zip', 'postcode']),
-    city: pick(row, ['city', 'postal_city']),
-    facility_id: pick(row, ['facility_id', 'site_facility_id']),
-    metering_point_id: pick(row, ['metering_point_id', 'mpan', 'external_metering_ref']),
+    address: pick(row, ['address', 'street', 'street_address', 'facility_address', 'site_address']),
+    postal_code: pick(row, ['postal_code', 'postalCode', 'zip', 'postcode']),
+    city: pick(row, ['city', 'postal_city', 'postalCity']),
+    facility_id: pick(row, ['facility_id', 'facilityId', 'site_facility_id']),
+    metering_point_id: pick(row, ['metering_point_id', 'meteringPointId', 'mpan', 'external_metering_ref']),
     grid_area_code: pick(row, ['grid_area_code', 'network_area_code', 'network_area_ref']),
     price_area: pick(row, ['price_area', 'price_area_code', 'electricity_area', 'area_code']),
     grid_owner_name: pick(row, ['grid_owner_name', 'grid_owner', 'dso_name']),
@@ -297,23 +288,6 @@ function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
     status: pick(row, ['status']),
     created_at: pickDate(row, ['created_at', 'occurred_at']) ?? new Date().toISOString(),
     metadata: asRecord(row.metadata ?? row.payload),
-  }
-}
-
-
-function mapOpsNotification(row: Record<string, unknown>): CustomerNotification {
-  return {
-    id: pick(row, ['id', 'notification_id']) ?? crypto.randomUUID(),
-    category: pick(row, ['category', 'type']) ?? 'general',
-    title: pick(row, ['title', 'subject']) ?? 'Meddelande',
-    body: pick(row, ['body', 'message', 'summary']) ?? '',
-    is_read: row.is_read === true || row.read === true,
-    read_at: pickDate(row, ['read_at', 'readAt']),
-    created_at: pickDate(row, ['created_at', 'createdAt', 'occurred_at']) ?? new Date().toISOString(),
-    related_entity_type: pick(row, ['related_entity_type', 'entity_type']),
-    related_entity_id: pick(row, ['related_entity_id', 'entity_id']),
-    link_href: pick(row, ['link_href', 'href', 'url']),
-    priority: pick(row, ['priority']),
   }
 }
 
@@ -418,6 +392,22 @@ function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValu
     quantity_kwh: asNumber(row.quantity_kwh ?? row.kwh ?? row.value),
     quality: pick(row, ['quality', 'quality_status']),
     source: pick(row, ['source']),
+  }
+}
+
+function mapOpsNotification(row: Record<string, unknown>): CustomerNotification {
+  return {
+    id: pick(row, ['id', 'notification_id']) ?? crypto.randomUUID(),
+    category: pick(row, ['category', 'type']) ?? 'portal',
+    title: pick(row, ['title', 'subject']) ?? 'Meddelande från Gridex',
+    body: pick(row, ['body', 'message', 'summary']) ?? '',
+    is_read: Boolean(row.is_read ?? row.read_at),
+    read_at: pickDate(row, ['read_at', 'readAt']),
+    created_at: pickDate(row, ['created_at', 'createdAt']) ?? new Date().toISOString(),
+    related_entity_type: pick(row, ['related_entity_type', 'relatedEntityType']),
+    related_entity_id: pick(row, ['related_entity_id', 'relatedEntityId']),
+    link_href: pick(row, ['link_href', 'linkHref', 'url']),
+    priority: pick(row, ['priority']),
   }
 }
 
@@ -571,23 +561,6 @@ function deriveSwitchStatus(
   }
 }
 
-function externalCustomerIdForOps(profile: CustomerProfile | null): string | null {
-  const external = profile?.external_customer_id?.trim() || null
-  const customerNumber = (profile?.customer_number ?? profile?.contract_customer_ref)?.trim() || null
-
-  // OPS treats customer number and external customer id as separate identifiers.
-  // Old local portal rows may have external_customer_id = DX-100023; send that
-  // only as x-gridex-customer-number, not as x-gridex-external-customer-id.
-  if (!external || external === customerNumber || /^DX-\d+/i.test(external)) return null
-  return external
-}
-
-function portalOverviewError(error: unknown): string {
-  console.warn('[customer portal] OPS overview fetch failed', error)
-  if (error instanceof Error && error.message) return error.message
-  return 'Kunduppgifterna kunde inte hämtas just nu.'
-}
-
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
@@ -699,6 +672,15 @@ export async function getCustomerNotifications(
   return (data ?? []) as CustomerNotification[]
 }
 
+function stableExternalCustomerId(profile: CustomerProfile | null): string | null {
+  const customerNumber = profile?.customer_number ?? profile?.contract_customer_ref ?? null
+  const externalCustomerId = profile?.external_customer_id ?? null
+  if (!externalCustomerId) return null
+  if (externalCustomerId === customerNumber) return null
+  if (/^DX-\d+$/i.test(externalCustomerId)) return null
+  return externalCustomerId
+}
+
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
@@ -706,7 +688,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     userId: user.id,
     email: user.email ?? localProfile?.email ?? null,
     customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
-    externalCustomerId: externalCustomerIdForOps(localProfile),
+    externalCustomerId: stableExternalCustomerId(localProfile),
   }
 
   const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
@@ -719,7 +701,10 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
       .then((bundle) => ({ bundle, error: null as string | null }))
       .catch((error) => ({
         bundle: null,
-        error: portalOverviewError(error),
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Kunduppgifterna kunde inte hämtas just nu.',
       })),
   ])
 
@@ -751,7 +736,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null) ?? deriveSwitchStatus(contracts, sites)
   const meteringValues = (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue)
   const events = (ops.bundle?.events ?? []).map(mapOpsEvent)
-  const hasOpsData = Boolean(
+  const opsBundleHasData = Boolean(
     ops.bundle &&
       (ops.bundle.profile ||
         ops.bundle.contracts.length ||
@@ -776,7 +761,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     events,
     tickets,
     notifications,
-    opsAvailable: !ops.error && hasOpsData,
+    opsAvailable: opsBundleHasData,
     opsError: ops.error,
   }
 }

@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
 export async function GET() {
   try {
     const overview = await getCustomerPortalOverview()
     return NextResponse.json({ data: overview.meteringValues })
-  } catch {
+  } catch (error) {
+    console.error('[customer portal] metering-values route failed', error)
     return NextResponse.json(
-      { error: 'Du behöver logga in för att se dina uppgifter.' },
-      { status: 401 }
+      { error: 'Mätvärdena kunde inte hämtas just nu.' },
+      { status: 500 },
     )
   }
 }

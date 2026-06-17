@@ -1,70 +1,45 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { getCustomerProfile } from '@/lib/customerPortal/service'
 import { sendOpsCustomerEvent } from '@/lib/ops/client'
+import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
-const ALLOWED = new Set([
-  'customer.opened_contract',
-  'customer.downloaded_contract',
-  'customer.opened_invoice',
-  'customer.downloaded_invoice',
-  'customer.opened_document',
-  'customer.downloaded_document',
-  'customer.updated_contact_details',
-  'customer.accepted_power_of_attorney',
-  'customer.completed_facility_data',
-  'customer.viewed_switch_status',
-  'customer.password_reset_completed',
-])
-
-function text(value: unknown, max = 160) {
-  return typeof value === 'string' ? value.trim().slice(0, max) : ''
-}
-
-export async function POST(req: Request) {
-  const supabase = await createSupabaseServerActionClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const body = await req.json().catch(() => null)
-  const eventType = text(body?.event_type ?? body?.type)
-  if (!ALLOWED.has(eventType)) {
-    return NextResponse.json({ error: 'Unsupported event.' }, { status: 400 })
-  }
-
-  const profile = await getCustomerProfile(supabase, user.id, user).catch(() => null)
-
+export async function POST(request: Request) {
   try {
+    const body = await request.json().catch(() => ({}))
+    const overview = await getCustomerPortalOverview()
+    const profile = overview.profile
+
+    if (!profile?.user_id) {
+      return NextResponse.json({ error: 'Kunden är inte inloggad.' }, { status: 401 })
+    }
+
     await sendOpsCustomerEvent(
       {
-        userId: user.id,
-        email: user.email ?? profile?.email ?? null,
-        customerNumber: profile?.customer_number ?? profile?.contract_customer_ref ?? null,
-        externalCustomerId: profile?.external_customer_id ?? null,
+        userId: profile.user_id,
+        email: profile.email,
+        customerNumber: profile.customer_number ?? profile.contract_customer_ref ?? null,
+        externalCustomerId:
+          profile.external_customer_id && profile.external_customer_id !== profile.customer_number
+            ? profile.external_customer_id
+            : null,
       },
       {
-        event_type: eventType,
+        event_type: String(body.event_type ?? body.type ?? 'customer.portal_event'),
         source: 'gridex_website',
-        entity_type: text(body?.entity_type) || null,
-        entity_id: text(body?.entity_id) || null,
+        entity_type: typeof body.entity_type === 'string' ? body.entity_type : null,
+        entity_id: typeof body.entity_id === 'string' ? body.entity_id : null,
         metadata:
-          body && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
-            ? (body.metadata as Record<string, unknown>)
+          body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
+            ? body.metadata
             : {},
-      }
+      },
     )
-  } catch {
-    // Customer actions must not fail just because event logging is temporarily unavailable.
-    return NextResponse.json({ ok: true, queued: false })
-  }
 
-  return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[customer portal] event route failed', error)
+    return NextResponse.json(
+      { error: 'Händelsen kunde inte skickas just nu.' },
+      { status: 500 },
+    )
+  }
 }
