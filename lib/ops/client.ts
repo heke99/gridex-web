@@ -243,6 +243,8 @@ function opsBaseUrl(): string | undefined {
   return value.replace(/\/+$/, "");
 }
 
+const OPS_API_KEY_FULL_SECRET_NOT_PREFIX = "OPS_API_KEY_FULL_SECRET_NOT_PREFIX";
+
 const OPS_API_KEY_ENV_NAMES = [
   "GRIDEX_WEBSITE_API_KEY",
   "GRIDEX_CUSTOMER_PORTAL_API_KEY",
@@ -258,7 +260,10 @@ function opsApiKey(): { value?: string; source?: string; invalidReason?: string 
 
     const prefixOnly = /^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18;
     if (prefixOnly) {
-      return { source: name, invalidReason: `${name} innehåller bara API-nyckelns prefix, inte hela token.` };
+      return {
+        source: name,
+        invalidReason: `${OPS_API_KEY_FULL_SECRET_NOT_PREFIX}: ${name} innehåller bara API-nyckelns prefix, inte hela token.`,
+      };
     }
 
     return { value, source: name };
@@ -1544,13 +1549,31 @@ function nestedArray(row: Record<string, unknown>, keys: string[]): Record<strin
 
 function normalizePortalBundle(payload: unknown): OpsPortalBundle {
   const root = extractObject(payload);
-  const data = recordValue(root.data) ?? root;
-  const customer = recordValue(data.customer) ?? recordValue(data.profile) ?? recordValue(data.me);
+  const data =
+    recordValue(root.data) ??
+    recordValue(root.bundle) ??
+    recordValue(root.portal_bundle) ??
+    recordValue(root.portalBundle) ??
+    recordValue(root.overview) ??
+    root;
+  const customer =
+    recordValue(data.customer) ??
+    recordValue(data.profile) ??
+    recordValue(data.me) ??
+    recordValue(data.customer_profile) ??
+    recordValue(data.customerProfile);
 
   return {
     profile: customer,
     contracts: nestedArray(data, ["contracts", "customer_contracts", "customerContracts"]),
-    sites: nestedArray(data, ["sites", "customer_sites", "customerSites", "facilities"]),
+    sites: nestedArray(data, [
+      "sites",
+      "customer_sites",
+      "customerSites",
+      "facilities",
+      "delivery_points",
+      "deliveryPoints",
+    ]),
     invoices: nestedArray(data, ["invoices", "customer_invoices", "customerInvoices"]),
     documents: nestedArray(data, ["documents", "customer_documents", "customerDocuments"]),
     legalAcceptances: nestedArray(data, [
@@ -1575,7 +1598,11 @@ function normalizePortalBundle(payload: unknown): OpsPortalBundle {
       "metering_values",
       "normalized_metering_values",
     ]),
-    notifications: nestedArray(data, ["notifications", "customer_notifications", "customerNotifications"]),
+    notifications: nestedArray(data, [
+      "notifications",
+      "customer_notifications",
+      "customerNotifications",
+    ]),
   };
 }
 
@@ -1643,6 +1670,18 @@ export async function fetchOpsCustomerPortalBundle(
   }
 }
 
+export async function markOpsCustomerNotificationsRead(
+  identity: OpsPortalIdentity,
+  notificationIds: string[] = [],
+): Promise<void> {
+  const ids = notificationIds.map((id) => id.trim()).filter(Boolean);
+
+  await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
+    method: "POST",
+    body: JSON.stringify(ids.length ? { notification_ids: ids } : { all: true }),
+  });
+}
+
 export async function sendOpsCustomerEvent(
   identity: OpsPortalIdentity,
   event: {
@@ -1659,7 +1698,8 @@ export async function sendOpsCustomerEvent(
     headers,
     body: JSON.stringify({
       ...event,
-      external_customer_id: identity.externalCustomerId ?? identity.customerNumber ?? null,
+      external_customer_id: identity.externalCustomerId ?? null,
+      customer_number: identity.customerNumber ?? null,
       customer_email: identity.email ?? null,
       portal_user_id: identity.userId,
     }),

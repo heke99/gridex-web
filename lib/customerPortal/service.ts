@@ -2,6 +2,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
+  markOpsCustomerNotificationsRead,
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
 import type {
@@ -681,15 +682,22 @@ function stableExternalCustomerId(profile: CustomerProfile | null): string | nul
   return externalCustomerId
 }
 
+function portalIdentityFromProfile(
+  user: User,
+  profile: CustomerProfile | null
+): OpsPortalIdentity {
+  return {
+    userId: user.id,
+    email: user.email ?? profile?.email ?? null,
+    customerNumber: profile?.customer_number ?? profile?.contract_customer_ref ?? null,
+    externalCustomerId: stableExternalCustomerId(profile),
+  }
+}
+
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
-  const identity: OpsPortalIdentity = {
-    userId: user.id,
-    email: user.email ?? localProfile?.email ?? null,
-    customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
-    externalCustomerId: stableExternalCustomerId(localProfile),
-  }
+  const identity = portalIdentityFromProfile(user, localProfile)
 
   const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
     getCustomerTickets(supabase, user.id),
@@ -764,4 +772,42 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     opsAvailable: opsBundleHasData,
     opsError: ops.error,
   }
+}
+
+export async function markCustomerNotificationsRead(
+  notificationIds: string[] = []
+): Promise<{ ok: true; opsSynced: boolean; localSynced: boolean }> {
+  const { supabase, user } = await getPortalSession()
+  const profile = await getCustomerProfile(supabase, user.id, user)
+  const identity = portalIdentityFromProfile(user, profile)
+  const ids = notificationIds.map((id) => id.trim()).filter(Boolean)
+  const readAt = new Date().toISOString()
+
+  let opsSynced = false
+  try {
+    await markOpsCustomerNotificationsRead(identity, ids)
+    opsSynced = true
+  } catch (error) {
+    console.warn('[customer portal] mark OPS notifications read failed', {
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  let localQuery = supabase
+    .from('customer_notifications')
+    .update({ is_read: true, read_at: readAt })
+    .eq('user_id', user.id)
+
+  if (ids.length) {
+    localQuery = localQuery.in('id', ids)
+  }
+
+  const { error: localError } = await localQuery
+  const localSynced = !localError
+
+  if (!opsSynced && localError) {
+    throw new Error('Notiserna kunde inte uppdateras just nu.')
+  }
+
+  return { ok: true, opsSynced, localSynced }
 }
