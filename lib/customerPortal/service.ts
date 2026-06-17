@@ -682,7 +682,7 @@ function stableExternalCustomerId(profile: CustomerProfile | null): string | nul
   return externalCustomerId
 }
 
-function portalIdentityFromProfile(
+export function portalIdentityFromProfile(
   user: User,
   profile: CustomerProfile | null
 ): OpsPortalIdentity {
@@ -692,6 +692,15 @@ function portalIdentityFromProfile(
     customerNumber: profile?.customer_number ?? profile?.contract_customer_ref ?? null,
     externalCustomerId: stableExternalCustomerId(profile),
   }
+}
+
+
+export async function getOpsPortalIdentityForUser(
+  supabase: SupabaseClient,
+  user: User
+): Promise<OpsPortalIdentity> {
+  const profile = await getCustomerProfile(supabase, user.id, user)
+  return portalIdentityFromProfile(user, profile)
 }
 
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
@@ -744,17 +753,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null) ?? deriveSwitchStatus(contracts, sites)
   const meteringValues = (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue)
   const events = (ops.bundle?.events ?? []).map(mapOpsEvent)
-  const opsBundleHasData = Boolean(
-    ops.bundle &&
-      (ops.bundle.profile ||
-        ops.bundle.contracts.length ||
-        ops.bundle.sites.length ||
-        ops.bundle.invoices.length ||
-        ops.bundle.documents.length ||
-        ops.bundle.legalAcceptances.length ||
-        ops.bundle.powersOfAttorney.length ||
-        ops.bundle.notifications.length)
-  )
+  const opsAvailable = Boolean(ops.bundle && !ops.error)
 
   return {
     profile,
@@ -769,7 +768,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     events,
     tickets,
     notifications,
-    opsAvailable: opsBundleHasData,
+    opsAvailable,
     opsError: ops.error,
   }
 }

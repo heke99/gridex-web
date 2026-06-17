@@ -17,6 +17,10 @@ type WebhookLogRow = {
 
 type UserLookupRow = {
   user_id: string
+  email: string | null
+  customer_number: string | null
+  contract_customer_ref: string | null
+  external_customer_id: string | null
 }
 
 function env(name: string): string | null {
@@ -35,37 +39,120 @@ function serviceClient() {
   })
 }
 
-async function resolveUserId(args: {
-  portalUserId?: string | null
-  customerNumber?: string | null
-  customerEmail?: string | null
-}) {
-  if (args.portalUserId) return args.portalUserId
-  const supabase = serviceClient()
+function normalizeText(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
 
-  if (args.customerNumber) {
+function normalizeEmail(value?: string | null) {
+  return normalizeText(value)?.toLowerCase() ?? null
+}
+
+function profileMatchesIdentity(
+  row: UserLookupRow,
+  args: {
+    customerNumber?: string | null
+    externalCustomerId?: string | null
+    customerEmail?: string | null
+  },
+) {
+  const customerNumber = normalizeText(args.customerNumber)
+  const externalCustomerId = normalizeText(args.externalCustomerId)
+  const email = normalizeEmail(args.customerEmail)
+
+  if (!customerNumber && !externalCustomerId && !email) return true
+  if (customerNumber && [row.customer_number, row.contract_customer_ref].includes(customerNumber)) return true
+  if (externalCustomerId && row.external_customer_id === externalCustomerId) return true
+  if (email && row.email?.toLowerCase() === email) return true
+  return false
+}
+
+async function uniqueProfileBy(
+  supabase: ReturnType<typeof serviceClient>,
+  column: 'external_customer_id' | 'customer_number' | 'contract_customer_ref' | 'email',
+  value: string | null,
+): Promise<UserLookupRow | null> {
+  if (!value) return null
+  const queryValue = column === 'email' ? value.toLowerCase() : value
+  const { data } = await supabase
+    .from('customer_profiles')
+    .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
+    .eq(column, queryValue)
+    .limit(2)
+    .returns<UserLookupRow[]>()
+
+  return data?.length === 1 ? data[0] : null
+}
+
+async function resolveUserId(
+  supabase: ReturnType<typeof serviceClient>,
+  args: {
+    portalUserId?: string | null
+    customerNumber?: string | null
+    externalCustomerId?: string | null
+    customerEmail?: string | null
+  },
+) {
+  const portalUserId = normalizeText(args.portalUserId)
+  const customerNumber = normalizeText(args.customerNumber)
+  const externalCustomerId = normalizeText(args.externalCustomerId)
+  const customerEmail = normalizeEmail(args.customerEmail)
+
+  if (portalUserId) {
     const { data } = await supabase
       .from('customer_profiles')
-      .select('user_id')
-      .or(
-        `contract_customer_ref.eq.${args.customerNumber},customer_number.eq.${args.customerNumber}`
-      )
-      .limit(1)
+      .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
+      .eq('user_id', portalUserId)
       .maybeSingle<UserLookupRow>()
-    if (data?.user_id) return data.user_id
+
+    if (data && profileMatchesIdentity(data, args)) return data.user_id
   }
 
-  if (args.customerEmail) {
-    const { data } = await supabase
-      .from('customer_profiles')
-      .select('user_id')
-      .eq('email', args.customerEmail.toLowerCase())
-      .limit(1)
-      .maybeSingle<UserLookupRow>()
-    if (data?.user_id) return data.user_id
-  }
+  const byExternal = await uniqueProfileBy(supabase, 'external_customer_id', externalCustomerId)
+  if (byExternal?.user_id) return byExternal.user_id
+
+  const byCustomerNumber =
+    (await uniqueProfileBy(supabase, 'customer_number', customerNumber)) ??
+    (await uniqueProfileBy(supabase, 'contract_customer_ref', customerNumber))
+  if (byCustomerNumber?.user_id) return byCustomerNumber.user_id
+
+  const byEmail = await uniqueProfileBy(supabase, 'email', customerEmail)
+  if (byEmail?.user_id) return byEmail.user_id
 
   return null
+}
+
+async function backfillProfileIdentity(
+  supabase: ReturnType<typeof serviceClient>,
+  userId: string | null,
+  event: {
+    customer_number?: string | null
+    external_customer_id?: string | null
+    customer_email?: string | null
+    metadata: Record<string, unknown>
+  },
+) {
+  if (!userId) return
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  const email = normalizeEmail(event.customer_email)
+  const customerNumber = normalizeText(event.customer_number)
+  const externalCustomerId = normalizeText(event.external_customer_id)
+
+  if (email) patch.email = email
+  if (customerNumber) {
+    patch.customer_number = customerNumber
+    patch.contract_customer_ref = customerNumber
+  }
+  if (externalCustomerId && externalCustomerId !== customerNumber) {
+    patch.external_customer_id = externalCustomerId
+  }
+
+  if (Object.keys(patch).length <= 1) return
+
+  await supabase
+    .from('customer_profiles')
+    .update(patch)
+    .eq('user_id', userId)
 }
 
 export async function POST(req: Request) {
@@ -112,14 +199,20 @@ export async function POST(req: Request) {
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 
+  const deliveryId = req.headers.get('x-gridex-delivery-id')
+
   const { data: logRow, error: logError } = await supabase
     .from('ops_webhook_events')
     .insert({
       event_id: event.event_id,
       event_type: event.event_type,
+      company_id: event.company_id,
       customer_id: event.customer_id,
       customer_number: event.customer_number,
+      external_customer_id: event.external_customer_id,
       customer_email: event.customer_email,
+      portal_user_id: event.portal_user_id,
+      delivery_id: deliveryId,
       occurred_at: event.occurred_at,
       status: 'received',
       signature_valid: true,
@@ -143,11 +236,13 @@ export async function POST(req: Request) {
 
   try {
     if (notification) {
-      const userId = await resolveUserId({
+      const userId = await resolveUserId(supabase, {
         portalUserId: event.portal_user_id,
         customerNumber: event.customer_number,
+        externalCustomerId: event.external_customer_id,
         customerEmail: event.customer_email,
       })
+      await backfillProfileIdentity(supabase, userId, event)
 
       const { error: notificationError } = await supabase
         .from('customer_notifications')
@@ -162,6 +257,7 @@ export async function POST(req: Request) {
           is_read: false,
           delivery_status: 'ready',
           customer_number: event.customer_number,
+          external_customer_id: event.external_customer_id,
           customer_email: event.customer_email,
           ops_event_id: event.event_id,
           link_href: notification.link_href,
@@ -169,7 +265,10 @@ export async function POST(req: Request) {
           metadata: {
             source: 'ops_webhook',
             event_type: event.event_type,
+            company_id: event.company_id,
             customer_id: event.customer_id,
+            customer_number: event.customer_number,
+            external_customer_id: event.external_customer_id,
             ...event.metadata,
           },
         })

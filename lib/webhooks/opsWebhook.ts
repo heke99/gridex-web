@@ -4,8 +4,10 @@ export type OpsWebhookEvent = {
   event_id: string
   event_type: string
   occurred_at: string
+  company_id?: string | null
   customer_id?: string | null
   customer_number?: string | null
+  external_customer_id?: string | null
   customer_email?: string | null
   portal_user_id?: string | null
   title?: string | null
@@ -22,14 +24,17 @@ const ALLOWED_EVENT_TYPES = new Set([
   'contract.application_received',
   'contract.confirmation_sent',
   'contract.cooling_off_sent',
+  'contract.needs_facility_data',
+  'power_of_attorney.signed',
+  'document.created',
+  'facility_data.received',
+  'facility_data.verified',
   'invoice.created',
   'invoice.sent',
   'invoice.disputed',
   'metering_values.updated',
-  'contract.activated',
-  'supplier_switch.started',
-  'supplier_switch.completed',
-  'invoice.paid',
+  'customer.opened_document',
+  'customer.downloaded_document',
 ])
 
 function text(value: unknown): string | null {
@@ -66,7 +71,7 @@ export function verifyOpsWebhookSignature(args: {
   headers: Headers
   secret: string
   toleranceSeconds: number
-}): { ok: true; timestamp: string | null } | { ok: false; reason: string } {
+}): { ok: true; timestamp: string } | { ok: false; reason: string } {
   const signature = normalizeSignature(
     args.headers.get('x-gridex-signature') ??
       args.headers.get('x-gridex-webhook-signature') ??
@@ -80,27 +85,25 @@ export function verifyOpsWebhookSignature(args: {
     args.headers.get('x-webhook-timestamp') ??
     args.headers.get('x-timestamp')
 
-  if (timestamp) {
-    const ts = Number(timestamp)
-    if (!Number.isFinite(ts)) return { ok: false, reason: 'invalid_timestamp' }
-    const tsMs = ts > 10_000_000_000 ? ts : ts * 1000
-    const drift = Math.abs(Date.now() - tsMs)
-    if (drift > args.toleranceSeconds * 1000) {
-      return { ok: false, reason: 'timestamp_outside_tolerance' }
-    }
+  if (!timestamp) return { ok: false, reason: 'missing_timestamp' }
+
+  const ts = Number(timestamp)
+  if (!Number.isFinite(ts)) return { ok: false, reason: 'invalid_timestamp' }
+  const tsMs = ts > 10_000_000_000 ? ts : ts * 1000
+  const drift = Math.abs(Date.now() - tsMs)
+  if (drift > args.toleranceSeconds * 1000) {
+    return { ok: false, reason: 'timestamp_outside_tolerance' }
   }
 
-  const candidates = [
-    timestamp ? `${timestamp}.${args.rawBody}` : null,
-    args.rawBody,
-  ].filter((value): value is string => Boolean(value))
+  const expected = createHmac('sha256', args.secret)
+    .update(`${timestamp}.${args.rawBody}`)
+    .digest('hex')
 
-  for (const candidate of candidates) {
-    const expected = createHmac('sha256', args.secret).update(candidate).digest('hex')
-    if (safeEqualHex(signature, expected)) return { ok: true, timestamp }
+  if (!safeEqualHex(signature, expected)) {
+    return { ok: false, reason: 'invalid_signature' }
   }
 
-  return { ok: false, reason: 'invalid_signature' }
+  return { ok: true, timestamp }
 }
 
 export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null {
@@ -120,10 +123,25 @@ export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null
     event_id: eventId,
     event_type: eventType,
     occurred_at: occurredAt,
+    company_id: text(root.company_id) ?? text(data.company_id),
     customer_id: text(root.customer_id) ?? text(data.customer_id),
     customer_number: text(root.customer_number) ?? text(data.customer_number),
-    customer_email: text(root.customer_email) ?? text(data.customer_email),
-    portal_user_id: text(root.portal_user_id) ?? text(data.portal_user_id) ?? text(data.user_id),
+    external_customer_id:
+      text(root.external_customer_id) ??
+      text(root.externalCustomerId) ??
+      text(data.external_customer_id) ??
+      text(data.externalCustomerId),
+    customer_email:
+      text(root.customer_email) ??
+      text(root.email) ??
+      text(data.customer_email) ??
+      text(data.email),
+    portal_user_id:
+      text(root.portal_user_id) ??
+      text(root.customer_portal_user_id) ??
+      text(data.portal_user_id) ??
+      text(data.customer_portal_user_id) ??
+      text(data.user_id),
     title: text(root.title) ?? text(data.title),
     message: text(root.message) ?? text(root.summary) ?? text(data.message) ?? text(data.summary),
     link_href: text(root.link_href) ?? text(data.link_href),
@@ -170,25 +188,39 @@ export function customerNotificationForEvent(event: OpsWebhookEvent) {
         body: 'Information om ångerrätt finns nu kopplad till ditt avtal.',
         link_href: '/mina-sidor',
       }
-    case 'contract.activated':
+    case 'contract.needs_facility_data':
       return {
         category: 'contract',
-        title: 'Ditt avtal är aktivt',
-        body: 'Ditt elavtal är nu aktivt.',
+        title: 'Komplettera anläggningsuppgifter',
+        body: 'Vi behöver komplettera anläggningsuppgifter innan leverantörsbytet kan fortsätta.',
         link_href: '/mina-sidor',
       }
-    case 'supplier_switch.started':
+    case 'power_of_attorney.signed':
       return {
-        category: 'switch',
-        title: 'Leverantörsbytet är påbörjat',
-        body: 'Vi har påbörjat leverantörsbytet för din anläggning.',
+        category: 'document',
+        title: 'Fullmakten är signerad',
+        body: 'Din fullmakt är mottagen och kopplad till ditt ärende.',
         link_href: '/mina-sidor',
       }
-    case 'supplier_switch.completed':
+    case 'document.created':
       return {
-        category: 'switch',
-        title: 'Leverantörsbytet är klart',
-        body: 'Leverantörsbytet är klart. Du kan följa avtalet på Mina sidor.',
+        category: 'document',
+        title: 'Nytt dokument finns på Mina sidor',
+        body: 'Ett nytt dokument finns nu tillgängligt.',
+        link_href: '/mina-sidor/dokument',
+      }
+    case 'facility_data.received':
+      return {
+        category: 'facility',
+        title: 'Anläggningsuppgifter mottagna',
+        body: 'Vi har tagit emot dina anläggningsuppgifter.',
+        link_href: '/mina-sidor',
+      }
+    case 'facility_data.verified':
+      return {
+        category: 'facility',
+        title: 'Anläggningsuppgifter verifierade',
+        body: 'Dina anläggningsuppgifter är verifierade.',
         link_href: '/mina-sidor',
       }
     case 'invoice.created':
@@ -197,21 +229,14 @@ export function customerNotificationForEvent(event: OpsWebhookEvent) {
         category: 'invoice',
         title: 'Ny faktura finns på Mina sidor',
         body: 'En ny faktura finns nu tillgänglig.',
-        link_href: '/mina-sidor',
+        link_href: '/mina-sidor/fakturor',
       }
     case 'invoice.disputed':
       return {
         category: 'invoice',
         title: 'Faktura markerad för granskning',
         body: 'En faktura har markerats för granskning.',
-        link_href: '/mina-sidor',
-      }
-    case 'invoice.paid':
-      return {
-        category: 'invoice',
-        title: 'Faktura markerad som betald',
-        body: 'Vi har registrerat betalningen.',
-        link_href: '/mina-sidor',
+        link_href: '/mina-sidor/fakturor',
       }
     case 'metering_values.updated':
       return {

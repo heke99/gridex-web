@@ -1,10 +1,27 @@
 import { NextResponse } from 'next/server'
-import { sendOpsCustomerEvent } from '@/lib/ops/client'
+import { isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+
+function metadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function text(value: unknown, max = 160): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim().slice(0, max)
+  return trimmed || null
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
+    const eventType = text(body.event_type ?? body.type) ?? ''
+    if (!isOpsCustomerEventType(eventType)) {
+      return NextResponse.json({ error: 'Unsupported event.' }, { status: 400 })
+    }
+
     const overview = await getCustomerPortalOverview()
     const profile = overview.profile
 
@@ -23,14 +40,12 @@ export async function POST(request: Request) {
             : null,
       },
       {
-        event_type: String(body.event_type ?? body.type ?? 'customer.portal_event'),
+        event_type: eventType,
         source: 'gridex_website',
-        entity_type: typeof body.entity_type === 'string' ? body.entity_type : null,
-        entity_id: typeof body.entity_id === 'string' ? body.entity_id : null,
-        metadata:
-          body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
-            ? body.metadata
-            : {},
+        entity_type: text(body.entity_type) || null,
+        entity_id: text(body.entity_id) || null,
+        idempotency_key: text(body.idempotency_key, 240) || null,
+        metadata: metadata(body.metadata),
       },
     )
 

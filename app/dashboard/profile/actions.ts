@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { submitOpsCustomerSync } from '@/lib/ops/client'
+import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 function pick(formData: FormData, key: string): string {
   const value = formData.get(key)
@@ -54,6 +56,24 @@ export async function updateCustomerProfileAction(formData: FormData) {
 
   if (error) {
     throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
+  }
+
+  try {
+    const identity = await getOpsPortalIdentityForUser(supabase, user)
+    await submitOpsCustomerSync({
+      identity,
+      idempotencyKey: `profile-update-${user.id}-${Date.now()}`,
+      profile: {
+        first_name: firstName || null,
+        last_name: lastName || null,
+        full_name: fullName,
+        phone: phone || null,
+        language_code: languageCode,
+      },
+      metadata: { source: 'customer_profile_action' },
+    })
+  } catch (syncError) {
+    console.warn('[customer profile] OPS sync failed', syncError)
   }
 
   revalidatePath('/dashboard/profile')

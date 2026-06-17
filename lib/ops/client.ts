@@ -1422,6 +1422,56 @@ export type OpsPortalIdentity = {
   externalCustomerId?: string | null;
 };
 
+export type OpsCustomerSyncInput = {
+  identity: OpsPortalIdentity;
+  idempotencyKey?: string | null;
+  powerOfAttorney?: Record<string, unknown> | null;
+  legalAcceptances?: Record<string, unknown>[] | null;
+  documents?: Record<string, unknown>[] | null;
+  facilityData?: Record<string, unknown> | null;
+  profile?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type OpsCustomerSyncResult = {
+  ok: boolean;
+  status?: string | null;
+  synced?: Record<string, unknown> | null;
+  warnings: string[];
+  raw?: Record<string, unknown>;
+};
+
+export type OpsCustomerEventType =
+  | "customer.opened_contract"
+  | "customer.downloaded_contract"
+  | "customer.opened_invoice"
+  | "customer.downloaded_invoice"
+  | "customer.opened_document"
+  | "customer.downloaded_document"
+  | "customer.updated_contact_details"
+  | "customer.accepted_power_of_attorney"
+  | "customer.completed_facility_data"
+  | "customer.viewed_switch_status"
+  | "customer.password_reset_completed";
+
+export const OPS_CUSTOMER_EVENT_TYPES = new Set<string>([
+  "customer.opened_contract",
+  "customer.downloaded_contract",
+  "customer.opened_invoice",
+  "customer.downloaded_invoice",
+  "customer.opened_document",
+  "customer.downloaded_document",
+  "customer.updated_contact_details",
+  "customer.accepted_power_of_attorney",
+  "customer.completed_facility_data",
+  "customer.viewed_switch_status",
+  "customer.password_reset_completed",
+]);
+
+export function isOpsCustomerEventType(value: string): value is OpsCustomerEventType {
+  return OPS_CUSTOMER_EVENT_TYPES.has(value);
+}
+
 export type OpsPortalBundle = {
   profile: Record<string, unknown> | null;
   contracts: Record<string, unknown>[];
@@ -1436,12 +1486,16 @@ export type OpsPortalBundle = {
   notifications: Record<string, unknown>[];
 };
 
+function stableExternalCustomerId(identity: OpsPortalIdentity): string | null {
+  const value = normalizeText(identity.externalCustomerId);
+  const customerNumber = normalizeText(identity.customerNumber);
+  if (!value || value === customerNumber || /^DX-\d+$/i.test(value)) return null;
+  return value;
+}
+
 function portalHeaders(identity: OpsPortalIdentity): Headers {
   const headers = new Headers();
-  const externalCustomerId =
-    identity.externalCustomerId && identity.externalCustomerId !== identity.customerNumber
-      ? identity.externalCustomerId
-      : null;
+  const externalCustomerId = stableExternalCustomerId(identity);
 
   headers.set("x-gridex-customer-portal-user-id", identity.userId);
   headers.set("x-gridex-auth-user-id", identity.userId);
@@ -1452,6 +1506,14 @@ function portalHeaders(identity: OpsPortalIdentity): Headers {
   if (identity.email) headers.set("x-gridex-customer-email", identity.email);
 
   return headers;
+}
+
+function portalIdentityPayload(identity: OpsPortalIdentity): Record<string, string | null> {
+  return {
+    email: normalizeText(identity.email),
+    customer_number: normalizeText(identity.customerNumber),
+    external_customer_id: stableExternalCustomerId(identity),
+  };
 }
 
 async function opsCustomerFetch(
@@ -1655,10 +1717,13 @@ export async function fetchOpsCustomerPortalBundle(
 ): Promise<OpsPortalBundle> {
   try {
     return normalizePortalBundle(
-      await opsCustomerFetch("/api/v1/customer/portal-bundle", identity),
+      await opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {
+        method: "POST",
+        body: JSON.stringify(portalIdentityPayload(identity)),
+      }),
     );
   } catch (error) {
-    if (isOpsError(error) && error.status === 404) {
+    if (isOpsError(error) && (error.status === 404 || error.status === 405)) {
       return fetchLegacyCustomerPortalBundle(identity);
     }
 
@@ -1682,6 +1747,80 @@ export async function markOpsCustomerNotificationsRead(
   });
 }
 
+function normalizeWarnings(row: Record<string, unknown>): string[] {
+  const warnings = row.warnings;
+  return Array.isArray(warnings) ? warnings.map(String).filter(Boolean) : [];
+}
+
+function responseObject(payload: unknown): Record<string, unknown> {
+  const row = extractObject(payload);
+  return row && typeof row === "object" ? row : {};
+}
+
+export async function submitOpsCustomerSync(
+  input: OpsCustomerSyncInput,
+): Promise<OpsCustomerSyncResult> {
+  const headers = portalHeaders(input.identity);
+  const body = {
+    ...portalIdentityPayload(input.identity),
+    power_of_attorney: input.powerOfAttorney ?? null,
+    legal_acceptances: input.legalAcceptances ?? [],
+    documents: input.documents ?? [],
+    facility_data: input.facilityData ?? null,
+    profile: input.profile ?? null,
+    metadata: input.metadata ?? {},
+  };
+
+  const idempotencyKey =
+    normalizeText(input.idempotencyKey) ??
+    createHash("sha256")
+      .update(JSON.stringify({ scope: "customer_sync", user: input.identity.userId, body }))
+      .digest("hex");
+  headers.set("Idempotency-Key", `customer-sync-${idempotencyKey}`);
+
+  const payload = await opsCustomerFetch("/api/v1/customer/sync", input.identity, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const row = responseObject(payload);
+  return {
+    ok: row.ok === false ? false : true,
+    status: pickString(row, ["status"]),
+    synced: recordValue(row.synced) ?? recordValue(row.data),
+    warnings: normalizeWarnings(row),
+    raw: row,
+  };
+}
+
+function createCustomerEventIdempotencyKey(
+  identity: OpsPortalIdentity,
+  event: {
+    event_type: string;
+    entity_type?: string | null;
+    entity_id?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): string {
+  const bucket = Math.floor(Date.now() / 60_000);
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        scope: "customer_event",
+        user: identity.userId,
+        customer_number: identity.customerNumber ?? null,
+        external_customer_id: stableExternalCustomerId(identity),
+        event_type: event.event_type,
+        entity_type: event.entity_type ?? null,
+        entity_id: event.entity_id ?? null,
+        metadata: event.metadata ?? {},
+        bucket,
+      }),
+    )
+    .digest("hex");
+}
+
 export async function sendOpsCustomerEvent(
   identity: OpsPortalIdentity,
   event: {
@@ -1689,19 +1828,32 @@ export async function sendOpsCustomerEvent(
     source: "gridex_website";
     entity_type?: string | null;
     entity_id?: string | null;
+    idempotency_key?: string | null;
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
+  if (!isOpsCustomerEventType(event.event_type)) {
+    throw new OpsError("Kundhändelsen stöds inte av OPS-kontraktet.", 400, {
+      event_type: event.event_type,
+    });
+  }
+
   const headers = portalHeaders(identity);
+  headers.set(
+    "Idempotency-Key",
+    normalizeText(event.idempotency_key) ??
+      `customer-event-${createCustomerEventIdempotencyKey(identity, event)}`,
+  );
+
   await opsFetch("/api/v1/website/customer-events", {
     method: "POST",
     headers,
     body: JSON.stringify({
       ...event,
-      external_customer_id: identity.externalCustomerId ?? null,
-      customer_number: identity.customerNumber ?? null,
+      ...portalIdentityPayload(identity),
       customer_email: identity.email ?? null,
       portal_user_id: identity.userId,
+      auth_user_id: identity.userId,
     }),
   });
 }

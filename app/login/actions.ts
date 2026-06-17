@@ -2,7 +2,6 @@
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { sendOpsCustomerEvent } from '@/lib/ops/client'
 
 function safeNext(next?: string | null): string {
   if (!next) return '/mina-sidor'
@@ -109,19 +108,6 @@ export async function loginWithPassword(formData: FormData) {
     await supabase.rpc('gridex_log_customer_login', { p_user_id: user.id })
   } catch (error) {
     console.error('[loginWithPassword] gridex_log_customer_login failed', error)
-  }
-
-  try {
-    await sendOpsCustomerEvent(
-      { userId: user.id, email: user.email ?? email },
-      {
-        event_type: 'customer.login',
-        source: 'gridex_website',
-        metadata: { next },
-      }
-    )
-  } catch {
-    // Inloggning ska inte stoppas om händelseloggning är tillfälligt otillgänglig.
   }
 
   if (next.startsWith('/admin') && !isAdmin) {
