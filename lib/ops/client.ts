@@ -237,18 +237,75 @@ function env(name: string): string | undefined {
   return value ? value : undefined;
 }
 
+const OPS_BASE_URL_ENV_NAMES = [
+  "GRIDEX_OPS_API_URL",
+  "GRIDEX_OPS_BASE_URL",
+  "GRIDEX_OPS_URL",
+  "OPS_API_URL",
+] as const;
+
+const OPS_API_KEY_ENV_NAMES = [
+  "GRIDEX_WEBSITE_API_KEY",
+  "GRIDEX_CUSTOMER_PORTAL_API_KEY",
+  "GRIDEX_OPS_CUSTOMER_PORTAL_API_KEY",
+  "GRIDEX_OPS_API_KEY",
+  "OPS_API_KEY",
+] as const;
+
+function firstConfiguredEnv(names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const value = env(name);
+    if (value) return value;
+  }
+  return undefined;
+}
+
 function opsBaseUrl(): string | undefined {
-  const value = env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL");
+  const value = firstConfiguredEnv(OPS_BASE_URL_ENV_NAMES);
   if (!value) return undefined;
   return value.replace(/\/+$/, "");
+}
+
+function opsApiKey(): string | undefined {
+  return firstConfiguredEnv(OPS_API_KEY_ENV_NAMES);
+}
+
+function looksLikeApiKeyPrefixOnly(value: string | undefined): boolean {
+  if (!value) return false;
+  return /^gdxp_[a-z0-9]{6,16}$/i.test(value.trim());
+}
+
+function safeOpsErrorDetails(error: unknown): Record<string, unknown> {
+  if (isOpsError(error)) {
+    const details =
+      error.details && typeof error.details === "object" && !Array.isArray(error.details)
+        ? (error.details as Record<string, unknown>)
+        : {};
+    return {
+      name: error.name,
+      status: error.status,
+      message: error.message,
+      code: details.code,
+      path: details.path,
+      missing: details.missing,
+      configured_env: details.configured_env,
+      content_type: details.content_type,
+    };
+  }
+
+  return {
+    name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
 
 export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = [];
   const baseUrl = opsBaseUrl();
-  const apiKey = env("GRIDEX_WEBSITE_API_KEY");
-  if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
-  if (!apiKey) missing.push("GRIDEX_WEBSITE_API_KEY");
+  const apiKey = opsApiKey();
+  if (!baseUrl) missing.push(OPS_BASE_URL_ENV_NAMES.join("|"));
+  if (!apiKey) missing.push(OPS_API_KEY_ENV_NAMES.join("|"));
+  if (looksLikeApiKeyPrefixOnly(apiKey)) missing.push("OPS_API_KEY_FULL_SECRET_NOT_PREFIX");
 
   let unsafeProductionUrl = false;
   if (
@@ -810,12 +867,20 @@ function customerSafeOpsMessage(payload: unknown, fallback: string): string {
 
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const baseUrl = opsBaseUrl();
-  const apiKey = env("GRIDEX_WEBSITE_API_KEY");
+  const apiKey = opsApiKey();
   const fallbackMessage = "Tjänsten kunde inte slutföra åtgärden just nu.";
 
-  if (!baseUrl || !apiKey) {
+  if (!baseUrl || !apiKey || looksLikeApiKeyPrefixOnly(apiKey)) {
+    const status = getOpsClientStatus();
+    const configuredApiKeyEnv = OPS_API_KEY_ENV_NAMES.find((name) => Boolean(env(name))) ?? null;
+    const configuredBaseUrlEnv = OPS_BASE_URL_ENV_NAMES.find((name) => Boolean(env(name))) ?? null;
     throw new OpsError("Tjänsten är inte tillgänglig just nu.", 503, {
-      missing: getOpsClientStatus().missing,
+      path,
+      missing: status.missing,
+      configured_env: {
+        api_key: configuredApiKeyEnv,
+        base_url: configuredBaseUrlEnv,
+      },
     });
   }
 
@@ -866,10 +931,14 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   }
 
   if (!res.ok) {
+    const payloadDetails =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : { payload };
     throw new OpsError(
       customerSafeOpsMessage(payload, fallbackMessage),
       res.status,
-      payload,
+      { ...payloadDetails, path, status: res.status },
     );
   }
 
@@ -1625,7 +1694,13 @@ export async function fetchOpsCustomerPortalBundle(
     );
     return mapPortalBundle(payload);
   } catch (error) {
-    if (!isOpsError(error) || error.status !== 404) throw error;
+    if (!isOpsError(error) || error.status !== 404) {
+      console.warn(
+        "[ops customer portal] portal-bundle failed",
+        safeOpsErrorDetails(error),
+      );
+      throw error;
+    }
   }
 
   return fetchOpsCustomerPortalBundleLegacy(identity);

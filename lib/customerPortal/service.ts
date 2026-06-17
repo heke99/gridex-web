@@ -250,7 +250,7 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
 function mapOpsSite(row: Record<string, unknown>): CustomerSite {
   return {
     id: pick(row, ['id', 'customer_site_id', 'site_id']) ?? crypto.randomUUID(),
-    address: pick(row, ['address', 'street_address', 'facility_address']),
+    address: pick(row, ['address', 'street', 'street_address', 'facility_address']),
     postal_code: pick(row, ['postal_code', 'zip', 'postcode']),
     city: pick(row, ['city', 'postal_city']),
     facility_id: pick(row, ['facility_id', 'site_facility_id']),
@@ -571,6 +571,23 @@ function deriveSwitchStatus(
   }
 }
 
+function externalCustomerIdForOps(profile: CustomerProfile | null): string | null {
+  const external = profile?.external_customer_id?.trim() || null
+  const customerNumber = (profile?.customer_number ?? profile?.contract_customer_ref)?.trim() || null
+
+  // OPS treats customer number and external customer id as separate identifiers.
+  // Old local portal rows may have external_customer_id = DX-100023; send that
+  // only as x-gridex-customer-number, not as x-gridex-external-customer-id.
+  if (!external || external === customerNumber || /^DX-\d+/i.test(external)) return null
+  return external
+}
+
+function portalOverviewError(error: unknown): string {
+  console.warn('[customer portal] OPS overview fetch failed', error)
+  if (error instanceof Error && error.message) return error.message
+  return 'Kunduppgifterna kunde inte hämtas just nu.'
+}
+
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
@@ -689,7 +706,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     userId: user.id,
     email: user.email ?? localProfile?.email ?? null,
     customerNumber: localProfile?.customer_number ?? localProfile?.contract_customer_ref ?? null,
-    externalCustomerId: localProfile?.external_customer_id ?? null,
+    externalCustomerId: externalCustomerIdForOps(localProfile),
   }
 
   const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
@@ -702,10 +719,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
       .then((bundle) => ({ bundle, error: null as string | null }))
       .catch((error) => ({
         bundle: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Kunduppgifterna kunde inte hämtas just nu.',
+        error: portalOverviewError(error),
       })),
   ])
 

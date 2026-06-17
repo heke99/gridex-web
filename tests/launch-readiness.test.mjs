@@ -132,6 +132,9 @@ for (const variable of [
 
 const opsClient = read('lib/ops/client.ts')
 assertIncludes('lib/ops/client.ts', 'x-gridex-customer-portal-user-id', 'customer portal calls must send the explicit OPS auth-link header')
+assertIncludes('lib/ops/client.ts', 'OPS_API_KEY_ENV_NAMES', 'OPS client must support explicit customer portal API key env aliases')
+assertIncludes('lib/ops/client.ts', 'OPS_API_KEY_FULL_SECRET_NOT_PREFIX', 'OPS client must reject key_prefix-only API tokens')
+assertNotIncludes('env.example', 'eyJhbGciOi', 'env.example must not contain real JWT-looking secrets')
 assertIncludes('lib/ops/client.ts', 'x-gridex-auth-user-id', 'customer portal calls must send the auth user header')
 assertIncludes('lib/ops/client.ts', 'createExternalCustomerId', 'signup must create a stable external customer id')
 assertIncludes('lib/ops/client.ts', 'external_application_id: input.external_application_id', 'signup must keep application id separate from customer id')
