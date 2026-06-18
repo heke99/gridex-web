@@ -4,23 +4,28 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import SignupFlowClient from '@/components/signup/SignupFlowClient'
-import { type SignupContractOption } from '@/components/signup/CustomerApplicationForm'
+import { type SignupContractOption, type SignupSubmissionState } from '@/components/signup/CustomerApplicationForm'
 import {
   createApplicationIdempotencyKey,
   createExternalApplicationId,
   createExternalCustomerId,
   fetchOpsPublicContracts,
+  fetchOpsPublicContractsFresh,
   getOpsClientStatus,
   hashIp,
   isOpsError,
   submitOpsCustomerApplication,
   type OpsPublicContract,
+  type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
 import { checkRateLimit } from '@/lib/security/rateLimit'
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { validateContractDisplaySnapshot } from '@/lib/website/snapshotValidation'
+import { validateContractDisplaySnapshot, validatePricingPreviewSnapshot } from '@/lib/website/snapshotValidation'
 import { ensureCustomerPortalOnboarding } from '@/lib/customerPortal/onboarding'
+import { contractSupportsCustomerType } from '@/lib/website/customerType'
+import { quoteToWebsitePricingPreview, validateWebsitePricingQuote, verifyWebsitePricingQuote } from '@/lib/website/pricingQuote'
+import { loadVerifiedWebsitePricingPreview } from '@/lib/website/pricingPreview'
 
 export const metadata: Metadata = {
   title: 'Ansök om elavtal – Gridex',
@@ -37,6 +42,7 @@ type PageParams = {
   utm_source?: string
   utm_medium?: string
   utm_campaign?: string
+  quote?: string
 }
 
 function normalizeText(value: FormDataEntryValue | null): string {
@@ -75,6 +81,8 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
     fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
+    spotShare: item.spot_share ?? null,
+    portfolioShare: item.portfolio_share ?? null,
     validFrom: item.valid_from ?? null,
     validTo: item.valid_to ?? null,
     bindingPeriodMonths: item.binding_period_months ?? null,
@@ -97,18 +105,14 @@ function selectedContractFromParams(
   params: PageParams
 ): OpsPublicContract | null {
   const wanted = params.offer ?? params.planVersion ?? params.contract ?? ''
-  if (wanted) {
-    const match = contracts.find(
-      (contract) =>
-        contract.offer_reference === wanted ||
-        contract.price_plan_version_id === wanted ||
-        contract.price_plan_id === wanted ||
-        contract.product_code === wanted
-    )
-    if (match) return match
-  }
-
-  return contracts[0] ?? null
+  if (!wanted) return contracts[0] ?? null
+  return contracts.find(
+    (contract) =>
+      contract.offer_reference === wanted ||
+      contract.price_plan_version_id === wanted ||
+      contract.price_plan_id === wanted ||
+      contract.product_code === wanted
+  ) ?? null
 }
 
 function errorText(code?: string) {
@@ -130,9 +134,13 @@ function errorText(code?: string) {
     case 'snapshot':
       return 'Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.'
     case 'price_snapshot':
-      return 'Vi kunde inte kontrollera prisuppgifterna just nu. Du kan fortfarande välja avtalet igen och försöka skicka ansökan.'
+      return 'Prisofferten saknas, har gått ut eller stämmer inte längre med dina uppgifter. Räkna om priset innan du skickar ansökan.'
+    case 'price_changed':
+      return 'Priset eller prisversionen har uppdaterats. Räkna om priset och granska den nya sammanfattningen innan du skickar ansökan.'
     case 'area_mismatch':
-      return 'Vi kunde inte kontrollera elområdet för adressen just nu. Kontrollera adressen och försök igen.'
+      return 'Vi kunde inte bekräfta elområdet för den slutliga adressen. Kontrollera adressen och räkna om priset.'
+    case 'customer_type':
+      return 'Det valda avtalet är inte tillgängligt för den valda kundtypen. Välj ett aktuellt avtal.'
     case 'rate_limit':
       return 'För många försök på kort tid. Vänta en stund och försök igen.'
     default:
@@ -212,13 +220,7 @@ function parseJsonSnapshot(value: string): Record<string, unknown> | null {
   }
 }
 
-function isPriceAreaCode(value: string): value is 'SE1' | 'SE2' | 'SE3' | 'SE4' {
-  return value === 'SE1' || value === 'SE2' || value === 'SE3' || value === 'SE4'
-}
 
-function optionalPriceAreaCode(value: string): 'SE1' | 'SE2' | 'SE3' | 'SE4' | null {
-  return isPriceAreaCode(value) ? value : null
-}
 
 function sameContractSnapshot(offer: OpsPublicContract, snapshot: Record<string, unknown> | null): boolean {
   return validateContractDisplaySnapshot(offer, snapshot).ok
@@ -262,19 +264,45 @@ export default async function TecknaPage({
     loadError = 'Ansökan online är inte tillgänglig just nu.'
   }
 
+  const quoteVerification = verifyWebsitePricingQuote(params.quote)
+  const quoteOffer = quoteVerification.ok ? quoteVerification.quote.contract.offer_reference : undefined
+  const requestedOffer = params.offer ?? params.planVersion ?? params.contract
+  const selectedContract = selectedContractFromParams(contracts, {
+    ...params,
+    offer: requestedOffer ?? quoteOffer,
+  })
+  const quoteMatchesContract = Boolean(
+    quoteVerification.ok &&
+      selectedContract &&
+      quoteVerification.quote.contract.offer_reference === selectedContract.offer_reference &&
+      quoteVerification.quote.contract.price_plan_id === selectedContract.price_plan_id &&
+      quoteVerification.quote.contract.price_plan_version_id === selectedContract.price_plan_version_id &&
+      quoteVerification.quote.contract.product_code === selectedContract.product_code,
+  )
+  const initialPricingPreview = quoteVerification.ok && quoteMatchesContract
+    ? quoteToWebsitePricingPreview(quoteVerification.quote, params.quote)
+    : null
   const signupOptions = contracts.map(toSignupContractOption)
-  const selectedContract = selectedContractFromParams(contracts, params)
   const selectedValue = selectedContract?.offer_reference ?? ''
-  const pageError = errorText(params.error)
+  const pageError =
+    errorText(params.error) ??
+    (requestedOffer && !selectedContract ? errorText('offer') : null) ??
+    (params.quote && !quoteMatchesContract ? errorText('price_snapshot') : null)
   const canSubmit =
     status.configured && status.liveSignupEnabled && !loadError && contracts.length > 0
 
-  async function submitApplicationAction(formData: FormData) {
+  async function submitApplicationAction(
+    _previousState: SignupSubmissionState,
+    formData: FormData,
+  ): Promise<SignupSubmissionState> {
     'use server'
 
+    const fail = (code: Parameters<typeof errorText>[0]): SignupSubmissionState => ({
+      errorMessage: errorText(code) ?? 'Ansökan kunde inte skickas just nu. Försök igen.',
+    })
     const currentStatus = getOpsClientStatus()
-    if (!currentStatus.configured) redirect('/teckna-avtal?error=not_configured')
-    if (!currentStatus.liveSignupEnabled) redirect('/teckna-avtal?error=live_disabled')
+    if (!currentStatus.configured) return fail('not_configured')
+    if (!currentStatus.liveSignupEnabled) return fail('live_disabled')
 
     const h = await headers()
     const ip = getClientIpFromHeaders(h)
@@ -283,13 +311,13 @@ export default async function TecknaPage({
       limit: 8,
       windowMs: 15 * 60 * 1000,
     })
-    if (!rate.allowed) redirect('/teckna-avtal?error=rate_limit')
+    if (!rate.allowed) return fail('rate_limit')
 
     const honeypot = normalizeText(formData.get('company_website'))
-    if (honeypot) redirect('/teckna-avtal?error=honeypot')
+    if (honeypot) return fail('honeypot')
 
     const selectedOffer = normalizeText(formData.get('selected_offer'))
-    const liveContracts = await fetchOpsPublicContracts().catch(() => [])
+    const liveContracts = await fetchOpsPublicContractsFresh().catch(() => [])
     const offer = liveContracts.find(
       (contract) =>
         contract.offer_reference === selectedOffer ||
@@ -297,10 +325,13 @@ export default async function TecknaPage({
         contract.product_code === selectedOffer
     )
 
-    if (!offer) redirect('/teckna-avtal?error=offer')
+    if (!offer) return fail('offer')
 
     const customerTypeRaw = normalizeText(formData.get('customer_type'))
     const customerType = customerTypeRaw === 'company' ? 'company' : 'private'
+    if (!contractSupportsCustomerType(offer.customer_types, customerType)) {
+      return fail('customer_type')
+    }
     const firstName = normalizeText(formData.get('first_name'))
     const lastName = normalizeText(formData.get('last_name'))
     const companyName = normalizeText(formData.get('company_name'))
@@ -347,7 +378,7 @@ export default async function TecknaPage({
       !isValidRequestedStartDate(requestedStartMode, requestedStartDate)
 
     if (invalidBaseFields) {
-      redirect('/teckna-avtal?error=validation')
+      return fail('validation')
     }
 
     if (
@@ -357,7 +388,7 @@ export default async function TecknaPage({
       !acceptPriceTerms ||
       (powerOfAttorneyRequired && !acceptPowerOfAttorney)
     ) {
-      redirect('/teckna-avtal?error=consent')
+      return fail('consent')
     }
 
     const pricingPreviewSnapshot = parseJsonSnapshot(
@@ -366,21 +397,18 @@ export default async function TecknaPage({
     const contractDisplaySnapshot = parseJsonSnapshot(
       normalizeText(formData.get('contract_display_snapshot'))
     )
+    const pricingQuoteToken = normalizeText(formData.get('pricing_quote_token'))
 
-    if (!contractDisplaySnapshot) {
-      redirect('/teckna-avtal?error=snapshot')
+    if (!contractDisplaySnapshot || !sameContractSnapshot(offer, contractDisplaySnapshot)) {
+      return fail('snapshot')
     }
 
-    if (!sameContractSnapshot(offer, contractDisplaySnapshot)) {
-      redirect('/teckna-avtal?error=snapshot')
-    }
-
-    const priceAreaCode = normalizeText(formData.get('price_area_code'))
     const estimatedMonthlyKwh = parseOptionalNumber(
       normalizeText(formData.get('estimated_monthly_kwh'))
     )
-
-    const estimatedKwhForMetadata = estimatedMonthlyKwh ?? null
+    if (!estimatedMonthlyKwh || estimatedMonthlyKwh < 1 || estimatedMonthlyKwh > 200000) {
+      return fail('price_snapshot')
+    }
 
     const serverResolution = await resolveWebsitePriceAreaForPricing({
       postal_code: postalCode,
@@ -388,15 +416,65 @@ export default async function TecknaPage({
       address,
       street: address,
     }).catch(() => null)
+    const serverPriceAreaCode = serverResolution?.price_area_code
+    if (!serverPriceAreaCode) return fail('area_mismatch')
 
-    const serverPriceAreaCode =
-      serverResolution?.price_area_code ?? optionalPriceAreaCode(priceAreaCode)
+    const quoteValidation = validateWebsitePricingQuote({
+      token: pricingQuoteToken,
+      contract: offer,
+      priceAreaCode: serverPriceAreaCode,
+      estimatedMonthlyKwh,
+      location: { postalCode, city, address },
+    })
+    if (!quoteValidation.ok) return fail('price_snapshot')
 
     const liveDisplay = buildPublicContractDisplay(offer)
-    if (!liveDisplay.ready) {
-      redirect('/teckna-avtal?error=offer')
+    if (!liveDisplay.ready) return fail('offer')
+
+    const pricingInput: OpsWebsitePricingPreviewInput = {
+      offer_reference: offer.offer_reference,
+      contract_id: offer.contract_id ?? null,
+      price_plan_id: offer.price_plan_id,
+      price_plan_version_id: offer.price_plan_version_id,
+      product_code: offer.product_code,
+      price_area_code: serverPriceAreaCode,
+      postal_code: postalCode,
+      city,
+      address,
+      estimated_monthly_kwh: estimatedMonthlyKwh,
     }
 
+    let livePricingPreview
+    try {
+      livePricingPreview = await loadVerifiedWebsitePricingPreview(pricingInput, offer)
+    } catch {
+      return fail('ops_unavailable')
+    }
+
+    const signedPricingPreview = quoteToWebsitePricingPreview(quoteValidation.quote)
+    const signedPriceValidation = validatePricingPreviewSnapshot({
+      contract: offer,
+      snapshot: signedPricingPreview,
+      livePreview: livePricingPreview,
+      expectedPriceArea: serverPriceAreaCode,
+      expectedMonthlyKwh: estimatedMonthlyKwh,
+    })
+    const submittedPriceValidation = validatePricingPreviewSnapshot({
+      contract: offer,
+      snapshot: pricingPreviewSnapshot,
+      livePreview: livePricingPreview,
+      expectedPriceArea: serverPriceAreaCode,
+      expectedMonthlyKwh: estimatedMonthlyKwh,
+    })
+    if (!signedPriceValidation.ok || !submittedPriceValidation.ok) {
+      return fail('price_changed')
+    }
+
+    const canonicalPricingPreviewSnapshot = {
+      ...signedPricingPreview,
+      quote_issued_at: quoteValidation.quote.issued_at,
+      quote_expires_at: quoteValidation.quote.expires_at,
+    }
     const idempotencyKey = createApplicationIdempotencyKey([
       'gridex_website_application_v1',
       email,
@@ -445,13 +523,13 @@ export default async function TecknaPage({
         price_plan_version_id: offer.price_plan_version_id,
         product_code: offer.product_code,
         price_area_code: serverPriceAreaCode,
-        grid_area_code: serverResolution?.grid_area_code ?? (normalizeText(formData.get('grid_area_code')) || null),
-        grid_owner_id: normalizeText(formData.get('grid_owner_id')) || null,
-        grid_owner_name: normalizeText(formData.get('grid_owner_name')) || null,
-        energy_resolution_status: serverResolution?.status ?? (normalizeText(formData.get('energy_resolution_status')) || null),
-        energy_resolution_confidence: serverResolution?.confidence ?? parseOptionalNumber(normalizeText(formData.get('energy_resolution_confidence'))),
-        estimated_monthly_kwh: estimatedKwhForMetadata,
-        pricing_preview_snapshot: pricingPreviewSnapshot,
+        grid_area_code: serverResolution?.grid_area_code ?? null,
+        grid_owner_id: null,
+        grid_owner_name: null,
+        energy_resolution_status: serverResolution?.status ?? null,
+        energy_resolution_confidence: serverResolution?.confidence ?? null,
+        estimated_monthly_kwh: estimatedMonthlyKwh,
+        pricing_preview_snapshot: canonicalPricingPreviewSnapshot,
         contract_display_snapshot: contractDisplaySnapshot,
         source: 'gridex_website',
         idempotency_key: idempotencyKey,
@@ -505,10 +583,10 @@ export default async function TecknaPage({
       successRedirect = `/teckna-avtal/tack?${qs.toString()}`
     } catch (error) {
       if (isOpsError(error)) {
-        if (error.status === 503) redirect('/teckna-avtal?error=live_disabled')
-        redirect('/teckna-avtal?error=ops_unavailable')
+        if (error.status === 503) return fail('live_disabled')
+        return fail('ops_unavailable')
       }
-      redirect('/teckna-avtal?error=ops_unavailable')
+      return fail('ops_unavailable')
     }
 
     redirect(successRedirect)
@@ -588,6 +666,7 @@ export default async function TecknaPage({
           utm_campaign: params.utm_campaign,
         }}
         action={submitApplicationAction}
+        initialPricingPreview={initialPricingPreview}
       />
     </div>
   )

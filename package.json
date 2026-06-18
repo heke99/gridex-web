@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:launch": "node tests/launch-readiness.test.mjs",
+    "test:launch": "node tests/launch-readiness.test.mjs && node tests/signup-pricing-regression.test.mjs",
     "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs"
   },
   "dependencies": {

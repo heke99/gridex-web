@@ -36,12 +36,20 @@ export type WebsitePricingPreviewInput = {
   estimated_monthly_kwh: number
 }
 
+export type WebsitePricingQuoteContext = {
+  postal_code: string
+  city: string
+  address: string
+  price_area_code: WebsitePriceArea
+  estimated_monthly_kwh: number
+}
+
 export type WebsitePricingPreview = {
   contract: {
     slug: string
     offer_reference?: string | null
     name: string
-    contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed'
+    contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed' | 'mix'
     price_plan_version_id?: string | null
     price_plan_id?: string | null
     product_code?: string | null
@@ -72,14 +80,26 @@ export type WebsitePricingPreview = {
           type: 'admin_fixed_price' | 'fixed_price'
           fixedPriceOre: number
         }
+      | {
+          type: 'mix'
+          spotShare?: number
+          portfolioShare?: number
+          spotPriceOre?: number
+          portfolioPriceOre?: number
+          source?: string
+        }
     fees?: {
       markupOre?: number
       variableFeeOre?: number
       elcertOre?: number
       monthlyFeeSek?: number
       invoiceFeeSek?: number
+      invoiceFeeIncludedInMonthlyEstimate?: boolean
+      billingIntervalMonths?: number
     }
   }
+  quote_token?: string
+  quote_expires_at?: string
   raw?: Record<string, unknown>
 }
 
@@ -165,4 +185,23 @@ export async function previewWebsitePricing(
   return (data && typeof data === 'object' && 'data' in data
     ? (data as { data: WebsitePricingPreview }).data
     : data) as WebsitePricingPreview
+}
+
+export async function validateWebsitePricingQuote(input: {
+  quote_token: string
+  offer_reference: string
+  price_area_code: WebsitePriceArea
+  estimated_monthly_kwh: number
+  postal_code: string
+  city: string
+  address: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/v1/website/pricing/quote/validate', {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const data = await readJsonResponse(res)
+  if (res.ok && data && typeof data === 'object') return data as { ok: boolean; error?: string }
+  return { ok: false, error: extractErrorMessage(data, 'Prisofferten kunde inte kontrolleras. Räkna om priset innan du går vidare.') }
 }

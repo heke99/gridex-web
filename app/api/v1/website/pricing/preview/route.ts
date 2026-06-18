@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import {
   fetchOpsPublicContracts,
-  fetchOpsWebsitePricingPreview,
   getOpsClientStatus,
   isOpsError,
-  type OpsPublicContract,
   type OpsWebsitePriceArea,
-  type OpsWebsitePricingPreview,
   type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
-import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import { issueWebsitePricingQuote } from '@/lib/website/pricingQuote'
+import { loadVerifiedWebsitePricingPreview, WebsitePricingPreviewError } from '@/lib/website/pricingPreview'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -42,13 +40,13 @@ type PreviewPayload = {
 function text(value: unknown, max = 180): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim().slice(0, max)
-  return trimmed ? trimmed : null
+  return trimmed || null
 }
 
-function number(value: unknown, fallback = 2000): number {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed)) return fallback
-  return Math.min(200000, Math.max(1, parsed))
+function requiredMonthlyKwh(value: unknown): number | null {
+  const parsed = Number(typeof value === 'string' ? value.replace(',', '.') : value)
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 200000) return null
+  return parsed
 }
 
 function priceArea(value: unknown): OpsWebsitePriceArea | null {
@@ -56,207 +54,92 @@ function priceArea(value: unknown): OpsWebsitePriceArea | null {
   return AREAS.has(area as OpsWebsitePriceArea) ? (area as OpsWebsitePriceArea) : null
 }
 
-function normalizeOptionalNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined
-  const parsed = Number(typeof value === 'string' ? value.replace(',', '.') : value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-function preferContractComponent(
-  previewValue: number | null | undefined,
-  contractValue: number | null | undefined,
-): number | undefined {
-  if (previewValue !== null && previewValue !== undefined && Number.isFinite(previewValue)) {
-    return previewValue
-  }
-  return typeof contractValue === 'number' && Number.isFinite(contractValue) ? contractValue : undefined
-}
-
-function matchesContract(contract: OpsPublicContract, input: OpsWebsitePricingPreviewInput) {
-  const wanted = [input.offer_reference, input.contract_id, input.price_plan_id, input.price_plan_version_id, input.product_code]
-    .map((value) => value?.trim())
-    .filter(Boolean)
-
-  return wanted.some(
-    (value) =>
-      value === contract.offer_reference ||
-      value === contract.contract_id ||
-      value === contract.price_plan_id ||
-      value === contract.price_plan_version_id ||
-      value === contract.product_code,
-  )
-}
-
-function previewFees(data: OpsWebsitePricingPreview): Record<string, unknown> {
-  const spec = data.specification
-  if (!spec || typeof spec !== 'object' || !('fees' in spec)) return {}
-  const fees = (spec as { fees?: unknown }).fees
-  return fees && typeof fees === 'object' && !Array.isArray(fees) ? (fees as Record<string, unknown>) : {}
-}
-
-function enrichPreviewWithContract(
-  data: OpsWebsitePricingPreview,
-  contract: OpsPublicContract | undefined,
-): OpsWebsitePricingPreview {
-  if (!contract) return data
-
-  const fees = previewFees(data)
-  const enrichedFees = {
-    ...fees,
-    markupOre: preferContractComponent(
-      normalizeOptionalNumber(fees.markupOre ?? fees.markup_ore ?? fees.markup_ore_per_kwh),
-      contract.markup_ore_per_kwh,
-    ),
-    variableFeeOre: preferContractComponent(
-      normalizeOptionalNumber(fees.variableFeeOre ?? fees.variable_fee_ore ?? fees.variable_fee_ore_per_kwh),
-      contract.variable_markup_ore_per_kwh,
-    ),
-    monthlyFeeSek: preferContractComponent(
-      normalizeOptionalNumber(fees.monthlyFeeSek ?? fees.monthly_fee_sek),
-      contract.monthly_fee_sek,
-    ),
-    invoiceFeeSek: preferContractComponent(
-      normalizeOptionalNumber(fees.invoiceFeeSek ?? fees.invoice_fee_sek),
-      contract.invoice_fee_sek,
-    ),
-  }
-
-  return {
-    ...data,
-    contract: {
-      ...data.contract,
-      slug: contract.offer_reference,
-      offer_reference: contract.offer_reference,
-      name: contract.name,
-      price_plan_id: contract.price_plan_id,
-      price_plan_version_id: contract.price_plan_version_id,
-      product_code: contract.product_code,
-      contract_id: contract.contract_id ?? null,
-    },
-    specification: {
-      ...(data.specification ?? {}),
-      fees: enrichedFees,
-      contract_display_snapshot: buildPublicContractDisplay(contract).snapshot,
-    },
-  }
-}
-
-
-function previewContractType(type: string): OpsWebsitePricingPreview['contract']['contractType'] {
-  if (type === 'fixed') return 'fixed'
-  if (type === 'portfolio' || type === 'portfolio_managed') return 'portfolio_managed'
-  return 'spot_hourly'
-}
-
-function contractFallbackPreview(
-  contract: OpsPublicContract,
-  input: OpsWebsitePricingPreviewInput,
-): OpsWebsitePricingPreview {
-  const monthlyKwh = number(input.estimated_monthly_kwh, 2000)
-  const monthlyFee = normalizeOptionalNumber(contract.monthly_fee_sek) ?? 0
-  const invoiceFee = normalizeOptionalNumber(contract.invoice_fee_sek) ?? 0
-  const fixedOre = normalizeOptionalNumber(contract.fixed_price_ore_per_kwh)
-  const markupOre = normalizeOptionalNumber(contract.markup_ore_per_kwh) ?? 0
-  const variableOre = normalizeOptionalNumber(contract.variable_markup_ore_per_kwh) ?? 0
-  const knownOre = fixedOre ?? markupOre + variableOre
-  const knownEnergyCostSek = (monthlyKwh * knownOre) / 100
-  const totalMonthlyCostSek = monthlyFee + invoiceFee + knownEnergyCostSek
-
-  return enrichPreviewWithContract(
-    {
-      contract: {
-        slug: contract.offer_reference,
-        offer_reference: contract.offer_reference,
-        name: contract.name,
-        contractType: previewContractType(contract.type),
-        price_plan_id: contract.price_plan_id,
-        price_plan_version_id: contract.price_plan_version_id,
-        product_code: contract.product_code,
-        contract_id: contract.contract_id ?? null,
-      },
-      priceArea: input.price_area_code,
-      price_area_code: input.price_area_code,
-      kwh: monthlyKwh,
-      pricePerKwhOre: knownOre,
-      totalMonthlyCostSek,
-      totalMonthlyCostInclVatSek: totalMonthlyCostSek * 1.25,
-      totalYearlyCostSek: totalMonthlyCostSek * 12,
-      customerNotice:
-        'Vi kunde inte hämta en fullständig prisberäkning just nu. Du kan ändå gå vidare med valt avtal; Gridex använder avtalet och dina uppgifter som underlag när ansökan kontrolleras.',
-      specification: {
-        fees: {
-          markupOre,
-          variableFeeOre: variableOre,
-          monthlyFeeSek: monthlyFee,
-          invoiceFeeSek: invoiceFee,
-        },
-        contract_display_snapshot: buildPublicContractDisplay(contract).snapshot,
-        fallback_preview: true,
-      },
-      raw: { fallback_preview: true },
-    },
-    contract,
-  )
-}
-
 export async function POST(req: Request) {
   const status = getOpsClientStatus()
-
   if (!status.configured) {
     return NextResponse.json({ error: 'Priset kan inte räknas just nu.' }, { status: 503 })
   }
 
   const body = (await req.json().catch(() => null)) as PreviewPayload | null
   const resolvedArea = priceArea(body?.price_area_code ?? body?.priceAreaCode ?? body?.priceArea)
+  const monthlyKwh = requiredMonthlyKwh(body?.estimated_monthly_kwh ?? body?.estimatedMonthlyKwh ?? body?.kwh)
+  const postalCode = text(body?.postal_code ?? body?.postalCode, 20)
+  const city = text(body?.city)
+  const address = text(body?.address)
 
-  if (!resolvedArea) {
+  if (!resolvedArea || !monthlyKwh || !postalCode || !city || !address) {
     return NextResponse.json(
-      { error: 'Elområde saknas. Ange postnummer eller välj elområde innan du räknar pris.' },
+      { error: 'Ange adress, ort, postnummer, elområde och en giltig månadsförbrukning innan du räknar pris.' },
       { status: 400 },
     )
   }
 
-  const input: OpsWebsitePricingPreviewInput = {
-    offer_reference: text(body?.offer_reference ?? body?.offerReference),
-    contract_id: text(body?.contract_id ?? body?.contractId),
-    price_plan_id: text(body?.price_plan_id ?? body?.pricePlanId),
-    price_plan_version_id: text(body?.price_plan_version_id ?? body?.pricePlanVersionId),
-    product_code: text(body?.product_code ?? body?.productCode),
-    price_area_code: resolvedArea,
-    postal_code: text(body?.postal_code ?? body?.postalCode, 20),
-    city: text(body?.city),
-    address: text(body?.address),
-    estimated_monthly_kwh: number(body?.estimated_monthly_kwh ?? body?.estimatedMonthlyKwh ?? body?.kwh),
+  const offerReference = text(body?.offer_reference ?? body?.offerReference)
+  if (!offerReference) {
+    return NextResponse.json({ error: 'Välj ett aktuellt elavtal innan du räknar pris.' }, { status: 400 })
   }
 
   try {
     const contracts = await fetchOpsPublicContracts()
-    const contract = contracts.find((item) => matchesContract(item, input))
+    const contract = contracts.find((item) => item.offer_reference === offerReference)
+    if (!contract) return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
 
-    if (!contract) {
-      return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
+    const suppliedIdentifiers = {
+      contract_id: text(body?.contract_id ?? body?.contractId),
+      price_plan_id: text(body?.price_plan_id ?? body?.pricePlanId),
+      price_plan_version_id: text(body?.price_plan_version_id ?? body?.pricePlanVersionId),
+      product_code: text(body?.product_code ?? body?.productCode),
+    }
+    if (
+      (suppliedIdentifiers.contract_id && suppliedIdentifiers.contract_id !== contract.contract_id) ||
+      (suppliedIdentifiers.price_plan_id && suppliedIdentifiers.price_plan_id !== contract.price_plan_id) ||
+      (suppliedIdentifiers.price_plan_version_id && suppliedIdentifiers.price_plan_version_id !== contract.price_plan_version_id) ||
+      (suppliedIdentifiers.product_code && suppliedIdentifiers.product_code !== contract.product_code)
+    ) {
+      return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 409 })
     }
 
-    try {
-      const data = await fetchOpsWebsitePricingPreview(input)
-      if (Number.isFinite(data.totalMonthlyCostSek) || Number.isFinite(data.totalMonthlyCostInclVatSek)) {
-        return NextResponse.json({ data: enrichPreviewWithContract(data, contract) })
-      }
-    } catch (error) {
-      if (!isOpsError(error)) {
-        console.error('[website pricing preview] OPS preview failed', error)
-      }
+    const input: OpsWebsitePricingPreviewInput = {
+      offer_reference: contract.offer_reference,
+      contract_id: contract.contract_id ?? null,
+      price_plan_id: contract.price_plan_id,
+      price_plan_version_id: contract.price_plan_version_id,
+      product_code: contract.product_code,
+      price_area_code: resolvedArea,
+      postal_code: postalCode,
+      city,
+      address,
+      estimated_monthly_kwh: monthlyKwh,
+    }
+    const preview = await loadVerifiedWebsitePricingPreview(input, contract)
+    const quote = issueWebsitePricingQuote({
+      preview,
+      contract,
+      location: { postalCode, city, address },
+    })
+
+    if (!quote) {
+      return NextResponse.json({ error: 'Priset kan inte säkras för ansökan just nu.' }, { status: 503 })
     }
 
-    return NextResponse.json({ data: contractFallbackPreview(contract, input) })
+    return NextResponse.json(
+      {
+        data: {
+          ...preview,
+          quote_token: quote.token,
+          quote_expires_at: quote.quote.expires_at,
+        },
+      },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    )
   } catch (error) {
-    if (isOpsError(error)) {
-      return NextResponse.json(
-        { error: error.message || 'Vi kunde inte hämta prisuppgifter just nu.' },
-        { status: error.status || 502 },
-      )
+    if (error instanceof WebsitePricingPreviewError) {
+      return NextResponse.json({ error: 'Vi kunde inte hämta en komplett prisberäkning för valt avtal.' }, { status: 503 })
     }
-
+    if (isOpsError(error)) {
+      return NextResponse.json({ error: error.message || 'Vi kunde inte hämta prisuppgifter just nu.' }, { status: error.status || 502 })
+    }
+    console.error('[website pricing preview] failed', error)
     return NextResponse.json({ error: 'Vi kunde inte hämta prisuppgifter just nu.' }, { status: 502 })
   }
 }

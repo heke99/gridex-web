@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { unstable_cache } from "next/cache";
 import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
 
 export type OpsContractType =
@@ -7,6 +8,8 @@ export type OpsContractType =
   | "portfolio"
   | "portfolio_managed"
   | "fixed"
+  | "mix"
+  | "mixed"
   | string;
 
 export type OpsPublicContract = {
@@ -190,7 +193,7 @@ export type OpsWebsitePricingPreview = {
     slug: string;
     offer_reference?: string | null;
     name: string;
-    contractType: "spot_hourly" | "portfolio_managed" | "fixed";
+    contractType: "spot_hourly" | "portfolio_managed" | "fixed" | "mix";
     price_plan_version_id?: string | null;
     price_plan_id?: string | null;
     product_code?: string | null;
@@ -657,7 +660,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     "pricePlanId",
     "plan_id",
     "planId",
-  ]) ?? offerReference;
+  ]);
   const pricePlanVersionId = pickFromRecords([r], [
     "price_plan_version_id",
     "pricePlanVersionId",
@@ -667,7 +670,11 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     "pricingVersionId",
     "price_version_id",
     "priceVersionId",
-  ]) ?? offerReference;
+  ]);
+
+  const isPublic = pickBooleanFromRecords([r], ["is_public", "isPublic", "public"]);
+  const isActive = pickBooleanFromRecords([r], ["is_active", "isActive", "active"]);
+  if (!pricePlanId || !pricePlanVersionId || isPublic !== true || isActive !== true) return null;
 
   const components = extractOpsPriceComponents(r);
   const withdrawalVersion = pickFromRecords([legal, r], [
@@ -755,8 +762,8 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "price_terms",
       "priceTerms",
     ]),
-    is_public: pickBoolean(r, ["is_public", "isPublic"]),
-    is_active: pickBoolean(r, ["is_active", "isActive"]),
+    is_public: isPublic,
+    is_active: isActive,
     sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
     raw: r,
   };
@@ -1015,11 +1022,12 @@ function mapWebsiteEnergyResolution(
 
 function normalizePreviewContractType(
   value: unknown,
-): "spot_hourly" | "portfolio_managed" | "fixed" {
+): "spot_hourly" | "portfolio_managed" | "fixed" | "mix" {
   const type = typeof value === "string" ? value : "";
   if (type === "fixed") return "fixed";
   if (type === "portfolio" || type === "portfolio_managed")
     return "portfolio_managed";
+  if (type === "mix" || type === "mixed") return "mix";
   return "spot_hourly";
 }
 
@@ -1160,6 +1168,19 @@ function normalizeWebsitePricingSpecification(
         normalizeNumber(rawFees.monthlyFeeSek ?? rawFees.monthly_fee_sek),
         componentValues.monthly_fee_sek,
       ) ?? undefined,
+    invoiceFeeSek:
+      coalesceNumber(
+        normalizeNumber(rawFees.invoiceFeeSek ?? rawFees.invoice_fee_sek),
+        componentValues.invoice_fee_sek,
+      ) ?? undefined,
+    invoiceFeeIncludedInMonthlyEstimate:
+      typeof rawFees.invoiceFeeIncludedInMonthlyEstimate === "boolean"
+        ? rawFees.invoiceFeeIncludedInMonthlyEstimate
+        : typeof rawFees.invoice_fee_included_in_monthly_estimate === "boolean"
+          ? rawFees.invoice_fee_included_in_monthly_estimate
+          : undefined,
+    billingIntervalMonths:
+      normalizeNumber(rawFees.billingIntervalMonths ?? rawFees.billing_interval_months) ?? undefined,
   };
 
   return {
@@ -1168,7 +1189,7 @@ function normalizeWebsitePricingSpecification(
   };
 }
 
-export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
+async function fetchOpsPublicContractsUncached(): Promise<OpsPublicContract[]> {
   const payload = await opsFetchWithFallback([
     "/api/v1/website/public-contracts",
     "/api/v1/website/contracts",
@@ -1183,6 +1204,20 @@ export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
       if (sa !== sb) return sa - sb;
       return a.name.localeCompare(b.name, "sv");
     });
+}
+
+const fetchCachedOpsPublicContracts = unstable_cache(
+  fetchOpsPublicContractsUncached,
+  ["ops-public-contracts-v2"],
+  { revalidate: 60, tags: ["ops-public-contracts"] },
+);
+
+export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
+  return fetchCachedOpsPublicContracts();
+}
+
+export async function fetchOpsPublicContractsFresh(): Promise<OpsPublicContract[]> {
+  return fetchOpsPublicContractsUncached();
 }
 
 function mapLegalText(row: unknown): OpsLegalText | null {

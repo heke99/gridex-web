@@ -149,13 +149,19 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
 
   if (!contract.offer_reference) blockedReasons.push('offer_reference saknas')
   if (!contract.product_code) blockedReasons.push('produktkod saknas')
+  if (!contract.price_plan_id) blockedReasons.push('prisplan saknas')
+  if (!contract.price_plan_version_id) blockedReasons.push('prisplansversion saknas')
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
   if (!contract.terms_version) blockedReasons.push('allmänna villkor saknas')
   if (!contract.privacy_policy_version) blockedReasons.push('integritetspolicy saknas')
   if (!contract.cancellation_right_version && !contract.withdrawal_version) blockedReasons.push('ångerrätt saknas')
-  if (contract.is_public === false) blockedReasons.push('avtalet är inte publicerat')
-  if (contract.is_active === false) blockedReasons.push('avtalet är inte aktivt')
+  if (!contract.price_terms_version) blockedReasons.push('prisvillkor saknas')
+  if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
+    blockedReasons.push('fullmaktsvillkor saknas')
+  }
+  if (contract.is_public !== true) blockedReasons.push('avtalet är inte publicerat')
+  if (contract.is_active !== true) blockedReasons.push('avtalet är inte aktivt')
 
   const now = Date.now()
   if (contract.valid_from) {
@@ -168,6 +174,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   }
 
   if (contract.type === 'fixed') {
+    if (!hasNumberValue(contract.fixed_price_ore_per_kwh)) blockedReasons.push('fast elpris saknas')
     addNumberRow(rows, 'fixed_price_ore_per_kwh', 'Fast elpris', contract.fixed_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
@@ -180,6 +187,10 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'mix' || contract.type === 'mixed') {
+    const mixTotal = (contract.spot_share ?? 0) + (contract.portfolio_share ?? 0)
+    if (!hasNumberValue(contract.spot_share) || !hasNumberValue(contract.portfolio_share) || Math.abs(mixTotal - 100) > 0.001) {
+      blockedReasons.push('mixfördelning måste vara 100 %')
+    }
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
     addNumberRow(rows, 'spot_share', 'Rörlig andel', contract.spot_share, 'percent')
     addNumberRow(rows, 'portfolio_share', 'Portföljandel', contract.portfolio_share, 'percent')

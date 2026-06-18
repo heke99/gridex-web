@@ -17,49 +17,53 @@ export const metadata: Metadata = {
 
 function ContractCard({ contract }: { contract: OpsPublicContract }) {
   const display = buildPublicContractDisplay(contract)
+  const customerTypes = contract.customer_types?.map((type) =>
+    /company|business|foretag|företag/i.test(type) ? 'Företag' : 'Privatkund',
+  ).filter((value, index, values) => values.indexOf(value) === index)
+
+  if (!display.ready) return null
 
   return (
-    <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
+    <article className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
       <div>
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-lg font-semibold text-white">{display.headline}</div>
-
+              <h2 className="text-lg font-semibold text-white">{display.headline}</h2>
               {contract.badge_text ? (
                 <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-200">
                   {contract.badge_text}
                 </span>
               ) : null}
             </div>
-
-            <div className="mt-1 text-sm text-gray-400">{display.typeLabel}</div>
+            <p className="mt-1 text-sm text-gray-400">{display.typeLabel}</p>
           </div>
-
           <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-            Valbart
+            Aktuellt
           </span>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+        <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-gray-300">
           {display.description}
-        </div>
+        </p>
 
-        <div className="mt-5 grid gap-2 text-sm text-gray-300">
+        <dl className="mt-5 grid gap-2 text-sm text-gray-300">
           {display.rows.map((row) => (
             <div key={row.key} className="flex justify-between gap-4">
-              <span className="text-gray-500">{row.label}</span>
-              <span>{row.formatted}</span>
+              <dt className="text-gray-500">{row.label}</dt>
+              <dd className="text-right">{row.formatted}</dd>
             </div>
           ))}
+        </dl>
+
+        <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
+          Din uppskattade månadskostnad beräknas först när du har angett adress, elområde och förbrukning.
+          {customerTypes?.length ? <div className="mt-1 text-cyan-100/80">Gäller: {customerTypes.join(' och ')}.</div> : null}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs leading-6 text-gray-400">
-          <div>Allmänna villkor: version {display.legalVersions.terms}</div>
-          <div>Integritetspolicy: version {display.legalVersions.privacyPolicy}</div>
-          <div>Ångerrätt: version {display.legalVersions.cancellationRight}</div>
-          <div>Fullmakt: {display.legalVersions.powerOfAttorneyRequired ? (display.legalVersions.powerOfAttorney ? `version ${display.legalVersions.powerOfAttorney}` : 'krävs') : 'krävs inte'}</div>
-        </div>
+        <p className="mt-4 text-xs leading-5 text-gray-500">
+          Villkor, prisinformation och eventuell fullmakt visas tydligt innan ansökan skickas.
+        </p>
       </div>
 
       <div className="mt-6 grid gap-3">
@@ -67,9 +71,8 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           href={display.ctaHref}
           className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
         >
-          Ansök om avtal
+          Räkna pris och ansök
         </Link>
-
         <Link
           href="/kundservice"
           className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
@@ -77,7 +80,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           Frågor om avtalet?
         </Link>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -179,7 +182,7 @@ export default async function AvtalPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
           <div className="text-sm font-semibold text-white">Rörligt elpris</div>
           <p className="mt-2 text-sm text-gray-400">
@@ -198,13 +201,19 @@ export default async function AvtalPage() {
             För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.
           </p>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
+          <div className="text-sm font-semibold text-white">Mixavtal</div>
+          <p className="mt-2 text-sm text-gray-400">
+            För dig som vill kombinera rörligt marknadspris med en förvaltad prisandel.
+          </p>
+        </div>
       </section>
 
       <section className="space-y-6">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold text-white">Våra elavtal</h2>
           <p className="mt-3 text-gray-400">
-            Alla valbara avtal nedan visar aktuella priser och villkor.
+            Här ser du fasta villkor och avgifter. Din beräknade månadskostnad visas när du har angett adress, elområde och förbrukning.
           </p>
         </div>
 

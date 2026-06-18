@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -46,6 +47,10 @@ function normalizeText(value?: string | null) {
 
 function normalizeEmail(value?: string | null) {
   return normalizeText(value)?.toLowerCase() ?? null
+}
+
+function invalidatesPublicContracts(eventType: string): boolean {
+  return /^(contract|price_plan|price_version|campaign)\./i.test(eventType)
 }
 
 function profileMatchesIdentity(
@@ -291,6 +296,10 @@ export async function POST(req: Request) {
         notification_created: notificationCreated,
       })
       .eq('id', logRow.id)
+
+    if (invalidatesPublicContracts(event.event_type)) {
+      revalidateTag('ops-public-contracts', 'max')
+    }
 
     return NextResponse.json({ ok: true, event_id: event.event_id, notificationCreated })
   } catch (error) {
