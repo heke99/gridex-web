@@ -15,6 +15,7 @@ import {
   hashIp,
   isOpsError,
   submitOpsCustomerApplication,
+  validateOpsWebsitePricingQuote,
   type OpsPublicContract,
   type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
@@ -24,7 +25,7 @@ import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import { validateContractDisplaySnapshot, validatePricingPreviewSnapshot } from '@/lib/website/snapshotValidation'
 import { ensureCustomerPortalOnboarding } from '@/lib/customerPortal/onboarding'
 import { contractSupportsCustomerType } from '@/lib/website/customerType'
-import { quoteToWebsitePricingPreview, validateWebsitePricingQuote, verifyWebsitePricingQuote } from '@/lib/website/pricingQuote'
+import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
 import { loadVerifiedWebsitePricingPreview } from '@/lib/website/pricingPreview'
 
 export const metadata: Metadata = {
@@ -36,13 +37,10 @@ export const metadata: Metadata = {
 
 type PageParams = {
   offer?: string
-  planVersion?: string
-  contract?: string
   error?: string
   utm_source?: string
   utm_medium?: string
   utm_campaign?: string
-  quote?: string
 }
 
 function normalizeText(value: FormDataEntryValue | null): string {
@@ -71,10 +69,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     name: item.name,
     value: item.offer_reference,
     offerReference: item.offer_reference,
-    productCode: item.product_code,
-    pricePlanId: item.price_plan_id,
-    pricePlanVersionId: item.price_plan_version_id,
-    contractId: item.contract_id ?? null,
+    productCode: item.product_code ?? null,
     type: item.type,
     monthlyFeeSek: item.monthly_fee_sek,
     invoiceFeeSek: item.invoice_fee_sek,
@@ -102,17 +97,11 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
 
 function selectedContractFromParams(
   contracts: OpsPublicContract[],
-  params: PageParams
+  params: PageParams,
 ): OpsPublicContract | null {
-  const wanted = params.offer ?? params.planVersion ?? params.contract ?? ''
-  if (!wanted) return contracts[0] ?? null
-  return contracts.find(
-    (contract) =>
-      contract.offer_reference === wanted ||
-      contract.price_plan_version_id === wanted ||
-      contract.price_plan_id === wanted ||
-      contract.product_code === wanted
-  ) ?? null
+  const offerReference = params.offer?.trim()
+  if (!offerReference) return contracts[0] ?? null
+  return contracts.find((contract) => contract.offer_reference === offerReference) ?? null
 }
 
 function errorText(code?: string) {
@@ -136,7 +125,7 @@ function errorText(code?: string) {
     case 'price_snapshot':
       return 'Prisofferten saknas, har gått ut eller stämmer inte längre med dina uppgifter. Räkna om priset innan du skickar ansökan.'
     case 'price_changed':
-      return 'Priset eller prisversionen har uppdaterats. Räkna om priset och granska den nya sammanfattningen innan du skickar ansökan.'
+      return 'Priset har uppdaterats. Räkna om priset och granska den nya sammanfattningen innan du skickar ansökan.'
     case 'area_mismatch':
       return 'Vi kunde inte bekräfta elområdet för den slutliga adressen. Kontrollera adressen och räkna om priset.'
     case 'customer_type':
@@ -264,30 +253,12 @@ export default async function TecknaPage({
     loadError = 'Ansökan online är inte tillgänglig just nu.'
   }
 
-  const quoteVerification = verifyWebsitePricingQuote(params.quote)
-  const quoteOffer = quoteVerification.ok ? quoteVerification.quote.contract.offer_reference : undefined
-  const requestedOffer = params.offer ?? params.planVersion ?? params.contract
-  const selectedContract = selectedContractFromParams(contracts, {
-    ...params,
-    offer: requestedOffer ?? quoteOffer,
-  })
-  const quoteMatchesContract = Boolean(
-    quoteVerification.ok &&
-      selectedContract &&
-      quoteVerification.quote.contract.offer_reference === selectedContract.offer_reference &&
-      quoteVerification.quote.contract.price_plan_id === selectedContract.price_plan_id &&
-      quoteVerification.quote.contract.price_plan_version_id === selectedContract.price_plan_version_id &&
-      quoteVerification.quote.contract.product_code === selectedContract.product_code,
-  )
-  const initialPricingPreview = quoteVerification.ok && quoteMatchesContract
-    ? quoteToWebsitePricingPreview(quoteVerification.quote, params.quote)
-    : null
+  const selectedContract = selectedContractFromParams(contracts, params)
   const signupOptions = contracts.map(toSignupContractOption)
   const selectedValue = selectedContract?.offer_reference ?? ''
   const pageError =
     errorText(params.error) ??
-    (requestedOffer && !selectedContract ? errorText('offer') : null) ??
-    (params.quote && !quoteMatchesContract ? errorText('price_snapshot') : null)
+    (params.offer && !selectedContract ? errorText('offer') : null)
   const canSubmit =
     status.configured && status.liveSignupEnabled && !loadError && contracts.length > 0
 
@@ -318,12 +289,7 @@ export default async function TecknaPage({
 
     const selectedOffer = normalizeText(formData.get('selected_offer'))
     const liveContracts = await fetchOpsPublicContractsFresh().catch(() => [])
-    const offer = liveContracts.find(
-      (contract) =>
-        contract.offer_reference === selectedOffer ||
-        contract.price_plan_version_id === selectedOffer ||
-        contract.product_code === selectedOffer
-    )
+    const offer = liveContracts.find((contract) => contract.offer_reference === selectedOffer)
 
     if (!offer) return fail('offer')
 
@@ -398,6 +364,7 @@ export default async function TecknaPage({
       normalizeText(formData.get('contract_display_snapshot'))
     )
     const pricingQuoteToken = normalizeText(formData.get('pricing_quote_token'))
+    const pricingQuoteSource = normalizeText(formData.get('pricing_quote_source'))
 
     if (!contractDisplaySnapshot || !sameContractSnapshot(offer, contractDisplaySnapshot)) {
       return fail('snapshot')
@@ -419,24 +386,35 @@ export default async function TecknaPage({
     const serverPriceAreaCode = serverResolution?.price_area_code
     if (!serverPriceAreaCode) return fail('area_mismatch')
 
-    const quoteValidation = validateWebsitePricingQuote({
-      token: pricingQuoteToken,
-      contract: offer,
-      priceAreaCode: serverPriceAreaCode,
-      estimatedMonthlyKwh,
-      location: { postalCode, city, address },
-    })
-    if (!quoteValidation.ok) return fail('price_snapshot')
+    const localQuoteValidation = pricingQuoteSource !== 'ops'
+      ? validateWebsitePricingQuote({
+          token: pricingQuoteToken,
+          contract: offer,
+          priceAreaCode: serverPriceAreaCode,
+          estimatedMonthlyKwh,
+          location: { postalCode, city, address },
+        })
+      : null
+    const opsQuoteValidation = localQuoteValidation?.ok
+      ? null
+      : await validateOpsWebsitePricingQuote({
+          quote_token: pricingQuoteToken,
+          offer_reference: offer.offer_reference,
+          price_area_code: serverPriceAreaCode,
+          estimated_monthly_kwh: estimatedMonthlyKwh,
+          postal_code: postalCode,
+          city,
+          address,
+        }).catch(() => null)
+    if ((!localQuoteValidation?.ok && !opsQuoteValidation?.ok) || (pricingQuoteSource === 'website' && !localQuoteValidation?.ok)) {
+      return fail('price_snapshot')
+    }
 
     const liveDisplay = buildPublicContractDisplay(offer)
     if (!liveDisplay.ready) return fail('offer')
 
     const pricingInput: OpsWebsitePricingPreviewInput = {
       offer_reference: offer.offer_reference,
-      contract_id: offer.contract_id ?? null,
-      price_plan_id: offer.price_plan_id,
-      price_plan_version_id: offer.price_plan_version_id,
-      product_code: offer.product_code,
       price_area_code: serverPriceAreaCode,
       postal_code: postalCode,
       city,
@@ -451,10 +429,12 @@ export default async function TecknaPage({
       return fail('ops_unavailable')
     }
 
-    const signedPricingPreview = quoteToWebsitePricingPreview(quoteValidation.quote)
+    const quotedPricingPreview = localQuoteValidation?.ok
+      ? quoteToWebsitePricingPreview(localQuoteValidation.quote)
+      : livePricingPreview
     const signedPriceValidation = validatePricingPreviewSnapshot({
       contract: offer,
-      snapshot: signedPricingPreview,
+      snapshot: quotedPricingPreview,
       livePreview: livePricingPreview,
       expectedPriceArea: serverPriceAreaCode,
       expectedMonthlyKwh: estimatedMonthlyKwh,
@@ -471,9 +451,13 @@ export default async function TecknaPage({
     }
 
     const canonicalPricingPreviewSnapshot = {
-      ...signedPricingPreview,
-      quote_issued_at: quoteValidation.quote.issued_at,
-      quote_expires_at: quoteValidation.quote.expires_at,
+      ...livePricingPreview,
+      quote_token: pricingQuoteToken,
+      quote_source: localQuoteValidation?.ok ? 'website' : 'ops',
+      quote_issued_at: localQuoteValidation?.ok ? localQuoteValidation.quote.issued_at : null,
+      quote_expires_at: localQuoteValidation?.ok
+        ? localQuoteValidation.quote.expires_at
+        : opsQuoteValidation?.expires_at ?? null,
     }
     const idempotencyKey = createApplicationIdempotencyKey([
       'gridex_website_application_v1',
@@ -519,9 +503,6 @@ export default async function TecknaPage({
         requested_start_mode: requestedStartMode,
         requested_start_date:
           requestedStartMode === 'specific_date' ? requestedStartDate || null : null,
-        price_plan_id: offer.price_plan_id,
-        price_plan_version_id: offer.price_plan_version_id,
-        product_code: offer.product_code,
         price_area_code: serverPriceAreaCode,
         grid_area_code: serverResolution?.grid_area_code ?? null,
         grid_owner_id: null,
@@ -565,7 +546,7 @@ export default async function TecknaPage({
         facilityId: facilityId || null,
         meteringPointId: meteringPointId || null,
         offerReference: offer.offer_reference,
-        productCode: offer.product_code,
+        productCode: offer.product_code ?? null,
         contractName: offer.name,
       })
 
@@ -666,7 +647,7 @@ export default async function TecknaPage({
           utm_campaign: params.utm_campaign,
         }}
         action={submitApplicationAction}
-        initialPricingPreview={initialPricingPreview}
+        initialPricingPreview={null}
       />
     </div>
   )

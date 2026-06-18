@@ -24,16 +24,7 @@ export default async function HomePage() {
       name: item.name,
       value: item.offer_reference,
       offerReference: item.offer_reference,
-      productCode: item.product_code,
-      pricePlanId: item.price_plan_id,
-      pricePlanVersionId: item.price_plan_version_id,
-      contractId: item.contract_id ?? null,
       type: item.type,
-      monthlyFeeSek: item.monthly_fee_sek,
-      invoiceFeeSek: item.invoice_fee_sek,
-      markupOrePerKwh: item.markup_ore_per_kwh,
-      variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
-      fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
     }));
   } catch {
     options = [];

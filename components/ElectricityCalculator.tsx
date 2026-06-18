@@ -16,10 +16,6 @@ export type ContractOption = {
   name: string
   value: string
   offerReference: string
-  productCode: string
-  pricePlanId: string
-  pricePlanVersionId: string
-  contractId?: string | null
   type: string
 }
 
@@ -166,10 +162,6 @@ export default function ElectricityCalculator({
       const resolvedArea = await resolveArea()
       const preview = await previewWebsitePricing({
         offer_reference: selectedContract.offerReference,
-        contract_id: selectedContract.contractId ?? null,
-        price_plan_id: selectedContract.pricePlanId,
-        price_plan_version_id: selectedContract.pricePlanVersionId,
-        product_code: selectedContract.productCode,
         price_area_code: resolvedArea,
         postal_code: normalizeWebsitePostalCode(postalCode),
         city: city.trim(),
@@ -182,10 +174,6 @@ export default function ElectricityCalculator({
           ...preview.contract,
           contractType: normalizeContractType(preview.contract.contractType),
           offer_reference: preview.contract.offer_reference ?? selectedContract.offerReference,
-          price_plan_version_id: preview.contract.price_plan_version_id ?? selectedContract.pricePlanVersionId,
-          price_plan_id: preview.contract.price_plan_id ?? selectedContract.pricePlanId,
-          product_code: preview.contract.product_code ?? selectedContract.productCode,
-          contract_id: preview.contract.contract_id ?? selectedContract.contractId ?? null,
         },
       })
       onQuoteContextChange?.({

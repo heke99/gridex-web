@@ -4,6 +4,7 @@ import {
   getOpsClientStatus,
   isOpsError,
   type OpsWebsitePriceArea,
+  type OpsWebsitePricingPreview,
   type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
 import { issueWebsitePricingQuote } from '@/lib/website/pricingQuote'
@@ -17,14 +18,6 @@ const AREAS = new Set<OpsWebsitePriceArea>(['SE1', 'SE2', 'SE3', 'SE4'])
 type PreviewPayload = {
   offer_reference?: unknown
   offerReference?: unknown
-  contract_id?: unknown
-  contractId?: unknown
-  price_plan_id?: unknown
-  pricePlanId?: unknown
-  price_plan_version_id?: unknown
-  pricePlanVersionId?: unknown
-  product_code?: unknown
-  productCode?: unknown
   price_area_code?: unknown
   priceAreaCode?: unknown
   priceArea?: unknown
@@ -54,6 +47,23 @@ function priceArea(value: unknown): OpsWebsitePriceArea | null {
   return AREAS.has(area as OpsWebsitePriceArea) ? (area as OpsWebsitePriceArea) : null
 }
 
+function validOpsQuote(preview: OpsWebsitePricingPreview): { token: string; expiresAt: string } | null {
+  const token = preview.quote_token?.trim()
+  const expiresAt = preview.quote_expires_at?.trim()
+  if (!token || !expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now()) {
+    return null
+  }
+  return { token, expiresAt }
+}
+
+function publicPreview(preview: OpsWebsitePricingPreview) {
+  const safe = { ...preview }
+  delete safe.raw
+  delete safe.quote_token
+  delete safe.quote_expires_at
+  return safe
+}
+
 export async function POST(req: Request) {
   const status = getOpsClientStatus()
   if (!status.configured) {
@@ -66,6 +76,7 @@ export async function POST(req: Request) {
   const postalCode = text(body?.postal_code ?? body?.postalCode, 20)
   const city = text(body?.city)
   const address = text(body?.address)
+  const offerReference = text(body?.offer_reference ?? body?.offerReference)
 
   if (!resolvedArea || !monthlyKwh || !postalCode || !city || !address) {
     return NextResponse.json(
@@ -73,8 +84,6 @@ export async function POST(req: Request) {
       { status: 400 },
     )
   }
-
-  const offerReference = text(body?.offer_reference ?? body?.offerReference)
   if (!offerReference) {
     return NextResponse.json({ error: 'Välj ett aktuellt elavtal innan du räknar pris.' }, { status: 400 })
   }
@@ -84,27 +93,8 @@ export async function POST(req: Request) {
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (!contract) return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
 
-    const suppliedIdentifiers = {
-      contract_id: text(body?.contract_id ?? body?.contractId),
-      price_plan_id: text(body?.price_plan_id ?? body?.pricePlanId),
-      price_plan_version_id: text(body?.price_plan_version_id ?? body?.pricePlanVersionId),
-      product_code: text(body?.product_code ?? body?.productCode),
-    }
-    if (
-      (suppliedIdentifiers.contract_id && suppliedIdentifiers.contract_id !== contract.contract_id) ||
-      (suppliedIdentifiers.price_plan_id && suppliedIdentifiers.price_plan_id !== contract.price_plan_id) ||
-      (suppliedIdentifiers.price_plan_version_id && suppliedIdentifiers.price_plan_version_id !== contract.price_plan_version_id) ||
-      (suppliedIdentifiers.product_code && suppliedIdentifiers.product_code !== contract.product_code)
-    ) {
-      return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 409 })
-    }
-
     const input: OpsWebsitePricingPreviewInput = {
       offer_reference: contract.offer_reference,
-      contract_id: contract.contract_id ?? null,
-      price_plan_id: contract.price_plan_id,
-      price_plan_version_id: contract.price_plan_version_id,
-      product_code: contract.product_code,
       price_area_code: resolvedArea,
       postal_code: postalCode,
       city,
@@ -112,22 +102,22 @@ export async function POST(req: Request) {
       estimated_monthly_kwh: monthlyKwh,
     }
     const preview = await loadVerifiedWebsitePricingPreview(input, contract)
-    const quote = issueWebsitePricingQuote({
-      preview,
-      contract,
-      location: { postalCode, city, address },
-    })
+    const opsQuote = validOpsQuote(preview)
+    const websiteQuote = opsQuote
+      ? null
+      : issueWebsitePricingQuote({ preview, contract, location: { postalCode, city, address } })
 
-    if (!quote) {
+    if (!opsQuote && !websiteQuote) {
       return NextResponse.json({ error: 'Priset kan inte säkras för ansökan just nu.' }, { status: 503 })
     }
 
     return NextResponse.json(
       {
         data: {
-          ...preview,
-          quote_token: quote.token,
-          quote_expires_at: quote.quote.expires_at,
+          ...publicPreview(preview),
+          quote_token: opsQuote?.token ?? websiteQuote!.token,
+          quote_expires_at: opsQuote?.expiresAt ?? websiteQuote!.quote.expires_at,
+          quote_source: opsQuote ? 'ops' : 'website',
         },
       },
       { headers: { 'Cache-Control': 'private, no-store' } },

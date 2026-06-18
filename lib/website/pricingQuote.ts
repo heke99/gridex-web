@@ -17,6 +17,11 @@ type QuoteFees = {
 
 type QuoteBasis = NonNullable<WebsitePricingPreview['specification']>['basis']
 
+/**
+ * This is an integrity fallback for website deployments while OPS is rolling
+ * out its own quote token. The binding contract remains offer_reference and
+ * OPS always creates the final price and legal snapshot on application.
+ */
 export type WebsitePricingQuote = {
   version: 1
   issued_at: string
@@ -24,10 +29,6 @@ export type WebsitePricingQuote = {
   location_fingerprint: string
   contract: {
     offer_reference: string
-    contract_id: string | null
-    price_plan_id: string
-    price_plan_version_id: string
-    product_code: string
     name: string
     contract_type: WebsitePricingPreview['contract']['contractType']
   }
@@ -53,12 +54,7 @@ function env(name: string): string | null {
 }
 
 function quoteSecret(): string | null {
-  return (
-    env('GRIDEX_WEBSITE_HASH_PEPPER') ??
-    env('GRIDEX_WEBSITE_API_KEY') ??
-    env('GRIDEX_OPS_API_KEY') ??
-    env('OPS_API_KEY')
-  )
+  return env('GRIDEX_WEBSITE_PRICING_QUOTE_SECRET')
 }
 
 function base64url(value: string): string {
@@ -180,7 +176,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
     typeof quote.issued_at === 'string' &&
     typeof quote.expires_at === 'string' &&
     typeof quote.location_fingerprint === 'string' &&
-    Boolean(contract && typeof contract === 'object' && contract.offer_reference && contract.price_plan_version_id && contract.price_plan_id && contract.product_code) &&
+    Boolean(contract && typeof contract === 'object' && contract.offer_reference && contract.name && contract.contract_type) &&
     validArea(quote.price_area_code) &&
     typeof quote.estimated_monthly_kwh === 'number' &&
     Number.isFinite(quote.estimated_monthly_kwh) &&
@@ -218,10 +214,6 @@ export function issueWebsitePricingQuote(input: {
     location_fingerprint: locationFingerprint,
     contract: {
       offer_reference: input.contract.offer_reference,
-      contract_id: input.contract.contract_id ?? null,
-      price_plan_id: input.contract.price_plan_id,
-      price_plan_version_id: input.contract.price_plan_version_id,
-      product_code: input.contract.product_code,
       name: input.contract.name,
       contract_type: input.preview.contract.contractType,
     },
@@ -272,10 +264,6 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
       offer_reference: quote.contract.offer_reference,
       name: quote.contract.name,
       contractType: quote.contract.contract_type,
-      price_plan_id: quote.contract.price_plan_id,
-      price_plan_version_id: quote.contract.price_plan_version_id,
-      product_code: quote.contract.product_code,
-      contract_id: quote.contract.contract_id,
     },
     priceArea: quote.price_area_code,
     price_area_code: quote.price_area_code,
@@ -287,6 +275,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     specification: quote.specification,
     quote_token: token,
     quote_expires_at: quote.expires_at,
+    quote_source: 'website',
   }
 }
 
@@ -301,12 +290,7 @@ export function validateWebsitePricingQuote(input: {
   if (!verified.ok) return { ok: false, reason: verified.reason }
 
   const { quote } = verified
-  if (
-    quote.contract.offer_reference !== input.contract.offer_reference ||
-    quote.contract.price_plan_id !== input.contract.price_plan_id ||
-    quote.contract.price_plan_version_id !== input.contract.price_plan_version_id ||
-    quote.contract.product_code !== input.contract.product_code
-  ) {
+  if (quote.contract.offer_reference !== input.contract.offer_reference) {
     return { ok: false, reason: 'contract_changed' }
   }
 

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
 import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
+import { normalizePublicContractApiPayload } from "@/lib/website/publicContractContract";
 
 export type OpsContractType =
   | "variable_spot"
@@ -16,9 +17,11 @@ export type OpsPublicContract = {
   id?: string | null;
   offer_reference: string;
   contract_id?: string | null;
-  price_plan_id: string;
-  price_plan_version_id: string;
-  product_code: string;
+  // Internal OPS identifiers are intentionally optional. The public website
+  // only relies on offer_reference and the documented public DTO.
+  price_plan_id?: string | null;
+  price_plan_version_id?: string | null;
+  product_code?: string | null;
   name: string;
   type: OpsContractType;
   short_description?: string | null;
@@ -70,9 +73,6 @@ export type OpsCustomerApplicationInput = {
   metering_point_id?: string | null;
   requested_start_mode: "asap" | "specific_date";
   requested_start_date?: string | null;
-  price_plan_id?: string | null;
-  price_plan_version_id?: string | null;
-  product_code?: string | null;
   price_area_code?: string | null;
   grid_area_code?: string | null;
   grid_owner_id?: string | null;
@@ -176,11 +176,7 @@ export type OpsWebsiteEnergyResolution = {
 };
 
 export type OpsWebsitePricingPreviewInput = {
-  offer_reference?: string | null;
-  contract_id?: string | null;
-  price_plan_id?: string | null;
-  price_plan_version_id?: string | null;
-  product_code?: string | null;
+  offer_reference: string;
   price_area_code: OpsWebsitePriceArea;
   postal_code?: string | null;
   city?: string | null;
@@ -194,10 +190,6 @@ export type OpsWebsitePricingPreview = {
     offer_reference?: string | null;
     name: string;
     contractType: "spot_hourly" | "portfolio_managed" | "fixed" | "mix";
-    price_plan_version_id?: string | null;
-    price_plan_id?: string | null;
-    product_code?: string | null;
-    contract_id?: string | null;
   };
   priceArea: OpsWebsitePriceArea;
   price_area_code?: OpsWebsitePriceArea;
@@ -209,6 +201,8 @@ export type OpsWebsitePricingPreview = {
   customerNotice?: string;
   legalText?: string;
   specification?: Record<string, unknown>;
+  quote_token?: string;
+  quote_expires_at?: string;
   raw?: Record<string, unknown>;
 };
 
@@ -622,6 +616,22 @@ function coalesceNumber(
 function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (!row || typeof row !== "object") return null;
   const r = row as Record<string, unknown>;
+  const documented = normalizePublicContractApiPayload(r);
+  if (documented) {
+    return {
+      ...documented,
+      contract_id: null,
+      short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
+      marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
+      badge_text: pickString(r, ["badge_text", "badgeText"]),
+      cancellation_right_version: documented.withdrawal_version,
+      power_of_attorney_version: null,
+      is_public: null,
+      is_active: null,
+      sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
+      raw: r,
+    };
+  }
   const pricing = recordValue(r.pricing);
   const legal = recordValue(r.legal);
 
@@ -653,7 +663,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     "displayName",
   ]);
 
-  if (!offerReference || !productCode || !name) return null;
+  if (!offerReference || !name) return null;
 
   const pricePlanId = pickFromRecords([r], [
     "price_plan_id",
@@ -674,7 +684,9 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
 
   const isPublic = pickBooleanFromRecords([r], ["is_public", "isPublic", "public"]);
   const isActive = pickBooleanFromRecords([r], ["is_active", "isActive", "active"]);
-  if (!pricePlanId || !pricePlanVersionId || isPublic !== true || isActive !== true) return null;
+  // Legacy OPS responses may contain these fields, but public contracts are
+  // already publication-filtered by OPS and must not be rejected for omitting them.
+
 
   const components = extractOpsPriceComponents(r);
   const withdrawalVersion = pickFromRecords([legal, r], [
@@ -1078,16 +1090,6 @@ function mapWebsitePricingPreview(
           contractRow.type ??
           row.contract_type,
       ),
-      price_plan_version_id: pickString(contractRow, [
-        "price_plan_version_id",
-        "pricePlanVersionId",
-      ]) ?? pickString(row, ["price_plan_version_id", "pricePlanVersionId"]),
-      price_plan_id: pickString(contractRow, ["price_plan_id", "pricePlanId"]) ??
-        pickString(row, ["price_plan_id", "pricePlanId"]),
-      product_code: pickString(contractRow, ["product_code", "productCode"]) ??
-        pickString(row, ["product_code", "productCode"]),
-      contract_id: pickString(contractRow, ["contract_id", "contractId"]) ??
-        pickString(row, ["contract_id", "contractId"]),
     },
     priceArea: safeArea,
     price_area_code: safeArea,
@@ -1113,6 +1115,8 @@ function mapWebsitePricingPreview(
       pickString(row, ["customerNotice", "customer_notice"]) ?? undefined,
     legalText: pickString(row, ["legalText", "legal_text"]) ?? undefined,
     specification: normalizeWebsitePricingSpecification(row),
+    quote_token: pickString(row, ["quote_token", "quoteToken"]) ?? undefined,
+    quote_expires_at: pickString(row, ["quote_expires_at", "quoteExpiresAt"]) ?? undefined,
     raw: row,
   };
 }
@@ -1245,6 +1249,7 @@ function mapPricePlan(row: unknown): OpsPricePlan | null {
   const mapped = mapPublicContract(row);
   if (!mapped) return null;
   const r = row as Record<string, unknown>;
+  if (!mapped.price_plan_id || !mapped.price_plan_version_id || !mapped.product_code) return null;
   return {
     price_plan_id: mapped.price_plan_id,
     price_plan_version_id: mapped.price_plan_version_id,
@@ -1313,6 +1318,37 @@ export async function fetchOpsWebsitePricingPreview(
   return mapWebsitePricingPreview(payload, input.price_area_code);
 }
 
+export type OpsWebsitePricingQuoteValidationInput = {
+  quote_token: string;
+  offer_reference: string;
+  price_area_code: OpsWebsitePriceArea;
+  estimated_monthly_kwh: number;
+  postal_code: string;
+  city: string;
+  address: string;
+};
+
+export type OpsWebsitePricingQuoteValidationResult = {
+  ok: boolean;
+  expires_at?: string | null;
+  customer_message?: string | null;
+};
+
+export async function validateOpsWebsitePricingQuote(
+  input: OpsWebsitePricingQuoteValidationInput,
+): Promise<OpsWebsitePricingQuoteValidationResult> {
+  const payload = await opsFetchWithFallback(
+    ["/api/v1/website/pricing/quote/validate"],
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  const row = extractObject(payload);
+  return {
+    ok: row.ok === true,
+    expires_at: pickString(row, ["expires_at", "quote_expires_at", "quoteExpiresAt"]),
+    customer_message: pickString(row, ["customer_message", "customerMessage", "message", "error"]),
+  };
+}
+
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
 ): Promise<OpsCustomerApplicationResult> {
@@ -1366,9 +1402,6 @@ export async function submitOpsCustomerApplication(
     consents: input.consents,
     metadata: {
       requested_start_mode: input.requested_start_mode,
-      price_plan_id: input.price_plan_id ?? null,
-      price_plan_version_id: input.price_plan_version_id ?? null,
-      product_code: input.product_code ?? null,
       energy_resolution_status: input.energy_resolution_status ?? null,
       energy_resolution_confidence: input.energy_resolution_confidence ?? null,
       estimated_monthly_kwh: input.estimated_monthly_kwh ?? null,

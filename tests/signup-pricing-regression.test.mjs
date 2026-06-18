@@ -5,14 +5,6 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
-function includes(path, needle, message) {
-  assert.ok(read(path).includes(needle), `${path}: ${message}`)
-}
-
-function excludes(path, needle, message) {
-  assert.ok(!read(path).includes(needle), `${path}: ${message}`)
-}
-
 const previewRoute = read('app/api/v1/website/pricing/preview/route.ts')
 assert.ok(previewRoute.includes('loadVerifiedWebsitePricingPreview'), 'pricing preview must use verified OPS pricing')
 assert.ok(previewRoute.includes('issueWebsitePricingQuote'), 'pricing preview must issue a signed quote')
@@ -20,13 +12,18 @@ assert.ok(previewRoute.includes("Cache-Control': 'private, no-store'"), 'signed 
 assert.ok(previewRoute.includes('estimated_monthly_kwh'), 'pricing preview must require an explicit kWh value')
 assert.ok(!previewRoute.includes('contractFallbackPreview'), 'pricing preview must not contain a local fallback calculation')
 assert.ok(previewRoute.includes("item.offer_reference === offerReference"), 'pricing preview must resolve the selected public offer by offer reference')
-assert.ok(previewRoute.includes('suppliedIdentifiers'), 'pricing preview must reject mismatched client identifiers')
+assert.ok(!previewRoute.includes('price_plan_id'), 'pricing preview must not accept internal price-plan identifiers from the browser')
+assert.ok(previewRoute.includes('offer_reference'), 'pricing preview must use the public offer reference')
+assert.ok(previewRoute.includes("quote_source: opsQuote ? 'ops' : 'website'"), 'pricing preview must disclose the quote authority')
 
 const quote = read('lib/website/pricingQuote.ts')
 assert.ok(quote.includes('createHmac'), 'pricing quote must be HMAC signed')
 assert.ok(quote.includes('location_fingerprint'), 'pricing quote must bind the quote to the final address without putting it in the URL')
 assert.ok(quote.includes('QUOTE_TTL_MS = 15 * 60 * 1000'), 'pricing quote must have a short validity period')
 assert.ok(quote.includes('timingSafeEqual'), 'pricing quote signature validation must use timing-safe comparison')
+assert.ok(quote.includes('GRIDEX_WEBSITE_PRICING_QUOTE_SECRET'), 'compatibility quote must use its own secret')
+assert.ok(!quote.includes('GRIDEX_WEBSITE_API_KEY'), 'quote signing must not reuse the OPS API key')
+assert.ok(!quote.includes('GRIDEX_WEBSITE_HASH_PEPPER'), 'quote signing must not reuse the PII hash pepper')
 
 const pricingPreview = read('lib/website/pricingPreview.ts')
 assert.ok(pricingPreview.includes('assertCompletePreview'), 'OPS pricing must be checked for completeness')
@@ -37,7 +34,8 @@ assert.ok(pricingPreview.includes('PREVIEW_CACHE_TTL_MS = 60_000'), 'identical p
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.ok(signup.includes('validatePricingPreviewSnapshot'), 'signup must validate the displayed price snapshot')
-assert.ok(signup.includes('validateWebsitePricingQuote'), 'signup must validate the signed quote against final details')
+assert.ok(signup.includes('validateOpsWebsitePricingQuote'), 'signup must validate an OPS-issued quote against final details')
+assert.ok(signup.includes('validateWebsitePricingQuote'), 'signup must validate a compatibility quote against final details')
 assert.ok(signup.includes('loadVerifiedWebsitePricingPreview'), 'signup must obtain a fresh verified OPS calculation before submit')
 assert.ok(signup.includes('fetchOpsPublicContractsFresh'), 'signup must verify the offer against fresh OPS contract data')
 assert.ok(signup.includes('contractSupportsCustomerType'), 'signup must enforce customer type on the server')
@@ -59,11 +57,9 @@ assert.ok(cards.includes('Mixavtal'), 'contract list must explain mix products')
 assert.ok(!cards.includes('Allmänna villkor: version'), 'contract cards must not expose legal version identifiers to customers')
 
 const display = read('lib/website/publicContractDisplay.ts')
-assert.ok(display.includes("'prisplan saknas'"), 'public contract cards must block missing price plans')
-assert.ok(display.includes("'prisplansversion saknas'"), 'public contract cards must block missing price plan versions')
-assert.ok(display.includes("contract.is_public !== true"), 'public contract cards must require explicit publication')
-assert.ok(display.includes("contract.is_active !== true"), 'public contract cards must require explicit activation')
-assert.ok(display.includes("'mixfördelning måste vara 100 %'"), 'mix contracts must validate a complete split')
+assert.ok(!display.includes("'prisplan saknas'"), 'public contract cards must not require internal price plans')
+assert.ok(!display.includes("contract.is_public !== true"), 'public contract cards must trust OPS publication filtering')
+assert.ok(display.includes('never OPS-internal IDs'), 'public contract display must document the public API boundary')
 
 const ops = read('lib/ops/client.ts')
 assert.ok(ops.includes('unstable_cache'), 'public contract catalogue must be cached')
@@ -74,3 +70,12 @@ const webhook = read('app/api/ops/webhooks/route.ts')
 assert.ok(webhook.includes("revalidateTag('ops-public-contracts', 'max')"), 'relevant OPS changes must invalidate public contract cache')
 
 console.log('Signup pricing regression checks passed')
+
+const portalRoute = read('app/api/v1/customer/portal-bundle/route.ts')
+assert.ok(portalRoute.includes('CustomerPortalAccessError'), 'portal route must return a typed authentication error')
+assert.ok(portalRoute.includes('status: error.status'), 'portal route must return 401 for a missing customer session')
+assert.ok(portalRoute.includes('status: 503'), 'portal route must return 503 when the portal is unavailable')
+
+const docs = read('docs/external-website-api-integration-guide.md')
+assert.ok(docs.includes('only contract reference that the website may use'), 'API guide must define the public offer reference boundary')
+assert.ok(docs.includes('price_plan_id'), 'API guide must prohibit browser-supplied internal price-plan identifiers')

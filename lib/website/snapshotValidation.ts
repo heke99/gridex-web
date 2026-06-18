@@ -96,21 +96,6 @@ export function validateContractDisplaySnapshot(
     reasons.push('contract_display_snapshot matchar inte valt avtal')
   }
 
-  const version = stringValue(snapshot.price_plan_version_id)
-  if (version && version !== contract.price_plan_version_id) {
-    reasons.push('contract_display_snapshot matchar inte vald prisversion')
-  }
-
-  const pricePlanId = stringValue(snapshot.price_plan_id)
-  if (pricePlanId && pricePlanId !== contract.price_plan_id) {
-    reasons.push('contract_display_snapshot matchar inte vald prisplan')
-  }
-
-  const productCode = stringValue(snapshot.product_code)
-  if (productCode !== contract.product_code) {
-    reasons.push('contract_display_snapshot matchar inte produktkod')
-  }
-
   const legal = isRecord(snapshot.legal_versions) ? snapshot.legal_versions : {}
   if (stringValue(legal.terms) !== (contract.terms_version ?? null)) {
     reasons.push('allmänna villkor har ändrats')
@@ -155,36 +140,6 @@ export function validatePricingPreviewSnapshot(params: {
     reasons.push('pricing_preview_snapshot matchar inte valt avtal')
   }
 
-  const snapshotVersion = firstString(snapshot, [
-    ['contract', 'price_plan_version_id'],
-    ['contract', 'pricePlanVersionId'],
-    ['price_plan_version_id'],
-    ['pricePlanVersionId'],
-  ])
-  if (snapshotVersion && snapshotVersion !== contract.price_plan_version_id) {
-    reasons.push('pricing_preview_snapshot matchar inte vald prisversion')
-  }
-
-  const snapshotPlanId = firstString(snapshot, [
-    ['contract', 'price_plan_id'],
-    ['contract', 'pricePlanId'],
-    ['price_plan_id'],
-    ['pricePlanId'],
-  ])
-  if (snapshotPlanId && snapshotPlanId !== contract.price_plan_id) {
-    reasons.push('pricing_preview_snapshot matchar inte vald prisplan')
-  }
-
-  const snapshotProduct = firstString(snapshot, [
-    ['contract', 'product_code'],
-    ['contract', 'productCode'],
-    ['product_code'],
-    ['productCode'],
-  ])
-  if (snapshotProduct && snapshotProduct !== contract.product_code) {
-    reasons.push('pricing_preview_snapshot matchar inte produktkod')
-  }
-
   const snapshotArea = firstString(snapshot, [['price_area_code'], ['priceArea']])
   if (!snapshotArea || snapshotArea !== expectedPriceArea) {
     reasons.push('elområde i pricing_preview_snapshot matchar inte ansökan')
@@ -198,11 +153,6 @@ export function validatePricingPreviewSnapshot(params: {
   const liveOffer = livePreview.contract.offer_reference ?? null
   if (liveOffer && liveOffer !== contract.offer_reference) {
     reasons.push('live-preview returnerade annat avtal')
-  }
-
-  const liveVersion = livePreview.contract.price_plan_version_id ?? null
-  if (liveVersion && liveVersion !== contract.price_plan_version_id) {
-    reasons.push('live-preview returnerade annan prisversion')
   }
 
   const liveArea = livePreview.price_area_code ?? livePreview.priceArea

@@ -41,13 +41,8 @@ function previewContractType(type: string): OpsWebsitePricingPreview['contract']
 }
 
 function matchesReturnedContract(data: OpsWebsitePricingPreview, contract: OpsPublicContract): boolean {
-  const returned = data.contract
-  return (
-    (!returned.offer_reference || returned.offer_reference === contract.offer_reference) &&
-    (!returned.price_plan_id || returned.price_plan_id === contract.price_plan_id) &&
-    (!returned.price_plan_version_id || returned.price_plan_version_id === contract.price_plan_version_id) &&
-    (!returned.product_code || returned.product_code === contract.product_code)
-  )
+  const returnedOfferReference = data.contract.offer_reference
+  return !returnedOfferReference || returnedOfferReference === contract.offer_reference
 }
 
 export function enrichWebsitePricingPreview(
@@ -76,15 +71,10 @@ export function enrichWebsitePricingPreview(
   return {
     ...data,
     contract: {
-      ...data.contract,
       slug: contract.offer_reference,
       offer_reference: contract.offer_reference,
       name: contract.name,
       contractType: previewContractType(contract.type),
-      price_plan_id: contract.price_plan_id,
-      price_plan_version_id: contract.price_plan_version_id,
-      product_code: contract.product_code,
-      contract_id: contract.contract_id ?? null,
     },
     specification: {
       ...(data.specification ?? {}),
@@ -97,10 +87,6 @@ export function enrichWebsitePricingPreview(
 function cacheKey(input: OpsWebsitePricingPreviewInput): string {
   return [
     input.offer_reference,
-    input.contract_id,
-    input.price_plan_id,
-    input.price_plan_version_id,
-    input.product_code,
     input.price_area_code,
     input.postal_code?.replace(/\s/g, ''),
     input.city?.trim().toLowerCase(),

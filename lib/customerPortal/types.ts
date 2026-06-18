@@ -204,4 +204,6 @@ export type CustomerPortalOverview = {
   notifications: CustomerNotification[]
   opsAvailable: boolean
   opsError: string | null
+  dataFreshness: 'live' | 'local_fallback'
+  dataFreshnessMessage: string | null
 }

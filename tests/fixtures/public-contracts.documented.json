@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "offer_variable_202606",
+      "offer_reference": "offer_variable_202606",
+      "code": "RORLIGT-ELPRIS",
+      "name": "Rörligt elpris",
+      "type": "variable_spot",
+      "customer_type": "both",
+      "pricing": {
+        "monthly_fee": { "amount": 68, "currency": "SEK", "unit": "month" },
+        "markup": { "amount": 4, "unit": "ore_per_kwh" }
+      },
+      "legal": {
+        "terms_version": "2026-06",
+        "privacy_policy_version": "2026-06",
+        "withdrawal_version": "2026-06",
+        "power_of_attorney_required": true,
+        "price_terms_version": "2026-06"
+      },
+      "valid_from": "2026-06-01T00:00:00Z",
+      "valid_to": null
+    }
+  ]
+}

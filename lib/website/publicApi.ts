@@ -24,11 +24,7 @@ export type WebsiteEnergyResolveInput = {
 }
 
 export type WebsitePricingPreviewInput = {
-  offer_reference?: string | null
-  contract_id?: string | null
-  price_plan_id?: string | null
-  price_plan_version_id?: string | null
-  product_code?: string | null
+  offer_reference: string
   price_area_code: WebsitePriceArea
   postal_code?: string | null
   city?: string | null
@@ -50,10 +46,6 @@ export type WebsitePricingPreview = {
     offer_reference?: string | null
     name: string
     contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed' | 'mix'
-    price_plan_version_id?: string | null
-    price_plan_id?: string | null
-    product_code?: string | null
-    contract_id?: string | null
   }
   priceArea: WebsitePriceArea
   price_area_code?: WebsitePriceArea
@@ -100,6 +92,7 @@ export type WebsitePricingPreview = {
   }
   quote_token?: string
   quote_expires_at?: string
+  quote_source?: 'ops' | 'website'
   raw?: Record<string, unknown>
 }
 
@@ -189,6 +182,7 @@ export async function previewWebsitePricing(
 
 export async function validateWebsitePricingQuote(input: {
   quote_token: string
+  quote_source?: 'ops' | 'website'
   offer_reference: string
   price_area_code: WebsitePriceArea
   estimated_monthly_kwh: number

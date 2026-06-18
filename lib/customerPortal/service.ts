@@ -36,13 +36,23 @@ type LocalInvoiceRow = Record<string, unknown>
 type LocalDocumentRow = Record<string, unknown>
 type LocalLegalAcceptanceRow = Record<string, unknown>
 
+export class CustomerPortalAccessError extends Error {
+  readonly status = 401
+  readonly code = 'unauthorized'
+
+  constructor() {
+    super('Du behöver logga in för att se dina kunduppgifter.')
+    this.name = 'CustomerPortalAccessError'
+  }
+}
+
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    throw new CustomerPortalAccessError()
   }
 
   return user
@@ -770,6 +780,10 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     notifications,
     opsAvailable,
     opsError: ops.error,
+    dataFreshness: opsAvailable ? 'live' : 'local_fallback',
+    dataFreshnessMessage: opsAvailable
+      ? null
+      : 'Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.',
   }
 }
 

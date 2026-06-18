@@ -12,7 +12,6 @@ export type PublicContractDisplay = {
   ready: boolean
   blockedReasons: string[]
   offerReference: string
-  pricePlanVersionId: string
   ctaHref: string
   typeLabel: string
   headline: string
@@ -142,26 +141,23 @@ function stringList(value: unknown, fallback: string[]): string[] {
   return fallback
 }
 
+/**
+ * OPS filters publication state, active price versions and published legal text
+ * before a contract reaches this website. The website validates only the public
+ * DTO it was promised, never OPS-internal IDs or duplicate publication flags.
+ */
 export function buildPublicContractDisplay(contract: OpsPublicContract): PublicContractDisplay {
   const rows: PublicContractDisplayRow[] = []
   const typeLabel = publicContractTypeLabel(contract.type)
   const blockedReasons: string[] = []
 
   if (!contract.offer_reference) blockedReasons.push('offer_reference saknas')
-  if (!contract.product_code) blockedReasons.push('produktkod saknas')
-  if (!contract.price_plan_id) blockedReasons.push('prisplan saknas')
-  if (!contract.price_plan_version_id) blockedReasons.push('prisplansversion saknas')
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
   if (!contract.terms_version) blockedReasons.push('allmänna villkor saknas')
   if (!contract.privacy_policy_version) blockedReasons.push('integritetspolicy saknas')
   if (!contract.cancellation_right_version && !contract.withdrawal_version) blockedReasons.push('ångerrätt saknas')
   if (!contract.price_terms_version) blockedReasons.push('prisvillkor saknas')
-  if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
-    blockedReasons.push('fullmaktsvillkor saknas')
-  }
-  if (contract.is_public !== true) blockedReasons.push('avtalet är inte publicerat')
-  if (contract.is_active !== true) blockedReasons.push('avtalet är inte aktivt')
 
   const now = Date.now()
   if (contract.valid_from) {
@@ -174,7 +170,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   }
 
   if (contract.type === 'fixed') {
-    if (!hasNumberValue(contract.fixed_price_ore_per_kwh)) blockedReasons.push('fast elpris saknas')
     addNumberRow(rows, 'fixed_price_ore_per_kwh', 'Fast elpris', contract.fixed_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
@@ -187,10 +182,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'mix' || contract.type === 'mixed') {
-    const mixTotal = (contract.spot_share ?? 0) + (contract.portfolio_share ?? 0)
-    if (!hasNumberValue(contract.spot_share) || !hasNumberValue(contract.portfolio_share) || Math.abs(mixTotal - 100) > 0.001) {
-      blockedReasons.push('mixfördelning måste vara 100 %')
-    }
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
     addNumberRow(rows, 'spot_share', 'Rörlig andel', contract.spot_share, 'percent')
     addNumberRow(rows, 'portfolio_share', 'Portföljandel', contract.portfolio_share, 'percent')
@@ -208,13 +199,19 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
 
   const included = stringList(contract.included, ['Elhandelsavtal', 'Avtalsadministration', 'Kundkommunikation'])
   const excluded = stringList(contract.excluded, ['Elnätsavgift', 'Eventuell effektavgift', 'Avgifter från nätägaren'])
+  const legalVersions = {
+    terms: contract.terms_version ?? null,
+    privacy_policy: contract.privacy_policy_version ?? null,
+    withdrawal: contract.withdrawal_version ?? contract.cancellation_right_version ?? null,
+    cancellation_right: contract.cancellation_right_version ?? contract.withdrawal_version ?? null,
+    power_of_attorney: contract.power_of_attorney_version ?? null,
+    power_of_attorney_required: contract.power_of_attorney_required === true,
+    price_terms: contract.price_terms_version ?? null,
+  }
 
   const snapshot = {
     offer_reference: contract.offer_reference,
-    contract_id: contract.contract_id ?? null,
-    price_plan_id: contract.price_plan_id,
-    price_plan_version_id: contract.price_plan_version_id,
-    product_code: contract.product_code,
+    code: contract.product_code ?? null,
     name: contract.name,
     type: contract.type,
     type_label: typeLabel,
@@ -227,15 +224,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     })),
     included,
     excluded,
-    legal_versions: {
-      terms: contract.terms_version ?? null,
-      privacy_policy: contract.privacy_policy_version ?? null,
-      withdrawal: contract.withdrawal_version ?? contract.cancellation_right_version ?? null,
-      cancellation_right: contract.cancellation_right_version ?? contract.withdrawal_version ?? null,
-      power_of_attorney: contract.power_of_attorney_version ?? null,
-      power_of_attorney_required: contract.power_of_attorney_required === true,
-      price_terms: contract.price_terms_version ?? null,
-    },
+    legal_versions: legalVersions,
     valid_from: contract.valid_from ?? null,
     valid_to: contract.valid_to ?? null,
   }
@@ -244,7 +233,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     ready: blockedReasons.length === 0,
     blockedReasons,
     offerReference: contract.offer_reference,
-    pricePlanVersionId: contract.price_plan_version_id,
     ctaHref: `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}`,
     typeLabel,
     headline: contract.name,
@@ -253,12 +241,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     included,
     excluded,
     legalVersions: {
-      terms: contract.terms_version ?? null,
-      privacyPolicy: contract.privacy_policy_version ?? null,
-      cancellationRight: contract.cancellation_right_version ?? contract.withdrawal_version ?? null,
-      powerOfAttorney: contract.power_of_attorney_version ?? null,
-      powerOfAttorneyRequired: contract.power_of_attorney_required === true,
-      priceTerms: contract.price_terms_version ?? null,
+      terms: legalVersions.terms,
+      privacyPolicy: legalVersions.privacy_policy,
+      cancellationRight: legalVersions.cancellation_right,
+      powerOfAttorney: legalVersions.power_of_attorney,
+      powerOfAttorneyRequired: legalVersions.power_of_attorney_required,
+      priceTerms: legalVersions.price_terms,
     },
     snapshot,
   }

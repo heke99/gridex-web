@@ -46,7 +46,7 @@ export default async function DashboardDocumentsPage() {
 
       {!overview.opsAvailable ? (
         <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi kunde inte hämta dokument just nu. Försök igen om en stund.
+          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
         </div>
       ) : null}
 

@@ -11,9 +11,31 @@ type Props = { contracts: SignupContractOption[]; initialSelectedValue: string; 
 
 function optionAsOpsContract(contract: SignupContractOption) {
   return {
-    offer_reference: contract.offerReference, contract_id: contract.contractId ?? null, price_plan_id: contract.pricePlanId, price_plan_version_id: contract.pricePlanVersionId, product_code: contract.productCode, name: contract.name, type: contract.type,
-    monthly_fee_sek: contract.monthlyFeeSek ?? null, invoice_fee_sek: contract.invoiceFeeSek ?? null, markup_ore_per_kwh: contract.markupOrePerKwh ?? null, variable_markup_ore_per_kwh: contract.variableMarkupOrePerKwh ?? null, fixed_price_ore_per_kwh: contract.fixedPriceOrePerKwh ?? null, spot_share: contract.spotShare ?? null, portfolio_share: contract.portfolioShare ?? null,
-    valid_from: contract.validFrom ?? null, valid_to: contract.validTo ?? null, binding_period_months: contract.bindingPeriodMonths ?? null, notice_period_days: contract.noticePeriodDays ?? null, included: contract.included ?? null, excluded: contract.excluded ?? null, start_info: contract.startInfo ?? null, customer_types: contract.customerTypes ?? null, terms_version: contract.termsVersion ?? null, privacy_policy_version: contract.privacyPolicyVersion ?? null, cancellation_right_version: contract.cancellationRightVersion ?? null, power_of_attorney_version: contract.powerOfAttorneyVersion ?? null, power_of_attorney_required: contract.powerOfAttorneyRequired ?? false, price_terms_version: contract.priceTermsVersion ?? null, is_public: true, is_active: true,
+    offer_reference: contract.offerReference,
+    product_code: contract.productCode ?? null,
+    name: contract.name,
+    type: contract.type,
+    monthly_fee_sek: contract.monthlyFeeSek ?? null,
+    invoice_fee_sek: contract.invoiceFeeSek ?? null,
+    markup_ore_per_kwh: contract.markupOrePerKwh ?? null,
+    variable_markup_ore_per_kwh: contract.variableMarkupOrePerKwh ?? null,
+    fixed_price_ore_per_kwh: contract.fixedPriceOrePerKwh ?? null,
+    spot_share: contract.spotShare ?? null,
+    portfolio_share: contract.portfolioShare ?? null,
+    valid_from: contract.validFrom ?? null,
+    valid_to: contract.validTo ?? null,
+    binding_period_months: contract.bindingPeriodMonths ?? null,
+    notice_period_days: contract.noticePeriodDays ?? null,
+    included: contract.included ?? null,
+    excluded: contract.excluded ?? null,
+    start_info: contract.startInfo ?? null,
+    customer_types: contract.customerTypes ?? null,
+    terms_version: contract.termsVersion ?? null,
+    privacy_policy_version: contract.privacyPolicyVersion ?? null,
+    cancellation_right_version: contract.cancellationRightVersion ?? null,
+    power_of_attorney_version: null,
+    power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
+    price_terms_version: contract.priceTermsVersion ?? null,
   }
 }
 
@@ -35,6 +57,9 @@ export default function SignupFlowClient({ contracts, initialSelectedValue, canS
 
   return <div className="space-y-14">
     <ElectricityCalculator contracts={contracts} selectedValue={selectedValue} onSelectedValueChange={updateSelectedValue} onPricingPreviewChange={setPricingPreview} onEnergyResolutionChange={setEnergyResolution} onEstimatedMonthlyKwhChange={setEstimatedMonthlyKwh} onQuoteContextChange={setQuoteContext} initialPricingPreview={initialPricingPreview} />
-    <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10"><div className="mb-8 max-w-2xl"><h2 className="text-2xl font-bold text-white md:text-3xl">Starta din ansökan</h2><p className="mt-3 text-gray-400">Prisofferten måste stämma med din slutliga adress och förbrukning. Du kan granska allt innan ansökan skickas.</p></div><CustomerApplicationForm contracts={contracts} selectedValue={selectedValue} onSelectedValueChange={updateSelectedValue} canSubmit={canSubmit} utm={utm} action={action} energyResolution={energyResolution} pricingPreview={pricingPreview} estimatedMonthlyKwh={estimatedMonthlyKwh} contractDisplay={contractDisplay} quoteContext={quoteContext} validatePricingQuote={async (input) => validateWebsitePricingQuote({ quote_token: input.quoteToken, offer_reference: input.offerReference, price_area_code: input.priceAreaCode as 'SE1' | 'SE2' | 'SE3' | 'SE4', estimated_monthly_kwh: input.estimatedMonthlyKwh, postal_code: input.postalCode, city: input.city, address: input.address })} /></section>
+    <section className="rounded-3xl border border-white/10 bg-gray-950 p-8 md:p-10">
+      <div className="mb-8 max-w-2xl"><h2 className="text-2xl font-bold text-white md:text-3xl">Starta din ansökan</h2><p className="mt-3 text-gray-400">Prisofferten måste stämma med din slutliga adress och förbrukning. Du kan granska allt innan ansökan skickas.</p></div>
+      <CustomerApplicationForm contracts={contracts} selectedValue={selectedValue} onSelectedValueChange={updateSelectedValue} canSubmit={canSubmit} utm={utm} action={action} energyResolution={energyResolution} pricingPreview={pricingPreview} estimatedMonthlyKwh={estimatedMonthlyKwh} contractDisplay={contractDisplay} quoteContext={quoteContext} validatePricingQuote={async (input) => validateWebsitePricingQuote({ quote_token: input.quoteToken, quote_source: input.quoteSource, offer_reference: input.offerReference, price_area_code: input.priceAreaCode as 'SE1' | 'SE2' | 'SE3' | 'SE4', estimated_monthly_kwh: input.estimatedMonthlyKwh, postal_code: input.postalCode, city: input.city, address: input.address })} />
+    </section>
   </div>
 }
