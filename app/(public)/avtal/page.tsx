@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import { permanentRedirect } from 'next/navigation'
 
 export const metadata: Metadata = {
   title: 'Elavtal – Gridex',
@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 }
 
 export default function AvtalRedirectPage() {
-  redirect('/elavtal')
+  permanentRedirect('/elavtal')
 }

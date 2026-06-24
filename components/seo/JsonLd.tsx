@@ -49,6 +49,7 @@ export function webPageJsonLd({
       '@type': 'Organization',
       name: 'Gridex AB',
       url: 'https://gridex.se',
+      logo: 'https://gridex.se/brand/gridex-logo.png',
     },
   }
 }
@@ -81,6 +82,7 @@ export function articleJsonLd({
       '@type': 'Organization',
       name: 'Gridex AB',
       url: 'https://gridex.se',
+      logo: 'https://gridex.se/brand/gridex-logo.png',
     },
   }
 }
@@ -104,6 +106,7 @@ export function serviceJsonLd({
       '@type': 'Organization',
       name: 'Gridex AB',
       url: 'https://gridex.se',
+      logo: 'https://gridex.se/brand/gridex-logo.png',
     },
     areaServed: {
       '@type': 'Country',

@@ -3,7 +3,7 @@ import CookieSettings from '@/components/legal/CookieSettings'
 
 export const metadata: Metadata = {
   title: 'Cookiepolicy – Gridex',
-  description: 'Information om hur Gridex använder nödvändiga cookies och hur du ändrar ditt cookieval.',
+  description: 'Information om hur Gridex använder nödvändiga cookies och, med ditt samtycke, mätning för Google Ads och Analytics.',
   alternates: { canonical: 'https://gridex.se/cookies' },
 }
 
@@ -18,7 +18,7 @@ export default function CookiePolicyPage() {
         </div>
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Cookiepolicy</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300 md:text-base">
-          Den här sidan beskriver den faktiska cookieanvändningen på Gridex webbplats. Vi beskriver inte analys- eller marknadsföringscookies som aktiva eftersom webbplatsen i nuläget inte sätter sådana cookies via samtyckesflödet.
+          Den här sidan beskriver den faktiska cookieanvändningen på Gridex webbplats. Nödvändiga cookies används för funktionalitet. Analys- och marknadsföringstaggar laddas endast om du accepterar cookies.
         </p>
       </section>
 
@@ -36,14 +36,14 @@ export default function CookiePolicyPage() {
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-gray-300">
           <li><strong className="text-white">Nödvändiga cookies</strong> används för inloggning, säkerhet och formulärfunktioner.</li>
           <li><strong className="text-white">Cookieval</strong> sparas lokalt i webbläsaren så att vi vet om bannern ska visas igen.</li>
-          <li><strong className="text-white">Icke-nödvändiga cookies</strong> sätts inte av Gridex webbplats innan du har accepterat dem.</li>
+          <li><strong className="text-white">Analys och annonsering</strong> kan användas för att mäta besök och ansökningar efter att du har accepterat cookies.</li>
         </ul>
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
         <h2 className="text-xl font-semibold text-white">3. Tredjepartstjänster</h2>
         <p className="mt-4 text-sm leading-7 text-gray-300">
-          Tjänster för hosting, inloggning, signering, betalning eller drift kan behöva tekniska cookies för att fungera. Gridex delar inte personuppgifter med tredje part för marknadsföring via denna webbplats.
+          Tjänster för hosting, inloggning, signering, betalning eller drift kan behöva tekniska cookies för att fungera. Om du accepterar cookies kan Google-taggar användas för att mäta trafik och konverteringar, utan att Gridex skickar personnummer, kundnummer eller andra känsliga kunduppgifter i annonsmätningen.
         </p>
       </section>
 

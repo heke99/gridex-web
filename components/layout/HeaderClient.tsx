@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import UserMenu from '@/components/account/UserMenu'
+import GridexLogo from '@/components/brand/GridexLogo'
 
 type Role =
   | 'admin'
@@ -73,17 +74,8 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
             {mobileOpen ? 'Stäng' : 'Meny'}
           </button>
 
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 font-bold text-cyan-300 shadow-[0_0_25px_rgba(34,211,238,0.10)]">
-              G
-            </div>
-
-            <div className="leading-tight">
-              <div className="font-bold tracking-tight text-white">Gridex AB</div>
-              <div className="hidden text-xs text-gray-400 sm:block">
-                Elhandelsbolag • kundservice • mina sidor
-              </div>
-            </div>
+          <Link href="/" className="flex items-center gap-3" aria-label="Gridex startsida">
+            <GridexLogo className="h-10 w-auto max-w-[170px]" inverted />
           </Link>
         </div>
 

@@ -49,8 +49,8 @@ export default function CookieBanner() {
           <div className="text-sm leading-6 text-gray-300">
             <div className="mb-1 font-semibold text-white">Vi använder cookies</div>
             <div className="text-gray-400">
-              Gridex använder endast nödvändiga cookies för funktionalitet och
-              förbättrad användarupplevelse. Läs mer eller ändra dina inställningar i vår{' '}
+              Gridex använder nödvändiga cookies för funktionalitet och, om du godkänner,
+              mätning av trafik och annonsering. Läs mer eller ändra dina inställningar i vår{' '}
               <Link
                 href="/cookies"
                 className="text-cyan-300 underline hover:text-cyan-200"

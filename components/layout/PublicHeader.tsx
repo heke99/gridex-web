@@ -4,6 +4,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import GridexLogo from '@/components/brand/GridexLogo'
 
 function NavLink({
   href,
@@ -40,15 +41,8 @@ export default function PublicHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 font-bold text-cyan-300 shadow-[0_0_25px_rgba(34,211,238,0.10)]">
-            G
-          </div>
-
-          <div className="leading-tight">
-            <div className="font-bold tracking-tight text-white">Gridex AB</div>
-            <div className="text-xs text-gray-400">Svenskt elhandelsbolag</div>
-          </div>
+        <Link href="/" className="flex items-center gap-3" aria-label="Gridex startsida">
+          <GridexLogo className="h-11 w-auto max-w-[180px]" inverted />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

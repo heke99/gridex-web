@@ -1,12 +1,13 @@
 // components/layout/Footer.tsx
 import Link from 'next/link'
+import GridexLogo from '@/components/brand/GridexLogo'
 
 export default function Footer() {
   return (
     <footer className="mt-20 border-t border-gray-800 bg-black">
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 text-sm text-gray-400 md:grid-cols-4">
-        <div className="space-y-2">
-          <div className="font-semibold text-white">Gridex AB</div>
+        <div className="space-y-3">
+          <GridexLogo className="h-10 w-auto max-w-[170px]" inverted />
           <div>Org.nr: 559416-7149</div>
           <div>Svenskt elhandelsbolag</div>
           <div>
@@ -26,6 +27,8 @@ export default function Footer() {
           <Link href="/elavtal/rorligt-elpris" className="block hover:text-white">Rörligt elpris</Link>
           <Link href="/elavtal/fast-elpris" className="block hover:text-white">Fast elpris</Link>
           <Link href="/elavtal/kvartspris-el" className="block hover:text-white">Kvartspris el</Link>
+          <Link href="/elavtal/foretag" className="block hover:text-white">Elavtal företag</Link>
+          <Link href="/elavtal/villa" className="block hover:text-white">Elavtal villa</Link>
           <Link href="/teckna-avtal" className="block hover:text-white">Teckna elavtal</Link>
         </div>
 
@@ -38,6 +41,8 @@ export default function Footer() {
           <Link href="/elpriser/se3" className="block hover:text-white">Elpris SE3</Link>
           <Link href="/elpriser/se4" className="block hover:text-white">Elpris SE4</Link>
           <Link href="/guider" className="block hover:text-white">Alla guider</Link>
+          <Link href="/ordlista" className="block hover:text-white">Ordlista</Link>
+          <Link href="/sitemap" className="block hover:text-white">Sitemap</Link>
         </div>
 
         <div className="space-y-2">
@@ -48,6 +53,8 @@ export default function Footer() {
           <Link href="/prisvillkor" className="block hover:text-white">Prisvillkor</Link>
           <Link href="/cookies" className="block hover:text-white">Cookies</Link>
           <Link href="/angerblankett" className="block hover:text-white">Ångerblankett</Link>
+          <Link href="/foretagsvillkor" className="block hover:text-white">Företagsvillkor</Link>
+          <Link href="/elbolag/gridex-el-ab" className="block hover:text-white">Om Gridex El AB</Link>
           <div className="pt-3 text-xs leading-5 text-gray-600">
             Tillsyn: Energimarknadsinspektionen, ARN och IMY.
           </div>

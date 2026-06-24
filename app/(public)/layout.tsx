@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import PublicHeader from '@/components/layout/PublicHeader'
 
 const SITE_URL = 'https://gridex.se'
+const BRAND_LOGO_URL = `${SITE_URL}/brand/gridex-logo.png`
+const BRAND_OG_URL = `${SITE_URL}/brand/gridex-og.png`
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -36,6 +38,7 @@ export const metadata: Metadata = {
     siteName: 'Gridex AB',
     locale: 'sv_SE',
     type: 'website',
+    images: [{ url: BRAND_OG_URL, width: 1200, height: 630, alt: 'Gridex elleverantör' }],
   },
   robots: {
     index: true,
@@ -65,6 +68,8 @@ export default function PublicLayout({
                 name: 'Gridex AB',
                 url: SITE_URL,
                 email: 'support@gridex.se',
+                logo: BRAND_LOGO_URL,
+                image: BRAND_LOGO_URL,
                 identifier: '559416-7149',
                 legalName: 'Gridex AB',
                 vatID: 'SE559416714901',
@@ -75,6 +80,11 @@ export default function PublicLayout({
                 '@type': 'WebSite',
                 name: 'Gridex AB',
                 url: SITE_URL,
+                publisher: {
+                  '@type': 'Organization',
+                  name: 'Gridex AB',
+                  logo: BRAND_LOGO_URL,
+                },
               },
             ],
             null,

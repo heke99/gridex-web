@@ -2,10 +2,15 @@ import './globals.css'
 import AuthSessionSync from '@/components/auth/AuthSessionSync'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/legal/CookieBanner'
+import GoogleMarketingTags from '@/components/analytics/GoogleMarketingTags'
 
 export const metadata = {
   title: 'Gridex AB – Elhandelsbolag',
   description: 'Gridex AB erbjuder tydliga elavtal och prisberäkning för svenska elområden (SE1–SE4).',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
@@ -32,6 +37,7 @@ export default function RootLayout({
 
         <Footer />
 
+        <GoogleMarketingTags />
         <CookieBanner />
       </body>
     </html>

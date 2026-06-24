@@ -23,6 +23,7 @@ function frequency(path: string): MetadataRoute.Sitemap[number]['changeFrequency
   if (path === '/' || path === '/elpriser/elpris-idag') return 'daily'
   if (path.startsWith('/elpriser')) return 'daily'
   if (path.startsWith('/elavtal') || path.startsWith('/guider')) return 'weekly'
+  if (path.startsWith('/ordlista') || path.startsWith('/elbolag') || path.startsWith('/elhandlare') || path.startsWith('/natagare')) return 'monthly'
   return 'monthly'
 }
 
@@ -31,6 +32,9 @@ function priority(path: string) {
   if (path === '/elavtal' || path === '/elpriser/elpris-idag') return 0.95
   if (path.startsWith('/elavtal') || path.startsWith('/elpriser')) return 0.86
   if (path.startsWith('/guider')) return 0.78
+  if (path.startsWith('/ordlista')) return 0.62
+  if (path.startsWith('/elbolag') || path.startsWith('/elhandlare') || path.startsWith('/natagare')) return 0.68
+  if (path === '/sitemap') return 0.5
   if (path === '/teckna-avtal') return 0.72
   return 0.45
 }

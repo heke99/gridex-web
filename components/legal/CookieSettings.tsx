@@ -33,7 +33,7 @@ export default function CookieSettings() {
     <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-6">
       <h2 className="text-xl font-semibold text-white">Ändra cookieval</h2>
       <p className="mt-3 text-sm leading-6 text-gray-300">
-        Gridex sätter inga icke-nödvändiga cookies från den här webbplatsen innan du har accepterat det. Ditt val sparas lokalt i webbläsaren så att bannern inte behöver visas varje gång.
+        Gridex laddar inte analys- eller annonsmätning innan du har accepterat cookies. Ditt val sparas lokalt i webbläsaren så att bannern inte behöver visas varje gång.
       </p>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
         Nuvarande val: <span className="font-semibold text-white">{label(consent)}</span>
