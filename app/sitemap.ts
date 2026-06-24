@@ -1,35 +1,45 @@
 import type { MetadataRoute } from 'next'
+import { SITE_URL, canonicalPublicRoutes } from '@/lib/seo/content'
 
-const SITE_URL = 'https://gridex.se'
+const LAST_MODIFIED_BY_ROUTE: Record<string, string> = {
+  '/': '2026-06-24',
+  '/elavtal': '2026-06-24',
+  '/elpriser': '2026-06-24',
+  '/elpriser/elpris-idag': '2026-06-24',
+  '/guider': '2026-06-24',
+  '/teckna-avtal': '2026-06-17',
+  '/kundservice': '2026-06-17',
+  '/integritetspolicy': '2026-06-12',
+  '/allmanna-villkor': '2026-06-12',
+  '/angerratt': '2026-06-12',
+  '/prisvillkor': '2026-06-12',
+  '/fullmakt': '2026-06-12',
+  '/cookies': '2026-06-12',
+  '/angerblankett': '2026-06-12',
+  '/foretagsvillkor': '2026-06-12',
+}
+
+function frequency(path: string): MetadataRoute.Sitemap[number]['changeFrequency'] {
+  if (path === '/' || path === '/elpriser/elpris-idag') return 'daily'
+  if (path.startsWith('/elpriser')) return 'daily'
+  if (path.startsWith('/elavtal') || path.startsWith('/guider')) return 'weekly'
+  return 'monthly'
+}
+
+function priority(path: string) {
+  if (path === '/') return 1
+  if (path === '/elavtal' || path === '/elpriser/elpris-idag') return 0.95
+  if (path.startsWith('/elavtal') || path.startsWith('/elpriser')) return 0.86
+  if (path.startsWith('/guider')) return 0.78
+  if (path === '/teckna-avtal') return 0.72
+  return 0.45
+}
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const routes = [
-    '',
-    '/elavtal',
-    '/teckna-avtal',
-    // '/mina-sidor' intentionally excluded from sitemap as det inte ska indexeras
-    '/kundservice',
-    '/aktuella-elpriser',
-    '/integritetspolicy',
-    '/allmanna-villkor',
-    '/angerratt',
-    '/prisvillkor',
-    '/fullmakt',
-    '/cookies',
-    '/angerblankett',
-    '/foretagsvillkor',
-    '/elpris-se1',
-    '/elpris-se2',
-    '/elpris-se3',
-    '/elpris-se4',
-  ]
-
-  const now = new Date()
-
-  return routes.map((path) => ({
-    url: `${SITE_URL}${path}`,
-    lastModified: now,
-    changeFrequency: path === '' ? 'daily' : 'weekly',
-    priority: path === '' ? 1 : 0.7,
+  return canonicalPublicRoutes.map((path) => ({
+    url: `${SITE_URL}${path === '/' ? '' : path}`,
+    lastModified: new Date(`${LAST_MODIFIED_BY_ROUTE[path] ?? '2026-06-24'}T00:00:00.000Z`),
+    changeFrequency: frequency(path),
+    priority: priority(path),
   }))
 }

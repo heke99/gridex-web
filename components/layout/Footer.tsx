@@ -20,51 +20,37 @@ export default function Footer() {
         </div>
 
         <div className="space-y-2">
-          <div className="font-semibold text-white">Tjänster</div>
-          <Link href="/#rakna-elpris" className="block hover:text-white">
-            Räkna elpris
-          </Link>
-          <Link href="/aktuella-elpriser" className="block hover:text-white">
-            Elpris idag
-          </Link>
-          <Link href="/elavtal" className="block hover:text-white">
-            Elavtal
-          </Link>
-          <Link href="/teckna-avtal" className="block hover:text-white">
-            Teckna elavtal
-          </Link>
-          <Link href="/kundservice" className="block hover:text-white">
-            Kundservice
-          </Link>
+          <div className="font-semibold text-white">Elavtal</div>
+          <Link href="/elavtal/jamfor-elavtal" className="block hover:text-white">Jämför elavtal</Link>
+          <Link href="/elavtal/billigt-elavtal" className="block hover:text-white">Billigt elavtal</Link>
+          <Link href="/elavtal/rorligt-elpris" className="block hover:text-white">Rörligt elpris</Link>
+          <Link href="/elavtal/fast-elpris" className="block hover:text-white">Fast elpris</Link>
+          <Link href="/elavtal/kvartspris-el" className="block hover:text-white">Kvartspris el</Link>
+          <Link href="/teckna-avtal" className="block hover:text-white">Teckna elavtal</Link>
+        </div>
+
+        <div className="space-y-2">
+          <div className="font-semibold text-white">Elpriser och guider</div>
+          <Link href="/elpriser/elpris-idag" className="block hover:text-white">Elpris idag</Link>
+          <Link href="/elpriser/spotpris-el" className="block hover:text-white">Spotpris el</Link>
+          <Link href="/elpriser/se1" className="block hover:text-white">Elpris SE1</Link>
+          <Link href="/elpriser/se2" className="block hover:text-white">Elpris SE2</Link>
+          <Link href="/elpriser/se3" className="block hover:text-white">Elpris SE3</Link>
+          <Link href="/elpriser/se4" className="block hover:text-white">Elpris SE4</Link>
+          <Link href="/guider" className="block hover:text-white">Alla guider</Link>
         </div>
 
         <div className="space-y-2">
           <div className="font-semibold text-white">Juridik</div>
-          <Link href="/allmanna-villkor" className="block hover:text-white">
-            Allmänna villkor
-          </Link>
-          <Link href="/integritetspolicy" className="block hover:text-white">
-            Integritetspolicy
-          </Link>
-          <Link href="/angerratt" className="block hover:text-white">
-            Ångerrätt
-          </Link>
-          <Link href="/prisvillkor" className="block hover:text-white">
-            Prisvillkor
-          </Link>
-          <Link href="/cookies" className="block hover:text-white">
-            Cookies
-          </Link>
-          <Link href="/angerblankett" className="block hover:text-white">
-            Ångerblankett
-          </Link>
-        </div>
-
-        <div className="space-y-2">
-          <div className="font-semibold text-white">Tillsyn och hjälp</div>
-          <div>Energimarknadsinspektionen</div>
-          <div>Allmänna reklamationsnämnden (ARN)</div>
-          <div>Integritetsskyddsmyndigheten (IMY)</div>
+          <Link href="/allmanna-villkor" className="block hover:text-white">Allmänna villkor</Link>
+          <Link href="/integritetspolicy" className="block hover:text-white">Integritetspolicy</Link>
+          <Link href="/angerratt" className="block hover:text-white">Ångerrätt</Link>
+          <Link href="/prisvillkor" className="block hover:text-white">Prisvillkor</Link>
+          <Link href="/cookies" className="block hover:text-white">Cookies</Link>
+          <Link href="/angerblankett" className="block hover:text-white">Ångerblankett</Link>
+          <div className="pt-3 text-xs leading-5 text-gray-600">
+            Tillsyn: Energimarknadsinspektionen, ARN och IMY.
+          </div>
         </div>
       </div>
 

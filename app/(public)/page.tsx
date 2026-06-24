@@ -361,26 +361,26 @@ function ArticleColumns() {
     {
       title: "Så fungerar rörligt månadspris",
       text: "Rörligt månadspris bygger på föregående månads genomsnittliga spotpris i ditt elområde, plus avtalade avgifter och påslag.",
-      href: "/aktuella-elpriser",
-      cta: "Se spotpris",
+      href: "/elavtal/rorligt-elpris",
+      cta: "Läs om rörligt",
     },
     {
       title: "Vad är elområde SE1–SE4?",
       text: "Sverige är indelat i fyra elområden. Ditt elområde påverkar spotpriset och därför även prisbilden för rörliga avtal.",
-      href: "/elpris-se3",
+      href: "/guider/elomraden-se1-se2-se3-se4",
       cta: "Läs om elområden",
     },
     {
       title: "Så byter du elavtal",
       text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.",
-      href: "/teckna-avtal",
-      cta: "Teckna elavtal",
+      href: "/guider/byta-elbolag",
+      cta: "Så fungerar bytet",
     },
     {
       title: "Vad ingår inte i elhandelspriset?",
       text: "Elnätsavgift, nätägarens fasta avgifter och eventuell effektavgift ingår normalt inte i elhandelspriset och faktureras av nätägaren.",
-      href: "/kundservice",
-      cta: "Fråga kundservice",
+      href: "/guider/elnatsavgift-vs-elhandelspris",
+      cta: "Läs om elnät",
     },
   ];
 
@@ -439,7 +439,7 @@ function HomeSeoBlocks() {
             det som passar ditt hem bäst.
           </p>
           <Link
-            href="/elavtal"
+            href="/elavtal/jamfor-elavtal"
             className="mt-5 inline-block text-sm text-cyan-300 hover:text-cyan-200"
           >
             Läs mer →
@@ -453,7 +453,7 @@ function HomeSeoBlocks() {
             utan otydliga villkor.
           </p>
           <Link
-            href="/elpris-se3"
+            href="/elpriser"
             className="mt-5 inline-block text-sm text-cyan-300 hover:text-cyan-200"
           >
             Se elpris per område →
@@ -487,25 +487,25 @@ function HomeSeoBlocks() {
 
         <div className="grid gap-4 text-sm md:grid-cols-4">
           <Link
-            href="/elpris-se1"
+            href="/elpriser/se1"
             className="rounded-xl border border-white/10 p-4 transition hover:border-cyan-500/40"
           >
             Elpris SE1
           </Link>
           <Link
-            href="/elpris-se2"
+            href="/elpriser/se2"
             className="rounded-xl border border-white/10 p-4 transition hover:border-cyan-500/40"
           >
             Elpris SE2
           </Link>
           <Link
-            href="/elpris-se3"
+            href="/elpriser/se3"
             className="rounded-xl border border-white/10 p-4 transition hover:border-cyan-500/40"
           >
             Elpris SE3
           </Link>
           <Link
-            href="/elpris-se4"
+            href="/elpriser/se4"
             className="rounded-xl border border-white/10 p-4 transition hover:border-cyan-500/40"
           >
             Elpris SE4

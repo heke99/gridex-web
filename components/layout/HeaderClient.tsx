@@ -90,7 +90,9 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
         <div className="hidden items-center gap-2 md:flex">
           <DesktopNavLink href="/#rakna-elpris" label="Räkna elpris" pathname={pathname} />
           <DesktopNavLink href="/elavtal" label="Elavtal" pathname={pathname} />
-          <DesktopNavLink href="/aktuella-elpriser" label="Elpris idag" pathname={pathname} />
+          <DesktopNavLink href="/elpriser" label="Elpriser" pathname={pathname} />
+          <DesktopNavLink href="/elpriser/elpris-idag" label="Elpris idag" pathname={pathname} />
+          <DesktopNavLink href="/guider" label="Guider" pathname={pathname} />
           <DesktopNavLink
             href="/kundservice"
             label="Kundservice"
@@ -149,11 +151,27 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
             </Link>
 
             <Link
-              href="/aktuella-elpriser"
+              href="/elpriser"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
+              onClick={() => setMobileOpen(false)}
+            >
+              Elpriser
+            </Link>
+
+            <Link
+              href="/elpriser/elpris-idag"
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
               onClick={() => setMobileOpen(false)}
             >
               Elpris idag
+            </Link>
+
+            <Link
+              href="/guider"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85"
+              onClick={() => setMobileOpen(false)}
+            >
+              Guider
             </Link>
 
             <Link

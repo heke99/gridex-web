@@ -41,6 +41,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 }
 
 export default function PublicLayout({
@@ -63,6 +66,9 @@ export default function PublicLayout({
                 url: SITE_URL,
                 email: 'support@gridex.se',
                 identifier: '559416-7149',
+                legalName: 'Gridex AB',
+                vatID: 'SE559416714901',
+                areaServed: 'SE',
               },
               {
                 '@context': 'https://schema.org',

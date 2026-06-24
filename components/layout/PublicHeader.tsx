@@ -54,7 +54,9 @@ export default function PublicHeader() {
         <nav className="hidden items-center gap-8 md:flex">
           <NavLink href="/#rakna-elpris" label="Räkna elpris" />
           <NavLink href="/elavtal" label="Elavtal" />
-          <NavLink href="/aktuella-elpriser" label="Elpris idag" />
+          <NavLink href="/elpriser" label="Elpriser" />
+          <NavLink href="/elpriser/elpris-idag" label="Elpris idag" />
+          <NavLink href="/guider" label="Guider" />
           <NavLink href="/kundservice" label="Kundservice" />
         </nav>
 
@@ -98,8 +100,18 @@ export default function PublicHeader() {
                 onClick={() => setOpen(false)}
               />
               <NavLink
-                href="/aktuella-elpriser"
+                href="/elpriser"
+                label="Elpriser"
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
+                href="/elpriser/elpris-idag"
                 label="Elpris idag"
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
+                href="/guider"
+                label="Guider"
                 onClick={() => setOpen(false)}
               />
               <NavLink
