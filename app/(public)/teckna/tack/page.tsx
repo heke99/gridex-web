@@ -79,6 +79,9 @@ export default async function TackPage({
     contractNumber?: string
     applicationNumber?: string
     nextStep?: string
+    nextActionMessage?: string
+    caseReference?: string
+    poa?: string
     missing?: string
     portal?: PortalStatus
   }>
@@ -116,6 +119,15 @@ export default async function TackPage({
           <div className="mt-2 text-xs text-gray-500">
             Nästa steg: {friendlyNextStepDescription(params.nextStep)}
           </div>
+          {params.nextActionMessage ? (
+            <p className="mt-3 text-sm leading-6 text-gray-300">{params.nextActionMessage}</p>
+          ) : null}
+          {params.caseReference ? (
+            <div className="mt-3 text-xs text-gray-500">Ärendereferens: {params.caseReference}</div>
+          ) : null}
+          {params.poa === 'signed' ? (
+            <div className="mt-3 text-xs text-emerald-300">Fullmakten är mottagen.</div>
+          ) : null}
         </div>
 
         <div

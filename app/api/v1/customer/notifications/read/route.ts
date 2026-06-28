@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { markCustomerNotificationsRead as markOpsCustomerNotificationsRead } from '@/lib/customerPortal/service'
+import { CustomerPortalAccessError, markCustomerNotificationsRead as markOpsCustomerNotificationsRead } from '@/lib/customerPortal/service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -23,10 +23,17 @@ export async function POST(request: Request) {
     const result = await markOpsCustomerNotificationsRead(idsFromPayload(payload))
     return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof CustomerPortalAccessError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      )
+    }
+
     console.error('[customer portal] mark notifications read failed', error)
     return NextResponse.json(
-      { error: 'Notiserna kunde inte uppdateras just nu.' },
-      { status: 500 },
+      { error: 'Notiserna kunde inte uppdateras just nu.', code: 'customer_portal_unavailable' },
+      { status: 503 },
     )
   }
 }

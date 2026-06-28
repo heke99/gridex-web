@@ -55,6 +55,18 @@ export type OpsPublicContract = {
   raw?: Record<string, unknown>;
 };
 
+export type OpsWebsitePowerOfAttorneyInput = {
+  accepted: boolean;
+  scope: Array<"supplier_switch" | "facility_information_lookup" | string>;
+  signerName?: string | null;
+  signerIdentityNumber?: string | null;
+  method: "website_acceptance" | string;
+  acceptedAt: string;
+  textVersionId?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
+
 export type OpsCustomerApplicationInput = {
   offer_reference: string;
   customer_type: "private" | "company";
@@ -100,6 +112,7 @@ export type OpsCustomerApplicationInput = {
     power_of_attorney: boolean;
     price_terms: boolean;
   };
+  powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
 };
 
 export type OpsCustomerApplicationResult = {
@@ -118,6 +131,10 @@ export type OpsCustomerApplicationResult = {
   price_plan_version_id?: string | null;
   contract_price_snapshot_id?: string | null;
   offer_reference?: string | null;
+  power_of_attorney_id?: string | null;
+  power_of_attorney?: Record<string, unknown> | null;
+  nextAction?: Record<string, unknown> | null;
+  manualInformationRequest?: Record<string, unknown> | null;
   missing_fields: string[];
   blocking_reasons: string[];
   warnings: string[];
@@ -1400,6 +1417,7 @@ export async function submitOpsCustomerApplication(
           : null,
     },
     consents: input.consents,
+    ...(input.powerOfAttorney ? { powerOfAttorney: input.powerOfAttorney } : {}),
     metadata: {
       requested_start_mode: input.requested_start_mode,
       energy_resolution_status: input.energy_resolution_status ?? null,
@@ -1474,6 +1492,17 @@ export async function submitOpsCustomerApplication(
       "contractPriceSnapshotId",
     ]),
     offer_reference: pickString(row, ["offer_reference", "offerReference"]),
+    power_of_attorney_id: pickString(row, [
+      "power_of_attorney_id",
+      "powerOfAttorneyId",
+      "power_of_attorneyId",
+    ]),
+    power_of_attorney:
+      recordValue(row.power_of_attorney) ?? recordValue(row.powerOfAttorney),
+    nextAction: recordValue(row.nextAction) ?? recordValue(row.next_action),
+    manualInformationRequest:
+      recordValue(row.manualInformationRequest) ??
+      recordValue(row.manual_information_request),
     missing_fields: missing,
     blocking_reasons: blockingReasons,
     warnings,
@@ -1505,6 +1534,28 @@ export type OpsCustomerSyncResult = {
   ok: boolean;
   status?: string | null;
   synced?: Record<string, unknown> | null;
+  warnings: string[];
+  raw?: Record<string, unknown>;
+};
+
+export type OpsCustomerProfileUpdateInput = {
+  identity: OpsPortalIdentity;
+  idempotencyKey?: string | null;
+  profile: Record<string, unknown>;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type OpsCustomerMoveOutInput = {
+  identity: OpsPortalIdentity;
+  idempotencyKey?: string | null;
+  moveOut: Record<string, unknown>;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type OpsCustomerWriteResult = {
+  ok: boolean;
+  status?: string | null;
+  data?: Record<string, unknown> | null;
   warnings: string[];
   raw?: Record<string, unknown>;
 };
@@ -1860,6 +1911,72 @@ export async function submitOpsCustomerSync(
     warnings: normalizeWarnings(row),
     raw: row,
   };
+}
+
+function customerWriteIdempotencyKey(
+  scope: string,
+  input: { identity: OpsPortalIdentity; idempotencyKey?: string | null },
+  body: Record<string, unknown>,
+): string {
+  const value =
+    normalizeText(input.idempotencyKey) ??
+    createHash("sha256")
+      .update(JSON.stringify({ scope, user: input.identity.userId, body }))
+      .digest("hex");
+  return `${scope}-${value}`;
+}
+
+function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult {
+  const row = responseObject(payload);
+  return {
+    ok: row.ok === false ? false : true,
+    status: pickString(row, ["status"]),
+    data: recordValue(row.data) ?? row,
+    warnings: normalizeWarnings(row),
+    raw: row,
+  };
+}
+
+export async function submitOpsCustomerProfileUpdate(
+  input: OpsCustomerProfileUpdateInput,
+): Promise<OpsCustomerWriteResult> {
+  const headers = portalHeaders(input.identity);
+  const body = {
+    ...portalIdentityPayload(input.identity),
+    profile: input.profile,
+    metadata: input.metadata ?? {},
+  };
+
+  headers.set("Idempotency-Key", customerWriteIdempotencyKey("profile-update", input, body));
+
+  const payload = await opsCustomerFetch("/api/v1/customer/profile-update", input.identity, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  return mapCustomerWriteResult(payload);
+}
+
+export async function submitOpsCustomerMoveOut(
+  input: OpsCustomerMoveOutInput,
+): Promise<OpsCustomerWriteResult> {
+  const headers = portalHeaders(input.identity);
+  const body = {
+    ...portalIdentityPayload(input.identity),
+    move_out: input.moveOut,
+    metadata: input.metadata ?? {},
+  };
+
+  headers.set("Idempotency-Key", customerWriteIdempotencyKey("move-out", input, body));
+
+  const payload = await opsCustomerFetch("/api/v1/customer/move-out", input.identity, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  return mapCustomerWriteResult(payload);
 }
 
 function createCustomerEventIdempotencyKey(

@@ -219,6 +219,26 @@ function sameEmail(left: string | null | undefined, right: string): boolean {
   return Boolean(left && left.trim().toLowerCase() === right.trim().toLowerCase())
 }
 
+function publicApplicationMessage(value: Record<string, unknown> | null | undefined): string | null {
+  const message = value?.message
+  return typeof message === 'string' && message.trim() ? message.trim().slice(0, 500) : null
+}
+
+function publicCaseReference(value: Record<string, unknown> | null | undefined): string | null {
+  const raw = value?.case_reference ?? value?.caseReference
+  return typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 120) : null
+}
+
+function signerNameForApplication(input: {
+  customerType: 'private' | 'company'
+  firstName: string
+  lastName: string
+  companyName: string
+}): string | null {
+  if (input.customerType === 'company') return input.companyName || null
+  return [input.firstName, input.lastName].filter(Boolean).join(' ') || null
+}
+
 async function getCurrentPortalAuth() {
   try {
     const supabase = await createSupabaseServerActionClient()
@@ -481,6 +501,27 @@ export default async function TecknaPage({
       customerType === 'company' ? organizationNumber : personalNumber,
     ])
 
+    const powerOfAttorney =
+      powerOfAttorneyRequired && acceptPowerOfAttorney
+        ? {
+            accepted: true,
+            scope: ['supplier_switch', 'facility_information_lookup'],
+            signerName: signerNameForApplication({
+              customerType,
+              firstName,
+              lastName,
+              companyName,
+            }),
+            signerIdentityNumber:
+              customerType === 'company' ? organizationNumber : personalNumber,
+            method: 'website_acceptance',
+            acceptedAt: new Date().toISOString(),
+            textVersionId: offer.power_of_attorney_version ?? null,
+            ipAddress: ip,
+            userAgent,
+          }
+        : null
+
     let successRedirect = ''
 
     try {
@@ -530,6 +571,7 @@ export default async function TecknaPage({
           power_of_attorney: powerOfAttorneyRequired ? acceptPowerOfAttorney : false,
           price_terms: acceptPriceTerms,
         },
+        powerOfAttorney,
       })
 
       const portalOnboarding = await ensureCustomerPortalOnboarding({
@@ -557,6 +599,11 @@ export default async function TecknaPage({
       if (result.contract_number) qs.set('contractNumber', result.contract_number)
       if (result.application_number) qs.set('applicationNumber', result.application_number)
       if (result.next_step) qs.set('nextStep', result.next_step)
+      const nextActionMessage = publicApplicationMessage(result.nextAction)
+      if (nextActionMessage) qs.set('nextActionMessage', nextActionMessage)
+      const caseReference = publicCaseReference(result.manualInformationRequest)
+      if (caseReference) qs.set('caseReference', caseReference)
+      if (result.power_of_attorney_id) qs.set('poa', 'signed')
       if (result.missing_fields.length > 0) {
         qs.set('missing', missingFieldsToQuery(result.missing_fields))
       }

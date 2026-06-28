@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { submitOpsCustomerSync } from '@/lib/ops/client'
+import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 function pick(formData: FormData, key: string): string {
@@ -60,7 +60,7 @@ export async function updateCustomerProfileAction(formData: FormData) {
 
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
-    await submitOpsCustomerSync({
+    await submitOpsCustomerProfileUpdate({
       identity,
       idempotencyKey: `profile-update-${user.id}-${Date.now()}`,
       profile: {

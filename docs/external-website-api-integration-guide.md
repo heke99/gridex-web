@@ -107,12 +107,66 @@ The contract section contains only the selected public offer reference:
 ```json
 {
   "contract": {
-    "offer_reference": "offer_…"
+    "offer_reference": "offer_…",
+    "requested_start_date": "2026-07-01"
+  }
+}
+```
+
+When the selected offer requires a power of attorney, the application must also include a separate `powerOfAttorney` object. `consents.power_of_attorney` records the checkbox consent; `powerOfAttorney` is the signed operational payload that OPS can use for supplier switching and facility-information lookup.
+
+```json
+{
+  "external_customer_id": "GRIDEX-WEB-20260616-…",
+  "external_application_id": "APP-…",
+  "source": "gridex_website",
+  "customer_portal_user_id": "<website-supabase-user-id>",
+  "auth_user_id": "<website-supabase-user-id>",
+  "customer": {
+    "customer_type": "private",
+    "first_name": "Anna",
+    "last_name": "Andersson",
+    "email": "anna@example.se",
+    "phone": "+46701234567",
+    "personal_number": "YYYYMMDDXXXX"
+  },
+  "site": {
+    "facility_id": null,
+    "metering_point_id": null,
+    "street": "Storgatan 1",
+    "postal_code": "21122",
+    "city": "Malmö",
+    "price_area_code": "SE4",
+    "move_in_date": "2026-07-01"
+  },
+  "contract": {
+    "offer_reference": "offer_…",
+    "requested_start_date": "2026-07-01"
+  },
+  "consents": {
+    "terms": true,
+    "privacy_policy": true,
+    "withdrawal": true,
+    "power_of_attorney": true,
+    "price_terms": true
+  },
+  "powerOfAttorney": {
+    "accepted": true,
+    "scope": ["supplier_switch", "facility_information_lookup"],
+    "signerName": "Anna Andersson",
+    "signerIdentityNumber": "YYYYMMDDXXXX",
+    "method": "website_acceptance",
+    "acceptedAt": "2026-06-26T09:00:00.000Z",
+    "textVersionId": "2026-06",
+    "ipAddress": "203.0.113.10",
+    "userAgent": "Mozilla/5.0 …"
   }
 }
 ```
 
 OPS resolves the internal price plan/version and stores the authoritative contract and legal snapshots. The website sends the displayed contract snapshot and verified price preview only for audit and mismatch detection; they are never the legal source of truth.
+
+The application response can include `power_of_attorney_id`, `power_of_attorney`, `nextAction` and `manualInformationRequest`. The website should surface customer-safe `nextAction.message` and the manual request case reference when present, but it must not require these fields to exist.
 
 ## Customer Portal External Auth Linking
 
@@ -138,9 +192,9 @@ Use `external_customer_id` only for the stable website/customer reference from s
 
 The website returns `401` for a missing customer session and `503` when the portal cannot be read. When local fallback data is shown, it must be visibly marked as potentially older than OPS data.
 
-## Customer sync
+## Customer sync and customer writes
 
-Signed powers of attorney, legal acceptances, customer documents, facility completions and profile changes are synced to OPS through:
+Signed powers of attorney, legal acceptances, customer documents and facility completions are synced to OPS through:
 
 ```http
 POST /api/v1/customer/sync
@@ -150,6 +204,26 @@ Content-Type: application/json
 ```
 
 Payloads must include the same customer identifiers used for Mina sidor linking. OPS stores the records under the tenant resolved from the API key.
+
+Profile changes should use the dedicated endpoint when they are not part of a larger sync payload:
+
+```http
+POST /api/v1/customer/profile-update
+Authorization: Bearer YOUR_GRIDEX_API_TOKEN
+Idempotency-Key: profile-update-…
+Content-Type: application/json
+```
+
+Move-out reports should use:
+
+```http
+POST /api/v1/customer/move-out
+Authorization: Bearer YOUR_GRIDEX_API_TOKEN
+Idempotency-Key: move-out-…
+Content-Type: application/json
+```
+
+Both endpoints use the same portal identity headers/payload as `portal-bundle` and must not accept a free `company_id`.
 
 ## Customer events
 
