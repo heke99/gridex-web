@@ -15,7 +15,6 @@ import {
   hashIp,
   isOpsError,
   submitOpsCustomerApplication,
-  validateOpsWebsitePricingQuote,
   type OpsPublicContract,
   type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
@@ -76,6 +75,11 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
     fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
+    monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
+    elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
+    portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,
+    vatRate: item.vat_rate ?? null,
+    pricingModel: item.pricing_model ?? null,
     spotShare: item.spot_share ?? null,
     portfolioShare: item.portfolio_share ?? null,
     validFrom: item.valid_from ?? null,
@@ -406,27 +410,18 @@ export default async function TecknaPage({
     const serverPriceAreaCode = serverResolution?.price_area_code
     if (!serverPriceAreaCode) return fail('area_mismatch')
 
-    const localQuoteValidation = pricingQuoteSource !== 'ops'
-      ? validateWebsitePricingQuote({
-          token: pricingQuoteToken,
-          contract: offer,
-          priceAreaCode: serverPriceAreaCode,
-          estimatedMonthlyKwh,
-          location: { postalCode, city, address },
-        })
-      : null
-    const opsQuoteValidation = localQuoteValidation?.ok
-      ? null
-      : await validateOpsWebsitePricingQuote({
-          quote_token: pricingQuoteToken,
-          offer_reference: offer.offer_reference,
-          price_area_code: serverPriceAreaCode,
-          estimated_monthly_kwh: estimatedMonthlyKwh,
-          postal_code: postalCode,
-          city,
-          address,
-        }).catch(() => null)
-    if ((!localQuoteValidation?.ok && !opsQuoteValidation?.ok) || (pricingQuoteSource === 'website' && !localQuoteValidation?.ok)) {
+    if (pricingQuoteSource !== 'website') {
+      return fail('price_snapshot')
+    }
+
+    const localQuoteValidation = validateWebsitePricingQuote({
+      token: pricingQuoteToken,
+      contract: offer,
+      priceAreaCode: serverPriceAreaCode,
+      estimatedMonthlyKwh,
+      location: { postalCode, city, address },
+    })
+    if (!localQuoteValidation.ok) {
       return fail('price_snapshot')
     }
 
@@ -446,7 +441,7 @@ export default async function TecknaPage({
     try {
       livePricingPreview = await loadVerifiedWebsitePricingPreview(pricingInput, offer)
     } catch {
-      return fail('ops_unavailable')
+      return fail('price_snapshot')
     }
 
     const quotedPricingPreview = localQuoteValidation?.ok
@@ -473,11 +468,9 @@ export default async function TecknaPage({
     const canonicalPricingPreviewSnapshot = {
       ...livePricingPreview,
       quote_token: pricingQuoteToken,
-      quote_source: localQuoteValidation?.ok ? 'website' : 'ops',
-      quote_issued_at: localQuoteValidation?.ok ? localQuoteValidation.quote.issued_at : null,
-      quote_expires_at: localQuoteValidation?.ok
-        ? localQuoteValidation.quote.expires_at
-        : opsQuoteValidation?.expires_at ?? null,
+      quote_source: 'website',
+      quote_issued_at: localQuoteValidation.quote.issued_at,
+      quote_expires_at: localQuoteValidation.quote.expires_at,
     }
     const idempotencyKey = createApplicationIdempotencyKey([
       'gridex_website_application_v1',

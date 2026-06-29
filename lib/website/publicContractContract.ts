@@ -10,6 +10,11 @@ export type PublicContractApiShape = {
   markup_ore_per_kwh: number | null
   variable_markup_ore_per_kwh: number | null
   fixed_price_ore_per_kwh: number | null
+  monthly_fixed_price_sek: number | null
+  elcert_ore_per_kwh: number | null
+  portfolio_price_ore_per_kwh: number | null
+  vat_rate: number | null
+  pricing_model: string | null
   spot_share: number | null
   portfolio_share: number | null
   valid_from: string | null
@@ -90,6 +95,24 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
       pricing.variable_markup ?? pricing.variable_fee ?? pricing.variable_markup_ore_per_kwh ?? row.variable_markup_ore_per_kwh,
     ),
     fixed_price_ore_per_kwh: amount(pricing.fixed_price ?? pricing.fixed_price_ore_per_kwh ?? row.fixed_price_ore_per_kwh),
+    monthly_fixed_price_sek: amount(
+      pricing.monthly_fixed_price ??
+        pricing.monthlyFixedPrice ??
+        pricing.monthly_price ??
+        pricing.monthlyPrice ??
+        row.monthly_fixed_price_sek ??
+        row.monthlyFixedPriceSek ??
+        row.monthly_price_sek,
+    ),
+    elcert_ore_per_kwh: amount(pricing.elcert ?? pricing.elcert_ore_per_kwh ?? row.elcert_ore_per_kwh),
+    portfolio_price_ore_per_kwh: amount(
+      pricing.portfolio_price ??
+        pricing.portfolioPrice ??
+        pricing.portfolio_price_ore_per_kwh ??
+        row.portfolio_price_ore_per_kwh,
+    ),
+    vat_rate: number(pricing.vat_rate ?? pricing.vatRate ?? row.vat_rate ?? row.vatRate),
+    pricing_model: text(pricing.pricing_model ?? pricing.pricingModel ?? row.pricing_model ?? row.pricingModel),
     spot_share: number(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
     portfolio_share: number(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
     valid_from: text(row.valid_from ?? row.validFrom),

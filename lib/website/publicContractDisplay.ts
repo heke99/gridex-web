@@ -73,6 +73,9 @@ export function publicContractTypeLabel(type: string | null | undefined): string
     case 'mix':
     case 'mixed':
       return 'Mixavtal'
+    case 'monthly_fixed':
+    case 'fixed_monthly':
+      return 'Fast månadspris'
     default:
       return 'Elavtal'
   }
@@ -127,6 +130,9 @@ function defaultDescription(contract: OpsPublicContract): string {
       return 'För dig som vill ha ett förvaltat upplägg med tydlig risk- och prisinformation.'
     case 'fixed':
       return 'För dig som vill ha ett fast elpris och mer förutsägbar kostnad.'
+    case 'monthly_fixed':
+    case 'fixed_monthly':
+      return 'För dig som vill ha ett fast månadspris enligt valt avtal.'
     case 'mix':
     case 'mixed':
       return 'För dig som vill kombinera rörligt pris med förvaltad prissäkring.'
@@ -169,13 +175,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     if (Number.isFinite(to) && to < now) blockedReasons.push('avtalet har passerat slutdatum')
   }
 
-  if (contract.type === 'fixed') {
+  if (contract.type === 'monthly_fixed' || contract.type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null) {
+    addNumberRow(rows, 'monthly_fixed_price_sek', 'Fast månadspris', contract.monthly_fixed_price_sek, 'sek_month')
+    addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
+    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+  } else if (contract.type === 'fixed') {
     addNumberRow(rows, 'fixed_price_ore_per_kwh', 'Fast elpris', contract.fixed_price_ore_per_kwh, 'ore_kwh')
+    addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'portfolio' || contract.type === 'portfolio_managed') {
+    addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'markup_ore_per_kwh', 'Förvaltningsavgift/påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
@@ -185,8 +198,10 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
     addNumberRow(rows, 'spot_share', 'Rörlig andel', contract.spot_share, 'percent')
     addNumberRow(rows, 'portfolio_share', 'Portföljandel', contract.portfolio_share, 'percent')
+    addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'markup_ore_per_kwh', 'Påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
+    addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
   } else {
@@ -214,6 +229,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     code: contract.product_code ?? null,
     name: contract.name,
     type: contract.type,
+    pricing_model: contract.pricing_model ?? null,
     type_label: typeLabel,
     displayed_rows: rows.map((row) => ({
       key: row.key,

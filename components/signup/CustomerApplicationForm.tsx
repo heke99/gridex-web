@@ -28,6 +28,11 @@ export type SignupContractOption = {
   markupOrePerKwh?: number | null
   variableMarkupOrePerKwh?: number | null
   fixedPriceOrePerKwh?: number | null
+  monthlyFixedPriceSek?: number | null
+  elcertOrePerKwh?: number | null
+  portfolioPriceOrePerKwh?: number | null
+  vatRate?: number | null
+  pricingModel?: string | null
   spotShare?: number | null
   portfolioShare?: number | null
   validFrom?: string | null
@@ -86,7 +91,7 @@ type FormValues = {
 
 type Consents = { accept_terms: boolean; accept_price_terms: boolean; accept_cancellation_right: boolean; accept_privacy: boolean; accept_power_of_attorney: boolean }
 
-const STEPS = ['Välj avtal och pris', 'Dina uppgifter', 'Granska och skicka']
+const STEPS = ['Välj avtal och pris', 'Dina uppgifter', 'Granska och teckna']
 
 function formatMaybeSekMonth(value: number | null | undefined) { return hasNumberValue(value) ? formatSekMonth(value) : 'Visas i prisberäkningen' }
 function formatMaybeSekInvoice(value: number | null | undefined) { return hasNumberValue(value) ? formatSekInvoice(value) : 'Visas i prisberäkningen' }
@@ -106,6 +111,11 @@ function optionAsOpsContract(contract: SignupContractOption) {
     markup_ore_per_kwh: contract.markupOrePerKwh ?? null,
     variable_markup_ore_per_kwh: contract.variableMarkupOrePerKwh ?? null,
     fixed_price_ore_per_kwh: contract.fixedPriceOrePerKwh ?? null,
+    monthly_fixed_price_sek: contract.monthlyFixedPriceSek ?? null,
+    elcert_ore_per_kwh: contract.elcertOrePerKwh ?? null,
+    portfolio_price_ore_per_kwh: contract.portfolioPriceOrePerKwh ?? null,
+    vat_rate: contract.vatRate ?? null,
+    pricing_model: contract.pricingModel ?? null,
     spot_share: contract.spotShare ?? null,
     portfolio_share: contract.portfolioShare ?? null,
     valid_from: contract.validFrom ?? null,

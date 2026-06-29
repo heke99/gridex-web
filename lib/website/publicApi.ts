@@ -45,7 +45,7 @@ export type WebsitePricingPreview = {
     slug: string
     offer_reference?: string | null
     name: string
-    contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed' | 'mix'
+    contractType: 'spot_hourly' | 'portfolio_managed' | 'fixed' | 'mix' | 'monthly_fixed'
   }
   priceArea: WebsitePriceArea
   price_area_code?: WebsitePriceArea
@@ -71,6 +71,10 @@ export type WebsitePricingPreview = {
       | {
           type: 'admin_fixed_price' | 'fixed_price'
           fixedPriceOre: number
+        }
+      | {
+          type: 'monthly_fixed_price'
+          monthlyFixedPriceSek: number
         }
       | {
           type: 'mix'

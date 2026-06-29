@@ -11,6 +11,8 @@ export type OpsContractType =
   | "fixed"
   | "mix"
   | "mixed"
+  | "monthly_fixed"
+  | "fixed_monthly"
   | string;
 
 export type OpsPublicContract = {
@@ -32,6 +34,11 @@ export type OpsPublicContract = {
   markup_ore_per_kwh?: number | null;
   variable_markup_ore_per_kwh?: number | null;
   fixed_price_ore_per_kwh?: number | null;
+  monthly_fixed_price_sek?: number | null;
+  elcert_ore_per_kwh?: number | null;
+  portfolio_price_ore_per_kwh?: number | null;
+  vat_rate?: number | null;
+  pricing_model?: string | null;
   spot_share?: number | null;
   portfolio_share?: number | null;
   valid_from?: string | null;
@@ -206,7 +213,7 @@ export type OpsWebsitePricingPreview = {
     slug: string;
     offer_reference?: string | null;
     name: string;
-    contractType: "spot_hourly" | "portfolio_managed" | "fixed" | "mix";
+    contractType: "spot_hourly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
   };
   priceArea: OpsWebsitePriceArea;
   price_area_code?: OpsWebsitePriceArea;
@@ -414,6 +421,9 @@ type NormalizedOpsPriceComponents = {
   variable_markup_ore_per_kwh?: number | null;
   elcert_ore_per_kwh?: number | null;
   fixed_price_ore_per_kwh?: number | null;
+  monthly_fixed_price_sek?: number | null;
+  portfolio_price_ore_per_kwh?: number | null;
+  vat_rate?: number | null;
 };
 
 const COMPONENT_ARRAY_KEYS = [
@@ -503,6 +513,8 @@ function classifyComponent(
   if (!text) return null;
 
   if (/elcert|certificate|certifikat/.test(text)) return "elcert_ore_per_kwh";
+  if (/monthly_fixed|fixed_monthly|manadspris|månadspris|monthly price|fixed monthly/.test(text)) return "monthly_fixed_price_sek";
+  if (/portfolio_price|portfoliopris|portfolio price|managed price/.test(text)) return "portfolio_price_ore_per_kwh";
   if (/invoice|faktura|billing/.test(text)) return "invoice_fee_sek";
   if (/monthly|manads|manad|month|subscription|abon/.test(text))
     return "monthly_fee_sek";
@@ -546,6 +558,10 @@ function pickComponentNumber(row: Record<string, unknown>): number | null {
     "amountSek",
     "monthly_fee_sek",
     "monthlyFeeSek",
+    "monthly_fixed_price_sek",
+    "monthlyFixedPriceSek",
+    "monthly_price_sek",
+    "monthlyPriceSek",
   ];
 
   for (const key of keys) {
@@ -618,6 +634,26 @@ function extractOpsPriceComponents(
       row.price_per_kwh_ore ??
       row.pricePerKwhOre,
   );
+  result.monthly_fixed_price_sek = coalesceNumber(
+    amountFromObject(pricing?.monthly_fixed_price ?? pricing?.monthlyFixedPrice),
+    normalizeNumber(
+      row.monthly_fixed_price_sek ??
+        row.monthlyFixedPriceSek ??
+        row.monthly_price_sek ??
+        row.monthlyPriceSek ??
+        row.fixed_monthly_price_sek ??
+        row.fixedMonthlyPriceSek,
+    ),
+  );
+  result.portfolio_price_ore_per_kwh = normalizeNumber(
+    row.portfolio_price_ore_per_kwh ??
+      row.portfolioPriceOrePerKwh ??
+      row.portfolio_price_ore ??
+      row.portfolioPriceOre ??
+      row.managed_price_ore_per_kwh ??
+      row.managedPriceOrePerKwh,
+  );
+  result.vat_rate = normalizeNumber(row.vat_rate ?? row.vatRate ?? row.vat);
 
   for (const component of collectComponentRows(input)) {
     const field = classifyComponent(component);
@@ -763,6 +799,11 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     markup_ore_per_kwh: components.markup_ore_per_kwh ?? null,
     variable_markup_ore_per_kwh: components.variable_markup_ore_per_kwh ?? null,
     fixed_price_ore_per_kwh: components.fixed_price_ore_per_kwh ?? null,
+    monthly_fixed_price_sek: components.monthly_fixed_price_sek ?? null,
+    elcert_ore_per_kwh: components.elcert_ore_per_kwh ?? null,
+    portfolio_price_ore_per_kwh: components.portfolio_price_ore_per_kwh ?? null,
+    vat_rate: components.vat_rate ?? null,
+    pricing_model: pickFromRecords([pricing, r], ["pricing_model", "pricingModel", "price_model", "priceModel"]),
     spot_share: normalizeNumber(pricing?.spot_share ?? pricing?.spotShare),
     portfolio_share: normalizeNumber(pricing?.portfolio_share ?? pricing?.portfolioShare),
     valid_from: pickString(r, ["valid_from", "validFrom"]),

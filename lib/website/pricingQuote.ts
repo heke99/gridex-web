@@ -132,6 +132,14 @@ function cloneBasis(value: unknown): QuoteBasis {
     return { type, fixedPriceOre: record.fixedPriceOre }
   }
 
+  if (
+    type === 'monthly_fixed_price' &&
+    typeof record.monthlyFixedPriceSek === 'number' &&
+    Number.isFinite(record.monthlyFixedPriceSek)
+  ) {
+    return { type, monthlyFixedPriceSek: record.monthlyFixedPriceSek }
+  }
+
   if (type === 'mix') {
     const numberOrUndefined = (key: string) =>
       typeof record[key] === 'number' && Number.isFinite(record[key]) ? record[key] : undefined
