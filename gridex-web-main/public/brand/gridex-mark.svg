@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Gridex">
+  <rect width="512" height="512" rx="112" fill="#F8FAFC"/>
+  <path d="M292 91H168c-66 0-120 54-120 120v90c0 66 54 120 120 120h94l35-70H168c-27 0-50-23-50-50v-90c0-27 23-50 50-50h89l35-70Z" fill="#020B14"/>
+  <path d="M187 247 331 91h75L309 224h101L220 421l60-142h-93Z" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="187" y1="421" x2="406" y2="91" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00B8D9"/>
+      <stop offset="0.55" stop-color="#00E082"/>
+      <stop offset="1" stop-color="#2EF26E"/>
+    </linearGradient>
+  </defs>
+</svg>
