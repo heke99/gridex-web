@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { OpsPublicContract, OpsWebsitePricingPreview } from '@/lib/ops/client'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
-import { fetchActiveSpotBasisPeriod, tryQuery } from '@/lib/gridex/pricing/db'
+import { tryQuery } from '@/lib/gridex/pricing/db'
+import { prevYearMonth, formatYearMonth } from '@/lib/gridex/pricing/validators'
 import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 
@@ -191,7 +192,12 @@ export async function getPreviousMonthSpotBasis(params: {
 }): Promise<SpotBasis> {
   const now = params.now ?? new Date()
   const supabase = optionalSupabase()
-  const period = supabase ? await fetchActiveSpotBasisPeriod(supabase, now) : previousMonth(now)
+  // Public website pricing must always use the previous calendar month
+  // in Europe/Stockholm. It must not read gridex_spot_basis_config here:
+  // that admin setting can be used for internal publish/rollback workflows,
+  // but it must never move the public calculator back to an old month such
+  // as February when today is in June.
+  const period = prevYearMonth(now)
 
   const stored = supabase ? await fetchStoredSpotBasis(supabase, params.priceAreaCode, period.year, period.month) : null
   if (stored) return stored
@@ -213,20 +219,9 @@ export async function getPreviousMonthSpotBasis(params: {
   }
 
   throw new LocalWebsitePricingPreviewError(
-    `Prisberäkningen är inte publicerad för ${params.priceAreaCode} ${period.year}-${String(period.month).padStart(2, '0')}.`,
+    `Prisberäkningen är inte publicerad för ${params.priceAreaCode} ${formatYearMonth(period.year, period.month)}.`,
     503,
   )
-}
-
-function previousMonth(now: Date): { year: number; month: number } {
-  const parts = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Stockholm',
-    year: 'numeric',
-    month: 'numeric',
-  }).formatToParts(now)
-  const year = Number(parts.find((part) => part.type === 'year')?.value) || now.getFullYear()
-  const month = Number(parts.find((part) => part.type === 'month')?.value) || now.getMonth() + 1
-  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
 }
 
 function previewContractType(model: WebsitePricingModel): OpsWebsitePricingPreview['contract']['contractType'] {
@@ -320,6 +315,8 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       portfolioShare: normalizedPortfolioShare,
       spotPriceOre: spotBasis.spotAvgOre,
       portfolioPriceOre: portfolioOre,
+      year: spotBasis.year,
+      month: spotBasis.month,
       source: spotBasis.source,
     }
     customerNotice = 'Prisberäkningen baseras på mixavtalets andelar och föregående månads genomsnittliga elpris i valt elområde.'

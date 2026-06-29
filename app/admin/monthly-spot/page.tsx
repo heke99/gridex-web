@@ -145,8 +145,12 @@ export default async function AdminMonthlySpotPage({
 
   const selectedLabel = ymLabel(selected.year, selected.month)
   const activeLabel = ymLabel(active.year, active.month)
+  const publicExpected = fallback
+  const publicExpectedLabel = ymLabel(publicExpected.year, publicExpected.month)
   const isSelectedActive =
     selected.year === active.year && selected.month === active.month
+  const activeMatchesPublicExpected =
+    active.year === publicExpected.year && active.month === publicExpected.month
 
   const { data: rows, error: rowsError } = await supabase
     .from('gridex_monthly_spot_prices')
@@ -159,6 +163,28 @@ export default async function AdminMonthlySpotPage({
   if (rowsError) {
     throw new Error(rowsError.message)
   }
+
+  const { data: publicExpectedRows, error: publicExpectedRowsError } = await supabase
+    .from('gridex_monthly_spot_prices')
+    .select('price_area,avg_spot_ore')
+    .eq('year', publicExpected.year)
+    .eq('month', publicExpected.month)
+    .order('price_area', { ascending: true })
+
+  if (publicExpectedRowsError) {
+    throw new Error(publicExpectedRowsError.message)
+  }
+
+  const publicExpectedByArea = new Map<PriceArea, number>()
+  ;(publicExpectedRows ?? []).forEach((row: { price_area: string; avg_spot_ore: number }) => {
+    const area = row.price_area as PriceArea
+    const value = Number(row.avg_spot_ore)
+    if (AREAS.includes(area) && Number.isFinite(value) && value > 0) {
+      publicExpectedByArea.set(area, value)
+    }
+  })
+  const missingPublicExpectedAreas = AREAS.filter((area) => !publicExpectedByArea.has(area))
+  const publicPricingReady = missingPublicExpectedAreas.length === 0
 
   const byArea = new Map<PriceArea, number>()
   const updatedAtByArea = new Map<PriceArea, string | null>()
@@ -441,13 +467,15 @@ export default async function AdminMonthlySpotPage({
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Spot-basis (månadsgenomsnitt)</h1>
           <p className="max-w-3xl text-gray-400">
-            Detta är kärndata för spot/tim-avtal. Preview och publika beräkningar
-            använder aktiv period. Flöde: spara månadspriser → publish aktiv →
-            snapshot → rollback vid behov.
+            Detta är kärndata för spot/tim-avtal. Publik kalkylator använder alltid föregående kalendermånad i Europe/Stockholm. Aktiv period används för
+            admin/publish/snapshot och historik, men styr inte publik prisberäkning.
           </p>
           <div className="text-sm text-gray-400">
             Aktiv period:{' '}
             <span className="font-semibold text-gray-200">{activeLabel}</span>
+            <span className="mx-2 text-gray-600">•</span>
+            Förväntad publik period:{' '}
+            <span className="font-semibold text-gray-200">{publicExpectedLabel}</span>
           </div>
         </div>
 
@@ -464,6 +492,50 @@ export default async function AdminMonthlySpotPage({
           >
             Testkalkylator
           </Link>
+        </div>
+      </div>
+
+      <div
+        className={`rounded-2xl border p-5 ${
+          publicPricingReady
+            ? 'border-emerald-500/20 bg-emerald-500/10'
+            : 'border-amber-500/30 bg-amber-500/10'
+        }`}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-gray-100">Publik kalkylator-readiness</div>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-300">
+              Publik teckningskalkylator ska använda {publicExpectedLabel}. Om SE1–SE4 saknas
+              för den perioden ska webben visa ett tydligt fel och aldrig falla tillbaka till
+              en äldre månad som {activeLabel}.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-gray-200">
+            {publicPricingReady ? 'Klar för publik prisberäkning' : 'Saknar publik prisgrund'}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Förväntad publik period</div>
+            <div className="mt-1 text-xl font-semibold text-white">{publicExpectedLabel}</div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-gray-500">SE1–SE4 status</div>
+            <div className="mt-1 text-xl font-semibold text-white">
+              {AREAS.length - missingPublicExpectedAreas.length}/{AREAS.length} kompletta
+            </div>
+            {!publicPricingReady ? (
+              <div className="mt-1 text-xs text-amber-100">Saknas: {missingPublicExpectedAreas.join(', ')}</div>
+            ) : null}
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Aktiv admin-period</div>
+            <div className="mt-1 text-xl font-semibold text-white">{activeLabel}</div>
+            {!activeMatchesPublicExpected ? (
+              <div className="mt-1 text-xs text-amber-100">Mismatch är okej i admin, men används inte publikt.</div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -624,7 +696,7 @@ export default async function AdminMonthlySpotPage({
             </form>
 
             <div className="text-xs text-gray-500">
-              Spara = write. Publish aktiv = publish + snapshot + rollback.
+              Spara = write. Publish aktiv = adminhistorik + snapshot + rollback.
             </div>
           </div>
 
@@ -643,10 +715,10 @@ export default async function AdminMonthlySpotPage({
                 disabled={!canPublish}
                 title={!canPublish ? 'Saknar spot.publish' : 'Sätt vald period som aktiv'}
               >
-                Publish: sätt {selectedLabel} som aktiv
+                Publish: sätt {selectedLabel} som aktiv admin-period
               </button>
               <div className="text-xs text-gray-500">
-                Publish validerar att alla 4 områden finns, skapar snapshot och uppdaterar aktiv period.
+                Publish validerar att alla 4 områden finns, skapar snapshot och uppdaterar aktiv admin-period. Publik kalkylator använder ändå föregående kalendermånad.
               </div>
             </form>
           </div>
@@ -745,7 +817,7 @@ export default async function AdminMonthlySpotPage({
                 Rollback & Publish log
               </div>
               <div className="text-sm text-gray-400">
-                Snapshot tas vid publish. Rollback sätter aktiv period till föregående logg-entry.
+                Snapshot tas vid publish. Rollback sätter aktiv admin-period till föregående logg-entry. Publik kalkylator påverkas inte av rollback.
               </div>
             </div>
 
@@ -820,11 +892,11 @@ export default async function AdminMonthlySpotPage({
               <span className="text-gray-200">spot.write</span>: får spara månadspriser.
             </li>
             <li>
-              <span className="text-gray-200">spot.publish</span>: får publish aktiv period och skapa snapshot.
+              <span className="text-gray-200">spot.publish</span>: får publish aktiv admin-period och skapa snapshot.
             </li>
             <li>
-              Pricing-engine läser alltid aktiv period via{' '}
-              <span className="text-gray-200">gridex_spot_basis_config</span>.
+              Publik kalkylator läser alltid föregående kalendermånad.{' '}
+              <span className="text-gray-200">gridex_spot_basis_config</span> används bara för admin/publish-historik.
             </li>
           </ul>
         </div>

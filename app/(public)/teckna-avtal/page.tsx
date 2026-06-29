@@ -16,7 +16,6 @@ import {
   isOpsError,
   submitOpsCustomerApplication,
   type OpsPublicContract,
-  type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
 import { checkRateLimit } from '@/lib/security/rateLimit'
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
@@ -25,7 +24,7 @@ import { validateContractDisplaySnapshot, validatePricingPreviewSnapshot } from 
 import { ensureCustomerPortalOnboarding } from '@/lib/customerPortal/onboarding'
 import { contractSupportsCustomerType } from '@/lib/website/customerType'
 import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
-import { loadVerifiedWebsitePricingPreview } from '@/lib/website/pricingPreview'
+import { buildLocalWebsitePricingPreview } from '@/lib/website/localPricingPreview'
 
 export const metadata: Metadata = {
   title: 'Teckna elavtal – Gridex',
@@ -428,24 +427,19 @@ export default async function TecknaPage({
     const liveDisplay = buildPublicContractDisplay(offer)
     if (!liveDisplay.ready) return fail('offer')
 
-    const pricingInput: OpsWebsitePricingPreviewInput = {
-      offer_reference: offer.offer_reference,
-      price_area_code: serverPriceAreaCode,
-      postal_code: postalCode,
-      city,
-      address,
-      estimated_monthly_kwh: estimatedMonthlyKwh,
-    }
-
     let livePricingPreview
     try {
-      livePricingPreview = await loadVerifiedWebsitePricingPreview(pricingInput, offer)
+      livePricingPreview = await buildLocalWebsitePricingPreview({
+        contract: offer,
+        priceAreaCode: serverPriceAreaCode,
+        estimatedMonthlyKwh,
+      })
     } catch {
       return fail('price_snapshot')
     }
 
     const quotedPricingPreview = localQuoteValidation?.ok
-      ? quoteToWebsitePricingPreview(localQuoteValidation.quote)
+      ? quoteToWebsitePricingPreview(localQuoteValidation.quote, pricingQuoteToken)
       : livePricingPreview
     const signedPriceValidation = validatePricingPreviewSnapshot({
       contract: offer,

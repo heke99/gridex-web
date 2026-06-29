@@ -142,12 +142,12 @@ export function validatePricingPreviewSnapshot(params: {
 
   const snapshotArea = firstString(snapshot, [['price_area_code'], ['priceArea'], ['priceAreaCode'], ['price_area']])
   if (!snapshotArea || snapshotArea !== expectedPriceArea) {
-    reasons.push('elområde i pricing_preview_snapshot matchar inte ansökan')
+    reasons.push('elområde i pricing_preview_snapshot matchar inte teckningen')
   }
 
   const snapshotKwh = firstNumber(snapshot, [['kwh'], ['estimated_monthly_kwh'], ['estimatedMonthlyKwh'], ['monthly_kwh'], ['monthlyKwh']])
   if (!approxEqual(snapshotKwh, expectedMonthlyKwh, 0.001)) {
-    reasons.push('förbrukning i pricing_preview_snapshot matchar inte ansökan')
+    reasons.push('förbrukning i pricing_preview_snapshot matchar inte teckningen')
   }
 
   const liveOffer = livePreview.contract.offer_reference ?? null

@@ -82,6 +82,8 @@ export type WebsitePricingPreview = {
           portfolioShare?: number
           spotPriceOre?: number
           portfolioPriceOre?: number
+          year?: number
+          month?: number
           source?: string
         }
     fees?: {

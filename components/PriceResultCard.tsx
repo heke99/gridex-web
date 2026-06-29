@@ -12,6 +12,7 @@ function formatOre(value: number) { return formatNumber(value, 4) }
 
 function contractTypeLabel(type: WebsitePricingPreview['contract']['contractType']) {
   if (type === 'fixed') return 'Fastpris'
+  if (type === 'monthly_fixed') return 'Fast månadspris'
   if (type === 'portfolio_managed') return 'Förvaltat avtal'
   if (type === 'mix') return 'Mixavtal'
   return 'Rörligt elpris'
@@ -21,7 +22,9 @@ function basisLabel(basis: PricingBasis) {
   if (!basis || typeof basis !== 'object' || !('type' in basis)) return null
   const value = basis as Record<string, unknown>
   if (value.type === 'previous_month_avg_spot' && hasNumber(value.spotAvgOre)) return `Föregående månads snittspot (${String(value.month).padStart(2, '0')}/${value.year})`
+  if (value.type === 'monthly_fixed_price' && hasNumber(value.monthlyFixedPriceSek)) return 'Fast månadspris enligt avtalet'
   if ((value.type === 'fixed_price' || value.type === 'admin_fixed_price') && hasNumber(value.fixedPriceOre)) return 'Fast elpris'
+  if (value.type === 'mix' && hasNumber(value.year) && hasNumber(value.month)) return `Viktat mixpris med snittspot (${String(value.month).padStart(2, '0')}/${value.year})`
   if (value.type === 'mix') return 'Viktat mixpris'
   return null
 }
@@ -32,10 +35,11 @@ function basisRows(basis: PricingBasis) {
   const rows: Array<[string, string]> = []
   if (hasNumber(value.spotAvgOre)) rows.push(['Spotandel', `${formatOre(value.spotAvgOre)} öre/kWh`])
   if (hasNumber(value.fixedPriceOre)) rows.push(['Fast elpris', `${formatOre(value.fixedPriceOre)} öre/kWh`])
+  if (hasNumber(value.monthlyFixedPriceSek)) rows.push(['Fast månadspris', `${formatNumber(value.monthlyFixedPriceSek, 2)} kr/mån`])
   if (hasNumber(value.spotPriceOre)) rows.push(['Rörlig del', `${formatOre(value.spotPriceOre)} öre/kWh`])
   if (hasNumber(value.portfolioPriceOre)) rows.push(['Portföljdel', `${formatOre(value.portfolioPriceOre)} öre/kWh`])
-  if (hasNumber(value.spotShare)) rows.push(['Rörlig andel', `${formatNumber(value.spotShare, 2)} %`])
-  if (hasNumber(value.portfolioShare)) rows.push(['Portföljandel', `${formatNumber(value.portfolioShare, 2)} %`])
+  if (hasNumber(value.spotShare)) rows.push(['Rörlig andel', `${formatNumber(value.spotShare * 100, 2)} %`])
+  if (hasNumber(value.portfolioShare)) rows.push(['Portföljandel', `${formatNumber(value.portfolioShare * 100, 2)} %`])
   return rows
 }
 
@@ -48,6 +52,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek) ? totalMonthlyCostInclVatSek : undefined
   const invoiceIncluded = fees.invoiceFeeIncludedInMonthlyEstimate
   const basisName = basisLabel(specification?.basis)
+  const isMonthlyFixed = contract.contractType === 'monthly_fixed'
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">
@@ -59,8 +64,8 @@ export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5"><div className="text-sm text-gray-400">Beräknad månadskostnad inkl. moms</div><div className="mt-2 text-4xl font-bold tracking-tight text-white">{hasNumber(estimatedInclVat) ? `${formatNumber(estimatedInclVat)} kr` : 'Kan inte visas'}<span className="ml-2 text-lg text-gray-400">/ mån</span></div>{hasNumber(pricePerKwhOre) ? <div className="mt-2 text-sm text-gray-400">{formatOre(pricePerKwhOre)} öre/kWh exkl. moms före fasta avgifter</div> : null}</div>
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5"><div className="text-sm font-medium text-white">Detta ingår i beräkningen</div><p className="mt-2 text-sm leading-relaxed text-gray-400">Elhandelspris och de avgifter som OPS har räknat med för valt avtal. Elnätsavgift och nätägarens avgifter ingår inte.</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5"><div className="text-sm text-gray-400">Beräknad månadskostnad inkl. moms</div><div className="mt-2 text-4xl font-bold tracking-tight text-white">{hasNumber(estimatedInclVat) ? `${formatNumber(estimatedInclVat)} kr` : 'Kan inte visas'}<span className="ml-2 text-lg text-gray-400">/ mån</span></div>{hasNumber(pricePerKwhOre) ? <div className="mt-2 text-sm text-gray-400">{isMonthlyFixed ? `${formatOre(pricePerKwhOre)} öre/kWh som jämförelsevärde baserat på din uppskattade förbrukning` : `${formatOre(pricePerKwhOre)} öre/kWh exkl. moms före fasta avgifter`}</div> : null}</div>
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-5"><div className="text-sm font-medium text-white">Detta ingår i beräkningen</div><p className="mt-2 text-sm leading-relaxed text-gray-400">Elhandelspris och avgifter enligt valt avtal. Elnätsavgift och nätägarens avgifter ingår inte.</p></div>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm">

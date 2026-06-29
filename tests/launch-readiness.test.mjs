@@ -41,7 +41,7 @@ assertIncludes('app/api/legal/accept/route.ts', 'idempotent', 'legal accept rout
 
 for (const path of ['app/api/price/route.ts', 'app/api/offers/calculate/route.ts']) {
   assertIncludes(path, 'status: 410', 'legacy public price route must be closed')
-  assertIncludes(path, '/api/v1/website/pricing/preview', 'legacy public price route must point to OPS preview')
+  assertIncludes(path, '/api/v1/website/pricing/preview', 'legacy public price route must point to the website-local pricing preview')
 }
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
@@ -49,7 +49,8 @@ assert.ok(signup.includes('validateContractDisplaySnapshot'), 'submit must valid
 assert.ok(signup.includes('offer_reference'), 'submit must use OPS offer_reference as the binding contract reference')
 assert.ok(signup.includes('Idempotency-Key') || read('lib/ops/client.ts').includes('Idempotency-Key'), 'customer application writes must use Idempotency-Key header')
 assert.ok(signup.includes('validatePricingPreviewSnapshot'), 'submit must validate the pricing preview snapshot')
-assert.ok(signup.includes('loadVerifiedWebsitePricingPreview'), 'submit must verify a live OPS price before writing')
+assert.ok(signup.includes('buildLocalWebsitePricingPreview'), 'submit must rebuild a fresh website-local price before writing')
+assert.ok(!signup.includes('loadVerifiedWebsitePricingPreview'), 'submit must not call OPS pricing before writing')
 assert.ok(signup.includes('validateWebsitePricingQuote'), 'submit must bind the signed quote to final form details')
 
 const form = read('components/signup/CustomerApplicationForm.tsx')
@@ -128,7 +129,6 @@ for (const variable of [
   'PAPILITE_BASE_URL',
   'WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL',
   'GRIDEX_WEBSITE_PRICING_QUOTE_SECRET',
-  'GRIDEX_REQUIRE_OPS_PRICING_QUOTE',
 ]) {
   assert.ok(envExample.includes(variable), `env.example must document ${variable}`)
 }
@@ -167,3 +167,10 @@ assertNotIncludes('components/ElectricityCalculator.tsx', 'En offert gäller i 1
 assertIncludes('components/ElectricityCalculator.tsx', 'prisberäkning', 'calculator must use price calculation wording')
 assertIncludes('lib/ops/client.ts', 'total_monthly_cost_incl_vat_sek', 'OPS mapper must support total incl VAT aliases')
 assertIncludes('lib/website/snapshotValidation.ts', 'total_monthly_cost_incl_vat_sek', 'snapshot validation must support total incl VAT aliases')
+assertIncludes('lib/website/localPricingPreview.ts', 'prevYearMonth(now)', 'public local pricing must use the previous calendar month')
+assertNotIncludes('lib/website/localPricingPreview.ts', 'fetchActiveSpotBasisPeriod', 'public local pricing must not use admin active spot basis')
+assertIncludes('app/admin/monthly-spot/page.tsx', 'Förväntad publik period', 'monthly spot admin must show expected public period')
+assertIncludes('app/admin/monthly-spot/page.tsx', 'Publik kalkylator använder alltid föregående kalendermånad', 'monthly spot admin must explain public period rule')
+assertIncludes('components/PriceResultCard.tsx', 'Fast månadspris', 'price result card must label fixed monthly products')
+assertIncludes('components/PriceResultCard.tsx', 'value.spotShare * 100', 'mix shares must be displayed as percentages')
+assertNotIncludes('components/PriceResultCard.tsx', 'OPS har räknat med', 'price card must not claim OPS calculated website-local pricing')

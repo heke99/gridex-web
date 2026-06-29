@@ -5,10 +5,9 @@ import {
   isOpsError,
   type OpsWebsitePriceArea,
   type OpsWebsitePricingPreview,
-  type OpsWebsitePricingPreviewInput,
 } from '@/lib/ops/client'
 import { issueWebsitePricingQuote } from '@/lib/website/pricingQuote'
-import { loadVerifiedWebsitePricingPreview, WebsitePricingPreviewError } from '@/lib/website/pricingPreview'
+import { buildLocalWebsitePricingPreview, LocalWebsitePricingPreviewError } from '@/lib/website/localPricingPreview'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -84,15 +83,11 @@ export async function POST(req: Request) {
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (!contract) return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
 
-    const input: OpsWebsitePricingPreviewInput = {
-      offer_reference: contract.offer_reference,
-      price_area_code: resolvedArea,
-      postal_code: postalCode,
-      city,
-      address,
-      estimated_monthly_kwh: monthlyKwh,
-    }
-    const preview = await loadVerifiedWebsitePricingPreview(input, contract)
+    const preview = await buildLocalWebsitePricingPreview({
+      contract,
+      priceAreaCode: resolvedArea,
+      estimatedMonthlyKwh: monthlyKwh,
+    })
     const websiteQuote = issueWebsitePricingQuote({ preview, contract, location: { postalCode, city, address } })
 
     if (!websiteQuote) {
@@ -111,7 +106,7 @@ export async function POST(req: Request) {
       { headers: { 'Cache-Control': 'private, no-store' } },
     )
   } catch (error) {
-    if (error instanceof WebsitePricingPreviewError) {
+    if (error instanceof LocalWebsitePricingPreviewError) {
       return NextResponse.json({ error: error.message || 'Vi kunde inte räkna priset för valt avtal.' }, { status: 503 })
     }
     if (isOpsError(error)) {
