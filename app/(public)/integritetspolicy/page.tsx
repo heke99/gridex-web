@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Integritetspolicy – Gridex',
-  description: 'Så behandlar Gridex AB personuppgifter när du besöker hemsidan, ansöker om elavtal eller använder Mina sidor.',
+  description: 'Så behandlar Gridex AB personuppgifter när du besöker hemsidan, tecknar elavtal eller använder Mina sidor.',
   alternates: { canonical: 'https://gridex.se/integritetspolicy' },
 }
 
@@ -12,7 +12,7 @@ const UPDATED_AT = '2026-06-15'
 const sections = [
   {
     title: '1. Personuppgiftsansvarig',
-    body: ['Gridex AB, org.nr 559416-7149, är personuppgiftsansvarig för behandling av personuppgifter som sker när du besöker webbplatsen, ansöker om elavtal eller använder Mina sidor.'],
+    body: ['Gridex AB, org.nr 559416-7149, är personuppgiftsansvarig för behandling av personuppgifter som sker när du besöker webbplatsen, tecknar elavtal eller använder Mina sidor.'],
   },
   {
     title: '2. Vilka uppgifter vi behandlar',
@@ -29,7 +29,7 @@ const sections = [
   {
     title: '3. Varför vi behandlar uppgifter',
     bullets: [
-      'För att ta emot och behandla din ansökan om elavtal.',
+      'För att ta emot och behandla din teckning om elavtal.',
       'För att skapa och administrera kundrelation, avtal, anläggningar och fakturering.',
       'För att begära och ta emot nödvändiga anläggningsuppgifter från nätägare när du har godkänt fullmakt.',
       'För att hantera leverantörsbyte, avtalsstart, Mina sidor och avtalsrelaterad kommunikation.',
@@ -40,7 +40,7 @@ const sections = [
   {
     title: '4. Rättslig grund',
     bullets: [
-      'Avtal eller åtgärder inför avtal: när vi behandlar ansökan, avtal, anläggning och fakturering.',
+      'Avtal eller åtgärder inför avtal: när vi behandlar teckning, avtal, anläggning och fakturering.',
       'Rättslig skyldighet: när vi måste spara eller lämna uppgifter enligt lag eller elmarknadsregler.',
       'Berättigat intresse: för säkerhet, felsökning, dokumentation, kundkommunikation och förbättring av tjänsten.',
       'Samtycke: när samtycke krävs, till exempel för vissa cookieval eller särskilda godkännanden.',
@@ -56,7 +56,7 @@ const sections = [
   },
   {
     title: '6. Lagringstid',
-    body: ['Uppgifter sparas så länge de behövs för ansökan, kundrelation, avtal, fakturering, rättsliga krav och dokumentation. Bokföringsuppgifter sparas enligt bokföringsregler. Ansökningar som inte leder till kundrelation ska raderas eller avidentifieras när de inte längre behövs.'],
+    body: ['Uppgifter sparas så länge de behövs för teckning, kundrelation, avtal, fakturering, rättsliga krav och dokumentation. Bokföringsuppgifter sparas enligt bokföringsregler. Teckningar som inte leder till kundrelation ska raderas eller avidentifieras när de inte längre behövs.'],
   },
   {
     title: '7. Dina rättigheter',

@@ -56,6 +56,10 @@ function validOpsQuote(preview: OpsWebsitePricingPreview): { token: string; expi
   return { token, expiresAt }
 }
 
+function requireOpsPricingQuote(): boolean {
+  return process.env.GRIDEX_REQUIRE_OPS_PRICING_QUOTE?.trim() === 'true'
+}
+
 function publicPreview(preview: OpsWebsitePricingPreview) {
   const safe = { ...preview }
   delete safe.raw
@@ -103,12 +107,17 @@ export async function POST(req: Request) {
     }
     const preview = await loadVerifiedWebsitePricingPreview(input, contract)
     const opsQuote = validOpsQuote(preview)
-    const websiteQuote = opsQuote
+    const requireOpsQuote = requireOpsPricingQuote()
+    const websiteQuote = opsQuote || requireOpsQuote
       ? null
       : issueWebsitePricingQuote({ preview, contract, location: { postalCode, city, address } })
 
+    if (requireOpsQuote && !opsQuote) {
+      return NextResponse.json({ error: 'Priset kunde räknas men inte kontrolleras för teckning just nu.' }, { status: 503 })
+    }
+
     if (!opsQuote && !websiteQuote) {
-      return NextResponse.json({ error: 'Priset kan inte säkras för ansökan just nu.' }, { status: 503 })
+      return NextResponse.json({ error: 'Priset kan inte kontrolleras för teckning just nu.' }, { status: 503 })
     }
 
     return NextResponse.json(

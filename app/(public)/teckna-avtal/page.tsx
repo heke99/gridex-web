@@ -29,9 +29,9 @@ import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib
 import { loadVerifiedWebsitePricingPreview } from '@/lib/website/pricingPreview'
 
 export const metadata: Metadata = {
-  title: 'Ansök om elavtal – Gridex',
+  title: 'Teckna elavtal – Gridex',
   description:
-    'Ansök om elavtal hos Gridex. Välj avtal, granska pris och avgifter, godkänn villkor och få bekräftelse på nästa steg.',
+    'Teckna elavtal hos Gridex. Välj avtal, granska pris och avgifter, godkänn villkor och få bekräftelse på nästa steg.',
   alternates: { canonical: 'https://gridex.se/teckna-avtal' },
 }
 
@@ -109,25 +109,25 @@ function errorText(code?: string) {
     case 'validation':
       return 'Kontrollera obligatoriska uppgifter och försök igen.'
     case 'consent':
-      return 'Du behöver godkänna villkor, prisvillkor och övriga obligatoriska godkännanden för att skicka ansökan.'
+      return 'Du behöver godkänna villkor, prisvillkor och övriga obligatoriska godkännanden för att teckna elavtal.'
     case 'honeypot':
-      return 'Ansökan kunde inte skickas. Kontrollera uppgifterna och försök igen.'
+      return 'Teckningen kunde inte skickas. Kontrollera uppgifterna och försök igen.'
     case 'not_configured':
-      return 'Ansökan online är inte aktiverad just nu.'
+      return 'Teckning online är inte aktiverad just nu.'
     case 'ops_unavailable':
-      return 'Vi kunde inte skicka din ansökan just nu. Försök igen om en stund eller kontakta kundservice.'
+      return 'Vi kunde inte teckna just nu. Försök igen om en stund eller kontakta kundservice.'
     case 'live_disabled':
-      return 'Ansökan online är inte aktiverad just nu.'
+      return 'Teckning online är inte aktiverad just nu.'
     case 'offer':
       return 'Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.'
     case 'snapshot':
       return 'Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.'
     case 'price_snapshot':
-      return 'Prisofferten saknas, har gått ut eller stämmer inte längre med dina uppgifter. Räkna om priset innan du skickar ansökan.'
+      return 'Prisberäkningen saknas eller stämmer inte längre med dina uppgifter. Räkna om priset innan du tecknar.'
     case 'price_changed':
-      return 'Priset har uppdaterats. Räkna om priset och granska den nya sammanfattningen innan du skickar ansökan.'
+      return 'Priset har uppdaterats. Räkna om priset och granska den nya sammanfattningen innan du tecknar.'
     case 'area_mismatch':
-      return 'Vi kunde inte bekräfta elområdet för den slutliga adressen. Kontrollera adressen och räkna om priset.'
+      return 'Vi kunde inte bekräfta elområdet för adressen. Kontrollera adressen och räkna om priset utan manuellt elområde om möjligt.'
     case 'customer_type':
       return 'Det valda avtalet är inte tillgängligt för den valda kundtypen. Välj ett aktuellt avtal.'
     case 'rate_limit':
@@ -270,7 +270,7 @@ export default async function TecknaPage({
       loadError = 'Vi kunde inte hämta aktuella elavtal just nu.'
     }
   } else {
-    loadError = 'Ansökan online är inte tillgänglig just nu.'
+    loadError = 'Teckning online är inte tillgänglig just nu.'
   }
 
   const selectedContract = selectedContractFromParams(contracts, params)
@@ -289,7 +289,7 @@ export default async function TecknaPage({
     'use server'
 
     const fail = (code: Parameters<typeof errorText>[0]): SignupSubmissionState => ({
-      errorMessage: errorText(code) ?? 'Ansökan kunde inte skickas just nu. Försök igen.',
+      errorMessage: errorText(code) ?? 'Teckningen kunde inte skickas just nu. Försök igen.',
     })
     const currentStatus = getOpsClientStatus()
     if (!currentStatus.configured) return fail('not_configured')
@@ -628,17 +628,17 @@ export default async function TecknaPage({
         <div className="relative grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-              Välj avtal • Granska uppgifter • Skicka ansökan
+              Välj avtal • Granska uppgifter • Teckna elavtal
             </div>
 
             <div>
               <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
-                Ansök om elavtal
+                Teckna elavtal
                 <br />
                 steg för steg
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-                Välj elavtal, fyll i dina uppgifter och granska allt innan du skickar. Ansökan är inte färdig kundstart förrän Gridex har kontrollerat uppgifterna och bekräftat nästa steg.
+                Välj elavtal, fyll i dina uppgifter och granska allt innan du tecknar. Avtalsstart sker först när Gridex har kontrollerat uppgifterna och bekräftat nästa steg.
               </p>
             </div>
 
@@ -661,7 +661,7 @@ export default async function TecknaPage({
           <div className="grid gap-4">
             <StepCard title="1. Välj avtal" text="Se månadsavgift, påslag och fakturaavgift innan du går vidare." />
             <StepCard title="2. Fyll i uppgifter" text="Privat- och företagsfält visas separat. Anläggningsuppgifter kan kompletteras senare." />
-            <StepCard title="3. Granska och skicka" text="Kontrollera sammanfattningen och godkänn juridiska dokument var för sig." />
+            <StepCard title="3. Granska och teckna" text="Kontrollera sammanfattningen och godkänn juridiska dokument var för sig." />
           </div>
         </div>
       </section>
@@ -674,13 +674,13 @@ export default async function TecknaPage({
 
       {loadError ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          {loadError} Ansökan är därför tillfälligt pausad.
+          {loadError} Teckning är därför tillfälligt pausad.
         </div>
       ) : null}
 
       {!status.liveSignupEnabled ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Ansökan online är inte aktiverad just nu. Kontakta kundservice om du vill ha hjälp.
+          Teckning online är inte aktiverad just nu. Kontakta kundservice om du vill ha hjälp.
         </div>
       ) : null}
 

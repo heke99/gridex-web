@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 const UPDATED_AT = '2026-06-15'
 
 const sections = [
-  ['1. Tillämpning', 'Dessa villkor gäller för juridiska personer och näringsidkare som ansöker om eller ingår elhandelsavtal med Gridex. De gäller tillsammans med allmänna villkor och den prisinformation som visas för valt avtal.'],
-  ['2. Behörighet', 'Den som skickar ansökan för ett företag ansvarar för att ha rätt att företräda företaget eller att ansökan godkänns av behörig företrädare.'],
+  ['1. Tillämpning', 'Dessa villkor gäller för juridiska personer och näringsidkare som tecknar eller ingår elhandelsavtal med Gridex. De gäller tillsammans med allmänna villkor och den prisinformation som visas för valt avtal.'],
+  ['2. Behörighet', 'Den som tecknar för ett företag ansvarar för att ha rätt att företräda företaget eller att teckningen godkänns av behörig företrädare.'],
   ['3. Pris och betalning', 'Pris, avgifter, bindningstid och uppsägningstid framgår av valt avtal. Betalning ska ske enligt faktura. Vid sen betalning kan dröjsmålsränta, påminnelseavgift och inkasso tillkomma enligt lag och villkor.'],
   ['4. Anläggningsuppgifter och fullmakt', 'Företagskunden ansvarar för att uppgifter om anläggning, kontaktperson och fakturering är korrekta. Gridex kan begära och hantera anläggningsuppgifter från nätägare när fullmakt eller annan rättslig grund finns.'],
   ['5. Ansvarsbegränsning', 'Gridex ansvarar inte för indirekta skador, utebliven vinst, produktionsbortfall eller följdskador om inte annat följer av tvingande lag.'],
@@ -26,7 +26,7 @@ export default function ForetagsVillkorPage() {
         </div>
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Företagsvillkor</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300 md:text-base">
-          Särskilda villkor för företag och näringsidkare som ansöker om eller ingår elhandelsavtal med Gridex.
+          Särskilda villkor för företag och näringsidkare som tecknar eller ingår elhandelsavtal med Gridex.
         </p>
       </section>
 

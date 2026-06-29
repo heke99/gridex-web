@@ -140,12 +140,12 @@ export function validatePricingPreviewSnapshot(params: {
     reasons.push('pricing_preview_snapshot matchar inte valt avtal')
   }
 
-  const snapshotArea = firstString(snapshot, [['price_area_code'], ['priceArea']])
+  const snapshotArea = firstString(snapshot, [['price_area_code'], ['priceArea'], ['priceAreaCode'], ['price_area']])
   if (!snapshotArea || snapshotArea !== expectedPriceArea) {
     reasons.push('elområde i pricing_preview_snapshot matchar inte ansökan')
   }
 
-  const snapshotKwh = firstNumber(snapshot, [['kwh'], ['estimated_monthly_kwh'], ['estimatedMonthlyKwh']])
+  const snapshotKwh = firstNumber(snapshot, [['kwh'], ['estimated_monthly_kwh'], ['estimatedMonthlyKwh'], ['monthly_kwh'], ['monthlyKwh']])
   if (!approxEqual(snapshotKwh, expectedMonthlyKwh, 0.001)) {
     reasons.push('förbrukning i pricing_preview_snapshot matchar inte ansökan')
   }
@@ -160,12 +160,12 @@ export function validatePricingPreviewSnapshot(params: {
     reasons.push('live-preview returnerade annat elområde')
   }
 
-  const snapshotOre = firstNumber(snapshot, [['pricePerKwhOre'], ['price_per_kwh_ore']])
+  const snapshotOre = firstNumber(snapshot, [['pricePerKwhOre'], ['price_per_kwh_ore'], ['totalOrePerKwh'], ['total_ore_per_kwh'], ['energy_price_ore_per_kwh']])
   if (!approxEqual(snapshotOre, livePreview.pricePerKwhOre, ORE_TOLERANCE)) {
     reasons.push('pris per kWh har ändrats')
   }
 
-  const snapshotMonthly = firstNumber(snapshot, [['totalMonthlyCostSek'], ['total_monthly_cost_sek']])
+  const snapshotMonthly = firstNumber(snapshot, [['totalMonthlyCostSek'], ['total_monthly_cost_sek'], ['monthlyCostSek'], ['monthly_cost_sek'], ['estimatedMonthlyCostSek'], ['estimated_monthly_cost_sek']])
   if (!approxEqual(snapshotMonthly, livePreview.totalMonthlyCostSek, MONEY_TOLERANCE)) {
     reasons.push('månadskostnad har ändrats')
   }
@@ -176,7 +176,15 @@ export function validatePricingPreviewSnapshot(params: {
   if (liveMonthlyVat !== null) {
     const snapshotMonthlyVat = firstNumber(snapshot, [
       ['totalMonthlyCostInclVatSek'],
+      ['total_monthly_cost_incl_vat_sek'],
       ['total_monthly_cost_inc_vat_sek'],
+      ['totalMonthlyCostIncVatSek'],
+      ['totalMonthlyCostWithVatSek'],
+      ['total_monthly_cost_with_vat_sek'],
+      ['totalMonthlyCostVatIncludedSek'],
+      ['total_monthly_cost_vat_included_sek'],
+      ['monthlyCostInclVatSek'],
+      ['monthly_cost_incl_vat_sek'],
     ])
     if (!approxEqual(snapshotMonthlyVat, liveMonthlyVat, MONEY_TOLERANCE)) {
       reasons.push('månadskostnad inklusive moms har ändrats')

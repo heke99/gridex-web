@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import TackPage from '../../teckna/tack/page'
 
 export const metadata: Metadata = {
-  title: 'Ansökan mottagen – Gridex',
-  description: 'Bekräftelse på att Gridex har tagit emot din ansökan.',
+  title: 'Teckning mottagen – Gridex',
+  description: 'Bekräftelse på att Gridex har tagit emot din teckning.',
   robots: { index: false, follow: false },
 }
 

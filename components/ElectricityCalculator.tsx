@@ -61,7 +61,7 @@ function manualResolution(area: WebsitePriceArea): WebsiteEnergyResolution {
     price_area_code: area,
     confidence: 1,
     source: 'customer_selected_price_area',
-    customer_message: 'Elområdet har valts manuellt.',
+    customer_message: 'Elområdet har valts manuellt för prisberäkning. Vid teckning kontrolleras adressen igen.',
   }
 }
 
@@ -206,9 +206,9 @@ export default function ElectricityCalculator({
       <div className="relative space-y-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">Adress → elområde → prisoffert</div>
+            <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">Adress → elområde → prisberäkning</div>
             <h2 className="mt-4 text-3xl font-bold text-white md:text-4xl">Räkna ditt elpris</h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">Priset hämtas från det valda publicerade avtalet. Offerten säkras för avtal, elområde, adress och månadsförbrukning innan den kan användas i ansökan.</p>
+            <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base">Priset hämtas från det valda publicerade avtalet. Prisberäkningen säkras för avtal, elområde, adress och månadsförbrukning innan den kan användas i teckning.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300" aria-live="polite">{areaLabel(effectiveArea)}</div>
         </div>
@@ -230,16 +230,16 @@ export default function ElectricityCalculator({
             <input id="calculator-address" placeholder="Gata och nummer" value={address} onChange={(event) => { setAddress(event.target.value); setResolution(null); clearQuote() }} className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30" />
           </div>
           <div className="space-y-2">
-            <label htmlFor="calculator-manual-area" className="text-sm font-medium text-white/80">Elområde manuellt</label>
+            <label htmlFor="calculator-manual-area" className="text-sm font-medium text-white/80">Elområde manuellt (vägledande)</label>
             <select id="calculator-manual-area" value={manualArea} onChange={(event) => { const next = event.target.value as WebsitePriceArea | ''; setManualArea(next); setResolution(next ? manualResolution(next) : null); clearQuote() }} className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30">
               <option value="">Hitta via adress</option><option value="SE1">SE1</option><option value="SE2">SE2</option><option value="SE3">SE3</option><option value="SE4">SE4</option>
             </select>
-            <p className="text-xs text-white/40">Används endast om elområdet inte kan matchas automatiskt.</p>
+            <p className="text-xs text-white/40">Används för prisberäkning om automatisk matchning saknas. Vid teckning kontrolleras adress och elområde igen.</p>
           </div>
           <div className="space-y-2">
             <label htmlFor="calculator-kwh" className="text-sm font-medium text-white/80">Förbrukning (kWh / månad)</label>
             <input id="calculator-kwh" type="number" value={kwhInput} min={1} max={200000} onChange={(event) => updateKwh(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30" />
-            <p className="text-xs text-white/40">Ange uppskattad månadsförbrukning. Ett exakt kWh-värde krävs för en prisoffert.</p>
+            <p className="text-xs text-white/40">Ange uppskattad månadsförbrukning. Ett exakt kWh-värde krävs för en prisberäkning.</p>
           </div>
           <div className="space-y-2">
             <label htmlFor="calculator-contract" className="text-sm font-medium text-white/80">Elavtal</label>
@@ -252,10 +252,10 @@ export default function ElectricityCalculator({
         {resolution?.price_area_code ? <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-100">Elområde: {resolution.price_area_code}</div> : null}
         <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
           <button type="button" onClick={calculate} disabled={loading || !hasContracts} className="w-full rounded-2xl bg-cyan-500 py-4 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-cyan-300/70">{loading ? 'Beräknar...' : 'Hämta pris'}</button>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">En offert gäller i 15 minuter och kontrolleras igen när ansökan skickas.</div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">Prisberäkningen baseras på valt avtal, elområde och uppskattad förbrukning. Rörligt pris följer marknaden och kan ändras över tid.</div>
         </div>
         <div id={calculationStatusId} aria-live="polite">{error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">{error}</div> : null}</div>
-        {result ? <div className="pt-2" aria-live="polite"><PriceResultCard data={result} updatedAt={new Date()} /></div> : <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">Fyll i adress, ort, postnummer, förbrukning och valt avtal. Sedan kan du hämta en prisoffert.</div>}
+        {result ? <div className="pt-2" aria-live="polite"><PriceResultCard data={result} updatedAt={new Date()} /></div> : <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">Fyll i adress, ort, postnummer, förbrukning och valt avtal. Sedan kan du hämta en prisberäkning.</div>}
       </div>
     </section>
   )

@@ -170,8 +170,8 @@ export function customerNotificationForEvent(event: OpsWebhookEvent) {
     case 'contract.application_received':
       return {
         category: 'application',
-        title: 'Vi har tagit emot din ansökan',
-        body: 'Din ansökan är mottagen. Vi går igenom uppgifterna och återkommer om något behöver kompletteras.',
+        title: 'Vi har tagit emot din teckning',
+        body: 'Din teckning är mottagen. Vi går igenom uppgifterna och återkommer om något behöver kompletteras.',
         link_href: '/mina-sidor',
       }
     case 'contract.confirmation_sent':

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, expires_at: ops.expires_at ?? null, quote_source: 'ops' })
   } catch (error) {
     if (isOpsError(error) && error.status === 404) {
-      return NextResponse.json({ ok: false, error: 'Prisofferten kan inte kontrolleras just nu. Räkna om priset innan du går vidare.' }, { status: 503 })
+      return NextResponse.json({ ok: false, error: 'Prisberäkningen kan inte kontrolleras just nu. Räkna om priset innan du går vidare.' }, { status: 503 })
     }
     return NextResponse.json({ ok: false, error: 'Vi kunde inte kontrollera prisberäkningen just nu.' }, { status: 503 })
   }

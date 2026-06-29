@@ -197,5 +197,5 @@ export async function validateWebsitePricingQuote(input: {
   })
   const data = await readJsonResponse(res)
   if (res.ok && data && typeof data === 'object') return data as { ok: boolean; error?: string }
-  return { ok: false, error: extractErrorMessage(data, 'Prisofferten kunde inte kontrolleras. Räkna om priset innan du går vidare.') }
+  return { ok: false, error: extractErrorMessage(data, 'Prisberäkningen kunde inte kontrolleras. Räkna om priset innan du går vidare.') }
 }

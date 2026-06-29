@@ -189,7 +189,7 @@ export const elavtalPages: SeoPageContent[] = [
     lead:
       'När du byter elhandelsbolag behåller du normalt samma nätägare. Det du byter är elhandelsavtalet – alltså vem som säljer elen till dig.',
     intent: 'Hjälper kunder som är nära köp men behöver förstå processen.',
-    primaryCta: { label: 'Starta ansökan', href: '/teckna-avtal' },
+    primaryCta: { label: 'Starta teckning', href: '/teckna-avtal' },
     secondaryCta: { label: 'Jämför avtal först', href: '/elavtal/jamfor-elavtal' },
     sections: [
       {
@@ -207,7 +207,7 @@ export const elavtalPages: SeoPageContent[] = [
     ],
     bullets: [
       'Välj avtal och startdatum.',
-      'Skicka ansökan online.',
+      'Teckna online.',
       'Gridex hanterar nästa steg och återkommer om uppgifter saknas.',
     ],
     faq: [
@@ -223,7 +223,7 @@ export const elavtalPages: SeoPageContent[] = [
       },
     ],
     related: [
-      { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till ansökan.' },
+      { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till teckning.' },
       { label: 'Fullmakt', href: '/fullmakt', description: 'Läs om fullmakt och uppgifter.' },
       { label: 'Kundservice', href: '/kundservice', description: 'Få hjälp med frågor innan du byter.' },
     ],
@@ -600,7 +600,7 @@ export const elprisPages: SeoPageContent[] = [
       {
         question: `Kan jag teckna elavtal i ${area} hos Gridex?`,
         answer:
-          'Ja, du kan jämföra och ansöka online. Exakta villkor visas innan du skickar ansökan.',
+          'Ja, du kan jämföra och teckna online. Exakta villkor visas innan du tecknar.',
       },
     ],
     related: [
@@ -649,7 +649,7 @@ export const elprisPages: SeoPageContent[] = [
       {
         question: `Hur hittar jag billigt elavtal i ${place}?`,
         answer:
-          'Jämför totalen: spotpris eller fast pris, påslag, månadsavgift, moms och avtalsvillkor. Gridex visar priset innan ansökan skickas.',
+          'Jämför totalen: spotpris eller fast pris, påslag, månadsavgift, moms och avtalsvillkor. Gridex visar priset innan du tecknar.',
       },
     ],
     related: [
@@ -826,13 +826,13 @@ export const guidePages: SeoPageContent[] = [
     lead:
       'Att byta elhandelsbolag är ofta enklare än många tror. Det viktiga är att kontrollera nuvarande avtal och förstå vilka uppgifter som behövs.',
     intent: 'Stödjer köpbeslut och minskar friktion i teckningsflödet.',
-    primaryCta: { label: 'Starta ansökan', href: '/teckna-avtal' },
+    primaryCta: { label: 'Starta teckning', href: '/teckna-avtal' },
     secondaryCta: { label: 'Läs mer om bytet', href: '/elavtal/byta-elbolag' },
     sections: [
       { title: 'Kontrollera nuvarande avtal', body: ['Se om du har bindningstid, uppsägningstid eller andra villkor innan du väljer startdatum.'] },
       { title: 'Nätägaren ändras inte', body: ['Du behåller nätägaren eftersom nätägaren styrs av din anläggnings geografiska plats.'] },
     ],
-    bullets: ['Kontrollera bindningstid.', 'Välj nytt elhandelsavtal.', 'Skicka ansökan med rätt uppgifter.'],
+    bullets: ['Kontrollera bindningstid.', 'Välj nytt elhandelsavtal.', 'Teckna med rätt uppgifter.'],
     faq: [
       { question: 'Tar det lång tid att byta elbolag?', answer: 'Tiden beror på startdatum, nuvarande avtal och om alla anläggningsuppgifter finns.' },
       { question: 'Måste jag kontakta nätägaren?', answer: 'Normalt hanteras elhandelsbytet utan att du byter nätägare, men kompletteringar kan behövas.' },
@@ -840,7 +840,7 @@ export const guidePages: SeoPageContent[] = [
     related: [
       { label: 'Byta elbolag', href: '/elavtal/byta-elbolag', description: 'Produktsida om bytet.' },
       { label: 'Fullmakt', href: '/fullmakt', description: 'Om uppgifter och godkännanden.' },
-      { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till ansökan.' },
+      { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till teckning.' },
     ],
   },
   {
@@ -989,18 +989,18 @@ elavtalPages.push(
       slug: 'privat',
       path: '/elavtal/privat',
       title: 'Elavtal för privatpersoner – välj elavtal online',
-      description: 'Teckna elavtal som privatkund hos Gridex. Se rörligt, fast, kvartspris och tydliga avgifter innan du skickar ansökan.',
+      description: 'Teckna elavtal som privatkund hos Gridex. Se rörligt, fast, kvartspris och tydliga avgifter innan du tecknar.',
       eyebrow: 'Privat elavtal',
       h1: 'Elavtal för privatpersoner',
-      lead: 'Gridex hjälper privatkunder att välja elavtal med tydlig prisbild, enkel digital ansökan och information om vad som händer efter teckning.',
+      lead: 'Gridex hjälper privatkunder att välja elavtal med tydlig prisbild, enkel digital teckning och information om vad som händer efter teckning.',
       intent: 'För privatpersoner som vill förstå och teckna ett elhandelsavtal utan krångliga villkor.',
       sections: [
         { title: 'Välj efter förbrukning och risknivå', body: ['Ett hushåll med låg förbrukning påverkas ofta mer av fasta avgifter, medan ett hushåll med högre förbrukning påverkas mer av kWh-pris och påslag.', 'Gridex visar avtalsdelarna öppet så att du kan välja mellan rörligt, fast och tidsstyrt pris med bättre kontroll.'] },
-        { title: 'Digital ansökan med tydliga nästa steg', body: ['När ansökan skickas kontrolleras uppgifter för avtal och anläggning. Om något saknas återkommer Gridex med vad som behöver kompletteras.'] },
+        { title: 'Digital teckning med tydliga nästa steg', body: ['När du tecknar kontrolleras uppgifter för avtal och anläggning. Om något saknas återkommer Gridex med vad som behöver kompletteras.'] },
       ],
-      bullets: ['För villa, lägenhet och fritidshus.', 'Tydliga prisrader innan ansökan.', 'Mina sidor när kundprofilen är klar.'],
+      bullets: ['För villa, lägenhet och fritidshus.', 'Tydliga prisrader innan teckning.', 'Mina sidor när kundprofilen är klar.'],
       faq: [
-        { question: 'Kan jag teckna elavtal helt digitalt?', answer: 'Ja, du kan skicka ansökan online. Avtalet startar först när uppgifter och marknadsregler tillåter det.' },
+        { question: 'Kan jag teckna elavtal helt digitalt?', answer: 'Ja, du kan teckna online. Avtalet startar först när uppgifter och marknadsregler tillåter det.' },
         { question: 'Vad behöver jag som privatkund?', answer: 'Du behöver kontaktuppgifter, adress, ungefärlig förbrukning och gärna anläggnings- eller mätpunktsinformation om du har den.' },
       ],
       related: [
@@ -1013,18 +1013,18 @@ elavtalPages.push(
       slug: 'foretag',
       path: '/elavtal/foretag',
       title: 'Elavtal för företag – tydlig elhandel för verksamheter',
-      description: 'Gridex erbjuder elavtal för företag med tydliga priser, avtalsvillkor och digital hantering från ansökan till start.',
+      description: 'Gridex erbjuder elavtal för företag med tydliga priser, avtalsvillkor och digital hantering från teckning till start.',
       eyebrow: 'Företagsavtal',
       h1: 'Elavtal för företag',
-      lead: 'Företag behöver elavtal som är begripliga, enkla att följa upp och tydliga i budgeten. Gridex gör pris, avgifter och nästa steg synliga innan ansökan skickas.',
+      lead: 'Företag behöver elavtal som är begripliga, enkla att följa upp och tydliga i budgeten. Gridex gör pris, avgifter och nästa steg synliga innan du tecknar.',
       intent: 'För företag som söker ny elleverantör eller vill få bättre kontroll över elhandelsdelen.',
       sections: [
         { title: 'Företag behöver rätt kostnadsbild', body: ['Elkostnaden påverkas av förbrukningsprofil, elområde, avtalsform och avgifter. Därför ska företagsavtal jämföras på total kostnad, inte bara ett kWh-pris.', 'Gridex kan stödja både rörliga och mer förutsägbara upplägg beroende på vad som är publicerat för kunden.'] },
         { title: 'Separera elhandel från elnät', body: ['Elnätsavgiften kommer från nätägaren. Gridex elhandelsavtal gäller elhandelsdelen och visar avgifterna som hör till det avtalet.'] },
       ],
-      bullets: ['För aktiebolag och andra verksamheter.', 'Tydlig pris- och avtalsinformation.', 'Digital ansökan med spårbara uppgifter.'],
+      bullets: ['För aktiebolag och andra verksamheter.', 'Tydlig pris- och avtalsinformation.', 'Digital teckning med spårbara uppgifter.'],
       faq: [
-        { question: 'Kan företag teckna elavtal hos Gridex?', answer: 'Ja, företag kan skicka ansökan när avtal för företag finns publicerat. Uppgifter kontrolleras innan start.' },
+        { question: 'Kan företag teckna elavtal hos Gridex?', answer: 'Ja, företag kan teckna när avtal för företag finns publicerat. Uppgifter kontrolleras innan start.' },
         { question: 'Behöver vi veta årsförbrukningen?', answer: 'Årsförbrukningen gör jämförelsen mer rättvis och hjälper till att uppskatta månadskostnaden.' },
       ],
       related: [
@@ -1044,7 +1044,7 @@ elavtalPages.push(
       intent: 'För bostadsrättsföreningar som jämför elleverantör för gemensamma abonnemang.',
       sections: [
         { title: 'Jämför med föreningens faktiska förbrukning', body: ['Gemensam el, belysning, tvättstuga, garage och laddning kan ge olika förbrukningsmönster. Därför bör BRF jämföra avtal utifrån egen historik.', 'Gridex visar de viktigaste prisdelarna så att styrelsen kan fatta ett informerat beslut.'] },
-        { title: 'Tydlig dokumentation', body: ['För en förening är det extra viktigt att villkor, startdatum och kontaktuppgifter är tydliga. Ansökan samlar informationen digitalt.'] },
+        { title: 'Tydlig dokumentation', body: ['För en förening är det extra viktigt att villkor, startdatum och kontaktuppgifter är tydliga. Teckning samlar informationen digitalt.'] },
       ],
       bullets: ['För gemensamma elabonnemang.', 'Passar styrelsebeslut och uppföljning.', 'Tydligt om påslag och fasta avgifter.'],
       faq: [
@@ -1063,7 +1063,7 @@ elavtalPages.push(
 const homeTypePages: Array<{ slug: string; label: string; lead: string; bullets: string[] }> = [
   { slug: 'villa', label: 'villa', lead: 'Villor har ofta högre förbrukning än lägenheter, särskilt med elvärme, värmepump eller elbil. Därför spelar både påslag och avtalsform stor roll.', bullets: ['Jämför utifrån årsförbrukning.', 'Se hur värme och elbil påverkar kostnaden.', 'Välj avtal efter risknivå och flexibilitet.'] },
   { slug: 'hus', label: 'hus', lead: 'Ett hus kan ha stora skillnader i elförbrukning beroende på uppvärmning, storlek och vanor. Rätt elavtal behöver därför utgå från hushållets faktiska behov.', bullets: ['Passar hushåll med varierande förbrukning.', 'Tydlig jämförelse av månadsavgift och påslag.', 'Bra koppling till prisräknaren.'] },
-  { slug: 'lagenhet', label: 'lägenhet', lead: 'Lägenheter har ofta lägre elförbrukning. Då blir fasta avgifter extra viktiga att jämföra eftersom de kan påverka totalpriset mer än man tror.', bullets: ['Låg förbrukning kräver fokus på fasta avgifter.', 'Enkel digital ansökan.', 'Bra för första egna elavtalet.'] },
+  { slug: 'lagenhet', label: 'lägenhet', lead: 'Lägenheter har ofta lägre elförbrukning. Då blir fasta avgifter extra viktiga att jämföra eftersom de kan påverka totalpriset mer än man tror.', bullets: ['Låg förbrukning kräver fokus på fasta avgifter.', 'Enkel digital teckning.', 'Bra för första egna elavtalet.'] },
   { slug: 'bostadsratt', label: 'bostadsrätt', lead: 'I en bostadsrätt tecknar du ofta eget elhandelsavtal för hushållselen medan föreningen ansvarar för andra delar. Gridex gör det tydligt vad elhandelsavtalet gäller.', bullets: ['För hushållsel i bostadsrätt.', 'Tydlig startprocess.', 'Jämför totalpris före teckning.'] },
   { slug: 'hyresratt', label: 'hyresrätt', lead: 'I hyresrätt behöver du ofta själv välja elleverantör för hushållselen. Kontrollera vad som ingår i hyran och teckna rätt elhandelsavtal för din lägenhet.', bullets: ['Passar dig som flyttar in i hyresrätt.', 'Kontrollera inflyttningsdatum.', 'Se fasta avgifter tydligt.'] },
   { slug: 'radhus', label: 'radhus', lead: 'Radhus kan ligga mellan lägenhet och villa i förbrukning. Värme, hushållsel och eventuell laddning gör att avtalsform och avgifter behöver jämföras noggrant.', bullets: ['För hushåll med medelhög förbrukning.', 'Jämför med faktisk årsförbrukning.', 'Se elområde och avtalstyp.'] },
@@ -1077,7 +1077,7 @@ elavtalPages.push(
       slug: page.slug,
       path: `/elavtal/${page.slug}`,
       title: `Elavtal för ${page.label} – jämför rätt pris och avgifter`,
-      description: `Se vad du bör tänka på när du väljer elavtal för ${page.label}. Gridex visar pris, avgifter och avtalsform tydligt innan ansökan.`,
+      description: `Se vad du bör tänka på när du väljer elavtal för ${page.label}. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.`,
       eyebrow: `Elavtal för ${page.label}`,
       h1: `Elavtal för ${page.label}`,
       lead: page.lead,
@@ -1126,9 +1126,9 @@ elavtalPages.push(
       intent: `För kunder som söker information om ${page.label} innan de väljer elavtal.`,
       sections: [
         { title: 'Det viktigaste att kontrollera', body: ['Se hur priset beräknas, vilka avgifter som tillkommer och om avtalet har bindningstid eller särskilda villkor.', 'En tydlig jämförelse ska visa totalpris för din förbrukning, inte bara en enskild prisrad.'] },
-        { title: 'Så använder du informationen', body: ['Börja med ditt elområde och din ungefärliga årsförbrukning. Jämför därefter avtalsform och avgifter innan du skickar ansökan.'] },
+        { title: 'Så använder du informationen', body: ['Börja med ditt elområde och din ungefärliga årsförbrukning. Jämför därefter avtalsform och avgifter innan du tecknar.'] },
       ],
-      bullets: ['Kontrollera pris, påslag och månadsavgift.', 'Läs villkor innan ansökan.', 'Jämför alltid total kostnad.'],
+      bullets: ['Kontrollera pris, påslag och månadsavgift.', 'Läs villkor innan teckning.', 'Jämför alltid total kostnad.'],
       faq: [
         { question: `Varför är ${page.label} viktigt?`, answer: 'Det påverkar både kostnad, risk och hur lätt det är att byta eller följa upp avtalet.' },
         { question: 'Hur jämför jag rätt?', answer: 'Använd samma förbrukning, samma elområde och räkna med både rörliga och fasta avgifter.' },
@@ -1217,7 +1217,7 @@ elprisPages.push(
       bullets: [`Elområde: ${page.area}.`, 'Spotpris är marknadspris, inte hela fakturan.', 'Jämför med din årsförbrukning.'],
       faq: [
         { question: `Vilket elområde gäller för ${page.city}?`, answer: `${page.city} ligger normalt i ${page.area}. Kontrollera alltid adressen om du är osäker.` },
-        { question: 'Kan jag teckna elavtal direkt?', answer: 'Ja, du kan skicka ansökan online. Uppgifter kontrolleras innan avtalet startar.' },
+        { question: 'Kan jag teckna elavtal direkt?', answer: 'Ja, du kan teckna online. Uppgifter kontrolleras innan avtalet startar.' },
       ],
       related: [
         { label: `Elpris ${page.area}`, href: `/elpriser/${page.area.toLowerCase()}`, description: 'Se elområdessidan.' },
@@ -1231,7 +1231,7 @@ elprisPages.push(
 guidePages.push(
   ...[
     { slug: 'spotpris-vs-rorligt-elpris', h1: 'Spotpris vs rörligt elpris', label: 'spotpris och rörligt elpris', lead: 'Spotpris är marknadspriset på elbörsen. Rörligt elpris är avtalspriset som ofta bygger på spotpris plus avgifter och moms.' },
-    { slug: 'innan-du-tecknar-elavtal', h1: 'Innan du tecknar elavtal', label: 'checklista före elavtal', lead: 'Kontrollera pris, avgifter, bindningstid, startdatum och vad som inte ingår innan du skickar ansökan.' },
+    { slug: 'innan-du-tecknar-elavtal', h1: 'Innan du tecknar elavtal', label: 'checklista före elavtal', lead: 'Kontrollera pris, avgifter, bindningstid, startdatum och vad som inte ingår innan du tecknar.' },
     { slug: 'kontrollera-elavtal', h1: 'Kontrollera ditt elavtal', label: 'kontrollera elavtal', lead: 'Ett elavtal ska gå att förstå. Se över avtalsform, påslag, månadsavgift, uppsägningstid och om priset är inklusive moms.' },
     { slug: 'rabatter-pa-elavtal', h1: 'Rabatter på elavtal', label: 'rabatter på elavtal', lead: 'Rabatter kan vara tillfälliga. Jämför vad avtalet kostar när rabatten är slut och kontrollera alla fasta avgifter.' },
     { slug: 'bindningstid-och-uppsagningstid', h1: 'Bindningstid och uppsägningstid', label: 'bindningstid och uppsägningstid', lead: 'Bindningstid och uppsägningstid påverkar när du kan byta elbolag och hur startdatum ska planeras.' },
@@ -1255,7 +1255,7 @@ guidePages.push(
       lead: page.lead,
       intent: `Guide för kunder som vill förstå ${page.label} innan de jämför eller tecknar elavtal.`,
       sections: [
-        { title: 'Börja med helheten', body: ['Elkostnaden påverkas av både elavtal, förbrukning, elområde, moms och elnätsavgifter. En bra jämförelse börjar därför med totalen.', 'Använd guiden som stöd och kontrollera sedan avtalsinformationen innan du skickar ansökan.'] },
+        { title: 'Börja med helheten', body: ['Elkostnaden påverkas av både elavtal, förbrukning, elområde, moms och elnätsavgifter. En bra jämförelse börjar därför med totalen.', 'Använd guiden som stöd och kontrollera sedan avtalsinformationen innan du tecknar.'] },
         { title: 'Gör jämförelsen konkret', body: ['Ta fram tidigare årsförbrukning, kontrollera elområde och titta på både rörliga och fasta avgifter. Då blir nästa steg mer tillförlitligt.'] },
       ],
       bullets: ['Förstå kostnaden innan du väljer.', 'Jämför pris och villkor tillsammans.', 'Använd rätt elområde och förbrukning.'],
@@ -1266,7 +1266,7 @@ guidePages.push(
       related: [
         { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal', description: 'Gå från guide till val.' },
         { label: 'Elpris idag', href: '/elpriser/elpris-idag', description: 'Se marknadsläget.' },
-        { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Skicka ansökan digitalt.' },
+        { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Teckna digitalt.' },
       ],
     }),
   ),
@@ -1423,7 +1423,7 @@ export const marketPages: SeoPageContent[] = [
     slug: 'gridex-el-ab',
     path: '/elbolag/gridex-el-ab',
     title: 'Gridex El AB – svensk elleverantör',
-    description: 'Gridex El AB är en svensk elleverantör med fokus på tydliga elavtal, digital ansökan och transparent prisinformation.',
+    description: 'Gridex El AB är en svensk elleverantör med fokus på tydliga elavtal, digital teckning och transparent prisinformation.',
     eyebrow: 'Gridex El AB',
     h1: 'Gridex El AB som elleverantör',
     lead: 'Gridex El AB erbjuder elavtal med fokus på tydlighet, digital hantering och öppen information om pris, avgifter och nästa steg.',
@@ -1431,13 +1431,13 @@ export const marketPages: SeoPageContent[] = [
     primaryCta: { label: 'Se Gridex elavtal', href: '/elavtal' },
     secondaryCta: { label: 'Teckna elavtal', href: '/teckna-avtal' },
     sections: [
-      { title: 'Tydliga elavtal', body: ['Gridex visar elhandelspris, avtalsform och viktiga avgifter innan kunden skickar ansökan. Målet är att kunden ska förstå vad som händer före och efter teckning.'] },
-      { title: 'Digital kundresa', body: ['Ansökan skickas online och Gridex återkommer om anläggningsuppgifter eller andra delar behöver kompletteras innan avtalsstart.'] },
+      { title: 'Tydliga elavtal', body: ['Gridex visar elhandelspris, avtalsform och viktiga avgifter innan kunden tecknar. Målet är att kunden ska förstå vad som händer före och efter teckning.'] },
+      { title: 'Digital kundresa', body: ['Teckning skickas online och Gridex återkommer om anläggningsuppgifter eller andra delar behöver kompletteras innan avtalsstart.'] },
     ],
-    bullets: ['Svensk elleverantör.', 'Digital ansökan.', 'Tydlig prisinformation.'],
+    bullets: ['Svensk elleverantör.', 'Digital teckning.', 'Tydlig prisinformation.'],
     faq: [
-      { question: 'Vad erbjuder Gridex?', answer: 'Gridex erbjuder elhandelsavtal och digital ansökan för svenska kunder.' },
-      { question: 'Hur tecknar jag avtal?', answer: 'Du väljer avtal, fyller i uppgifter och skickar ansökan online.' },
+      { question: 'Vad erbjuder Gridex?', answer: 'Gridex erbjuder elhandelsavtal och digital teckning för svenska kunder.' },
+      { question: 'Hur tecknar jag avtal?', answer: 'Du väljer avtal, fyller i uppgifter och tecknar online.' },
     ],
     related: [
       { label: 'Elavtal', href: '/elavtal', description: 'Se aktuella avtal.' },
@@ -1454,11 +1454,11 @@ export const marketPages: SeoPageContent[] = [
     h1: 'Byta från annat elbolag till Gridex',
     lead: 'När du byter till Gridex byter du elhandelsavtal. Nätägaren ligger normalt kvar eftersom elnätet styrs av adressen.',
     intent: 'För kunder som redan har elavtal och vill byta till Gridex.',
-    primaryCta: { label: 'Starta ansökan', href: '/teckna-avtal' },
+    primaryCta: { label: 'Starta teckning', href: '/teckna-avtal' },
     secondaryCta: { label: 'Läs om bytet', href: '/elavtal/byta-elbolag' },
     sections: [
       { title: 'Kontrollera nuvarande avtal', body: ['Se om ditt nuvarande avtal har bindningstid eller uppsägningstid. Det påverkar lämpligt startdatum för nytt avtal.'] },
-      { title: 'Skicka ansökan online', body: ['Gridex samlar uppgifter digitalt och kontrollerar vad som behövs för att gå vidare med leverantörsbytet.'] },
+      { title: 'Teckna online', body: ['Gridex samlar uppgifter digitalt och kontrollerar vad som behövs för att gå vidare med leverantörsbytet.'] },
     ],
     bullets: ['Kontrollera bindningstid.', 'Välj startdatum med omsorg.', 'Gridex återkommer om något saknas.'],
     faq: [

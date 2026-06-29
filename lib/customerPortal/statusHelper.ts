@@ -7,7 +7,7 @@ export function statusLabel(status?: string | null): string {
   const code = status ?? ''
   switch (code) {
     case 'application_received':
-      return 'Ansökan mottagen'
+      return 'Teckning mottagen'
     case 'needs_facility_data':
     case 'facility_data_requested':
       return 'Anläggningsuppgifter kontrolleras'
@@ -45,26 +45,26 @@ export function statusDescription(status?: string | null): string {
   switch (code) {
     case 'needs_facility_data':
     case 'facility_data_requested':
-      return 'Vi har tagit emot din ansökan och kontrollerar dina anläggningsuppgifter. Du behöver inte skicka in en ny ansökan.'
+      return 'Vi har tagit emot din teckning och kontrollerar dina anläggningsuppgifter. Du behöver inte teckna igen.'
     case 'awaiting_customer_action':
-      return 'Vi har tagit emot din ansökan. Om vi behöver komplettering kontaktar vi dig.'
+      return 'Vi har tagit emot din teckning. Om vi behöver komplettering kontaktar vi dig.'
     case 'awaiting_grid_owner_response':
-      return 'Vi har tagit emot din ansökan och väntar på uppgifter från nätägaren.'
+      return 'Vi har tagit emot din teckning och väntar på uppgifter från nätägaren.'
     case 'facility_verified':
       return 'Dina anläggningsuppgifter är verifierade och vi förbereder nästa steg.'
     case 'ready_for_switch':
-      return 'Din ansökan är mottagen och uppgifterna är redo för nästa steg.'
+      return 'Din teckning är mottagen och uppgifterna är redo för nästa steg.'
     case 'switch_requested':
-      return 'Din ansökan är mottagen och leverantörsbytet är påbörjat.'
+      return 'Din teckning är mottagen och leverantörsbytet är påbörjat.'
     case 'switch_confirmed':
       return 'Ditt leverantörsbyte är bekräftat.'
     case 'active_customer':
     case 'active':
       return 'Ditt avtal är aktivt. Du kan följa dina uppgifter på Mina sidor.'
     case 'rejected_or_cancelled':
-      return 'Ansökan kunde inte gå vidare. Kontakta oss om du vill veta mer.'
+      return 'Teckning kunde inte gå vidare. Kontakta oss om du vill veta mer.'
     default:
-      return 'Vi har tagit emot din ansökan och går vidare med nästa steg.'
+      return 'Vi har tagit emot din teckning och går vidare med nästa steg.'
   }
 }
 

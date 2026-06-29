@@ -64,7 +64,11 @@ export function enrichWebsitePricingPreview(
         ? fees.invoiceFeeIncludedInMonthlyEstimate
         : typeof fees.invoice_fee_included_in_monthly_estimate === 'boolean'
           ? fees.invoice_fee_included_in_monthly_estimate
-          : undefined,
+          : typeof fees.invoiceFeeIncluded === 'boolean'
+            ? fees.invoiceFeeIncluded
+            : typeof fees.invoice_fee_included === 'boolean'
+              ? fees.invoice_fee_included
+              : undefined,
     billingIntervalMonths: normalizeFeeNumber(fees.billingIntervalMonths ?? fees.billing_interval_months),
   }
 
@@ -106,20 +110,10 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
   if (!finite(data.pricePerKwhOre) || !finite(data.totalMonthlyCostSek) || !finite(data.totalMonthlyCostInclVatSek)) {
     throw new WebsitePricingPreviewError('OPS returnerade inte en komplett prisberäkning.')
   }
-  const fees = previewFees(data)
-  const invoiceFee = preferPreviewValue(
-    fees.invoiceFeeSek ?? fees.invoice_fee_sek,
-    contract.invoice_fee_sek,
-  )
-  const invoiceIncluded =
-    typeof fees.invoiceFeeIncludedInMonthlyEstimate === 'boolean'
-      ? fees.invoiceFeeIncludedInMonthlyEstimate
-      : typeof fees.invoice_fee_included_in_monthly_estimate === 'boolean'
-        ? fees.invoice_fee_included_in_monthly_estimate
-        : undefined
-  if (invoiceFee && Math.abs(invoiceFee) > 0.0001 && typeof invoiceIncluded !== 'boolean') {
-    throw new WebsitePricingPreviewError('OPS saknar uppgift om hur fakturaavgiften ingår i prisberäkningen.')
-  }
+  // Fakturaavgiftens inkluderingsflagga är kundinformation, inte ett hårt
+  // krav för att kunna visa pris. Om OPS returnerar komplett totalsumma inkl.
+  // moms ska kalkylatorn visa priset och UI:t får beskriva fakturaavgiften
+  // neutralt när flaggan saknas.
   if (data.raw && typeof data.raw === 'object' && (data.raw as Record<string, unknown>).fallback_preview === true) {
     throw new WebsitePricingPreviewError('Ofullständig reservberäkning får inte användas för elavtal.')
   }

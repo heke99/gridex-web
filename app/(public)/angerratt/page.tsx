@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Ångerrätt – Gridex elavtal',
-  description: 'Information om 14 dagars ångerrätt när du som konsument ansöker om elavtal med Gridex på distans.',
+  description: 'Information om 14 dagars ångerrätt när du som konsument tecknar elavtal med Gridex på distans.',
   alternates: { canonical: 'https://gridex.se/angerratt' },
 }
 
@@ -24,7 +24,7 @@ export default function AngerrattPage() {
 
       <div className="mt-8 space-y-6">
         <Info title="14 dagar" text="Ångerfristen är normalt 14 dagar från den dag avtalet ingicks och du har fått information om ångerrätten." />
-        <Info title="Så ångrar du" text="Meddela Gridex skriftligen att du vill ångra avtalet. Ange gärna namn, kundnummer eller ansökningsnummer och anläggningsadress." />
+        <Info title="Så ångrar du" text="Meddela Gridex skriftligen att du vill ångra avtalet. Ange gärna namn, kundnummer eller ärendenummer och anläggningsadress." />
         <Info title="Om leverans redan startat" text="Om du uttryckligen begär att leverans ska starta under ångerfristen kan du behöva betala för den el som faktiskt levererats fram till att avtalet ångras." />
       </div>
 

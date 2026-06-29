@@ -127,6 +127,8 @@ for (const variable of [
   'PAPILITE_API_KEY',
   'PAPILITE_BASE_URL',
   'WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL',
+  'GRIDEX_WEBSITE_PRICING_QUOTE_SECRET',
+  'GRIDEX_REQUIRE_OPS_PRICING_QUOTE',
 ]) {
   assert.ok(envExample.includes(variable), `env.example must document ${variable}`)
 }
@@ -160,3 +162,8 @@ assertIncludes('app/api/v1/customer/profile-update/route.ts', 'submitOpsCustomer
 assertIncludes('app/api/v1/customer/move-out/route.ts', 'submitOpsCustomerMoveOut', 'web must expose the documented move-out route')
 
 console.log('Launch-readiness checks passed')
+
+assertNotIncludes('components/ElectricityCalculator.tsx', 'En offert gäller i 15 minuter', 'calculator copy must not say offert is valid for 15 minutes')
+assertIncludes('components/ElectricityCalculator.tsx', 'prisberäkning', 'calculator must use price calculation wording')
+assertIncludes('lib/ops/client.ts', 'total_monthly_cost_incl_vat_sek', 'OPS mapper must support total incl VAT aliases')
+assertIncludes('lib/website/snapshotValidation.ts', 'total_monthly_cost_incl_vat_sek', 'snapshot validation must support total incl VAT aliases')

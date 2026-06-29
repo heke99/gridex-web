@@ -186,7 +186,7 @@ export default async function ElprisIdagPage() {
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-6">
         <h2 className="text-2xl font-bold text-white">Från elpris till elavtal</h2>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-300">
-          Spotpris visas utan moms, skatter, elnätsavgifter och elhandlarens påslag. I Gridex offertflöde visas totalen med avtalade avgifter och moms innan teckning.
+          Spotpris visas utan moms, skatter, elnätsavgifter och elhandlarens påslag. I Gridex teckningsflöde visas totalen med avtalade avgifter och moms innan teckning.
         </p>
         <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
           <Link href="/elavtal/rorligt-elpris" className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-cyan-500/40">Rörligt elpris →</Link>

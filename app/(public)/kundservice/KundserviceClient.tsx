@@ -62,7 +62,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         </div>
         <h1 className="mt-4 text-3xl font-bold md:text-4xl">Kontakta Gridex</h1>
         <p className="mt-3 max-w-3xl text-gray-400">
-          Vi hjälper dig med frågor om elavtal, ansökan, startdatum, faktura, flytt, Mina sidor och saknade anläggningsuppgifter. Vanligtvis återkommer vi via e-post så snart vi kan under vardagar.
+          Vi hjälper dig med frågor om elavtal, teckning, startdatum, faktura, flytt, Mina sidor och saknade anläggningsuppgifter. Vanligtvis återkommer vi via e-post så snart vi kan under vardagar.
         </p>
       </section>
 
@@ -91,7 +91,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
                     className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
                   >
                     <option value="general">Allmän fråga</option>
-                    <option value="contract">Elavtal och ansökan</option>
+                    <option value="contract">Elavtal och teckning</option>
                     <option value="invoice">Faktura</option>
                     <option value="move">Flytt</option>
                     <option value="price">Pris och avgifter</option>

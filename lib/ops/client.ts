@@ -386,6 +386,17 @@ function pickString(
   return null;
 }
 
+function pickNumber(
+  row: Record<string, unknown>,
+  keys: string[],
+): number | null {
+  for (const key of keys) {
+    const picked = normalizeNumber(row[key]);
+    if (picked !== null) return picked;
+  }
+  return null;
+}
+
 function pickBoolean(
   row: Record<string, unknown>,
   keys: string[],
@@ -1111,29 +1122,77 @@ function mapWebsitePricingPreview(
     priceArea: safeArea,
     price_area_code: safeArea,
     kwh:
-      normalizeNumber(
-        row.kwh ?? row.estimated_monthly_kwh ?? row.monthly_kwh,
-      ) ?? 0,
+      pickNumber(row, [
+        "kwh",
+        "estimated_monthly_kwh",
+        "estimatedMonthlyKwh",
+        "monthly_kwh",
+        "monthlyKwh",
+        "estimated_kwh",
+        "estimatedKwh",
+      ]) ?? 0,
     pricePerKwhOre:
-      normalizeNumber(
-        row.pricePerKwhOre ?? row.price_per_kwh_ore ?? row.totalOrePerKwh,
-      ) ?? Number.NaN,
+      pickNumber(row, [
+        "pricePerKwhOre",
+        "price_per_kwh_ore",
+        "totalOrePerKwh",
+        "total_ore_per_kwh",
+        "total_price_ore_per_kwh",
+        "energy_price_ore_per_kwh",
+      ]) ?? Number.NaN,
     totalMonthlyCostSek:
-      normalizeNumber(row.totalMonthlyCostSek ?? row.total_monthly_cost_sek) ??
-      Number.NaN,
+      pickNumber(row, [
+        "totalMonthlyCostSek",
+        "total_monthly_cost_sek",
+        "monthlyCostSek",
+        "monthly_cost_sek",
+        "estimatedMonthlyCostSek",
+        "estimated_monthly_cost_sek",
+      ]) ?? Number.NaN,
     totalMonthlyCostInclVatSek:
-      normalizeNumber(
-        row.totalMonthlyCostInclVatSek ?? row.total_monthly_cost_inc_vat_sek,
-      ) ?? undefined,
+      pickNumber(row, [
+        "totalMonthlyCostInclVatSek",
+        "total_monthly_cost_incl_vat_sek",
+        "total_monthly_cost_inc_vat_sek",
+        "totalMonthlyCostIncVatSek",
+        "totalMonthlyCostWithVatSek",
+        "total_monthly_cost_with_vat_sek",
+        "totalMonthlyCostVatIncludedSek",
+        "total_monthly_cost_vat_included_sek",
+        "monthlyCostInclVatSek",
+        "monthly_cost_incl_vat_sek",
+      ]) ?? undefined,
     totalYearlyCostSek:
-      normalizeNumber(row.totalYearlyCostSek ?? row.total_yearly_cost_sek) ??
-      undefined,
+      pickNumber(row, [
+        "totalYearlyCostSek",
+        "total_yearly_cost_sek",
+        "yearlyCostSek",
+        "yearly_cost_sek",
+        "annualCostSek",
+        "annual_cost_sek",
+      ]) ?? undefined,
     customerNotice:
       pickString(row, ["customerNotice", "customer_notice"]) ?? undefined,
     legalText: pickString(row, ["legalText", "legal_text"]) ?? undefined,
     specification: normalizeWebsitePricingSpecification(row),
-    quote_token: pickString(row, ["quote_token", "quoteToken"]) ?? undefined,
-    quote_expires_at: pickString(row, ["quote_expires_at", "quoteExpiresAt"]) ?? undefined,
+    quote_token:
+      pickString(row, [
+        "quote_token",
+        "quoteToken",
+        "pricing_quote_token",
+        "pricingQuoteToken",
+        "quote",
+        "token",
+      ]) ?? undefined,
+    quote_expires_at:
+      pickString(row, [
+        "quote_expires_at",
+        "quoteExpiresAt",
+        "pricing_quote_expires_at",
+        "pricingQuoteExpiresAt",
+        "expires_at",
+        "expiresAt",
+      ]) ?? undefined,
     raw: row,
   };
 }
@@ -1164,7 +1223,11 @@ function normalizeWebsitePricingSpecification(
     markupOre:
       coalesceNumber(
         normalizeNumber(
-          rawFees.markupOre ?? rawFees.markup_ore ?? rawFees.markup_ore_per_kwh,
+          rawFees.markupOre ??
+            rawFees.markup_ore ??
+            rawFees.markup_ore_per_kwh ??
+            rawFees.supplier_margin_ore_per_kwh ??
+            rawFees.supplierMarginOrePerKwh,
         ),
         componentValues.markup_ore_per_kwh,
       ) ?? undefined,
@@ -1173,7 +1236,9 @@ function normalizeWebsitePricingSpecification(
         normalizeNumber(
           rawFees.variableFeeOre ??
             rawFees.variable_fee_ore ??
-            rawFees.variable_fee_ore_per_kwh,
+            rawFees.variable_fee_ore_per_kwh ??
+            rawFees.variable_markup_ore_per_kwh ??
+            rawFees.variableMarkupOrePerKwh,
         ),
         componentValues.variable_markup_ore_per_kwh,
       ) ?? undefined,
@@ -1186,12 +1251,22 @@ function normalizeWebsitePricingSpecification(
       ) ?? undefined,
     monthlyFeeSek:
       coalesceNumber(
-        normalizeNumber(rawFees.monthlyFeeSek ?? rawFees.monthly_fee_sek),
+        normalizeNumber(
+          rawFees.monthlyFeeSek ??
+            rawFees.monthly_fee_sek ??
+            rawFees.subscriptionFeeSek ??
+            rawFees.subscription_fee_sek,
+        ),
         componentValues.monthly_fee_sek,
       ) ?? undefined,
     invoiceFeeSek:
       coalesceNumber(
-        normalizeNumber(rawFees.invoiceFeeSek ?? rawFees.invoice_fee_sek),
+        normalizeNumber(
+          rawFees.invoiceFeeSek ??
+            rawFees.invoice_fee_sek ??
+            rawFees.billingFeeSek ??
+            rawFees.billing_fee_sek,
+        ),
         componentValues.invoice_fee_sek,
       ) ?? undefined,
     invoiceFeeIncludedInMonthlyEstimate:
@@ -1199,9 +1274,18 @@ function normalizeWebsitePricingSpecification(
         ? rawFees.invoiceFeeIncludedInMonthlyEstimate
         : typeof rawFees.invoice_fee_included_in_monthly_estimate === "boolean"
           ? rawFees.invoice_fee_included_in_monthly_estimate
-          : undefined,
+          : typeof rawFees.invoiceFeeIncluded === "boolean"
+            ? rawFees.invoiceFeeIncluded
+            : typeof rawFees.invoice_fee_included === "boolean"
+              ? rawFees.invoice_fee_included
+              : undefined,
     billingIntervalMonths:
-      normalizeNumber(rawFees.billingIntervalMonths ?? rawFees.billing_interval_months) ?? undefined,
+      normalizeNumber(
+        rawFees.billingIntervalMonths ??
+          rawFees.billing_interval_months ??
+          rawFees.invoiceIntervalMonths ??
+          rawFees.invoice_interval_months,
+      ) ?? undefined,
   };
 
   return {

@@ -36,7 +36,7 @@ export default function CookiePolicyPage() {
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-gray-300">
           <li><strong className="text-white">Nödvändiga cookies</strong> används för inloggning, säkerhet och formulärfunktioner.</li>
           <li><strong className="text-white">Cookieval</strong> sparas lokalt i webbläsaren så att vi vet om bannern ska visas igen.</li>
-          <li><strong className="text-white">Analys och annonsering</strong> kan användas för att mäta besök och ansökningar efter att du har accepterat cookies.</li>
+          <li><strong className="text-white">Analys och annonsering</strong> kan användas för att mäta besök och teckningar efter att du har accepterat cookies.</li>
         </ul>
       </section>
 

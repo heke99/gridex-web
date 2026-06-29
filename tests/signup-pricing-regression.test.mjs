@@ -15,21 +15,27 @@ assert.ok(previewRoute.includes("item.offer_reference === offerReference"), 'pri
 assert.ok(!previewRoute.includes('price_plan_id'), 'pricing preview must not accept internal price-plan identifiers from the browser')
 assert.ok(previewRoute.includes('offer_reference'), 'pricing preview must use the public offer reference')
 assert.ok(previewRoute.includes("quote_source: opsQuote ? 'ops' : 'website'"), 'pricing preview must disclose the quote authority')
+assert.ok(previewRoute.includes('GRIDEX_REQUIRE_OPS_PRICING_QUOTE'), 'pricing preview must allow production to require OPS quote tokens')
 
 const quote = read('lib/website/pricingQuote.ts')
 assert.ok(quote.includes('createHmac'), 'pricing quote must be HMAC signed')
 assert.ok(quote.includes('location_fingerprint'), 'pricing quote must bind the quote to the final address without putting it in the URL')
-assert.ok(quote.includes('QUOTE_TTL_MS = 15 * 60 * 1000'), 'pricing quote must have a short validity period')
+assert.ok(quote.includes('QUOTE_TTL_MS = 15 * 60 * 1000'), 'compatibility quote must remain short-lived internally')
 assert.ok(quote.includes('timingSafeEqual'), 'pricing quote signature validation must use timing-safe comparison')
 assert.ok(quote.includes('GRIDEX_WEBSITE_PRICING_QUOTE_SECRET'), 'compatibility quote must use its own secret')
 assert.ok(!quote.includes('GRIDEX_WEBSITE_API_KEY'), 'quote signing must not reuse the OPS API key')
 assert.ok(!quote.includes('GRIDEX_WEBSITE_HASH_PEPPER'), 'quote signing must not reuse the PII hash pepper')
 
+
+assert.ok(!read('components/ElectricityCalculator.tsx').includes('En offert gäller i 15 minuter'), 'calculator must not show a misleading 15-minute offer message')
+assert.ok(read('components/ElectricityCalculator.tsx').includes('Rörligt pris följer marknaden'), 'calculator must explain market-based variable pricing')
+assert.ok(!read('components/signup/CustomerApplicationForm.tsx').includes('prisoffert'), 'signup form must use prisberäkning instead of prisoffert')
+
 const pricingPreview = read('lib/website/pricingPreview.ts')
 assert.ok(pricingPreview.includes('assertCompletePreview'), 'OPS pricing must be checked for completeness')
 assert.ok(pricingPreview.includes('totalMonthlyCostInclVatSek'), 'OPS pricing must include a total including VAT')
 assert.ok(pricingPreview.includes('fallback_preview === true'), 'fallback pricing responses must be rejected')
-assert.ok(pricingPreview.includes('fakturaavgiften ingår i prisberäkningen'), 'invoice fee treatment must be explicit when it affects the offer')
+assert.ok(pricingPreview.includes('Fakturaavgiftens inkluderingsflagga är kundinformation'), 'missing invoice-fee inclusion flag must not block a complete price preview')
 assert.ok(pricingPreview.includes('PREVIEW_CACHE_TTL_MS = 60_000'), 'identical preview reads must be short-lived cached')
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
@@ -51,7 +57,7 @@ assert.ok(form.includes('customer_type'), 'form must let customer type control o
 assert.ok(form.includes('quoteContext'), 'form must prefill final address from the client-side quote context')
 
 const cards = read('app/(public)/elavtal/page.tsx')
-assert.ok(cards.includes('Räkna pris och ansök'), 'contract card CTA must lead to price calculation before signup')
+assert.ok(cards.includes('Räkna pris och teckna'), 'contract card CTA must lead to price calculation before signing')
 assert.ok(cards.includes('Din uppskattade månadskostnad beräknas först'), 'contract cards must not imply a complete price before kWh and area are provided')
 assert.ok(cards.includes('Mixavtal'), 'contract list must explain mix products')
 assert.ok(!cards.includes('Allmänna villkor: version'), 'contract cards must not expose legal version identifiers to customers')
@@ -65,6 +71,11 @@ const ops = read('lib/ops/client.ts')
 assert.ok(ops.includes('unstable_cache'), 'public contract catalogue must be cached')
 assert.ok(ops.includes("tags: [\"ops-public-contracts\"]"), 'public contract cache must support explicit invalidation')
 assert.ok(ops.includes('"mix"'), 'OPS contract mapping must preserve mix products')
+
+assert.ok(ops.includes('total_monthly_cost_incl_vat_sek'), 'OPS pricing mapper must accept incl_vat snake_case total aliases')
+assert.ok(ops.includes('estimatedMonthlyKwh'), 'OPS pricing mapper must accept camelCase monthly kWh aliases')
+assert.ok(ops.includes('pricingQuoteToken'), 'OPS pricing mapper must accept quote token aliases')
+assert.ok(read('lib/website/snapshotValidation.ts').includes('total_monthly_cost_incl_vat_sek'), 'snapshot validation must accept incl_vat aliases')
 
 const webhook = read('app/api/ops/webhooks/route.ts')
 assert.ok(webhook.includes("revalidateTag('ops-public-contracts', 'max')"), 'relevant OPS changes must invalidate public contract cache')

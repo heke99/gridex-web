@@ -62,7 +62,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
         </div>
 
         <p className="mt-4 text-xs leading-5 text-gray-500">
-          Villkor, prisinformation och eventuell fullmakt visas tydligt innan ansökan skickas.
+          Villkor, prisinformation och eventuell fullmakt visas tydligt innan du tecknar.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           href={display.ctaHref}
           className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
         >
-          Räkna pris och ansök
+          Räkna pris och teckna
         </Link>
         <Link
           href="/kundservice"
@@ -137,7 +137,7 @@ export default async function AvtalPage() {
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
                 Jämför rörligt, portfölj och fastpris på ett sätt som är lätt att
                 förstå. Här ser du våra aktuella elavtal och villkor innan du
-                går vidare med din ansökan.
+                går vidare med din teckning.
               </p>
             </div>
 
@@ -146,7 +146,7 @@ export default async function AvtalPage() {
                 href="/teckna-avtal"
                 className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
               >
-                Ansök om elavtal
+                Teckna elavtal
               </Link>
               <Link
                 href="/kundservice"
@@ -175,7 +175,7 @@ export default async function AvtalPage() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="text-sm font-semibold text-white">Enkel teckning</div>
               <p className="mt-1 text-sm text-gray-400">
-                När du hittat rätt avtal går du vidare till ansökningsflödet.
+                När du hittat rätt avtal går du vidare till teckningsflödet.
               </p>
             </div>
           </div>

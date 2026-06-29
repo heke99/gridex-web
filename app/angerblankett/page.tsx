@@ -34,7 +34,7 @@ export default function AngerblankettPage() {
           <p>Namn: __________________________________________</p>
           <p>Personnummer eller kundnummer: ______________________________</p>
           <p>Anläggningsadress: __________________________________________</p>
-          <p>Ansöknings- eller avtalsnummer om du har det: __________________</p>
+          <p>Tecknanings- eller avtalsnummer om du har det: __________________</p>
           <p>Datum: __________________________________________</p>
           <p>Underskrift, om blanketten skrivs ut: __________________________</p>
         </div>

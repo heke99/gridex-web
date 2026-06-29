@@ -23,7 +23,7 @@ export default function PrisvillkorPage() {
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <Info title="Rörligt elpris" text="Rörligt pris följer marknaden och kan variera över tid. Påslag, månadsavgift och fakturaavgift visas innan ansökan skickas." />
+        <Info title="Rörligt elpris" text="Rörligt pris följer marknaden och kan variera över tid. Påslag, månadsavgift och fakturaavgift visas innan du tecknar." />
         <Info title="Fastpris" text="Fastpris ger ett mer förutsägbart elhandelspris under avtalad period. Bindningstid och uppsägningstid ska framgå av avtalet." />
         <Info title="Förvaltat avtal" text="Ett förvaltat avtal kan kombinera marknadspris med en aktivt förvaltad prisdel. Fördelning och villkor visas i avtalsinformationen." />
         <Info title="Mixavtal" text="Om ett mixavtal erbjuds visas andel rörligt och förvaltat i procent. Summan ska alltid vara 100 procent." />

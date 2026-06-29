@@ -5,15 +5,15 @@ import KundserviceClient from './KundserviceClient'
 export const metadata: Metadata = {
   title: 'Kundservice – kontakta Gridex',
   description:
-    'Kontakta Gridex kundservice. Få hjälp med elavtal, ansökan, faktura, flytt, Mina sidor och anläggningsuppgifter.',
+    'Kontakta Gridex kundservice. Få hjälp med elavtal, teckning, faktura, flytt, Mina sidor och anläggningsuppgifter.',
   alternates: { canonical: 'https://gridex.se/kundservice' },
 }
 
 const faqItems = [
-  { question: 'Hur byter jag elavtal?', answer: 'Välj ett aktuellt elavtal, skicka ansökan och godkänn fullmakt. Gridex kontrollerar anläggningsuppgifterna och återkommer med nästa steg.' },
+  { question: 'Hur byter jag elavtal?', answer: 'Välj ett aktuellt elavtal, teckna och godkänn fullmakt. Gridex kontrollerar anläggningsuppgifterna och återkommer med nästa steg.' },
   { question: 'När startar avtalet?', answer: 'Avtalet startar enligt önskat datum eller så snart som möjligt när uppgifterna är verifierade och marknadsreglerna tillåter det.' },
   { question: 'Har jag ångerrätt?', answer: 'Som konsument har du normalt 14 dagars ångerrätt vid distansavtal. Information finns på sidan Ångerrätt.' },
-  { question: 'Vad gör jag om jag saknar anläggnings-ID eller mätpunkts-ID?', answer: 'Du kan skicka ansökan ändå. Med din fullmakt kan Gridex behöva hämta eller verifiera uppgifterna via nätägaren.' },
+  { question: 'Vad gör jag om jag saknar anläggnings-ID eller mätpunkts-ID?', answer: 'Du kan teckna ändå. Med din fullmakt kan Gridex behöva hämta eller verifiera uppgifterna via nätägaren.' },
   { question: 'Vad ingår i priset?', answer: 'Elhandelspriset kan innehålla elpris, påslag, månadsavgift, fakturaavgift och moms beroende på valt avtal.' },
   { question: 'Vad ingår inte i priset?', answer: 'Elnätsavgift och kostnader kopplade till nätabonnemanget faktureras normalt av ditt elnätsföretag och ingår inte i Gridex elhandelspris.' },
   { question: 'Vad är skillnaden mellan rörligt, fast och förvaltat avtal?', answer: 'Rörligt pris följer marknaden, fastpris ger mer förutsägbarhet och ett förvaltat avtal kan kombinera marknadspris med aktiv prishantering.' },
