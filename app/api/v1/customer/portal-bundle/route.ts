@@ -25,6 +25,20 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  return GET()
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}))
+    const overview = await getCustomerPortalOverview({
+      email: text(body.email),
+      customerNumber: text(body.customer_number ?? body.customerNumber),
+      externalCustomerId: text(body.external_customer_id ?? body.externalCustomerId),
+    })
+    return NextResponse.json({ data: overview })
+  } catch (error) {
+    return errorResponse(error)
+  }
 }

@@ -23,6 +23,8 @@ export type WebsitePriceAreaResolution = {
   status: 'resolved' | 'not_found' | 'needs_configuration' | 'error'
   price_area_code: WebsitePriceAreaCode | null
   grid_area_code?: string | null
+  grid_owner_id?: string | null
+  grid_owner_name?: string | null
   confidence?: number | null
   source?: string | null
   source_chain: string[]

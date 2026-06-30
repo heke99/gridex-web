@@ -60,6 +60,11 @@ export function formatDays(value: number): string {
   return `${value.toLocaleString('sv-SE')} dagar`
 }
 
+export function formatPercent(value: number): string {
+  const percent = value >= 0 && value <= 1 ? value * 100 : value
+  return `${percent.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`
+}
+
 export function publicContractTypeLabel(type: string | null | undefined): string {
   switch (type) {
     case 'variable_spot':
@@ -101,7 +106,7 @@ function addNumberRow(
             : unit === 'days'
               ? formatDays(value)
               : unit === 'percent'
-                ? `${value.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`
+                ? formatPercent(value)
                 : String(value)
 
   rows.push({ key, label, value, formatted, unit })
@@ -147,6 +152,55 @@ function stringList(value: unknown, fallback: string[]): string[] {
   return fallback
 }
 
+function requirePublishedPricing(
+  blockedReasons: string[],
+  contract: OpsPublicContract,
+  key: keyof OpsPublicContract,
+  label: string,
+): void {
+  const value = contract[key]
+  if (!hasNumberValue(value)) {
+    blockedReasons.push(`${label} saknas`)
+    return
+  }
+  if (value < 0) blockedReasons.push(`${label} är ogiltigt`)
+}
+
+function requirePublicPricingForType(blockedReasons: string[], contract: OpsPublicContract): void {
+  const type = contract.type
+  const isMonthlyFixed = type === 'monthly_fixed' || type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null
+
+  if (isMonthlyFixed) {
+    requirePublishedPricing(blockedReasons, contract, 'monthly_fixed_price_sek', 'fast månadspris')
+    requirePublishedPricing(blockedReasons, contract, 'invoice_fee_sek', 'fakturaavgift')
+    return
+  }
+
+  requirePublishedPricing(blockedReasons, contract, 'monthly_fee_sek', 'månadsavgift')
+  requirePublishedPricing(blockedReasons, contract, 'invoice_fee_sek', 'fakturaavgift')
+
+  if (type === 'fixed') {
+    requirePublishedPricing(blockedReasons, contract, 'fixed_price_ore_per_kwh', 'fast kWh-pris')
+    return
+  }
+
+  if (type === 'portfolio' || type === 'portfolio_managed') {
+    requirePublishedPricing(blockedReasons, contract, 'portfolio_price_ore_per_kwh', 'portföljpris')
+    requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
+    return
+  }
+
+  if (type === 'mix' || type === 'mixed') {
+    requirePublishedPricing(blockedReasons, contract, 'portfolio_price_ore_per_kwh', 'portföljpris')
+    requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
+    requirePublishedPricing(blockedReasons, contract, 'spot_share', 'rörlig andel')
+    requirePublishedPricing(blockedReasons, contract, 'portfolio_share', 'portföljandel')
+    return
+  }
+
+  requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
+}
+
 /**
  * OPS filters publication state, active price versions and published legal text
  * before a contract reaches this website. The website validates only the public
@@ -167,6 +221,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
     blockedReasons.push('fullmaktsversion saknas')
   }
+  requirePublicPricingForType(blockedReasons, contract)
 
   const now = Date.now()
   if (contract.valid_from) {

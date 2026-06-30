@@ -400,6 +400,10 @@ export default async function TecknaPage({
       return fail('price_snapshot')
     }
 
+    const submittedGridAreaCode = normalizeText(formData.get('grid_area_code'))
+    const submittedGridOwnerId = normalizeText(formData.get('grid_owner_id'))
+    const submittedGridOwnerName = normalizeText(formData.get('grid_owner_name'))
+
     const serverResolution = await resolveWebsitePriceAreaForPricing({
       postal_code: postalCode,
       city,
@@ -532,9 +536,9 @@ export default async function TecknaPage({
         requested_start_date:
           requestedStartMode === 'specific_date' ? requestedStartDate || null : null,
         price_area_code: serverPriceAreaCode,
-        grid_area_code: serverResolution?.grid_area_code ?? null,
-        grid_owner_id: null,
-        grid_owner_name: null,
+        grid_area_code: serverResolution?.grid_area_code ?? (submittedGridAreaCode || null),
+        grid_owner_id: serverResolution?.grid_owner_id ?? (submittedGridOwnerId || null),
+        grid_owner_name: serverResolution?.grid_owner_name ?? (submittedGridOwnerName || null),
         energy_resolution_status: serverResolution?.status ?? null,
         energy_resolution_confidence: serverResolution?.confidence ?? null,
         estimated_monthly_kwh: estimatedMonthlyKwh,

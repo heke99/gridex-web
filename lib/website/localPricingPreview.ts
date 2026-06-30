@@ -240,20 +240,76 @@ function roundOre(value: number): number {
   return Number(value.toFixed(6))
 }
 
-function fee(contract: OpsPublicContract, key: keyof OpsPublicContract): number {
-  const value = number(contract[key])
-  return value !== null ? value : 0
+type PublishedFeeKey =
+  | 'markup_ore_per_kwh'
+  | 'variable_markup_ore_per_kwh'
+  | 'elcert_ore_per_kwh'
+  | 'monthly_fee_sek'
+  | 'invoice_fee_sek'
+  | 'fixed_price_ore_per_kwh'
+  | 'portfolio_price_ore_per_kwh'
+
+type PublishedFees = {
+  markupOre: number
+  variableFeeOre: number
+  elcertOre: number
+  monthlyFeeSek: number
+  invoiceFeeSek: number
+  invoiceFeeIncludedInMonthlyEstimate: false
 }
 
-function baseFees(contract: OpsPublicContract) {
+function publishedAmount(contract: OpsPublicContract, key: PublishedFeeKey): number | null {
+  return number(contract[key])
+}
+
+function requirePublishedAmount(
+  contract: OpsPublicContract,
+  key: PublishedFeeKey,
+  label: string,
+): number {
+  const value = publishedAmount(contract, key)
+  if (value === null) {
+    throw new LocalWebsitePricingPreviewError(`Avtalet saknar publicerat ${label}.`, 409)
+  }
+  if (value < 0) {
+    throw new LocalWebsitePricingPreviewError(`Avtalet har ogiltigt ${label}.`, 409)
+  }
+  return value
+}
+
+function optionalPublishedAmount(contract: OpsPublicContract, key: PublishedFeeKey, label: string): number {
+  const value = publishedAmount(contract, key)
+  if (value === null) return 0
+  if (value < 0) {
+    throw new LocalWebsitePricingPreviewError(`Avtalet har ogiltigt ${label}.`, 409)
+  }
+  return value
+}
+
+function baseFees(contract: OpsPublicContract, model: WebsitePricingModel): PublishedFees {
+  const requiresEnergyMarkup = model === 'variable_spot_previous_month' || model === 'portfolio' || model === 'mix'
+  const requiresMonthlyFee = model !== 'monthly_fixed'
+
   return {
-    markupOre: fee(contract, 'markup_ore_per_kwh'),
-    variableFeeOre: fee(contract, 'variable_markup_ore_per_kwh'),
-    elcertOre: fee(contract, 'elcert_ore_per_kwh'),
-    monthlyFeeSek: fee(contract, 'monthly_fee_sek'),
-    invoiceFeeSek: fee(contract, 'invoice_fee_sek'),
+    markupOre: requiresEnergyMarkup
+      ? requirePublishedAmount(contract, 'markup_ore_per_kwh', 'påslag')
+      : optionalPublishedAmount(contract, 'markup_ore_per_kwh', 'påslag'),
+    variableFeeOre: optionalPublishedAmount(contract, 'variable_markup_ore_per_kwh', 'rörlig avgift'),
+    elcertOre: optionalPublishedAmount(contract, 'elcert_ore_per_kwh', 'elcertifikat'),
+    monthlyFeeSek: requiresMonthlyFee
+      ? requirePublishedAmount(contract, 'monthly_fee_sek', 'månadsavgift')
+      : optionalPublishedAmount(contract, 'monthly_fee_sek', 'månadsavgift'),
+    invoiceFeeSek: requirePublishedAmount(contract, 'invoice_fee_sek', 'fakturaavgift'),
     invoiceFeeIncludedInMonthlyEstimate: false,
   }
+}
+
+function requiredPercentShare(value: number | null | undefined, label: string): number {
+  const normalized = percentShare(value)
+  if (normalized === null) {
+    throw new LocalWebsitePricingPreviewError(`Mixavtalet saknar publicerad ${label}.`, 409)
+  }
+  return normalized
 }
 
 export async function buildLocalWebsitePricingPreview(input: LocalPricingInput): Promise<OpsWebsitePricingPreview> {
@@ -262,7 +318,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
   }
 
   const model = resolveWebsitePricingModel(input.contract)
-  const fees = baseFees(input.contract)
+  const fees = baseFees(input.contract, model)
   const vat = vatRate(input.contract)
   const display = buildPublicContractDisplay(input.contract)
   let basis: NonNullable<OpsWebsitePricingPreview['specification']>['basis']
@@ -281,7 +337,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     basis = { type: 'monthly_fixed_price', monthlyFixedPriceSek: fixedMonthly }
     customerNotice = 'Detta avtal har ett fast månadspris. Priset visas enligt valt avtal.'
   } else if (model === 'fixed_kwh_price') {
-    const fixedOre = fee(input.contract, 'fixed_price_ore_per_kwh')
+    const fixedOre = requirePublishedAmount(input.contract, 'fixed_price_ore_per_kwh', 'fast kWh-pris')
     if (fixedOre <= 0) throw new LocalWebsitePricingPreviewError('Avtalet saknar publicerat fast kWh-pris.', 409)
     pricePerKwhOre = fixedOre + fees.variableFeeOre + fees.elcertOre
     energySubtotalSek = (input.estimatedMonthlyKwh * pricePerKwhOre) / 100
@@ -289,8 +345,8 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     basis = { type: 'fixed_price', fixedPriceOre: fixedOre }
     customerNotice = 'Prisberäkningen baseras på avtalets fasta kWh-pris och din uppskattade förbrukning.'
   } else if (model === 'portfolio') {
-    const portfolioOre = portfolioPriceOre(input.contract) ?? fee(input.contract, 'fixed_price_ore_per_kwh')
-    if (portfolioOre <= 0) throw new LocalWebsitePricingPreviewError('Avtalet saknar publicerat portföljpris.', 409)
+    const portfolioOre = portfolioPriceOre(input.contract) ?? publishedAmount(input.contract, 'fixed_price_ore_per_kwh')
+    if (portfolioOre === null || portfolioOre <= 0) throw new LocalWebsitePricingPreviewError('Avtalet saknar publicerat portföljpris.', 409)
     pricePerKwhOre = portfolioOre + fees.markupOre + fees.variableFeeOre + fees.elcertOre
     energySubtotalSek = (input.estimatedMonthlyKwh * pricePerKwhOre) / 100
     monthlyExVat = energySubtotalSek + fees.monthlyFeeSek
@@ -298,10 +354,10 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     customerNotice = 'Prisberäkningen baseras på avtalets publicerade portföljpris och din uppskattade förbrukning.'
   } else if (model === 'mix') {
     const spotBasis = await getPreviousMonthSpotBasis({ priceAreaCode: input.priceAreaCode, now: input.now })
-    const portfolioOre = portfolioPriceOre(input.contract) ?? fee(input.contract, 'fixed_price_ore_per_kwh')
-    if (portfolioOre <= 0) throw new LocalWebsitePricingPreviewError('Mixavtalet saknar publicerat portföljpris.', 409)
-    const spotShare = percentShare(input.contract.spot_share) ?? 0.5
-    const portfolioShare = percentShare(input.contract.portfolio_share) ?? 1 - spotShare
+    const portfolioOre = portfolioPriceOre(input.contract) ?? publishedAmount(input.contract, 'fixed_price_ore_per_kwh')
+    if (portfolioOre === null || portfolioOre <= 0) throw new LocalWebsitePricingPreviewError('Mixavtalet saknar publicerat portföljpris.', 409)
+    const spotShare = requiredPercentShare(input.contract.spot_share, 'rörlig andel')
+    const portfolioShare = requiredPercentShare(input.contract.portfolio_share, 'portföljandel')
     const totalShare = spotShare + portfolioShare || 1
     const normalizedSpotShare = spotShare / totalShare
     const normalizedPortfolioShare = portfolioShare / totalShare

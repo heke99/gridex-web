@@ -25,6 +25,18 @@ export default async function HomePage() {
       value: item.offer_reference,
       offerReference: item.offer_reference,
       type: item.type,
+      monthlyFeeSek: item.monthly_fee_sek ?? null,
+      invoiceFeeSek: item.invoice_fee_sek ?? null,
+      markupOrePerKwh: item.markup_ore_per_kwh ?? null,
+      variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh ?? null,
+      fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh ?? null,
+      monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
+      elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
+      portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,
+      vatRate: item.vat_rate ?? null,
+      pricingModel: item.pricing_model ?? null,
+      spotShare: item.spot_share ?? null,
+      portfolioShare: item.portfolio_share ?? null,
     }));
   } catch {
     options = [];

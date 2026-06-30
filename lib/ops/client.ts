@@ -1524,7 +1524,7 @@ export async function submitOpsCustomerApplication(
       phone: input.phone,
     },
     site: {
-      facility_id: input.facility_id ?? input.metering_point_id ?? null,
+      facility_id: input.facility_id ?? null,
       metering_point_id: input.metering_point_id ?? null,
       street: input.address,
       address: input.address,
@@ -2172,6 +2172,23 @@ export async function sendOpsCustomerEvent(
       auth_user_id: identity.userId,
     }),
   });
+}
+
+export async function fetchOpsTenantEvents(
+  params: URLSearchParams | Record<string, string | null | undefined> = {},
+): Promise<Record<string, unknown>[]> {
+  const input = params instanceof URLSearchParams ? params : new URLSearchParams(
+    Object.entries(params).flatMap(([key, value]) => (value ? [[key, value]] : [])),
+  )
+  const allowed = new Set(['event_type', 'type', 'customer_number', 'external_customer_id', 'limit', 'cursor', 'after', 'before'])
+  const query = new URLSearchParams()
+  input.forEach((value, key) => {
+    if (allowed.has(key) && value.trim()) query.set(key, value.trim())
+  })
+
+  const queryString = query.toString()
+  const payload = await opsFetch(`/api/v1/events${queryString ? `?${queryString}` : ''}`)
+  return rowsAsObjects(payload)
 }
 
 export function hashIp(ip: string | null): string | null {

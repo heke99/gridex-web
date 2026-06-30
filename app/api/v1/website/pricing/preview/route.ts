@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     )
   } catch (error) {
     if (error instanceof LocalWebsitePricingPreviewError) {
-      return NextResponse.json({ error: error.message || 'Vi kunde inte räkna priset för valt avtal.' }, { status: 503 })
+      return NextResponse.json({ error: error.message || 'Vi kunde inte räkna priset för valt avtal.' }, { status: error.status || 409 })
     }
     if (isOpsError(error)) {
       return NextResponse.json({ error: error.message || 'Vi kunde inte hämta prisuppgifter just nu.' }, { status: error.status || 502 })

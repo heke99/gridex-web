@@ -17,6 +17,18 @@ export type ContractOption = {
   value: string
   offerReference: string
   type: string
+  monthlyFeeSek?: number | null
+  invoiceFeeSek?: number | null
+  markupOrePerKwh?: number | null
+  variableMarkupOrePerKwh?: number | null
+  fixedPriceOrePerKwh?: number | null
+  monthlyFixedPriceSek?: number | null
+  elcertOrePerKwh?: number | null
+  portfolioPriceOrePerKwh?: number | null
+  vatRate?: number | null
+  pricingModel?: string | null
+  spotShare?: number | null
+  portfolioShare?: number | null
 }
 
 type Props = {

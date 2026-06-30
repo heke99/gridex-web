@@ -19,6 +19,8 @@ customer_documents.read
 customer_documents.write
 customer_notifications.read
 customer_notifications.write
+customer_contact.write
+customer_facility_data.write
 customer_power_of_attorney.write
 ```
 
@@ -47,7 +49,8 @@ Stable public fields:
   "customer_type": "both",
   "pricing": {
     "monthly_fee": { "amount": 68, "currency": "SEK", "unit": "month" },
-    "markup": { "amount": 4, "unit": "ore_per_kwh" }
+    "markup": { "amount": 4, "unit": "ore_per_kwh" },
+    "invoice_fee": { "amount": 0, "currency": "SEK", "unit": "invoice" }
   },
   "legal": {
     "terms_version": "2026-06",
@@ -73,11 +76,6 @@ The current website integration uses these official server-to-server endpoints:
 | Method | Path | Scope | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published sellable offers. |
-| `POST` | `/api/v1/website/pricing/preview` | `website_contracts.read` | Website price preview for a public offer reference. |
-| `POST` | `/api/v1/website/pricing/quote/validate` | `website_contracts.read` | Validate an opaque/signed price quote before application submit. |
-| `POST` | `/api/v1/website/energy/resolve` | `website_contracts.read` | Resolve address/postal code to price area and, when available, grid area/owner hints. |
-| `GET` | `/api/v1/website/legal-texts/current` | `website_contracts.read` | Published legal text versions for website display/audit. |
-| `GET` | `/api/v1/website/price-plans` | `website_contracts.read` | Public price-plan/version overview when a tenant admin UI needs it. |
 | `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Submit customer application and legal consent payloads. |
 | `POST` | `/api/v1/website/customer-events` | `website_events.write` | Send allowlisted customer actions from website/Mina sidor. |
 | `POST` | `/api/v1/events` | `website_events.write` | Alias for website customer events. |
@@ -98,20 +96,18 @@ The current website integration uses these official server-to-server endpoints:
 | `POST` | `/api/v1/customer/sync` | `customer_portal.write` | Sync documents, legal acceptances, POA and facility/profile data. |
 | `POST` | `/api/v1/customer/profile-update` | `customer_portal.write` | Submit profile/contact changes. |
 | `POST` | `/api/v1/customer/move-out` | `customer_portal.write` | Submit move-out report. |
-| `GET` | `/api/v1/customer/switch-status` | `customer_portal.read` | Supplier-switch/facility readiness status. |
 | `GET` | `/api/v1/events` | `events.read` | Read tenant domain events. |
 
-Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key.
+Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key. The live OPS developer contract does not expose `POST /api/v1/website/pricing/preview`, `POST /api/v1/website/pricing/quote/validate`, `POST /api/v1/website/energy/resolve`, `GET /api/v1/website/legal-texts/current`, `GET /api/v1/website/price-plans` or `GET /api/v1/customer/switch-status` as official tenant endpoints. When this repository has routes with those paths, they are website-local wrapper routes only.
 
-## Price preview and quote validation
+## Website-local price preview and quote validation
+
+The website-local route below is **not** an official OPS endpoint. It exists so the public calculator can produce a customer-friendly preview from the OPS-published `public-contracts.pricing` DTO without ever accepting internal OPS IDs from the browser.
 
 ```http
 POST /api/v1/website/pricing/preview
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
 Content-Type: application/json
 ```
-
-Scope: `website_contracts.read`
 
 Request:
 
@@ -126,15 +122,14 @@ Request:
 }
 ```
 
-The request must not include `price_plan_id`, `price_plan_version_id`, `contract_id` or a customer-controlled product identifier. OPS calculates the complete price, locks its own price/version snapshot and should return an opaque, short-lived `quote_token` and `quote_expires_at`.
+The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. For application audit, the website signs a short-lived HMAC integrity quote with `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`; this is not a legal price source and must not reuse the OPS API key or PII hash pepper.
 
 ```http
 POST /api/v1/website/pricing/quote/validate
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
 Content-Type: application/json
 ```
 
-Validate the opaque quote with the same public fields before an application is submitted. The website currently has a deliberately separate, short-lived HMAC compatibility quote only when OPS has not returned a quote token. It uses `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`, never the API token or PII hashing secret. Remove this fallback once all OPS tenants return opaque quote tokens.
+The website-local validation route verifies the short-lived HMAC quote against the final address, price area, estimated kWh and selected `offer_reference` before the customer application is submitted. OPS remains the authority that resolves the internal contract/price version and stores the authoritative contract price snapshot.
 
 ## Customer application
 
@@ -369,6 +364,8 @@ customer_documents.read
 customer_documents.write
 customer_notifications.read
 customer_notifications.write
+customer_contact.write
+customer_facility_data.write
 customer_power_of_attorney.write
 ```
 

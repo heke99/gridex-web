@@ -35,6 +35,11 @@ type LocalDeliveryPointRow = Record<string, unknown>
 type LocalInvoiceRow = Record<string, unknown>
 type LocalDocumentRow = Record<string, unknown>
 type LocalLegalAcceptanceRow = Record<string, unknown>
+type CustomerPortalIdentityOverride = {
+  email?: string | null
+  customerNumber?: string | null
+  externalCustomerId?: string | null
+}
 
 export class CustomerPortalAccessError extends Error {
   readonly status = 401
@@ -692,6 +697,32 @@ function stableExternalCustomerId(profile: CustomerProfile | null): string | nul
   return externalCustomerId
 }
 
+function stableExternalCustomerIdValue(value: string | null | undefined, customerNumber: string | null | undefined): string | null {
+  const externalCustomerId = asText(value)
+  const customerNo = asText(customerNumber)
+  if (!externalCustomerId) return null
+  if (externalCustomerId === customerNo) return null
+  if (/^DX-\d+$/i.test(externalCustomerId)) return null
+  return externalCustomerId
+}
+
+function applyPortalIdentityOverride(
+  identity: OpsPortalIdentity,
+  override?: CustomerPortalIdentityOverride | null,
+): OpsPortalIdentity {
+  if (!override) return identity
+  const customerNumber = asText(override.customerNumber) ?? identity.customerNumber ?? null
+  return {
+    ...identity,
+    email: asText(override.email) ?? identity.email ?? null,
+    customerNumber,
+    externalCustomerId:
+      stableExternalCustomerIdValue(override.externalCustomerId, customerNumber) ??
+      identity.externalCustomerId ??
+      null,
+  }
+}
+
 export function portalIdentityFromProfile(
   user: User,
   profile: CustomerProfile | null
@@ -713,10 +744,10 @@ export async function getOpsPortalIdentityForUser(
   return portalIdentityFromProfile(user, profile)
 }
 
-export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
+export async function getCustomerPortalOverview(override?: CustomerPortalIdentityOverride | null): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
-  const identity = portalIdentityFromProfile(user, localProfile)
+  const identity = applyPortalIdentityOverride(portalIdentityFromProfile(user, localProfile), override)
 
   const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
     getCustomerTickets(supabase, user.id),

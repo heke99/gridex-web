@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
+import { fetchOpsTenantEvents, isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 
 function metadata(value: unknown): Record<string, unknown> {
@@ -12,6 +12,20 @@ function text(value: unknown, max = 160): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim().slice(0, max)
   return trimmed || null
+}
+
+
+export async function GET(request: Request) {
+  try {
+    const events = await fetchOpsTenantEvents(new URL(request.url).searchParams)
+    return NextResponse.json({ data: events })
+  } catch (error) {
+    console.error('[customer portal] tenant events GET route failed', error)
+    return NextResponse.json(
+      { error: 'Händelser kunde inte hämtas just nu.' },
+      { status: 503 },
+    )
+  }
 }
 
 export async function POST(request: Request) {
