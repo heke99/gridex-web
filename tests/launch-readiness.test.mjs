@@ -181,6 +181,27 @@ assertIncludes(
   "opsErrorCode",
   "signup submit must map OPS application errors before showing customer-facing messages",
 );
+
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "shouldRetryWithFreshIdempotencyKey",
+  "signup must retry recoverable failed site_create idempotency with a fresh key",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "createFreshRetryIdempotencyKey",
+  "signup retry must use a fresh idempotency key after failed site_create",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "context.code === \"idempotent_failed\"",
+  "signup must inspect OPS idempotent_failed error code instead of treating every 409 as price change",
+);
+assertNotIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "if (error.status === 409) return \"price_changed\"",
+  "signup must not map every 409 to a stale price/contract error",
+);
 assertNotIncludes(
   "lib/customerPortal/onboarding.ts",
   "input.facilityId || input.meteringPointId",

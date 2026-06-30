@@ -126,7 +126,9 @@ function errorText(code?: string) {
     case "ops_auth":
       return "Teckningen är inte rätt kopplad just nu. Kontakta kundservice så hjälper vi dig.";
     case "ops_validation":
-      return "Vi kunde inte skicka teckningen med uppgifterna som angavs. Kontrollera uppgifterna och försök igen.";
+      return "Vi kunde inte skicka teckningen just nu. Kontrollera att uppgifterna är ifyllda och försök igen.";
+    case "idempotency_retry_failed":
+      return "Vi kunde inte skicka teckningen just nu. Försök igen om en stund eller kontakta kundservice så hjälper vi dig.";
     case "ops_unavailable":
       return "Vi kunde inte teckna just nu. Försök igen om en stund eller kontakta kundservice.";
     case "live_disabled":
@@ -134,11 +136,11 @@ function errorText(code?: string) {
     case "offer":
       return "Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.";
     case "snapshot":
-      return "Avtalet har uppdaterats sedan sidan laddades. Välj avtalet igen och kontrollera sammanfattningen.";
+      return "Vi kunde inte verifiera avtalssammanfattningen just nu. Uppdatera sidan och försök igen.";
     case "price_snapshot":
       return "Prisberäkningen saknas. Räkna priset innan du tecknar.";
     case "price_changed":
-      return "Valt avtal kunde inte tecknas med uppgifterna just nu. Kontrollera sammanfattningen och försök igen.";
+      return "Vi kunde inte skicka teckningen just nu. Försök igen om en stund eller kontakta kundservice så hjälper vi dig.";
     case "area_mismatch":
       return "Vi kunde inte bekräfta elområdet för adressen. Kontrollera adressen och räkna om priset utan manuellt elområde om möjligt.";
     case "customer_type":
@@ -150,34 +152,144 @@ function errorText(code?: string) {
   }
 }
 
-function opsErrorCode(error: unknown): Parameters<typeof errorText>[0] {
+type OpsSignupFailureCode = Parameters<typeof errorText>[0];
+
+type OpsErrorContext = {
+  code: string;
+  stage: string;
+  field: string;
+  previousStatus: string;
+  previousErrorStage: string;
+  previousErrorCode: string;
+  previousErrorMessage: string;
+  requestId: string;
+  applicationId: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringFromRecord(
+  record: Record<string, unknown> | null,
+  keys: string[],
+): string {
+  if (!record) return "";
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function opsErrorContext(error: unknown): OpsErrorContext {
+  if (!isOpsError(error)) {
+    return {
+      code: "",
+      stage: "",
+      field: "",
+      previousStatus: "",
+      previousErrorStage: "",
+      previousErrorCode: "",
+      previousErrorMessage: "",
+      requestId: "",
+      applicationId: "",
+    };
+  }
+
+  const details = asRecord((error as { details?: unknown }).details);
+  const nestedError = asRecord(details?.error);
+  const nestedDetails = asRecord(details?.details);
+
+  return {
+    code:
+      stringFromRecord(details, ["code", "error_code", "errorCode"]) ||
+      stringFromRecord(nestedError, ["code", "error_code", "errorCode"]),
+    stage:
+      stringFromRecord(details, ["error_stage", "stage", "errorStage"]) ||
+      stringFromRecord(nestedError, ["stage", "error_stage", "errorStage"]),
+    field:
+      stringFromRecord(details, ["field"]) ||
+      stringFromRecord(nestedError, ["field"]),
+    previousStatus: stringFromRecord(nestedDetails, [
+      "previous_status",
+      "previousStatus",
+    ]),
+    previousErrorStage: stringFromRecord(nestedDetails, [
+      "previous_error_stage",
+      "previousErrorStage",
+    ]),
+    previousErrorCode: stringFromRecord(nestedDetails, [
+      "previous_error_code",
+      "previousErrorCode",
+    ]),
+    previousErrorMessage: stringFromRecord(nestedDetails, [
+      "previous_error_message",
+      "previousErrorMessage",
+    ]),
+    requestId:
+      stringFromRecord(details, ["request_id", "requestId"]) ||
+      stringFromRecord(nestedError, ["request_id", "requestId"]),
+    applicationId: stringFromRecord(nestedDetails, [
+      "application_id",
+      "applicationId",
+    ]),
+  };
+}
+
+function shouldRetryWithFreshIdempotencyKey(error: unknown): boolean {
+  if (!isOpsError(error) || error.status !== 409) return false;
+  const context = opsErrorContext(error);
+  return (
+    context.code === "idempotent_failed" &&
+    context.previousErrorStage === "site_create"
+  );
+}
+
+function createFreshRetryIdempotencyKey(baseParts: string[]): string {
+  const nonce = [
+    "retry_after_failed_site_create",
+    new Date().toISOString(),
+    Math.random().toString(36).slice(2),
+  ];
+  return createApplicationIdempotencyKey([...baseParts, ...nonce]);
+}
+
+function opsErrorCode(error: unknown): OpsSignupFailureCode {
   if (!isOpsError(error)) return "ops_unavailable";
 
+  const context = opsErrorContext(error);
   console.error("[website signup] OPS customer application failed", {
     status: error.status,
     message: error.message,
+    code: context.code || null,
+    stage: context.stage || null,
+    previous_error_stage: context.previousErrorStage || null,
+    previous_error_code: context.previousErrorCode || null,
+    request_id: context.requestId || null,
+    application_id: context.applicationId || null,
     details: (error as { details?: unknown }).details ?? null,
   });
 
   if (error.status === 503) return "live_disabled";
   if (error.status === 401 || error.status === 403) return "ops_auth";
   if (error.status === 400) return "ops_validation";
-  if (error.status === 409) return "price_changed";
+  if (error.status === 409) {
+    if (context.code === "idempotent_failed") return "idempotency_retry_failed";
+    if (/public_contract|offer|contract/i.test(context.code)) return "offer";
+    return "ops_unavailable";
+  }
   if (error.status === 422) {
-    const details = (error as { details?: unknown }).details;
-    const code =
-      typeof details === "object" && details && "code" in details
-        ? String((details as { code?: unknown }).code ?? "")
-        : "";
-    if (/public_contract|offer|contract/i.test(code)) return "offer";
-    if (/legal|consent|power_of_attorney|price_terms/i.test(code))
+    if (/public_contract|offer|contract/i.test(context.code)) return "offer";
+    if (/legal|consent|power_of_attorney|price_terms/i.test(context.code))
       return "consent";
     return "ops_validation";
   }
 
   return "ops_unavailable";
 }
-
 function safePortalStatus(value: unknown): string {
   return typeof value === "string" && value.trim()
     ? value.trim().slice(0, 80)
@@ -463,11 +575,14 @@ export default async function TecknaPage({
     const contractDisplaySnapshot = parseJsonSnapshot(
       normalizeText(formData.get("contract_display_snapshot")),
     );
-    if (
-      !contractDisplaySnapshot ||
-      !sameContractSnapshot(offer, contractDisplaySnapshot)
-    ) {
+    if (!contractDisplaySnapshot) {
       return fail("snapshot");
+    }
+    if (!sameContractSnapshot(offer, contractDisplaySnapshot)) {
+      console.warn(
+        "[website signup] contract display snapshot mismatch; continuing because OPS public-contracts is the source of truth",
+        { offer_reference: offer.offer_reference },
+      );
     }
 
     const estimatedMonthlyKwh = parseOptionalNumber(
@@ -521,7 +636,7 @@ export default async function TecknaPage({
       };
     }
 
-    const idempotencyKey = createApplicationIdempotencyKey([
+    const idempotencyKeyParts = [
       "gridex_website_application_v1",
       email,
       customerType,
@@ -531,7 +646,8 @@ export default async function TecknaPage({
       offer.offer_reference,
       requestedStartMode,
       requestedStartDate || "asap",
-    ]);
+    ];
+    const idempotencyKey = createApplicationIdempotencyKey(idempotencyKeyParts);
 
     const currentAuth = await getCurrentPortalAuth();
     const canLinkCurrentAuth =
@@ -567,10 +683,8 @@ export default async function TecknaPage({
           }
         : null;
 
-    let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
-
-    try {
-      result = await submitOpsCustomerApplication({
+    const submitApplicationToOps = (applicationIdempotencyKey: string) =>
+      submitOpsCustomerApplication({
         offer_reference: offer.offer_reference,
         customer_type: customerType,
         first_name: firstName || null,
@@ -604,7 +718,7 @@ export default async function TecknaPage({
         pricing_preview_snapshot: canonicalPricingPreviewSnapshot,
         contract_display_snapshot: contractDisplaySnapshot,
         source: "gridex_website",
-        idempotency_key: idempotencyKey,
+        idempotency_key: applicationIdempotencyKey,
         external_customer_id: externalCustomerId,
         external_application_id: createExternalApplicationId(),
         customer_portal_user_id: linkedAuthUserId,
@@ -625,8 +739,40 @@ export default async function TecknaPage({
         },
         powerOfAttorney,
       });
+
+    let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
+
+    try {
+      result = await submitApplicationToOps(idempotencyKey);
     } catch (error) {
-      return fail(opsErrorCode(error));
+      if (shouldRetryWithFreshIdempotencyKey(error)) {
+        const retryIdempotencyKey =
+          createFreshRetryIdempotencyKey(idempotencyKeyParts);
+        const retryContext = opsErrorContext(error);
+        console.warn(
+          "[website signup] retrying failed site_create application with fresh idempotency key",
+          {
+            previous_request_id: retryContext.requestId || null,
+            previous_application_id: retryContext.applicationId || null,
+            previous_error_code: retryContext.previousErrorCode || null,
+          },
+        );
+
+        try {
+          result = await submitApplicationToOps(retryIdempotencyKey);
+        } catch (retryError) {
+          console.error(
+            "[website signup] retry after failed site_create idempotency also failed",
+            {
+              first_error: opsErrorContext(error),
+              retry_error: opsErrorContext(retryError),
+            },
+          );
+          return fail(opsErrorCode(retryError));
+        }
+      } else {
+        return fail(opsErrorCode(error));
+      }
     }
 
     const portalOnboarding = await ensureCustomerPortalOnboarding({
