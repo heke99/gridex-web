@@ -1,51 +1,22 @@
-# Gridex Web Signup Production Hotfix
+# Gridex Web – production signup hotfix
 
-## What this patch fixes
+This patch removes the short-lived quote/snapshot blockers from the public electricity signup flow and cleans up customer-facing copy.
 
-1. A successful OPS application can no longer be shown as failed just because local customer-portal onboarding fails afterwards.
-   - `submitOpsCustomerApplication()` is now handled separately from `ensureCustomerPortalOnboarding()`.
-   - After OPS accepts the application, the user is redirected to the thank-you page even if local onboarding fails.
-   - Portal onboarding status is still included in the thank-you query string for diagnostics.
+## What changed
 
-2. Supabase service-role/config errors in portal onboarding are no longer fatal for signup.
-   - `loadServiceClient()` is now inside the onboarding try/catch.
-   - Missing/faulty Supabase envs return a failed onboarding status instead of throwing through the signup action.
-
-3. OPS application errors are logged and mapped more clearly.
-   - 401/403 => config/API-token problem.
-   - 400/422 => validation/consent/offer problem where possible.
-   - 503 => live signup disabled/unavailable.
-   - Details are logged server-side for Vercel debugging.
-
-4. Contract-display snapshot validation is less brittle.
-   - It still verifies the selected `offer_reference`.
-   - It still detects legal version changes when both submitted and live values exist.
-   - It no longer compares the entire display snapshot byte-for-byte, which could block valid applications after harmless UI/label changes.
-
-5. Local portal onboarding no longer stores a metering-point id as `facility_id`.
-   - `facility_id` and `metering_point_id` remain separated.
-
-6. Launch regression checks were extended so these mistakes do not come back.
-
-## Files changed
-
-- `app/(public)/teckna-avtal/page.tsx`
-- `lib/customerPortal/onboarding.ts`
-- `lib/website/snapshotValidation.ts`
-- `tests/launch-readiness.test.mjs`
+- Signup no longer blocks customers because a website `pricing_quote_token` expired or changed.
+- Server submit no longer calls `validateWebsitePricingQuote` or `validatePricingPreviewSnapshot` before sending the customer application.
+- Website price preview may still attach a non-blocking audit token when configured, but missing/expired quote tokens do not block signup.
+- Price preview snapshot is sent to OPS as audit data; the binding commercial reference remains `offer_reference` from OPS public contracts.
+- Contract display snapshot validation remains limited to public offer/legal identifiers, not brittle full-object equality.
+- Public customer copy no longer exposes internal words such as OPS-publication, public-contracts, legal publication field, or price signing.
+- The customer form no longer posts `pricing_quote_token` / `pricing_quote_source` hidden fields.
+- Local portal onboarding remains non-blocking after a successful OPS application.
+- Legacy price routes now point customers to `/elavtal` without mentioning internal API names.
+- Regression tests now lock the desired behavior: no expiring quote blocker, no brittle price snapshot blocker, and customer-safe copy.
 
 ## Verification run
 
 - `npm run test:launch` passed.
 - `npm run lint` passed with 0 errors and 9 existing warnings outside this patch.
-- `npm run build` compiled successfully and TypeScript passed; sandbox timed out during static page generation after 120/160 pages, not on a TypeScript/code error.
-
-## Apply from project root
-
-```bash
-unzip ~/Downloads/gridex-web-signup-production-hotfix.zip -d ~/Downloads/gridex-web-signup-production-hotfix
-rsync -av ~/Downloads/gridex-web-signup-production-hotfix/ ./
-npm run test:launch
-npm run lint
-npm run build
-```
+- `npm run build` compiled successfully and TypeScript passed. The sandbox timed out during static page generation at 120/160 pages, after compile and TS were complete.

@@ -1,25 +1,27 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import FaqJsonLd from '@/components/seo/FaqJsonLd'
+import Link from "next/link";
+import type { Metadata } from "next";
+import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import {
   fetchOpsPublicContracts,
   getOpsClientStatus,
   type OpsPublicContract,
-} from '@/lib/ops/client'
-import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+} from "@/lib/ops/client";
+import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 
 export const metadata: Metadata = {
-  title: 'Elavtal – jämför rörligt, portfölj och fastpris',
+  title: "Elavtal – jämför rörligt, portfölj och fastpris",
   description:
-    'Jämför Gridex elavtal: rörligt elpris, portföljavtal och fastpris. Se aktuella priser och villkor innan du går vidare.',
-  alternates: { canonical: 'https://gridex.se/elavtal' },
-}
+    "Jämför Gridex elavtal: rörligt elpris, portföljavtal och fastpris. Se aktuella priser och villkor innan du går vidare.",
+  alternates: { canonical: "https://gridex.se/elavtal" },
+};
 
 function ContractCard({ contract }: { contract: OpsPublicContract }) {
-  const display = buildPublicContractDisplay(contract)
-  const customerTypes = contract.customer_types?.map((type) =>
-    /company|business|foretag|företag/i.test(type) ? 'Företag' : 'Privatkund',
-  ).filter((value, index, values) => values.indexOf(value) === index)
+  const display = buildPublicContractDisplay(contract);
+  const customerTypes = contract.customer_types
+    ?.map((type) =>
+      /company|business|foretag|företag/i.test(type) ? "Företag" : "Privatkund",
+    )
+    .filter((value, index, values) => values.indexOf(value) === index);
 
   return (
     <article className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
@@ -27,7 +29,9 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">{display.headline}</h2>
+              <h2 className="text-lg font-semibold text-white">
+                {display.headline}
+              </h2>
               {contract.badge_text ? (
                 <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-200">
                   {contract.badge_text}
@@ -56,17 +60,24 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
 
         {display.ready ? (
           <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
-            Din uppskattade månadskostnad beräknas först när du har angett adress, elområde och förbrukning.
-            {customerTypes?.length ? <div className="mt-1 text-cyan-100/80">Gäller: {customerTypes.join(' och ')}.</div> : null}
+            Din uppskattade månadskostnad beräknas först när du har angett
+            adress, elområde och förbrukning.
+            {customerTypes?.length ? (
+              <div className="mt-1 text-cyan-100/80">
+                Gäller: {customerTypes.join(" och ")}.
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-6 text-amber-50/85">
-            Avtalet är hämtat från OPS men saknar någon publicerad pris- eller juridikuppgift som krävs för online-teckning. Det visas därför här, men teckning är pausad tills OPS-publiceringen är komplett.
+            Det här avtalet kan inte tecknas online just nu. Kontakta
+            kundservice så hjälper vi dig.
           </div>
         )}
 
         <p className="mt-4 text-xs leading-5 text-gray-500">
-          Villkor, prisinformation och eventuell fullmakt visas tydligt innan du tecknar.
+          Villkor, prisinformation och eventuell fullmakt visas tydligt innan du
+          tecknar.
         </p>
       </div>
 
@@ -80,7 +91,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           </Link>
         ) : (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-center text-sm font-semibold text-amber-100">
-            Tillfälligt ej teckningsbart online
+            Kan inte tecknas online just nu
           </div>
         )}
         <Link
@@ -91,39 +102,39 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
         </Link>
       </div>
     </article>
-  )
+  );
 }
 
 export default async function AvtalPage() {
-  const status = getOpsClientStatus()
-  let contracts: OpsPublicContract[] = []
-  let loadError: string | null = null
+  const status = getOpsClientStatus();
+  let contracts: OpsPublicContract[] = [];
+  let loadError: string | null = null;
 
   if (status.configured) {
     try {
-      contracts = await fetchOpsPublicContracts()
+      contracts = await fetchOpsPublicContracts();
     } catch (error) {
       loadError =
         error instanceof Error
           ? error.message
-          : 'Kunde inte hämta aktuella elavtal.'
+          : "Kunde inte hämta aktuella elavtal.";
     }
   } else {
-    loadError = 'Aktuella elavtal kan inte hämtas just nu.'
+    loadError = "Aktuella elavtal kan inte hämtas just nu.";
   }
 
   const faqItems = [
     {
-      question: 'Vilket elavtal är billigast?',
+      question: "Vilket elavtal är billigast?",
       answer:
-        'Det beror på marknadsläget, din förbrukning och vilken risknivå du är bekväm med. Gridex visar aktuella elavtal så att du kan jämföra innan du går vidare.',
+        "Det beror på marknadsläget, din förbrukning och vilken risknivå du är bekväm med. Gridex visar aktuella elavtal så att du kan jämföra innan du går vidare.",
     },
     {
-      question: 'Vad är skillnaden mellan rörligt och fast elpris?',
+      question: "Vad är skillnaden mellan rörligt och fast elpris?",
       answer:
-        'Rörligt elpris följer marknadspriset och kan variera över tid. Fastpris ger mer förutsägbarhet. Portföljavtal ligger mellan dessa med en mer aktiv prissättning.',
+        "Rörligt elpris följer marknadspriset och kan variera över tid. Fastpris ger mer förutsägbarhet. Portföljavtal ligger mellan dessa med en mer aktiv prissättning.",
     },
-  ]
+  ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
@@ -145,9 +156,9 @@ export default async function AvtalPage() {
                 för ditt hushåll
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
-                Jämför rörligt, portfölj och fastpris på ett sätt som är lätt att
-                förstå. Här ser du våra aktuella elavtal och villkor innan du
-                går vidare med din teckning.
+                Jämför rörligt, portfölj och fastpris på ett sätt som är lätt
+                att förstå. Här ser du våra aktuella elavtal och villkor innan
+                du går vidare med din teckning.
               </p>
             </div>
 
@@ -169,21 +180,28 @@ export default async function AvtalPage() {
 
           <div className="grid gap-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">Aktuella villkor</div>
+              <div className="text-sm font-semibold text-white">
+                Aktuella villkor
+              </div>
               <p className="mt-1 text-sm text-gray-400">
                 Här ser du våra aktuella elavtal, priser och villkor.
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">Flera avtalsformer</div>
+              <div className="text-sm font-semibold text-white">
+                Flera avtalsformer
+              </div>
               <p className="mt-1 text-sm text-gray-400">
-                Välj det upplägg som passar din vardag, din förbrukning och din risknivå.
+                Välj det upplägg som passar din vardag, din förbrukning och din
+                risknivå.
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold text-white">Enkel teckning</div>
+              <div className="text-sm font-semibold text-white">
+                Enkel teckning
+              </div>
               <p className="mt-1 text-sm text-gray-400">
                 När du hittat rätt avtal går du vidare till teckningsflödet.
               </p>
@@ -196,25 +214,29 @@ export default async function AvtalPage() {
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
           <div className="text-sm font-semibold text-white">Rörligt elpris</div>
           <p className="mt-2 text-sm text-gray-400">
-            För dig som vill följa marknadspriset och ha ett avtal som rör sig med elmarknaden.
+            För dig som vill följa marknadspriset och ha ett avtal som rör sig
+            med elmarknaden.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
           <div className="text-sm font-semibold text-white">Portföljavtal</div>
           <p className="mt-2 text-sm text-gray-400">
-            För dig som vill ha en mer aktiv prissättning med fokus på balans mellan risk och stabilitet.
+            För dig som vill ha en mer aktiv prissättning med fokus på balans
+            mellan risk och stabilitet.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
           <div className="text-sm font-semibold text-white">Fastpris</div>
           <p className="mt-2 text-sm text-gray-400">
-            För dig som vill ha mer förutsägbarhet och enklare planering av elkostnaden.
+            För dig som vill ha mer förutsägbarhet och enklare planering av
+            elkostnaden.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-gray-950 p-5">
           <div className="text-sm font-semibold text-white">Mixavtal</div>
           <p className="mt-2 text-sm text-gray-400">
-            För dig som vill kombinera rörligt marknadspris med en förvaltad prisandel.
+            För dig som vill kombinera rörligt marknadspris med en förvaltad
+            prisandel.
           </p>
         </div>
       </section>
@@ -223,7 +245,8 @@ export default async function AvtalPage() {
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold text-white">Våra elavtal</h2>
           <p className="mt-3 text-gray-400">
-            Här ser du fasta villkor och avgifter. Din beräknade månadskostnad visas när du har angett adress, elområde och förbrukning.
+            Här ser du fasta villkor och avgifter. Din beräknade månadskostnad
+            visas när du har angett adress, elområde och förbrukning.
           </p>
         </div>
 
@@ -252,7 +275,10 @@ export default async function AvtalPage() {
         {contracts.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-3">
             {contracts.map((contract) => (
-              <ContractCard key={contract.offer_reference} contract={contract} />
+              <ContractCard
+                key={contract.offer_reference}
+                contract={contract}
+              />
             ))}
           </div>
         ) : null}
@@ -262,15 +288,20 @@ export default async function AvtalPage() {
         <h2 className="text-2xl font-bold text-white">Vanliga frågor</h2>
         <div className="mt-6 space-y-4">
           {faqItems.map((item) => (
-            <details key={item.question} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <details
+              key={item.question}
+              className="rounded-2xl border border-white/10 bg-white/5 p-4"
+            >
               <summary className="cursor-pointer text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/40">
                 {item.question}
               </summary>
-              <p className="mt-3 text-sm leading-6 text-gray-300">{item.answer}</p>
+              <p className="mt-3 text-sm leading-6 text-gray-300">
+                {item.answer}
+              </p>
             </details>
           ))}
         </div>
       </section>
     </div>
-  )
+  );
 }

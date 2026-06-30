@@ -1,23 +1,25 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   return NextResponse.json(
     {
-      error: 'Detta pris-API är stängt. Använd /api/v1/website/pricing/preview för prisberäkning baserad på OPS public-contracts.',
-      replacement: '/api/v1/website/pricing/preview',
+      error:
+        "Den här prisvägen används inte längre. Gå till /elavtal för att räkna pris.",
+      replacement: "/api/v1/website/pricing/preview",
     },
     { status: 410 },
-  )
+  );
 }
 
 export async function POST() {
   return NextResponse.json(
     {
-      error: 'Detta pris-API är stängt. Använd /api/v1/website/pricing/preview för prisberäkning baserad på OPS public-contracts.',
-      replacement: '/api/v1/website/pricing/preview',
+      error:
+        "Den här prisvägen används inte längre. Gå till /elavtal för att räkna pris.",
+      replacement: "/api/v1/website/pricing/preview",
     },
     { status: 410 },
-  )
+  );
 }

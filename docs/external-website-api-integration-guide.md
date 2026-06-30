@@ -73,30 +73,30 @@ When `legal.power_of_attorney_required=true`, OPS must also return `legal.power_
 
 The current website integration uses these official server-to-server endpoints:
 
-| Method | Path | Scope | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published sellable offers. |
-| `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Submit customer application and legal consent payloads. |
-| `POST` | `/api/v1/website/customer-events` | `website_events.write` | Send allowlisted customer actions from website/Mina sidor. |
-| `POST` | `/api/v1/events` | `website_events.write` | Alias for website customer events. |
-| `POST` | `/api/v1/customer/portal-bundle` | `customer_portal.read` | Preferred Mina sidor bundle. |
-| `GET` | `/api/v1/customer/portal-bundle` | `customer_portal.read` | Legacy/header bundle support. |
-| `GET` | `/api/v1/customer/me` | `customer_portal.read` | Customer profile fallback. |
-| `GET` | `/api/v1/customer/contracts` | `customer_portal.read` | Customer contracts fallback. |
-| `GET` | `/api/v1/customer/sites` | `customer_portal.read` | Customer sites/metering points fallback. |
-| `GET` | `/api/v1/customer/invoices` | `customer_portal.read` | Customer invoices. |
-| `GET` | `/api/v1/customer/invoices/[id]` | `customer_portal.read` | One customer invoice detail. |
-| `GET` | `/api/v1/customer/metering-values` | `customer_portal.read` | Customer metering values. |
-| `GET` | `/api/v1/customer/events` | `customer_portal.read` | Customer-visible events. |
-| `GET` | `/api/v1/customer/documents` | `customer_portal.read` | Customer documents. |
-| `GET` | `/api/v1/customer/legal-acceptances` | `customer_portal.read` | Customer legal acceptances. |
-| `GET` | `/api/v1/customer/powers-of-attorney` | `customer_portal.read` | Customer powers of attorney. |
-| `GET` | `/api/v1/customer/notifications` | `customer_portal.read` | Customer notifications. |
-| `POST` | `/api/v1/customer/notifications/read` | `customer_portal.write` | Mark notifications read. |
-| `POST` | `/api/v1/customer/sync` | `customer_portal.write` | Sync documents, legal acceptances, POA and facility/profile data. |
-| `POST` | `/api/v1/customer/profile-update` | `customer_portal.write` | Submit profile/contact changes. |
-| `POST` | `/api/v1/customer/move-out` | `customer_portal.write` | Submit move-out report. |
-| `GET` | `/api/v1/events` | `events.read` | Read tenant domain events. |
+| Method | Path                                    | Scope                        | Purpose                                                           |
+| ------ | --------------------------------------- | ---------------------------- | ----------------------------------------------------------------- |
+| `GET`  | `/api/v1/website/public-contracts`      | `website_contracts.read`     | Published sellable offers.                                        |
+| `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Submit customer application and legal consent payloads.           |
+| `POST` | `/api/v1/website/customer-events`       | `website_events.write`       | Send allowlisted customer actions from website/Mina sidor.        |
+| `POST` | `/api/v1/events`                        | `website_events.write`       | Alias for website customer events.                                |
+| `POST` | `/api/v1/customer/portal-bundle`        | `customer_portal.read`       | Preferred Mina sidor bundle.                                      |
+| `GET`  | `/api/v1/customer/portal-bundle`        | `customer_portal.read`       | Legacy/header bundle support.                                     |
+| `GET`  | `/api/v1/customer/me`                   | `customer_portal.read`       | Customer profile fallback.                                        |
+| `GET`  | `/api/v1/customer/contracts`            | `customer_portal.read`       | Customer contracts fallback.                                      |
+| `GET`  | `/api/v1/customer/sites`                | `customer_portal.read`       | Customer sites/metering points fallback.                          |
+| `GET`  | `/api/v1/customer/invoices`             | `customer_portal.read`       | Customer invoices.                                                |
+| `GET`  | `/api/v1/customer/invoices/[id]`        | `customer_portal.read`       | One customer invoice detail.                                      |
+| `GET`  | `/api/v1/customer/metering-values`      | `customer_portal.read`       | Customer metering values.                                         |
+| `GET`  | `/api/v1/customer/events`               | `customer_portal.read`       | Customer-visible events.                                          |
+| `GET`  | `/api/v1/customer/documents`            | `customer_portal.read`       | Customer documents.                                               |
+| `GET`  | `/api/v1/customer/legal-acceptances`    | `customer_portal.read`       | Customer legal acceptances.                                       |
+| `GET`  | `/api/v1/customer/powers-of-attorney`   | `customer_portal.read`       | Customer powers of attorney.                                      |
+| `GET`  | `/api/v1/customer/notifications`        | `customer_portal.read`       | Customer notifications.                                           |
+| `POST` | `/api/v1/customer/notifications/read`   | `customer_portal.write`      | Mark notifications read.                                          |
+| `POST` | `/api/v1/customer/sync`                 | `customer_portal.write`      | Sync documents, legal acceptances, POA and facility/profile data. |
+| `POST` | `/api/v1/customer/profile-update`       | `customer_portal.write`      | Submit profile/contact changes.                                   |
+| `POST` | `/api/v1/customer/move-out`             | `customer_portal.write`      | Submit move-out report.                                           |
+| `GET`  | `/api/v1/events`                        | `events.read`                | Read tenant domain events.                                        |
 
 Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key. The live OPS developer contract does not expose `POST /api/v1/website/pricing/preview`, `POST /api/v1/website/pricing/quote/validate`, `POST /api/v1/website/energy/resolve`, `GET /api/v1/website/legal-texts/current`, `GET /api/v1/website/price-plans` or `GET /api/v1/customer/switch-status` as official tenant endpoints. When this repository has routes with those paths, they are website-local wrapper routes only.
 
@@ -122,7 +122,7 @@ Request:
 }
 ```
 
-The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. For application audit, the website signs a short-lived HMAC integrity quote with `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`; this is not a legal price source and must not reuse the OPS API key or PII hash pepper.
+The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. For application audit, the website may attach a non-blocking HMAC integrity token with `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`; this is not a legal price source, must never block sign-up by expiring during the customer flow, and must not reuse the OPS API key or PII hash pepper.
 
 ```http
 POST /api/v1/website/pricing/quote/validate
@@ -218,8 +218,13 @@ Accepted application metadata:
     "energy_resolution_status": "resolved",
     "energy_resolution_confidence": 0.98,
     "estimated_monthly_kwh": 2000,
-    "pricing_preview_snapshot": { "contract": { "offer_reference": "offer_…" } },
-    "contract_display_snapshot": { "offer_reference": "offer_…", "legal_versions": {} },
+    "pricing_preview_snapshot": {
+      "contract": { "offer_reference": "offer_…" }
+    },
+    "contract_display_snapshot": {
+      "offer_reference": "offer_…",
+      "legal_versions": {}
+    },
     "utm_source": "google",
     "utm_medium": "cpc",
     "utm_campaign": "sommarkampanj",
@@ -334,7 +339,6 @@ X-Gridex-Timestamp + "." + rawBody
 ```
 
 The receiver must reject missing timestamps, stale timestamps and signatures that only match the raw body. The website stores `company_id`, `customer_number`, `external_customer_id`, `customer_email`, payload hash and raw payload for audit/debugging.
-
 
 ## Production readiness checklist
 
