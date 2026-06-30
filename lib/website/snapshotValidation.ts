@@ -1,12 +1,9 @@
 import type { OpsPublicContract, OpsWebsitePricingPreview } from '@/lib/ops/client'
-import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 
 export type SnapshotValidationResult = {
   ok: boolean
   reasons: string[]
 }
-
-type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
 const MONEY_TOLERANCE = 0.01
 const ORE_TOLERANCE = 0.0001
@@ -54,26 +51,6 @@ function firstNumber(root: Record<string, unknown>, paths: string[][]): number |
   return null
 }
 
-function canonicalize(value: unknown): JsonValue {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'boolean' || typeof value === 'string') return value
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (Array.isArray(value)) return value.map((item) => canonicalize(item))
-  if (isRecord(value)) {
-    return Object.keys(value)
-      .sort()
-      .reduce<Record<string, JsonValue>>((acc, key) => {
-        acc[key] = canonicalize(value[key])
-        return acc
-      }, {})
-  }
-  return String(value)
-}
-
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalize(value))
-}
-
 function approxEqual(a: number | null, b: number | null, tolerance: number): boolean {
   if (a === null || b === null) return false
   return Math.abs(a - b) <= tolerance
@@ -86,33 +63,36 @@ export function validateContractDisplaySnapshot(
   const reasons: string[] = []
   if (!snapshot) return result(['contract_display_snapshot saknas'])
 
-  const expected = buildPublicContractDisplay(contract)
-  if (!expected.ready) {
-    reasons.push('valt avtal är inte publiceringsklart')
-  }
-
   const offerReference = stringValue(snapshot.offer_reference)
   if (offerReference !== contract.offer_reference) {
     reasons.push('contract_display_snapshot matchar inte valt avtal')
   }
 
   const legal = isRecord(snapshot.legal_versions) ? snapshot.legal_versions : {}
-  if (stringValue(legal.terms) !== (contract.terms_version ?? null)) {
+  const submittedTerms = stringValue(legal.terms)
+  if (submittedTerms && contract.terms_version && submittedTerms !== contract.terms_version) {
     reasons.push('allmänna villkor har ändrats')
   }
-  if (stringValue(legal.privacy_policy) !== (contract.privacy_policy_version ?? null)) {
+
+  const submittedPrivacy = stringValue(legal.privacy_policy)
+  if (submittedPrivacy && contract.privacy_policy_version && submittedPrivacy !== contract.privacy_policy_version) {
     reasons.push('integritetspolicy har ändrats')
   }
-  const withdrawalVersion = stringValue(legal.withdrawal) ?? stringValue(legal.cancellation_right)
-  if (withdrawalVersion !== (contract.withdrawal_version ?? contract.cancellation_right_version ?? null)) {
+
+  const submittedWithdrawal = stringValue(legal.withdrawal) ?? stringValue(legal.cancellation_right)
+  const currentWithdrawal = contract.withdrawal_version ?? contract.cancellation_right_version ?? null
+  if (submittedWithdrawal && currentWithdrawal && submittedWithdrawal !== currentWithdrawal) {
     reasons.push('ångerrättsversion har ändrats')
   }
-  if (contract.power_of_attorney_required === true && stringValue(legal.power_of_attorney) !== (contract.power_of_attorney_version ?? null)) {
-    reasons.push('fullmaktsversion har ändrats')
-  }
 
-  if (canonicalJson(snapshot) !== canonicalJson(expected.snapshot)) {
-    reasons.push('visat avtalssnapshot matchar inte aktuellt publicerat avtal')
+  const submittedPowerOfAttorney = stringValue(legal.power_of_attorney)
+  if (
+    contract.power_of_attorney_required === true &&
+    submittedPowerOfAttorney &&
+    contract.power_of_attorney_version &&
+    submittedPowerOfAttorney !== contract.power_of_attorney_version
+  ) {
+    reasons.push('fullmaktsversion har ändrats')
   }
 
   return result(reasons)

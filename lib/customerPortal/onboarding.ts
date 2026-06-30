@@ -197,7 +197,7 @@ async function upsertLocalPortalRows(
     )
   }
 
-  const facilityId = input.facilityId || input.meteringPointId || null
+  const facilityId = input.facilityId || null
   if (facilityId) {
     await supabase.from('customer_delivery_points').upsert(
       {
@@ -248,9 +248,10 @@ export async function ensureCustomerPortalOnboarding(
     return { status: 'pending', message: 'OPS returned no customer reference yet.' }
   }
 
-  const supabase = await loadServiceClient()
+  let supabase: SupabaseServiceClient | null = null
 
   try {
+    supabase = await loadServiceClient()
     const existingUser = await resolveExistingAuthUser(supabase, input.email)
 
     if (existingUser?.id) {
@@ -307,7 +308,10 @@ export async function ensureCustomerPortalOnboarding(
     return { status: 'email_confirmation_sent', userId }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'portal_onboarding_failed'
-    await recordOnboardingFailure(supabase, input, message).catch(() => null)
+    console.error('[customer portal] non-blocking onboarding failed', error)
+    if (supabase) {
+      await recordOnboardingFailure(supabase, input, message).catch(() => null)
+    }
     return { status: 'failed', message }
   }
 }

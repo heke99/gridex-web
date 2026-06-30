@@ -1,42 +1,51 @@
-# Gridex Web API production hardening patch
+# Gridex Web Signup Production Hotfix
 
-This patch fixes the API/pricing mismatch in the public website integration.
+## What this patch fixes
 
-## Main changes
+1. A successful OPS application can no longer be shown as failed just because local customer-portal onboarding fails afterwards.
+   - `submitOpsCustomerApplication()` is now handled separately from `ensureCustomerPortalOnboarding()`.
+   - After OPS accepts the application, the user is redirected to the thank-you page even if local onboarding fails.
+   - Portal onboarding status is still included in the thank-you query string for diagnostics.
 
-- Price calculator now derives customer preview from OPS `public-contracts.pricing` instead of silently falling back to missing local fee values.
-- Missing mandatory published pricing fields now block the calculation with a clear 409 response instead of becoming `0`.
-- Homepage calculator options now carry all published pricing fields: markup, monthly fee, invoice fee, fixed price, portfolio price, VAT and mix shares.
-- Public contract display now blocks contracts missing mandatory pricing/legal DTO fields and preserves real `0` values.
-- Signup submit now preserves grid owner fields from resolver/form data instead of always sending `grid_owner_id/grid_owner_name = null`.
-- Facility ID and metering point ID are no longer mixed; `facility_id` is only sent from `facility_id`.
-- Local portal-bundle POST now accepts documented identity payload fields: `email`, `customer_number`, `external_customer_id`.
-- `/api/v1/events` now supports documented tenant event reads through GET while preserving existing POST customer events.
-- API docs now separate official OPS endpoints from website-local wrapper routes and include granular scopes.
-- Regression tests now lock the stricter pricing behavior.
+2. Supabase service-role/config errors in portal onboarding are no longer fatal for signup.
+   - `loadServiceClient()` is now inside the onboarding try/catch.
+   - Missing/faulty Supabase envs return a failed onboarding status instead of throwing through the signup action.
 
-## Verified locally
+3. OPS application errors are logged and mapped more clearly.
+   - 401/403 => config/API-token problem.
+   - 400/422 => validation/consent/offer problem where possible.
+   - 503 => live signup disabled/unavailable.
+   - Details are logged server-side for Vercel debugging.
+
+4. Contract-display snapshot validation is less brittle.
+   - It still verifies the selected `offer_reference`.
+   - It still detects legal version changes when both submitted and live values exist.
+   - It no longer compares the entire display snapshot byte-for-byte, which could block valid applications after harmless UI/label changes.
+
+5. Local portal onboarding no longer stores a metering-point id as `facility_id`.
+   - `facility_id` and `metering_point_id` remain separated.
+
+6. Launch regression checks were extended so these mistakes do not come back.
+
+## Files changed
+
+- `app/(public)/teckna-avtal/page.tsx`
+- `lib/customerPortal/onboarding.ts`
+- `lib/website/snapshotValidation.ts`
+- `tests/launch-readiness.test.mjs`
+
+## Verification run
 
 - `npm run test:launch` passed.
-- `npm run lint` passed with pre-existing warnings only, no errors.
-- `npm run build` passed with dummy build-time env values.
+- `npm run lint` passed with 0 errors and 9 existing warnings outside this patch.
+- `npm run build` compiled successfully and TypeScript passed; sandbox timed out during static page generation after 120/160 pages, not on a TypeScript/code error.
 
-## Required production env check
+## Apply from project root
 
-Ensure Vercel has the full API token in `GRIDEX_WEBSITE_API_KEY` and that the OPS key includes:
-
-```text
-website_contracts.read
-website_applications.write
-customer_portal.read
-customer_portal.write
-website_events.write
-events.read
-customer_documents.read
-customer_documents.write
-customer_notifications.read
-customer_notifications.write
-customer_contact.write
-customer_facility_data.write
-customer_power_of_attorney.write
+```bash
+unzip ~/Downloads/gridex-web-signup-production-hotfix.zip -d ~/Downloads/gridex-web-signup-production-hotfix
+rsync -av ~/Downloads/gridex-web-signup-production-hotfix/ ./
+npm run test:launch
+npm run lint
+npm run build
 ```

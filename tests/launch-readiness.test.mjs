@@ -90,6 +90,26 @@ assertIncludes(
   'signup submit must link OPS application results to customer portal onboarding',
 )
 assertIncludes(
+  'app/(public)/teckna-avtal/page.tsx',
+  'non-blocking portal onboarding failed after successful OPS application',
+  'portal onboarding must never make a successful OPS application look failed to the customer',
+)
+assertIncludes(
+  'app/(public)/teckna-avtal/page.tsx',
+  'opsErrorCode',
+  'signup submit must map OPS application errors before showing customer-facing messages',
+)
+assertNotIncludes(
+  'lib/customerPortal/onboarding.ts',
+  'input.facilityId || input.meteringPointId',
+  'portal onboarding must not store a metering point id as facility_id',
+)
+assertNotIncludes(
+  'lib/website/snapshotValidation.ts',
+  'canonicalJson(snapshot)',
+  'contract display snapshot validation must not be a brittle full-object equality check',
+)
+assertIncludes(
   'app/(public)/teckna/tack/page.tsx',
   'Ny kund: bekräfta din e-post',
   'thank-you page must explain email verification for new customers',

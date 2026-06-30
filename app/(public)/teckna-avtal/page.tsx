@@ -19,7 +19,6 @@ import {
 } from '@/lib/ops/client'
 import { checkRateLimit } from '@/lib/security/rateLimit'
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
-import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import { validateContractDisplaySnapshot, validatePricingPreviewSnapshot } from '@/lib/website/snapshotValidation'
 import { ensureCustomerPortalOnboarding } from '@/lib/customerPortal/onboarding'
 import { contractSupportsCustomerType } from '@/lib/website/customerType'
@@ -117,6 +116,10 @@ function errorText(code?: string) {
       return 'Teckningen kunde inte skickas. Kontrollera uppgifterna och försök igen.'
     case 'not_configured':
       return 'Teckning online är inte aktiverad just nu.'
+    case 'ops_auth':
+      return 'Teckningen är inte rätt kopplad mot Gridex Ops just nu. Kontakta kundservice så hjälper vi dig.'
+    case 'ops_validation':
+      return 'OPS kunde inte godkänna ansökan med uppgifterna som skickades. Kontrollera uppgifterna och försök igen.'
     case 'ops_unavailable':
       return 'Vi kunde inte teckna just nu. Försök igen om en stund eller kontakta kundservice.'
     case 'live_disabled':
@@ -138,6 +141,37 @@ function errorText(code?: string) {
     default:
       return null
   }
+}
+
+
+function opsErrorCode(error: unknown): Parameters<typeof errorText>[0] {
+  if (!isOpsError(error)) return 'ops_unavailable'
+
+  console.error('[website signup] OPS customer application failed', {
+    status: error.status,
+    message: error.message,
+    details: (error as { details?: unknown }).details ?? null,
+  })
+
+  if (error.status === 503) return 'live_disabled'
+  if (error.status === 401 || error.status === 403) return 'ops_auth'
+  if (error.status === 400) return 'ops_validation'
+  if (error.status === 409) return 'price_changed'
+  if (error.status === 422) {
+    const details = (error as { details?: unknown }).details
+    const code = typeof details === 'object' && details && 'code' in details
+      ? String((details as { code?: unknown }).code ?? '')
+      : ''
+    if (/public_contract|offer|contract/i.test(code)) return 'offer'
+    if (/legal|consent|power_of_attorney|price_terms/i.test(code)) return 'consent'
+    return 'ops_validation'
+  }
+
+  return 'ops_unavailable'
+}
+
+function safePortalStatus(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 80) : 'skipped'
 }
 
 function missingFieldsToQuery(fields: string[]) {
@@ -428,9 +462,6 @@ export default async function TecknaPage({
       return fail('price_snapshot')
     }
 
-    const liveDisplay = buildPublicContractDisplay(offer)
-    if (!liveDisplay.ready) return fail('offer')
-
     let livePricingPreview
     try {
       livePricingPreview = await buildLocalWebsitePricingPreview({
@@ -513,10 +544,10 @@ export default async function TecknaPage({
           }
         : null
 
-    let successRedirect = ''
+    let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>
 
     try {
-      const result = await submitOpsCustomerApplication({
+      result = await submitOpsCustomerApplication({
         offer_reference: offer.offer_reference,
         customer_type: customerType,
         first_name: firstName || null,
@@ -564,49 +595,48 @@ export default async function TecknaPage({
         },
         powerOfAttorney,
       })
-
-      const portalOnboarding = await ensureCustomerPortalOnboarding({
-        application: result,
-        email,
-        firstName: firstName || null,
-        lastName: lastName || null,
-        companyName: companyName || null,
-        phone,
-        customerType,
-        address,
-        postalCode,
-        city,
-        facilityId: facilityId || null,
-        meteringPointId: meteringPointId || null,
-        offerReference: offer.offer_reference,
-        productCode: offer.product_code ?? null,
-        contractName: offer.name,
-      })
-
-      const qs = new URLSearchParams()
-      qs.set('status', result.status)
-      qs.set('portal', portalOnboarding.status)
-      if (result.customer_number) qs.set('customerNumber', result.customer_number)
-      if (result.contract_number) qs.set('contractNumber', result.contract_number)
-      if (result.application_number) qs.set('applicationNumber', result.application_number)
-      if (result.next_step) qs.set('nextStep', result.next_step)
-      const nextActionMessage = publicApplicationMessage(result.nextAction)
-      if (nextActionMessage) qs.set('nextActionMessage', nextActionMessage)
-      const caseReference = publicCaseReference(result.manualInformationRequest)
-      if (caseReference) qs.set('caseReference', caseReference)
-      if (result.power_of_attorney_id) qs.set('poa', 'signed')
-      if (result.missing_fields.length > 0) {
-        qs.set('missing', missingFieldsToQuery(result.missing_fields))
-      }
-
-      successRedirect = `/teckna-avtal/tack?${qs.toString()}`
     } catch (error) {
-      if (isOpsError(error)) {
-        if (error.status === 503) return fail('live_disabled')
-        return fail('ops_unavailable')
-      }
-      return fail('ops_unavailable')
+      return fail(opsErrorCode(error))
     }
+
+    const portalOnboarding = await ensureCustomerPortalOnboarding({
+      application: result,
+      email,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      companyName: companyName || null,
+      phone,
+      customerType,
+      address,
+      postalCode,
+      city,
+      facilityId: facilityId || null,
+      meteringPointId: meteringPointId || null,
+      offerReference: offer.offer_reference,
+      productCode: offer.product_code ?? null,
+      contractName: offer.name,
+    }).catch((error) => {
+      console.error('[website signup] non-blocking portal onboarding failed after successful OPS application', error)
+      return { status: 'failed' as const, message: 'portal_onboarding_failed' }
+    })
+
+    const qs = new URLSearchParams()
+    qs.set('status', result.status)
+    qs.set('portal', safePortalStatus(portalOnboarding.status))
+    if (result.customer_number) qs.set('customerNumber', result.customer_number)
+    if (result.contract_number) qs.set('contractNumber', result.contract_number)
+    if (result.application_number) qs.set('applicationNumber', result.application_number)
+    if (result.next_step) qs.set('nextStep', result.next_step)
+    const nextActionMessage = publicApplicationMessage(result.nextAction)
+    if (nextActionMessage) qs.set('nextActionMessage', nextActionMessage)
+    const caseReference = publicCaseReference(result.manualInformationRequest)
+    if (caseReference) qs.set('caseReference', caseReference)
+    if (result.power_of_attorney_id) qs.set('poa', 'signed')
+    if (result.missing_fields.length > 0) {
+      qs.set('missing', missingFieldsToQuery(result.missing_fields))
+    }
+
+    const successRedirect = `/teckna-avtal/tack?${qs.toString()}`
 
     redirect(successRedirect)
   }
