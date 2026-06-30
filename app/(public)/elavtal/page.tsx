@@ -21,8 +21,6 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
     /company|business|foretag|företag/i.test(type) ? 'Företag' : 'Privatkund',
   ).filter((value, index, values) => values.indexOf(value) === index)
 
-  if (!display.ready) return null
-
   return (
     <article className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
       <div>
@@ -56,10 +54,16 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           ))}
         </dl>
 
-        <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
-          Din uppskattade månadskostnad beräknas först när du har angett adress, elområde och förbrukning.
-          {customerTypes?.length ? <div className="mt-1 text-cyan-100/80">Gäller: {customerTypes.join(' och ')}.</div> : null}
-        </div>
+        {display.ready ? (
+          <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
+            Din uppskattade månadskostnad beräknas först när du har angett adress, elområde och förbrukning.
+            {customerTypes?.length ? <div className="mt-1 text-cyan-100/80">Gäller: {customerTypes.join(' och ')}.</div> : null}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-6 text-amber-50/85">
+            Avtalet är hämtat från OPS men saknar någon publicerad pris- eller juridikuppgift som krävs för online-teckning. Det visas därför här, men teckning är pausad tills OPS-publiceringen är komplett.
+          </div>
+        )}
 
         <p className="mt-4 text-xs leading-5 text-gray-500">
           Villkor, prisinformation och eventuell fullmakt visas tydligt innan du tecknar.
@@ -67,12 +71,18 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
       </div>
 
       <div className="mt-6 grid gap-3">
-        <Link
-          href={display.ctaHref}
-          className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
-        >
-          Räkna pris och teckna
-        </Link>
+        {display.ready ? (
+          <Link
+            href={display.ctaHref}
+            className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
+          >
+            Räkna pris och teckna
+          </Link>
+        ) : (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-center text-sm font-semibold text-amber-100">
+            Tillfälligt ej teckningsbart online
+          </div>
+        )}
         <Link
           href="/kundservice"
           className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"

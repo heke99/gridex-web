@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
-import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
 import { normalizePublicContractApiPayload } from "@/lib/website/publicContractContract";
 
 export type OpsContractType =
@@ -1349,7 +1348,6 @@ async function fetchOpsPublicContractsUncached(): Promise<OpsPublicContract[]> {
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
-    .filter(isPublicContractReady)
     .sort((a, b) => {
       const sa = a.sort_order ?? 10_000;
       const sb = b.sort_order ?? 10_000;
@@ -1360,7 +1358,7 @@ async function fetchOpsPublicContractsUncached(): Promise<OpsPublicContract[]> {
 
 const fetchCachedOpsPublicContracts = unstable_cache(
   fetchOpsPublicContractsUncached,
-  ["ops-public-contracts-v2"],
+  ["ops-public-contracts-v3"],
   { revalidate: 60, tags: ["ops-public-contracts"] },
 );
 
