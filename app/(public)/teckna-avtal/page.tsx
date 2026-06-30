@@ -93,11 +93,16 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     startInfo: item.start_info ?? null,
     customerTypes: item.customer_types ?? null,
     termsVersion: item.terms_version ?? null,
+    termsVersionId: item.terms_version_id ?? null,
     privacyPolicyVersion: item.privacy_policy_version ?? null,
+    privacyPolicyVersionId: item.privacy_policy_version_id ?? null,
     cancellationRightVersion: item.cancellation_right_version ?? null,
+    withdrawalVersionId: item.withdrawal_version_id ?? null,
     powerOfAttorneyVersion: item.power_of_attorney_version ?? null,
+    powerOfAttorneyVersionId: item.power_of_attorney_version_id ?? null,
     powerOfAttorneyRequired: item.power_of_attorney_required ?? false,
     priceTermsVersion: item.price_terms_version ?? null,
+    priceTermsVersionId: item.price_terms_version_id ?? null,
   };
 }
 
@@ -119,6 +124,8 @@ function errorText(code?: string) {
       return "Kontrollera obligatoriska uppgifter och försök igen.";
     case "consent":
       return "Du behöver godkänna villkor, prisvillkor och övriga obligatoriska godkännanden för att teckna elavtal.";
+    case "legal_config":
+      return "Avtalet kan inte tecknas online just nu. Kontakta kundservice så hjälper vi dig.";
     case "honeypot":
       return "Teckningen kunde inte skickas. Kontrollera uppgifterna och försök igen.";
     case "not_configured":
@@ -243,14 +250,15 @@ function shouldRetryWithFreshIdempotencyKey(error: unknown): boolean {
   if (!isOpsError(error) || error.status !== 409) return false;
   const context = opsErrorContext(error);
   return (
-    context.code === "idempotent_failed" &&
-    context.previousErrorStage === "site_create"
+    (context.code === "idempotent_failed" &&
+      context.previousErrorStage === "site_create") ||
+    context.code === "idempotent_application_missing_poa"
   );
 }
 
 function createFreshRetryIdempotencyKey(baseParts: string[]): string {
   const nonce = [
-    "retry_after_failed_site_create",
+    "retry_after_repairable_ops_idempotency",
     new Date().toISOString(),
     Math.random().toString(36).slice(2),
   ];
@@ -331,6 +339,13 @@ function isValidIdentityNumber(value: string): boolean {
 function isValidPhone(value: string): boolean {
   const digits = digitsOnly(value);
   return digits.length >= 7 && digits.length <= 15;
+}
+
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value.trim(),
+    );
 }
 
 function todayInStockholm(): string {
@@ -535,6 +550,8 @@ export default async function TecknaPage({
     const acceptPriceTerms =
       String(formData.get("accept_price_terms") || "") === "on";
     const powerOfAttorneyRequired = offer.power_of_attorney_required === true;
+    const powerOfAttorneyTextVersionId =
+      offer.power_of_attorney_version_id ?? null;
 
     const hasIdentity =
       customerType === "company"
@@ -567,6 +584,15 @@ export default async function TecknaPage({
       (powerOfAttorneyRequired && !acceptPowerOfAttorney)
     ) {
       return fail("consent");
+    }
+
+    if (powerOfAttorneyRequired && !isUuid(powerOfAttorneyTextVersionId)) {
+      console.error("[website signup] selected offer requires power of attorney but does not expose OPS legal_text_versions UUID", {
+        offer_reference: offer.offer_reference,
+        power_of_attorney_version: offer.power_of_attorney_version ?? null,
+        power_of_attorney_version_id: offer.power_of_attorney_version_id ?? null,
+      });
+      return fail("legal_config");
     }
 
     const pricingPreviewSnapshot = parseJsonSnapshot(
@@ -677,7 +703,7 @@ export default async function TecknaPage({
               customerType === "company" ? organizationNumber : personalNumber,
             method: "website_acceptance",
             acceptedAt: new Date().toISOString(),
-            textVersionId: offer.power_of_attorney_version ?? null,
+            textVersionId: powerOfAttorneyTextVersionId,
             ipAddress: ip,
             userAgent,
           }
@@ -750,7 +776,7 @@ export default async function TecknaPage({
           createFreshRetryIdempotencyKey(idempotencyKeyParts);
         const retryContext = opsErrorContext(error);
         console.warn(
-          "[website signup] retrying failed site_create application with fresh idempotency key",
+          "[website signup] retrying repairable OPS idempotency failure with fresh idempotency key",
           {
             previous_request_id: retryContext.requestId || null,
             previous_application_id: retryContext.applicationId || null,
@@ -762,7 +788,7 @@ export default async function TecknaPage({
           result = await submitApplicationToOps(retryIdempotencyKey);
         } catch (retryError) {
           console.error(
-            "[website signup] retry after failed site_create idempotency also failed",
+            "[website signup] retry after repairable OPS idempotency failure also failed",
             {
               first_error: opsErrorContext(error),
               retry_error: opsErrorContext(retryError),

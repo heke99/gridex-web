@@ -49,12 +49,17 @@ export type OpsPublicContract = {
   start_info?: string | null;
   customer_types?: string[] | null;
   terms_version?: string | null;
+  terms_version_id?: string | null;
   privacy_policy_version?: string | null;
+  privacy_policy_version_id?: string | null;
   cancellation_right_version?: string | null;
   withdrawal_version?: string | null;
+  withdrawal_version_id?: string | null;
   power_of_attorney_version?: string | null;
+  power_of_attorney_version_id?: string | null;
   power_of_attorney_required?: boolean | null;
   price_terms_version?: string | null;
+  price_terms_version_id?: string | null;
   is_public?: boolean | null;
   is_active?: boolean | null;
   sort_order?: number | null;
@@ -687,8 +692,13 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
       marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
       badge_text: pickString(r, ["badge_text", "badgeText"]),
+      terms_version_id: documented.terms_version_id,
+      privacy_policy_version_id: documented.privacy_policy_version_id,
       cancellation_right_version: documented.withdrawal_version,
+      withdrawal_version_id: documented.withdrawal_version_id,
       power_of_attorney_version: documented.power_of_attorney_version,
+      power_of_attorney_version_id: documented.power_of_attorney_version_id,
+      price_terms_version_id: documented.price_terms_version_id,
       is_public: null,
       is_active: null,
       sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
@@ -822,12 +832,23 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     start_info: pickString(r, ["start_info", "startInfo"]),
     customer_types: customerTypes,
     terms_version: pickFromRecords([legal, r], ["terms_version", "termsVersion"]),
+    terms_version_id: pickFromRecords([legal, r], ["terms_version_id", "termsVersionId"]),
     privacy_policy_version: pickFromRecords([legal, r], [
       "privacy_policy_version",
       "privacyPolicyVersion",
     ]),
+    privacy_policy_version_id: pickFromRecords([legal, r], [
+      "privacy_policy_version_id",
+      "privacyPolicyVersionId",
+    ]),
     cancellation_right_version: withdrawalVersion,
     withdrawal_version: withdrawalVersion,
+    withdrawal_version_id: pickFromRecords([legal, r], [
+      "withdrawal_version_id",
+      "withdrawalVersionId",
+      "cancellation_right_version_id",
+      "cancellationRightVersionId",
+    ]),
     power_of_attorney_version: pickFromRecords([legal, r], [
       "power_of_attorney_version",
       "powerOfAttorneyVersion",
@@ -838,6 +859,16 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "poa_version",
       "poaVersion",
     ]),
+    power_of_attorney_version_id: pickFromRecords([legal, r], [
+      "power_of_attorney_version_id",
+      "powerOfAttorneyVersionId",
+      "power_of_attorney_text_version_id",
+      "powerOfAttorneyTextVersionId",
+      "power_of_attorney_legal_text_version_id",
+      "powerOfAttorneyLegalTextVersionId",
+      "poa_version_id",
+      "poaVersionId",
+    ]),
     power_of_attorney_required: pickBooleanFromRecords([legal, r], [
       "power_of_attorney_required",
       "powerOfAttorneyRequired",
@@ -847,6 +878,10 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "priceTermsVersion",
       "price_terms",
       "priceTerms",
+    ]),
+    price_terms_version_id: pickFromRecords([legal, r], [
+      "price_terms_version_id",
+      "priceTermsVersionId",
     ]),
     is_public: isPublic,
     is_active: isActive,

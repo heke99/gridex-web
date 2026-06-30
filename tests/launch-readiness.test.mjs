@@ -366,6 +366,16 @@ assertIncludes(
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
+  "textVersionId: powerOfAttorneyTextVersionId",
+  "signup must send OPS legal_text_versions UUID as powerOfAttorney.textVersionId",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "offer.power_of_attorney_version_id",
+  "signup must read POA legal UUID from public-contracts legal.power_of_attorney_version_id",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
   "nextActionMessage",
   "signup thank-you redirect must preserve customer-safe nextAction message",
 );

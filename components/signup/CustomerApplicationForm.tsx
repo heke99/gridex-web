@@ -52,11 +52,16 @@ export type SignupContractOption = {
   startInfo?: string | null;
   customerTypes?: string[] | null;
   termsVersion?: string | null;
+  termsVersionId?: string | null;
   privacyPolicyVersion?: string | null;
+  privacyPolicyVersionId?: string | null;
   cancellationRightVersion?: string | null;
+  withdrawalVersionId?: string | null;
   powerOfAttorneyVersion?: string | null;
+  powerOfAttorneyVersionId?: string | null;
   powerOfAttorneyRequired?: boolean | null;
   priceTermsVersion?: string | null;
+  priceTermsVersionId?: string | null;
 };
 
 type UTMParams = {
@@ -167,11 +172,16 @@ function optionAsOpsContract(contract: SignupContractOption) {
     start_info: contract.startInfo ?? null,
     customer_types: contract.customerTypes ?? null,
     terms_version: contract.termsVersion ?? null,
+    terms_version_id: contract.termsVersionId ?? null,
     privacy_policy_version: contract.privacyPolicyVersion ?? null,
+    privacy_policy_version_id: contract.privacyPolicyVersionId ?? null,
     cancellation_right_version: contract.cancellationRightVersion ?? null,
+    withdrawal_version_id: contract.withdrawalVersionId ?? null,
     power_of_attorney_version: contract.powerOfAttorneyVersion ?? null,
+    power_of_attorney_version_id: contract.powerOfAttorneyVersionId ?? null,
     power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
     price_terms_version: contract.priceTermsVersion ?? null,
+    price_terms_version_id: contract.priceTermsVersionId ?? null,
   };
 }
 

@@ -24,6 +24,7 @@ export type PublicContractDisplay = {
     privacyPolicy: string | null
     cancellationRight: string | null
     powerOfAttorney: string | null
+    powerOfAttorneyVersionId: string | null
     powerOfAttorneyRequired: boolean
     priceTerms: string | null
   }
@@ -221,6 +222,9 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
     blockedReasons.push('fullmaktsversion saknas')
   }
+  if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version_id) {
+    blockedReasons.push('fullmaktens juridiska ID saknas')
+  }
   requirePublicPricingForType(blockedReasons, contract)
 
   const now = Date.now()
@@ -278,6 +282,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     withdrawal: contract.withdrawal_version ?? contract.cancellation_right_version ?? null,
     cancellation_right: contract.cancellation_right_version ?? contract.withdrawal_version ?? null,
     power_of_attorney: contract.power_of_attorney_version ?? null,
+    power_of_attorney_version_id: contract.power_of_attorney_version_id ?? null,
     power_of_attorney_required: contract.power_of_attorney_required === true,
     price_terms: contract.price_terms_version ?? null,
   }
@@ -319,6 +324,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
       privacyPolicy: legalVersions.privacy_policy,
       cancellationRight: legalVersions.cancellation_right,
       powerOfAttorney: legalVersions.power_of_attorney,
+      powerOfAttorneyVersionId: legalVersions.power_of_attorney_version_id,
       powerOfAttorneyRequired: legalVersions.power_of_attorney_required,
       priceTerms: legalVersions.price_terms,
     },

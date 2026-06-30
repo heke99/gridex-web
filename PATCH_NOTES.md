@@ -1,22 +1,32 @@
-# Gridex Web – production signup hotfix
+# Gridex Web POA legal version ID fix
 
-This patch removes the short-lived quote/snapshot blockers from the public electricity signup flow and cleans up customer-facing copy.
+This patch fixes the website signup payload so `powerOfAttorney.textVersionId` is the OPS `legal_text_versions.id` UUID from `public-contracts.legal.power_of_attorney_version_id`, not the display/version label such as `2026-06-12-v1`.
 
-## What changed
+## Fixed
 
-- Signup no longer blocks customers because a website `pricing_quote_token` expired or changed.
-- Server submit no longer calls `validateWebsitePricingQuote` or `validatePricingPreviewSnapshot` before sending the customer application.
-- Website price preview may still attach a non-blocking audit token when configured, but missing/expired quote tokens do not block signup.
-- Price preview snapshot is sent to OPS as audit data; the binding commercial reference remains `offer_reference` from OPS public contracts.
-- Contract display snapshot validation remains limited to public offer/legal identifiers, not brittle full-object equality.
-- Public customer copy no longer exposes internal words such as OPS-publication, public-contracts, legal publication field, or price signing.
-- The customer form no longer posts `pricing_quote_token` / `pricing_quote_source` hidden fields.
-- Local portal onboarding remains non-blocking after a successful OPS application.
-- Legacy price routes now point customers to `/elavtal` without mentioning internal API names.
-- Regression tests now lock the desired behavior: no expiring quote blocker, no brittle price snapshot blocker, and customer-safe copy.
+- Normalizes legal version UUID fields from `/api/v1/website/public-contracts`:
+  - `terms_version_id`
+  - `privacy_policy_version_id`
+  - `withdrawal_version_id`
+  - `power_of_attorney_version_id`
+  - `price_terms_version_id`
+- Carries the legal version UUID fields through signup contract options and the signup client display model.
+- Sends `powerOfAttorney.textVersionId = offer.power_of_attorney_version_id` in `app/(public)/teckna-avtal/page.tsx`.
+- Blocks signup with a customer-safe message if a POA-required offer does not expose a valid legal UUID.
+- Keeps the readable `power_of_attorney_version` only as display/version label, never as `textVersionId`.
+- Broadens the safe idempotency retry to include `idempotent_application_missing_poa`.
+- Updates tests and docs so the mistake does not come back.
 
-## Verification run
+## Why
 
-- `npm run test:launch` passed.
-- `npm run lint` passed with 0 errors and 9 existing warnings outside this patch.
-- `npm run build` compiled successfully and TypeScript passed. The sandbox timed out during static page generation at 120/160 pages, after compile and TS were complete.
+OPS expects `powerOfAttorney.textVersionId` to be a UUID. Sending a label like `2026-06-12-v1` causes OPS to fail with `22P02 invalid input syntax for type uuid` in the `power_of_attorney` stage.
+
+## Verification run in sandbox
+
+```txt
+node --experimental-strip-types tests/public-contract-contract.test.mjs ✅
+node tests/launch-readiness.test.mjs ✅
+node tests/signup-pricing-regression.test.mjs ✅
+```
+
+`npm run build` was not run in the sandbox because the uploaded zip does not contain `node_modules`.

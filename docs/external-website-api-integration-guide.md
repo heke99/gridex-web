@@ -58,7 +58,9 @@ Stable public fields:
     "withdrawal_version": "2026-06",
     "power_of_attorney_required": true,
     "power_of_attorney_version": "2026-06-poa",
-    "price_terms_version": "2026-06"
+    "power_of_attorney_version_id": "uuid-from-legal_text_versions",
+    "price_terms_version": "2026-06",
+    "price_terms_version_id": "uuid-from-legal_text_versions"
   },
   "valid_from": "2026-06-01T00:00:00Z",
   "valid_to": null
@@ -67,7 +69,7 @@ Stable public fields:
 
 `offer_reference` is the only contract reference that the website may use for price calculation, selection and application. OPS resolves the current internal contract, price plan and price version from that reference.
 
-When `legal.power_of_attorney_required=true`, OPS must also return `legal.power_of_attorney_version` (or the equivalent camelCase/alias field). The website blocks sale instead of sending a signed `powerOfAttorney.textVersionId=null`, because the signed operational fullmakt must be traceable to the published legal text version.
+When `legal.power_of_attorney_required=true`, OPS must also return `legal.power_of_attorney_version_id` (or the equivalent camelCase/alias field). `powerOfAttorney.textVersionId` must be that UUID from `legal_text_versions.id`; never send the display/version label such as `2026-06-12-v1`. The website blocks sale instead of sending a signed `powerOfAttorney.textVersionId=null`, because the signed operational fullmakt must be traceable to the published legal text version.
 
 ## Official website/customer endpoints
 
@@ -200,7 +202,7 @@ When the selected offer requires a power of attorney, the application must also 
     "signerIdentityNumber": "YYYYMMDDXXXX",
     "method": "website_acceptance",
     "acceptedAt": "2026-06-26T09:00:00.000Z",
-    "textVersionId": "2026-06",
+    "textVersionId": "uuid-from-legal.power_of_attorney_version_id",
     "ipAddress": "203.0.113.10",
     "userAgent": "Mozilla/5.0 …"
   }
