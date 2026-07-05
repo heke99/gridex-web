@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
-import { fetchOpsTenantEvents, isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
+import { isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 function metadata(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -14,18 +17,12 @@ function text(value: unknown, max = 160): string | null {
   return trimmed || null
 }
 
-
-export async function GET(request: Request) {
-  try {
-    const events = await fetchOpsTenantEvents(new URL(request.url).searchParams)
-    return NextResponse.json({ data: events })
-  } catch (error) {
-    console.error('[customer portal] tenant events GET route failed', error)
-    return NextResponse.json(
-      { error: 'Händelser kunde inte hämtas just nu.' },
-      { status: 503 },
-    )
-  }
+export async function GET() {
+  // The official tenant-events reader is OPS at app.gridex.se/api/v1/events
+  // and requires an OPS API key with events.read. Do not proxy it through the
+  // public website, because that would expose the website server-side key and
+  // tenant event stream behind an unauthenticated gridex.se route.
+  return NextResponse.json({ error: 'Not found.' }, { status: 404 })
 }
 
 export async function POST(request: Request) {

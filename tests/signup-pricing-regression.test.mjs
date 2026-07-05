@@ -355,11 +355,15 @@ assert.ok(
 const eventsRoute = read("app/api/v1/events/route.ts");
 assert.ok(
   eventsRoute.includes("export async function GET"),
-  "events route must expose documented tenant event reads",
+  "events route must handle GET explicitly",
 );
 assert.ok(
-  eventsRoute.includes("fetchOpsTenantEvents"),
-  "events GET must proxy OPS tenant events",
+  !eventsRoute.includes("fetchOpsTenantEvents"),
+  "website must not proxy OPS tenant events through a public unauthenticated route",
+);
+assert.ok(
+  eventsRoute.includes("status: 404"),
+  "website GET /api/v1/events must not expose tenant events from the OPS server key",
 );
 
 const docs = read("docs/external-website-api-integration-guide.md");
@@ -378,6 +382,10 @@ assert.ok(
 assert.ok(
   docs.includes("customer_facility_data.write"),
   "API guide must include granular facility scope",
+);
+assert.ok(
+  docs.includes("gridex.se/api/v1/events does not proxy tenant event reads"),
+  "API guide must document that tenant event reads stay on OPS, not the public website",
 );
 assert.ok(
   docs.includes("must never silently convert missing markup"),

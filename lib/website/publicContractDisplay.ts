@@ -21,12 +21,21 @@ export type PublicContractDisplay = {
   excluded: string[]
   legalVersions: {
     terms: string | null
+    termsVersionId: string | null
+    termsUrl: string | null
     privacyPolicy: string | null
+    privacyPolicyVersionId: string | null
+    privacyPolicyUrl: string | null
     cancellationRight: string | null
+    withdrawalVersionId: string | null
+    withdrawalUrl: string | null
     powerOfAttorney: string | null
     powerOfAttorneyVersionId: string | null
+    powerOfAttorneyUrl: string | null
     powerOfAttorneyRequired: boolean
     priceTerms: string | null
+    priceTermsVersionId: string | null
+    priceTermsUrl: string | null
   }
   snapshot: Record<string, unknown>
 }
@@ -216,9 +225,13 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
   if (!contract.terms_version) blockedReasons.push('allmänna villkor saknas')
+  if (!contract.terms_version_id) blockedReasons.push('allmänna villkors juridiska ID saknas')
   if (!contract.privacy_policy_version) blockedReasons.push('integritetspolicy saknas')
+  if (!contract.privacy_policy_version_id) blockedReasons.push('integritetspolicyns juridiska ID saknas')
   if (!contract.cancellation_right_version && !contract.withdrawal_version) blockedReasons.push('ångerrätt saknas')
+  if (!contract.withdrawal_version_id) blockedReasons.push('ångerrättens juridiska ID saknas')
   if (!contract.price_terms_version) blockedReasons.push('prisvillkor saknas')
+  if (!contract.price_terms_version_id) blockedReasons.push('prisvillkorens juridiska ID saknas')
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
     blockedReasons.push('fullmaktsversion saknas')
   }
@@ -278,13 +291,22 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   const excluded = stringList(contract.excluded, ['Elnätsavgift', 'Eventuell effektavgift', 'Avgifter från nätägaren'])
   const legalVersions = {
     terms: contract.terms_version ?? null,
+    terms_version_id: contract.terms_version_id ?? null,
+    terms_url: contract.terms_url ?? null,
     privacy_policy: contract.privacy_policy_version ?? null,
+    privacy_policy_version_id: contract.privacy_policy_version_id ?? null,
+    privacy_policy_url: contract.privacy_policy_url ?? null,
     withdrawal: contract.withdrawal_version ?? contract.cancellation_right_version ?? null,
+    withdrawal_version_id: contract.withdrawal_version_id ?? null,
+    withdrawal_url: contract.withdrawal_url ?? null,
     cancellation_right: contract.cancellation_right_version ?? contract.withdrawal_version ?? null,
     power_of_attorney: contract.power_of_attorney_version ?? null,
     power_of_attorney_version_id: contract.power_of_attorney_version_id ?? null,
+    power_of_attorney_url: contract.power_of_attorney_url ?? null,
     power_of_attorney_required: contract.power_of_attorney_required === true,
     price_terms: contract.price_terms_version ?? null,
+    price_terms_version_id: contract.price_terms_version_id ?? null,
+    price_terms_url: contract.price_terms_url ?? null,
   }
 
   const snapshot = {
@@ -321,12 +343,21 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     excluded,
     legalVersions: {
       terms: legalVersions.terms,
+      termsVersionId: legalVersions.terms_version_id,
+      termsUrl: legalVersions.terms_url,
       privacyPolicy: legalVersions.privacy_policy,
+      privacyPolicyVersionId: legalVersions.privacy_policy_version_id,
+      privacyPolicyUrl: legalVersions.privacy_policy_url,
       cancellationRight: legalVersions.cancellation_right,
+      withdrawalVersionId: legalVersions.withdrawal_version_id,
+      withdrawalUrl: legalVersions.withdrawal_url,
       powerOfAttorney: legalVersions.power_of_attorney,
       powerOfAttorneyVersionId: legalVersions.power_of_attorney_version_id,
+      powerOfAttorneyUrl: legalVersions.power_of_attorney_url,
       powerOfAttorneyRequired: legalVersions.power_of_attorney_required,
       priceTerms: legalVersions.price_terms,
+      priceTermsVersionId: legalVersions.price_terms_version_id,
+      priceTermsUrl: legalVersions.price_terms_url,
     },
     snapshot,
   }

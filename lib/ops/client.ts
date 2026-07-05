@@ -50,16 +50,21 @@ export type OpsPublicContract = {
   customer_types?: string[] | null;
   terms_version?: string | null;
   terms_version_id?: string | null;
+  terms_url?: string | null;
   privacy_policy_version?: string | null;
   privacy_policy_version_id?: string | null;
+  privacy_policy_url?: string | null;
   cancellation_right_version?: string | null;
   withdrawal_version?: string | null;
   withdrawal_version_id?: string | null;
+  withdrawal_url?: string | null;
   power_of_attorney_version?: string | null;
   power_of_attorney_version_id?: string | null;
+  power_of_attorney_url?: string | null;
   power_of_attorney_required?: boolean | null;
   price_terms_version?: string | null;
   price_terms_version_id?: string | null;
+  price_terms_url?: string | null;
   is_public?: boolean | null;
   is_active?: boolean | null;
   sort_order?: number | null;
@@ -693,12 +698,17 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
       badge_text: pickString(r, ["badge_text", "badgeText"]),
       terms_version_id: documented.terms_version_id,
+      terms_url: documented.terms_url,
       privacy_policy_version_id: documented.privacy_policy_version_id,
+      privacy_policy_url: documented.privacy_policy_url,
       cancellation_right_version: documented.withdrawal_version,
       withdrawal_version_id: documented.withdrawal_version_id,
+      withdrawal_url: documented.withdrawal_url,
       power_of_attorney_version: documented.power_of_attorney_version,
       power_of_attorney_version_id: documented.power_of_attorney_version_id,
+      power_of_attorney_url: documented.power_of_attorney_url,
       price_terms_version_id: documented.price_terms_version_id,
+      price_terms_url: documented.price_terms_url,
       is_public: null,
       is_active: null,
       sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
@@ -833,6 +843,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     customer_types: customerTypes,
     terms_version: pickFromRecords([legal, r], ["terms_version", "termsVersion"]),
     terms_version_id: pickFromRecords([legal, r], ["terms_version_id", "termsVersionId"]),
+    terms_url: pickFromRecords([legal, r], ["terms_url", "termsUrl"]),
     privacy_policy_version: pickFromRecords([legal, r], [
       "privacy_policy_version",
       "privacyPolicyVersion",
@@ -841,6 +852,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "privacy_policy_version_id",
       "privacyPolicyVersionId",
     ]),
+    privacy_policy_url: pickFromRecords([legal, r], ["privacy_policy_url", "privacyPolicyUrl"]),
     cancellation_right_version: withdrawalVersion,
     withdrawal_version: withdrawalVersion,
     withdrawal_version_id: pickFromRecords([legal, r], [
@@ -848,6 +860,12 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "withdrawalVersionId",
       "cancellation_right_version_id",
       "cancellationRightVersionId",
+    ]),
+    withdrawal_url: pickFromRecords([legal, r], [
+      "withdrawal_url",
+      "withdrawalUrl",
+      "cancellation_right_url",
+      "cancellationRightUrl",
     ]),
     power_of_attorney_version: pickFromRecords([legal, r], [
       "power_of_attorney_version",
@@ -869,6 +887,14 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "poa_version_id",
       "poaVersionId",
     ]),
+    power_of_attorney_url: pickFromRecords([legal, r], [
+      "power_of_attorney_url",
+      "powerOfAttorneyUrl",
+      "power_of_attorney_text_url",
+      "powerOfAttorneyTextUrl",
+      "poa_url",
+      "poaUrl",
+    ]),
     power_of_attorney_required: pickBooleanFromRecords([legal, r], [
       "power_of_attorney_required",
       "powerOfAttorneyRequired",
@@ -883,6 +909,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       "price_terms_version_id",
       "priceTermsVersionId",
     ]),
+    price_terms_url: pickFromRecords([legal, r], ["price_terms_url", "priceTermsUrl"]),
     is_public: isPublic,
     is_active: isActive,
     sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
@@ -1725,30 +1752,12 @@ export type OpsCustomerWriteResult = {
 };
 
 export type OpsCustomerEventType =
-  | "customer.opened_contract"
-  | "customer.downloaded_contract"
-  | "customer.opened_invoice"
-  | "customer.downloaded_invoice"
   | "customer.opened_document"
-  | "customer.downloaded_document"
-  | "customer.updated_contact_details"
-  | "customer.accepted_power_of_attorney"
-  | "customer.completed_facility_data"
-  | "customer.viewed_switch_status"
-  | "customer.password_reset_completed";
+  | "customer.downloaded_document";
 
 export const OPS_CUSTOMER_EVENT_TYPES = new Set<string>([
-  "customer.opened_contract",
-  "customer.downloaded_contract",
-  "customer.opened_invoice",
-  "customer.downloaded_invoice",
   "customer.opened_document",
   "customer.downloaded_document",
-  "customer.updated_contact_details",
-  "customer.accepted_power_of_attorney",
-  "customer.completed_facility_data",
-  "customer.viewed_switch_status",
-  "customer.password_reset_completed",
 ]);
 
 export function isOpsCustomerEventType(value: string): value is OpsCustomerEventType {

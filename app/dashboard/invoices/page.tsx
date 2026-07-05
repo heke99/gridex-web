@@ -97,7 +97,7 @@ export default async function DashboardInvoicesPage() {
                   href={invoice.pdf_url}
                   target="_blank"
                   rel="noreferrer"
-                  eventType="customer.opened_invoice"
+                  eventType="customer.opened_document"
                   entityType="invoice"
                   entityId={invoice.id}
                   className="mt-5 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5"

@@ -61,15 +61,20 @@ function optionAsOpsContract(contract: SignupContractOption) {
     customer_types: contract.customerTypes ?? null,
     terms_version: contract.termsVersion ?? null,
     terms_version_id: contract.termsVersionId ?? null,
+    terms_url: contract.termsUrl ?? null,
     privacy_policy_version: contract.privacyPolicyVersion ?? null,
     privacy_policy_version_id: contract.privacyPolicyVersionId ?? null,
+    privacy_policy_url: contract.privacyPolicyUrl ?? null,
     cancellation_right_version: contract.cancellationRightVersion ?? null,
     withdrawal_version_id: contract.withdrawalVersionId ?? null,
+    withdrawal_url: contract.withdrawalUrl ?? null,
     power_of_attorney_version: contract.powerOfAttorneyVersion ?? null,
     power_of_attorney_version_id: contract.powerOfAttorneyVersionId ?? null,
+    power_of_attorney_url: contract.powerOfAttorneyUrl ?? null,
     power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
     price_terms_version: contract.priceTermsVersion ?? null,
     price_terms_version_id: contract.priceTermsVersionId ?? null,
+    price_terms_url: contract.priceTermsUrl ?? null,
   };
 }
 

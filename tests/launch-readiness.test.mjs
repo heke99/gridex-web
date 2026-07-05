@@ -376,6 +376,26 @@ assertIncludes(
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
+  "hasRequiredLegalVersionIds",
+  "signup must block applications when required legal UUIDs are missing",
+);
+assertIncludes(
+  "components/signup/CustomerApplicationForm.tsx",
+  `termsHref = legalLinks?.termsUrl ?? "/allmanna-villkor"`,
+  "signup must use OPS legal document URLs with local fallback",
+);
+assertIncludes(
+  "lib/website/publicContractDisplay.ts",
+  "terms_version_id: contract.terms_version_id",
+  "contract snapshot must include terms legal UUID",
+);
+assertIncludes(
+  "lib/website/publicContractDisplay.ts",
+  "price_terms_url: contract.price_terms_url",
+  "contract snapshot must include OPS price terms URL",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
   "nextActionMessage",
   "signup thank-you redirect must preserve customer-safe nextAction message",
 );

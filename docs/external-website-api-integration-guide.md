@@ -54,13 +54,21 @@ Stable public fields:
   },
   "legal": {
     "terms_version": "2026-06",
+    "terms_version_id": "uuid-from-legal_text_versions",
+    "terms_url": "https://app.gridex.se/legal/.../terms/uuid-from-legal_text_versions",
     "privacy_policy_version": "2026-06",
+    "privacy_policy_version_id": "uuid-from-legal_text_versions",
+    "privacy_policy_url": "https://app.gridex.se/legal/.../privacy/uuid-from-legal_text_versions",
     "withdrawal_version": "2026-06",
+    "withdrawal_version_id": "uuid-from-legal_text_versions",
+    "withdrawal_url": "https://app.gridex.se/legal/.../withdrawal/uuid-from-legal_text_versions",
     "power_of_attorney_required": true,
     "power_of_attorney_version": "2026-06-poa",
     "power_of_attorney_version_id": "uuid-from-legal_text_versions",
+    "power_of_attorney_url": "https://app.gridex.se/legal/.../power-of-attorney/uuid-from-legal_text_versions",
     "price_terms_version": "2026-06",
-    "price_terms_version_id": "uuid-from-legal_text_versions"
+    "price_terms_version_id": "uuid-from-legal_text_versions",
+    "price_terms_url": "https://app.gridex.se/legal/.../price-terms/uuid-from-legal_text_versions"
   },
   "valid_from": "2026-06-01T00:00:00Z",
   "valid_to": null
@@ -69,7 +77,7 @@ Stable public fields:
 
 `offer_reference` is the only contract reference that the website may use for price calculation, selection and application. OPS resolves the current internal contract, price plan and price version from that reference.
 
-When `legal.power_of_attorney_required=true`, OPS must also return `legal.power_of_attorney_version_id` (or the equivalent camelCase/alias field). `powerOfAttorney.textVersionId` must be that UUID from `legal_text_versions.id`; never send the display/version label such as `2026-06-12-v1`. The website blocks sale instead of sending a signed `powerOfAttorney.textVersionId=null`, because the signed operational fullmakt must be traceable to the published legal text version.
+The legal object is the source of truth for both what the customer must accept and where the customer reads the text. The website should link to the OPS `*_url` values when present, keep local legal pages only as fallbacks, and include all `*_version_id` values in the contract snapshot. When `legal.power_of_attorney_required=true`, OPS must return `legal.power_of_attorney_version_id` (or the equivalent camelCase/alias field). `powerOfAttorney.textVersionId` must be that UUID from `legal_text_versions.id`; never send the display/version label such as `2026-06-12-v1`. The website blocks sale instead of sending a signed `powerOfAttorney.textVersionId=null`, because the signed operational fullmakt must be traceable to the published legal text version.
 
 ## Official website/customer endpoints
 
@@ -100,7 +108,7 @@ The current website integration uses these official server-to-server endpoints:
 | `POST` | `/api/v1/customer/move-out`             | `customer_portal.write`      | Submit move-out report.                                           |
 | `GET`  | `/api/v1/events`                        | `events.read`                | Read tenant domain events.                                        |
 
-Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key. The live OPS developer contract does not expose `POST /api/v1/website/pricing/preview`, `POST /api/v1/website/pricing/quote/validate`, `POST /api/v1/website/energy/resolve`, `GET /api/v1/website/legal-texts/current`, `GET /api/v1/website/price-plans` or `GET /api/v1/customer/switch-status` as official tenant endpoints. When this repository has routes with those paths, they are website-local wrapper routes only.
+Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key. The live OPS developer contract does not expose `POST /api/v1/website/pricing/preview`, `POST /api/v1/website/pricing/quote/validate`, `POST /api/v1/website/energy/resolve`, `GET /api/v1/website/legal-texts/current`, `GET /api/v1/website/price-plans` or `GET /api/v1/customer/switch-status` as official tenant endpoints. When this repository has routes with those paths, they are website-local wrapper routes only. `app.gridex.se/api/v1/events` is the official authenticated tenant-event reader; `gridex.se/api/v1/events` does not proxy tenant event reads and must not expose tenant events from the website server key. In plain terms: gridex.se/api/v1/events does not proxy tenant event reads.
 
 ## Website-local price preview and quote validation
 
@@ -304,29 +312,22 @@ Customer portal actions are sent with an allowlisted event type and an `Idempote
 Allowed inbound website customer event types:
 
 ```text
-customer.opened_contract
-customer.downloaded_contract
-customer.opened_invoice
-customer.downloaded_invoice
 customer.opened_document
 customer.downloaded_document
-customer.updated_contact_details
-customer.accepted_power_of_attorney
-customer.completed_facility_data
-customer.viewed_switch_status
-customer.password_reset_completed
 ```
+
+Keep extra customer action events disabled in the website until they are listed as active/built in OPS and the production developer contract. Otherwise the website may accept events that OPS rejects.
 
 Payload:
 
 ```json
 {
-  "event_type": "customer.opened_invoice",
+  "event_type": "customer.opened_document",
   "source": "gridex_website",
-  "entity_type": "invoice",
-  "entity_id": "invoice-id",
+  "entity_type": "document",
+  "entity_id": "document-id",
   "idempotency_key": "customer-event-unique-key",
-  "metadata": { "page": "/dashboard/invoices" }
+  "metadata": { "page": "/dashboard/documents" }
 }
 ```
 

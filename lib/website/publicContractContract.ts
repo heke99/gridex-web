@@ -21,15 +21,20 @@ export type PublicContractApiShape = {
   valid_to: string | null
   terms_version: string | null
   terms_version_id: string | null
+  terms_url: string | null
   privacy_policy_version: string | null
   privacy_policy_version_id: string | null
+  privacy_policy_url: string | null
   withdrawal_version: string | null
   withdrawal_version_id: string | null
+  withdrawal_url: string | null
   power_of_attorney_required: boolean | null
   power_of_attorney_version: string | null
   power_of_attorney_version_id: string | null
+  power_of_attorney_url: string | null
   price_terms_version: string | null
   price_terms_version_id: string | null
+  price_terms_url: string | null
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -125,12 +130,16 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     valid_to: text(row.valid_to ?? row.validTo),
     terms_version: text(legal.terms_version ?? legal.termsVersion ?? row.terms_version),
     terms_version_id: text(legal.terms_version_id ?? legal.termsVersionId ?? row.terms_version_id ?? row.termsVersionId),
+    terms_url: text(legal.terms_url ?? legal.termsUrl ?? row.terms_url ?? row.termsUrl),
     privacy_policy_version: text(legal.privacy_policy_version ?? legal.privacyPolicyVersion ?? row.privacy_policy_version),
     privacy_policy_version_id: text(
       legal.privacy_policy_version_id ??
         legal.privacyPolicyVersionId ??
         row.privacy_policy_version_id ??
         row.privacyPolicyVersionId,
+    ),
+    privacy_policy_url: text(
+      legal.privacy_policy_url ?? legal.privacyPolicyUrl ?? row.privacy_policy_url ?? row.privacyPolicyUrl,
     ),
     withdrawal_version: text(
       legal.withdrawal_version ?? legal.withdrawalVersion ?? legal.cancellation_right_version ?? row.withdrawal_version,
@@ -144,6 +153,16 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
         row.withdrawalVersionId ??
         row.cancellation_right_version_id ??
         row.cancellationRightVersionId,
+    ),
+    withdrawal_url: text(
+      legal.withdrawal_url ??
+        legal.withdrawalUrl ??
+        legal.cancellation_right_url ??
+        legal.cancellationRightUrl ??
+        row.withdrawal_url ??
+        row.withdrawalUrl ??
+        row.cancellation_right_url ??
+        row.cancellationRightUrl,
     ),
     power_of_attorney_required: boolean(
       legal.power_of_attorney_required ?? legal.powerOfAttorneyRequired ?? row.power_of_attorney_required,
@@ -184,9 +203,24 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
         row.poa_version_id ??
         row.poaVersionId,
     ),
+    power_of_attorney_url: text(
+      legal.power_of_attorney_url ??
+        legal.powerOfAttorneyUrl ??
+        legal.power_of_attorney_text_url ??
+        legal.powerOfAttorneyTextUrl ??
+        legal.poa_url ??
+        legal.poaUrl ??
+        row.power_of_attorney_url ??
+        row.powerOfAttorneyUrl ??
+        row.power_of_attorney_text_url ??
+        row.powerOfAttorneyTextUrl ??
+        row.poa_url ??
+        row.poaUrl,
+    ),
     price_terms_version: text(legal.price_terms_version ?? legal.priceTermsVersion ?? row.price_terms_version),
     price_terms_version_id: text(
       legal.price_terms_version_id ?? legal.priceTermsVersionId ?? row.price_terms_version_id ?? row.priceTermsVersionId,
     ),
+    price_terms_url: text(legal.price_terms_url ?? legal.priceTermsUrl ?? row.price_terms_url ?? row.priceTermsUrl),
   }
 }

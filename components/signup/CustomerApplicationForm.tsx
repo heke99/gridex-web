@@ -53,15 +53,20 @@ export type SignupContractOption = {
   customerTypes?: string[] | null;
   termsVersion?: string | null;
   termsVersionId?: string | null;
+  termsUrl?: string | null;
   privacyPolicyVersion?: string | null;
   privacyPolicyVersionId?: string | null;
+  privacyPolicyUrl?: string | null;
   cancellationRightVersion?: string | null;
   withdrawalVersionId?: string | null;
+  withdrawalUrl?: string | null;
   powerOfAttorneyVersion?: string | null;
   powerOfAttorneyVersionId?: string | null;
+  powerOfAttorneyUrl?: string | null;
   powerOfAttorneyRequired?: boolean | null;
   priceTermsVersion?: string | null;
   priceTermsVersionId?: string | null;
+  priceTermsUrl?: string | null;
 };
 
 type UTMParams = {
@@ -173,15 +178,20 @@ function optionAsOpsContract(contract: SignupContractOption) {
     customer_types: contract.customerTypes ?? null,
     terms_version: contract.termsVersion ?? null,
     terms_version_id: contract.termsVersionId ?? null,
+    terms_url: contract.termsUrl ?? null,
     privacy_policy_version: contract.privacyPolicyVersion ?? null,
     privacy_policy_version_id: contract.privacyPolicyVersionId ?? null,
+    privacy_policy_url: contract.privacyPolicyUrl ?? null,
     cancellation_right_version: contract.cancellationRightVersion ?? null,
     withdrawal_version_id: contract.withdrawalVersionId ?? null,
+    withdrawal_url: contract.withdrawalUrl ?? null,
     power_of_attorney_version: contract.powerOfAttorneyVersion ?? null,
     power_of_attorney_version_id: contract.powerOfAttorneyVersionId ?? null,
+    power_of_attorney_url: contract.powerOfAttorneyUrl ?? null,
     power_of_attorney_required: contract.powerOfAttorneyRequired ?? false,
     price_terms_version: contract.priceTermsVersion ?? null,
     price_terms_version_id: contract.priceTermsVersionId ?? null,
+    price_terms_url: contract.priceTermsUrl ?? null,
   };
 }
 
@@ -368,6 +378,12 @@ export default function CustomerApplicationForm({
   const activeDisplay = contractDisplay ?? fallbackDisplay;
   const powerOfAttorneyRequired =
     activeDisplay?.legalVersions.powerOfAttorneyRequired === true;
+  const legalLinks = activeDisplay?.legalVersions;
+  const termsHref = legalLinks?.termsUrl ?? "/allmanna-villkor";
+  const priceTermsHref = legalLinks?.priceTermsUrl ?? "/prisvillkor";
+  const withdrawalHref = legalLinks?.withdrawalUrl ?? "/angerratt";
+  const privacyHref = legalLinks?.privacyPolicyUrl ?? "/integritetspolicy";
+  const powerOfAttorneyHref = legalLinks?.powerOfAttorneyUrl ?? "/fullmakt";
   const hasPricingPreview = previewMatchesContract(
     pricingPreview,
     selectedContract,
@@ -1054,7 +1070,7 @@ export default function CustomerApplicationForm({
               >
                 Jag godkänner Gridex{" "}
                 <Link
-                  href="/allmanna-villkor"
+                  href={termsHref}
                   className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                   target="_blank"
                 >
@@ -1070,7 +1086,7 @@ export default function CustomerApplicationForm({
               >
                 Jag godkänner{" "}
                 <Link
-                  href="/prisvillkor"
+                  href={priceTermsHref}
                   className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                   target="_blank"
                 >
@@ -1086,7 +1102,7 @@ export default function CustomerApplicationForm({
               >
                 Jag har tagit del av informationen om{" "}
                 <Link
-                  href="/angerratt"
+                  href={withdrawalHref}
                   className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                   target="_blank"
                 >
@@ -1102,7 +1118,7 @@ export default function CustomerApplicationForm({
               >
                 Jag har tagit del av hur Gridex behandlar mina personuppgifter i{" "}
                 <Link
-                  href="/integritetspolicy"
+                  href={privacyHref}
                   className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                   target="_blank"
                 >
@@ -1119,7 +1135,7 @@ export default function CustomerApplicationForm({
                 >
                   Jag godkänner{" "}
                   <Link
-                    href="/fullmakt"
+                    href={powerOfAttorneyHref}
                     className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                     target="_blank"
                   >

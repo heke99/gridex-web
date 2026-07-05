@@ -73,16 +73,37 @@ export function validateContractDisplaySnapshot(
   if (submittedTerms && contract.terms_version && submittedTerms !== contract.terms_version) {
     reasons.push('allmänna villkor har ändrats')
   }
+  const submittedTermsId = stringValue(legal.terms_version_id)
+  if (submittedTermsId && contract.terms_version_id && submittedTermsId !== contract.terms_version_id) {
+    reasons.push('allmänna villkors juridiska ID har ändrats')
+  }
 
   const submittedPrivacy = stringValue(legal.privacy_policy)
   if (submittedPrivacy && contract.privacy_policy_version && submittedPrivacy !== contract.privacy_policy_version) {
     reasons.push('integritetspolicy har ändrats')
+  }
+  const submittedPrivacyId = stringValue(legal.privacy_policy_version_id)
+  if (
+    submittedPrivacyId &&
+    contract.privacy_policy_version_id &&
+    submittedPrivacyId !== contract.privacy_policy_version_id
+  ) {
+    reasons.push('integritetspolicyns juridiska ID har ändrats')
   }
 
   const submittedWithdrawal = stringValue(legal.withdrawal) ?? stringValue(legal.cancellation_right)
   const currentWithdrawal = contract.withdrawal_version ?? contract.cancellation_right_version ?? null
   if (submittedWithdrawal && currentWithdrawal && submittedWithdrawal !== currentWithdrawal) {
     reasons.push('ångerrättsversion har ändrats')
+  }
+  const submittedWithdrawalId = stringValue(legal.withdrawal_version_id)
+  if (submittedWithdrawalId && contract.withdrawal_version_id && submittedWithdrawalId !== contract.withdrawal_version_id) {
+    reasons.push('ångerrättens juridiska ID har ändrats')
+  }
+
+  const submittedPriceTermsId = stringValue(legal.price_terms_version_id)
+  if (submittedPriceTermsId && contract.price_terms_version_id && submittedPriceTermsId !== contract.price_terms_version_id) {
+    reasons.push('prisvillkorens juridiska ID har ändrats')
   }
 
   const submittedPowerOfAttorney = stringValue(legal.power_of_attorney)
@@ -93,6 +114,15 @@ export function validateContractDisplaySnapshot(
     submittedPowerOfAttorney !== contract.power_of_attorney_version
   ) {
     reasons.push('fullmaktsversion har ändrats')
+  }
+  const submittedPowerOfAttorneyId = stringValue(legal.power_of_attorney_version_id)
+  if (
+    contract.power_of_attorney_required === true &&
+    submittedPowerOfAttorneyId &&
+    contract.power_of_attorney_version_id &&
+    submittedPowerOfAttorneyId !== contract.power_of_attorney_version_id
+  ) {
+    reasons.push('fullmaktens juridiska ID har ändrats')
   }
 
   return result(reasons)

@@ -94,15 +94,20 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     customerTypes: item.customer_types ?? null,
     termsVersion: item.terms_version ?? null,
     termsVersionId: item.terms_version_id ?? null,
+    termsUrl: item.terms_url ?? null,
     privacyPolicyVersion: item.privacy_policy_version ?? null,
     privacyPolicyVersionId: item.privacy_policy_version_id ?? null,
+    privacyPolicyUrl: item.privacy_policy_url ?? null,
     cancellationRightVersion: item.cancellation_right_version ?? null,
     withdrawalVersionId: item.withdrawal_version_id ?? null,
+    withdrawalUrl: item.withdrawal_url ?? null,
     powerOfAttorneyVersion: item.power_of_attorney_version ?? null,
     powerOfAttorneyVersionId: item.power_of_attorney_version_id ?? null,
+    powerOfAttorneyUrl: item.power_of_attorney_url ?? null,
     powerOfAttorneyRequired: item.power_of_attorney_required ?? false,
     priceTermsVersion: item.price_terms_version ?? null,
     priceTermsVersionId: item.price_terms_version_id ?? null,
+    priceTermsUrl: item.price_terms_url ?? null,
   };
 }
 
@@ -116,6 +121,17 @@ function selectedContractFromParams(
     contracts.find((contract) => contract.offer_reference === offerReference) ??
     null
   );
+}
+
+function hasRequiredLegalVersionIds(offer: OpsPublicContract): boolean {
+  if (!isUuid(offer.terms_version_id ?? null)) return false;
+  if (!isUuid(offer.privacy_policy_version_id ?? null)) return false;
+  if (!isUuid(offer.withdrawal_version_id ?? null)) return false;
+  if (!isUuid(offer.price_terms_version_id ?? null)) return false;
+  if (offer.power_of_attorney_required === true && !isUuid(offer.power_of_attorney_version_id ?? null)) {
+    return false;
+  }
+  return true;
 }
 
 function errorText(code?: string) {
@@ -586,10 +602,14 @@ export default async function TecknaPage({
       return fail("consent");
     }
 
-    if (powerOfAttorneyRequired && !isUuid(powerOfAttorneyTextVersionId)) {
-      console.error("[website signup] selected offer requires power of attorney but does not expose OPS legal_text_versions UUID", {
+    if (!hasRequiredLegalVersionIds(offer)) {
+      console.error("[website signup] selected offer is missing required OPS legal_text_versions UUIDs", {
         offer_reference: offer.offer_reference,
-        power_of_attorney_version: offer.power_of_attorney_version ?? null,
+        terms_version_id: offer.terms_version_id ?? null,
+        privacy_policy_version_id: offer.privacy_policy_version_id ?? null,
+        withdrawal_version_id: offer.withdrawal_version_id ?? null,
+        price_terms_version_id: offer.price_terms_version_id ?? null,
+        power_of_attorney_required: powerOfAttorneyRequired,
         power_of_attorney_version_id: offer.power_of_attorney_version_id ?? null,
       });
       return fail("legal_config");

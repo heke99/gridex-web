@@ -29,7 +29,12 @@
         "privacy_policy_version_id": "22222222-2222-4222-8222-222222222222",
         "withdrawal_version_id": "33333333-3333-4333-8333-333333333333",
         "power_of_attorney_version_id": "44444444-4444-4444-8444-444444444444",
-        "price_terms_version_id": "55555555-5555-4555-8555-555555555555"
+        "price_terms_version_id": "55555555-5555-4555-8555-555555555555",
+        "terms_url": "https://app.gridex.se/legal/gridex/terms/11111111-1111-4111-8111-111111111111",
+        "privacy_policy_url": "https://app.gridex.se/legal/gridex/privacy/22222222-2222-4222-8222-222222222222",
+        "withdrawal_url": "https://app.gridex.se/legal/gridex/withdrawal/33333333-3333-4333-8333-333333333333",
+        "power_of_attorney_url": "https://app.gridex.se/legal/gridex/power-of-attorney/44444444-4444-4444-8444-444444444444",
+        "price_terms_url": "https://app.gridex.se/legal/gridex/price-terms/55555555-5555-4555-8555-555555555555"
       },
       "valid_from": "2026-06-01T00:00:00Z",
       "valid_to": null

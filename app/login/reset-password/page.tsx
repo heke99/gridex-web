@@ -40,14 +40,6 @@ function passwordRequirementText(strength: number): string {
   return 'Minst 8 tecken och gärna versal, siffra och specialtecken.'
 }
 
-async function logPasswordResetCompleted() {
-  await fetch('/api/customer/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event_type: 'customer.password_reset_completed' }),
-  }).catch(() => null)
-}
-
 export default function ResetPasswordPage() {
   const supabase = createSupabaseBrowserClient()
   const router = useRouter()
@@ -121,7 +113,6 @@ export default function ResetPasswordPage() {
         return
       }
 
-      await logPasswordResetCompleted()
       setSuccess(true)
 
       window.setTimeout(() => {
