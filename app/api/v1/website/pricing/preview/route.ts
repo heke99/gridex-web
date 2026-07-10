@@ -6,7 +6,10 @@ import {
   type OpsWebsitePriceArea,
   type OpsWebsitePricingPreview,
 } from "@/lib/ops/client";
-import { issueWebsitePricingQuote } from "@/lib/website/pricingQuote";
+import {
+  issueWebsitePricingQuote,
+  websitePricingQuoteConfigured,
+} from "@/lib/website/pricingQuote";
 import {
   buildLocalWebsitePricingPreview,
   LocalWebsitePricingPreviewError,
@@ -66,6 +69,13 @@ export async function POST(req: Request) {
   if (!status.configured) {
     return NextResponse.json(
       { error: "Priset kan inte räknas just nu." },
+      { status: 503 },
+    );
+  }
+  if (!websitePricingQuoteConfigured()) {
+    console.error("[website pricing preview] GRIDEX_WEBSITE_PRICING_QUOTE_SECRET is missing");
+    return NextResponse.json(
+      { error: "Prisverifieringen är inte konfigurerad just nu." },
       { status: 503 },
     );
   }

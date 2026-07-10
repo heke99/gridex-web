@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     }
 
     const ip = clientIp(h)
-    const rate = checkRateLimit(`public-support:${ip ?? email}`, {
+    const rate = await checkRateLimit(`public-support:${ip ?? email}`, {
       limit: 6,
       windowMs: 15 * 60 * 1000,
     })

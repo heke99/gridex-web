@@ -3,17 +3,7 @@
 // Never remove functionality – only extend.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type {
-  ContractProduct,
-  ContractType,
-  CustomerSpecResult,
-  PriceArea,
-  PublishedPricingVersion,
-  ContractAreaPricing,
-  SpotAreaSettings,
-  PortfolioAreaPricing,
-  MoneySpecLine,
-} from './pricing/types'
+import type { ContractProduct, CustomerSpecResult, PriceArea } from './pricing/types'
 import { computeCustomerSpecDomain } from './pricing/engine'
 import type { PricingVersionSelection } from './pricing/versioning'
 

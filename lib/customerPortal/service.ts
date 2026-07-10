@@ -1,11 +1,15 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
+  isTransientOpsError,
   markOpsCustomerNotificationsRead,
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
 import type {
+  CustomerDataQuality,
   CustomerDocument,
   CustomerInvoice,
   CustomerLegalAcceptance,
@@ -17,6 +21,7 @@ import type {
   CustomerPowerOfAttorney,
   CustomerProfile,
   CustomerSite,
+  CustomerStatus,
   CustomerSwitchStatus,
   CustomerSupportMessage,
   CustomerSupportTicket,
@@ -35,11 +40,6 @@ type LocalDeliveryPointRow = Record<string, unknown>
 type LocalInvoiceRow = Record<string, unknown>
 type LocalDocumentRow = Record<string, unknown>
 type LocalLegalAcceptanceRow = Record<string, unknown>
-type CustomerPortalIdentityOverride = {
-  email?: string | null
-  customerNumber?: string | null
-  externalCustomerId?: string | null
-}
 
 export class CustomerPortalAccessError extends Error {
   readonly status = 401
@@ -160,6 +160,33 @@ function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
   return pick(row, keys)
 }
 
+function stableEntityId(
+  entity: string,
+  row: Record<string, unknown>,
+  idKeys: string[],
+  fallbackKeys: string[],
+): string {
+  const direct = pick(row, idKeys)
+  if (direct) return direct
+  const basis = fallbackKeys.map((key) => {
+    const value = row[key]
+    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+      ? String(value).trim().toLowerCase()
+      : ''
+  }).join('|')
+  const digest = createHash('sha256')
+    .update(`${entity}|${basis || JSON.stringify(row)}`)
+    .digest('hex')
+    .slice(0, 32)
+  return `${entity}-${digest}`
+}
+
+function stringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean)
+  if (typeof value === 'string' && value.trim()) return [value.trim()]
+  return []
+}
+
 function mapOpsProfile(
   row: Record<string, unknown> | null,
   fallback: CustomerProfile | null,
@@ -215,7 +242,7 @@ function mapOpsProfile(
 }
 
 function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
-  const id = pick(row, ['id', 'contract_id', 'contractId']) ?? crypto.randomUUID()
+  const id = stableEntityId('contract', row, ['id', 'contract_id', 'contractId'], ['contract_number', 'application_id', 'created_at'])
   const name = pick(row, ['contract_name', 'name', 'product_name', 'productCode'])
   const contractNumber = pick(row, ['contract_number', 'contractNumber'])
   return {
@@ -256,7 +283,7 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
 
 function mapOpsSite(row: Record<string, unknown>): CustomerSite {
   return {
-    id: pick(row, ['id', 'customer_site_id', 'site_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('site', row, ['id', 'customer_site_id', 'site_id'], ['facility_id', 'metering_point_id', 'address', 'postal_code']),
     address: pick(row, ['address', 'street', 'street_address', 'facility_address', 'site_address']),
     postal_code: pick(row, ['postal_code', 'postalCode', 'zip', 'postcode']),
     city: pick(row, ['city', 'postal_city', 'postalCity']),
@@ -274,7 +301,7 @@ function mapOpsSite(row: Record<string, unknown>): CustomerSite {
 
 function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
   return {
-    id: pick(row, ['id', 'invoice_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('invoice', row, ['id', 'invoice_id'], ['invoice_number', 'external_invoice_ref', 'issued_at']),
     invoice_number: pick(row, ['invoice_number', 'invoiceNumber']),
     provider_key: pick(row, ['provider_key', 'provider']) ?? 'billing_partner',
     external_invoice_ref: pick(row, ['external_invoice_ref', 'provider_invoice_id']),
@@ -297,7 +324,7 @@ function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
 
 function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
   return {
-    id: pick(row, ['id', 'event_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('event', row, ['id', 'event_id'], ['event_type', 'created_at', 'occurred_at']),
     event_type: pick(row, ['event_type', 'type']) ?? 'customer.event',
     title: pick(row, ['title', 'customer_label']),
     summary: pick(row, ['summary', 'message', 'body']),
@@ -309,7 +336,7 @@ function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
 
 function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
   return {
-    id: pick(row, ['id', 'document_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('document', row, ['id', 'document_id'], ['document_type', 'title', 'created_at', 'file_url']),
     title: pick(row, ['title', 'name', 'document_name']),
     document_type: pick(row, ['document_type', 'type']),
     status: pick(row, ['status']) ?? 'available',
@@ -343,7 +370,7 @@ function acceptanceTitle(type: string) {
 function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAcceptance {
   const type = pick(row, ['acceptance_type', 'type', 'legal_type']) ?? 'acceptance'
   return {
-    id: pick(row, ['id', 'acceptance_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('acceptance', row, ['id', 'acceptance_id'], ['acceptance_type', 'version', 'accepted_at']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
     version: pick(row, ['version', 'legal_version', 'version_key']),
@@ -353,7 +380,8 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
   }
 }
 
-function poaScopeLabel(scope: string | null) {
+function poaScopeLabel(scopes: string[]) {
+  const scope = scopes[0] ?? null
   switch (scope) {
     case 'facility_data_request':
       return 'Begära anläggningsuppgifter'
@@ -369,16 +397,35 @@ function poaScopeLabel(scope: string | null) {
 }
 
 function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAttorney {
-  const scope = pick(row, ['scope', 'poa_scope'])
+  const scopes = stringArray(row.scope ?? row.scopes ?? row.poa_scope)
   return {
-    id: pick(row, ['id', 'power_of_attorney_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('poa', row, ['id', 'power_of_attorney_id'], ['status', 'accepted_at', 'version']),
     status: pick(row, ['status']) ?? 'active',
-    scope,
+    scopes,
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
     revoked_at: pickDate(row, ['revoked_at']),
     valid_until: pickDate(row, ['valid_until', 'expires_at']),
-    title: pick(row, ['title', 'name']) ?? poaScopeLabel(scope),
+    title: pick(row, ['title', 'name']) ?? poaScopeLabel(scopes),
     version: pick(row, ['version', 'legal_version', 'power_of_attorney_version']),
+  }
+}
+
+function mapCustomerStatus(row: Record<string, unknown> | null): CustomerStatus | null {
+  if (!row) return null
+  const canStart = row.can_start_switch ?? row.canStartSwitch
+  return {
+    code: pick(row, ['code', 'status']),
+    label: pick(row, ['label', 'title']),
+    message: pick(row, ['message', 'next_step', 'nextStep']),
+    can_start_switch: typeof canStart === 'boolean' ? canStart : null,
+  }
+}
+
+function mapDataQuality(row: Record<string, unknown> | null): CustomerDataQuality | null {
+  if (!row) return null
+  return {
+    status: pick(row, ['status']),
+    issues: stringArray(row.issues ?? row.missing_fields ?? row.missingFields),
   }
 }
 
@@ -400,7 +447,7 @@ function mapOpsSwitchStatus(row: Record<string, unknown> | null): CustomerSwitch
 
 function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValue {
   return {
-    id: pick(row, ['id', 'metering_value_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('metering', row, ['id', 'metering_value_id'], ['metering_point_id', 'period_start', 'period_end']),
     metering_point_id: pick(row, ['metering_point_id', 'mpan']),
     facility_id: pick(row, ['facility_id']),
     period_start: pickDate(row, ['period_start', 'from_at', 'start_time']),
@@ -413,7 +460,7 @@ function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValu
 
 function mapOpsNotification(row: Record<string, unknown>): CustomerNotification {
   return {
-    id: pick(row, ['id', 'notification_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('notification', row, ['id', 'notification_id'], ['ops_event_id', 'title', 'created_at']),
     category: pick(row, ['category', 'type']) ?? 'portal',
     title: pick(row, ['title', 'subject']) ?? 'Meddelande från Gridex',
     body: pick(row, ['body', 'message', 'summary']) ?? '',
@@ -433,7 +480,7 @@ function mapLocalDocument(row: LocalDocumentRow): CustomerDocument {
     pick(row, ['document_type', 'type'])
 
   return {
-    id: pick(row, ['id', 'document_id']) ?? crypto.randomUUID(),
+    id: stableEntityId('document', row, ['id', 'document_id'], ['document_type', 'title', 'created_at', 'file_url']),
     title,
     document_type: pick(row, ['document_type', 'type']),
     status: pick(row, ['status']) ?? 'available',
@@ -456,26 +503,13 @@ function localPowersOfAttorneyFromAcceptances(
     .map((item) => ({
       id: `poa-${item.id}`,
       status: item.status ?? 'accepted',
-      scope: 'facility_data_request',
+      scopes: ['facility_data_request'],
       accepted_at: item.accepted_at,
       revoked_at: null,
       valid_until: null,
       title: item.title ?? 'Fullmakt för anläggningsuppgifter',
       version: item.version,
     }))
-}
-
-function mergeById<T extends { id: string }>(primary: T[], fallback: T[]): T[] {
-  const seen = new Set<string>()
-  const merged: T[] = []
-
-  for (const item of [...primary, ...fallback]) {
-    if (seen.has(item.id)) continue
-    seen.add(item.id)
-    merged.push(item)
-  }
-
-  return merged
 }
 
 async function getLocalContracts(
@@ -697,31 +731,6 @@ function stableExternalCustomerId(profile: CustomerProfile | null): string | nul
   return externalCustomerId
 }
 
-function stableExternalCustomerIdValue(value: string | null | undefined, customerNumber: string | null | undefined): string | null {
-  const externalCustomerId = asText(value)
-  const customerNo = asText(customerNumber)
-  if (!externalCustomerId) return null
-  if (externalCustomerId === customerNo) return null
-  if (/^DX-\d+$/i.test(externalCustomerId)) return null
-  return externalCustomerId
-}
-
-function applyPortalIdentityOverride(
-  identity: OpsPortalIdentity,
-  override?: CustomerPortalIdentityOverride | null,
-): OpsPortalIdentity {
-  if (!override) return identity
-  const customerNumber = asText(override.customerNumber) ?? identity.customerNumber ?? null
-  return {
-    ...identity,
-    email: asText(override.email) ?? identity.email ?? null,
-    customerNumber,
-    externalCustomerId:
-      stableExternalCustomerIdValue(override.externalCustomerId, customerNumber) ??
-      identity.externalCustomerId ??
-      null,
-  }
-}
 
 export function portalIdentityFromProfile(
   user: User,
@@ -744,57 +753,73 @@ export async function getOpsPortalIdentityForUser(
   return portalIdentityFromProfile(user, profile)
 }
 
-export async function getCustomerPortalOverview(override?: CustomerPortalIdentityOverride | null): Promise<CustomerPortalOverview> {
+export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
-  const identity = applyPortalIdentityOverride(portalIdentityFromProfile(user, localProfile), override)
+  const identity = portalIdentityFromProfile(user, localProfile)
 
-  const [tickets, localContracts, localSites, localInvoices, localDocuments, ops] = await Promise.all([
+  const [tickets, opsResult] = await Promise.all([
     getCustomerTickets(supabase, user.id),
-    getLocalContracts(supabase, user.id),
-    getLocalSites(supabase, user.id),
-    getLocalInvoices(supabase, user.id),
-    getLocalDocuments(supabase, user.id),
     fetchOpsCustomerPortalBundle(identity)
       .then((bundle) => ({ bundle, error: null as string | null }))
-      .catch((error) => ({
-        bundle: null,
-        error:
-          error instanceof Error
+      .catch((error) => {
+        if (!isTransientOpsError(error)) throw error
+        return {
+          bundle: null,
+          error: error instanceof Error
             ? error.message
             : 'Kunduppgifterna kunde inte hämtas just nu.',
-      })),
+        }
+      }),
   ])
 
-  const localLegalAcceptances = await getLocalLegalAcceptances(supabase, localContracts)
-  const profile = mapOpsProfile(
-    ops.bundle?.profile ?? null,
-    localProfile,
-    user.id,
-    user.email ?? null
-  )
-  const localNotifications = await getCustomerNotifications(supabase, user.id, profile)
-  const notifications = mergeById(
-    (ops.bundle?.notifications ?? []).map(mapOpsNotification),
-    localNotifications
-  )
-  const contracts = mergeById((ops.bundle?.contracts ?? []).map(mapOpsContract), localContracts)
-  const sites = mergeById((ops.bundle?.sites ?? []).map(mapOpsSite), localSites)
-  const invoices = mergeById((ops.bundle?.invoices ?? []).map(mapOpsInvoice), localInvoices)
-  const documents = mergeById((ops.bundle?.documents ?? []).map(mapOpsDocument), localDocuments)
-  const legalAcceptances = mergeById(
-    (ops.bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance),
-    localLegalAcceptances
-  )
-  const powersOfAttorney = mergeById(
-    (ops.bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney),
-    localPowersOfAttorneyFromAcceptances(legalAcceptances)
-  )
+  const opsAvailable = Boolean(opsResult.bundle && !opsResult.error)
+  let localContracts: CustomerPortalContract[] = []
+  let localSites: CustomerSite[] = []
+  let localInvoices: CustomerInvoice[] = []
+  let localDocuments: CustomerDocument[] = []
+  let localLegalAcceptances: CustomerLegalAcceptance[] = []
+  let localNotifications: CustomerNotification[] = []
+
+  if (!opsAvailable) {
+    ;[localContracts, localSites, localInvoices, localDocuments] = await Promise.all([
+      getLocalContracts(supabase, user.id),
+      getLocalSites(supabase, user.id),
+      getLocalInvoices(supabase, user.id),
+      getLocalDocuments(supabase, user.id),
+    ])
+    localLegalAcceptances = await getLocalLegalAcceptances(supabase, localContracts)
+    localNotifications = await getCustomerNotifications(supabase, user.id, localProfile)
+  }
+
+  const bundle = opsResult.bundle
+  const profile = mapOpsProfile(bundle?.profile ?? null, localProfile, user.id, user.email ?? null)
+  const contracts = opsAvailable ? (bundle?.contracts ?? []).map(mapOpsContract) : localContracts
+  const sites = opsAvailable ? (bundle?.sites ?? []).map(mapOpsSite) : localSites
+  const invoices = opsAvailable ? (bundle?.invoices ?? []).map(mapOpsInvoice) : localInvoices
+  const documents = opsAvailable ? (bundle?.documents ?? []).map(mapOpsDocument) : localDocuments
+  const legalAcceptances = opsAvailable
+    ? (bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance)
+    : localLegalAcceptances
+  const powersOfAttorney = opsAvailable
+    ? (bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney)
+    : localPowersOfAttorneyFromAcceptances(legalAcceptances)
+  const customerStatus = mapCustomerStatus(bundle?.customerStatus ?? null)
+  const dataQuality = mapDataQuality(bundle?.dataQuality ?? null)
   const switchStatus =
-    mapOpsSwitchStatus(ops.bundle?.switchStatus ?? null) ?? deriveSwitchStatus(contracts, sites)
-  const meteringValues = (ops.bundle?.meteringValues ?? []).map(mapOpsMeteringValue)
-  const events = (ops.bundle?.events ?? []).map(mapOpsEvent)
-  const opsAvailable = Boolean(ops.bundle && !ops.error)
+    mapOpsSwitchStatus(bundle?.switchStatus ?? null) ??
+    (customerStatus
+      ? {
+          status: customerStatus.code,
+          next_step: customerStatus.message,
+          requested_start_date: contracts[0]?.requested_start_date ?? null,
+          confirmed_start_date: contracts[0]?.confirmed_start_date ?? null,
+          missing_fields: dataQuality?.issues ?? [],
+          grid_owner_name: sites[0]?.grid_owner_name ?? null,
+          facility_id: sites[0]?.facility_id ?? null,
+          metering_point_id: sites[0]?.metering_point_id ?? null,
+        }
+      : deriveSwitchStatus(contracts, sites))
 
   return {
     profile,
@@ -804,13 +829,15 @@ export async function getCustomerPortalOverview(override?: CustomerPortalIdentit
     documents,
     legalAcceptances,
     powersOfAttorney,
+    customerStatus,
+    dataQuality,
     switchStatus,
-    meteringValues,
-    events,
+    meteringValues: opsAvailable ? (bundle?.meteringValues ?? []).map(mapOpsMeteringValue) : [],
+    events: opsAvailable ? (bundle?.events ?? []).map(mapOpsEvent) : [],
     tickets,
-    notifications,
+    notifications: opsAvailable ? (bundle?.notifications ?? []).map(mapOpsNotification) : localNotifications,
     opsAvailable,
-    opsError: ops.error,
+    opsError: opsResult.error,
     dataFreshness: opsAvailable ? 'live' : 'local_fallback',
     dataFreshnessMessage: opsAvailable
       ? null
@@ -818,40 +845,48 @@ export async function getCustomerPortalOverview(override?: CustomerPortalIdentit
   }
 }
 
-export async function markCustomerNotificationsRead(
-  notificationIds: string[] = []
-): Promise<{ ok: true; opsSynced: boolean; localSynced: boolean }> {
+export async function markCustomerNotificationsRead(input: {
+  notificationIds?: string[]
+  all?: boolean
+  operationId?: string | null
+}): Promise<{ ok: true; opsSynced: boolean; localSynced: boolean; queued: boolean }> {
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
-  const ids = notificationIds.map((id) => id.trim()).filter(Boolean)
+  const ids = (input.notificationIds ?? []).map((id) => id.trim()).filter(Boolean)
+  const all = input.all === true
+  if (!all && ids.length === 0) throw new Error('Minst en notis måste anges.')
+  const operationId = input.operationId?.trim() || randomUUID()
   const readAt = new Date().toISOString()
-
   let opsSynced = false
+  let queued = false
+
   try {
-    await markOpsCustomerNotificationsRead(identity, ids)
+    await markOpsCustomerNotificationsRead(identity, {
+      notificationIds: ids,
+      all,
+      operationId,
+    })
     opsSynced = true
   } catch (error) {
-    console.warn('[customer portal] mark OPS notifications read failed', {
-      message: error instanceof Error ? error.message : String(error),
+    if (!isTransientOpsError(error)) throw error
+    await enqueuePortalWrite({
+      userId: user.id,
+      operationType: 'notification_read',
+      idempotencyKey: `notification-read:${user.id}:${operationId}`,
+      identity,
+      payload: { notification_ids: ids, all, operation_id: operationId },
     })
+    queued = true
   }
 
   let localQuery = supabase
     .from('customer_notifications')
     .update({ is_read: true, read_at: readAt })
     .eq('user_id', user.id)
-
-  if (ids.length) {
-    localQuery = localQuery.in('id', ids)
-  }
-
+  if (!all) localQuery = localQuery.in('id', ids)
   const { error: localError } = await localQuery
-  const localSynced = !localError
 
-  if (!opsSynced && localError) {
-    throw new Error('Notiserna kunde inte uppdateras just nu.')
-  }
-
-  return { ok: true, opsSynced, localSynced }
+  return { ok: true, opsSynced, localSynced: !localError, queued }
 }
+

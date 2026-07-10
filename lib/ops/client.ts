@@ -250,7 +250,7 @@ export type OpsClientStatus = {
   missing: string[];
 };
 
-class OpsError extends Error {
+export class OpsError extends Error {
   status: number;
   details?: unknown;
 
@@ -316,10 +316,16 @@ export function getOpsClientStatus(): OpsClientStatus {
     baseUrl
   ) {
     try {
-      const host = new URL(baseUrl).hostname;
+      const parsed = new URL(baseUrl);
+      const configuredHosts = (env("GRIDEX_OPS_ALLOWED_HOSTS") ?? "app.gridex.se")
+        .split(",")
+        .map((host) => host.trim().toLowerCase())
+        .filter(Boolean);
       unsafeProductionUrl =
+        parsed.protocol !== "https:" ||
+        !configuredHosts.includes(parsed.hostname.toLowerCase()) ||
         /localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(baseUrl) ||
-        /test|staging|preview/i.test(host);
+        /test|staging|preview/i.test(parsed.hostname);
     } catch {
       unsafeProductionUrl = true;
     }
@@ -329,9 +335,18 @@ export function getOpsClientStatus(): OpsClientStatus {
     missing.push("GRIDEX_OPS_API_URL_PRODUCTION_GUARD");
   }
 
+  const liveSignupEnabled = env("GRIDEX_ENABLE_LIVE_SIGNUP") === "true";
+  if (
+    liveSignupEnabled &&
+    !env("GRIDEX_WEBSITE_HASH_PEPPER") &&
+    !env("PII_HASH_PEPPER")
+  ) {
+    missing.push("GRIDEX_WEBSITE_HASH_PEPPER_OR_PII_HASH_PEPPER");
+  }
+
   return {
     configured: missing.length === 0,
-    liveSignupEnabled: env("GRIDEX_ENABLE_LIVE_SIGNUP") === "true",
+    liveSignupEnabled,
     missing,
   };
 }
@@ -1402,10 +1417,20 @@ function normalizeWebsitePricingSpecification(
   };
 }
 
-async function fetchOpsPublicContractsUncached(): Promise<OpsPublicContract[]> {
+function normalizeCustomerTypeFilter(value?: string | null): "private" | "company" | null {
+  return value === "private" || value === "company" ? value : null;
+}
+
+async function fetchOpsPublicContractsUncached(
+  customerType?: string | null,
+): Promise<OpsPublicContract[]> {
+  const normalizedCustomerType = normalizeCustomerTypeFilter(customerType);
+  const suffix = normalizedCustomerType
+    ? `?customer_type=${encodeURIComponent(normalizedCustomerType)}`
+    : "";
   const payload = await opsFetchWithFallback([
-    "/api/v1/website/public-contracts",
-    "/api/v1/website/contracts",
+    `/api/v1/website/public-contracts${suffix}`,
+    `/api/v1/website/contracts${suffix}`,
   ]);
   return extractRows(payload)
     .map(mapPublicContract)
@@ -1419,17 +1444,22 @@ async function fetchOpsPublicContractsUncached(): Promise<OpsPublicContract[]> {
 }
 
 const fetchCachedOpsPublicContracts = unstable_cache(
-  fetchOpsPublicContractsUncached,
-  ["ops-public-contracts-v3"],
+  async (customerType: string) =>
+    fetchOpsPublicContractsUncached(customerType || null),
+  ["ops-public-contracts-v4"],
   { revalidate: 60, tags: ["ops-public-contracts"] },
 );
 
-export async function fetchOpsPublicContracts(): Promise<OpsPublicContract[]> {
-  return fetchCachedOpsPublicContracts();
+export async function fetchOpsPublicContracts(
+  customerType?: "private" | "company" | null,
+): Promise<OpsPublicContract[]> {
+  return fetchCachedOpsPublicContracts(customerType ?? "");
 }
 
-export async function fetchOpsPublicContractsFresh(): Promise<OpsPublicContract[]> {
-  return fetchOpsPublicContractsUncached();
+export async function fetchOpsPublicContractsFresh(
+  customerType?: "private" | "company" | null,
+): Promise<OpsPublicContract[]> {
+  return fetchOpsPublicContractsUncached(customerType);
 }
 
 function mapLegalText(row: unknown): OpsLegalText | null {
@@ -1557,17 +1587,11 @@ export async function validateOpsWebsitePricingQuote(
   };
 }
 
-export async function submitOpsCustomerApplication(
-  input: OpsCustomerApplicationInput,
-): Promise<OpsCustomerApplicationResult> {
-  if (env("GRIDEX_ENABLE_LIVE_SIGNUP") !== "true") {
-    throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
-  }
-
+export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
   const portalUserId = input.customer_portal_user_id ?? input.auth_user_id ?? null;
   const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
 
-  const applicationPayload = {
+  return {
     external_customer_id: input.external_customer_id ?? null,
     external_application_id: input.external_application_id,
     customer_portal_user_id: portalUserId,
@@ -1623,6 +1647,16 @@ export async function submitOpsCustomerApplication(
       ip_hash: input.ip_hash ?? null,
     },
   };
+}
+
+export async function submitOpsCustomerApplication(
+  input: OpsCustomerApplicationInput,
+): Promise<OpsCustomerApplicationResult> {
+  if (env("GRIDEX_ENABLE_LIVE_SIGNUP") !== "true") {
+    throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
+  }
+
+  const applicationPayload = buildOpsCustomerApplicationPayload(input);
 
   const payload = await opsFetchWithFallback(
     ["/api/v1/website/customer-applications"],
@@ -1766,6 +1800,8 @@ export function isOpsCustomerEventType(value: string): value is OpsCustomerEvent
 
 export type OpsPortalBundle = {
   profile: Record<string, unknown> | null;
+  customerStatus: Record<string, unknown> | null;
+  dataQuality: Record<string, unknown> | null;
   contracts: Record<string, unknown>[];
   sites: Record<string, unknown>[];
   invoices: Record<string, unknown>[];
@@ -1919,6 +1955,10 @@ function normalizePortalBundle(payload: unknown): OpsPortalBundle {
 
   return {
     profile: customer,
+    customerStatus:
+      recordValue(data.customer_status) ?? recordValue(data.customerStatus),
+    dataQuality:
+      recordValue(data.data_quality) ?? recordValue(data.dataQuality),
     contracts: nestedArray(data, ["contracts", "customer_contracts", "customerContracts"]),
     sites: nestedArray(data, [
       "sites",
@@ -1991,6 +2031,8 @@ async function fetchLegacyCustomerPortalBundle(
 
   return {
     profile,
+    customerStatus: null,
+    dataQuality: null,
     contracts,
     sites,
     invoices,
@@ -2029,13 +2071,25 @@ export async function fetchOpsCustomerPortalBundle(
 
 export async function markOpsCustomerNotificationsRead(
   identity: OpsPortalIdentity,
-  notificationIds: string[] = [],
+  input: { notificationIds?: string[]; all?: boolean; operationId: string },
 ): Promise<void> {
-  const ids = notificationIds.map((id) => id.trim()).filter(Boolean);
+  const ids = (input.notificationIds ?? []).map((id) => id.trim()).filter(Boolean);
+  if (!input.all && ids.length === 0) {
+    throw new OpsError("Minst en notis måste anges.", 400, {
+      code: "validation_error",
+      field: "notification_ids",
+    });
+  }
+  const headers = portalHeaders(identity);
+  headers.set(
+    "Idempotency-Key",
+    `notification-read:${identity.userId}:${input.operationId}`,
+  );
 
   await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
     method: "POST",
-    body: JSON.stringify(ids.length ? { notification_ids: ids } : { all: true }),
+    headers,
+    body: JSON.stringify(input.all ? { all: true } : { notification_ids: ids }),
   });
 }
 
@@ -2063,12 +2117,15 @@ export async function submitOpsCustomerSync(
     metadata: input.metadata ?? {},
   };
 
-  const idempotencyKey =
+  const operationId =
     normalizeText(input.idempotencyKey) ??
     createHash("sha256")
       .update(JSON.stringify({ scope: "customer_sync", user: input.identity.userId, body }))
       .digest("hex");
-  headers.set("Idempotency-Key", `customer-sync-${idempotencyKey}`);
+  headers.set(
+    "Idempotency-Key",
+    `customer-sync:${input.identity.userId}:${operationId}`,
+  );
 
   const payload = await opsCustomerFetch("/api/v1/customer/sync", input.identity, {
     method: "POST",
@@ -2096,7 +2153,7 @@ function customerWriteIdempotencyKey(
     createHash("sha256")
       .update(JSON.stringify({ scope, user: input.identity.userId, body }))
       .digest("hex");
-  return `${scope}-${value}`;
+  return `${scope}:${input.identity.userId}:${value}`;
 }
 
 function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult {
@@ -2197,10 +2254,12 @@ export async function sendOpsCustomerEvent(
   }
 
   const headers = portalHeaders(identity);
+  const operationId =
+    normalizeText(event.idempotency_key) ??
+    createCustomerEventIdempotencyKey(identity, event);
   headers.set(
     "Idempotency-Key",
-    normalizeText(event.idempotency_key) ??
-      `customer-event-${createCustomerEventIdempotencyKey(identity, event)}`,
+    `customer-event:${identity.userId}:${operationId}`,
   );
 
   await opsFetch("/api/v1/website/customer-events", {
@@ -2252,7 +2311,11 @@ export function createExternalCustomerId(parts: string[]): string {
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean)
     .join("|");
-  const pepper = env("GRIDEX_WEBSITE_HASH_PEPPER") ?? env("PII_HASH_PEPPER") ?? "";
+  if (!stable) throw new OpsError("Stable customer identity input is missing.", 422);
+  const pepper = env("GRIDEX_WEBSITE_HASH_PEPPER") ?? env("PII_HASH_PEPPER");
+  if (!pepper) {
+    throw new OpsError("Website customer identity hash secret is not configured.", 503);
+  }
   const digest = createHash("sha256")
     .update(`${pepper}:${stable}`)
     .digest("hex")
@@ -2260,9 +2323,25 @@ export function createExternalCustomerId(parts: string[]): string {
   return `${prefix}-${digest}`;
 }
 
-export function createExternalApplicationId(): string {
+export function createExternalApplicationId(submissionAttemptId?: string | null): string {
   const prefix = env("GRIDEX_WEBSITE_APPLICATION_PREFIX") ?? "GRIDEX-WEB";
+  const stableAttempt = normalizeText(submissionAttemptId);
+  if (stableAttempt) return `${prefix}-${stableAttempt}`;
   return `${prefix}-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomUUID()}`;
+}
+
+export function isTransientOpsError(error: unknown): boolean {
+  if (isOpsError(error)) {
+    return error.status === 408 || error.status === 425 || error.status === 429 || error.status >= 500;
+  }
+  // Native fetch reports transport/DNS/TLS failures as TypeError. Abort and
+  // timeout errors are also retryable. Unknown application/programming errors
+  // must not be hidden behind stale local fallback or an outbox success.
+  if (error instanceof TypeError) return true;
+  if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+    return true;
+  }
+  return false;
 }
 
 export function isOpsError(err: unknown): err is OpsError {

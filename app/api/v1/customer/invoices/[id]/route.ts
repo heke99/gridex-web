@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { CustomerPortalAccessError, getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { customerApiErrorResponse } from '@/lib/customerPortal/apiErrors'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -28,21 +29,6 @@ function invoiceMatches(invoice: Record<string, unknown>, id: string): boolean {
   return candidates.some((candidate) => candidate === id)
 }
 
-function errorResponse(error: unknown) {
-  if (error instanceof CustomerPortalAccessError) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: error.status },
-    )
-  }
-
-  console.error('[customer portal] invoice detail route failed', error)
-  return NextResponse.json(
-    { error: 'Fakturan kunde inte hämtas just nu.', code: 'customer_portal_unavailable' },
-    { status: 503 },
-  )
-}
-
 export async function GET(_request: Request, context: RouteContext) {
   const { id: rawId } = await context.params
   const id = text(rawId)
@@ -67,6 +53,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return NextResponse.json({ data: invoice })
   } catch (error) {
-    return errorResponse(error)
+    return customerApiErrorResponse(error, {
+      logLabel: 'invoice detail',
+      fallbackMessage: 'Fakturan kunde inte hämtas just nu.',
+    })
   }
 }

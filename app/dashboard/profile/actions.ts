@@ -1,9 +1,11 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
+import { isTransientOpsError, submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
+import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 function pick(formData: FormData, key: string): string {
@@ -58,27 +60,48 @@ export async function updateCustomerProfileAction(formData: FormData) {
     throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
   }
 
+  const profilePayload = {
+    first_name: firstName || null,
+    last_name: lastName || null,
+    phone: phone || null,
+    language_code: languageCode,
+  }
+  const operationId = randomUUID()
+  let queued = false
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
-    await submitOpsCustomerProfileUpdate({
-      identity,
-      idempotencyKey: `profile-update-${user.id}-${Date.now()}`,
-      profile: {
-        first_name: firstName || null,
-        last_name: lastName || null,
-        full_name: fullName,
-        phone: phone || null,
-        language_code: languageCode,
-      },
-      metadata: { source: 'customer_profile_action' },
-    })
+    try {
+      await submitOpsCustomerProfileUpdate({
+        identity,
+        idempotencyKey: operationId,
+        profile: profilePayload,
+        metadata: { source: 'customer_profile_action' },
+      })
+    } catch (syncError) {
+      if (!isTransientOpsError(syncError)) throw syncError
+      await enqueuePortalWrite({
+        userId: user.id,
+        operationType: 'profile_update',
+        idempotencyKey: `profile-update:${user.id}:${operationId}`,
+        identity,
+        payload: {
+          operation_id: operationId,
+          profile: profilePayload,
+          metadata: { source: 'customer_profile_action' },
+        },
+      })
+      queued = true
+    }
   } catch (syncError) {
-    console.warn('[customer profile] OPS sync failed', syncError)
+    console.error('[customer profile] OPS sync failed permanently', syncError)
+    revalidatePath('/dashboard/profile')
+    revalidatePath('/dashboard')
+    redirect('/dashboard/profile?status=profile-local-only')
   }
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
-  redirect('/dashboard/profile?status=profile-updated')
+  redirect(`/dashboard/profile?status=${queued ? 'profile-sync-queued' : 'profile-updated'}`)
 }
 
 export async function updateCustomerEmailAction(formData: FormData) {

@@ -169,12 +169,12 @@ assert.ok(
 
 const signup = read("app/(public)/teckna-avtal/page.tsx");
 assert.ok(
-  !signup.includes("validatePricingPreviewSnapshot"),
-  "signup must not block on brittle pricing snapshot equality",
+  signup.includes("validatePricingPreviewSnapshot"),
+  "signup must verify the displayed pricing snapshot against a fresh server calculation",
 );
 assert.ok(
-  !signup.includes("validateWebsitePricingQuote"),
-  "signup must not block on an expiring website quote token",
+  signup.includes("validateWebsitePricingQuote"),
+  "signup must verify the signed pricing quote token",
 );
 assert.ok(
   signup.includes("buildLocalWebsitePricingPreview"),
@@ -197,15 +197,12 @@ assert.ok(
   "OPS must receive the canonical verified price snapshot for audit",
 );
 assert.ok(
-  signup.includes("submittedGridOwnerId"),
-  "signup must preserve submitted grid owner id when resolver has it",
+  !signup.includes("submittedGridOwnerId"),
+  "signup must never trust a grid owner identifier submitted by the browser",
 );
 assert.ok(
-  signup.includes("grid_owner_id:") &&
-    signup.includes(
-      "serverResolution?.grid_owner_id ?? (submittedGridOwnerId || null)",
-    ),
-  "signup must not always send grid_owner_id null",
+  signup.includes("grid_owner_id: serverResolution?.grid_owner_id ?? null"),
+  "signup must use only the server-side energy resolver for grid owner identity",
 );
 assert.ok(
   signup.includes("return fail("),
@@ -218,8 +215,8 @@ assert.ok(
   "client form must preserve values after a server validation error",
 );
 assert.ok(
-  !form.includes("pricing_quote_token"),
-  "form must not post a blocking pricing quote token",
+  form.includes("pricing_quote_token"),
+  "form must post the signed pricing quote token",
 );
 assert.ok(
   form.includes("Räkna priset ovan innan du går vidare"),
@@ -332,24 +329,20 @@ assert.ok(
 
 const portalRoute = read("app/api/v1/customer/portal-bundle/route.ts");
 assert.ok(
-  portalRoute.includes("CustomerPortalAccessError"),
-  "portal route must return a typed authentication error",
+  portalRoute.includes("customerApiErrorResponse"),
+  "portal route must use the shared typed error mapper",
 );
 assert.ok(
-  portalRoute.includes("customer_number ?? body.customerNumber"),
-  "portal route POST must honor documented customer_number payload",
+  !portalRoute.includes("body.customerNumber"),
+  "portal route must not trust customer_number from the browser",
 );
 assert.ok(
-  portalRoute.includes("external_customer_id ?? body.externalCustomerId"),
-  "portal route POST must honor documented external_customer_id payload",
+  !portalRoute.includes("body.externalCustomerId"),
+  "portal route must not trust external_customer_id from the browser",
 );
 assert.ok(
-  portalRoute.includes("status: error.status"),
-  "portal route must return 401 for a missing customer session",
-);
-assert.ok(
-  portalRoute.includes("status: 503"),
-  "portal route must return 503 when the portal is unavailable",
+  portalRoute.includes("getCustomerPortalOverview()"),
+  "portal identity must be derived from the verified server-side session and profile",
 );
 
 const eventsRoute = read("app/api/v1/events/route.ts");

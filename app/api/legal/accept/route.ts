@@ -41,7 +41,7 @@ function clientSafeError(status: number, message = 'Godkännandet kunde inte reg
 
 export async function POST(req: Request) {
   const ip = clientIpFromHeaders(req.headers)
-  const rate = checkRateLimit(`legal_accept:${ip}`, {
+  const rate = await checkRateLimit(`legal_accept:${ip}`, {
     limit: 20,
     windowMs: 15 * 60 * 1000,
   })

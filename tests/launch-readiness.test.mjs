@@ -95,8 +95,8 @@ assert.ok(
   "customer application writes must use Idempotency-Key header",
 );
 assert.ok(
-  !signup.includes("validatePricingPreviewSnapshot"),
-  "submit must not block on brittle pricing snapshot equality",
+  signup.includes("validatePricingPreviewSnapshot"),
+  "submit must reject a displayed price that no longer matches the server calculation",
 );
 assert.ok(
   signup.includes("buildLocalWebsitePricingPreview"),
@@ -107,8 +107,8 @@ assert.ok(
   "submit must not call OPS pricing before writing",
 );
 assert.ok(
-  !signup.includes("validateWebsitePricingQuote"),
-  "submit must not block customers on expiring website quote tokens",
+  signup.includes("validateWebsitePricingQuote"),
+  "submit must verify the signed website pricing quote before writing",
 );
 
 const form = read("components/signup/CustomerApplicationForm.tsx");
@@ -117,8 +117,8 @@ assert.ok(
   "form must post the displayed pricing preview snapshot",
 );
 assert.ok(
-  !form.includes("pricing_quote_token"),
-  "form must not require a signed pricing quote token",
+  form.includes("pricing_quote_token"),
+  "form must post the signed pricing quote token",
 );
 assert.ok(
   form.includes("contract_display_snapshot"),
@@ -182,20 +182,20 @@ assertIncludes(
   "signup submit must map OPS application errors before showing customer-facing messages",
 );
 
-assertIncludes(
+assertNotIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "shouldRetryWithFreshIdempotencyKey",
-  "signup must retry recoverable failed site_create idempotency with a fresh key",
+  "the same signed application must not be retried automatically with a fresh idempotency key",
 );
-assertIncludes(
+assertNotIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "createFreshRetryIdempotencyKey",
-  "signup retry must use a fresh idempotency key after failed site_create",
+  "the same signed application must keep its original idempotency key",
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
-  "context.code === \"idempotent_failed\"",
-  "signup must inspect OPS idempotent_failed error code instead of treating every 409 as price change",
+  "lockWebsiteSubmissionOpsPayload",
+  "the exact OPS request payload must be locked to the idempotency key",
 );
 assertNotIncludes(
   "app/(public)/teckna-avtal/page.tsx",
@@ -321,8 +321,8 @@ assertIncludes(
 );
 assertIncludes(
   "app/api/v1/customer/notifications/read/route.ts",
-  "markOpsCustomerNotificationsRead",
-  "web must expose notification read route",
+  "markCustomerNotificationsRead",
+  "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
   "docs/external-website-api-integration-guide.md",

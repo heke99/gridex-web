@@ -20,7 +20,11 @@ type Props = {
 function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
-      return 'Dina kontaktuppgifter har sparats.'
+      return 'Dina kontaktuppgifter har sparats och synkats.'
+    case 'profile-sync-queued':
+      return 'Dina kontaktuppgifter har sparats. Synkningen till kundsystemet fortsätter automatiskt.'
+    case 'profile-local-only':
+      return 'Dina kontaktuppgifter sparades lokalt, men kundsystemet avvisade synkningen. Kontakta kundservice om uppgifterna inte uppdateras.'
     case 'email-updated':
       return 'E-postadressen har uppdaterats eller behöver bekräftas via e-post.'
     case 'password-updated':

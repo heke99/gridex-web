@@ -21,9 +21,9 @@ type QuoteFees = {
 type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
 /**
- * This is a non-blocking audit signature for the displayed website price.
- * It must never decide whether a customer may sign up. The binding contract
- * remains offer_reference, and OPS creates the final price/legal snapshot.
+ * Integrity signature for the price displayed by this website. Submission
+ * verifies the token and also recalculates the current public price server-side.
+ * OPS remains the legal source of truth and creates the final contract snapshot.
  */
 export type WebsitePricingQuote = {
   version: 1;
@@ -58,6 +58,10 @@ function env(name: string): string | null {
 
 function quoteSecret(): string | null {
   return env("GRIDEX_WEBSITE_PRICING_QUOTE_SECRET");
+}
+
+export function websitePricingQuoteConfigured(): boolean {
+  return Boolean(quoteSecret());
 }
 
 function base64url(value: string): string {

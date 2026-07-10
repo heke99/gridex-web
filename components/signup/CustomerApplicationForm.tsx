@@ -321,6 +321,7 @@ export default function CustomerApplicationForm({
   quoteContext,
 }: Props) {
   const [step, setStep] = useState(0);
+  const [submissionAttemptId, setSubmissionAttemptId] = useState(() => crypto.randomUUID());
   const [form, setForm] = useState<FormValues>({
     customer_type: "private",
     selected_offer: selectedValue,
@@ -389,7 +390,12 @@ export default function CustomerApplicationForm({
     selectedContract,
   );
 
+  function rotateSubmissionAttempt() {
+    setSubmissionAttemptId(crypto.randomUUID());
+  }
+
   function updateField(name: keyof FormValues, value: string) {
+    rotateSubmissionAttempt();
     setForm((current) => {
       const next = { ...current, [name]: value };
       if (name === "customer_type") {
@@ -420,6 +426,7 @@ export default function CustomerApplicationForm({
   }
 
   function updateConsent(name: keyof Consents, value: boolean) {
+    rotateSubmissionAttempt();
     setConsents((current) => ({ ...current, [name]: value }));
   }
 
@@ -466,8 +473,8 @@ export default function CustomerApplicationForm({
           "Räkna priset innan du går vidare. Om du ändrar adress eller förbrukning behöver priset räknas om.";
     }
     if (step === 2) {
-      if (!hasPricingPreview)
-        nextErrors.pricing = "Räkna priset innan du tecknar.";
+      if (!hasPricingPreview || !pricingPreview?.quote_token)
+        nextErrors.pricing = "Räkna priset innan du tecknar. Prisquoten måste vara verifierad.";
       if (!activeDisplay?.snapshot)
         nextErrors.contract_display_snapshot =
           "Valt avtal kunde inte verifieras. Välj avtalet igen.";
@@ -490,6 +497,9 @@ export default function CustomerApplicationForm({
 
   async function nextStep() {
     if (!(await validateCurrentStep())) return;
+    // Advancing after a review step creates a new signing attempt. Retrying
+    // directly from the final step keeps the same attempt and idempotency key.
+    rotateSubmissionAttempt();
     if (step === 0 && quoteContext) {
       setForm((current) =>
         current.postal_code || current.city || current.address
@@ -524,7 +534,8 @@ export default function CustomerApplicationForm({
     !canSubmit ||
     !allConsentsAccepted ||
     !contractDisplaySnapshot ||
-    !hasPricingPreview;
+    !hasPricingPreview ||
+    !pricingPreview?.quote_token;
   const errorList = Object.values(errors);
 
   return (
@@ -856,6 +867,8 @@ export default function CustomerApplicationForm({
       {step === 2 ? (
         <form action={formAction} className="space-y-6">
           <input type="hidden" name="company_website" value="" />
+          <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
+          <input type="hidden" name="pricing_quote_token" value={pricingPreview?.quote_token ?? ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
           <input type="hidden" name="utm_medium" value={utm.utm_medium ?? ""} />
           <input
@@ -880,31 +893,6 @@ export default function CustomerApplicationForm({
               energyResolution?.price_area_code ??
               ""
             }
-          />
-          <input
-            type="hidden"
-            name="grid_area_code"
-            value={energyResolution?.grid_area_code ?? ""}
-          />
-          <input
-            type="hidden"
-            name="grid_owner_id"
-            value={energyResolution?.grid_owner_id ?? ""}
-          />
-          <input
-            type="hidden"
-            name="grid_owner_name"
-            value={energyResolution?.grid_owner_name ?? ""}
-          />
-          <input
-            type="hidden"
-            name="energy_resolution_status"
-            value={energyResolution?.status ?? ""}
-          />
-          <input
-            type="hidden"
-            name="energy_resolution_confidence"
-            value={energyResolution?.confidence ?? ""}
           />
           <input
             type="hidden"

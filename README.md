@@ -26,6 +26,20 @@ integration secrets.
 - Customer invoice visibility is protected by RLS on `customer_invoices`; import
   routes use the Supabase service role server-side.
 
+
+## Gridex OPS Customer Portal API
+
+The website integrates with `https://app.gridex.se` only from server-side code. The authenticated Supabase user and the server-side `customer_profiles` row determine portal identity; browser requests cannot select an OPS customer or company.
+
+Before production deployment:
+
+1. Apply all Supabase migrations, including `20260710090000_customer_portal_api_hardening.sql`.
+2. Configure the OPS token, HTTPS host allowlist, pricing quote secret and webhook signing secret from `env.example`.
+3. Configure `CRON_SECRET` or `CUSTOMER_PORTAL_OUTBOX_CRON_SECRET` so the customer write outbox and notification reconciliation routes can run.
+4. Run lint, TypeScript, launch tests and a production build.
+
+The hardening migration adds immutable website-application attempts, an OPS write outbox for customer events, notification state and profile updates, webhook retry/reconciliation state and distributed rate limiting.
+
 ## External invoice import
 
 CIS/factoring systems can push invoices into the customer portal:
@@ -115,11 +129,12 @@ adds:
 
 ## Deploy on Vercel
 
-The repository includes `vercel.json` with `npm ci`, `npm run build` and a
-monthly cron route:
+The repository includes `vercel.json` with `npm ci`, `npm run build`, the monthly spot-price cron and hourly customer-portal outbox/reconciliation crons:
 
-```json
-"/api/integrations/spot-prices/import?publish=false"
+```text
+/api/integrations/spot-prices/import?publish=false
+/api/internal/customer-portal/outbox/process
+/api/internal/customer-portal/notifications/reconcile
 ```
 
 Configure these environment variables in Vercel:

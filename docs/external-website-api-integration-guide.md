@@ -132,14 +132,14 @@ Request:
 }
 ```
 
-The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. For application audit, the website may attach a non-blocking HMAC integrity token with `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`; this is not a legal price source, must never block sign-up by expiring during the customer flow, and must not reuse the OPS API key or PII hash pepper.
+The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. The website signs the displayed preview with a dedicated HMAC secret in `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`. That token is a mandatory integrity precondition for submission: it binds the selected `offer_reference`, address fingerprint, price area, estimated consumption and displayed values to the review step. It is not the legal price source and must never reuse the OPS API key or PII hash pepper. If the token expires or no longer matches, the website must refresh the quote and require the customer to review the current price again.
 
 ```http
 POST /api/v1/website/pricing/quote/validate
 Content-Type: application/json
 ```
 
-The website-local validation route verifies the short-lived HMAC quote against the final address, price area, estimated kWh and selected `offer_reference` before the customer application is submitted. OPS remains the authority that resolves the internal contract/price version and stores the authoritative contract price snapshot.
+The website-local validation route verifies the short-lived HMAC quote against the final address, price area, estimated kWh and selected `offer_reference` before the customer application is submitted. The submission handler then fetches the current public contract again and recalculates the preview server-side. A quote or contract snapshot mismatch blocks the submission and sends the customer back to the review step. OPS remains the authority that resolves the internal contract/price version and stores the authoritative contract price snapshot.
 
 ## Customer application
 
@@ -244,7 +244,19 @@ Accepted application metadata:
 }
 ```
 
-`external_application_id` identifies the website application attempt. `external_customer_id` identifies the website customer/account. Do not reuse the OPS customer number as `external_customer_id`; send OPS customer numbers only in `customer_number` after OPS has assigned them.
+`external_application_id` identifies one immutable website application attempt. `external_customer_id` identifies the stable website customer/account and must not be derived from mutable contact data such as e-mail. Do not reuse the OPS customer number as `external_customer_id`; send OPS customer numbers only in `customer_number` after OPS has assigned them.
+
+The implementation creates one UUID `submission_attempt_id` when the customer reaches the final review step. It persists and reuses the following values for every retry of that same signed submission:
+
+```text
+Idempotency-Key = website-application:<submission_attempt_id>
+external_application_id = <configured prefix>:<submission_attempt_id>
+acceptedAt = first persisted acceptance timestamp
+request context = first persisted IP hash/user-agent/UTM snapshot
+OPS payload hash = hash of the exact serialized request body
+```
+
+The same idempotency key may only be sent with the exact same locked OPS payload. The website must never perform an automatic fresh-key retry for a partial `site_create`, missing-POA repair or another failure belonging to the same signed attempt. A new key is only for a deliberately new customer submission.
 
 The application response can include `power_of_attorney_id`, `power_of_attorney`, `nextAction` and `manualInformationRequest`. The website should surface customer-safe `nextAction.message` and the manual request case reference when present, but it must not require these fields to exist.
 
@@ -258,19 +270,11 @@ Authorization: Bearer YOUR_GRIDEX_API_TOKEN
 Content-Type: application/json
 ```
 
-Recommended payload:
-
-```json
-{
-  "email": "kund@example.se",
-  "customer_number": "DX-100023",
-  "external_customer_id": "GRIDEX-WEB-20260616-…"
-}
-```
+The website wrapper does not accept customer identity from the browser. It reads `session.user.id` server-side, resolves the linked local profile and sends the verified portal/auth user IDs plus the already stored stable customer identifiers to OPS. A request body containing a different e-mail, customer number or `external_customer_id` must not override that identity. During application onboarding, an unauthenticated submission must never be attached to an existing Supabase account from e-mail alone. Reuse an existing portal profile only for the authenticated session user or when e-mail plus at least one stable customer identifier (`external_customer_id` or customer number) already converge on the same profile.
 
 Use `external_customer_id` only for the stable website/customer reference from signup. Do not copy the OPS customer number into `external_customer_id`; send customer numbers in `customer_number`.
 
-The website returns `401` for a missing customer session. For the current Gridex web implementation, the local `/api/v1/customer/portal-bundle` route returns `200` with `data.opsAvailable=false`, `data.dataFreshness="local_fallback"` and `data.dataFreshnessMessage` when OPS live data cannot be fetched but local Supabase fallback rows exist. UI must visibly mark this as potentially older than OPS data. If no customer session exists, return `401`; if neither OPS nor local fallback can be read, return `503`.
+The website returns `401` only when the customer session is missing or invalid. Local Supabase fallback is allowed only for transient OPS/network failures such as timeout, `408`, `425`, `429`, `502`, `503` or `504`, and the UI must visibly mark it as potentially older than OPS data. Authentication, authorization, ambiguous linking and validation failures (`401`, `403`, `409`, `422`) must preserve their status and stable OPS error code instead of being hidden by fallback. When OPS responds successfully, its portal arrays, `customer_status` and `data_quality` are authoritative; stale local contracts/sites/invoices/documents must not be merged back into the live response.
 
 ## Customer sync and customer writes
 
@@ -333,6 +337,12 @@ Payload:
 
 The route adds portal identity headers/body fields server-side from the logged-in user. It rejects unsupported event types before calling OPS.
 
+## Durable website writes and recovery
+
+Customer events, notification-read changes and profile updates use server-generated, user-namespaced idempotency keys. If OPS is temporarily unavailable, the website stores the exact operation in `customer_portal_write_outbox` and returns a queued status instead of claiming that a lost event succeeded. The Vercel cron route `/api/internal/customer-portal/outbox/process` retries pending operations with the same key and payload, applies exponential backoff and does not retry permanent `4xx` validation/authorization failures.
+
+Notification-read requests must contain exactly one of a non-empty `notification_ids` array or explicit `all=true`. Empty/invalid payloads must never be interpreted as “mark everything read”.
+
 ## Webhooks
 
 OPS webhooks are signed with HMAC SHA-256 over:
@@ -341,7 +351,9 @@ OPS webhooks are signed with HMAC SHA-256 over:
 X-Gridex-Timestamp + "." + rawBody
 ```
 
-The receiver must reject missing timestamps, stale timestamps and signatures that only match the raw body. The website stores `company_id`, `customer_number`, `external_customer_id`, `customer_email`, payload hash and raw payload for audit/debugging.
+The receiver must reject missing timestamps, stale timestamps and signatures that only match the raw body. `GRIDEX_WEBHOOK_SIGNING_SECRET` is the canonical variable; if the deprecated alias is also set to a different value, verification fails closed. The website stores `company_id`, `customer_number`, `external_customer_id`, `customer_email`, payload hash and raw payload for audit/debugging.
+
+A duplicate with status `processed` is acknowledged without running business logic twice. A previously `failed`, `received` or stale `processing` event is claimable and may be processed again with attempt tracking and optimistic concurrency. The same `event_id` with a different payload hash is a conflict, not a harmless duplicate. Notifications that arrive before a portal user can be resolved remain `pending`; `/api/internal/customer-portal/notifications/reconcile` retries resolution using converging stable identifiers and never links an ambiguous customer.
 
 ## Production readiness checklist
 
@@ -355,7 +367,9 @@ GRIDEX_ENABLE_PORTAL_ONBOARDING=true
 GRIDEX_WEBSITE_HASH_PEPPER=<stable secret>
 GRIDEX_WEBSITE_PRICING_QUOTE_SECRET=<stable signing secret>
 GRIDEX_ENABLE_OPS_WEBHOOKS=true
-GRIDEX_OPS_WEBHOOK_SECRET=<same signing secret configured in OPS webhook settings>
+GRIDEX_WEBHOOK_SIGNING_SECRET=<same signing secret configured in OPS webhook settings>
+CUSTOMER_PORTAL_OUTBOX_CRON_SECRET=<cron secret, or rely on CRON_SECRET>
+GRIDEX_OPS_ALLOWED_HOSTS=app.gridex.se
 ```
 
 The OPS API key should include:
@@ -376,4 +390,6 @@ customer_facility_data.write
 customer_power_of_attorney.write
 ```
 
-The production guard must reject localhost/staging/test OPS URLs unless `GRIDEX_ALLOW_UNSAFE_OPS_URL=true` is explicitly set for a non-production environment. Webhook verification must use `GRIDEX_OPS_WEBHOOK_SECRET` and reject stale timestamps/signatures.
+Before deployment, apply `supabase/migrations/20260710090000_customer_portal_api_hardening.sql`. It creates immutable application-attempt storage, the durable write outbox, retry metadata for webhook/notification reconciliation and the shared database-backed rate limiter. Configure both Vercel cron routes and verify they receive the expected authorization header.
+
+The production guard requires HTTPS and a hostname in `GRIDEX_OPS_ALLOWED_HOSTS` (normally only `app.gridex.se`). Unsafe URL overrides are for explicit non-production diagnostics only. Webhook verification must use `GRIDEX_WEBHOOK_SIGNING_SECRET` and reject stale timestamps/signatures. Public rate limits use the shared Supabase RPC; the process-local limiter is only a fail-safe when the shared store is temporarily unavailable.

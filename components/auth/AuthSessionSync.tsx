@@ -10,7 +10,7 @@ export default function AuthSessionSync() {
   const router = useRouter()
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_event) => {
+    const { data } = supabase.auth.onAuthStateChange(() => {
       // Viktigt: App Router + RSC behöver refresh för att SSR-layouts ska revalidera user/role
       router.refresh()
     })

@@ -9,7 +9,7 @@ import {
   type SignupSubmissionState,
 } from "@/components/signup/CustomerApplicationForm";
 import {
-  createApplicationIdempotencyKey,
+  buildOpsCustomerApplicationPayload,
   createExternalApplicationId,
   createExternalCustomerId,
   fetchOpsPublicContracts,
@@ -18,11 +18,25 @@ import {
   hashIp,
   isOpsError,
   submitOpsCustomerApplication,
+  type OpsCustomerApplicationInput,
   type OpsPublicContract,
 } from "@/lib/ops/client";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
-import { validateContractDisplaySnapshot } from "@/lib/website/snapshotValidation";
+import {
+  validateContractDisplaySnapshot,
+  validatePricingPreviewSnapshot,
+} from "@/lib/website/snapshotValidation";
+import {
+  quoteToWebsitePricingPreview,
+  validateWebsitePricingQuote,
+} from "@/lib/website/pricingQuote";
+import {
+  lockWebsiteSubmissionOpsPayload,
+  prepareWebsiteSubmission,
+  submissionPayloadHash,
+  updateWebsiteSubmission,
+} from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { buildLocalWebsitePricingPreview } from "@/lib/website/localPricingPreview";
@@ -262,25 +276,6 @@ function opsErrorContext(error: unknown): OpsErrorContext {
   };
 }
 
-function shouldRetryWithFreshIdempotencyKey(error: unknown): boolean {
-  if (!isOpsError(error) || error.status !== 409) return false;
-  const context = opsErrorContext(error);
-  return (
-    (context.code === "idempotent_failed" &&
-      context.previousErrorStage === "site_create") ||
-    context.code === "idempotent_application_missing_poa"
-  );
-}
-
-function createFreshRetryIdempotencyKey(baseParts: string[]): string {
-  const nonce = [
-    "retry_after_repairable_ops_idempotency",
-    new Date().toISOString(),
-    Math.random().toString(36).slice(2),
-  ];
-  return createApplicationIdempotencyKey([...baseParts, ...nonce]);
-}
-
 function opsErrorCode(error: unknown): OpsSignupFailureCode {
   if (!isOpsError(error)) return "ops_unavailable";
 
@@ -451,7 +446,17 @@ async function getCurrentPortalAuth() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    return user ? { id: user.id, email: user.email ?? null } : null;
+    if (!user) return null;
+    const { data: profile } = await supabase
+      .from("customer_profiles")
+      .select("external_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle<{ external_customer_id: string | null }>();
+    return {
+      id: user.id,
+      email: user.email ?? null,
+      externalCustomerId: profile?.external_customer_id ?? null,
+    };
   } catch {
     return null;
   }
@@ -509,7 +514,7 @@ export default async function TecknaPage({
     const h = await headers();
     const ip = getClientIpFromHeaders(h);
     const userAgent = h.get("user-agent");
-    const rate = checkRateLimit(`signup:${ip ?? "unknown"}`, {
+    const rate = await checkRateLimit(`signup:${ip ?? "unknown"}`, {
       limit: 8,
       windowMs: 15 * 60 * 1000,
     });
@@ -625,10 +630,10 @@ export default async function TecknaPage({
       return fail("snapshot");
     }
     if (!sameContractSnapshot(offer, contractDisplaySnapshot)) {
-      console.warn(
-        "[website signup] contract display snapshot mismatch; continuing because OPS public-contracts is the source of truth",
-        { offer_reference: offer.offer_reference },
-      );
+      console.warn("[website signup] contract display snapshot mismatch", {
+        offer_reference: offer.offer_reference,
+      });
+      return fail("snapshot");
     }
 
     const estimatedMonthlyKwh = parseOptionalNumber(
@@ -642,12 +647,6 @@ export default async function TecknaPage({
       return fail("price_snapshot");
     }
 
-    const submittedGridAreaCode = normalizeText(formData.get("grid_area_code"));
-    const submittedGridOwnerId = normalizeText(formData.get("grid_owner_id"));
-    const submittedGridOwnerName = normalizeText(
-      formData.get("grid_owner_name"),
-    );
-
     const serverResolution = await resolveWebsitePriceAreaForPricing({
       postal_code: postalCode,
       city,
@@ -657,56 +656,134 @@ export default async function TecknaPage({
     const serverPriceAreaCode = serverResolution?.price_area_code;
     if (!serverPriceAreaCode) return fail("area_mismatch");
 
+    const submissionAttemptId = normalizeText(formData.get("submission_attempt_id"));
+    if (!isUuid(submissionAttemptId)) return fail("validation");
+    const pricingQuoteToken = normalizeText(formData.get("pricing_quote_token"));
+    const verifiedQuote = validateWebsitePricingQuote({
+      token: pricingQuoteToken,
+      contract: offer,
+      priceAreaCode: serverPriceAreaCode,
+      estimatedMonthlyKwh,
+      location: { postalCode, city, address },
+    });
+    if (!verifiedQuote.ok) {
+      console.warn("[website signup] pricing quote verification failed", {
+        reason: verifiedQuote.reason,
+        offer_reference: offer.offer_reference,
+      });
+      return fail("price_changed");
+    }
+
     let canonicalPricingPreviewSnapshot: Record<string, unknown>;
     try {
-      canonicalPricingPreviewSnapshot = (await buildLocalWebsitePricingPreview({
+      const livePreview = await buildLocalWebsitePricingPreview({
         contract: offer,
         priceAreaCode: serverPriceAreaCode,
         estimatedMonthlyKwh,
-      })) as unknown as Record<string, unknown>;
-    } catch (error) {
-      console.error(
-        "[website signup] price audit snapshot could not be rebuilt; using submitted preview",
-        error,
-      );
-      canonicalPricingPreviewSnapshot = pricingPreviewSnapshot ?? {
-        contract: {
+      });
+      const pricingValidation = validatePricingPreviewSnapshot({
+        contract: offer,
+        snapshot: pricingPreviewSnapshot,
+        livePreview,
+        expectedPriceArea: serverPriceAreaCode,
+        expectedMonthlyKwh: estimatedMonthlyKwh,
+      });
+      if (!pricingValidation.ok) {
+        console.warn("[website signup] pricing preview snapshot mismatch", {
+          reasons: pricingValidation.reasons,
           offer_reference: offer.offer_reference,
-          name: offer.name,
-          contractType: offer.type,
-        },
-        priceArea: serverPriceAreaCode,
-        price_area_code: serverPriceAreaCode,
-        kwh: estimatedMonthlyKwh,
-        audit_note: "submitted_without_server_recalculation",
-      };
+        });
+        return fail("price_changed");
+      }
+      canonicalPricingPreviewSnapshot = quoteToWebsitePricingPreview(
+        verifiedQuote.quote,
+        pricingQuoteToken,
+      ) as unknown as Record<string, unknown>;
+    } catch (error) {
+      console.error("[website signup] server price verification failed", error);
+      return fail("price_changed");
     }
 
-    const idempotencyKeyParts = [
-      "gridex_website_application_v1",
-      email,
-      customerType,
-      customerType === "company" ? organizationNumber : personalNumber,
-      address,
-      postalCode,
-      offer.offer_reference,
-      requestedStartMode,
-      requestedStartDate || "asap",
-    ];
-    const idempotencyKey = createApplicationIdempotencyKey(idempotencyKeyParts);
-
+    const idempotencyKey = `website-application:${submissionAttemptId}`;
+    const externalApplicationId = createExternalApplicationId(submissionAttemptId);
     const currentAuth = await getCurrentPortalAuth();
     const canLinkCurrentAuth =
       !currentAuth?.email || sameEmail(currentAuth.email, email);
-    const linkedAuthUserId = canLinkCurrentAuth
-      ? (currentAuth?.id ?? null)
-      : null;
-    const externalCustomerId = createExternalCustomerId([
-      "gridex_website_customer_v1",
-      email,
+    const linkedAuthUserId = canLinkCurrentAuth ? (currentAuth?.id ?? null) : null;
+    const externalCustomerId =
+      (canLinkCurrentAuth ? currentAuth?.externalCustomerId : null) ??
+      createExternalCustomerId([
+        "gridex_website_customer_v2",
+        customerType,
+        customerType === "company" ? organizationNumber : personalNumber,
+      ]);
+
+    const signedPayloadHash = submissionPayloadHash({
+      submissionAttemptId,
+      externalApplicationId,
+      externalCustomerId,
+      offerReference: offer.offer_reference,
       customerType,
-      customerType === "company" ? organizationNumber : personalNumber,
-    ]);
+      firstName,
+      lastName,
+      companyName,
+      personalNumber,
+      organizationNumber,
+      email,
+      phone,
+      address,
+      postalCode,
+      city,
+      apartment,
+      facilityId,
+      meteringPointId,
+      requestedStartMode,
+      requestedStartDate,
+      serverPriceAreaCode,
+      gridAreaCode: serverResolution?.grid_area_code ?? null,
+      gridOwnerId: serverResolution?.grid_owner_id ?? null,
+      gridOwnerName: serverResolution?.grid_owner_name ?? null,
+      energyResolutionStatus: serverResolution?.status ?? null,
+      energyResolutionConfidence: serverResolution?.confidence ?? null,
+      quoteToken: pricingQuoteToken,
+      canonicalPricingPreviewSnapshot,
+      contractDisplaySnapshot,
+      linkedAuthUserId,
+      consents: {
+        acceptTerms,
+        acceptPrivacy,
+        acceptCancellation,
+        acceptPriceTerms,
+        acceptPowerOfAttorney,
+      },
+    });
+
+    let acceptedAt: string;
+    let immutableContext: Awaited<ReturnType<typeof prepareWebsiteSubmission>>["requestContext"];
+    try {
+      const prepared = await prepareWebsiteSubmission({
+        submissionAttemptId,
+        userId: linkedAuthUserId,
+        idempotencyKey,
+        externalApplicationId,
+        externalCustomerId,
+        offerReference: offer.offer_reference,
+        payloadHash: signedPayloadHash,
+        requestContext: {
+          ipAddress: ip,
+          ipHash: hashIp(ip),
+          userAgent,
+          utmSource: normalizeText(formData.get("utm_source")) || null,
+          utmMedium: normalizeText(formData.get("utm_medium")) || null,
+          utmCampaign: normalizeText(formData.get("utm_campaign")) || null,
+        },
+      });
+      acceptedAt = prepared.acceptedAt;
+      immutableContext = prepared.requestContext;
+    } catch (error) {
+      console.error("[website signup] immutable submission preparation failed", error);
+      return fail("ops_unavailable");
+    }
 
     const powerOfAttorney =
       powerOfAttorneyRequired && acceptPowerOfAttorney
@@ -722,103 +799,97 @@ export default async function TecknaPage({
             signerIdentityNumber:
               customerType === "company" ? organizationNumber : personalNumber,
             method: "website_acceptance",
-            acceptedAt: new Date().toISOString(),
+            acceptedAt,
             textVersionId: powerOfAttorneyTextVersionId,
-            ipAddress: ip,
-            userAgent,
+            ipAddress: immutableContext.ipAddress,
+            userAgent: immutableContext.userAgent,
           }
         : null;
 
-    const submitApplicationToOps = (applicationIdempotencyKey: string) =>
-      submitOpsCustomerApplication({
-        offer_reference: offer.offer_reference,
-        customer_type: customerType,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        company_name: companyName || null,
-        personal_number: personalNumber || null,
-        organization_number: organizationNumber || null,
-        email,
-        phone,
-        address,
-        postal_code: postalCode,
-        city,
-        apartment: apartment || null,
-        facility_id: facilityId || null,
-        metering_point_id: meteringPointId || null,
-        requested_start_mode: requestedStartMode,
-        requested_start_date:
-          requestedStartMode === "specific_date"
-            ? requestedStartDate || null
-            : null,
-        price_area_code: serverPriceAreaCode,
-        grid_area_code:
-          serverResolution?.grid_area_code ?? (submittedGridAreaCode || null),
-        grid_owner_id:
-          serverResolution?.grid_owner_id ?? (submittedGridOwnerId || null),
-        grid_owner_name:
-          serverResolution?.grid_owner_name ?? (submittedGridOwnerName || null),
-        energy_resolution_status: serverResolution?.status ?? null,
-        energy_resolution_confidence: serverResolution?.confidence ?? null,
-        estimated_monthly_kwh: estimatedMonthlyKwh,
-        pricing_preview_snapshot: canonicalPricingPreviewSnapshot,
-        contract_display_snapshot: contractDisplaySnapshot,
-        source: "gridex_website",
-        idempotency_key: applicationIdempotencyKey,
-        external_customer_id: externalCustomerId,
-        external_application_id: createExternalApplicationId(),
-        customer_portal_user_id: linkedAuthUserId,
-        auth_user_id: linkedAuthUserId,
-        utm_source: normalizeText(formData.get("utm_source")) || null,
-        utm_medium: normalizeText(formData.get("utm_medium")) || null,
-        utm_campaign: normalizeText(formData.get("utm_campaign")) || null,
-        user_agent: userAgent,
-        ip_hash: hashIp(ip),
-        consents: {
-          terms: acceptTerms,
-          privacy_policy: acceptPrivacy,
-          withdrawal: acceptCancellation,
-          power_of_attorney: powerOfAttorneyRequired
-            ? acceptPowerOfAttorney
-            : false,
-          price_terms: acceptPriceTerms,
-        },
-        powerOfAttorney,
-      });
-
-    let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
+    const applicationInput = {
+      offer_reference: offer.offer_reference,
+      customer_type: customerType,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      company_name: companyName || null,
+      personal_number: personalNumber || null,
+      organization_number: organizationNumber || null,
+      email,
+      phone,
+      address,
+      postal_code: postalCode,
+      city,
+      apartment: apartment || null,
+      facility_id: facilityId || null,
+      metering_point_id: meteringPointId || null,
+      requested_start_mode: requestedStartMode,
+      requested_start_date:
+        requestedStartMode === "specific_date" ? requestedStartDate || null : null,
+      price_area_code: serverPriceAreaCode,
+      grid_area_code: serverResolution?.grid_area_code ?? null,
+      grid_owner_id: serverResolution?.grid_owner_id ?? null,
+      grid_owner_name: serverResolution?.grid_owner_name ?? null,
+      energy_resolution_status: serverResolution?.status ?? null,
+      energy_resolution_confidence: serverResolution?.confidence ?? null,
+      estimated_monthly_kwh: estimatedMonthlyKwh,
+      pricing_preview_snapshot: canonicalPricingPreviewSnapshot,
+      contract_display_snapshot: contractDisplaySnapshot,
+      source: "gridex_website",
+      idempotency_key: idempotencyKey,
+      external_customer_id: externalCustomerId,
+      external_application_id: externalApplicationId,
+      customer_portal_user_id: linkedAuthUserId,
+      auth_user_id: linkedAuthUserId,
+      utm_source: immutableContext.utmSource,
+      utm_medium: immutableContext.utmMedium,
+      utm_campaign: immutableContext.utmCampaign,
+      user_agent: immutableContext.userAgent,
+      ip_hash: immutableContext.ipHash,
+      consents: {
+        terms: acceptTerms,
+        privacy_policy: acceptPrivacy,
+        withdrawal: acceptCancellation,
+        power_of_attorney: powerOfAttorneyRequired ? acceptPowerOfAttorney : false,
+        price_terms: acceptPriceTerms,
+      },
+      powerOfAttorney,
+    } satisfies OpsCustomerApplicationInput;
 
     try {
-      result = await submitApplicationToOps(idempotencyKey);
+      await lockWebsiteSubmissionOpsPayload({
+        submissionAttemptId,
+        opsPayloadHash: submissionPayloadHash(
+          buildOpsCustomerApplicationPayload(applicationInput),
+        ),
+      });
+      await updateWebsiteSubmission({ submissionAttemptId, status: "submitting" });
     } catch (error) {
-      if (shouldRetryWithFreshIdempotencyKey(error)) {
-        const retryIdempotencyKey =
-          createFreshRetryIdempotencyKey(idempotencyKeyParts);
-        const retryContext = opsErrorContext(error);
-        console.warn(
-          "[website signup] retrying repairable OPS idempotency failure with fresh idempotency key",
-          {
-            previous_request_id: retryContext.requestId || null,
-            previous_application_id: retryContext.applicationId || null,
-            previous_error_code: retryContext.previousErrorCode || null,
-          },
-        );
+      console.error("[website signup] exact OPS payload lock failed", error);
+      return fail("ops_unavailable");
+    }
 
-        try {
-          result = await submitApplicationToOps(retryIdempotencyKey);
-        } catch (retryError) {
-          console.error(
-            "[website signup] retry after repairable OPS idempotency failure also failed",
-            {
-              first_error: opsErrorContext(error),
-              retry_error: opsErrorContext(retryError),
-            },
-          );
-          return fail(opsErrorCode(retryError));
-        }
-      } else {
-        return fail(opsErrorCode(error));
-      }
+    const submitApplicationToOps = () => submitOpsCustomerApplication(applicationInput);
+
+    let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
+    try {
+      result = await submitApplicationToOps();
+      await updateWebsiteSubmission({
+        submissionAttemptId,
+        status: "accepted",
+        opsApplicationId: result.application_id ?? null,
+        opsCustomerId: result.customer_id ?? null,
+      });
+    } catch (error) {
+      const context = opsErrorContext(error);
+      await updateWebsiteSubmission({
+        submissionAttemptId,
+        status: "failed",
+        errorCode: context.code || null,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }).catch((storageError) => {
+        console.error("[website signup] failed to persist submission error", storageError);
+      });
+      return fail(opsErrorCode(error));
     }
 
     const portalOnboarding = await ensureCustomerPortalOnboarding({
@@ -837,6 +908,7 @@ export default async function TecknaPage({
       offerReference: offer.offer_reference,
       productCode: offer.product_code ?? null,
       contractName: offer.name,
+      authenticatedUserId: linkedAuthUserId,
     }).catch((error) => {
       console.error(
         "[website signup] non-blocking portal onboarding failed after successful OPS application",

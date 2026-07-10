@@ -11,7 +11,7 @@ type AuditRow = {
   performed_at: string
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
   const supabase = ctx.supabase
 

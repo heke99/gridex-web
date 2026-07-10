@@ -90,6 +90,23 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
+
+      {overview.customerStatus ? (
+        <div className={`rounded-3xl border p-5 ${overview.customerStatus.can_start_switch === false ? 'border-amber-500/30 bg-amber-500/10 text-amber-50/90' : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-50/90'}`}>
+          <div className="font-semibold text-white">
+            {overview.customerStatus.label || customerStatusText(overview.customerStatus.code)}
+          </div>
+          {overview.customerStatus.message ? (
+            <p className="mt-2 text-sm leading-6">{overview.customerStatus.message}</p>
+          ) : null}
+          {overview.dataQuality?.issues.length ? (
+            <p className="mt-2 text-xs text-white/70">
+              Uppgifter som kontrolleras: {overview.dataQuality.issues.map(customerStatusText).join(', ')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <OverviewCards overview={overview} />
 
       <div className="grid gap-4 lg:grid-cols-3">

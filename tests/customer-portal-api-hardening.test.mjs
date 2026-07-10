@@ -1,0 +1,96 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+function read(path) {
+  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+}
+
+const portalRoute = read('app/api/v1/customer/portal-bundle/route.ts')
+assert.ok(portalRoute.includes('getCustomerPortalOverview()'))
+assert.ok(!portalRoute.includes('customer_number: body'))
+assert.ok(!portalRoute.includes('external_customer_id: body'))
+
+const service = read('lib/customerPortal/service.ts')
+assert.ok(!service.includes('applyPortalIdentityOverride'))
+assert.ok(service.includes('if (!isTransientOpsError(error)) throw error'))
+assert.ok(service.includes('customerStatus'))
+assert.ok(service.includes('dataQuality'))
+assert.ok(service.includes("opsAvailable ? (bundle?.contracts ?? []).map(mapOpsContract) : localContracts"))
+assert.ok(!service.includes('crypto.randomUUID()'))
+
+const signup = read('app/(public)/teckna-avtal/page.tsx')
+assert.ok(signup.includes('submission_attempt_id'))
+assert.ok(signup.includes('website-application:${submissionAttemptId}'))
+assert.ok(signup.includes('createExternalApplicationId(submissionAttemptId)'))
+assert.ok(signup.includes('lockWebsiteSubmissionOpsPayload'))
+assert.ok(signup.includes('buildOpsCustomerApplicationPayload(applicationInput)'))
+assert.ok(!signup.includes('createFreshRetryIdempotencyKey'))
+assert.ok(!signup.includes('submittedGridOwnerId'))
+assert.ok(!signup.includes('submittedGridAreaCode'))
+
+
+const onboarding = read('lib/customerPortal/onboarding.ts')
+assert.ok(onboarding.includes('authenticatedUserId'))
+assert.ok(onboarding.includes('findSafelyLinkedProfile'))
+assert.ok(onboarding.includes('Never attach an unauthenticated application'))
+assert.ok(onboarding.includes('Portal profile upsert failed'))
+assert.ok(onboarding.includes('Portal contract link upsert failed'))
+assert.ok(!onboarding.includes('userAfterError.id'))
+
+const ops = read('lib/ops/client.ts')
+assert.ok(ops.includes('GRIDEX_OPS_ALLOWED_HOSTS'))
+assert.ok(ops.includes('GRIDEX_WEBSITE_HASH_PEPPER_OR_PII_HASH_PEPPER'))
+assert.ok(ops.includes('Website customer identity hash secret is not configured.'))
+assert.ok(ops.includes('parsed.protocol !== "https:"'))
+assert.ok(ops.includes('customerStatus'))
+assert.ok(ops.includes('dataQuality'))
+assert.ok(ops.includes('notification-read:${identity.userId}:${input.operationId}'))
+assert.ok(ops.includes('customer-sync:${input.identity.userId}:${operationId}'))
+assert.ok(ops.includes('if (error instanceof TypeError) return true'))
+assert.ok(ops.includes('return false;'))
+
+const notificationRead = read('app/api/v1/customer/notifications/read/route.ts')
+assert.ok(notificationRead.includes("Ange notification_ids eller all=true"))
+assert.ok(notificationRead.includes("Skicka antingen all=true eller notification_ids"))
+
+const eventRoute = read('app/api/customer/events/route.ts')
+assert.ok(eventRoute.includes('enqueuePortalWrite'))
+assert.ok(eventRoute.includes('{ ok: true, queued: true }'))
+assert.ok(!eventRoute.includes('{ ok: true, queued: false }\n      )'))
+
+const webhook = read('app/api/ops/webhooks/route.ts')
+assert.ok(webhook.includes("existing.status === 'processed'"))
+assert.ok(webhook.includes("status: 'processing'"))
+assert.ok(webhook.includes('Webhook event ID was reused with a different payload.'))
+assert.ok(webhook.includes('identity_resolution_next_attempt_at'))
+assert.ok(webhook.includes('conflicting webhook secrets'))
+assert.ok(webhook.includes('Webhook completion state was lost to a concurrent worker.'))
+
+const migration = read('supabase/migrations/20260710090000_customer_portal_api_hardening.sql')
+assert.ok(migration.includes('website_application_submissions'))
+assert.ok(migration.includes('ops_payload_hash'))
+assert.ok(migration.includes('customer_portal_write_outbox'))
+assert.ok(migration.includes("'profile_update'"))
+assert.ok(migration.includes('consume_distributed_rate_limit'))
+
+const outbox = read('lib/customerPortal/outbox.ts')
+assert.ok(outbox.includes('PortalOutboxConflictError'))
+assert.ok(outbox.includes("operation_type === 'profile_update'"))
+assert.ok(outbox.includes('operationHash(existing.payload)'))
+assert.ok(outbox.includes('Outbox completion state was lost to a concurrent worker.'))
+
+const contractsRoute = read('app/api/v1/website/contracts/route.ts')
+assert.ok(contractsRoute.includes("customer_type måste vara private eller company"))
+assert.ok(contractsRoute.includes("dynamic = 'force-dynamic'"))
+
+const rateLimit = read('lib/security/rateLimit.ts')
+assert.ok(rateLimit.includes("supabase.rpc('consume_distributed_rate_limit'"))
+assert.ok(rateLimit.includes("source: 'shared'"))
+
+const syncRoute = read('app/api/v1/customer/sync/route.ts')
+assert.ok(syncRoute.includes('syncPowerOfAttorney'))
+assert.ok(syncRoute.includes('syncLegalAcceptances'))
+assert.ok(syncRoute.includes('syncDocuments'))
+assert.ok(syncRoute.includes('syncFacilityData'))
+
+console.log('Customer Portal API hardening checks passed')

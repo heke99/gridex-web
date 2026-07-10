@@ -35,7 +35,7 @@ export async function createSupportTicketAction(formData: FormData) {
     throw new Error('Du behöver logga in igen.')
   }
 
-  const rate = checkRateLimit(`support-ticket:${user.id}`, {
+  const rate = await checkRateLimit(`support-ticket:${user.id}`, {
     limit: 10,
     windowMs: 15 * 60 * 1000,
   })
@@ -132,7 +132,7 @@ export async function addSupportMessageAction(formData: FormData) {
     throw new Error('Du behöver logga in igen.')
   }
 
-  const rate = checkRateLimit(`support-reply:${user.id}`, {
+  const rate = await checkRateLimit(`support-reply:${user.id}`, {
     limit: 20,
     windowMs: 15 * 60 * 1000,
   })

@@ -1,44 +1,28 @@
 import { NextResponse } from 'next/server'
-import { CustomerPortalAccessError, getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { customerApiErrorResponse } from '@/lib/customerPortal/apiErrors'
 
-function errorResponse(error: unknown) {
-  if (error instanceof CustomerPortalAccessError) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: error.status },
-    )
-  }
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-  console.error('[customer portal] portal-bundle route failed', error)
-  return NextResponse.json(
-    { error: 'Kunduppgifterna kan inte hämtas just nu. Försök igen om en stund.', code: 'customer_portal_unavailable' },
-    { status: 503 },
-  )
-}
-
-export async function GET() {
+async function handle() {
   try {
     const overview = await getCustomerPortalOverview()
     return NextResponse.json({ data: overview })
   } catch (error) {
-    return errorResponse(error)
-  }
-}
-
-function text(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json().catch(() => ({}))
-    const overview = await getCustomerPortalOverview({
-      email: text(body.email),
-      customerNumber: text(body.customer_number ?? body.customerNumber),
-      externalCustomerId: text(body.external_customer_id ?? body.externalCustomerId),
+    return customerApiErrorResponse(error, {
+      logLabel: 'portal-bundle',
+      fallbackMessage: 'Kunduppgifterna kan inte hämtas just nu. Försök igen om en stund.',
     })
-    return NextResponse.json({ data: overview })
-  } catch (error) {
-    return errorResponse(error)
   }
+}
+
+export async function GET() {
+  return handle()
+}
+
+export async function POST() {
+  // Customer identity is always derived from the verified server-side session/profile.
+  // Request-body identity overrides are intentionally ignored.
+  return handle()
 }

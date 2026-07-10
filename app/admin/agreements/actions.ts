@@ -7,7 +7,7 @@ export async function finalizeAgreementAction(
   agreementId: string
 ): Promise<void> {
   // 🔐 1. Session-bunden auth (RLS enforced)
-  const admin = await requireAdminServer()
+  await requireAdminServer()
 
   // 🔎 2. Enkel input-validering
   if (!agreementId || typeof agreementId !== 'string') {

@@ -33,11 +33,15 @@ export type PortalOnboardingInput = {
   offerReference: string
   productCode?: string | null
   contractName?: string | null
+  authenticatedUserId?: string | null
 }
 
-type AuthUser = {
-  id: string
-  email?: string | null
+type ExistingProfile = {
+  user_id: string
+  email: string | null
+  customer_number: string | null
+  contract_customer_ref: string | null
+  external_customer_id: string | null
 }
 
 function env(name: string): string | null {
@@ -79,42 +83,34 @@ async function loadServiceClient(): Promise<SupabaseServiceClient> {
   return supabaseService
 }
 
-async function findProfileUserId(supabase: SupabaseServiceClient, email: string) {
-  const { data } = await supabase
+function stableProfileMatchesApplication(profile: ExistingProfile, input: PortalOnboardingInput): boolean {
+  const appExternal = input.application.external_customer_id?.trim() || null
+  const appCustomerNumber = input.application.customer_number?.trim() || null
+  const externalMatches = Boolean(
+    appExternal && profile.external_customer_id && profile.external_customer_id === appExternal,
+  )
+  const customerNumberMatches = Boolean(
+    appCustomerNumber &&
+      (profile.customer_number === appCustomerNumber ||
+        profile.contract_customer_ref === appCustomerNumber),
+  )
+  return externalMatches || customerNumberMatches
+}
+
+async function findSafelyLinkedProfile(
+  supabase: SupabaseServiceClient,
+  input: PortalOnboardingInput,
+): Promise<ExistingProfile | null> {
+  const { data, error } = await supabase
     .from('customer_profiles')
-    .select('user_id')
-    .eq('email', normalizeEmail(email))
-    .limit(1)
-    .maybeSingle<{ user_id: string }>()
-
-  return data?.user_id ?? null
-}
-
-async function findAuthUserByEmail(
-  supabase: SupabaseServiceClient,
-  email: string,
-): Promise<AuthUser | null> {
-  const wanted = normalizeEmail(email)
-
-  for (let page = 1; page <= 10; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
-    if (error) break
-
-    const match = data.users.find((user) => normalizeEmail(user.email ?? '') === wanted)
-    if (match) return { id: match.id, email: match.email }
-    if (data.users.length < 1000) break
-  }
-
-  return null
-}
-
-async function resolveExistingAuthUser(
-  supabase: SupabaseServiceClient,
-  email: string,
-): Promise<AuthUser | null> {
-  const profileUserId = await findProfileUserId(supabase, email)
-  if (profileUserId) return { id: profileUserId, email }
-  return findAuthUserByEmail(supabase, email)
+    .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
+    .eq('email', normalizeEmail(input.email))
+    .limit(3)
+    .returns<ExistingProfile[]>()
+  if (error) throw new Error(error.message)
+  const rows = data ?? []
+  if (rows.length !== 1) return null
+  return stableProfileMatchesApplication(rows[0], input) ? rows[0] : null
 }
 
 function profilePayload(
@@ -168,54 +164,67 @@ async function upsertLocalPortalRows(
 ) {
   const profile = profilePayload(input, userId, onboardingState)
 
-  await supabase.from('customer_profiles').upsert(profile, { onConflict: 'user_id' })
+  const { error: profileError } = await supabase
+    .from('customer_profiles')
+    .upsert(profile, { onConflict: 'user_id' })
+  if (profileError) throw new Error(`Portal profile upsert failed: ${profileError.message}`)
 
   if (isUuid(input.application.contract_id)) {
-    await supabase.from('customer_contract_portal_links').upsert(
-      {
-        user_id: userId,
-        agreement_id: input.application.contract_id,
-        contract_slug: input.productCode ?? input.offerReference,
-        contract_name: input.contractName ?? input.productCode ?? 'Elavtal',
-        status: input.application.status ?? 'application_received',
-        billing_customer_ref: input.application.customer_number ?? null,
-        contract_provider_key: 'ops',
-        contract_external_ref: input.application.contract_number ?? null,
-        pricing_snapshot: {
-          offer_reference: input.application.offer_reference ?? input.offerReference,
-          contract_price_snapshot_id: input.application.contract_price_snapshot_id ?? null,
+    const { error: contractLinkError } = await supabase
+      .from('customer_contract_portal_links')
+      .upsert(
+        {
+          user_id: userId,
+          agreement_id: input.application.contract_id,
+          contract_slug: input.productCode ?? input.offerReference,
+          contract_name: input.contractName ?? input.productCode ?? 'Elavtal',
+          status: input.application.status ?? 'application_received',
+          billing_customer_ref: input.application.customer_number ?? null,
+          contract_provider_key: 'ops',
+          contract_external_ref: input.application.contract_number ?? null,
+          pricing_snapshot: {
+            offer_reference: input.application.offer_reference ?? input.offerReference,
+            contract_price_snapshot_id: input.application.contract_price_snapshot_id ?? null,
+          },
+          metadata: {
+            source: 'ops_application_onboarding',
+            application_id: input.application.application_id ?? null,
+            application_number: input.application.application_number ?? null,
+            portal_identity_id: input.application.portal_identity_id ?? null,
+            customer_number: input.application.customer_number ?? null,
+          },
         },
-        metadata: {
-          source: 'ops_application_onboarding',
-          application_id: input.application.application_id ?? null,
-          application_number: input.application.application_number ?? null,
-          portal_identity_id: input.application.portal_identity_id ?? null,
-          customer_number: input.application.customer_number ?? null,
-        },
-      },
-      { onConflict: 'agreement_id' },
-    )
+        { onConflict: 'agreement_id' },
+      )
+    if (contractLinkError) {
+      throw new Error(`Portal contract link upsert failed: ${contractLinkError.message}`)
+    }
   }
 
   const facilityId = input.facilityId || null
   if (facilityId) {
-    await supabase.from('customer_delivery_points').upsert(
-      {
-        user_id: userId,
-        facility_id: facilityId,
-        address: input.address ?? null,
-        postal_code: input.postalCode ?? null,
-        city: input.city ?? null,
-        external_metering_ref: input.meteringPointId ?? null,
-        metadata: {
-          source: 'ops_application_onboarding',
-          customer_site_id: input.application.customer_site_id ?? null,
-          metering_point_id: input.application.metering_point_id ?? null,
+    const { error: deliveryPointError } = await supabase
+      .from('customer_delivery_points')
+      .upsert(
+        {
+          user_id: userId,
+          facility_id: facilityId,
+          address: input.address ?? null,
+          postal_code: input.postalCode ?? null,
+          city: input.city ?? null,
+          external_metering_ref: input.meteringPointId ?? null,
+          metadata: {
+            source: 'ops_application_onboarding',
+            customer_site_id: input.application.customer_site_id ?? null,
+            metering_point_id: input.application.metering_point_id ?? null,
+          },
+          is_primary: true,
         },
-        is_primary: true,
-      },
-      { onConflict: 'user_id,facility_id' },
-    )
+        { onConflict: 'user_id,facility_id' },
+      )
+    if (deliveryPointError) {
+      throw new Error(`Portal delivery point upsert failed: ${deliveryPointError.message}`)
+    }
   }
 }
 
@@ -224,7 +233,7 @@ async function recordOnboardingFailure(
   input: PortalOnboardingInput,
   reason: string,
 ) {
-  await supabase.from('website_submission_failures').insert({
+  const { error } = await supabase.from('website_submission_failures').insert({
     flow: 'portal_onboarding',
     email_hash: emailHash(input.email),
     reason,
@@ -235,6 +244,7 @@ async function recordOnboardingFailure(
       contract_number: input.application.contract_number ?? null,
     },
   })
+  if (error) throw new Error(`Portal onboarding failure audit insert failed: ${error.message}`)
 }
 
 export async function ensureCustomerPortalOnboarding(
@@ -252,16 +262,29 @@ export async function ensureCustomerPortalOnboarding(
 
   try {
     supabase = await loadServiceClient()
-    const existingUser = await resolveExistingAuthUser(supabase, input.email)
-
-    if (existingUser?.id) {
+    const authenticatedUserId = input.authenticatedUserId?.trim() || null
+    if (authenticatedUserId) {
       await upsertLocalPortalRows(
         supabase,
         input,
-        existingUser.id,
+        authenticatedUserId,
         'portal_existing_customer_linked',
       )
-      return { status: 'profile_linked', userId: existingUser.id }
+      return { status: 'profile_linked', userId: authenticatedUserId }
+    }
+
+    // Never attach an unauthenticated application to an existing account from
+    // email alone. A previously linked profile is reusable only when its email
+    // and at least one stable OPS/customer identifier match this application.
+    const safelyLinkedProfile = await findSafelyLinkedProfile(supabase, input)
+    if (safelyLinkedProfile?.user_id) {
+      await upsertLocalPortalRows(
+        supabase,
+        input,
+        safelyLinkedProfile.user_id,
+        'portal_existing_customer_linked',
+      )
+      return { status: 'profile_linked', userId: safelyLinkedProfile.user_id }
     }
 
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(normalizeEmail(input.email), {
@@ -278,19 +301,14 @@ export async function ensureCustomerPortalOnboarding(
     })
 
     if (error) {
-      const userAfterError = await resolveExistingAuthUser(supabase, input.email)
-      if (userAfterError?.id) {
-        await upsertLocalPortalRows(
-          supabase,
-          input,
-          userAfterError.id,
-          'portal_existing_customer_linked',
-        )
-        return { status: 'profile_linked', userId: userAfterError.id }
+      // An existing Supabase account may make inviteUserByEmail fail. Do not
+      // fall back to email-only linking: the customer must authenticate first,
+      // after which the normal server-side portal identity flow can link safely.
+      await recordOnboardingFailure(supabase, input, 'invite_failed_or_existing_auth_requires_login')
+      return {
+        status: 'pending',
+        message: 'Ett konto finns redan för e-postadressen. Logga in för att slutföra Mina sidor-kopplingen.',
       }
-
-      await recordOnboardingFailure(supabase, input, 'invite_failed')
-      return { status: 'failed', message: error.message }
     }
 
     const userId = data.user?.id ?? null

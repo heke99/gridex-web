@@ -2,50 +2,39 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { submitOpsCustomerMoveOut } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
+import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
+import { clientOperationId, moveOutPayload, object } from '@/lib/customerPortal/writeValidation'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-function object(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
-}
-
-function text(value: unknown, max = 240): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim().slice(0, max)
-  return trimmed || null
-}
-
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: { code: 'unauthorized', message: 'Du behöver logga in.' } }, { status: 401 })
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized', code: 'unauthorized' }, { status: 401 })
+  const body = object(await req.json().catch(() => null))
+  if (!body) return validationError('Ogiltig request-body.')
+  const moveOut = moveOutPayload(body.move_out ?? body.moveOut)
+  if (!moveOut) return validationError('Flyttuppgifter saknas eller är ogiltiga.', 'move_out')
+  if (!moveOut.move_out_date) return validationError('Utflyttningsdatum saknas.', 'move_out.move_out_date')
+  if (!moveOut.site_id && !moveOut.customer_site_id && !moveOut.facility_id) {
+    return validationError('Ange vilken anläggning flytten gäller.', 'move_out.site_id')
   }
-
-  const body = object(await req.json().catch(() => null)) ?? {}
-  const moveOut = object(body.move_out ?? body.moveOut) ?? body
 
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
     const result = await submitOpsCustomerMoveOut({
       identity,
-      idempotencyKey: text(body.idempotency_key ?? body.idempotencyKey),
+      idempotencyKey: clientOperationId(body.client_operation_id ?? body.idempotency_key),
       moveOut,
-      metadata: object(body.metadata) ?? { source: 'gridex_web_move_out_route' },
+      metadata: { source: 'gridex_web_move_out_route' },
     })
-
     return NextResponse.json({ data: result })
   } catch (error) {
-    console.error('[customer portal] OPS move-out failed', error)
-    return NextResponse.json(
-      { error: 'Flyttanmälan kunde inte skickas just nu.', code: 'customer_portal_unavailable' },
-      { status: 502 },
-    )
+    return customerApiErrorResponse(error, {
+      logLabel: 'move-out',
+      fallbackMessage: 'Flyttanmälan kunde inte skickas just nu.',
+    })
   }
 }

@@ -93,6 +93,23 @@ export default async function MinaSidorPage() {
           </div>
         ) : null}
 
+
+        {overview.customerStatus ? (
+          <div className={`mt-6 rounded-3xl border p-5 ${overview.customerStatus.can_start_switch === false ? 'border-amber-500/30 bg-amber-500/10 text-amber-50/90' : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-50/90'}`}>
+            <div className="font-semibold text-white">
+              {overview.customerStatus.label || statusLabel(overview.customerStatus.code)}
+            </div>
+            {overview.customerStatus.message ? (
+              <p className="mt-2 text-sm leading-6">{overview.customerStatus.message}</p>
+            ) : null}
+            {overview.dataQuality?.issues.length ? (
+              <div className="mt-3 text-xs text-white/70">
+                Uppgifter som kontrolleras: {overview.dataQuality.issues.map((issue) => statusLabel(issue)).join(', ')}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <section className="mt-6 grid gap-4 md:grid-cols-4">
           <InfoCard label="Kundnummer" value={profile?.customer_number || profile?.contract_customer_ref || 'Kommer senare'} />
           <InfoCard label="Avtalsstatus" value={statusLabel(latestContract?.status)} />
@@ -189,6 +206,7 @@ export default async function MinaSidorPage() {
                 <div className="mt-2">Status: {statusLabel(activePowerOfAttorney.status)}</div>
                 <div>Godkänd: {formatDate(activePowerOfAttorney.accepted_at)}</div>
                 <div>Version: {activePowerOfAttorney.version || '—'}</div>
+                <div>Omfattning: {activePowerOfAttorney.scopes.length ? activePowerOfAttorney.scopes.map((scope) => statusLabel(scope)).join(', ') : '—'}</div>
                 <p className="mt-3 text-xs leading-6 text-gray-500">
                   Fullmakten gör att Gridex kan begära och ta emot de uppgifter från
                   elnätsföretaget som behövs för att starta och administrera ditt elavtal.

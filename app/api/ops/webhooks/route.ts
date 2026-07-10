@@ -14,6 +14,9 @@ type WebhookLogRow = {
   id: string
   event_id: string
   status: string
+  attempt_count?: number
+  last_attempt_at?: string | null
+  payload_hash?: string | null
 }
 
 type UserLookupRow = {
@@ -50,46 +53,68 @@ function normalizeEmail(value?: string | null) {
 }
 
 function invalidatesPublicContracts(eventType: string): boolean {
-  return /^(contract|price_plan|price_version|campaign)\./i.test(eventType)
+  return /^(public_contract\.(published|updated|unpublished)|price_plan\.updated|price_version\.published|campaign\.updated)$/i.test(eventType)
 }
 
-function profileMatchesIdentity(
-  row: UserLookupRow,
-  args: {
-    customerNumber?: string | null
-    externalCustomerId?: string | null
-    customerEmail?: string | null
-  },
-) {
-  const customerNumber = normalizeText(args.customerNumber)
-  const externalCustomerId = normalizeText(args.externalCustomerId)
-  const email = normalizeEmail(args.customerEmail)
-
-  if (!customerNumber && !externalCustomerId && !email) return true
-  if (customerNumber && [row.customer_number, row.contract_customer_ref].includes(customerNumber)) return true
-  if (externalCustomerId && row.external_customer_id === externalCustomerId) return true
-  if (email && row.email?.toLowerCase() === email) return true
-  return false
+function webhookSecret(): { secret: string | null; conflict: boolean } {
+  const canonical = env('GRIDEX_WEBHOOK_SIGNING_SECRET')
+  const legacy = env('GRIDEX_OPS_WEBHOOK_SECRET')
+  return {
+    secret: canonical ?? legacy,
+    conflict: Boolean(canonical && legacy && canonical !== legacy),
+  }
 }
 
-async function uniqueProfileBy(
+type IdentityResolution = {
+  userId: string | null
+  status: 'resolved' | 'pending' | 'ambiguous'
+  error: string | null
+}
+
+async function profilesBy(
   supabase: ReturnType<typeof serviceClient>,
   column: 'external_customer_id' | 'customer_number' | 'contract_customer_ref' | 'email',
   value: string | null,
-): Promise<UserLookupRow | null> {
-  if (!value) return null
+): Promise<UserLookupRow[]> {
+  if (!value) return []
   const queryValue = column === 'email' ? value.toLowerCase() : value
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('customer_profiles')
     .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
     .eq(column, queryValue)
-    .limit(2)
+    .limit(3)
     .returns<UserLookupRow[]>()
-
-  return data?.length === 1 ? data[0] : null
+  if (error) throw new Error(error.message)
+  return data ?? []
 }
 
-async function resolveUserId(
+function portalProfileConflicts(
+  row: UserLookupRow,
+  args: {
+    customerNumber: string | null
+    externalCustomerId: string | null
+    customerEmail: string | null
+  },
+): boolean {
+  if (
+    args.customerNumber &&
+    (row.customer_number || row.contract_customer_ref) &&
+    ![row.customer_number, row.contract_customer_ref].includes(args.customerNumber)
+  ) return true
+  if (
+    args.externalCustomerId &&
+    row.external_customer_id &&
+    row.external_customer_id !== args.externalCustomerId
+  ) return true
+  if (
+    args.customerEmail &&
+    row.email &&
+    row.email.toLowerCase() !== args.customerEmail
+  ) return true
+  return false
+}
+
+async function resolveUserIdentity(
   supabase: ReturnType<typeof serviceClient>,
   args: {
     portalUserId?: string | null
@@ -97,34 +122,52 @@ async function resolveUserId(
     externalCustomerId?: string | null
     customerEmail?: string | null
   },
-) {
+): Promise<IdentityResolution> {
   const portalUserId = normalizeText(args.portalUserId)
   const customerNumber = normalizeText(args.customerNumber)
   const externalCustomerId = normalizeText(args.externalCustomerId)
   const customerEmail = normalizeEmail(args.customerEmail)
+  const normalized = { customerNumber, externalCustomerId, customerEmail }
 
   if (portalUserId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('customer_profiles')
       .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
       .eq('user_id', portalUserId)
       .maybeSingle<UserLookupRow>()
-
-    if (data && profileMatchesIdentity(data, args)) return data.user_id
+    if (error) throw new Error(error.message)
+    if (data) {
+      if (portalProfileConflicts(data, normalized)) {
+        return {
+          userId: null,
+          status: 'ambiguous',
+          error: 'Portal user ID conflicts with customer identifiers in the OPS event.',
+        }
+      }
+      return { userId: data.user_id, status: 'resolved', error: null }
+    }
   }
 
-  const byExternal = await uniqueProfileBy(supabase, 'external_customer_id', externalCustomerId)
-  if (byExternal?.user_id) return byExternal.user_id
+  const lookups = await Promise.all([
+    profilesBy(supabase, 'external_customer_id', externalCustomerId),
+    profilesBy(supabase, 'customer_number', customerNumber),
+    profilesBy(supabase, 'contract_customer_ref', customerNumber),
+    profilesBy(supabase, 'email', customerEmail),
+  ])
+  if (lookups.some((rows) => rows.length > 1)) {
+    return { userId: null, status: 'ambiguous', error: 'At least one customer identifier matched multiple portal profiles.' }
+  }
 
-  const byCustomerNumber =
-    (await uniqueProfileBy(supabase, 'customer_number', customerNumber)) ??
-    (await uniqueProfileBy(supabase, 'contract_customer_ref', customerNumber))
-  if (byCustomerNumber?.user_id) return byCustomerNumber.user_id
-
-  const byEmail = await uniqueProfileBy(supabase, 'email', customerEmail)
-  if (byEmail?.user_id) return byEmail.user_id
-
-  return null
+  const candidates = new Set(
+    lookups.flatMap((rows) => rows.map((row) => row.user_id)).filter(Boolean),
+  )
+  if (candidates.size > 1) {
+    return { userId: null, status: 'ambiguous', error: 'Customer identifiers matched different portal profiles.' }
+  }
+  if (candidates.size === 1) {
+    return { userId: [...candidates][0], status: 'resolved', error: null }
+  }
+  return { userId: null, status: 'pending', error: 'No local portal profile matched the OPS event yet.' }
 }
 
 async function backfillProfileIdentity(
@@ -165,7 +208,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Webhooks are disabled.' }, { status: 404 })
   }
 
-  const secret = env('GRIDEX_OPS_WEBHOOK_SECRET') ?? env('GRIDEX_WEBHOOK_SIGNING_SECRET')
+  const secretConfig = webhookSecret()
+  if (secretConfig.conflict) {
+    console.error('[ops webhook] conflicting webhook secrets are configured')
+    return NextResponse.json({ error: 'Webhook configuration conflict.' }, { status: 503 })
+  }
+  const secret = secretConfig.secret
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }
@@ -206,7 +254,9 @@ export async function POST(req: Request) {
 
   const deliveryId = req.headers.get('x-gridex-delivery-id')
 
-  const { data: logRow, error: logError } = await supabase
+  const now = new Date().toISOString()
+  let logRow: WebhookLogRow | null = null
+  const { data: inserted, error: logError } = await supabase
     .from('ops_webhook_events')
     .insert({
       event_id: event.event_id,
@@ -219,40 +269,102 @@ export async function POST(req: Request) {
       portal_user_id: event.portal_user_id,
       delivery_id: deliveryId,
       occurred_at: event.occurred_at,
-      status: 'received',
+      status: 'processing',
       signature_valid: true,
       payload_hash: payloadHashHex,
       payload: event.raw,
+      attempt_count: 1,
+      last_attempt_at: now,
     })
-    .select('id,event_id,status')
+    .select('id,event_id,status,attempt_count,last_attempt_at,payload_hash')
     .single<WebhookLogRow>()
 
   if (logError) {
-    const duplicate =
-      logError.code === '23505' || logError.message.toLowerCase().includes('duplicate')
-    if (duplicate) {
-      return NextResponse.json({ ok: true, duplicate: true })
+    const duplicate = logError.code === '23505' || logError.message.toLowerCase().includes('duplicate')
+    if (!duplicate) return NextResponse.json({ error: logError.message }, { status: 500 })
+
+    const { data: existing, error: existingError } = await supabase
+      .from('ops_webhook_events')
+      .select('id,event_id,status,attempt_count,last_attempt_at,payload_hash')
+      .eq('event_id', event.event_id)
+      .maybeSingle<WebhookLogRow>()
+    if (existingError || !existing) {
+      return NextResponse.json({ error: existingError?.message ?? 'Webhook state unavailable.' }, { status: 500 })
     }
-    return NextResponse.json({ error: logError.message }, { status: 500 })
+    if (existing.payload_hash && existing.payload_hash !== payloadHashHex) {
+      return NextResponse.json(
+        { error: 'Webhook event ID was reused with a different payload.' },
+        { status: 409 },
+      )
+    }
+    if (existing.status === 'processed') {
+      return NextResponse.json({ ok: true, duplicate: true, event_id: event.event_id })
+    }
+
+    const lastAttempt = existing.last_attempt_at ? Date.parse(existing.last_attempt_at) : 0
+    const processingIsFresh =
+      existing.status === 'processing' &&
+      Number.isFinite(lastAttempt) &&
+      Date.now() - lastAttempt < 10 * 60_000
+    if (processingIsFresh) {
+      return NextResponse.json({ ok: true, duplicate: true, processing: true, event_id: event.event_id })
+    }
+
+    const claimQuery = supabase
+      .from('ops_webhook_events')
+      .update({
+        status: 'processing',
+        payload_hash: payloadHashHex,
+        payload: event.raw,
+        delivery_id: deliveryId,
+        error_message: null,
+        attempt_count: (existing.attempt_count ?? 0) + 1,
+        last_attempt_at: now,
+      })
+      .eq('id', existing.id)
+      .eq('attempt_count', existing.attempt_count ?? 0)
+      .in('status', ['failed', 'received', 'processing'])
+
+    const { data: claimed, error: claimError } = await claimQuery
+      .select('id,event_id,status,attempt_count,last_attempt_at,payload_hash')
+      .maybeSingle<WebhookLogRow>()
+    if (claimError) {
+      return NextResponse.json({ error: claimError.message }, { status: 500 })
+    }
+    if (!claimed) {
+      return NextResponse.json({ ok: true, duplicate: true, processing: true, event_id: event.event_id })
+    }
+    logRow = claimed
+  } else {
+    logRow = inserted
   }
+
+  if (!logRow) return NextResponse.json({ error: 'Webhook could not be claimed.' }, { status: 500 })
 
   const notification = customerNotificationForEvent(event)
   let notificationCreated = false
 
   try {
     if (notification) {
-      const userId = await resolveUserId(supabase, {
+      const resolution = await resolveUserIdentity(supabase, {
         portalUserId: event.portal_user_id,
         customerNumber: event.customer_number,
         externalCustomerId: event.external_customer_id,
         customerEmail: event.customer_email,
       })
+      const userId = resolution.userId
       await backfillProfileIdentity(supabase, userId, event)
 
       const { error: notificationError } = await supabase
         .from('customer_notifications')
         .insert({
           user_id: userId,
+          identity_resolution_status: resolution.status,
+          identity_resolution_error: resolution.error,
+          identity_resolution_attempt_count: resolution.status === 'resolved' ? 0 : 1,
+          identity_resolution_last_attempt_at: resolution.status === 'resolved' ? null : now,
+          identity_resolution_next_attempt_at:
+            resolution.status === 'pending' ? new Date(Date.now() + 5 * 60_000).toISOString() : null,
           channel: 'portal',
           category: notification.category,
           title: notification.title,
@@ -288,14 +400,21 @@ export async function POST(req: Request) {
       }
     }
 
-    await supabase
+    const { data: completed, error: processedError } = await supabase
       .from('ops_webhook_events')
       .update({
         status: 'processed',
         processed_at: new Date().toISOString(),
+        next_attempt_at: null,
         notification_created: notificationCreated,
+        error_message: null,
       })
       .eq('id', logRow.id)
+      .eq('status', 'processing')
+      .select('id')
+      .maybeSingle<{ id: string }>()
+    if (processedError) throw new Error(`Webhook completion state failed: ${processedError.message}`)
+    if (!completed?.id) throw new Error('Webhook completion state was lost to a concurrent worker.')
 
     if (invalidatesPublicContracts(event.event_type)) {
       revalidateTag('ops-public-contracts', 'max')
@@ -304,15 +423,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, event_id: event.event_id, notificationCreated })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Webhook processing failed.'
-    await supabase
+    const { error: failedStateError } = await supabase
       .from('ops_webhook_events')
       .update({
         status: 'failed',
         processed_at: new Date().toISOString(),
+        next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString(),
         error_message: message,
       })
       .eq('id', logRow.id)
+      .eq('status', 'processing')
+    if (failedStateError) {
+      console.error('[ops webhook] failed to persist failed processing state', failedStateError)
+    }
 
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 })
   }
 }

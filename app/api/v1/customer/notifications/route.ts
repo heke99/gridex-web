@@ -1,30 +1,18 @@
 import { NextResponse } from 'next/server'
-import { CustomerPortalAccessError, getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { customerApiErrorResponse } from '@/lib/customerPortal/apiErrors'
 
-function customerRouteErrorResponse(error: unknown, logLabel: string, customerMessage: string) {
-  if (error instanceof CustomerPortalAccessError) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: error.status },
-    )
-  }
-
-  console.error(`[customer portal] ${logLabel} route failed`, error)
-  return NextResponse.json(
-    { error: customerMessage, code: 'customer_portal_unavailable' },
-    { status: 503 },
-  )
-}
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET() {
   try {
     const overview = await getCustomerPortalOverview()
     return NextResponse.json({ data: overview.notifications })
   } catch (error) {
-    return customerRouteErrorResponse(
-      error,
-      'notifications',
-      'Notiserna kunde inte hämtas just nu.',
-    )
+    return customerApiErrorResponse(error, {
+      logLabel: 'notifications',
+      fallbackMessage: 'Notiserna kunde inte hämtas just nu.',
+    })
   }
 }

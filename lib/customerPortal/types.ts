@@ -170,12 +170,24 @@ export type CustomerLegalAcceptance = {
 export type CustomerPowerOfAttorney = {
   id: string
   status: string
-  scope: string | null
+  scopes: string[]
   accepted_at: string | null
   revoked_at: string | null
   valid_until: string | null
   title: string | null
   version: string | null
+}
+
+export type CustomerStatus = {
+  code: string | null
+  label: string | null
+  message: string | null
+  can_start_switch: boolean | null
+}
+
+export type CustomerDataQuality = {
+  status: string | null
+  issues: string[]
 }
 
 export type CustomerSwitchStatus = {
@@ -197,6 +209,8 @@ export type CustomerPortalOverview = {
   documents: CustomerDocument[]
   legalAcceptances: CustomerLegalAcceptance[]
   powersOfAttorney: CustomerPowerOfAttorney[]
+  customerStatus: CustomerStatus | null
+  dataQuality: CustomerDataQuality | null
   switchStatus: CustomerSwitchStatus | null
   meteringValues: CustomerMeteringValue[]
   events: CustomerPortalEvent[]
