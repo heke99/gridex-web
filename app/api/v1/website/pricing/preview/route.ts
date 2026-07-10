@@ -10,10 +10,11 @@ import {
   issueWebsitePricingQuote,
   websitePricingQuoteConfigured,
 } from "@/lib/website/pricingQuote";
+import { LocalWebsitePricingPreviewError } from "@/lib/website/localPricingPreview";
 import {
-  buildLocalWebsitePricingPreview,
-  LocalWebsitePricingPreviewError,
-} from "@/lib/website/localPricingPreview";
+  loadVerifiedWebsitePricingPreview,
+  WebsitePricingPreviewError,
+} from "@/lib/website/pricingPreview";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -119,11 +120,17 @@ export async function POST(req: Request) {
         { status: 404 },
       );
 
-    const preview = await buildLocalWebsitePricingPreview({
+    const preview = await loadVerifiedWebsitePricingPreview(
+      {
+        offer_reference: offerReference,
+        price_area_code: resolvedArea,
+        postal_code: postalCode,
+        city,
+        address,
+        estimated_monthly_kwh: monthlyKwh,
+      },
       contract,
-      priceAreaCode: resolvedArea,
-      estimatedMonthlyKwh: monthlyKwh,
-    });
+    );
     const websiteQuote = issueWebsitePricingQuote({
       preview,
       contract,
@@ -149,6 +156,12 @@ export async function POST(req: Request) {
           error: error.message || "Vi kunde inte räkna priset för valt avtal.",
         },
         { status: error.status || 409 },
+      );
+    }
+    if (error instanceof WebsitePricingPreviewError) {
+      return NextResponse.json(
+        { error: error.message || "Prisberäkningen kunde inte verifieras." },
+        { status: 409 },
       );
     }
     if (isOpsError(error)) {

@@ -39,7 +39,7 @@ import {
 } from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
-import { buildLocalWebsitePricingPreview } from "@/lib/website/localPricingPreview";
+import { loadVerifiedWebsitePricingPreview } from "@/lib/website/pricingPreview";
 
 export const metadata: Metadata = {
   title: "Teckna elavtal – Gridex",
@@ -676,11 +676,17 @@ export default async function TecknaPage({
 
     let canonicalPricingPreviewSnapshot: Record<string, unknown>;
     try {
-      const livePreview = await buildLocalWebsitePricingPreview({
-        contract: offer,
-        priceAreaCode: serverPriceAreaCode,
-        estimatedMonthlyKwh,
-      });
+      const livePreview = await loadVerifiedWebsitePricingPreview(
+        {
+          offer_reference: offer.offer_reference,
+          price_area_code: serverPriceAreaCode,
+          postal_code: postalCode,
+          city,
+          address,
+          estimated_monthly_kwh: estimatedMonthlyKwh,
+        },
+        offer,
+      );
       const pricingValidation = validatePricingPreviewSnapshot({
         contract: offer,
         snapshot: pricingPreviewSnapshot,

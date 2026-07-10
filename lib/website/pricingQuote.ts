@@ -169,6 +169,8 @@ function cloneBasis(value: unknown): QuoteBasis {
       portfolioShare: numberOrUndefined("portfolioShare"),
       spotPriceOre: numberOrUndefined("spotPriceOre"),
       portfolioPriceOre: numberOrUndefined("portfolioPriceOre"),
+      year: numberOrUndefined("year"),
+      month: numberOrUndefined("month"),
       ...(source ? { source } : {}),
     };
   }

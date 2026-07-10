@@ -99,12 +99,8 @@ assert.ok(
   "submit must reject a displayed price that no longer matches the server calculation",
 );
 assert.ok(
-  signup.includes("buildLocalWebsitePricingPreview"),
-  "submit may rebuild a fresh website-local price for audit before writing",
-);
-assert.ok(
-  !signup.includes("loadVerifiedWebsitePricingPreview"),
-  "submit must not call OPS pricing before writing",
+  signup.includes("loadVerifiedWebsitePricingPreview"),
+  "submit must rebuild pricing through the shared verified area-pricing path",
 );
 assert.ok(
   signup.includes("validateWebsitePricingQuote"),

@@ -11,8 +11,8 @@ assert.ok(
   "pricing preview must resolve offers from OPS public contracts",
 );
 assert.ok(
-  previewRoute.includes("buildLocalWebsitePricingPreview"),
-  "pricing preview must calculate only from OPS-published public-contract pricing fields",
+  previewRoute.includes("loadVerifiedWebsitePricingPreview"),
+  "pricing preview must calculate through the shared verified area-pricing path",
 );
 assert.ok(
   previewRoute.includes("issueWebsitePricingQuote"),
@@ -147,11 +147,11 @@ assert.ok(
   "pricing must support fixed kWh products",
 );
 assert.ok(
-  localPricing.includes("requirePublishedAmount"),
-  "pricing must require mandatory public pricing fields",
+  localPricing.includes("requireResolvedAmount"),
+  "pricing must require mandatory resolved area-pricing fields",
 );
 assert.ok(
-  localPricing.includes("Avtalet saknar publicerat ${label}."),
+  localPricing.includes("Avtalet saknar publicerat ${label} för valt elområde."),
   "missing published pricing must block instead of becoming zero",
 );
 assert.ok(
@@ -159,7 +159,7 @@ assert.ok(
   "missing fees must not be silently coerced to zero",
 );
 assert.ok(
-  localPricing.includes("invoiceFeeSek: requirePublishedAmount"),
+  localPricing.includes("invoiceFeeSek: requireResolvedAmount"),
   "invoice fee must be explicitly published, including real 0 values",
 );
 assert.ok(
@@ -177,8 +177,8 @@ assert.ok(
   "signup must verify the signed pricing quote token",
 );
 assert.ok(
-  signup.includes("buildLocalWebsitePricingPreview"),
-  "signup may rebuild current public-contract pricing for audit before submit",
+  signup.includes("loadVerifiedWebsitePricingPreview"),
+  "signup must rebuild current public-contract pricing through the shared verified path",
 );
 assert.ok(
   signup.includes("fetchOpsPublicContractsFresh"),
@@ -259,8 +259,8 @@ assert.ok(
   "public contract cards must trust OPS publication filtering",
 );
 assert.ok(
-  display.includes("requirePublicPricingForType"),
-  "public contract display must block missing mandatory public pricing",
+  display.includes("validatePublicPricingForType"),
+  "public contract display must reject invalid public pricing without blocking area-specific prices before area selection",
 );
 assert.ok(
   display.includes("formatPercent"),

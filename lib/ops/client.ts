@@ -447,6 +447,8 @@ type NormalizedOpsPriceComponents = {
   fixed_price_ore_per_kwh?: number | null;
   monthly_fixed_price_sek?: number | null;
   portfolio_price_ore_per_kwh?: number | null;
+  spot_share?: number | null;
+  portfolio_share?: number | null;
   vat_rate?: number | null;
 };
 
@@ -481,9 +483,10 @@ function collectComponentRows(
   const row = input as Record<string, unknown>;
   const result: Record<string, unknown>[] = [];
 
+  const areaSpecificParent = hasExplicitComponentPriceArea(row);
   for (const key of COMPONENT_ARRAY_KEYS) {
     const value = row[key];
-    if (Array.isArray(value)) {
+    if (Array.isArray(value) && !areaSpecificParent) {
       for (const item of value) {
         if (item && typeof item === "object" && !Array.isArray(item)) {
           result.push(item as Record<string, unknown>);
@@ -538,7 +541,9 @@ function classifyComponent(
 
   if (/elcert|certificate|certifikat/.test(text)) return "elcert_ore_per_kwh";
   if (/monthly_fixed|fixed_monthly|manadspris|månadspris|monthly price|fixed monthly/.test(text)) return "monthly_fixed_price_sek";
-  if (/portfolio_price|portfoliopris|portfolio price|managed price/.test(text)) return "portfolio_price_ore_per_kwh";
+  if (/spot_share|rorlig andel|rörlig andel|variable share/.test(text)) return "spot_share";
+  if (/portfolio_share|portfoljandel|portföljandel|managed share/.test(text)) return "portfolio_share";
+  if (/portfolio_price|portfoliopris|portföljpris|portfolio price|managed price/.test(text)) return "portfolio_price_ore_per_kwh";
   if (/invoice|faktura|billing/.test(text)) return "invoice_fee_sek";
   if (/monthly|manads|manad|month|subscription|abon/.test(text))
     return "monthly_fee_sek";
@@ -563,6 +568,33 @@ function classifyComponent(
     return "fixed_price_ore_per_kwh";
 
   return null;
+}
+
+const COMPONENT_AREA_KEYS = [
+  "price_area_code",
+  "priceAreaCode",
+  "price_area",
+  "priceArea",
+  "electricity_area",
+  "electricityArea",
+  "market_area",
+  "marketArea",
+  "area_code",
+  "areaCode",
+  "area",
+  "zone",
+];
+
+function hasExplicitComponentPriceArea(row: Record<string, unknown>): boolean {
+  for (const key of COMPONENT_AREA_KEYS) {
+    const value = row[key];
+    if (typeof value !== "string") continue;
+    const area = value.trim().toUpperCase();
+    if (area === "SE1" || area === "SE2" || area === "SE3" || area === "SE4") {
+      return true;
+    }
+  }
+  return false;
 }
 
 function pickComponentNumber(row: Record<string, unknown>): number | null {
@@ -677,9 +709,18 @@ function extractOpsPriceComponents(
       row.managed_price_ore_per_kwh ??
       row.managedPriceOrePerKwh,
   );
+  result.spot_share = normalizeNumber(
+    pricing?.spot_share ?? pricing?.spotShare ?? row.spot_share ?? row.spotShare ?? row.variable_share ?? row.variableShare,
+  );
+  result.portfolio_share = normalizeNumber(
+    pricing?.portfolio_share ?? pricing?.portfolioShare ?? row.portfolio_share ?? row.portfolioShare ?? row.managed_share ?? row.managedShare,
+  );
   result.vat_rate = normalizeNumber(row.vat_rate ?? row.vatRate ?? row.vat);
 
   for (const component of collectComponentRows(input)) {
+    // Area-specific prices must not leak into the global contract fields.
+    // They are resolved later for the customer-selected SE1-SE4 area.
+    if (hasExplicitComponentPriceArea(component)) continue;
     const field = classifyComponent(component);
     if (!field) continue;
     const value = pickComponentNumber(component);
@@ -704,14 +745,72 @@ function coalesceNumber(
 function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (!row || typeof row !== "object") return null;
   const r = row as Record<string, unknown>;
+  const pricing = recordValue(r.pricing);
+  const legal = recordValue(r.legal);
+  const components = extractOpsPriceComponents(r);
   const documented = normalizePublicContractApiPayload(r);
   if (documented) {
     return {
       ...documented,
-      contract_id: null,
+      contract_id: pickString(r, [
+        "contract_id",
+        "contractId",
+        "contract_product_id",
+        "contractProductId",
+      ]),
+      price_plan_id: pickString(r, ["price_plan_id", "pricePlanId", "plan_id", "planId"]),
+      price_plan_version_id: pickString(r, [
+        "price_plan_version_id",
+        "pricePlanVersionId",
+        "pricing_version_id",
+        "pricingVersionId",
+        "price_version_id",
+        "priceVersionId",
+        "version_id",
+        "versionId",
+      ]),
       short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
       marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
       badge_text: pickString(r, ["badge_text", "badgeText"]),
+      monthly_fee_sek: coalesceNumber(documented.monthly_fee_sek, components.monthly_fee_sek),
+      invoice_fee_sek: coalesceNumber(documented.invoice_fee_sek, components.invoice_fee_sek),
+      markup_ore_per_kwh: coalesceNumber(documented.markup_ore_per_kwh, components.markup_ore_per_kwh),
+      variable_markup_ore_per_kwh: coalesceNumber(
+        documented.variable_markup_ore_per_kwh,
+        components.variable_markup_ore_per_kwh,
+      ),
+      fixed_price_ore_per_kwh: coalesceNumber(
+        documented.fixed_price_ore_per_kwh,
+        components.fixed_price_ore_per_kwh,
+      ),
+      monthly_fixed_price_sek: coalesceNumber(
+        documented.monthly_fixed_price_sek,
+        components.monthly_fixed_price_sek,
+      ),
+      elcert_ore_per_kwh: coalesceNumber(documented.elcert_ore_per_kwh, components.elcert_ore_per_kwh),
+      portfolio_price_ore_per_kwh: coalesceNumber(
+        documented.portfolio_price_ore_per_kwh,
+        components.portfolio_price_ore_per_kwh,
+      ),
+      vat_rate: coalesceNumber(documented.vat_rate, components.vat_rate),
+      pricing_model:
+        documented.pricing_model ??
+        pickFromRecords([pricing, r], ["pricing_model", "pricingModel", "price_model", "priceModel"]),
+      spot_share: coalesceNumber(documented.spot_share, components.spot_share),
+      portfolio_share: coalesceNumber(documented.portfolio_share, components.portfolio_share),
+      binding_period_months: normalizeNumber(
+        r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
+      ),
+      notice_period_days: normalizeNumber(
+        r.notice_period_days ?? r.noticePeriodDays ?? r.notice_days,
+      ),
+      included: Array.isArray(r.included)
+        ? r.included.map(String).filter(Boolean)
+        : pickString(r, ["included"]),
+      excluded: Array.isArray(r.excluded)
+        ? r.excluded.map(String).filter(Boolean)
+        : pickString(r, ["excluded"]),
+      start_info: pickString(r, ["start_info", "startInfo"]),
       terms_version_id: documented.terms_version_id,
       terms_url: documented.terms_url,
       privacy_policy_version_id: documented.privacy_policy_version_id,
@@ -730,8 +829,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       raw: r,
     };
   }
-  const pricing = recordValue(r.pricing);
-  const legal = recordValue(r.legal);
 
   const offerReference = pickFromRecords([r], [
     "offer_reference",
@@ -786,7 +883,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
   // already publication-filtered by OPS and must not be rejected for omitting them.
 
 
-  const components = extractOpsPriceComponents(r);
   const withdrawalVersion = pickFromRecords([legal, r], [
     "withdrawal_version",
     "withdrawalVersion",
@@ -838,8 +934,8 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     portfolio_price_ore_per_kwh: components.portfolio_price_ore_per_kwh ?? null,
     vat_rate: components.vat_rate ?? null,
     pricing_model: pickFromRecords([pricing, r], ["pricing_model", "pricingModel", "price_model", "priceModel"]),
-    spot_share: normalizeNumber(pricing?.spot_share ?? pricing?.spotShare),
-    portfolio_share: normalizeNumber(pricing?.portfolio_share ?? pricing?.portfolioShare),
+    spot_share: components.spot_share ?? null,
+    portfolio_share: components.portfolio_share ?? null,
     valid_from: pickString(r, ["valid_from", "validFrom"]),
     valid_to: pickString(r, ["valid_to", "validTo"]),
     binding_period_months: normalizeNumber(

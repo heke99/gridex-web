@@ -162,53 +162,49 @@ function stringList(value: unknown, fallback: string[]): string[] {
   return fallback
 }
 
-function requirePublishedPricing(
+function validatePublishedNumber(
   blockedReasons: string[],
   contract: OpsPublicContract,
   key: keyof OpsPublicContract,
   label: string,
 ): void {
   const value = contract[key]
-  if (!hasNumberValue(value)) {
-    blockedReasons.push(`${label} saknas`)
-    return
-  }
-  if (value < 0) blockedReasons.push(`${label} är ogiltigt`)
+  if (value === null || value === undefined) return
+  if (!hasNumberValue(value) || value < 0) blockedReasons.push(`${label} är ogiltigt`)
 }
 
-function requirePublicPricingForType(blockedReasons: string[], contract: OpsPublicContract): void {
-  const type = contract.type
-  const isMonthlyFixed = type === 'monthly_fixed' || type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null
+function normalizedShare(value: unknown): number | null {
+  if (!hasNumberValue(value)) return null
+  return value > 1 ? value / 100 : value
+}
 
-  if (isMonthlyFixed) {
-    requirePublishedPricing(blockedReasons, contract, 'monthly_fixed_price_sek', 'fast månadspris')
-    requirePublishedPricing(blockedReasons, contract, 'invoice_fee_sek', 'fakturaavgift')
-    return
+function validatePublicPricingForType(blockedReasons: string[], contract: OpsPublicContract): void {
+  for (const [key, label] of [
+    ['monthly_fee_sek', 'månadsavgift'],
+    ['invoice_fee_sek', 'fakturaavgift'],
+    ['markup_ore_per_kwh', 'påslag'],
+    ['variable_markup_ore_per_kwh', 'rörlig avgift'],
+    ['elcert_ore_per_kwh', 'elcertifikat'],
+    ['fixed_price_ore_per_kwh', 'fast kWh-pris'],
+    ['portfolio_price_ore_per_kwh', 'portföljpris'],
+    ['monthly_fixed_price_sek', 'fast månadspris'],
+  ] as const) {
+    validatePublishedNumber(blockedReasons, contract, key, label)
   }
 
-  requirePublishedPricing(blockedReasons, contract, 'monthly_fee_sek', 'månadsavgift')
-  requirePublishedPricing(blockedReasons, contract, 'invoice_fee_sek', 'fakturaavgift')
-
-  if (type === 'fixed') {
-    requirePublishedPricing(blockedReasons, contract, 'fixed_price_ore_per_kwh', 'fast kWh-pris')
-    return
+  if (contract.type === 'mix' || contract.type === 'mixed') {
+    const spotShare = normalizedShare(contract.spot_share)
+    const portfolioShare = normalizedShare(contract.portfolio_share)
+    if (spotShare !== null && (spotShare < 0 || spotShare > 1)) {
+      blockedReasons.push('rörlig andel är ogiltig')
+    }
+    if (portfolioShare !== null && (portfolioShare < 0 || portfolioShare > 1)) {
+      blockedReasons.push('portföljandel är ogiltig')
+    }
+    if (spotShare !== null && portfolioShare !== null && spotShare + portfolioShare <= 0) {
+      blockedReasons.push('mixandelar är ogiltiga')
+    }
   }
-
-  if (type === 'portfolio' || type === 'portfolio_managed') {
-    requirePublishedPricing(blockedReasons, contract, 'portfolio_price_ore_per_kwh', 'portföljpris')
-    requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
-    return
-  }
-
-  if (type === 'mix' || type === 'mixed') {
-    requirePublishedPricing(blockedReasons, contract, 'portfolio_price_ore_per_kwh', 'portföljpris')
-    requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
-    requirePublishedPricing(blockedReasons, contract, 'spot_share', 'rörlig andel')
-    requirePublishedPricing(blockedReasons, contract, 'portfolio_share', 'portföljandel')
-    return
-  }
-
-  requirePublishedPricing(blockedReasons, contract, 'markup_ore_per_kwh', 'påslag')
 }
 
 /**
@@ -238,7 +234,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version_id) {
     blockedReasons.push('fullmaktens juridiska ID saknas')
   }
-  requirePublicPricingForType(blockedReasons, contract)
+  validatePublicPricingForType(blockedReasons, contract)
 
   const now = Date.now()
   if (contract.valid_from) {
@@ -256,6 +252,9 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'fixed') {
+    if (!hasNumberValue(contract.fixed_price_ore_per_kwh)) {
+      addTextRow(rows, 'area_price_notice', 'Fast elpris', 'Visas efter adress och elområde')
+    }
     addNumberRow(rows, 'fixed_price_ore_per_kwh', 'Fast elpris', contract.fixed_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
@@ -263,6 +262,9 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'portfolio' || contract.type === 'portfolio_managed') {
+    if (!hasNumberValue(contract.portfolio_price_ore_per_kwh)) {
+      addTextRow(rows, 'area_price_notice', 'Portföljpris', 'Visas efter adress och elområde')
+    }
     addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'markup_ore_per_kwh', 'Förvaltningsavgift/påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
@@ -271,6 +273,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
   } else if (contract.type === 'mix' || contract.type === 'mixed') {
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
+    if (!hasNumberValue(contract.spot_share) && !hasNumberValue(contract.portfolio_share)) {
+      addTextRow(rows, 'mix_share_notice', 'Fördelning', 'Visas i prisberäkningen')
+    }
+    if (!hasNumberValue(contract.portfolio_price_ore_per_kwh)) {
+      addTextRow(rows, 'area_price_notice', 'Portföljdelens pris', 'Visas efter adress och elområde')
+    }
     addNumberRow(rows, 'spot_share', 'Rörlig andel', contract.spot_share, 'percent')
     addNumberRow(rows, 'portfolio_share', 'Portföljandel', contract.portfolio_share, 'percent')
     addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
