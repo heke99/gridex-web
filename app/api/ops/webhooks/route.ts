@@ -1,9 +1,9 @@
-import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import {
   customerNotificationForEvent,
-  parseOpsWebhookPayload,
+  isSupportedOpsWebhookEventType,
+  parseOpsWebhookEnvelope,
   verifyOpsWebhookSignature,
 } from '@/lib/webhooks/opsWebhook'
 
@@ -52,9 +52,6 @@ function normalizeEmail(value?: string | null) {
   return normalizeText(value)?.toLowerCase() ?? null
 }
 
-function invalidatesPublicContracts(eventType: string): boolean {
-  return /^(public_contract\.(published|updated|unpublished)|price_plan\.updated|price_version\.published|campaign\.updated)$/i.test(eventType)
-}
 
 function webhookSecret(): { secret: string | null; conflict: boolean } {
   const canonical = env('GRIDEX_WEBHOOK_SIGNING_SECRET')
@@ -148,24 +145,33 @@ async function resolveUserIdentity(
     }
   }
 
-  const lookups = await Promise.all([
+  const [externalRows, customerNumberRows, contractRefRows, emailRows] = await Promise.all([
     profilesBy(supabase, 'external_customer_id', externalCustomerId),
     profilesBy(supabase, 'customer_number', customerNumber),
     profilesBy(supabase, 'contract_customer_ref', customerNumber),
     profilesBy(supabase, 'email', customerEmail),
   ])
-  if (lookups.some((rows) => rows.length > 1)) {
+  if ([externalRows, customerNumberRows, contractRefRows, emailRows].some((rows) => rows.length > 1)) {
     return { userId: null, status: 'ambiguous', error: 'At least one customer identifier matched multiple portal profiles.' }
   }
 
-  const candidates = new Set(
-    lookups.flatMap((rows) => rows.map((row) => row.user_id)).filter(Boolean),
-  )
+  const externalUser = externalRows[0]?.user_id ?? null
+  const customerUsers = new Set([...customerNumberRows, ...contractRefRows].map((row) => row.user_id))
+  if (customerUsers.size > 1) {
+    return { userId: null, status: 'ambiguous', error: 'Customer number matched different portal profiles.' }
+  }
+  const customerUser = [...customerUsers][0] ?? null
+  const emailUser = emailRows[0]?.user_id ?? null
+  const candidates = new Set([externalUser, customerUser, emailUser].filter((value): value is string => Boolean(value)))
   if (candidates.size > 1) {
     return { userId: null, status: 'ambiguous', error: 'Customer identifiers matched different portal profiles.' }
   }
+  if (externalUser) return { userId: externalUser, status: 'resolved', error: null }
   if (candidates.size === 1) {
-    return { userId: [...candidates][0], status: 'resolved', error: null }
+    const userId = [...candidates][0]
+    const matchingAttributes = Number(customerUser === userId) + Number(emailUser === userId)
+    if (matchingAttributes >= 2) return { userId, status: 'resolved', error: null }
+    return { userId: null, status: 'pending', error: 'At least two matching customer attributes are required before automatic portal linking.' }
   }
   return { userId: null, status: 'pending', error: 'No local portal profile matched the OPS event yet.' }
 }
@@ -217,6 +223,10 @@ export async function POST(req: Request) {
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }
+  const expectedCompanyId = env('GRIDEX_EXPECTED_COMPANY_ID')
+  if (!expectedCompanyId) {
+    return NextResponse.json({ error: 'Expected webhook company is not configured.' }, { status: 503 })
+  }
 
   const rawBody = await req.text()
   const toleranceSeconds = Number(env('GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS') ?? '300')
@@ -238,9 +248,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 })
   }
 
-  const event = parseOpsWebhookPayload(payload)
+  const event = parseOpsWebhookEnvelope(payload)
   if (!event) {
-    return NextResponse.json({ error: 'Unsupported webhook event.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid webhook event envelope.' }, { status: 400 })
+  }
+  if (!event.company_id || event.company_id !== expectedCompanyId) {
+    return NextResponse.json({ error: 'Webhook company does not match this deployment.' }, { status: 403 })
   }
 
   const supabase = serviceClient()
@@ -341,6 +354,23 @@ export async function POST(req: Request) {
 
   if (!logRow) return NextResponse.json({ error: 'Webhook could not be claimed.' }, { status: 500 })
 
+  if (!isSupportedOpsWebhookEventType(event.event_type)) {
+    const { error: ignoredError } = await supabase
+      .from('ops_webhook_events')
+      .update({
+        status: 'processed',
+        processed_at: new Date().toISOString(),
+        next_attempt_at: null,
+        notification_created: false,
+        handling_note: 'ignored_unknown_type',
+        error_message: null,
+      })
+      .eq('id', logRow.id)
+      .eq('status', 'processing')
+    if (ignoredError) return NextResponse.json({ error: ignoredError.message }, { status: 500 })
+    return NextResponse.json({ ok: true, ignored: true, event_id: event.event_id }, { status: 202 })
+  }
+
   const notification = customerNotificationForEvent(event)
   let notificationCreated = false
 
@@ -416,9 +446,6 @@ export async function POST(req: Request) {
     if (processedError) throw new Error(`Webhook completion state failed: ${processedError.message}`)
     if (!completed?.id) throw new Error('Webhook completion state was lost to a concurrent worker.')
 
-    if (invalidatesPublicContracts(event.event_type)) {
-      revalidateTag('ops-public-contracts', 'max')
-    }
 
     return NextResponse.json({ ok: true, event_id: event.event_id, notificationCreated })
   } catch (error) {

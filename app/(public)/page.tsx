@@ -6,6 +6,8 @@ import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import { fetchOpsPublicContracts } from "@/lib/ops/client";
 import type { ContractOption } from "@/components/ElectricityCalculator";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Elpris idag – Billiga & datadrivna elavtal",
   description:

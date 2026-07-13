@@ -14,10 +14,13 @@ import {
   createExternalCustomerId,
   fetchOpsPublicContracts,
   fetchOpsPublicContractsFresh,
+  fetchOpsWebsiteLegalBundle,
   getOpsClientStatus,
   hashIp,
   isOpsError,
+  isTransientOpsError,
   submitOpsCustomerApplication,
+  submitOpsCustomerPortalSync,
   type OpsCustomerApplicationInput,
   type OpsPublicContract,
 } from "@/lib/ops/client";
@@ -38,8 +41,12 @@ import {
   updateWebsiteSubmission,
 } from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
+import { enqueuePortalWrite } from "@/lib/customerPortal/outbox";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { loadVerifiedWebsitePricingPreview } from "@/lib/website/pricingPreview";
+import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Teckna elavtal – Gridex",
@@ -315,9 +322,6 @@ function safePortalStatus(value: unknown): string {
     : "skipped";
 }
 
-function missingFieldsToQuery(fields: string[]) {
-  return fields.slice(0, 8).join(",");
-}
 
 function parseOptionalNumber(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
@@ -376,10 +380,10 @@ function todayInStockholm(): string {
 }
 
 function isValidRequestedStartDate(
-  mode: "asap" | "specific_date",
+  mode: "earliest_possible" | "specific_date",
   value: string,
 ): boolean {
-  if (mode === "asap") return true;
+  if (mode === "earliest_possible") return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) return false;
@@ -474,7 +478,11 @@ export default async function TecknaPage({
 
   if (status.configured) {
     try {
-      contracts = await fetchOpsPublicContracts();
+      const [publicContracts] = await Promise.all([
+        fetchOpsPublicContracts(),
+        fetchOpsWebsiteLegalBundle(),
+      ]);
+      contracts = publicContracts;
     } catch {
       loadError = "Vi kunde inte hämta aktuella elavtal just nu.";
     }
@@ -524,7 +532,11 @@ export default async function TecknaPage({
     if (honeypot) return fail("honeypot");
 
     const selectedOffer = normalizeText(formData.get("selected_offer"));
-    const liveContracts = await fetchOpsPublicContractsFresh().catch(() => []);
+    const [liveContracts, legalBundleReady] = await Promise.all([
+      fetchOpsPublicContractsFresh().catch(() => []),
+      fetchOpsWebsiteLegalBundle().then(() => true).catch(() => false),
+    ]);
+    if (!legalBundleReady) return fail("legal_config");
     const offer = liveContracts.find(
       (contract) => contract.offer_reference === selectedOffer,
     );
@@ -553,11 +565,15 @@ export default async function TecknaPage({
     const apartment = normalizeText(formData.get("apartment"));
     const facilityId = normalizeText(formData.get("facility_id"));
     const meteringPointId = normalizeText(formData.get("metering_point_id"));
+    const currentSupplierName = normalizeText(formData.get("current_supplier_name"));
+    const currentSupplierId = normalizeText(formData.get("current_supplier_id"));
+    const currentSupplierOrgNumber = normalizeText(formData.get("current_supplier_org_number"));
+    const currentSupplierEdielId = normalizeText(formData.get("current_supplier_ediel_id"));
     const requestedStartModeRaw = normalizeText(
       formData.get("requested_start_mode"),
     );
     const requestedStartMode =
-      requestedStartModeRaw === "specific_date" ? "specific_date" : "asap";
+      requestedStartModeRaw === "specific_date" ? "specific_date" : "earliest_possible";
     const requestedStartDate = normalizeText(
       formData.get("requested_start_date"),
     );
@@ -743,6 +759,10 @@ export default async function TecknaPage({
       apartment,
       facilityId,
       meteringPointId,
+      currentSupplierName,
+      currentSupplierId,
+      currentSupplierOrgNumber,
+      currentSupplierEdielId,
       requestedStartMode,
       requestedStartDate,
       serverPriceAreaCode,
@@ -775,6 +795,8 @@ export default async function TecknaPage({
         externalCustomerId,
         offerReference: offer.offer_reference,
         payloadHash: signedPayloadHash,
+        pricingQuoteSnapshot: canonicalPricingPreviewSnapshot,
+        contractDisplaySnapshot,
         requestContext: {
           ipAddress: ip,
           ipHash: hashIp(ip),
@@ -825,32 +847,20 @@ export default async function TecknaPage({
       address,
       postal_code: postalCode,
       city,
-      apartment: apartment || null,
       facility_id: facilityId || null,
-      metering_point_id: meteringPointId || null,
       requested_start_mode: requestedStartMode,
       requested_start_date:
         requestedStartMode === "specific_date" ? requestedStartDate || null : null,
       price_area_code: serverPriceAreaCode,
-      grid_area_code: serverResolution?.grid_area_code ?? null,
-      grid_owner_id: serverResolution?.grid_owner_id ?? null,
-      grid_owner_name: serverResolution?.grid_owner_name ?? null,
-      energy_resolution_status: serverResolution?.status ?? null,
-      energy_resolution_confidence: serverResolution?.confidence ?? null,
-      estimated_monthly_kwh: estimatedMonthlyKwh,
-      pricing_preview_snapshot: canonicalPricingPreviewSnapshot,
-      contract_display_snapshot: contractDisplaySnapshot,
+      current_supplier_name: currentSupplierName || null,
+      current_supplier_id: currentSupplierId || null,
+      current_supplier_org_number: currentSupplierOrgNumber || null,
+      current_supplier_ediel_id: currentSupplierEdielId || null,
       source: "gridex_website",
       idempotency_key: idempotencyKey,
       external_customer_id: externalCustomerId,
-      external_application_id: externalApplicationId,
       customer_portal_user_id: linkedAuthUserId,
       auth_user_id: linkedAuthUserId,
-      utm_source: immutableContext.utmSource,
-      utm_medium: immutableContext.utmMedium,
-      utm_campaign: immutableContext.utmCampaign,
-      user_agent: immutableContext.userAgent,
-      ip_hash: immutableContext.ipHash,
       consents: {
         terms: acceptTerms,
         privacy_policy: acceptPrivacy,
@@ -898,6 +908,47 @@ export default async function TecknaPage({
       return fail(opsErrorCode(error));
     }
 
+    if (linkedAuthUserId) {
+      const portalIdentity = {
+        userId: linkedAuthUserId,
+        email,
+        customerNumber: result.customer_number ?? null,
+        externalCustomerId: result.external_customer_id ?? externalCustomerId,
+      };
+      const portalSyncOperationId = `signup:${submissionAttemptId}`;
+      const portalSyncMetadata = { source: "gridex_web_successful_signup" };
+      try {
+        await submitOpsCustomerPortalSync({
+          identity: portalIdentity,
+          idempotencyKey: portalSyncOperationId,
+          customerNumber: portalIdentity.customerNumber,
+          externalCustomerId: portalIdentity.externalCustomerId,
+          email,
+          metadata: portalSyncMetadata,
+        });
+      } catch (error) {
+        if (isTransientOpsError(error)) {
+          await enqueuePortalWrite({
+            userId: linkedAuthUserId,
+            operationType: "customer_portal_sync",
+            idempotencyKey: `customer-portal-sync:${linkedAuthUserId}:${portalSyncOperationId}`,
+            identity: portalIdentity,
+            payload: {
+              operation_id: portalSyncOperationId,
+              customer_number: portalIdentity.customerNumber,
+              external_customer_id: portalIdentity.externalCustomerId,
+              email,
+              metadata: portalSyncMetadata,
+            },
+          }).catch((outboxError) => {
+            console.error("[website signup] portal sync outbox failed", outboxError);
+          });
+        } else {
+          console.error("[website signup] portal sync needs manual identity review", error);
+        }
+      }
+    }
+
     const portalOnboarding = await ensureCustomerPortalOnboarding({
       application: result,
       email,
@@ -923,26 +974,28 @@ export default async function TecknaPage({
       return { status: "failed" as const, message: "portal_onboarding_failed" };
     });
 
-    const qs = new URLSearchParams();
-    qs.set("status", result.status);
-    qs.set("portal", safePortalStatus(portalOnboarding.status));
-    if (result.customer_number)
-      qs.set("customerNumber", result.customer_number);
-    if (result.contract_number)
-      qs.set("contractNumber", result.contract_number);
-    if (result.application_number)
-      qs.set("applicationNumber", result.application_number);
-    if (result.next_step) qs.set("nextStep", result.next_step);
-    const nextActionMessage = publicApplicationMessage(result.nextAction);
-    if (nextActionMessage) qs.set("nextActionMessage", nextActionMessage);
-    const caseReference = publicCaseReference(result.manualInformationRequest);
-    if (caseReference) qs.set("caseReference", caseReference);
-    if (result.power_of_attorney_id) qs.set("poa", "signed");
-    if (result.missing_fields.length > 0) {
-      qs.set("missing", missingFieldsToQuery(result.missing_fields));
+    let successRedirect = "/teckna-avtal/tack";
+    try {
+      const resultToken = await createWebsiteApplicationResult({
+        submissionAttemptId,
+        userId: linkedAuthUserId,
+        result: {
+          status: result.status,
+          portalStatus: safePortalStatus(portalOnboarding.status),
+          customerNumber: result.customer_number ?? null,
+          contractNumber: result.contract_number ?? null,
+          applicationNumber: result.application_number ?? null,
+          nextStep: result.next_step ?? null,
+          nextActionMessage: publicApplicationMessage(result.nextAction),
+          caseReference: publicCaseReference(result.manualInformationRequest),
+          powerOfAttorneySigned: Boolean(result.power_of_attorney_id),
+          missingFields: result.missing_fields,
+        },
+      });
+      successRedirect = `/teckna-avtal/tack?result=${encodeURIComponent(resultToken)}`;
+    } catch (error) {
+      console.error("[website signup] result token storage failed after successful application", error);
     }
-
-    const successRedirect = `/teckna-avtal/tack?${qs.toString()}`;
 
     redirect(successRedirect);
   }

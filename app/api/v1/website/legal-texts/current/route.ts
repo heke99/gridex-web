@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { fetchOpsLegalTextsCurrent, getOpsClientStatus } from '@/lib/ops/client'
+import { fetchOpsWebsiteLegalBundle, getOpsClientStatus } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,8 +15,8 @@ export async function GET() {
   }
 
   try {
-    const data = await fetchOpsLegalTextsCurrent()
-    return NextResponse.json({ data })
+    const bundle = await fetchOpsWebsiteLegalBundle()
+    return NextResponse.json({ data: bundle.texts })
   } catch {
     return NextResponse.json(
       { error: 'Juridiska texter kan inte hämtas just nu.' },

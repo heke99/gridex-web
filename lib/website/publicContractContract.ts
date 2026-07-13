@@ -85,7 +85,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
 
   const pricing = record(row.pricing) ?? {}
   const legal = record(row.legal) ?? {}
-  const offerReference = text(row.offer_reference ?? row.offerReference ?? row.id)
+  const offerReference = text(row.offer_reference ?? row.offerReference)
   const productCode = text(row.code ?? row.product_code ?? row.productCode)
   const name = text(row.name)
   const type = text(row.type)

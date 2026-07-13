@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:launch": "node --experimental-strip-types tests/public-contract-contract.test.mjs && node tests/launch-readiness.test.mjs && node tests/signup-pricing-regression.test.mjs && node tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types tests/area-pricing-products.test.mjs",
+    "test:launch": "node --experimental-strip-types tests/public-contract-contract.test.mjs && node tests/launch-readiness.test.mjs && node tests/signup-pricing-regression.test.mjs && node tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types tests/area-pricing-products.test.mjs && node tests/gridex-api-contract-alignment.test.mjs",
     "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs"
   },
   "dependencies": {

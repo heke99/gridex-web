@@ -17,7 +17,7 @@ export type OpsWebhookEvent = {
   raw: Record<string, unknown>
 }
 
-const ALLOWED_EVENT_TYPES = new Set([
+export const OPS_WEBHOOK_EVENT_TYPES = new Set([
   'customer.created',
   'customer.updated',
   'customer_number.assigned',
@@ -106,15 +106,17 @@ export function verifyOpsWebhookSignature(args: {
   return { ok: true, timestamp }
 }
 
-export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null {
+export function isSupportedOpsWebhookEventType(eventType: string): boolean {
+  return OPS_WEBHOOK_EVENT_TYPES.has(eventType)
+}
+
+export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | null {
   const root = object(payload)
   const data = object(root.data)
   const eventType = text(root.event_type) ?? text(root.type)
   const eventId = text(root.event_id) ?? text(root.id) ?? text(data.event_id)
 
-  if (!eventId || !eventType || !ALLOWED_EVENT_TYPES.has(eventType)) {
-    return null
-  }
+  if (!eventId || !eventType) return null
 
   const occurredAt =
     text(root.occurred_at) ?? text(root.created_at) ?? new Date().toISOString()
@@ -148,6 +150,11 @@ export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null
     metadata: object(root.metadata ?? data.metadata ?? data),
     raw: root,
   }
+}
+
+export function parseOpsWebhookPayload(payload: unknown): OpsWebhookEvent | null {
+  const event = parseOpsWebhookEnvelope(payload)
+  return event && isSupportedOpsWebhookEventType(event.event_type) ? event : null
 }
 
 export function customerNotificationForEvent(event: OpsWebhookEvent) {

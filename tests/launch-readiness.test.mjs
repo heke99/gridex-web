@@ -237,7 +237,9 @@ assertIncludes(
 const envExample = read("env.example");
 for (const variable of [
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
-  "GRIDEX_ENABLE_LOCAL_PRICE_FALLBACK",
+  "GRIDEX_WEBSITE_API_SCOPES",
+  "GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY",
+  "GRIDEX_EXPECTED_COMPANY_ID",
   "GRIDEX_ALLOW_UNSAFE_OPS_URL",
   "GRIDEX_ENABLE_OPS_WEBHOOKS",
   "GRIDEX_OPS_WEBHOOK_SECRET",
@@ -287,9 +289,14 @@ assertIncludes(
   "signup must create a stable external customer id",
 );
 assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "createExternalApplicationId(submissionAttemptId)",
+  "signup must keep its local submission id separate from the OPS customer id",
+);
+assertNotIncludes(
   "lib/ops/client.ts",
   "external_application_id: input.external_application_id",
-  "signup must keep application id separate from customer id",
+  "strict OPS application payload must not include undocumented top-level fields",
 );
 assert.ok(
   !opsClient.includes("identity.externalCustomerId ?? identity.customerNumber"),
@@ -322,7 +329,7 @@ assertIncludes(
 );
 assertIncludes(
   "docs/external-website-api-integration-guide.md",
-  "Customer Portal External Auth Linking",
+  "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(

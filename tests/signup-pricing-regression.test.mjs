@@ -43,8 +43,8 @@ assert.ok(
   "pricing preview must use the public offer reference",
 );
 assert.ok(
-  previewRoute.includes('quote_source: "website"'),
-  "pricing preview may disclose website as the quote source for audit",
+  previewRoute.includes('quote_source: "ops"'),
+  "pricing preview must identify OPS as the authoritative quote source",
 );
 assert.ok(
   previewRoute.includes("status: error.status"),
@@ -193,16 +193,20 @@ assert.ok(
   "server page must not depend on client action state",
 );
 assert.ok(
-  signup.includes("pricing_preview_snapshot: canonicalPricingPreviewSnapshot"),
-  "OPS must receive the canonical verified price snapshot for audit",
+  signup.includes("pricingQuoteSnapshot: canonicalPricingPreviewSnapshot"),
+  "the authoritative quote must be stored in the local immutable audit record",
+);
+assert.ok(
+  !signup.includes("pricing_preview_snapshot: canonicalPricingPreviewSnapshot"),
+  "strict OPS applications must not receive undocumented pricing snapshot fields",
 );
 assert.ok(
   !signup.includes("submittedGridOwnerId"),
   "signup must never trust a grid owner identifier submitted by the browser",
 );
 assert.ok(
-  signup.includes("grid_owner_id: serverResolution?.grid_owner_id ?? null"),
-  "signup must use only the server-side energy resolver for grid owner identity",
+  signup.includes("gridOwnerId: serverResolution?.grid_owner_id ?? null"),
+  "signup audit validation must use only the server-side energy resolver for grid owner identity",
 );
 assert.ok(
   signup.includes("return fail("),
@@ -285,7 +289,7 @@ assert.ok(
   "OPS contract mapping must preserve mix products",
 );
 assert.ok(
-  ops.includes("facility_id: input.facility_id ?? null"),
+  ops.includes("...(input.facility_id ? { facility_id: input.facility_id } : {})"),
   "OPS application payload must not copy metering_point_id into facility_id",
 );
 assert.ok(
@@ -391,8 +395,8 @@ assert.ok(
 
 const webhook = read("app/api/ops/webhooks/route.ts");
 assert.ok(
-  webhook.includes("revalidateTag('ops-public-contracts', 'max')"),
-  "relevant OPS changes must invalidate public contract cache",
+  !webhook.includes("revalidateTag('ops-public-contracts', 'max')"),
+  "webhook route must not contain unreachable cache invalidation for undocumented event types",
 );
 
 console.log("Signup pricing regression checks passed");

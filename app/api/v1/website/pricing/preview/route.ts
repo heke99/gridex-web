@@ -141,7 +141,7 @@ export async function POST(req: Request) {
           ...publicPreview(preview),
           quote_token: websiteQuote.token,
           quote_expires_at: websiteQuote.quote.expires_at,
-          quote_source: "website" as const,
+          quote_source: "ops" as const,
         }
       : publicPreview(preview);
 

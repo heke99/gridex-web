@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { submitOpsCustomerSync } from '@/lib/ops/client'
+import { isTransientOpsError, submitOpsCustomerSync } from '@/lib/ops/client'
+import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
 import {
@@ -35,17 +37,41 @@ export async function POST(req: Request) {
 
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
-    const result = await submitOpsCustomerSync({
-      identity,
-      idempotencyKey: clientOperationId(body.client_operation_id ?? body.idempotency_key),
-      powerOfAttorney,
-      legalAcceptances,
+    const operationId = clientOperationId(body.client_operation_id ?? body.idempotency_key) ?? randomUUID()
+    const payload = {
+      operation_id: operationId,
+      power_of_attorney: powerOfAttorney,
+      legal_acceptances: legalAcceptances,
       documents,
-      facilityData,
+      facility_data: facilityData,
       profile,
       metadata: { source: 'gridex_web_customer_sync_route' },
-    })
-    return NextResponse.json({ data: result })
+    }
+    try {
+      const result = await submitOpsCustomerSync({
+        identity,
+        idempotencyKey: operationId,
+        powerOfAttorney,
+        legalAcceptances,
+        documents,
+        facilityData,
+        profile,
+        metadata: payload.metadata,
+      })
+      return NextResponse.json({ data: result, queued: false })
+    } catch (error) {
+      if (!isTransientOpsError(error)) throw error
+      await enqueuePortalWrite({
+        userId: user.id,
+        operationType: facilityData && !powerOfAttorney && legalAcceptances.length === 0 && documents.length === 0 && !profile
+          ? 'facility_data_update'
+          : 'customer_sync',
+        idempotencyKey: `customer-sync:${user.id}:${operationId}`,
+        identity,
+        payload,
+      })
+      return NextResponse.json({ data: { ok: true, status: 'queued' }, queued: true }, { status: 202 })
+    }
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'customer-sync',

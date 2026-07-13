@@ -1,200 +1,133 @@
-# External website API integration guide
+# Gridex website, Mina sidor and webhook integration
 
-This document mirrors the production contract published in Gridex OPS. The website is a presentation and application surface; OPS is the source of truth for publication, pricing, legal versions, contract snapshots and tenant resolution.
+This repository treats Gridex OPS as the source of truth for published offers, quotes, legal versions, customer applications and customer-portal data. The website API key is server-side and determines the company. Browser requests must never select an OPS tenant or send internal OPS identifiers as authority.
 
-## API client and scopes
+## Required configuration
 
-The server-side API client decides tenant/company. A website must never send a free `company_id`, internal OPS `customer_id`, `price_plan_id` or `price_plan_version_id` from the browser.
+```text
+GRIDEX_OPS_API_URL=https://app.gridex.se
+GRIDEX_WEBSITE_API_KEY=<complete secret API token>
+GRIDEX_WEBSITE_API_SCOPES=<comma-separated scopes below>
+GRIDEX_EXPECTED_COMPANY_ID=<company UUID represented by the API key>
+GRIDEX_ENABLE_LIVE_SIGNUP=true
+GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY=false
+GRIDEX_ENABLE_LEGACY_WEBSITE_CONTRACTS_ROUTE=false
+```
 
-A standard website/Mina sidor client needs at least:
+Never set or send `X-Gridex-Tenant-Id`. The API key resolves the company. Production startup/readiness must fail visibly when the URL, key, expected company or required scope declaration is missing.
+
+## Scope set
+
+The current integration expects the granular scopes below. Legacy `customer_portal.read` and `customer_portal.write` can be present for compatibility, but they are not a substitute for declaring and testing the endpoint-specific permissions.
 
 ```text
 website_contracts.read
+website_legal.read
 website_applications.write
-customer_portal.read
-customer_portal.write
 website_events.write
 events.read
+customer_sync.write
+customer_profile.read
+customer_contracts.read
+customer_sites.read
+customer_invoices.read
+customer_metering.read
+customer_events.read
 customer_documents.read
-customer_documents.write
+customer_legal.read
+customer_power_of_attorney.read
 customer_notifications.read
 customer_notifications.write
 customer_contact.write
 customer_facility_data.write
-customer_power_of_attorney.write
 ```
 
-The client should be created with the complete standard set and reduced only when a capability is intentionally disabled. Planned granular customer scopes may still be covered by `customer_portal.read` / `customer_portal.write` in OPS, but they should be included in new keys so the integration does not break when enforcement becomes granular.
+The admin integration page runs readiness checks and distinguishes an invalid API key, missing scopes, an invalid base URL/environment and OPS unavailability.
 
-## Public contracts
+## Official endpoint flow
 
-```http
-GET /api/v1/website/public-contracts
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
+| Method | OPS path | Primary scope | Website use |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published, sellable offers and exact `offer_reference`. |
+| `POST` | `/api/v1/website/quote` | `website_contracts.read` | Authoritative quote for selected offer, area and consumption. |
+| `GET` | `/api/v1/website/legal-bundle` | `website_legal.read` or compatible contract-read access | Published legal text/version bundle. |
+| `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Strict customer application payload. |
+| `POST` | `/api/v1/customer/portal-bundle` | customer read scopes | Preferred Mina sidor bundle and identity linking. |
+| `POST` | `/api/v1/customer-portal/sync` | `customer_sync.write` | Link or repair portal identity. |
+| `POST` | `/api/v1/customer/sync` | `customer_sync.write` | Sync profile, facility, legal, POA and documents. |
+| `POST` | `/api/v1/customer/profile-update` | `customer_contact.write` | Contact/profile update. |
+| `POST` | `/api/v1/customer/move-out` | `customer_facility_data.write` | Move-out report. |
+| `POST` | `/api/v1/customer/notifications/read` | `customer_notifications.write` | Mark notifications read. |
+| `POST` | `/api/v1/website/customer-events` | `website_events.write` | Allowlisted website/customer events. |
+| `GET` | `/api/v1/events` | `events.read` | Tenant domain-event read. |
+
+The repository exposes website-local wrapper routes only for browser-safe validation and server-to-server OPS calls. `/api/v1/website/contracts` is a disabled legacy alias and returns `410` unless its explicit compatibility flag is enabled. `gridex.se/api/v1/events does not proxy tenant event reads`; tenant event reads stay on the authenticated OPS API.
+
+## Sell and price flow
+
+The only supported flow is:
+
+```text
+GET public-contracts
+  -> select exact offer_reference
+  -> POST website/quote
+  -> show quote and published legal versions
+  -> lock local audit snapshot
+  -> POST customer-applications with offer_reference
 ```
 
-Scope: `website_contracts.read`
+`offer_reference` is the only contract reference that the website may use for quote selection and application. An internal `id` must never be substituted when `offer_reference` is missing. Such an offer is integration-invalid and not sellable online.
 
-OPS returns only contracts that are published, active, date-valid, have an active price version and have the legal material required for sale. The website must treat the response as a public DTO and must **not** require or persist internal price-plan identifiers or duplicate publication flags.
+The browser-facing pricing route may issue a short-lived website HMAC token to bind the review page to the authoritative OPS quote. The token is only an integrity mechanism. Price calculation is never performed from a local independent price engine. Before submission, the server fetches/validates the quote again and rejects changed or expired review data.
+The integration must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to zero. Missing mandatory quote values block sale. Browser-supplied `price_plan_id` and `price_plan_version_id` are forbidden; OPS resolves them from `offer_reference`.
 
-Stable public fields:
+The full OPS quote and the displayed contract snapshot are stored in `website_application_submissions` for audit. They are deliberately not placed in the strict OPS application payload unless the published OPS schema explicitly allows them.
+
+## Legal bundle
+
+`GET /api/v1/website/legal-bundle` is fetched server-side. The selected public contract and legal bundle determine:
+
+- terms version and version ID;
+- privacy version and version ID;
+- withdrawal version and version ID;
+- price-terms version and version ID;
+- power-of-attorney requirement and text version ID.
+
+The application must use the exact published versions accepted by the customer. A required power of attorney without a valid published text version blocks sale.
+
+## Strict customer-application payload
+
+Unknown top-level and nested fields can be rejected by OPS. The website therefore sends the documented business payload only. Local analytics, UTM values, quote snapshots, grid-resolution diagnostics and internal application identifiers remain in the website audit record.
+
+Earliest possible start:
 
 ```json
 {
-  "id": "offer_…",
-  "offer_reference": "offer_…",
-  "code": "RORLIGT-ELPRIS",
-  "name": "Rörligt elpris",
-  "type": "variable_spot",
-  "customer_type": "both",
-  "pricing": {
-    "monthly_fee": { "amount": 68, "currency": "SEK", "unit": "month" },
-    "markup": { "amount": 4, "unit": "ore_per_kwh" },
-    "invoice_fee": { "amount": 0, "currency": "SEK", "unit": "invoice" }
-  },
-  "legal": {
-    "terms_version": "2026-06",
-    "terms_version_id": "uuid-from-legal_text_versions",
-    "terms_url": "https://app.gridex.se/legal/.../terms/uuid-from-legal_text_versions",
-    "privacy_policy_version": "2026-06",
-    "privacy_policy_version_id": "uuid-from-legal_text_versions",
-    "privacy_policy_url": "https://app.gridex.se/legal/.../privacy/uuid-from-legal_text_versions",
-    "withdrawal_version": "2026-06",
-    "withdrawal_version_id": "uuid-from-legal_text_versions",
-    "withdrawal_url": "https://app.gridex.se/legal/.../withdrawal/uuid-from-legal_text_versions",
-    "power_of_attorney_required": true,
-    "power_of_attorney_version": "2026-06-poa",
-    "power_of_attorney_version_id": "uuid-from-legal_text_versions",
-    "power_of_attorney_url": "https://app.gridex.se/legal/.../power-of-attorney/uuid-from-legal_text_versions",
-    "price_terms_version": "2026-06",
-    "price_terms_version_id": "uuid-from-legal_text_versions",
-    "price_terms_url": "https://app.gridex.se/legal/.../price-terms/uuid-from-legal_text_versions"
-  },
-  "valid_from": "2026-06-01T00:00:00Z",
-  "valid_to": null
-}
-```
-
-`offer_reference` is the only contract reference that the website may use for price calculation, selection and application. OPS resolves the current internal contract, price plan and price version from that reference.
-
-The legal object is the source of truth for both what the customer must accept and where the customer reads the text. The website should link to the OPS `*_url` values when present, keep local legal pages only as fallbacks, and include all `*_version_id` values in the contract snapshot. When `legal.power_of_attorney_required=true`, OPS must return `legal.power_of_attorney_version_id` (or the equivalent camelCase/alias field). `powerOfAttorney.textVersionId` must be that UUID from `legal_text_versions.id`; never send the display/version label such as `2026-06-12-v1`. The website blocks sale instead of sending a signed `powerOfAttorney.textVersionId=null`, because the signed operational fullmakt must be traceable to the published legal text version.
-
-## Official website/customer endpoints
-
-The current website integration uses these official server-to-server endpoints:
-
-| Method | Path                                    | Scope                        | Purpose                                                           |
-| ------ | --------------------------------------- | ---------------------------- | ----------------------------------------------------------------- |
-| `GET`  | `/api/v1/website/public-contracts`      | `website_contracts.read`     | Published sellable offers.                                        |
-| `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Submit customer application and legal consent payloads.           |
-| `POST` | `/api/v1/website/customer-events`       | `website_events.write`       | Send allowlisted customer actions from website/Mina sidor.        |
-| `POST` | `/api/v1/events`                        | `website_events.write`       | Alias for website customer events.                                |
-| `POST` | `/api/v1/customer/portal-bundle`        | `customer_portal.read`       | Preferred Mina sidor bundle.                                      |
-| `GET`  | `/api/v1/customer/portal-bundle`        | `customer_portal.read`       | Legacy/header bundle support.                                     |
-| `GET`  | `/api/v1/customer/me`                   | `customer_portal.read`       | Customer profile fallback.                                        |
-| `GET`  | `/api/v1/customer/contracts`            | `customer_portal.read`       | Customer contracts fallback.                                      |
-| `GET`  | `/api/v1/customer/sites`                | `customer_portal.read`       | Customer sites/metering points fallback.                          |
-| `GET`  | `/api/v1/customer/invoices`             | `customer_portal.read`       | Customer invoices.                                                |
-| `GET`  | `/api/v1/customer/invoices/[id]`        | `customer_portal.read`       | One customer invoice detail.                                      |
-| `GET`  | `/api/v1/customer/metering-values`      | `customer_portal.read`       | Customer metering values.                                         |
-| `GET`  | `/api/v1/customer/events`               | `customer_portal.read`       | Customer-visible events.                                          |
-| `GET`  | `/api/v1/customer/documents`            | `customer_portal.read`       | Customer documents.                                               |
-| `GET`  | `/api/v1/customer/legal-acceptances`    | `customer_portal.read`       | Customer legal acceptances.                                       |
-| `GET`  | `/api/v1/customer/powers-of-attorney`   | `customer_portal.read`       | Customer powers of attorney.                                      |
-| `GET`  | `/api/v1/customer/notifications`        | `customer_portal.read`       | Customer notifications.                                           |
-| `POST` | `/api/v1/customer/notifications/read`   | `customer_portal.write`      | Mark notifications read.                                          |
-| `POST` | `/api/v1/customer/sync`                 | `customer_portal.write`      | Sync documents, legal acceptances, POA and facility/profile data. |
-| `POST` | `/api/v1/customer/profile-update`       | `customer_portal.write`      | Submit profile/contact changes.                                   |
-| `POST` | `/api/v1/customer/move-out`             | `customer_portal.write`      | Submit move-out report.                                           |
-| `GET`  | `/api/v1/events`                        | `events.read`                | Read tenant domain events.                                        |
-
-Website wrapper routes may proxy or locally validate parts of this contract, but the OPS API key is always server-side and the tenant/company is always resolved from that key. The live OPS developer contract does not expose `POST /api/v1/website/pricing/preview`, `POST /api/v1/website/pricing/quote/validate`, `POST /api/v1/website/energy/resolve`, `GET /api/v1/website/legal-texts/current`, `GET /api/v1/website/price-plans` or `GET /api/v1/customer/switch-status` as official tenant endpoints. When this repository has routes with those paths, they are website-local wrapper routes only. `app.gridex.se/api/v1/events` is the official authenticated tenant-event reader; `gridex.se/api/v1/events` does not proxy tenant event reads and must not expose tenant events from the website server key. In plain terms: gridex.se/api/v1/events does not proxy tenant event reads.
-
-## Website-local price preview and quote validation
-
-The website-local route below is **not** an official OPS endpoint. It exists so the public calculator can produce a customer-friendly preview from the OPS-published `public-contracts.pricing` DTO without ever accepting internal OPS IDs from the browser.
-
-```http
-POST /api/v1/website/pricing/preview
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-  "offer_reference": "offer_…",
-  "price_area_code": "SE4",
-  "postal_code": "21122",
-  "city": "Malmö",
-  "address": "Storgatan 1",
-  "estimated_monthly_kwh": 2000
-}
-```
-
-The route must resolve the selected contract from `GET /api/v1/website/public-contracts`, use only the published public `pricing` fields and reject missing mandatory pricing. It must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to `0`. The website signs the displayed preview with a dedicated HMAC secret in `GRIDEX_WEBSITE_PRICING_QUOTE_SECRET`. That token is a mandatory integrity precondition for submission: it binds the selected `offer_reference`, address fingerprint, price area, estimated consumption and displayed values to the review step. It is not the legal price source and must never reuse the OPS API key or PII hash pepper. If the token expires or no longer matches, the website must refresh the quote and require the customer to review the current price again.
-
-```http
-POST /api/v1/website/pricing/quote/validate
-Content-Type: application/json
-```
-
-The website-local validation route verifies the short-lived HMAC quote against the final address, price area, estimated kWh and selected `offer_reference` before the customer application is submitted. The submission handler then fetches the current public contract again and recalculates the preview server-side. A quote or contract snapshot mismatch blocks the submission and sends the customer back to the review step. OPS remains the authority that resolves the internal contract/price version and stores the authoritative contract price snapshot.
-
-## Customer application
-
-```http
-POST /api/v1/website/customer-applications
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
-Idempotency-Key: tenant-application-…
-Content-Type: application/json
-```
-
-Scope: `website_applications.write`
-
-The contract section contains only the selected public offer reference:
-
-```json
-{
-  "contract": {
-    "offer_reference": "offer_…",
-    "requested_start_date": "2026-07-01"
-  }
-}
-```
-
-When the selected offer requires a power of attorney, the application must also include a separate `powerOfAttorney` object. `consents.power_of_attorney` records the checkbox consent; `powerOfAttorney` is the signed operational payload that OPS can use for supplier switching and facility-information lookup.
-
-```json
-{
-  "external_customer_id": "GRIDEX-WEB-20260616-…",
-  "external_application_id": "APP-…",
+  "external_customer_id": "GRIDEX-WEB-<stable-id>",
   "source": "gridex_website",
-  "customer_portal_user_id": "<website-supabase-user-id>",
-  "auth_user_id": "<website-supabase-user-id>",
+  "customer_portal_user_id": "<authenticated-user-id>",
+  "auth_user_id": "<authenticated-user-id>",
   "customer": {
     "customer_type": "private",
     "first_name": "Anna",
     "last_name": "Andersson",
+    "personal_number": "YYYYMMDDXXXX",
     "email": "anna@example.se",
-    "phone": "+46701234567",
-    "personal_number": "YYYYMMDDXXXX"
+    "phone": "+46701234567"
   },
   "site": {
-    "facility_id": null,
-    "metering_point_id": null,
+    "facility_id": "735999...",
     "street": "Storgatan 1",
     "postal_code": "21122",
     "city": "Malmö",
     "price_area_code": "SE4",
-    "grid_area_code": "LKA",
-    "grid_owner_id": "uuid-or-actor-id",
-    "grid_owner_name": "Landskrona Energi Nät AB",
-    "move_in_date": "2026-07-01"
+    "current_supplier_name": "Nuvarande elhandlare",
+    "current_supplier_org_number": "5560000000"
   },
   "contract": {
-    "offer_reference": "offer_…",
-    "requested_start_date": "2026-07-01"
+    "offer_reference": "offer_...",
+    "requested_start_mode": "earliest_possible",
+    "requested_start_date": null
   },
   "consents": {
     "terms": true,
@@ -209,187 +142,174 @@ When the selected offer requires a power of attorney, the application must also 
     "signerName": "Anna Andersson",
     "signerIdentityNumber": "YYYYMMDDXXXX",
     "method": "website_acceptance",
-    "acceptedAt": "2026-06-26T09:00:00.000Z",
-    "textVersionId": "uuid-from-legal.power_of_attorney_version_id",
-    "ipAddress": "203.0.113.10",
-    "userAgent": "Mozilla/5.0 …"
+    "acceptedAt": "2026-07-13T12:00:00.000Z",
+    "textVersionId": "<published-legal-version-uuid>"
   }
 }
 ```
 
-OPS resolves the internal price plan/version and stores the authoritative contract and legal snapshots. The website sends the displayed contract snapshot and verified price preview only for audit and mismatch detection; they are never the legal source of truth.
-
-Accepted application metadata:
+Specific date:
 
 ```json
 {
-  "metadata": {
+  "site": {
+    "move_in_date": "2026-08-01"
+  },
+  "contract": {
+    "offer_reference": "offer_...",
     "requested_start_mode": "specific_date",
-    "energy_resolution_status": "resolved",
-    "energy_resolution_confidence": 0.98,
-    "estimated_monthly_kwh": 2000,
-    "pricing_preview_snapshot": {
-      "contract": { "offer_reference": "offer_…" }
-    },
-    "contract_display_snapshot": {
-      "offer_reference": "offer_…",
-      "legal_versions": {}
-    },
-    "utm_source": "google",
-    "utm_medium": "cpc",
-    "utm_campaign": "sommarkampanj",
-    "user_agent": "Mozilla/5.0 …",
-    "ip_hash": "sha256-hash"
+    "requested_start_date": "2026-08-01"
   }
 }
 ```
 
-`external_application_id` identifies one immutable website application attempt. `external_customer_id` identifies the stable website customer/account and must not be derived from mutable contact data such as e-mail. Do not reuse the OPS customer number as `external_customer_id`; send OPS customer numbers only in `customer_number` after OPS has assigned them.
-
-The implementation creates one UUID `submission_attempt_id` when the customer reaches the final review step. It persists and reuses the following values for every retry of that same signed submission:
+Only these start modes are accepted:
 
 ```text
-Idempotency-Key = website-application:<submission_attempt_id>
-external_application_id = <configured prefix>:<submission_attempt_id>
-acceptedAt = first persisted acceptance timestamp
-request context = first persisted IP hash/user-agent/UTM snapshot
-OPS payload hash = hash of the exact serialized request body
+earliest_possible
+specific_date
 ```
 
-The same idempotency key may only be sent with the exact same locked OPS payload. The website must never perform an automatic fresh-key retry for a partial `site_create`, missing-POA repair or another failure belonging to the same signed attempt. A new key is only for a deliberately new customer submission.
+`specific_date` requires a valid date. `earliest_possible` sends `requested_start_date: null`. The old value `asap` and placement under `metadata` are forbidden.
 
-The application response can include `power_of_attorney_id`, `power_of_attorney`, `nextAction` and `manualInformationRequest`. The website should surface customer-safe `nextAction.message` and the manual request case reference when present, but it must not require these fields to exist.
+`external_customer_id` is required by the website type and server validation. It is stable and must not be derived from mutable contact information. Current-supplier fields are optional, but should be collected when known to reduce manual follow-up.
 
-## Customer Portal External Auth Linking
+## Idempotency and immutable attempts
 
-Tenant websites use their own Supabase Auth for Mina sidor. Server-side website code sends the website Supabase `session.user.id` to OPS as both `x-gridex-customer-portal-user-id` and `x-gridex-auth-user-id`.
-
-```http
-POST /api/v1/customer/portal-bundle
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
-Content-Type: application/json
-```
-
-The website wrapper does not accept customer identity from the browser. It reads `session.user.id` server-side, resolves the linked local profile and sends the verified portal/auth user IDs plus the already stored stable customer identifiers to OPS. A request body containing a different e-mail, customer number or `external_customer_id` must not override that identity. During application onboarding, an unauthenticated submission must never be attached to an existing Supabase account from e-mail alone. Reuse an existing portal profile only for the authenticated session user or when e-mail plus at least one stable customer identifier (`external_customer_id` or customer number) already converge on the same profile.
-
-Use `external_customer_id` only for the stable website/customer reference from signup. Do not copy the OPS customer number into `external_customer_id`; send customer numbers in `customer_number`.
-
-The website returns `401` only when the customer session is missing or invalid. Local Supabase fallback is allowed only for transient OPS/network failures such as timeout, `408`, `425`, `429`, `502`, `503` or `504`, and the UI must visibly mark it as potentially older than OPS data. Authentication, authorization, ambiguous linking and validation failures (`401`, `403`, `409`, `422`) must preserve their status and stable OPS error code instead of being hidden by fallback. When OPS responds successfully, its portal arrays, `customer_status` and `data_quality` are authoritative; stale local contracts/sites/invoices/documents must not be merged back into the live response.
-
-## Customer sync and customer writes
-
-Signed powers of attorney, legal acceptances, customer documents and facility completions are synced to OPS through:
-
-```http
-POST /api/v1/customer/sync
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
-Idempotency-Key: tenant-sync-…
-Content-Type: application/json
-```
-
-Payloads must include the same customer identifiers used for Mina sidor linking. OPS stores the records under the tenant resolved from the API key.
-
-Profile changes should use the dedicated endpoint when they are not part of a larger sync payload:
-
-```http
-POST /api/v1/customer/profile-update
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
-Idempotency-Key: profile-update-…
-Content-Type: application/json
-```
-
-Move-out reports should use:
-
-```http
-POST /api/v1/customer/move-out
-Authorization: Bearer YOUR_GRIDEX_API_TOKEN
-Idempotency-Key: move-out-…
-Content-Type: application/json
-```
-
-Both endpoints use the same portal identity headers/payload as `portal-bundle` and must not accept a free `company_id`.
-
-## Customer events
-
-Customer portal actions are sent with an allowlisted event type and an `Idempotency-Key`. Support cases are outside the OPS API and must not be sent as website events.
-
-Allowed inbound website customer event types:
+Each signed submission receives one durable attempt ID and one idempotency key. The exact normalized OPS payload is hashed and locked before the API call.
 
 ```text
-customer.opened_document
-customer.downloaded_document
+same Idempotency-Key = same normalized payload
+changed payload = new deliberate operation and new key
 ```
 
-Keep extra customer action events disabled in the website until they are listed as active/built in OPS and the production developer contract. Otherwise the website may accept events that OPS rejects.
+Never retry a corrected payload with an old key. Completion of an existing application, missing POA repair and administrative replay must use the relevant continuation/replay flow rather than silently mutating a prior request.
 
-Payload:
+## Mina sidor identity rules
 
-```json
-{
-  "event_type": "customer.opened_document",
-  "source": "gridex_website",
-  "entity_type": "document",
-  "entity_id": "document-id",
-  "idempotency_key": "customer-event-unique-key",
-  "metadata": { "page": "/dashboard/documents" }
-}
+`POST /api/v1/customer/portal-bundle` is the primary read/link flow. The website sends a stable portal user ID in the required headers/body plus available customer attributes.
+
+A first automatic relation requires either:
+
+1. an already linked portal identity; or
+2. at least two matching customer attributes.
+
+The website resolver follows the same or stricter rule:
+
+- exact portal user ID is accepted;
+- exact tenant-scoped external customer ID is accepted;
+- otherwise customer number plus e-mail can identify one profile;
+- e-mail alone never auto-links a customer.
+
+A missing or ambiguous relation is an identity state, not an empty portal. Generic 404 responses do not activate legacy reads. Legacy bundle fallback is only allowed behind `GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY=true` and only for explicit `endpoint_not_found` or `method_not_supported` compatibility errors.
+
+Portal states must remain distinguishable:
+
+```text
+customer_not_linked
+customer_not_found
+ambiguous_customer_match
+identity_information_insufficient
+ops_unavailable
+scope_missing
 ```
 
-The route adds portal identity headers/body fields server-side from the logged-in user. It rejects unsupported event types before calling OPS.
+The dashboard has a dedicated recovery state and calls `POST /api/v1/customer-portal/sync`. A successful authenticated signup also attempts portal sync immediately; transient failures are placed in the durable outbox.
 
-## Durable website writes and recovery
+## Stable identifier uniqueness
 
-Customer events, notification-read changes and profile updates use server-generated, user-namespaced idempotency keys. If OPS is temporarily unavailable, the website stores the exact operation in `customer_portal_write_outbox` and returns a queued status instead of claiming that a lost event succeeded. The Vercel cron route `/api/internal/customer-portal/outbox/process` retries pending operations with the same key and payload, applies exponential backoff and does not retry permanent `4xx` validation/authorization failures.
+The website is a single-company deployment. Partial unique indexes enforce uniqueness for non-null:
 
-Notification-read requests must contain exactly one of a non-empty `notification_ids` array or explicit `all=true`. Empty/invalid payloads must never be interpreted as “mark everything read”.
+```text
+customer_profiles.external_customer_id
+customer_profiles.customer_number
+customer_profiles.portal_identity_id
+```
+
+The migration aborts with a clear error if duplicate values exist. Resolve duplicates before applying it. In a future shared multi-company database, use `(company_id, identifier)` partial unique indexes instead.
+
+## Customer write outbox
+
+All customer-facing writes use direct OPS calls first and a durable outbox for transient failures:
+
+```text
+customer_event
+notification_read
+profile_update
+customer_sync
+customer_portal_sync
+move_out
+facility_data_update
+```
+
+Each row stores:
+
+- operation and stable idempotency key;
+- normalized identity and payload hash;
+- attempt count and maximum attempts;
+- next retry time with backoff;
+- last HTTP status and API error code;
+- dead-letter timestamp.
+
+A duplicate idempotency key is accepted only when operation, identity and payload are identical. Permanent failures or exhausted retries become `dead_letter`. Admins can inspect and replay failed/dead-letter rows from the Integrationer page after fixing the root cause.
+
+## Customer UI coverage
+
+Mina sidor exposes working flows for:
+
+- portal-link refresh/recovery;
+- facility and metering-point completion;
+- grid/price-area completion;
+- move-out report;
+- marking notifications read;
+- profile/contact updates and existing customer events.
+
+The UI reports whether a transient operation completed immediately or was safely queued.
 
 ## Webhooks
 
-OPS webhooks are signed with HMAC SHA-256 over:
+Signature verification uses the raw body and the documented `timestamp.rawBody` HMAC input with constant-time comparison. Duplicate deliveries are stored idempotently.
+
+After signature verification:
+
+1. `payload.company_id` must equal `GRIDEX_EXPECTED_COMPANY_ID`;
+2. customer resolution must follow the identity rules above;
+3. an unknown but correctly signed event is stored as `ignored_unknown_type` and acknowledged with `202`;
+4. invalid signatures return `401`;
+5. no event is linked by e-mail alone.
+
+Acknowledging unknown signed events prevents retry storms when OPS introduces a new event before the website deployment supports it.
+
+## Success-page privacy
+
+The success URL contains only a random opaque token:
 
 ```text
-X-Gridex-Timestamp + "." + rawBody
+/teckna-avtal/tack?result=<opaque-token>
 ```
 
-The receiver must reject missing timestamps, stale timestamps and signatures that only match the raw body. `GRIDEX_WEBHOOK_SIGNING_SECRET` is the canonical variable; if the deprecated alias is also set to a different value, verification fails closed. The website stores `company_id`, `customer_number`, `external_customer_id`, `customer_email`, payload hash and raw payload for audit/debugging.
+The token is stored as a SHA-256 hash, expires after 24 hours and resolves server-side. Customer number, contract number, application number and case references are never placed directly in the query string, browser history, analytics or referrer headers.
 
-A duplicate with status `processed` is acknowledged without running business logic twice. A previously `failed`, `received` or stale `processing` event is claimable and may be processed again with attempt tracking and optimistic concurrency. The same `event_id` with a different payload hash is a conflict, not a harmless duplicate. Notifications that arrive before a portal user can be resolved remain `pending`; `/api/internal/customer-portal/notifications/reconcile` retries resolution using converging stable identifiers and never links an ambiguous customer.
+## Deployment order
 
-## Production readiness checklist
+1. Resolve any duplicate stable customer identifiers.
+2. Apply `20260713160000_customer_portal_api_contract_alignment.sql`.
+3. Configure the complete OPS URL, API key, scope declaration and expected company ID.
+4. Keep both legacy compatibility flags disabled.
+5. Run `npm run test:launch`, `npm run lint`, `npx tsc --noEmit` and `npm run build`.
+6. Open Admin → Integrationer and verify every required scope and OPS probe.
+7. Test all four application price types and both start modes.
+8. Test portal linking with an already linked user, a valid two-attribute first link, missing identity and ambiguous identity.
+9. Test transient write queue, dead-letter and administrative replay.
+10. Test valid, duplicate, unknown-type, wrong-company and invalid-signature webhooks.
 
-Before calling a tenant website production-ready, verify:
+## Non-negotiable rules
 
-```text
-GRIDEX_OPS_API_URL=https://app.gridex.se
-GRIDEX_WEBSITE_API_KEY=<full API token, not the gdxp_ prefix only>
-GRIDEX_ENABLE_LIVE_SIGNUP=true
-GRIDEX_ENABLE_PORTAL_ONBOARDING=true
-GRIDEX_WEBSITE_HASH_PEPPER=<stable secret>
-GRIDEX_WEBSITE_PRICING_QUOTE_SECRET=<stable signing secret>
-GRIDEX_ENABLE_OPS_WEBHOOKS=true
-GRIDEX_WEBHOOK_SIGNING_SECRET=<same signing secret configured in OPS webhook settings>
-CUSTOMER_PORTAL_OUTBOX_CRON_SECRET=<cron secret, or rely on CRON_SECRET>
-GRIDEX_OPS_ALLOWED_HOSTS=app.gridex.se
-```
-
-The OPS API key should include:
-
-```text
-website_contracts.read
-website_applications.write
-customer_portal.read
-customer_portal.write
-website_events.write
-events.read
-customer_documents.read
-customer_documents.write
-customer_notifications.read
-customer_notifications.write
-customer_contact.write
-customer_facility_data.write
-customer_power_of_attorney.write
-```
-
-Before deployment, apply `supabase/migrations/20260710090000_customer_portal_api_hardening.sql`. It creates immutable application-attempt storage, the durable write outbox, retry metadata for webhook/notification reconciliation and the shared database-backed rate limiter. Configure both Vercel cron routes and verify they receive the expected authorization header.
-
-The production guard requires HTTPS and a hostname in `GRIDEX_OPS_ALLOWED_HOSTS` (normally only `app.gridex.se`). Unsafe URL overrides are for explicit non-production diagnostics only. Webhook verification must use `GRIDEX_WEBHOOK_SIGNING_SECRET` and reject stale timestamps/signatures. Public rate limits use the shared Supabase RPC; the process-local limiter is only a fail-safe when the shared store is temporarily unavailable.
+- OPS is the price and legal source of truth.
+- Never expose the API key to the browser.
+- Never send a tenant/company override header.
+- Never substitute internal `id` for `offer_reference`.
+- Never present identity/link errors as a successful empty portal.
+- Never auto-link a customer by e-mail alone.
+- Never reuse an idempotency key with a changed normalized payload.
+- Never place customer/application identifiers in a success URL.

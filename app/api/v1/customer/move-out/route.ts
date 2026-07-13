@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { submitOpsCustomerMoveOut } from '@/lib/ops/client'
+import { isTransientOpsError, submitOpsCustomerMoveOut } from '@/lib/ops/client'
+import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
 import { clientOperationId, moveOutPayload, object } from '@/lib/customerPortal/writeValidation'
@@ -24,13 +26,27 @@ export async function POST(req: Request) {
 
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
-    const result = await submitOpsCustomerMoveOut({
-      identity,
-      idempotencyKey: clientOperationId(body.client_operation_id ?? body.idempotency_key),
-      moveOut,
-      metadata: { source: 'gridex_web_move_out_route' },
-    })
-    return NextResponse.json({ data: result })
+    const operationId = clientOperationId(body.client_operation_id ?? body.idempotency_key) ?? randomUUID()
+    const metadata = { source: 'gridex_web_move_out_route' }
+    try {
+      const result = await submitOpsCustomerMoveOut({
+        identity,
+        idempotencyKey: operationId,
+        moveOut,
+        metadata,
+      })
+      return NextResponse.json({ data: result, queued: false })
+    } catch (error) {
+      if (!isTransientOpsError(error)) throw error
+      await enqueuePortalWrite({
+        userId: user.id,
+        operationType: 'move_out',
+        idempotencyKey: `move-out:${user.id}:${operationId}`,
+        identity,
+        payload: { operation_id: operationId, move_out: moveOut, metadata },
+      })
+      return NextResponse.json({ data: { ok: true, status: 'queued' }, queued: true }, { status: 202 })
+    }
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'move-out',

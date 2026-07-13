@@ -1,5 +1,7 @@
 import { requireAdminPageAccess } from '@/lib/admin/guards'
 import CisActionButton from '@/components/admin/CisActionButton'
+import PortalOutboxReplayButton from '@/components/admin/PortalOutboxReplayButton'
+import { checkOpsIntegrationReadiness } from '@/lib/ops/readiness'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +13,19 @@ type SyncJob = {
   direction: string
   status: string
   last_error: string | null
+  created_at: string
+}
+
+
+type PortalOutboxRow = {
+  id: string
+  operation_type: string
+  status: string
+  attempt_count: number
+  max_attempts: number
+  last_error_code: string | null
+  last_error_message: string | null
+  next_attempt_at: string | null
   created_at: string
 }
 
@@ -38,7 +53,7 @@ export default async function AdminIntegrationsPage() {
     anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
   })
 
-  const [jobsRes, cisRes] = await Promise.all([
+  const [jobsRes, cisRes, outboxRes, opsReadiness] = await Promise.all([
     ctx.supabase
       .from('integration_sync_jobs')
       .select('id,provider_key,entity_type,entity_id,direction,status,last_error,created_at')
@@ -51,10 +66,18 @@ export default async function AdminIntegrationsPage() {
       .order('created_at', { ascending: false })
       .limit(20)
       .returns<CisAction[]>(),
+    ctx.supabase
+      .from('customer_portal_write_outbox')
+      .select('id,operation_type,status,attempt_count,max_attempts,last_error_code,last_error_message,next_attempt_at,created_at')
+      .order('created_at', { ascending: false })
+      .limit(30)
+      .returns<PortalOutboxRow[]>(),
+    checkOpsIntegrationReadiness(),
   ])
 
   const jobs = jobsRes.data ?? []
   const cisActions = cisRes.data ?? []
+  const portalOutbox = outboxRes.data ?? []
 
   return (
     <div className="space-y-8">
@@ -76,7 +99,8 @@ export default async function AdminIntegrationsPage() {
           label="Fel/dead-letter"
           value={
             jobs.filter((job) => ['failed', 'dead_letter'].includes(job.status)).length +
-            cisActions.filter((action) => ['failed', 'dead_letter'].includes(action.status)).length
+            cisActions.filter((action) => ['failed', 'dead_letter'].includes(action.status)).length +
+            portalOutbox.filter((item) => ['failed', 'dead_letter'].includes(item.status)).length
           }
         />
       </section>
@@ -110,6 +134,53 @@ export default async function AdminIntegrationsPage() {
               </span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Gridex API-readiness</h2>
+            <p className="mt-1 text-sm text-white/60">{opsReadiness.message}</p>
+          </div>
+          <span className={`w-fit rounded-full border px-3 py-1 text-xs ${opsReadiness.ready ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/30 bg-rose-500/10 text-rose-200'}`}>
+            {opsReadiness.code}
+          </span>
+        </div>
+        <div className="mt-5 grid gap-2 md:grid-cols-2">
+          {opsReadiness.scopes.map((scope) => (
+            <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <code className="text-[11px] text-white/70">{scope.scope}</code>
+              <span className={`text-[11px] ${scope.status === 'missing' ? 'text-rose-300' : scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}`}>{scope.status}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Kundportalens skrivkö</h2>
+          <p className="mt-1 text-sm text-white/60">Tillfälliga fel försöks om automatiskt. Permanenta fel och dead-letter kan köas om efter att grundfelet är rättat.</p>
+        </div>
+        <div className="mt-4 space-y-3">
+          {portalOutbox.map((item) => (
+            <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="font-medium">{item.operation_type}</div>
+                <div className="mt-1 text-xs text-white/50">
+                  {formatDate(item.created_at)} • {item.status} • försök {item.attempt_count}/{item.max_attempts}
+                </div>
+                {item.last_error_message || item.last_error_code ? (
+                  <div className="mt-2 text-xs text-rose-200">{item.last_error_code ? `${item.last_error_code}: ` : ''}{item.last_error_message}</div>
+                ) : null}
+              </div>
+              {['failed', 'dead_letter'].includes(item.status) ? <PortalOutboxReplayButton outboxId={item.id} /> : null}
+            </div>
+          ))}
+          {portalOutbox.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/55">Inga köade kundportalåtgärder.</div>
+          ) : null}
         </div>
       </section>
 

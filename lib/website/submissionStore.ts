@@ -20,6 +20,8 @@ type SubmissionRow = {
   ops_payload_hash: string | null
   accepted_at: string
   request_context: SubmissionRequestContext | null
+  pricing_quote_snapshot: Record<string, unknown> | null
+  contract_display_snapshot: Record<string, unknown> | null
   status: string
 }
 
@@ -54,7 +56,7 @@ async function readSubmission(submissionAttemptId: string): Promise<SubmissionRo
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,accepted_at,request_context,status')
+    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,status')
     .eq('submission_attempt_id', submissionAttemptId)
     .maybeSingle<SubmissionRow>()
   if (error) throw new Error(`Submission storage read failed: ${error.message}`)
@@ -86,6 +88,8 @@ export async function prepareWebsiteSubmission(input: {
   offerReference: string
   payloadHash: string
   requestContext: SubmissionRequestContext
+  pricingQuoteSnapshot: Record<string, unknown>
+  contractDisplaySnapshot: Record<string, unknown>
 }): Promise<{ acceptedAt: string; requestContext: SubmissionRequestContext }> {
   const existing = await readSubmission(input.submissionAttemptId)
   if (existing) {
@@ -109,6 +113,8 @@ export async function prepareWebsiteSubmission(input: {
     offer_reference: input.offerReference,
     payload_hash: input.payloadHash,
     request_context: requestContext,
+    pricing_quote_snapshot: input.pricingQuoteSnapshot,
+    contract_display_snapshot: input.contractDisplaySnapshot,
     status: 'prepared',
   })
 

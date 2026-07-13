@@ -2,9 +2,9 @@ import {
   type OpsPublicContract,
   type OpsWebsitePricingPreview,
   type OpsWebsitePricingPreviewInput,
+  fetchOpsWebsiteQuote,
 } from '@/lib/ops/client'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { buildLocalWebsitePricingPreview } from '@/lib/website/localPricingPreview'
 
 const PREVIEW_CACHE_TTL_MS = 60_000
 const previewCache = new Map<string, { expiresAt: number; value: OpsWebsitePricingPreview }>()
@@ -84,11 +84,7 @@ export async function loadVerifiedWebsitePricingPreview(
   const cached = previewCache.get(key)
   if (cached && cached.expiresAt > now) return cached.value
 
-  const raw = await buildLocalWebsitePricingPreview({
-    contract,
-    priceAreaCode: input.price_area_code,
-    estimatedMonthlyKwh: input.estimated_monthly_kwh,
-  })
+  const raw = await fetchOpsWebsiteQuote(input)
   assertCompletePreview(raw, contract, input)
   const value = enrichWebsitePricingPreview(raw, contract)
   assertCompletePreview(value, contract, input)

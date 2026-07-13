@@ -96,31 +96,19 @@ export type OpsCustomerApplicationInput = {
   address: string;
   postal_code: string;
   city: string;
-  apartment?: string | null;
   facility_id?: string | null;
-  metering_point_id?: string | null;
-  requested_start_mode: "asap" | "specific_date";
+  requested_start_mode: "earliest_possible" | "specific_date";
   requested_start_date?: string | null;
   price_area_code?: string | null;
-  grid_area_code?: string | null;
-  grid_owner_id?: string | null;
-  grid_owner_name?: string | null;
-  energy_resolution_status?: string | null;
-  energy_resolution_confidence?: number | null;
-  estimated_monthly_kwh?: number | null;
-  pricing_preview_snapshot?: Record<string, unknown> | null;
-  contract_display_snapshot?: Record<string, unknown> | null;
+  current_supplier_name?: string | null;
+  current_supplier_id?: string | null;
+  current_supplier_org_number?: string | null;
+  current_supplier_ediel_id?: string | null;
   source: "gridex_website";
   idempotency_key: string;
-  external_customer_id?: string | null;
-  external_application_id: string;
+  external_customer_id: string;
   customer_portal_user_id?: string | null;
   auth_user_id?: string | null;
-  utm_source?: string | null;
-  utm_medium?: string | null;
-  utm_campaign?: string | null;
-  user_agent?: string | null;
-  ip_hash?: string | null;
   consents: {
     terms: boolean;
     privacy_policy: boolean;
@@ -170,6 +158,9 @@ export type OpsLegalText = {
   version: string;
   title: string;
   body: string;
+  id?: string | null;
+  url?: string | null;
+  offer_reference?: string | null;
   published_at?: string | null;
   raw?: Record<string, unknown>;
 };
@@ -837,7 +828,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     "contractOfferId",
     "public_offer_id",
     "publicOfferId",
-    "id",
   ]);
   const productCode = pickFromRecords([r], [
     "product_code",
@@ -1121,10 +1111,6 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   headers.set("Authorization", `Bearer ${apiKey.value}`);
   if (!headers.has("Content-Type") && init?.body) {
     headers.set("Content-Type", "application/json");
-  }
-  if (env("GRIDEX_SEND_LEGACY_TENANT_HEADER") === "true") {
-    const tenantId = env("GRIDEX_WEBSITE_TENANT_ID");
-    if (tenantId) headers.set("X-Gridex-Tenant-Id", tenantId);
   }
 
   const res = await fetch(`${baseUrl}${path}`, {
@@ -1524,10 +1510,7 @@ async function fetchOpsPublicContractsUncached(
   const suffix = normalizedCustomerType
     ? `?customer_type=${encodeURIComponent(normalizedCustomerType)}`
     : "";
-  const payload = await opsFetchWithFallback([
-    `/api/v1/website/public-contracts${suffix}`,
-    `/api/v1/website/contracts${suffix}`,
-  ]);
+  const payload = await opsFetch(`/api/v1/website/public-contracts${suffix}`);
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
@@ -1573,6 +1556,9 @@ function mapLegalText(row: unknown): OpsLegalText | null {
     version,
     title,
     body,
+    id: pickString(r, ["id", "version_id", "versionId", "text_version_id"]),
+    url: pickString(r, ["url", "href", "public_url", "publicUrl"]),
+    offer_reference: pickString(r, ["offer_reference", "offerReference"]),
     published_at: pickString(r, ["published_at", "publishedAt"]),
     raw: r,
   };
@@ -1596,22 +1582,50 @@ function mapPricePlan(row: unknown): OpsPricePlan | null {
   };
 }
 
+export type OpsWebsiteLegalBundle = {
+  texts: OpsLegalText[];
+  raw: Record<string, unknown>;
+};
+
+function extractLegalBundleRows(payload: unknown): unknown[] {
+  const root = extractObject(payload);
+  const data = recordValue(root.data) ?? root;
+  const rows: unknown[] = [];
+  const keys = [
+    "texts", "legal_texts", "legalTexts", "documents", "items",
+    "terms", "privacy_policy", "withdrawal", "power_of_attorney", "price_terms",
+  ];
+
+  for (const key of keys) {
+    const value = data[key];
+    if (Array.isArray(value)) rows.push(...value);
+    else if (value && typeof value === "object") {
+      const row = { ...(value as Record<string, unknown>) };
+      if (!row.type && !row.text_type && !row.legal_type) row.type = key;
+      rows.push(row);
+    }
+  }
+
+  return rows.length > 0 ? rows : extractRows(payload);
+}
+
+export async function fetchOpsWebsiteLegalBundle(): Promise<OpsWebsiteLegalBundle> {
+  const payload = await opsFetch("/api/v1/website/legal-bundle");
+  const raw = extractObject(payload);
+  const rows = extractLegalBundleRows(payload);
+  return {
+    texts: rows.map(mapLegalText).filter((item): item is OpsLegalText => item !== null),
+    raw,
+  };
+}
+
+/** @deprecated Use fetchOpsWebsiteLegalBundle. */
 export async function fetchOpsLegalTextsCurrent(): Promise<OpsLegalText[]> {
-  const payload = await opsFetchWithFallback([
-    "/api/v1/website/legal-texts/current",
-    "/api/v1/website/legal-texts",
-  ]);
-  return extractRows(payload)
-    .map(mapLegalText)
-    .filter((item): item is OpsLegalText => item !== null);
+  return (await fetchOpsWebsiteLegalBundle()).texts;
 }
 
 export async function fetchOpsPricePlans(): Promise<OpsPricePlan[]> {
-  const payload = await opsFetchWithFallback([
-    "/api/v1/website/price-plans",
-    "/api/v1/website/public-contracts",
-    "/api/v1/website/contracts",
-  ]);
+  const payload = await opsFetch("/api/v1/website/public-contracts");
   return extractRows(payload)
     .map(mapPricePlan)
     .filter((item): item is OpsPricePlan => item !== null);
@@ -1635,21 +1649,21 @@ export async function resolveOpsWebsiteEnergyArea(
   return mapWebsiteEnergyResolution(payload);
 }
 
+export async function fetchOpsWebsiteQuote(
+  input: OpsWebsitePricingPreviewInput,
+): Promise<OpsWebsitePricingPreview> {
+  const payload = await opsFetch("/api/v1/website/quote", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return mapWebsitePricingPreview(payload, input.price_area_code);
+}
+
+/** @deprecated Use fetchOpsWebsiteQuote. */
 export async function fetchOpsWebsitePricingPreview(
   input: OpsWebsitePricingPreviewInput,
 ): Promise<OpsWebsitePricingPreview> {
-  const payload = await opsFetchWithFallback(
-    [
-      "/api/v1/website/pricing/preview",
-      "/api/v1/website/price-preview",
-      "/api/v1/website/pricing-preview",
-    ],
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
-  );
-  return mapWebsitePricingPreview(payload, input.price_area_code);
+  return fetchOpsWebsiteQuote(input);
 }
 
 export type OpsWebsitePricingQuoteValidationInput = {
@@ -1684,44 +1698,55 @@ export async function validateOpsWebsitePricingQuote(
 }
 
 export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
+  const externalCustomerId = normalizeText(input.external_customer_id);
+  if (!externalCustomerId) {
+    throw new OpsError("Ett stabilt externt kund-ID krävs.", 400, {
+      code: "external_customer_id_required",
+      field: "external_customer_id",
+    });
+  }
+  if (input.requested_start_mode === "specific_date" && !normalizeText(input.requested_start_date)) {
+    throw new OpsError("Startdatum krävs när ett specifikt datum har valts.", 400, {
+      code: "requested_start_date_required",
+      field: "contract.requested_start_date",
+    });
+  }
+
   const portalUserId = input.customer_portal_user_id ?? input.auth_user_id ?? null;
   const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
 
   return {
-    external_customer_id: input.external_customer_id ?? null,
-    external_application_id: input.external_application_id,
-    customer_portal_user_id: portalUserId,
-    auth_user_id: authUserId,
+    external_customer_id: externalCustomerId,
     source: input.source,
+    ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
+    ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
       customer_type: input.customer_type,
-      first_name: input.first_name ?? null,
-      last_name: input.last_name ?? null,
-      company_name: input.company_name ?? null,
-      personal_number: input.personal_number ?? null,
-      organization_number: input.organization_number ?? null,
+      ...(input.first_name ? { first_name: input.first_name } : {}),
+      ...(input.last_name ? { last_name: input.last_name } : {}),
+      ...(input.company_name ? { company_name: input.company_name } : {}),
+      ...(input.personal_number ? { personal_number: input.personal_number } : {}),
+      ...(input.organization_number ? { organization_number: input.organization_number } : {}),
       email: input.email,
       phone: input.phone,
     },
     site: {
-      facility_id: input.facility_id ?? null,
-      metering_point_id: input.metering_point_id ?? null,
+      ...(input.facility_id ? { facility_id: input.facility_id } : {}),
+      ...(input.requested_start_mode === "specific_date" && input.requested_start_date
+        ? { move_in_date: input.requested_start_date }
+        : {}),
       street: input.address,
-      address: input.address,
-      apartment: input.apartment ?? null,
       postal_code: input.postal_code,
       city: input.city,
-      price_area_code: input.price_area_code ?? null,
-      grid_area_code: input.grid_area_code ?? null,
-      grid_owner_id: input.grid_owner_id ?? null,
-      grid_owner_name: input.grid_owner_name ?? null,
-      move_in_date:
-        input.requested_start_mode === "specific_date"
-          ? input.requested_start_date ?? null
-          : null,
+      ...(input.price_area_code ? { price_area_code: input.price_area_code } : {}),
+      ...(input.current_supplier_name ? { current_supplier_name: input.current_supplier_name } : {}),
+      ...(input.current_supplier_id ? { current_supplier_id: input.current_supplier_id } : {}),
+      ...(input.current_supplier_org_number ? { current_supplier_org_number: input.current_supplier_org_number } : {}),
+      ...(input.current_supplier_ediel_id ? { current_supplier_ediel_id: input.current_supplier_ediel_id } : {}),
     },
     contract: {
       offer_reference: input.offer_reference,
+      requested_start_mode: input.requested_start_mode,
       requested_start_date:
         input.requested_start_mode === "specific_date"
           ? input.requested_start_date ?? null
@@ -1729,19 +1754,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     },
     consents: input.consents,
     ...(input.powerOfAttorney ? { powerOfAttorney: input.powerOfAttorney } : {}),
-    metadata: {
-      requested_start_mode: input.requested_start_mode,
-      energy_resolution_status: input.energy_resolution_status ?? null,
-      energy_resolution_confidence: input.energy_resolution_confidence ?? null,
-      estimated_monthly_kwh: input.estimated_monthly_kwh ?? null,
-      pricing_preview_snapshot: input.pricing_preview_snapshot ?? null,
-      contract_display_snapshot: input.contract_display_snapshot ?? null,
-      utm_source: input.utm_source ?? null,
-      utm_medium: input.utm_medium ?? null,
-      utm_campaign: input.utm_campaign ?? null,
-      user_agent: input.user_agent ?? null,
-      ip_hash: input.ip_hash ?? null,
-    },
   };
 }
 
@@ -2142,6 +2154,19 @@ async function fetchLegacyCustomerPortalBundle(
   };
 }
 
+function opsErrorCodeValue(error: OpsError): string | null {
+  const details = recordValue(error.details);
+  const nested = recordValue(details?.error);
+  return normalizeText(nested?.code ?? details?.code);
+}
+
+function mayUseLegacyPortalBundleFallback(error: unknown): boolean {
+  if (env("GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY") !== "true") return false;
+  if (!isOpsError(error)) return false;
+  const code = opsErrorCodeValue(error);
+  return code === "endpoint_not_found" || code === "method_not_supported";
+}
+
 export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
 ): Promise<OpsPortalBundle> {
@@ -2153,7 +2178,7 @@ export async function fetchOpsCustomerPortalBundle(
       }),
     );
   } catch (error) {
-    if (isOpsError(error) && (error.status === 404 || error.status === 405)) {
+    if (mayUseLegacyPortalBundleFallback(error)) {
       return fetchLegacyCustomerPortalBundle(identity);
     }
 
@@ -2229,6 +2254,43 @@ export async function submitOpsCustomerSync(
     body: JSON.stringify(body),
   });
 
+  const row = responseObject(payload);
+  return {
+    ok: row.ok === false ? false : true,
+    status: pickString(row, ["status"]),
+    synced: recordValue(row.synced) ?? recordValue(row.data),
+    warnings: normalizeWarnings(row),
+    raw: row,
+  };
+}
+
+export async function submitOpsCustomerPortalSync(
+  input: {
+    identity: OpsPortalIdentity;
+    idempotencyKey: string;
+    customerNumber?: string | null;
+    externalCustomerId?: string | null;
+    email?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<OpsCustomerSyncResult> {
+  const headers = portalHeaders(input.identity);
+  const body = {
+    ...portalIdentityPayload(input.identity),
+    ...(input.customerNumber ? { customer_number: input.customerNumber } : {}),
+    ...(input.externalCustomerId ? { external_customer_id: input.externalCustomerId } : {}),
+    ...(input.email ? { email: input.email } : {}),
+    metadata: input.metadata ?? { source: "gridex_web_customer_portal_sync" },
+  };
+  headers.set(
+    "Idempotency-Key",
+    `customer-portal-sync:${input.identity.userId}:${input.idempotencyKey}`,
+  );
+  const payload = await opsCustomerFetch("/api/v1/customer-portal/sync", input.identity, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
   const row = responseObject(payload);
   return {
     ok: row.ok === false ? false : true,

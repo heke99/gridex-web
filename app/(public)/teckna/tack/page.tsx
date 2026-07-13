@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
 import {
   statusLabel as friendlyStatusLabel,
   statusDescription as friendlyStatusDescription,
@@ -59,38 +60,21 @@ function portalMessage(status: PortalStatus | undefined) {
   }
 }
 
-function uniqueMissingFields(value: string | undefined) {
-  return Array.from(
-    new Set(
-      (value ?? '')
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  )
-}
-
 export default async function TackPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    status?: string
-    customerNumber?: string
-    contractNumber?: string
-    applicationNumber?: string
-    nextStep?: string
-    nextActionMessage?: string
-    caseReference?: string
-    poa?: string
-    missing?: string
-    portal?: PortalStatus
-  }>
+  searchParams?: Promise<{ result?: string }>
 }) {
   const params = (await searchParams) ?? {}
-  const missing = uniqueMissingFields(params.missing)
-  const status = params.status ?? 'application_received'
-  const portal = portalMessage(params.portal)
-  const showLogin = params.portal === 'profile_linked'
+  const stored = await readWebsiteApplicationResult(params.result).catch((error) => {
+    console.error('[website signup] result token read failed', error)
+    return null
+  })
+  const missing = stored?.missingFields ?? []
+  const status = stored?.status ?? 'application_received'
+  const portalStatus = stored?.portalStatus
+  const portal = portalMessage(portalStatus)
+  const showLogin = portalStatus === 'profile_linked'
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -108,24 +92,24 @@ export default async function TackPage({
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <Info label="Kundnummer" value={params.customerNumber ?? 'Kommer i bekräftelsen'} />
-          <Info label="Avtalsnummer" value={params.contractNumber ?? 'Kommer i bekräftelsen'} />
-          <Info label="Ärendenummer" value={params.applicationNumber ?? '—'} />
+          <Info label="Kundnummer" value={stored?.customerNumber ?? 'Kommer i bekräftelsen'} />
+          <Info label="Avtalsnummer" value={stored?.contractNumber ?? 'Kommer i bekräftelsen'} />
+          <Info label="Ärendenummer" value={stored?.applicationNumber ?? '—'} />
         </div>
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
           <div className="text-sm font-semibold text-white">Status</div>
           <div className="mt-1 text-sm text-gray-300">{friendlyStatusLabel(status)}</div>
           <div className="mt-2 text-xs text-gray-500">
-            Nästa steg: {friendlyNextStepDescription(params.nextStep)}
+            Nästa steg: {friendlyNextStepDescription(stored?.nextStep)}
           </div>
-          {params.nextActionMessage ? (
-            <p className="mt-3 text-sm leading-6 text-gray-300">{params.nextActionMessage}</p>
+          {stored?.nextActionMessage ? (
+            <p className="mt-3 text-sm leading-6 text-gray-300">{stored?.nextActionMessage}</p>
           ) : null}
-          {params.caseReference ? (
-            <div className="mt-3 text-xs text-gray-500">Ärendereferens: {params.caseReference}</div>
+          {stored?.caseReference ? (
+            <div className="mt-3 text-xs text-gray-500">Ärendereferens: {stored?.caseReference}</div>
           ) : null}
-          {params.poa === 'signed' ? (
+          {stored?.powerOfAttorneySigned === true ? (
             <div className="mt-3 text-xs text-emerald-300">Fullmakten är mottagen.</div>
           ) : null}
         </div>

@@ -40,7 +40,7 @@ function buildLoginRedirect(req: NextRequest): NextResponse {
   return withPreviewNoindex(req, NextResponse.redirect(loginUrl))
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const host = (req.headers.get('host') ?? '').toLowerCase().split(':')[0] ?? ''
 
   if (host === WWW_HOST) {

@@ -109,7 +109,11 @@ type FormValues = {
   apartment: string;
   facility_id: string;
   metering_point_id: string;
-  requested_start_mode: "asap" | "specific_date";
+  current_supplier_name: string;
+  current_supplier_id: string;
+  current_supplier_org_number: string;
+  current_supplier_ediel_id: string;
+  requested_start_mode: "earliest_possible" | "specific_date";
   requested_start_date: string;
 };
 
@@ -338,7 +342,11 @@ export default function CustomerApplicationForm({
     apartment: "",
     facility_id: "",
     metering_point_id: "",
-    requested_start_mode: "asap",
+    current_supplier_name: "",
+    current_supplier_id: "",
+    current_supplier_org_number: "",
+    current_supplier_ediel_id: "",
+    requested_start_mode: "earliest_possible",
     requested_start_date: "",
   });
   const [consents, setConsents] = useState<Consents>({
@@ -826,6 +834,16 @@ export default function CustomerApplicationForm({
               onChange={updateField}
               help="Valfritt. Kan kompletteras via fullmakt."
             />
+            <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <h3 className="text-sm font-semibold text-white">Nuvarande elleverantör <span className="font-normal text-gray-500">(valfritt)</span></h3>
+              <p className="mt-1 text-xs leading-5 text-gray-400">Uppgifterna kan göra leverantörsbytet snabbare och minska behovet av manuell komplettering.</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <Field id="current_supplier_name" label="Leverantörens namn" name="current_supplier_name" value={form.current_supplier_name} onChange={updateField} />
+                <Field id="current_supplier_id" label="Leverantörs-ID" name="current_supplier_id" value={form.current_supplier_id} onChange={updateField} />
+                <Field id="current_supplier_org_number" label="Organisationsnummer" name="current_supplier_org_number" value={form.current_supplier_org_number} onChange={updateField} />
+                <Field id="current_supplier_ediel_id" label="Ediel-ID" name="current_supplier_ediel_id" value={form.current_supplier_ediel_id} onChange={updateField} />
+              </div>
+            </div>
             <div>
               <label
                 htmlFor="requested_start_mode"
@@ -841,7 +859,7 @@ export default function CustomerApplicationForm({
                 }
                 className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
               >
-                <option value="asap">Så snart som möjligt</option>
+                <option value="earliest_possible">Så snart som möjligt</option>
                 <option value="specific_date">Jag vill välja datum</option>
               </select>
               <p className="mt-2 text-xs leading-5 text-white/45">

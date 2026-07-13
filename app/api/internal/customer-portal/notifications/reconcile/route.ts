@@ -83,30 +83,24 @@ export async function POST(request: Request) {
   let pending = 0
   let ambiguous = 0
   for (const row of data ?? []) {
-    const matches = await Promise.all([
+    const [externalMatch, customerNumberMatch, contractRefMatch, emailMatch] = await Promise.all([
       matchBy(supabase, 'external_customer_id', row.external_customer_id),
       matchBy(supabase, 'customer_number', row.customer_number),
       matchBy(supabase, 'contract_customer_ref', row.customer_number),
       matchBy(supabase, 'email', row.customer_email),
     ])
-    const candidates = new Set(
-      matches.filter((match) => match.status === 'unique' && match.userId).map((match) => match.userId as string),
-    )
-    const hasAmbiguousIdentifier = matches.some((match) => match.status === 'ambiguous')
     const attempt = Number(row.identity_resolution_attempt_count ?? 0) + 1
-
-    if (!hasAmbiguousIdentifier && candidates.size === 1) {
-      const updated = await updateUnresolvedNotification(supabase, String(row.id), {
-        user_id: [...candidates][0],
-        identity_resolution_status: 'resolved',
-        identity_resolution_error: null,
-        identity_resolution_attempt_count: attempt,
-        identity_resolution_last_attempt_at: now,
-        identity_resolution_next_attempt_at: null,
-      })
-      if (updated) resolved += 1
-      continue
-    }
+    const customerUsers = new Set(
+      [customerNumberMatch, contractRefMatch]
+        .filter((match) => match.status === 'unique' && match.userId)
+        .map((match) => match.userId as string),
+    )
+    const hasAmbiguousIdentifier = [externalMatch, customerNumberMatch, contractRefMatch, emailMatch]
+      .some((match) => match.status === 'ambiguous') || customerUsers.size > 1
+    const externalUser = externalMatch.status === 'unique' ? externalMatch.userId : null
+    const customerUser = [...customerUsers][0] ?? null
+    const emailUser = emailMatch.status === 'unique' ? emailMatch.userId : null
+    const candidates = new Set([externalUser, customerUser, emailUser].filter((value): value is string => Boolean(value)))
 
     if (hasAmbiguousIdentifier || candidates.size > 1) {
       const updated = await updateUnresolvedNotification(supabase, String(row.id), {
@@ -120,9 +114,26 @@ export async function POST(request: Request) {
       continue
     }
 
+    const candidate = [...candidates][0] ?? null
+    const matchingAttributes = candidate
+      ? Number(customerUser === candidate) + Number(emailUser === candidate)
+      : 0
+    if (candidate && (externalUser === candidate || matchingAttributes >= 2)) {
+      const updated = await updateUnresolvedNotification(supabase, String(row.id), {
+        user_id: candidate,
+        identity_resolution_status: 'resolved',
+        identity_resolution_error: null,
+        identity_resolution_attempt_count: attempt,
+        identity_resolution_last_attempt_at: now,
+        identity_resolution_next_attempt_at: null,
+      })
+      if (updated) resolved += 1
+      continue
+    }
+
     const updated = await updateUnresolvedNotification(supabase, String(row.id), {
       identity_resolution_status: 'pending',
-      identity_resolution_error: 'No local portal profile matched yet; retry is scheduled.',
+      identity_resolution_error: 'No exact external customer match or two matching customer attributes were found; retry is scheduled.',
       identity_resolution_attempt_count: attempt,
       identity_resolution_last_attempt_at: now,
       identity_resolution_next_attempt_at: new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString(),

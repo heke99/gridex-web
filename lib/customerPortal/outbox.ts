@@ -4,11 +4,21 @@ import {
   isOpsError,
   markOpsCustomerNotificationsRead,
   sendOpsCustomerEvent,
+  submitOpsCustomerMoveOut,
+  submitOpsCustomerPortalSync,
   submitOpsCustomerProfileUpdate,
+  submitOpsCustomerSync,
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
 
-export type PortalOutboxOperation = 'customer_event' | 'notification_read' | 'profile_update'
+export type PortalOutboxOperation =
+  | 'customer_event'
+  | 'notification_read'
+  | 'profile_update'
+  | 'customer_sync'
+  | 'customer_portal_sync'
+  | 'move_out'
+  | 'facility_data_update'
 
 export class PortalOutboxConflictError extends Error {
   readonly status = 409
@@ -41,6 +51,7 @@ type OutboxRow = {
   identity: OpsPortalIdentity
   payload: Record<string, unknown>
   attempt_count: number
+  max_attempts?: number
 }
 
 function env(name: string): string | null {
@@ -88,6 +99,7 @@ export async function enqueuePortalWrite(input: {
     idempotency_key: input.idempotencyKey,
     identity: input.identity,
     payload: input.payload,
+    payload_hash: operationHash({ identity: input.identity, payload: input.payload }),
     status: 'pending',
     next_attempt_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -112,6 +124,10 @@ export async function enqueuePortalWrite(input: {
 }
 
 async function dispatch(row: OutboxRow): Promise<void> {
+  const operationId = typeof row.payload.operation_id === 'string'
+    ? row.payload.operation_id
+    : row.idempotency_key
+
   if (row.operation_type === 'customer_event') {
     const eventType = typeof row.payload.event_type === 'string' ? row.payload.event_type : ''
     await sendOpsCustomerEvent(row.identity, {
@@ -119,7 +135,7 @@ async function dispatch(row: OutboxRow): Promise<void> {
       source: 'gridex_website',
       entity_type: typeof row.payload.entity_type === 'string' ? row.payload.entity_type : null,
       entity_id: typeof row.payload.entity_id === 'string' ? row.payload.entity_id : null,
-      idempotency_key: typeof row.payload.operation_id === 'string' ? row.payload.operation_id : row.idempotency_key,
+      idempotency_key: operationId,
       metadata:
         row.payload.metadata && typeof row.payload.metadata === 'object' && !Array.isArray(row.payload.metadata)
           ? (row.payload.metadata as Record<string, unknown>)
@@ -135,15 +151,47 @@ async function dispatch(row: OutboxRow): Promise<void> {
     if (!profile) throw new Error('Queued profile update has no valid profile payload.')
     await submitOpsCustomerProfileUpdate({
       identity: row.identity,
-      idempotencyKey:
-        typeof row.payload.operation_id === 'string'
-          ? row.payload.operation_id
-          : row.idempotency_key,
+      idempotencyKey: operationId,
       profile,
-      metadata:
-        row.payload.metadata && typeof row.payload.metadata === 'object' && !Array.isArray(row.payload.metadata)
-          ? (row.payload.metadata as Record<string, unknown>)
-          : { source: 'gridex_web_profile_outbox' },
+      metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_profile_outbox' },
+    })
+    return
+  }
+
+  if (row.operation_type === 'customer_sync' || row.operation_type === 'facility_data_update') {
+    await submitOpsCustomerSync({
+      identity: row.identity,
+      idempotencyKey: operationId,
+      powerOfAttorney: recordPayload(row.payload.power_of_attorney),
+      legalAcceptances: recordArrayPayload(row.payload.legal_acceptances),
+      documents: recordArrayPayload(row.payload.documents),
+      facilityData: recordPayload(row.payload.facility_data),
+      profile: recordPayload(row.payload.profile),
+      metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_customer_sync_outbox' },
+    })
+    return
+  }
+
+  if (row.operation_type === 'customer_portal_sync') {
+    await submitOpsCustomerPortalSync({
+      identity: row.identity,
+      idempotencyKey: operationId,
+      customerNumber: typeof row.payload.customer_number === 'string' ? row.payload.customer_number : null,
+      externalCustomerId: typeof row.payload.external_customer_id === 'string' ? row.payload.external_customer_id : null,
+      email: typeof row.payload.email === 'string' ? row.payload.email : null,
+      metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_customer_portal_sync_outbox' },
+    })
+    return
+  }
+
+  if (row.operation_type === 'move_out') {
+    const moveOut = recordPayload(row.payload.move_out)
+    if (!moveOut) throw new Error('Queued move-out has no valid payload.')
+    await submitOpsCustomerMoveOut({
+      identity: row.identity,
+      idempotencyKey: operationId,
+      moveOut,
+      metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_move_out_outbox' },
     })
     return
   }
@@ -154,8 +202,20 @@ async function dispatch(row: OutboxRow): Promise<void> {
   await markOpsCustomerNotificationsRead(row.identity, {
     notificationIds: ids,
     all: row.payload.all === true,
-    operationId: typeof row.payload.operation_id === 'string' ? row.payload.operation_id : row.idempotency_key,
+    operationId,
   })
+}
+
+function recordPayload(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function recordArrayPayload(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(recordPayload(item)))
+    : []
 }
 
 export async function processPortalWriteOutbox(limit = 50) {
@@ -175,7 +235,7 @@ export async function processPortalWriteOutbox(limit = 50) {
 
   const { data, error } = await supabase
     .from('customer_portal_write_outbox')
-    .select('id,user_id,operation_type,idempotency_key,identity,payload,attempt_count')
+    .select('id,user_id,operation_type,idempotency_key,identity,payload,attempt_count,max_attempts')
     .in('status', ['pending', 'failed'])
     .lte('next_attempt_at', now)
     .order('created_at', { ascending: true })
@@ -218,14 +278,19 @@ export async function processPortalWriteOutbox(limit = 50) {
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)
       const permanent = isOpsError(dispatchError) && dispatchError.status < 500 && dispatchError.status !== 408 && dispatchError.status !== 429
+      const maxAttempts = Math.max(1, row.max_attempts ?? 10)
+      const deadLetter = permanent || attempt >= maxAttempts
+      const failedAt = new Date().toISOString()
       const { data: failedRow, error: failureStateError } = await supabase
         .from('customer_portal_write_outbox')
         .update({
-          status: 'failed',
-          next_attempt_at: permanent
+          status: deadLetter ? 'dead_letter' : 'failed',
+          next_attempt_at: deadLetter
             ? new Date('9999-12-31T00:00:00.000Z').toISOString()
             : new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString(),
-          updated_at: new Date().toISOString(),
+          dead_letter_at: deadLetter ? failedAt : null,
+          updated_at: failedAt,
+          last_http_status: isOpsError(dispatchError) ? dispatchError.status : null,
           last_error_code: errorCode,
           last_error_message: dispatchError instanceof Error ? dispatchError.message.slice(0, 1000) : String(dispatchError).slice(0, 1000),
         })
@@ -240,4 +305,29 @@ export async function processPortalWriteOutbox(limit = 50) {
   }
 
   return { processed: (data ?? []).length, completed, failed }
+}
+
+export async function replayPortalWriteOutbox(id: string): Promise<void> {
+  const normalized = id.trim()
+  if (!/^[0-9a-f-]{36}$/i.test(normalized)) throw new Error('Invalid outbox ID.')
+  const now = new Date().toISOString()
+  const { data, error } = await serviceClient()
+    .from('customer_portal_write_outbox')
+    .update({
+      status: 'pending',
+      attempt_count: 0,
+      next_attempt_at: now,
+      dead_letter_at: null,
+      completed_at: null,
+      last_error_code: null,
+      last_error_message: null,
+      last_http_status: null,
+      updated_at: now,
+    })
+    .eq('id', normalized)
+    .in('status', ['failed', 'dead_letter'])
+    .select('id')
+    .maybeSingle<{ id: string }>()
+  if (error) throw new Error(error.message)
+  if (!data?.id) throw new Error('Outbox operation is not replayable.')
 }

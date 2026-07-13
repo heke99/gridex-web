@@ -8,6 +8,8 @@ import {
 } from "@/lib/ops/client";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Elavtal – jämför rörligt, portfölj och fastpris",
   description:

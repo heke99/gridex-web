@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import OverviewCards from '@/components/dashboard/OverviewCards'
+import CustomerPortalSelfService from '@/components/customer/CustomerPortalSelfService'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 import type { Metadata } from 'next'
 
@@ -166,6 +167,17 @@ export default async function DashboardPage() {
           )}
         </section>
       </div>
+
+      <CustomerPortalSelfService
+        site={latestSite ? {
+          id: latestSite.id,
+          facilityId: latestSite.facility_id,
+          meteringPointId: latestSite.metering_point_id,
+          gridAreaCode: latestSite.grid_area_code,
+          priceAreaCode: latestSite.price_area,
+        } : null}
+        latestUnreadNotificationId={overview.notifications.find((notification) => !notification.is_read)?.id ?? null}
+      />
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <div className="flex items-center justify-between gap-4">
