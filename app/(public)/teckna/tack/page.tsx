@@ -60,6 +60,17 @@ function portalMessage(status: PortalStatus | undefined) {
   }
 }
 
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function includesCommunicationEvent(events: string[] | undefined, event: string) {
+  return (events ?? []).some((value) => value === event || value.startsWith(`${event}:`))
+}
+
 export default async function TackPage({
   searchParams,
 }: {
@@ -75,6 +86,11 @@ export default async function TackPage({
   const portalStatus = stored?.portalStatus
   const portal = portalMessage(portalStatus)
   const showLogin = portalStatus === 'profile_linked'
+  const signedAt = formatTimestamp(stored?.signedAt)
+  const withdrawalDeadline = formatTimestamp(stored?.withdrawalDeadlineAt)
+  const confirmationFailed = includesCommunicationEvent(stored?.communicationFailed, 'contract.confirmation_sent')
+  const confirmationSent = includesCommunicationEvent(stored?.communicationSent, 'contract.confirmation_sent')
+  const confirmationQueued = includesCommunicationEvent(stored?.communicationQueued, 'contract.confirmation_sent')
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -113,6 +129,42 @@ export default async function TackPage({
             <div className="mt-3 text-xs text-emerald-300">Fullmakten är mottagen.</div>
           ) : null}
         </div>
+
+        {stored ? (
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">Avtal och ångerrätt</div>
+              <div className="mt-2 text-sm text-gray-300">
+                {stored.contractStatus === 'signed'
+                  ? `Avtalet är signerat${signedAt ? ` ${signedAt}` : ''}.`
+                  : 'Avtalet behandlas fortfarande.'}
+              </div>
+              {withdrawalDeadline ? (
+                <div className="mt-2 text-xs text-gray-500">Ångerfristen löper till {withdrawalDeadline}.</div>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">Bekräftelse och leverantörsbyte</div>
+              <div className={`mt-2 text-sm ${confirmationFailed ? 'text-rose-200' : 'text-gray-300'}`}>
+                {confirmationFailed
+                  ? 'Avtalsbekräftelsen kunde inte skickas och kommer att hanteras på nytt.'
+                  : confirmationSent
+                    ? 'Avtalsbekräftelsen är skickad.'
+                    : confirmationQueued
+                      ? 'Avtalsbekräftelsen är köad för utskick.'
+                      : stored.canSendAgreementConfirmation === false
+                        ? 'Avtalsbekräftelsen kan ännu inte skickas.'
+                        : 'Utskicksstatus uppdateras separat.'}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                {stored.canStartSwitch === true
+                  ? 'Leverantörsbytet kan startas.'
+                  : 'Leverantörsbytet startar först när anläggningsuppgifterna är kompletta och verifierade.'}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div
           className={[

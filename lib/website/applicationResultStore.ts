@@ -12,6 +12,14 @@ export type WebsiteApplicationPublicResult = {
   caseReference: string | null
   powerOfAttorneySigned: boolean
   missingFields: string[]
+  contractStatus: string | null
+  signedAt: string | null
+  withdrawalDeadlineAt: string | null
+  canSendAgreementConfirmation: boolean | null
+  canStartSwitch: boolean | null
+  communicationQueued: string[]
+  communicationSent: string[]
+  communicationFailed: string[]
 }
 
 type StoredResultRow = {

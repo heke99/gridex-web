@@ -22,6 +22,7 @@ type SubmissionRow = {
   request_context: SubmissionRequestContext | null
   pricing_quote_snapshot: Record<string, unknown> | null
   contract_display_snapshot: Record<string, unknown> | null
+  ops_result_snapshot: Record<string, unknown> | null
   status: string
 }
 
@@ -56,7 +57,7 @@ async function readSubmission(submissionAttemptId: string): Promise<SubmissionRo
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,status')
+    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,ops_result_snapshot,status')
     .eq('submission_attempt_id', submissionAttemptId)
     .maybeSingle<SubmissionRow>()
   if (error) throw new Error(`Submission storage read failed: ${error.message}`)
@@ -165,6 +166,14 @@ export async function updateWebsiteSubmission(input: {
   status: 'submitting' | 'accepted' | 'failed'
   opsApplicationId?: string | null
   opsCustomerId?: string | null
+  opsResultSnapshot?: Record<string, unknown> | null
+  contractStatus?: string | null
+  signedAt?: string | null
+  withdrawalDeadlineAt?: string | null
+  signatureSnapshotSha256?: string | null
+  canSendAgreementConfirmation?: boolean | null
+  canStartSwitch?: boolean | null
+  communication?: Record<string, unknown> | null
   errorCode?: string | null
   errorMessage?: string | null
 }): Promise<void> {
@@ -175,6 +184,14 @@ export async function updateWebsiteSubmission(input: {
       status: input.status,
       ops_application_id: input.opsApplicationId ?? null,
       ops_customer_id: input.opsCustomerId ?? null,
+      ops_result_snapshot: input.opsResultSnapshot ?? null,
+      contract_status: input.contractStatus ?? null,
+      signed_at: input.signedAt ?? null,
+      withdrawal_deadline_at: input.withdrawalDeadlineAt ?? null,
+      signature_snapshot_sha256: input.signatureSnapshotSha256 ?? null,
+      can_send_agreement_confirmation: input.canSendAgreementConfirmation ?? null,
+      can_start_switch: input.canStartSwitch ?? null,
+      communication_snapshot: input.communication ?? null,
       last_error_code: input.errorCode ?? null,
       last_error_message: input.errorMessage?.slice(0, 1000) ?? null,
       updated_at: new Date().toISOString(),

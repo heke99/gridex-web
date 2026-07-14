@@ -894,6 +894,14 @@ export default async function TecknaPage({
         status: "accepted",
         opsApplicationId: result.application_id ?? null,
         opsCustomerId: result.customer_id ?? null,
+        opsResultSnapshot: result.raw ?? null,
+        contractStatus: result.contract_status ?? null,
+        signedAt: result.signed_at ?? null,
+        withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
+        signatureSnapshotSha256: result.signature_snapshot_sha256 ?? null,
+        canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
+        canStartSwitch: result.can_start_switch ?? null,
+        communication: result.communication?.raw ?? null,
       });
     } catch (error) {
       const context = opsErrorContext(error);
@@ -990,6 +998,14 @@ export default async function TecknaPage({
           caseReference: publicCaseReference(result.manualInformationRequest),
           powerOfAttorneySigned: Boolean(result.power_of_attorney_id),
           missingFields: result.missing_fields,
+          contractStatus: result.contract_status ?? null,
+          signedAt: result.signed_at ?? null,
+          withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
+          canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
+          canStartSwitch: result.can_start_switch ?? null,
+          communicationQueued: result.communication?.queued ?? [],
+          communicationSent: result.communication?.sent ?? [],
+          communicationFailed: result.communication?.failed ?? [],
         },
       });
       successRedirect = `/teckna-avtal/tack?result=${encodeURIComponent(resultToken)}`;

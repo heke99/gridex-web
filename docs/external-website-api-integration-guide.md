@@ -6,6 +6,7 @@ This repository treats Gridex OPS as the source of truth for published offers, q
 
 ```text
 GRIDEX_OPS_API_URL=https://app.gridex.se
+GRIDEX_OPS_TIMEOUT_MS=12000
 GRIDEX_WEBSITE_API_KEY=<complete secret API token>
 GRIDEX_WEBSITE_API_SCOPES=<comma-separated scopes below>
 GRIDEX_EXPECTED_COMPANY_ID=<company UUID represented by the API key>
@@ -36,19 +37,20 @@ customer_events.read
 customer_documents.read
 customer_legal.read
 customer_power_of_attorney.read
+customer_power_of_attorney.write
 customer_notifications.read
 customer_notifications.write
 customer_contact.write
 customer_facility_data.write
 ```
 
-The admin integration page runs readiness checks and distinguishes an invalid API key, missing scopes, an invalid base URL/environment and OPS unavailability.
+The admin integration page performs non-mutating authorization probes against every endpoint group and distinguishes an invalid API key, missing scopes, an invalid base URL/environment and OPS unavailability. `GRIDEX_WEBSITE_API_SCOPES` remains a required configuration inventory, but readiness is never green from the declaration alone.
 
 ## Official endpoint flow
 
 | Method | OPS path | Primary scope | Website use |
 | --- | --- | --- | --- |
-| `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published, sellable offers and exact `offer_reference`. |
+| `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published, sellable offers and exact `offer_reference`. Admin diagnostics use `diagnostics=1` server-side. |
 | `POST` | `/api/v1/website/quote` | `website_contracts.read` | Authoritative quote for selected offer, area and consumption. |
 | `GET` | `/api/v1/website/legal-bundle` | `website_legal.read` or compatible contract-read access | Published legal text/version bundle. |
 | `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Strict customer application payload. |
@@ -313,3 +315,11 @@ The token is stored as a SHA-256 hash, expires after 24 hours and resolves serve
 - Never auto-link a customer by e-mail alone.
 - Never reuse an idempotency key with a changed normalized payload.
 - Never place customer/application identifiers in a success URL.
+
+## OPS response evidence and timeouts
+
+Every OPS call has a bounded timeout controlled by `GRIDEX_OPS_TIMEOUT_MS` (default 12000 ms, allowed 1000–60000 ms). Timeouts are returned as transient `504 ops_request_timeout` errors so the existing retry/outbox policy can handle them.
+
+The complete successful customer-application response is stored as `ops_result_snapshot` together with `contract_status`, `signed_at`, `withdrawal_deadline_at`, `signature_snapshot_sha256`, agreement-confirmation eligibility, switch readiness and the communication snapshot. The public result token exposes only customer-safe status fields.
+
+Public-contract diagnostics are fetched directly from OPS on the authenticated admin integrations page. The browser-facing public-contract routes never forward internal diagnostics to customers.

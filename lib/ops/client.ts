@@ -121,6 +121,15 @@ export type OpsCustomerApplicationInput = {
 
 export type OpsCustomerApplicationResult = {
   status: string;
+  contract_status?: string | null;
+  signed_at?: string | null;
+  withdrawal_deadline_at?: string | null;
+  signature_snapshot_sha256?: string | null;
+  can_send_agreement_confirmation?: boolean | null;
+  can_start_switch?: boolean | null;
+  can_create_supplier_switch_request?: boolean | null;
+  can_dispatch_supplier_switch?: boolean | null;
+  supplier_switch_status?: string | null;
   customer_id?: string | null;
   customer_number?: string | null;
   application_id?: string | null;
@@ -139,12 +148,42 @@ export type OpsCustomerApplicationResult = {
   power_of_attorney?: Record<string, unknown> | null;
   nextAction?: Record<string, unknown> | null;
   manualInformationRequest?: Record<string, unknown> | null;
+  communication?: OpsCustomerApplicationCommunication | null;
   missing_fields: string[];
   blocking_reasons: string[];
   warnings: string[];
   next_step?: string | null;
   message?: string | null;
   raw?: Record<string, unknown>;
+};
+
+export type OpsCustomerApplicationCommunication = {
+  triggered: string[];
+  queued: string[];
+  sent: string[];
+  failed: string[];
+  source_of_truth?: string | null;
+  dispatch_status?: string | null;
+  raw?: Record<string, unknown>;
+};
+
+export type OpsAuthorizationProbeResult = {
+  ok: boolean;
+  status: number;
+  code: string | null;
+};
+
+export type OpsPublicContractDiagnostic = {
+  offer_reference: string | null;
+  name: string | null;
+  visible: boolean | null;
+  blockers: string[];
+  raw: Record<string, unknown>;
+};
+
+export type OpsPublicContractDiagnostics = {
+  items: OpsPublicContractDiagnostic[];
+  raw: Record<string, unknown>;
 };
 
 export type OpsLegalText = {
@@ -1093,6 +1132,43 @@ function customerSafeOpsMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+const DEFAULT_OPS_TIMEOUT_MS = 12_000;
+const MIN_OPS_TIMEOUT_MS = 1_000;
+const MAX_OPS_TIMEOUT_MS = 60_000;
+
+function opsTimeoutMs(): number {
+  const configured = Number(env("GRIDEX_OPS_TIMEOUT_MS") ?? DEFAULT_OPS_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_OPS_TIMEOUT_MS;
+  return Math.min(MAX_OPS_TIMEOUT_MS, Math.max(MIN_OPS_TIMEOUT_MS, Math.trunc(configured)));
+}
+
+function timeoutSignal(parentSignal?: AbortSignal | null): {
+  signal: AbortSignal;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const timeoutMs = opsTimeoutMs();
+  const timer = setTimeout(() => {
+    const error = new Error(`OPS request timed out after ${timeoutMs} ms.`);
+    error.name = "TimeoutError";
+    controller.abort(error);
+  }, timeoutMs);
+
+  const forwardAbort = () => controller.abort(parentSignal?.reason);
+  if (parentSignal) {
+    if (parentSignal.aborted) forwardAbort();
+    else parentSignal.addEventListener("abort", forwardAbort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      parentSignal?.removeEventListener("abort", forwardAbort);
+    },
+  };
+}
+
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
@@ -1113,50 +1189,79 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-    redirect: "manual",
-  });
-
-  const contentType = res.headers.get("content-type") ?? "";
-  const location = res.headers.get("location");
-
-  if (res.status >= 300 && res.status < 400) {
-    throw new OpsError(fallbackMessage, 502, {
-      redirected: true,
-      status: res.status,
-      location,
-      path,
+  const timeout = timeoutSignal(init?.signal);
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+      signal: timeout.signal,
+      cache: "no-store",
+      redirect: "manual",
     });
+  } catch (error) {
+    if (timeout.signal.aborted && !init?.signal?.aborted) {
+      timeout.cleanup();
+      throw new OpsError("Tjänsten svarade inte i tid.", 504, {
+        code: "ops_request_timeout",
+        path,
+        timeout_ms: opsTimeoutMs(),
+      });
+    }
+    timeout.cleanup();
+    throw error;
   }
 
-  let payload: unknown = null;
-  if (contentType.includes("application/json")) {
-    payload = await res.json().catch(() => null);
-  } else {
-    const text = await res.text().catch(() => "");
-    payload = text ? { message: text, content_type: contentType } : null;
-  }
+  try {
+    const contentType = res.headers.get("content-type") ?? "";
+    const location = res.headers.get("location");
 
-  if (contentType.includes("text/html") || looksLikeRedirectOrHtml(payload)) {
-    throw new OpsError(fallbackMessage, res.ok ? 502 : res.status || 502, {
-      path,
-      status: res.status,
-      content_type: contentType,
-    });
-  }
+    if (res.status >= 300 && res.status < 400) {
+      throw new OpsError(fallbackMessage, 502, {
+        redirected: true,
+        status: res.status,
+        location,
+        path,
+      });
+    }
 
-  if (!res.ok) {
-    throw new OpsError(
-      customerSafeOpsMessage(payload, fallbackMessage),
-      res.status,
-      payload,
-    );
-  }
+    let payload: unknown = null;
+    if (contentType.includes("application/json")) {
+      payload = await res.json().catch(() => null);
+    } else {
+      const text = await res.text().catch(() => "");
+      payload = text ? { message: text, content_type: contentType } : null;
+    }
 
-  return payload;
+    if (contentType.includes("text/html") || looksLikeRedirectOrHtml(payload)) {
+      throw new OpsError(fallbackMessage, res.ok ? 502 : res.status || 502, {
+        path,
+        status: res.status,
+        content_type: contentType,
+      });
+    }
+
+    if (!res.ok) {
+      throw new OpsError(
+        customerSafeOpsMessage(payload, fallbackMessage),
+        res.status,
+        payload,
+      );
+    }
+
+    return payload;
+  } catch (error) {
+    if (timeout.signal.aborted && !init?.signal?.aborted && !isOpsError(error)) {
+      throw new OpsError("Tjänsten svarade inte i tid.", 504, {
+        code: "ops_request_timeout",
+        path,
+        timeout_ms: opsTimeoutMs(),
+      });
+    }
+    throw error;
+  } finally {
+    timeout.cleanup();
+  }
 }
 
 async function opsFetchWithFallback(
@@ -1179,6 +1284,47 @@ async function opsFetchWithFallback(
   throw lastError instanceof Error
     ? lastError
     : new OpsError("Tjänsten kunde inte nås.", 502);
+}
+
+/**
+ * Verifies that the configured API key can pass an endpoint's authorization
+ * layer without performing a valid business operation. Readiness callers must
+ * send an intentionally invalid payload/identity. A validation or not-found
+ * response proves that authorization passed; 401/403 proves that it did not.
+ */
+export async function probeOpsEndpointAuthorization(
+  path: string,
+  init?: RequestInit,
+): Promise<OpsAuthorizationProbeResult> {
+  try {
+    await opsFetch(path, init);
+    return { ok: true, status: 200, code: null };
+  } catch (error) {
+    if (!isOpsError(error)) throw error;
+    const code = opsErrorCodeValue(error);
+    if (error.status === 401 || error.status === 403) {
+      return { ok: false, status: error.status, code };
+    }
+
+    const endpointMissing =
+      code === "endpoint_not_found" ||
+      code === "method_not_supported" ||
+      code === "route_not_found";
+    if ((error.status === 404 || error.status === 405) && endpointMissing) {
+      throw error;
+    }
+
+    if (error.status === 404) {
+      if (!code) throw error;
+      return { ok: true, status: error.status, code };
+    }
+
+    if ([400, 409, 422].includes(error.status)) {
+      return { ok: true, status: error.status, code };
+    }
+
+    throw error;
+  }
 }
 
 function extractObject(payload: unknown): Record<string, unknown> {
@@ -1503,14 +1649,97 @@ function normalizeCustomerTypeFilter(value?: string | null): "private" | "compan
   return value === "private" || value === "company" ? value : null;
 }
 
+function publicContractsPath(
+  customerType?: string | null,
+  diagnostics = false,
+): string {
+  const query = new URLSearchParams();
+  const normalizedCustomerType = normalizeCustomerTypeFilter(customerType);
+  if (normalizedCustomerType) query.set("customer_type", normalizedCustomerType);
+  if (diagnostics) query.set("diagnostics", "1");
+  const suffix = query.toString();
+  return `/api/v1/website/public-contracts${suffix ? `?${suffix}` : ""}`;
+}
+
+function diagnosticBlockers(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      const row = recordValue(item);
+      if (!row) return "";
+      return (
+        pickString(row, ["message", "label", "code", "reason", "blocker"]) ??
+        JSON.stringify(row)
+      );
+    })
+    .filter(Boolean);
+}
+
+function mapPublicContractDiagnostic(
+  value: unknown,
+  visibleFallback: boolean | null,
+): OpsPublicContractDiagnostic | null {
+  const row = recordValue(value);
+  if (!row) return null;
+  const explicitVisible = pickBoolean(row, ["visible", "is_visible", "isVisible"]);
+  const blockers = diagnosticBlockers(
+    row.blockers ?? row.blocking_reasons ?? row.blockingReasons ?? row.reasons,
+  );
+  return {
+    offer_reference: pickString(row, ["offer_reference", "offerReference", "id"]),
+    name: pickString(row, ["name", "title", "contract_name", "contractName"]),
+    visible: explicitVisible ?? visibleFallback,
+    blockers,
+    raw: row,
+  };
+}
+
+function extractPublicContractDiagnostics(payload: unknown): OpsPublicContractDiagnostic[] {
+  const root = extractObject(payload);
+  const diagnostics = recordValue(root.diagnostics) ?? root;
+  const result: OpsPublicContractDiagnostic[] = [];
+
+  const append = (value: unknown, visible: boolean | null) => {
+    if (!Array.isArray(value)) return;
+    for (const row of value) {
+      const mapped = mapPublicContractDiagnostic(row, visible);
+      if (mapped) result.push(mapped);
+    }
+  };
+
+  append(diagnostics.visible, true);
+  append(diagnostics.hidden, false);
+  append(diagnostics.items, null);
+  append(diagnostics.offers, null);
+  append(diagnostics.contracts, null);
+
+  if (result.length === 0) {
+    append(extractRows(payload), null);
+  }
+
+  const deduped = new Map<string, OpsPublicContractDiagnostic>();
+  result.forEach((item, index) => {
+    const key = item.offer_reference ?? `${item.name ?? "diagnostic"}:${index}`;
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, item);
+      return;
+    }
+    deduped.set(key, {
+      ...existing,
+      visible: item.visible ?? existing.visible,
+      blockers: Array.from(new Set([...existing.blockers, ...item.blockers])),
+      raw: { ...existing.raw, ...item.raw },
+    });
+  });
+  return [...deduped.values()];
+}
+
 async function fetchOpsPublicContractsUncached(
   customerType?: string | null,
 ): Promise<OpsPublicContract[]> {
-  const normalizedCustomerType = normalizeCustomerTypeFilter(customerType);
-  const suffix = normalizedCustomerType
-    ? `?customer_type=${encodeURIComponent(normalizedCustomerType)}`
-    : "";
-  const payload = await opsFetch(`/api/v1/website/public-contracts${suffix}`);
+  const payload = await opsFetch(publicContractsPath(customerType));
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
@@ -1539,6 +1768,16 @@ export async function fetchOpsPublicContractsFresh(
   customerType?: "private" | "company" | null,
 ): Promise<OpsPublicContract[]> {
   return fetchOpsPublicContractsUncached(customerType);
+}
+
+export async function fetchOpsPublicContractDiagnostics(
+  customerType?: "private" | "company" | null,
+): Promise<OpsPublicContractDiagnostics> {
+  const payload = await opsFetch(publicContractsPath(customerType, true));
+  return {
+    items: extractPublicContractDiagnostics(payload),
+    raw: extractObject(payload),
+  };
 }
 
 function mapLegalText(row: unknown): OpsLegalText | null {
@@ -1757,6 +1996,22 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   };
 }
 
+function mapCustomerApplicationCommunication(
+  value: unknown,
+): OpsCustomerApplicationCommunication | null {
+  const row = recordValue(value);
+  if (!row) return null;
+  return {
+    triggered: pickStringArray(row, ["triggered"]) ?? [],
+    queued: pickStringArray(row, ["queued"]) ?? [],
+    sent: pickStringArray(row, ["sent"]) ?? [],
+    failed: pickStringArray(row, ["failed"]) ?? [],
+    source_of_truth: pickString(row, ["source_of_truth", "sourceOfTruth"]),
+    dispatch_status: pickString(row, ["dispatch_status", "dispatchStatus"]),
+    raw: row,
+  };
+}
+
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
 ): Promise<OpsCustomerApplicationResult> {
@@ -1799,6 +2054,33 @@ export async function submitOpsCustomerApplication(
 
   return {
     status: pickString(row, ["status"]) ?? "application_received",
+    contract_status: pickString(row, ["contract_status", "contractStatus"]),
+    signed_at: pickString(row, ["signed_at", "signedAt"]),
+    withdrawal_deadline_at: pickString(row, [
+      "withdrawal_deadline_at",
+      "withdrawalDeadlineAt",
+    ]),
+    signature_snapshot_sha256: pickString(row, [
+      "signature_snapshot_sha256",
+      "signatureSnapshotSha256",
+    ]),
+    can_send_agreement_confirmation: pickBoolean(row, [
+      "can_send_agreement_confirmation",
+      "canSendAgreementConfirmation",
+    ]),
+    can_start_switch: pickBoolean(row, ["can_start_switch", "canStartSwitch"]),
+    can_create_supplier_switch_request: pickBoolean(row, [
+      "can_create_supplier_switch_request",
+      "canCreateSupplierSwitchRequest",
+    ]),
+    can_dispatch_supplier_switch: pickBoolean(row, [
+      "can_dispatch_supplier_switch",
+      "canDispatchSupplierSwitch",
+    ]),
+    supplier_switch_status: pickString(row, [
+      "supplier_switch_status",
+      "supplierSwitchStatus",
+    ]),
     customer_id: pickString(row, ["customer_id", "customerId"]),
     customer_number: pickString(row, ["customer_number", "customerNumber"]),
     application_id: pickString(row, ["application_id", "applicationId"]),
@@ -1836,6 +2118,7 @@ export async function submitOpsCustomerApplication(
     manualInformationRequest:
       recordValue(row.manualInformationRequest) ??
       recordValue(row.manual_information_request),
+    communication: mapCustomerApplicationCommunication(row.communication),
     missing_fields: missing,
     blocking_reasons: blockingReasons,
     warnings,

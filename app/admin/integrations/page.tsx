@@ -2,6 +2,7 @@ import { requireAdminPageAccess } from '@/lib/admin/guards'
 import CisActionButton from '@/components/admin/CisActionButton'
 import PortalOutboxReplayButton from '@/components/admin/PortalOutboxReplayButton'
 import { checkOpsIntegrationReadiness } from '@/lib/ops/readiness'
+import { fetchOpsPublicContractDiagnostics } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +54,7 @@ export default async function AdminIntegrationsPage() {
     anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
   })
 
-  const [jobsRes, cisRes, outboxRes, opsReadiness] = await Promise.all([
+  const [jobsRes, cisRes, outboxRes, opsReadiness, publicContractDiagnostics] = await Promise.all([
     ctx.supabase
       .from('integration_sync_jobs')
       .select('id,provider_key,entity_type,entity_id,direction,status,last_error,created_at')
@@ -73,6 +74,12 @@ export default async function AdminIntegrationsPage() {
       .limit(30)
       .returns<PortalOutboxRow[]>(),
     checkOpsIntegrationReadiness(),
+    fetchOpsPublicContractDiagnostics()
+      .then((data) => ({ data, error: null as string | null }))
+      .catch((error) => ({
+        data: null,
+        error: error instanceof Error ? error.message : String(error),
+      })),
   ])
 
   const jobs = jobsRes.data ?? []
@@ -151,10 +158,62 @@ export default async function AdminIntegrationsPage() {
           {opsReadiness.scopes.map((scope) => (
             <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
               <code className="text-[11px] text-white/70">{scope.scope}</code>
-              <span className={`text-[11px] ${scope.status === 'missing' ? 'text-rose-300' : scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}`}>{scope.status}</span>
+              <span className={`text-[11px] ${scope.status === 'missing' ? 'text-rose-300' : scope.status === 'verified' || scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}`}>{scope.status}</span>
             </div>
           ))}
         </div>
+        <div className="mt-5 space-y-2">
+          {opsReadiness.probes.map((probe) => (
+            <div key={probe.name} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs">
+              <span className="text-white/65">{probe.name}</span>
+              <span className={probe.ok ? 'text-emerald-300' : 'text-rose-300'}>
+                {probe.ok ? `verifierad (${probe.status ?? 200})` : `fel (${probe.status ?? 'n/a'}${probe.code ? `, ${probe.code}` : ''})`}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Publiceringsdiagnostik för avtal</h2>
+          <p className="mt-1 text-sm text-white/60">
+            Hämtas server-side från OPS med diagnostics=1 och visas endast för behörig admin.
+          </p>
+        </div>
+        {publicContractDiagnostics.error ? (
+          <div className="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            Diagnostiken kunde inte hämtas: {publicContractDiagnostics.error}
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {(publicContractDiagnostics.data?.items ?? []).map((item, index) => (
+              <div key={item.offer_reference ?? `${item.name ?? 'offer'}-${index}`} className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="font-medium">{item.name ?? 'Avtal utan namn'}</div>
+                    <code className="mt-1 block text-[11px] text-white/45">{item.offer_reference ?? 'saknar offer_reference'}</code>
+                  </div>
+                  <span className={`w-fit rounded-full border px-3 py-1 text-xs ${item.visible === true ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : item.visible === false ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-200'}`}>
+                    {item.visible === true ? 'synligt' : item.visible === false ? 'blockerat' : 'okänd status'}
+                  </span>
+                </div>
+                {item.blockers.length > 0 ? (
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-rose-100/80">
+                    {item.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                  </ul>
+                ) : (
+                  <div className="mt-3 text-sm text-white/50">Inga blockers rapporterade.</div>
+                )}
+              </div>
+            ))}
+            {(publicContractDiagnostics.data?.items.length ?? 0) === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/55">
+                OPS returnerade ingen avtalsdiagnostik.
+              </div>
+            ) : null}
+          </div>
+        )}
       </section>
 
 

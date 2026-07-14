@@ -13,6 +13,22 @@ assert.ok(!ops.includes('X-Gridex-Tenant-Id'))
 assert.ok(!ops.includes('/api/v1/website/contracts${suffix}'))
 assert.ok(ops.includes('GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY'))
 assert.ok(ops.includes('code === "endpoint_not_found" || code === "method_not_supported"'))
+assert.ok(ops.includes('probeOpsEndpointAuthorization'))
+assert.ok(ops.includes('GRIDEX_OPS_TIMEOUT_MS'))
+assert.ok(ops.includes('ops_request_timeout'))
+assert.ok(ops.includes('contract_status: pickString'))
+assert.ok(ops.includes('signature_snapshot_sha256'))
+assert.ok(ops.includes('can_send_agreement_confirmation'))
+assert.ok(ops.includes('communication: mapCustomerApplicationCommunication'))
+assert.ok(ops.includes('fetchOpsPublicContractDiagnostics'))
+assert.ok(ops.includes('query.set("diagnostics", "1")'))
+
+const readiness = read('lib/ops/readiness.ts')
+assert.ok(readiness.includes("'customer_power_of_attorney.write'"))
+assert.ok(readiness.includes("'/api/v1/website/customer-applications'"))
+assert.ok(readiness.includes("'/api/v1/customer/notifications/read'"))
+assert.ok(readiness.includes('Promise.allSettled'))
+assert.ok(readiness.includes("declared?.has(scope) ? 'verified' : 'verified_not_declared'"))
 
 const contractNormalizer = read('lib/website/publicContractContract.ts')
 assert.ok(contractNormalizer.includes('row.offer_reference ?? row.offerReference'))
@@ -52,6 +68,11 @@ assert.ok(migration.includes('customer_profiles_customer_number_uidx'))
 assert.ok(migration.includes('customer_profiles_portal_identity_uidx'))
 assert.ok(migration.includes("'dead_letter'"))
 
+const evidenceMigration = read('supabase/migrations/20260714160000_website_application_ops_result_evidence.sql')
+assert.ok(evidenceMigration.includes('ops_result_snapshot jsonb'))
+assert.ok(evidenceMigration.includes('signature_snapshot_sha256 text'))
+assert.ok(evidenceMigration.includes('communication_snapshot jsonb'))
+
 
 const selfService = read('components/customer/CustomerPortalSelfService.tsx')
 for (const endpoint of ['/api/v1/customer-portal/sync', '/api/v1/customer/sync', '/api/v1/customer/move-out', '/api/v1/customer/notifications/read']) {
@@ -62,12 +83,18 @@ assert.ok(read('app/dashboard/error.tsx').includes('/api/v1/customer-portal/sync
 const submissionStore = read('lib/website/submissionStore.ts')
 assert.ok(submissionStore.includes('pricing_quote_snapshot'))
 assert.ok(submissionStore.includes('contract_display_snapshot'))
+assert.ok(submissionStore.includes('ops_result_snapshot'))
+assert.ok(submissionStore.includes('communication_snapshot'))
 assert.ok(!ops.includes('pricing_preview_snapshot?:'))
 assert.ok(ops.includes('move_in_date: input.requested_start_date'))
 
 const adminReplay = read('app/api/admin/customer-portal/outbox/route.ts')
 assert.ok(adminReplay.includes("status: 403"))
 assert.ok(outbox.includes('attempt_count: 0'))
+
+const integrationsPage = read('app/admin/integrations/page.tsx')
+assert.ok(integrationsPage.includes('fetchOpsPublicContractDiagnostics'))
+assert.ok(integrationsPage.includes('diagnostics=1'))
 
 assert.ok(read('proxy.ts').includes('export async function proxy'))
 console.log('Gridex API contract alignment checks passed')
