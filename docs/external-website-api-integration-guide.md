@@ -19,7 +19,7 @@ Never set or send `X-Gridex-Tenant-Id`. The API key resolves the company. Produc
 
 ## Scope set
 
-The current integration expects the granular scopes below. Legacy `customer_portal.read` and `customer_portal.write` can be present for compatibility, but they are not a substitute for declaring and testing the endpoint-specific permissions.
+The integration requires both the documented portal-bundle scopes and the endpoint-specific scopes below. Readiness probes the preferred `POST /api/v1/customer/portal-bundle` route with a non-mutating test identity.
 
 ```text
 website_contracts.read
@@ -27,6 +27,8 @@ website_legal.read
 website_applications.write
 website_events.write
 events.read
+customer_portal.read
+customer_portal.write
 customer_sync.write
 customer_profile.read
 customer_contracts.read
@@ -87,7 +89,7 @@ The full OPS quote and the displayed contract snapshot are stored in `website_ap
 
 ## Legal bundle
 
-`GET /api/v1/website/legal-bundle` is fetched server-side. The selected public contract and legal bundle determine:
+`GET /api/v1/website/legal-bundle` is available server-side for diagnostics and document views. The selected public contract itself must carry every exact, published legal version and HTTPS URL needed for sale; a temporary bundle failure is therefore not allowed to stop an otherwise complete contract. The contract determines:
 
 - terms version and version ID;
 - privacy version and version ID;

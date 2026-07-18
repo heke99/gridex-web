@@ -7,6 +7,7 @@ type Props = {
   data: WebsitePricingPreview;
   updatedAt?: Date;
   onSelect?: () => void;
+  continueHref?: string;
 };
 type PricingBasis = NonNullable<
   WebsitePricingPreview["specification"]
@@ -72,17 +73,18 @@ function basisRows(basis: PricingBasis) {
     rows.push(["Rörlig del", `${formatOre(value.spotPriceOre)} öre/kWh`]);
   if (hasNumber(value.portfolioPriceOre))
     rows.push(["Portföljdel", `${formatOre(value.portfolioPriceOre)} öre/kWh`]);
+  const percent = (share: number) => share <= 1 ? share * 100 : share
   if (hasNumber(value.spotShare))
-    rows.push(["Rörlig andel", `${formatNumber(value.spotShare * 100, 2)} %`]);
+    rows.push(["Rörlig andel", `${formatNumber(percent(value.spotShare), 2)} %`]);
   if (hasNumber(value.portfolioShare))
     rows.push([
       "Portföljandel",
-      `${formatNumber(value.portfolioShare * 100, 2)} %`,
+      `${formatNumber(percent(value.portfolioShare), 2)} %`,
     ]);
   return rows;
 }
 
-export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
+export default function PriceResultCard({ data, updatedAt, onSelect, continueHref }: Props) {
   const {
     totalMonthlyCostSek,
     totalMonthlyCostInclVatSek,
@@ -93,9 +95,9 @@ export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
     contract,
   } = data;
   const fees = specification?.fees ?? {};
-  const contractHref = contract.offer_reference
+  const contractHref = continueHref ?? (contract.offer_reference
     ? `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}`
-    : "/teckna-avtal";
+    : "/teckna-avtal");
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek)
     ? totalMonthlyCostInclVatSek
     : undefined;
@@ -246,6 +248,11 @@ export default function PriceResultCard({ data, updatedAt, onSelect }: Props) {
           Rörligt pris följer marknaden och kan ändras över tid. Elnätsavgifter
           och nätägarens avgifter ingår inte.
         </div>
+        {data.quote_expires_at ? (
+          <div className="text-xs text-gray-400">
+            Prisberäkningen gäller till {new Date(data.quote_expires_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}. Därefter behöver du hämta ett nytt pris.
+          </div>
+        ) : null}
         <div className="grid gap-3 md:grid-cols-2">
           {onSelect ? (
             <button

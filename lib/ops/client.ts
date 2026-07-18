@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
-import { normalizePublicContractApiPayload } from "@/lib/website/publicContractContract";
+import {
+  normalizePublicContractApiPayload,
+  type PublicPortfolioMonthlyPrice,
+  type PublicPricingComponent,
+} from "@/lib/website/publicContractContract";
 
 export type OpsContractType =
   | "variable_spot"
@@ -48,6 +52,9 @@ export type OpsPublicContract = {
   excluded?: string[] | string | null;
   start_info?: string | null;
   customer_types?: string[] | null;
+  pricing_visibility?: Record<string, boolean>;
+  pricing_components?: PublicPricingComponent[];
+  portfolio_monthly_prices?: PublicPortfolioMonthlyPrice[];
   terms_version?: string | null;
   terms_version_id?: string | null;
   terms_url?: string | null;
@@ -1413,9 +1420,10 @@ function mapWebsiteEnergyResolution(
 
 function normalizePreviewContractType(
   value: unknown,
-): "spot_hourly" | "portfolio_managed" | "fixed" | "mix" {
+): "spot_hourly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed" {
   const type = typeof value === "string" ? value : "";
   if (type === "fixed") return "fixed";
+  if (type === "monthly_fixed" || type === "fixed_monthly") return "monthly_fixed";
   if (type === "portfolio" || type === "portfolio_managed")
     return "portfolio_managed";
   if (type === "mix" || type === "mixed") return "mix";
@@ -2021,14 +2029,52 @@ export async function submitOpsCustomerApplication(
 
   const applicationPayload = buildOpsCustomerApplicationPayload(input);
 
-  const payload = await opsFetchWithFallback(
-    ["/api/v1/website/customer-applications"],
-    {
-      method: "POST",
-      headers: { "Idempotency-Key": input.idempotency_key },
-      body: JSON.stringify(applicationPayload),
-    },
-  );
+  let payload: unknown;
+  try {
+    payload = await opsFetchWithFallback(
+      ["/api/v1/website/customer-applications"],
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": input.idempotency_key },
+        body: JSON.stringify(applicationPayload),
+      },
+    );
+  } catch (error) {
+    if (!isOpsError(error) || error.status !== 409) throw error;
+    const code = opsErrorCodeValue(error) ?? "";
+    if (!/duplicate_application|application_business_conflict/i.test(code)) throw error;
+    const recovered = recoverCustomerApplicationConflict(error.details);
+    if (!recovered) throw error;
+    payload = recovered;
+  }
+
+  return mapOpsCustomerApplicationResult(payload);
+}
+
+function recoverCustomerApplicationConflict(value: unknown): unknown | null {
+  const queue: unknown[] = [value];
+  const visited = new Set<object>();
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object" || Array.isArray(current)) continue;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const row = current as Record<string, unknown>;
+    const hasStableResult = Boolean(
+      pickString(row, ["application_id", "applicationId", "application_number", "applicationNumber"]) &&
+        pickString(row, ["customer_id", "customerId", "customer_number", "customerNumber", "external_customer_id", "externalCustomerId"]),
+    );
+    if (hasStableResult) return row;
+    for (const key of ["data", "application", "existing_application", "existingApplication", "result", "details", "error"]) {
+      if (row[key]) queue.push(row[key]);
+    }
+  }
+  return null;
+}
+
+export function mapOpsCustomerApplicationResult(
+  payload: unknown,
+): OpsCustomerApplicationResult {
 
   const data =
     payload && typeof payload === "object" && "data" in payload

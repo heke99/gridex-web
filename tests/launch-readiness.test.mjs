@@ -121,7 +121,7 @@ assert.ok(
   "form must post contract display snapshot",
 );
 assert.ok(
-  form.includes("Räkna priset ovan innan du går vidare"),
+  form.includes("quoteValid") && form.includes("Prisberäkningen behöver hämtas på nytt"),
   "form must require a price preview before progressing",
 );
 assert.ok(
@@ -129,8 +129,8 @@ assert.ok(
   "form must require separate price terms consent",
 );
 assert.ok(
-  form.includes("/fullmakt"),
-  "form must link to the public power of attorney page",
+  form.includes("legal!.powerOfAttorneyUrl!") && !form.includes('?? "/fullmakt"'),
+  "form must use the exact OPS power-of-attorney URL without a local fallback",
 );
 assert.ok(
   !form.includes("Allmänna villkor: version"),
@@ -209,17 +209,17 @@ assertNotIncludes(
   "contract display snapshot validation must not be a brittle full-object equality check",
 );
 assertIncludes(
-  "app/(public)/teckna/tack/page.tsx",
+  "app/(public)/teckna-avtal/tack/SignupThanksPage.tsx",
   "Ny kund: bekräfta din e-post",
   "thank-you page must explain email verification for new customers",
 );
 assertIncludes(
-  "app/(public)/teckna/tack/page.tsx",
+  "app/(public)/teckna-avtal/tack/SignupThanksPage.tsx",
   "Redan kund? Logga in",
   "thank-you page must tell existing customers to log in",
 );
 assertNotIncludes(
-  "app/(public)/teckna/tack/page.tsx",
+  "app/(public)/teckna-avtal/tack/SignupThanksPage.tsx",
   "Gå till Mina sidor",
   "thank-you page must not send customers to Mina sidor before password setup",
 );
@@ -379,13 +379,13 @@ assertIncludes(
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
-  "hasRequiredLegalVersionIds",
-  "signup must block applications when required legal UUIDs are missing",
+  "isSignupReadyContract",
+  "signup must block applications when required legal UUIDs or URLs are missing",
 );
-assertIncludes(
+assertNotIncludes(
   "components/signup/CustomerApplicationForm.tsx",
-  `termsHref = legalLinks?.termsUrl ?? "/allmanna-villkor"`,
-  "signup must use OPS legal document URLs with local fallback",
+  `?? "/allmanna-villkor"`,
+  "signup must fail closed instead of substituting local documents for OPS legal URLs",
 );
 assertIncludes(
   "lib/website/publicContractDisplay.ts",
@@ -403,7 +403,7 @@ assertIncludes(
   "signup thank-you redirect must preserve customer-safe nextAction message",
 );
 assertIncludes(
-  "app/(public)/teckna/tack/page.tsx",
+  "app/(public)/teckna-avtal/tack/SignupThanksPage.tsx",
   "nextActionMessage",
   "thank-you page must surface customer-safe OPS nextAction message",
 );
@@ -467,8 +467,8 @@ assertIncludes(
 );
 assertIncludes(
   "components/PriceResultCard.tsx",
-  "value.spotShare * 100",
-  "mix shares must be displayed as percentages",
+  "share <= 1 ? share * 100 : share",
+  "mix shares must display both ratio and percent upstream formats correctly",
 );
 assertNotIncludes(
   "components/PriceResultCard.tsx",

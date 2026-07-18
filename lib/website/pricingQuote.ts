@@ -6,7 +6,7 @@ import type {
 } from "@/lib/website/publicApi";
 
 const QUOTE_VERSION = "v1";
-const QUOTE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const QUOTE_TTL_MS = 20 * 60 * 1000;
 
 type QuoteFees = {
   markupOre?: number;

@@ -7,6 +7,7 @@ import {
   type OpsPublicContract,
 } from "@/lib/ops/client";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { faqByIds } from "@/lib/content/faq";
 
 export const dynamic = "force-dynamic";
 
@@ -125,18 +126,7 @@ export default async function AvtalPage() {
     loadError = "Aktuella elavtal kan inte hämtas just nu.";
   }
 
-  const faqItems = [
-    {
-      question: "Vilket elavtal är billigast?",
-      answer:
-        "Det beror på marknadsläget, din förbrukning och vilken risknivå du är bekväm med. Gridex visar aktuella elavtal så att du kan jämföra innan du går vidare.",
-    },
-    {
-      question: "Vad är skillnaden mellan rörligt och fast elpris?",
-      answer:
-        "Rörligt elpris följer marknadspriset och kan variera över tid. Fastpris ger mer förutsägbarhet. Portföljavtal ligger mellan dessa med en mer aktiv prissättning.",
-    },
-  ];
+  const faqItems = faqByIds(['avtalsskillnad', 'vad-ingar', 'prisbegrepp', 'pris-andras']);
 
   return (
     <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
@@ -155,7 +145,7 @@ export default async function AvtalPage() {
               <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
                 Hitta rätt elavtal
                 <br />
-                för ditt hushåll
+                för dig
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
                 Jämför rörligt, portfölj och fastpris på ett sätt som är lätt

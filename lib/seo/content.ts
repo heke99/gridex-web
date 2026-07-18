@@ -1499,6 +1499,7 @@ export const canonicalPublicRoutes = [
   '/sitemap',
   '/teckna-avtal',
   '/kundservice',
+  '/vanliga-fragor',
   '/integritetspolicy',
   '/allmanna-villkor',
   '/angerratt',

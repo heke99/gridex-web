@@ -5,6 +5,8 @@ import ElectricityCalculator from "@/components/ElectricityCalculator";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import { fetchOpsPublicContracts } from "@/lib/ops/client";
 import type { ContractOption } from "@/components/ElectricityCalculator";
+import { faqByIds } from "@/lib/content/faq";
+import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +24,7 @@ export default async function HomePage() {
 
   try {
     const visibleContracts = await fetchOpsPublicContracts();
-    options = visibleContracts.map((item) => ({
+    options = visibleContracts.filter((item) => buildPublicContractDisplay(item).ready).map((item) => ({
       name: item.name,
       value: item.offer_reference,
       offerReference: item.offer_reference,
@@ -39,33 +41,13 @@ export default async function HomePage() {
       pricingModel: item.pricing_model ?? null,
       spotShare: item.spot_share ?? null,
       portfolioShare: item.portfolio_share ?? null,
+      customerTypes: item.customer_types ?? null,
     }));
   } catch {
     options = [];
   }
 
-  const faqItems = [
-    {
-      question: "Vad är elpris idag?",
-      answer:
-        "Elpris idag beror på ditt elområde (SE1–SE4), marknadsläget och vilken avtalsform du väljer. Hos Gridex ser du tydligt hur priset är uppbyggt innan du tecknar.",
-    },
-    {
-      question: "Hur vet jag om jag betalar för mycket?",
-      answer:
-        "Många hushåll betalar höga avgifter eller sitter i avtal med otydliga villkor. Med Gridex kan du jämföra olika avtalsformer och se vad som faktiskt ingår i ditt pris.",
-    },
-    {
-      question: "Hur tecknar jag elavtal hos Gridex?",
-      answer:
-        "Du kan börja med att räkna på ditt pris direkt på hemsidan. Därefter väljer du avtal och går vidare till teckningsflödet online.",
-    },
-    {
-      question: "Vad är skillnaden mellan elområden (SE1–SE4)?",
-      answer:
-        "Sverige är indelat i fyra elområden. Prisskillnader uppstår bland annat på grund av produktion, efterfrågan och överföringskapacitet i elsystemet.",
-    },
-  ];
+  const faqItems = faqByIds(['elomrade', 'vad-ingar', 'avtalsskillnad', 'behover']);
 
   return (
     <div className="mx-auto max-w-6xl space-y-16 px-6 py-12 md:py-16">
@@ -73,7 +55,7 @@ export default async function HomePage() {
 
       <HeroBlock />
       <TrustBar />
-      <ElectricityCalculator contracts={options} />
+      <ElectricityCalculator contracts={options} showCustomerTypeSelector persistCheckoutContext />
       <HowItWorks />
       <ValueBlocks />
       <ArticleColumns />
@@ -188,16 +170,16 @@ function HeroBlock() {
                   Jämför ditt pris direkt
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  Ange postnummer eller välj elområde och få en snabb överblick.
+                  Ange adress och postnummer så fastställs elområdet automatiskt.
                 </div>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-sm font-medium text-white">
-                  Välj det som passar ditt hem
+                  Välj det som passar dig
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  Olika hushåll behöver olika upplägg. Därför visar vi flera
+                  Privatkunder och företag behöver olika upplägg. Därför visar vi flera
                   avtalsformer tydligt.
                 </div>
               </div>
@@ -270,7 +252,7 @@ function HowItWorks() {
         <h2 className="text-3xl font-bold text-white">Så fungerar det</h2>
         <p className="mt-3 text-gray-400">
           Vi har gjort det enklare att förstå elavtal. Jämför, räkna och välj
-          det alternativ som passar ditt hushåll bäst.
+          det alternativ som passar dig bäst.
         </p>
       </div>
 
@@ -280,7 +262,7 @@ function HowItWorks() {
             1
           </div>
           <div className="text-lg font-semibold text-white">
-            Ange område eller postnummer
+            Ange adress och postnummer
           </div>
           <p className="mt-2 text-sm text-gray-400">
             Börja med att ange postnummer eller välj elområde manuellt.

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 export type WebsiteApplicationPublicResult = {
   status: string
   portalStatus: string
+  portalMessage: string | null
   customerNumber: string | null
   contractNumber: string | null
   applicationNumber: string | null
@@ -17,6 +18,11 @@ export type WebsiteApplicationPublicResult = {
   withdrawalDeadlineAt: string | null
   canSendAgreementConfirmation: boolean | null
   canStartSwitch: boolean | null
+  canCreateSupplierSwitchRequest: boolean | null
+  canDispatchSupplierSwitch: boolean | null
+  supplierSwitchStatus: string | null
+  blockingReasons: string[]
+  warnings: string[]
   communicationQueued: string[]
   communicationSent: string[]
   communicationFailed: string[]

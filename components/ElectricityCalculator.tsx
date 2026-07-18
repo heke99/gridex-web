@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PriceResultCard from "@/components/PriceResultCard";
 import {
   normalizeWebsitePostalCode,
@@ -11,6 +11,10 @@ import {
   type WebsitePricingPreview,
   type WebsitePricingQuoteContext,
 } from "@/lib/website/publicApi";
+import {
+  contractSupportsCustomerType,
+  type WebsiteCustomerType,
+} from "@/lib/website/customerType";
 
 export type ContractOption = {
   name: string;
@@ -29,6 +33,7 @@ export type ContractOption = {
   pricingModel?: string | null;
   spotShare?: number | null;
   portfolioShare?: number | null;
+  customerTypes?: string[] | null;
 };
 
 type Props = {
@@ -43,6 +48,13 @@ type Props = {
   onEstimatedMonthlyKwhChange?: (kwh: number | null) => void;
   onQuoteContextChange?: (context: WebsitePricingQuoteContext | null) => void;
   initialPricingPreview?: WebsitePricingPreview | null;
+  initialQuoteContext?: WebsitePricingQuoteContext | null;
+  customerType?: WebsiteCustomerType;
+  onCustomerTypeChange?: (value: WebsiteCustomerType) => void;
+  showCustomerTypeSelector?: boolean;
+  persistCheckoutContext?: boolean;
+  onContinue?: () => void;
+  resetSignal?: number;
 };
 
 function validKwh(value: string): number | null {
@@ -56,6 +68,8 @@ function normalizeContractType(
   type: string,
 ): WebsitePricingPreview["contract"]["contractType"] {
   if (type === "fixed") return "fixed";
+  if (type === "monthly_fixed" || type === "fixed_monthly")
+    return "monthly_fixed";
   if (type === "portfolio" || type === "portfolio_managed")
     return "portfolio_managed";
   if (type === "mix" || type === "mixed") return "mix";
@@ -78,17 +92,6 @@ function areaLabel(area: WebsitePriceArea | null) {
   return area ? `Elområde: ${area}` : "Ange adress för att räkna pris";
 }
 
-function manualResolution(area: WebsitePriceArea): WebsiteEnergyResolution {
-  return {
-    status: "manual_price_area",
-    price_area_code: area,
-    confidence: 1,
-    source: "customer_selected_price_area",
-    customer_message:
-      "Elområdet har valts manuellt för prisberäkning. Kontrollera att adress och elområde stämmer innan du tecknar.",
-  };
-}
-
 export default function ElectricityCalculator({
   contracts = [],
   initialSelectedValue = "",
@@ -99,32 +102,37 @@ export default function ElectricityCalculator({
   onEstimatedMonthlyKwhChange,
   onQuoteContextChange,
   initialPricingPreview = null,
+  initialQuoteContext = null,
+  customerType: controlledCustomerType,
+  onCustomerTypeChange,
+  showCustomerTypeSelector = false,
+  persistCheckoutContext = false,
+  onContinue,
+  resetSignal = 0,
 }: Props) {
   const initialValue = contracts.some(
     (contract) => contract.value === initialSelectedValue,
   )
     ? initialSelectedValue
     : (contracts[0]?.value ?? "");
-  const [postalCode, setPostalCode] = useState("");
-  const [city, setCity] = useState("");
-  const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState(initialQuoteContext?.postal_code ?? "");
+  const [city, setCity] = useState(initialQuoteContext?.city ?? "");
+  const [address, setAddress] = useState(initialQuoteContext?.address ?? "");
   const [kwhInput, setKwhInput] = useState(
     String(initialPricingPreview?.kwh ?? 2000),
   );
   const [internalSelectedValue, setInternalSelectedValue] =
     useState(initialValue);
-  const [manualArea, setManualArea] = useState<WebsitePriceArea | "">(
-    initialPricingPreview?.price_area_code ??
-      initialPricingPreview?.priceArea ??
-      "",
-  );
+  const [internalCustomerType, setInternalCustomerType] = useState<WebsiteCustomerType>('private');
   const [resolution, setResolutionState] =
     useState<WebsiteEnergyResolution | null>(
-      initialPricingPreview
-        ? manualResolution(
-            initialPricingPreview.price_area_code ??
-              initialPricingPreview.priceArea,
-          )
+      initialQuoteContext
+        ? {
+            status: 'restored_verified_quote',
+            price_area_code: initialQuoteContext.price_area_code,
+            confidence: 1,
+            source: 'server_checkout_context',
+          }
         : null,
     );
   const [result, setResultState] = useState<WebsitePricingPreview | null>(
@@ -132,22 +140,72 @@ export default function ElectricityCalculator({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [continueHref, setContinueHref] = useState<string | null>(null);
 
+  const customerType = controlledCustomerType ?? internalCustomerType;
+  const availableContracts = useMemo(
+    () => contracts.filter((contract) => contractSupportsCustomerType(contract.customerTypes, customerType)),
+    [contracts, customerType],
+  );
   const selectedValue = controlledSelectedValue ?? internalSelectedValue;
   const selectedContract = useMemo(
     () =>
-      contracts.find((contract) => contract.value === selectedValue) ?? null,
-    [contracts, selectedValue],
+      availableContracts.find((contract) => contract.value === selectedValue) ?? null,
+    [availableContracts, selectedValue],
   );
-  const effectiveArea = resolution?.price_area_code || manualArea || null;
-  const hasContracts = contracts.length > 0;
+  const effectiveArea = resolution?.price_area_code ?? null;
+  const hasContracts = availableContracts.length > 0;
   const monthlyKwh = validKwh(kwhInput);
 
-  function setSelectedValue(value: string) {
+  useEffect(() => {
+    if (!persistCheckoutContext) return
+    const savedType = window.sessionStorage.getItem('gridex_checkout_customer_type')
+    const savedKwh = window.sessionStorage.getItem('gridex_checkout_monthly_kwh')
+    if (!controlledCustomerType && (savedType === 'private' || savedType === 'company')) {
+      setInternalCustomerType(savedType)
+      onCustomerTypeChange?.(savedType)
+    }
+    if (!initialPricingPreview && savedKwh && validKwh(savedKwh)) setKwhInput(savedKwh)
+  }, [controlledCustomerType, initialPricingPreview, onCustomerTypeChange, persistCheckoutContext])
+
+  const setSelectedValue = useCallback((value: string) => {
     setInternalSelectedValue(value);
     onSelectedValueChange?.(value);
-    setResult(null);
-  }
+    setResultState(null);
+    onPricingPreviewChange?.(null);
+  }, [onPricingPreviewChange, onSelectedValueChange]);
+
+  useEffect(() => {
+    if (selectedContract || availableContracts.length === 0) return
+    setSelectedValue(availableContracts[0].value)
+  }, [availableContracts, selectedContract, setSelectedValue])
+
+  useEffect(() => {
+    if (!result?.quote_expires_at) return
+    const expiresAt = Date.parse(result.quote_expires_at)
+    if (!Number.isFinite(expiresAt)) return
+    const invalidate = () => {
+      setResultState(null)
+      onPricingPreviewChange?.(null)
+      onQuoteContextChange?.(null)
+      setContinueHref(null)
+      setError('Prisberäkningen har gått ut. Hämta ett nytt pris för att fortsätta.')
+    }
+    const delay = expiresAt - Date.now()
+    if (delay <= 0) {
+      invalidate()
+      return
+    }
+    const timeout = window.setTimeout(invalidate, Math.min(delay, 2_147_000_000))
+    return () => window.clearTimeout(timeout)
+  }, [onPricingPreviewChange, onQuoteContextChange, result?.quote_expires_at])
+
+  useEffect(() => {
+    if (resetSignal <= 0) return
+    setResultState(null)
+    setContinueHref(null)
+    setError(null)
+  }, [resetSignal])
 
   function setResolution(value: WebsiteEnergyResolution | null) {
     setResolutionState(value);
@@ -162,16 +220,19 @@ export default function ElectricityCalculator({
   function clearQuote() {
     setResult(null);
     onQuoteContextChange?.(null);
+    setContinueHref(null);
     setError(null);
+  }
+
+  function setCustomerType(value: WebsiteCustomerType) {
+    setInternalCustomerType(value)
+    onCustomerTypeChange?.(value)
+    if (persistCheckoutContext) window.sessionStorage.setItem('gridex_checkout_customer_type', value)
+    clearQuote()
   }
 
   async function resolveArea(): Promise<WebsitePriceArea> {
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
-    if (manualArea) {
-      const manual = manualResolution(manualArea);
-      setResolution(manual);
-      return manualArea;
-    }
     if (
       !/^\d{5}$/.test(normalizedPostalCode) ||
       !city.trim() ||
@@ -192,7 +253,7 @@ export default function ElectricityCalculator({
     if (!resolved.price_area_code) {
       throw new Error(
         resolved.customer_message ||
-          "Vi kunde inte fastställa elområde automatiskt. Välj SE1, SE2, SE3 eller SE4 manuellt om du redan vet ditt elområde.",
+          "Vi kunde inte fastställa elområdet automatiskt. Kontrollera adressen eller kontakta kundservice.",
       );
     }
     return resolved.price_area_code;
@@ -227,7 +288,7 @@ export default function ElectricityCalculator({
         address: address.trim(),
         estimated_monthly_kwh: monthlyKwh,
       });
-      setResult({
+      const verifiedPreview = {
         ...preview,
         contract: {
           ...preview.contract,
@@ -235,14 +296,34 @@ export default function ElectricityCalculator({
           offer_reference:
             preview.contract.offer_reference ?? selectedContract.offerReference,
         },
-      });
-      onQuoteContextChange?.({
+      } satisfies WebsitePricingPreview;
+      const nextQuoteContext = {
         postal_code: normalizedPostalCode,
         city: city.trim(),
         address: address.trim(),
         price_area_code: resolvedArea,
         estimated_monthly_kwh: monthlyKwh,
-      });
+      } satisfies WebsitePricingQuoteContext;
+      onQuoteContextChange?.(nextQuoteContext);
+
+      if (persistCheckoutContext && preview.quote_token) {
+        const contextResponse = await fetch('/api/v1/website/checkout-context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            customer_type: customerType,
+            offer_reference: selectedContract.offerReference,
+            quote_token: preview.quote_token,
+            ...nextQuoteContext,
+          }),
+        })
+        const contextData = await contextResponse.json().catch(() => null) as { checkout_token?: string; error?: string } | null
+        if (!contextResponse.ok || !contextData?.checkout_token) {
+          throw new Error(contextData?.error || 'Priset är beräknat men kunde inte föras vidare. Försök igen.')
+        }
+        setContinueHref(`/teckna-avtal?checkout=${encodeURIComponent(contextData.checkout_token)}`)
+      }
+      setResult(verifiedPreview);
     } catch (err) {
       setError(customerSafeError(err));
     } finally {
@@ -254,6 +335,7 @@ export default function ElectricityCalculator({
     setKwhInput(value);
     const next = validKwh(value);
     onEstimatedMonthlyKwhChange?.(next);
+    if (persistCheckoutContext && next) window.sessionStorage.setItem('gridex_checkout_monthly_kwh', String(next))
     clearQuote();
   }
 
@@ -293,6 +375,30 @@ export default function ElectricityCalculator({
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
             Det finns inga aktuella elavtal att räkna på just nu.
           </div>
+        ) : null}
+
+        {showCustomerTypeSelector ? (
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium text-white/80">Vem ska teckna avtalet?</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(['private', 'company'] as const).map((value) => (
+                <label
+                  key={value}
+                  className={`cursor-pointer rounded-2xl border p-4 text-sm font-semibold transition ${customerType === value ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-100' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                >
+                  <input
+                    className="sr-only"
+                    type="radio"
+                    name="calculator_customer_type"
+                    value={value}
+                    checked={customerType === value}
+                    onChange={() => setCustomerType(value)}
+                  />
+                  {value === 'private' ? 'Privatkund' : 'Företag'}
+                </label>
+              ))}
+            </div>
+          </fieldset>
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -359,33 +465,10 @@ export default function ElectricityCalculator({
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
             />
           </div>
-          <div className="space-y-2">
-            <label
-              htmlFor="calculator-manual-area"
-              className="text-sm font-medium text-white/80"
-            >
-              Elområde manuellt (vägledande)
-            </label>
-            <select
-              id="calculator-manual-area"
-              value={manualArea}
-              onChange={(event) => {
-                const next = event.target.value as WebsitePriceArea | "";
-                setManualArea(next);
-                setResolution(next ? manualResolution(next) : null);
-                clearQuote();
-              }}
-              className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
-            >
-              <option value="">Hitta via adress</option>
-              <option value="SE1">SE1</option>
-              <option value="SE2">SE2</option>
-              <option value="SE3">SE3</option>
-              <option value="SE4">SE4</option>
-            </select>
-            <p className="text-xs text-white/40">
-              Används för prisberäkning om automatisk matchning saknas.
-              Kontrollera att adress och elområde stämmer innan du tecknar.
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+            <div className="font-medium text-white">Elområdet verifieras automatiskt</div>
+            <p className="mt-2 text-xs leading-5 text-gray-400">
+              För bindande pris används alltid elområdet som servern fastställer från adressen. Om adressen inte kan verifieras hjälper kundservice dig.
             </p>
           </div>
           <div className="space-y-2">
@@ -423,7 +506,7 @@ export default function ElectricityCalculator({
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
             >
               <option value="">Välj avtal</option>
-              {contracts.map((contract) => (
+              {availableContracts.map((contract) => (
                 <option key={contract.value} value={contract.value}>
                   {contract.name}
                 </option>
@@ -460,7 +543,12 @@ export default function ElectricityCalculator({
         </div>
         {result ? (
           <div className="pt-2" aria-live="polite">
-            <PriceResultCard data={result} updatedAt={new Date()} />
+            <PriceResultCard
+              data={result}
+              updatedAt={new Date()}
+              continueHref={continueHref ?? undefined}
+              onSelect={onContinue}
+            />
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-white/40">

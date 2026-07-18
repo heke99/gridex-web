@@ -172,6 +172,25 @@ export default async function AdminIntegrationsPage() {
             </div>
           ))}
         </div>
+        <div className={`mt-5 rounded-2xl border p-4 ${opsReadiness.webhook.ready ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-rose-500/30 bg-rose-500/10'}`}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold">OPS-webhooks för portalstatus</div>
+              <p className="mt-1 text-xs text-white/60">
+                Kräver aktiverad mottagning, signeringshemlighet och förväntat company-ID utan konflikt mellan hemlighetsalias.
+              </p>
+            </div>
+            <span className={opsReadiness.webhook.ready ? 'text-emerald-300' : 'text-rose-300'}>
+              {opsReadiness.webhook.ready ? 'redo' : 'blockerad'}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
+            <span>Aktiv: {opsReadiness.webhook.enabled ? 'ja' : 'nej'}</span>
+            <span>Secret: {opsReadiness.webhook.signingSecretConfigured ? 'ja' : 'nej'}</span>
+            <span>Company: {opsReadiness.webhook.expectedCompanyConfigured ? 'ja' : 'nej'}</span>
+            <span>Konflikt: {opsReadiness.webhook.secretConflict ? 'ja' : 'nej'}</span>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">

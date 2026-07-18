@@ -9,6 +9,7 @@ const LAST_MODIFIED_BY_ROUTE: Record<string, string> = {
   '/guider': '2026-06-24',
   '/teckna-avtal': '2026-06-17',
   '/kundservice': '2026-06-17',
+  '/vanliga-fragor': '2026-07-18',
   '/integritetspolicy': '2026-06-12',
   '/allmanna-villkor': '2026-06-12',
   '/angerratt': '2026-06-12',

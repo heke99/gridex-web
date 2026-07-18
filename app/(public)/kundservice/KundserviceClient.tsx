@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 type SubmitState = 'idle' | 'sending' | 'sent' | 'error'
 
 type FaqItem = {
+  id?: string
   question: string
   answer: string
 }
@@ -182,7 +183,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         <h2 className="text-2xl font-bold text-white">Vanliga frågor</h2>
         <div className="mt-6 space-y-4">
           {faqItems.map((item) => (
-            <details key={item.question} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <details key={item.id ?? item.question} className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <summary className="cursor-pointer text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/40">
                 {item.question}
               </summary>

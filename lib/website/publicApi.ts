@@ -5,14 +5,9 @@ export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 export type WebsiteEnergyResolution = {
   status: string;
   price_area_code: WebsitePriceArea | null;
-  grid_area_code?: string | null;
-  grid_owner_id?: string | null;
-  grid_owner_name?: string | null;
   confidence?: number | null;
   source?: string | null;
-  source_chain?: string[];
   customer_message?: string | null;
-  raw?: Record<string, unknown>;
 };
 
 export type WebsiteEnergyResolveInput = {
@@ -100,6 +95,7 @@ export type WebsitePricingPreview = {
   quote_token?: string;
   quote_expires_at?: string;
   quote_source?: "ops" | "website";
+  token_issuer?: "website";
   raw?: Record<string, unknown>;
 };
 

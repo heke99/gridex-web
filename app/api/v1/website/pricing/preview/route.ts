@@ -4,10 +4,10 @@ import {
   getOpsClientStatus,
   isOpsError,
   type OpsWebsitePriceArea,
-  type OpsWebsitePricingPreview,
 } from "@/lib/ops/client";
 import {
   issueWebsitePricingQuote,
+  quoteToWebsitePricingPreview,
   websitePricingQuoteConfigured,
 } from "@/lib/website/pricingQuote";
 import { LocalWebsitePricingPreviewError } from "@/lib/website/localPricingPreview";
@@ -15,6 +15,8 @@ import {
   loadVerifiedWebsitePricingPreview,
   WebsitePricingPreviewError,
 } from "@/lib/website/pricingPreview";
+import { checkRateLimit, clientIpFromHeaders } from "@/lib/security/rateLimit";
+import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,15 +59,20 @@ function priceArea(value: unknown): OpsWebsitePriceArea | null {
     : null;
 }
 
-function publicPreview(preview: OpsWebsitePricingPreview) {
-  const safe = { ...preview };
-  delete safe.raw;
-  delete safe.quote_token;
-  delete safe.quote_expires_at;
-  return safe;
-}
-
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(
+    `website-pricing-preview:${clientIpFromHeaders(new Headers(req.headers))}`,
+    { limit: 30, windowMs: 5 * 60_000 },
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "För många prisförfrågningar. Vänta en stund och försök igen." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1_000))) },
+      },
+    );
+  }
   const status = getOpsClientStatus();
   if (!status.configured) {
     return NextResponse.json(
@@ -114,7 +121,7 @@ export async function POST(req: Request) {
     const contract = contracts.find(
       (item) => item.offer_reference === offerReference,
     );
-    if (!contract)
+    if (!contract || !buildPublicContractDisplay(contract).ready)
       return NextResponse.json(
         { error: "Valt elavtal kunde inte verifieras." },
         { status: 404 },
@@ -136,14 +143,16 @@ export async function POST(req: Request) {
       contract,
       location: { postalCode, city, address },
     });
-    const data = websiteQuote
-      ? {
-          ...publicPreview(preview),
-          quote_token: websiteQuote.token,
-          quote_expires_at: websiteQuote.quote.expires_at,
-          quote_source: "ops" as const,
-        }
-      : publicPreview(preview);
+    if (!websiteQuote) {
+      throw new WebsitePricingPreviewError("Prisberäkningen kunde inte låsas för teckning.");
+    }
+    const data = {
+      ...quoteToWebsitePricingPreview(websiteQuote.quote, websiteQuote.token),
+      customerNotice: preview.customerNotice,
+      legalText: preview.legalText,
+      quote_source: "ops" as const,
+      token_issuer: "website" as const,
+    };
 
     return NextResponse.json(
       { data },

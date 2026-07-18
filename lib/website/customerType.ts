@@ -7,16 +7,23 @@ function normalize(value: string): WebsiteCustomerType | null {
   return null
 }
 
+function explicitlyBoth(value: string): boolean {
+  return value.trim().toLowerCase() === 'both'
+}
+
 export function contractSupportsCustomerType(customerTypes: string[] | null | undefined, customerType: WebsiteCustomerType): boolean {
   if (!customerTypes?.length) return true
+  if (customerTypes.some(explicitlyBoth)) return true
   const supported = customerTypes.map(normalize).filter((value): value is WebsiteCustomerType => value !== null)
-  return supported.length === 0 || supported.includes(customerType)
+  return supported.length > 0 && supported.includes(customerType)
 }
 
 export function customerTypeLabel(customerTypes: string[] | null | undefined): string | null {
   if (!customerTypes?.length) return null
+  if (customerTypes.some(explicitlyBoth)) return 'För privatkunder och företag'
   const supported = new Set(customerTypes.map(normalize).filter((value): value is WebsiteCustomerType => value !== null))
   if (supported.size === 1 && supported.has('private')) return 'För privatkunder'
   if (supported.size === 1 && supported.has('company')) return 'För företag'
+  if (supported.size === 2) return 'För privatkunder och företag'
   return null
 }

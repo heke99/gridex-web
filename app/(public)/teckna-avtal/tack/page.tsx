@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import TackPage from '../../teckna/tack/page'
+import SignupThanksPage from './SignupThanksPage'
 
 export const metadata: Metadata = {
   title: 'Teckning mottagen – Gridex',
@@ -7,4 +7,4 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default TackPage
+export default SignupThanksPage

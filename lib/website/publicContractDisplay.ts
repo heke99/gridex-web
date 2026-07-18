@@ -5,7 +5,7 @@ export type PublicContractDisplayRow = {
   label: string
   value: number | string
   formatted: string
-  unit?: 'sek_month' | 'sek_invoice' | 'ore_kwh' | 'months' | 'days' | 'percent'
+  unit?: 'sek_month' | 'sek_invoice' | 'ore_kwh' | 'months' | 'days' | 'percent' | 'sek'
 }
 
 export type PublicContractDisplay = {
@@ -113,13 +113,68 @@ function addNumberRow(
           ? formatOreKwh(value)
           : unit === 'months'
             ? formatMonths(value)
-            : unit === 'days'
-              ? formatDays(value)
-              : unit === 'percent'
+          : unit === 'days'
+            ? formatDays(value)
+            : unit === 'sek'
+              ? `${value.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kr`
+            : unit === 'percent'
                 ? formatPercent(value)
                 : String(value)
 
   rows.push({ key, label, value, formatted, unit })
+}
+
+function legalUrlReady(value: string | null | undefined): boolean {
+  if (!value) return false
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function componentUnit(unit: string): PublicContractDisplayRow['unit'] | null {
+  switch (unit.toLowerCase()) {
+    case 'ore_per_kwh':
+    case 'öre_per_kwh':
+      return 'ore_kwh'
+    case 'sek_per_month':
+    case 'sek_month':
+      return 'sek_month'
+    case 'sek_per_invoice':
+    case 'sek_invoice':
+      return 'sek_invoice'
+    case 'percent':
+    case 'percentage':
+      return 'percent'
+    case 'sek':
+      return 'sek'
+    default:
+      return null
+  }
+}
+
+function addPublishedComponents(rows: PublicContractDisplayRow[], contract: OpsPublicContract): boolean {
+  const components = (contract.pricing_components ?? []).filter((item) => item.website_card_visible)
+  for (const component of components) {
+    const unit = componentUnit(component.unit)
+    if (!unit) {
+      rows.push({
+        key: component.component_code,
+        label: component.name,
+        value: component.amount,
+        formatted: `${component.amount.toLocaleString('sv-SE', { maximumFractionDigits: 4 })} ${component.unit}`,
+      })
+      continue
+    }
+    const before = rows.length
+    addNumberRow(rows, component.component_code, component.name, component.amount, unit)
+    if (rows.length > before && component.calculation_base) {
+      const current = rows[rows.length - 1]
+      current.formatted = `${current.formatted} · bas: ${component.calculation_base}`
+    }
+  }
+  return components.length > 0
 }
 
 function addTextRow(
@@ -222,17 +277,24 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
   if (!contract.terms_version) blockedReasons.push('allmänna villkor saknas')
   if (!contract.terms_version_id) blockedReasons.push('allmänna villkors juridiska ID saknas')
+  if (!legalUrlReady(contract.terms_url)) blockedReasons.push('allmänna villkors OPS-länk saknas')
   if (!contract.privacy_policy_version) blockedReasons.push('integritetspolicy saknas')
   if (!contract.privacy_policy_version_id) blockedReasons.push('integritetspolicyns juridiska ID saknas')
+  if (!legalUrlReady(contract.privacy_policy_url)) blockedReasons.push('integritetspolicyns OPS-länk saknas')
   if (!contract.cancellation_right_version && !contract.withdrawal_version) blockedReasons.push('ångerrätt saknas')
   if (!contract.withdrawal_version_id) blockedReasons.push('ångerrättens juridiska ID saknas')
+  if (!legalUrlReady(contract.withdrawal_url)) blockedReasons.push('ångerrättens OPS-länk saknas')
   if (!contract.price_terms_version) blockedReasons.push('prisvillkor saknas')
   if (!contract.price_terms_version_id) blockedReasons.push('prisvillkorens juridiska ID saknas')
+  if (!legalUrlReady(contract.price_terms_url)) blockedReasons.push('prisvillkorens OPS-länk saknas')
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
     blockedReasons.push('fullmaktsversion saknas')
   }
   if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version_id) {
     blockedReasons.push('fullmaktens juridiska ID saknas')
+  }
+  if (contract.power_of_attorney_required === true && !legalUrlReady(contract.power_of_attorney_url)) {
+    blockedReasons.push('fullmaktens OPS-länk saknas')
   }
   validatePublicPricingForType(blockedReasons, contract)
 
@@ -246,7 +308,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     if (Number.isFinite(to) && to < now) blockedReasons.push('avtalet har passerat slutdatum')
   }
 
-  if (contract.type === 'monthly_fixed' || contract.type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null) {
+  const usesPublishedComponents = addPublishedComponents(rows, contract)
+
+  if (usesPublishedComponents) {
+    addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
+    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+  } else if (contract.type === 'monthly_fixed' || contract.type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null) {
     addNumberRow(rows, 'monthly_fixed_price_sek', 'Fast månadspris', contract.monthly_fixed_price_sek, 'sek_month')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
@@ -293,6 +360,29 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+  }
+
+  if (!usesPublishedComponents && Object.keys(contract.pricing_visibility ?? {}).length > 0) {
+    const aliases: Record<string, string[]> = {
+      monthly_fee_sek: ['monthly_fee', 'monthlyFee', 'monthly_fee_sek'],
+      invoice_fee_sek: ['invoice_fee', 'invoiceFee', 'invoice_fee_sek'],
+      markup_ore_per_kwh: ['markup', 'supplier_markup', 'markup_ore_per_kwh'],
+      variable_markup_ore_per_kwh: ['variable_markup', 'variable_fee', 'variable_markup_ore_per_kwh'],
+      elcert_ore_per_kwh: ['elcert', 'electricity_certificate', 'elcert_ore_per_kwh'],
+      fixed_price_ore_per_kwh: ['fixed_price', 'fixed_price_ore_per_kwh'],
+      portfolio_price_ore_per_kwh: ['portfolio_price', 'portfolio_price_ore_per_kwh'],
+      monthly_fixed_price_sek: ['monthly_fixed_price', 'monthly_fixed_price_sek'],
+      spot_share: ['spot_share'],
+      portfolio_share: ['portfolio_share'],
+    }
+    const visibility = contract.pricing_visibility ?? {}
+    const visibleRows = rows.filter((row) => {
+      const keys = aliases[row.key]
+      if (!keys) return true
+      const published = keys.find((key) => Object.prototype.hasOwnProperty.call(visibility, key))
+      return published ? visibility[published] !== false : true
+    })
+    rows.splice(0, rows.length, ...visibleRows)
   }
 
   const included = stringList(contract.included, ['Elhandelsavtal', 'Avtalsadministration', 'Kundkommunikation'])

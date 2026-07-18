@@ -1,29 +1,38 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
 import Link from "next/link";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   buildPublicContractDisplay,
-  formatOreKwh,
-  formatSekInvoice,
-  formatSekMonth,
-  hasNumberValue,
   publicContractTypeLabel,
   type PublicContractDisplay,
 } from "@/lib/website/publicContractDisplay";
-import {
-  contractSupportsCustomerType,
-  customerTypeLabel,
-  type WebsiteCustomerType,
-} from "@/lib/website/customerType";
+import type {
+  PublicPortfolioMonthlyPrice,
+  PublicPricingComponent,
+} from "@/lib/website/publicContractContract";
+import type { WebsiteCustomerType } from "@/lib/website/customerType";
 import type {
   WebsiteEnergyResolution,
   WebsitePricingPreview,
   WebsitePricingQuoteContext,
 } from "@/lib/website/publicApi";
+import {
+  isValidRequestedStartDate,
+  isValidSwedishOrganizationNumber,
+  isValidSwedishPersonalNumber,
+  normalizePhoneToE164,
+  stockholmToday,
+} from "@/lib/website/signupValidation";
 
-export type SignupSubmissionState = { errorMessage?: string | null };
+export type SignupSubmissionState = {
+  errorMessage?: string | null;
+  fieldErrors?: Record<string, string>;
+  step?: 0 | 1;
+  rotateSubmissionAttempt?: boolean;
+  requiresQuoteRefresh?: boolean;
+};
 
 export type SignupContractOption = {
   name: string;
@@ -43,6 +52,9 @@ export type SignupContractOption = {
   pricingModel?: string | null;
   spotShare?: number | null;
   portfolioShare?: number | null;
+  pricingVisibility?: Record<string, boolean>;
+  pricingComponents?: PublicPricingComponent[];
+  portfolioMonthlyPrices?: PublicPortfolioMonthlyPrice[];
   validFrom?: string | null;
   validTo?: string | null;
   bindingPeriodMonths?: number | null;
@@ -69,46 +81,35 @@ export type SignupContractOption = {
   priceTermsUrl?: string | null;
 };
 
-type UTMParams = {
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-};
-type CustomerType = WebsiteCustomerType;
-
 type Props = {
   contracts: SignupContractOption[];
   selectedValue: string;
-  onSelectedValueChange: (value: string) => void;
+  customerType: WebsiteCustomerType;
   canSubmit: boolean;
-  utm: UTMParams;
-  action: (
-    state: SignupSubmissionState,
-    formData: FormData,
-  ) => Promise<SignupSubmissionState>;
+  authenticatedEmail?: string | null;
+  utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string };
+  action: (state: SignupSubmissionState, formData: FormData) => Promise<SignupSubmissionState>;
   energyResolution?: WebsiteEnergyResolution | null;
   pricingPreview?: WebsitePricingPreview | null;
   estimatedMonthlyKwh?: number | null;
   contractDisplay?: PublicContractDisplay | null;
-  quoteContext?: WebsitePricingQuoteContext | null;
+  quoteContext: WebsitePricingQuoteContext;
+  quoteValid?: boolean;
+  onEditQuote: () => void;
 };
 
 type FormValues = {
-  customer_type: CustomerType;
+  customer_type: WebsiteCustomerType;
   selected_offer: string;
   first_name: string;
   last_name: string;
   personal_number: string;
   company_name: string;
   organization_number: string;
+  company_signer_role: string;
   email: string;
   phone: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  apartment: string;
   facility_id: string;
-  metering_point_id: string;
   current_supplier_name: string;
   current_supplier_id: string;
   current_supplier_org_number: string;
@@ -125,33 +126,10 @@ type Consents = {
   accept_power_of_attorney: boolean;
 };
 
-const STEPS = ["Välj avtal och pris", "Dina uppgifter", "Granska och teckna"];
+const STEPS = ["Dina uppgifter", "Granska och teckna"];
 
-function formatMaybeSekMonth(value: number | null | undefined) {
-  return hasNumberValue(value) ? formatSekMonth(value) : "Se prisdetaljer";
-}
-function formatMaybeSekInvoice(value: number | null | undefined) {
-  return hasNumberValue(value) ? formatSekInvoice(value) : "Se prisdetaljer";
-}
-function formatMaybeOre(value: number | null | undefined) {
-  return hasNumberValue(value) ? formatOreKwh(value) : "Se prisdetaljer";
-}
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-function normalizePostalCode(value: string) {
-  return value.replace(/\s/g, "");
-}
-function previewMatchesContract(
-  preview: WebsitePricingPreview | null | undefined,
-  contract: SignupContractOption | null,
-): boolean {
-  if (!preview || !contract || !preview.kwh) return false;
-  const previewOffer =
-    preview.contract.offer_reference ?? preview.contract.slug;
-  return (
-    previewOffer === contract.offerReference || previewOffer === contract.value
-  );
 }
 
 function optionAsOpsContract(contract: SignupContractOption) {
@@ -172,6 +150,9 @@ function optionAsOpsContract(contract: SignupContractOption) {
     pricing_model: contract.pricingModel ?? null,
     spot_share: contract.spotShare ?? null,
     portfolio_share: contract.portfolioShare ?? null,
+    pricing_visibility: contract.pricingVisibility ?? {},
+    pricing_components: contract.pricingComponents ?? [],
+    portfolio_monthly_prices: contract.portfolioMonthlyPrices ?? [],
     valid_from: contract.validFrom ?? null,
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,
@@ -211,6 +192,7 @@ function Field({
   error,
   autoComplete,
   inputMode,
+  min,
 }: {
   id: string;
   label: string;
@@ -223,12 +205,11 @@ function Field({
   error?: string;
   autoComplete?: string;
   inputMode?: "text" | "numeric" | "tel" | "email";
+  min?: string;
 }) {
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
-  const describedBy =
-    [help ? helpId : null, error ? errorId : null].filter(Boolean).join(" ") ||
-    undefined;
+  const describedBy = [help ? helpId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
   return (
     <div>
       <label htmlFor={id} className="text-sm font-medium text-white/80">
@@ -243,55 +224,39 @@ function Field({
         required={required}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        min={min}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
+        className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
       />
-      {help ? (
-        <p id={helpId} className="mt-2 text-xs leading-5 text-white/45">
-          {help}
-        </p>
-      ) : null}
-      {error ? (
-        <p
-          id={errorId}
-          className="mt-2 text-xs leading-5 text-red-200"
-          aria-live="polite"
-        >
-          {error}
-        </p>
-      ) : null}
+      {help ? <p id={helpId} className="mt-2 text-xs leading-5 text-white/45">{help}</p> : null}
+      {error ? <p id={errorId} className="mt-2 text-xs leading-5 text-red-200">{error}</p> : null}
     </div>
   );
 }
 
-function Checkbox({
+function ConsentCheckbox({
   id,
   name,
   checked,
   onChange,
   children,
-  required = true,
 }: {
   id: string;
   name: keyof Consents;
   checked: boolean;
   onChange: (name: keyof Consents, value: boolean) => void;
   children: React.ReactNode;
-  required?: boolean;
 }) {
   return (
-    <label
-      htmlFor={id}
-      className="flex items-start gap-3 text-sm leading-6 text-gray-300"
-    >
+    <label htmlFor={id} className="flex items-start gap-3 text-sm leading-6 text-gray-300">
       <input
         id={id}
         type="checkbox"
         name={name}
         checked={checked}
         onChange={(event) => onChange(name, event.target.checked)}
-        required={required}
+        required
         className="mt-1 h-4 w-4 rounded border-white/20 bg-black/40 focus:ring-2 focus:ring-cyan-500/40"
       />
       <span>{children}</span>
@@ -314,8 +279,9 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 export default function CustomerApplicationForm({
   contracts,
   selectedValue,
-  onSelectedValueChange,
+  customerType,
   canSubmit,
+  authenticatedEmail,
   utm,
   action,
   energyResolution,
@@ -323,25 +289,25 @@ export default function CustomerApplicationForm({
   estimatedMonthlyKwh,
   contractDisplay,
   quoteContext,
+  quoteValid = true,
+  onEditQuote,
 }: Props) {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState<0 | 1>(0);
   const [submissionAttemptId, setSubmissionAttemptId] = useState(() => crypto.randomUUID());
+  const [companySignerAuthorized, setCompanySignerAuthorized] = useState(false);
+  const [differentEmailConfirmed, setDifferentEmailConfirmed] = useState(false);
   const [form, setForm] = useState<FormValues>({
-    customer_type: "private",
+    customer_type: customerType,
     selected_offer: selectedValue,
     first_name: "",
     last_name: "",
     personal_number: "",
     company_name: "",
     organization_number: "",
-    email: "",
+    company_signer_role: "",
+    email: authenticatedEmail ?? "",
     phone: "",
-    address: "",
-    postal_code: "",
-    city: "",
-    apartment: "",
     facility_id: "",
-    metering_point_id: "",
     current_supplier_name: "",
     current_supplier_id: "",
     current_supplier_org_number: "",
@@ -357,45 +323,44 @@ export default function CustomerApplicationForm({
     accept_power_of_attorney: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submissionState, formAction] = useActionState(action, {
-    errorMessage: null,
-  });
+  const [submissionState, formAction] = useActionState(action, { errorMessage: null });
 
-  const availableContracts = useMemo(
-    () =>
-      contracts.filter((contract) =>
-        contractSupportsCustomerType(
-          contract.customerTypes,
-          form.customer_type,
-        ),
-      ),
-    [contracts, form.customer_type],
-  );
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (submissionState.fieldErrors) setErrors(submissionState.fieldErrors);
+      if (submissionState.step === 0 || submissionState.step === 1) setStep(submissionState.step);
+      if (submissionState.rotateSubmissionAttempt) setSubmissionAttemptId(crypto.randomUUID());
+      if (submissionState.requiresQuoteRefresh) onEditQuote();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [onEditQuote, submissionState]);
+
   const selectedContract = useMemo(
-    () =>
-      availableContracts.find((contract) => contract.value === selectedValue) ??
-      null,
-    [availableContracts, selectedValue],
+    () => contracts.find((contract) => contract.value === selectedValue) ?? null,
+    [contracts, selectedValue],
   );
   const fallbackDisplay = useMemo(
-    () =>
-      selectedContract
-        ? buildPublicContractDisplay(optionAsOpsContract(selectedContract))
-        : null,
+    () => selectedContract ? buildPublicContractDisplay(optionAsOpsContract(selectedContract)) : null,
     [selectedContract],
   );
   const activeDisplay = contractDisplay ?? fallbackDisplay;
-  const powerOfAttorneyRequired =
-    activeDisplay?.legalVersions.powerOfAttorneyRequired === true;
-  const legalLinks = activeDisplay?.legalVersions;
-  const termsHref = legalLinks?.termsUrl ?? "/allmanna-villkor";
-  const priceTermsHref = legalLinks?.priceTermsUrl ?? "/prisvillkor";
-  const withdrawalHref = legalLinks?.withdrawalUrl ?? "/angerratt";
-  const privacyHref = legalLinks?.privacyPolicyUrl ?? "/integritetspolicy";
-  const powerOfAttorneyHref = legalLinks?.powerOfAttorneyUrl ?? "/fullmakt";
-  const hasPricingPreview = previewMatchesContract(
-    pricingPreview,
-    selectedContract,
+  const legal = activeDisplay?.legalVersions;
+  const powerOfAttorneyRequired = legal?.powerOfAttorneyRequired === true;
+  const legalReady = Boolean(
+    activeDisplay?.ready &&
+    legal?.termsUrl &&
+    legal.priceTermsUrl &&
+    legal.withdrawalUrl &&
+    legal.privacyPolicyUrl &&
+    (!powerOfAttorneyRequired || legal.powerOfAttorneyUrl),
+  );
+  const authenticatedEmailMismatch = Boolean(
+    authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
+  );
+  const hasPricingPreview = Boolean(
+    quoteValid &&
+    pricingPreview?.quote_token &&
+    (pricingPreview.contract.offer_reference ?? pricingPreview.contract.slug) === selectedContract?.offerReference,
   );
 
   function rotateSubmissionAttempt() {
@@ -404,33 +369,14 @@ export default function CustomerApplicationForm({
 
   function updateField(name: keyof FormValues, value: string) {
     rotateSubmissionAttempt();
-    setForm((current) => {
-      const next = { ...current, [name]: value };
-      if (name === "customer_type") {
-        const nextType = value as CustomerType;
-        const nextContract = contracts.find((contract) =>
-          contractSupportsCustomerType(contract.customerTypes, nextType),
-        );
-        if (
-          !contracts.some(
-            (contract) =>
-              contract.value === selectedValue &&
-              contractSupportsCustomerType(contract.customerTypes, nextType),
-          )
-        ) {
-          next.selected_offer = nextContract?.value ?? "";
-          onSelectedValueChange(next.selected_offer);
-        }
-      }
-      if (name === "selected_offer") onSelectedValueChange(value);
-      return next;
-    });
+    setForm((current) => ({ ...current, [name]: value }));
     setErrors((current) => {
       if (!current[name]) return current;
       const next = { ...current };
       delete next[name];
       return next;
     });
+    if (name === 'email') setDifferentEmailConfirmed(false);
   }
 
   function updateConsent(name: keyof Consents, value: boolean) {
@@ -438,117 +384,49 @@ export default function CustomerApplicationForm({
     setConsents((current) => ({ ...current, [name]: value }));
   }
 
-  async function validateCurrentStep(): Promise<boolean> {
-    const nextErrors: Record<string, string> = {};
-    if (step === 0) {
-      if (!selectedContract)
-        nextErrors.selected_offer =
-          "Välj ett elavtal som är tillgängligt för vald kundtyp.";
-      if (!hasPricingPreview)
-        nextErrors.pricing =
-          "Räkna priset ovan innan du går vidare. Prisberäkningen ska gälla valt avtal, adress, elområde och förbrukning.";
+  function validateDetails(): boolean {
+    const next: Record<string, string> = {};
+    if (!selectedContract || !hasPricingPreview) next.pricing = "Räkna om priset innan du fortsätter.";
+    if (!legalReady) next.legal = "Avtalets juridiska underlag är inte komplett. Välj ett annat avtal eller kontakta kundservice.";
+    if (!form.first_name.trim()) next.first_name = customerType === 'company' ? "Ange firmatecknarens förnamn." : "Ange ditt förnamn.";
+    if (!form.last_name.trim()) next.last_name = customerType === 'company' ? "Ange firmatecknarens efternamn." : "Ange ditt efternamn.";
+    if (!isValidSwedishPersonalNumber(form.personal_number)) next.personal_number = "Ange ett giltigt svenskt personnummer med kontrollsiffra.";
+    if (customerType === 'company') {
+      if (!form.company_name.trim()) next.company_name = "Ange företagsnamn.";
+      if (!isValidSwedishOrganizationNumber(form.organization_number)) next.organization_number = "Ange ett giltigt svenskt organisationsnummer.";
+      if (!form.company_signer_role.trim()) next.company_signer_role = "Ange firmatecknarens roll eller befattning.";
+      if (!companySignerAuthorized) next.company_signer_authorized = "Bekräfta att personen har rätt att företräda företaget.";
     }
-    if (step === 1) {
-      if (form.customer_type === "private") {
-        if (!form.first_name.trim())
-          nextErrors.first_name = "Ange ditt förnamn.";
-        if (!form.last_name.trim())
-          nextErrors.last_name = "Ange ditt efternamn.";
-        if (!form.personal_number.trim())
-          nextErrors.personal_number =
-            "Ange personnummer i format ååååmmddnnnn.";
-      } else {
-        if (!form.company_name.trim())
-          nextErrors.company_name = "Ange företagsnamn.";
-        if (!form.organization_number.trim())
-          nextErrors.organization_number = "Ange organisationsnummer.";
-      }
-      if (!form.email.trim() || !isValidEmail(form.email))
-        nextErrors.email = "Ange en giltig e-postadress.";
-      if (!form.phone.trim()) nextErrors.phone = "Ange telefonnummer.";
-      if (!form.address.trim()) nextErrors.address = "Ange adress.";
-      if (!/^\d{5}$/.test(normalizePostalCode(form.postal_code)))
-        nextErrors.postal_code = "Ange postnummer med fem siffror.";
-      if (!form.city.trim()) nextErrors.city = "Ange ort.";
-      if (
-        form.requested_start_mode === "specific_date" &&
-        !form.requested_start_date
-      )
-        nextErrors.requested_start_date =
-          "Välj önskat startdatum eller ändra till snarast möjligt.";
-      if (!hasPricingPreview || !selectedContract || !pricingPreview?.kwh)
-        nextErrors.pricing =
-          "Räkna priset innan du går vidare. Om du ändrar adress eller förbrukning behöver priset räknas om.";
-    }
-    if (step === 2) {
-      if (!hasPricingPreview || !pricingPreview?.quote_token)
-        nextErrors.pricing = "Räkna priset innan du tecknar. Prisquoten måste vara verifierad.";
-      if (!activeDisplay?.snapshot)
-        nextErrors.contract_display_snapshot =
-          "Valt avtal kunde inte verifieras. Välj avtalet igen.";
-      if (!consents.accept_terms)
-        nextErrors.accept_terms = "Du behöver godkänna villkoren.";
-      if (!consents.accept_price_terms)
-        nextErrors.accept_price_terms = "Du behöver godkänna prisvillkoren.";
-      if (!consents.accept_cancellation_right)
-        nextErrors.accept_cancellation_right =
-          "Du behöver bekräfta information om ångerrätt.";
-      if (!consents.accept_privacy)
-        nextErrors.accept_privacy = "Du behöver ta del av integritetspolicyn.";
-      if (powerOfAttorneyRequired && !consents.accept_power_of_attorney)
-        nextErrors.accept_power_of_attorney =
-          "Du behöver godkänna fullmakten för att Gridex ska kunna hämta anläggningsuppgifter.";
-    }
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    if (!isValidEmail(form.email)) next.email = "Ange en giltig e-postadress.";
+    if (!normalizePhoneToE164(form.phone)) next.phone = "Ange ett giltigt telefonnummer.";
+    if (authenticatedEmailMismatch && !differentEmailConfirmed) next.different_email_confirmed = "Bekräfta att teckningen ska göras med en annan e-post än kontot du är inloggad på.";
+    if (!isValidRequestedStartDate(form.requested_start_mode, form.requested_start_date)) next.requested_start_date = "Välj dagens datum eller ett framtida datum.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
   }
 
-  async function nextStep() {
-    if (!(await validateCurrentStep())) return;
-    // Advancing after a review step creates a new signing attempt. Retrying
-    // directly from the final step keeps the same attempt and idempotency key.
+  function nextStep() {
+    if (!validateDetails()) return;
     rotateSubmissionAttempt();
-    if (step === 0 && quoteContext) {
-      setForm((current) =>
-        current.postal_code || current.city || current.address
-          ? current
-          : {
-              ...current,
-              postal_code: quoteContext.postal_code,
-              city: quoteContext.city,
-              address: quoteContext.address,
-            },
-      );
-    }
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    setStep(1);
+    window.requestAnimationFrame(() => document.getElementById('signup-review')?.focus());
   }
-  function previousStep() {
-    setErrors({});
-    setStep((current) => Math.max(current - 1, 0));
-  }
+
   const allConsentsAccepted =
     consents.accept_terms &&
     consents.accept_price_terms &&
     consents.accept_cancellation_right &&
     consents.accept_privacy &&
     (!powerOfAttorneyRequired || consents.accept_power_of_attorney);
-  const pricingPreviewSnapshot = pricingPreview
-    ? JSON.stringify(pricingPreview)
-    : "";
-  const contractDisplaySnapshot = activeDisplay
-    ? JSON.stringify(activeDisplay.snapshot)
-    : "";
-  const submitDisabled =
-    !canSubmit ||
-    !allConsentsAccepted ||
-    !contractDisplaySnapshot ||
-    !hasPricingPreview ||
-    !pricingPreview?.quote_token;
-  const errorList = Object.values(errors);
+  const submitDisabled = !canSubmit || !allConsentsAccepted || !legalReady || !hasPricingPreview;
+  const errorList = [...new Set(Object.values(errors))];
+  const displayName = customerType === 'company'
+    ? `${form.company_name} – ${form.first_name} ${form.last_name}`.trim()
+    : `${form.first_name} ${form.last_name}`.trim();
 
   return (
     <div className="space-y-8" aria-live="polite">
-      <ol className="grid gap-3 md:grid-cols-3" aria-label="Teckningssteg">
+      <ol className="grid gap-3 md:grid-cols-2" aria-label="Teckningssteg">
         {STEPS.map((label, index) => (
           <li
             key={label}
@@ -559,641 +437,210 @@ export default function CustomerApplicationForm({
           </li>
         ))}
       </ol>
+
       {errorList.length ? (
-        <div
-          className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100"
-          role="alert"
-        >
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
           <div className="font-semibold">Kontrollera uppgifterna</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {errorList.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
+          <ul className="mt-2 list-disc space-y-1 pl-5">{errorList.map((error) => <li key={error}>{error}</li>)}</ul>
+        </div>
+      ) : null}
+
+      {submissionState.errorMessage ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
+          {submissionState.errorMessage}
+        </div>
+      ) : null}
+
+      {!quoteValid ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="status">
+          Prisberäkningen behöver hämtas på nytt ovan. Dina ifyllda kunduppgifter ligger kvar i den här fliken.
         </div>
       ) : null}
 
       {step === 0 ? (
-        <section className="space-y-5">
+        <section className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-white md:text-3xl">
-              Välj elavtal och pris
-            </h2>
+            <h2 className="text-2xl font-bold text-white md:text-3xl">Dina uppgifter</h2>
             <p className="mt-2 text-sm leading-6 text-gray-400">
-              Välj kundtyp och ett avtal. Räkna sedan priset ovan innan du
-              fortsätter.
+              Pris, adress och avtal är redan verifierade. Fyll bara i uppgifterna som behövs för avtalet.
             </p>
           </div>
-          <div className="max-w-md">
-            <label
-              htmlFor="contract-customer-type"
-              className="text-sm font-medium text-white/80"
-            >
-              Vem ska teckna avtalet?
-            </label>
-            <select
-              id="contract-customer-type"
-              value={form.customer_type}
-              onChange={(event) =>
-                updateField("customer_type", event.target.value)
-              }
-              className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
-            >
-              <option value="private">Privatkund</option>
-              <option value="company">Företag</option>
-            </select>
+
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 text-sm text-cyan-50">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="font-semibold">{selectedContract?.name ?? 'Valt elavtal'}</div>
+                <div className="mt-1 text-cyan-100/75">
+                  {quoteContext.address}, {quoteContext.postal_code} {quoteContext.city} · {quoteContext.price_area_code} · {quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE')} kWh/mån
+                </div>
+              </div>
+              <button type="button" onClick={onEditQuote} className="text-left font-semibold text-cyan-200 underline underline-offset-4 sm:text-right">
+                Ändra pris eller adress
+              </button>
+            </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {availableContracts.map((contract) => {
-              const active = contract.value === selectedValue;
-              return (
-                <label
-                  key={contract.value}
-                  className={`cursor-pointer rounded-3xl border p-5 transition focus-within:ring-2 focus-within:ring-cyan-500/40 ${active ? "border-cyan-500/60 bg-cyan-500/10" : "border-white/10 bg-white/5 hover:border-cyan-500/30"}`}
-                >
-                  <input
-                    type="radio"
-                    name="selected_offer_radio"
-                    value={contract.value}
-                    checked={active}
-                    onChange={(event) =>
-                      updateField("selected_offer", event.target.value)
-                    }
-                    className="sr-only"
-                  />
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-semibold text-white">
-                        {contract.name}
-                      </div>
-                      <div className="mt-1 text-sm text-gray-400">
-                        {publicContractTypeLabel(contract.type)}
-                        {customerTypeLabel(contract.customerTypes)
-                          ? ` • ${customerTypeLabel(contract.customerTypes)}`
-                          : ""}
-                      </div>
-                    </div>
-                    {active ? (
-                      <span className="rounded-full bg-cyan-500 px-3 py-1 text-xs font-semibold text-black">
-                        Valt
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-4 grid gap-2 text-sm text-gray-300">
-                    <div className="flex justify-between gap-4">
-                      <span className="text-gray-500">Månadsavgift</span>
-                      <span>{formatMaybeSekMonth(contract.monthlyFeeSek)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-gray-500">Påslag</span>
-                      <span>{formatMaybeOre(contract.markupOrePerKwh)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-gray-500">Fakturaavgift</span>
-                      <span>
-                        {formatMaybeSekInvoice(contract.invoiceFeeSek)}
-                      </span>
-                    </div>
-                    {hasNumberValue(contract.fixedPriceOrePerKwh) ? (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-gray-500">Fast elpris</span>
-                        <span>
-                          {formatOreKwh(contract.fixedPriceOrePerKwh)}
-                        </span>
-                      </div>
-                    ) : null}
-                    {contract.type === "mix" || contract.type === "mixed" ? (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-gray-500">Fördelning</span>
-                        <span>
-                          {hasNumberValue(contract.spotShare) &&
-                          hasNumberValue(contract.portfolioShare)
-                            ? `${contract.spotShare} % rörligt / ${contract.portfolioShare} % portfölj`
-                            : "Se prisdetaljer"}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </label>
-              );
-            })}
+
+          {customerType === 'company' ? (
+            <div className="space-y-5 rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div>
+                <h3 className="font-semibold text-white">Företag och behörig firmatecknare</h3>
+                <p className="mt-1 text-xs leading-5 text-gray-400">Fullmakten och signeringen kopplas till personen som faktiskt företräder företaget.</p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                <Field id="company_name" label="Företagsnamn" name="company_name" value={form.company_name} onChange={updateField} required error={errors.company_name} autoComplete="organization" />
+                <Field id="organization_number" label="Organisationsnummer" name="organization_number" value={form.organization_number} onChange={updateField} required error={errors.organization_number} inputMode="numeric" help="10 siffror. Kontrollsiffran valideras." />
+                <Field id="first_name" label="Firmatecknarens förnamn" name="first_name" value={form.first_name} onChange={updateField} required error={errors.first_name} autoComplete="given-name" />
+                <Field id="last_name" label="Firmatecknarens efternamn" name="last_name" value={form.last_name} onChange={updateField} required error={errors.last_name} autoComplete="family-name" />
+                <Field id="personal_number" label="Firmatecknarens personnummer" name="personal_number" value={form.personal_number} onChange={updateField} required error={errors.personal_number} inputMode="numeric" help="ÅÅÅÅMMDDNNNN. Samordningsnummer stöds." />
+                <Field id="company_signer_role" label="Roll eller befattning" name="company_signer_role" value={form.company_signer_role} onChange={updateField} required error={errors.company_signer_role} help="Till exempel VD, styrelseledamot eller firmatecknare." />
+              </div>
+              <label className="flex items-start gap-3 text-sm leading-6 text-gray-300">
+                <input type="checkbox" checked={companySignerAuthorized} onChange={(event) => { rotateSubmissionAttempt(); setCompanySignerAuthorized(event.target.checked); }} className="mt-1 h-4 w-4" />
+                <span>Jag bekräftar att personen ovan har rätt att företräda företaget och ingå elavtalet.</span>
+              </label>
+              {errors.company_signer_authorized ? <p className="text-xs text-red-200">{errors.company_signer_authorized}</p> : null}
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field id="first_name" label="Förnamn" name="first_name" value={form.first_name} onChange={updateField} required error={errors.first_name} autoComplete="given-name" />
+              <Field id="last_name" label="Efternamn" name="last_name" value={form.last_name} onChange={updateField} required error={errors.last_name} autoComplete="family-name" />
+              <Field id="personal_number" label="Personnummer" name="personal_number" value={form.personal_number} onChange={updateField} required error={errors.personal_number} inputMode="numeric" help="ÅÅÅÅMMDDNNNN. Samordningsnummer stöds." />
+            </div>
+          )}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field id="email" label="E-post" name="email" value={form.email} onChange={updateField} type="email" required error={errors.email} autoComplete="email" inputMode="email" />
+            <Field id="phone" label="Telefon" name="phone" value={form.phone} onChange={updateField} required error={errors.phone} autoComplete="tel" inputMode="tel" help="Svenska nummer normaliseras automatiskt till +46." />
           </div>
-          {availableContracts.length === 0 ? (
+
+          {authenticatedEmailMismatch ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-              Det finns inget aktuellt avtal för vald kundtyp just nu.
+              <div className="font-semibold">Du är inloggad med {authenticatedEmail}</div>
+              <p className="mt-1">Teckningen använder {form.email}. Den kopplas därför inte automatiskt till det inloggade kontot.</p>
+              <label className="mt-3 flex items-start gap-3">
+                <input type="checkbox" checked={differentEmailConfirmed} onChange={(event) => { rotateSubmissionAttempt(); setDifferentEmailConfirmed(event.target.checked); }} className="mt-1 h-4 w-4" />
+                <span>Jag vill fortsätta med den andra e-postadressen.</span>
+              </label>
+              {errors.different_email_confirmed ? <p className="mt-2 text-xs text-red-200">{errors.different_email_confirmed}</p> : null}
             </div>
           ) : null}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="requested_start_mode" className="text-sm font-medium text-white/80">Önskad start</label>
+              <select id="requested_start_mode" value={form.requested_start_mode} onChange={(event) => updateField('requested_start_mode', event.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white">
+                <option value="earliest_possible">Så snart som möjligt</option>
+                <option value="specific_date">Jag vill välja datum</option>
+              </select>
+              <p className="mt-2 text-xs leading-5 text-white/45">Starten bekräftas när anläggningsuppgifterna och marknadsreglerna är kontrollerade.</p>
+            </div>
+            {form.requested_start_mode === 'specific_date' ? (
+              <Field id="requested_start_date" label="Önskat startdatum" name="requested_start_date" value={form.requested_start_date} onChange={updateField} type="date" min={stockholmToday()} required error={errors.requested_start_date} />
+            ) : null}
+          </div>
+
+          <details className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <summary className="cursor-pointer font-semibold text-white">Jag har anläggnings- eller leverantörsuppgifter</summary>
+            <p className="mt-2 text-xs leading-5 text-gray-400">Valfritt. Du kan fortsätta utan uppgifterna; med fullmakt kan Gridex verifiera dem med nätägaren.</p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <Field id="facility_id" label="Anläggnings-ID" name="facility_id" value={form.facility_id} onChange={updateField} help="Finns ofta på nätfakturan. Mätpunkts-ID kompletteras efter verifiering." />
+              <Field id="current_supplier_name" label="Nuvarande elleverantör" name="current_supplier_name" value={form.current_supplier_name} onChange={updateField} />
+              <Field id="current_supplier_id" label="Leverantörs-ID" name="current_supplier_id" value={form.current_supplier_id} onChange={updateField} help="Lämna tomt om du inte känner till det." />
+              <Field id="current_supplier_org_number" label="Leverantörens organisationsnummer" name="current_supplier_org_number" value={form.current_supplier_org_number} onChange={updateField} />
+              <Field id="current_supplier_ediel_id" label="Ediel-ID" name="current_supplier_ediel_id" value={form.current_supplier_ediel_id} onChange={updateField} />
+            </div>
+          </details>
+
+          <div className="flex justify-end">
+            <button type="button" onClick={nextStep} disabled={!canSubmit} className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black disabled:opacity-60">Granska teckningen</button>
+          </div>
         </section>
       ) : null}
 
       {step === 1 ? (
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-white md:text-3xl">
-              Dina uppgifter
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-400">
-              Fyll i uppgifterna som ska användas för avtalet. Ändrar du adress
-              eller förbrukning behöver priset räknas om.
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {form.customer_type === "private" ? (
-              <>
-                <Field
-                  id="first_name"
-                  label="Förnamn"
-                  name="first_name"
-                  value={form.first_name}
-                  onChange={updateField}
-                  required
-                  error={errors.first_name}
-                  autoComplete="given-name"
-                />
-                <Field
-                  id="last_name"
-                  label="Efternamn"
-                  name="last_name"
-                  value={form.last_name}
-                  onChange={updateField}
-                  required
-                  error={errors.last_name}
-                  autoComplete="family-name"
-                />
-                <Field
-                  id="personal_number"
-                  label="Personnummer"
-                  name="personal_number"
-                  value={form.personal_number}
-                  onChange={updateField}
-                  required
-                  error={errors.personal_number}
-                  inputMode="numeric"
-                  help="Format: ååååmmddnnnn."
-                />
-              </>
-            ) : (
-              <>
-                <Field
-                  id="company_name"
-                  label="Företagsnamn"
-                  name="company_name"
-                  value={form.company_name}
-                  onChange={updateField}
-                  required
-                  error={errors.company_name}
-                  autoComplete="organization"
-                />
-                <Field
-                  id="organization_number"
-                  label="Organisationsnummer"
-                  name="organization_number"
-                  value={form.organization_number}
-                  onChange={updateField}
-                  required
-                  error={errors.organization_number}
-                  inputMode="numeric"
-                />
-              </>
-            )}
-            <Field
-              id="email"
-              label="E-post"
-              name="email"
-              value={form.email}
-              onChange={updateField}
-              type="email"
-              required
-              error={errors.email}
-              autoComplete="email"
-              inputMode="email"
-            />
-            <Field
-              id="phone"
-              label="Telefon"
-              name="phone"
-              value={form.phone}
-              onChange={updateField}
-              required
-              error={errors.phone}
-              autoComplete="tel"
-              inputMode="tel"
-            />
-            <Field
-              id="address"
-              label="Adress"
-              name="address"
-              value={form.address}
-              onChange={updateField}
-              required
-              error={errors.address}
-              autoComplete="street-address"
-            />
-            <Field
-              id="postal_code"
-              label="Postnummer"
-              name="postal_code"
-              value={form.postal_code}
-              onChange={updateField}
-              required
-              error={errors.postal_code}
-              autoComplete="postal-code"
-              inputMode="numeric"
-            />
-            <Field
-              id="city"
-              label="Ort"
-              name="city"
-              value={form.city}
-              onChange={updateField}
-              required
-              error={errors.city}
-              autoComplete="address-level2"
-            />
-            <Field
-              id="apartment"
-              label="Lägenhet eller portkod"
-              name="apartment"
-              value={form.apartment}
-              onChange={updateField}
-              help="Valfritt."
-            />
-            <Field
-              id="facility_id"
-              label="Anläggnings-ID"
-              name="facility_id"
-              value={form.facility_id}
-              onChange={updateField}
-              help="Valfritt. Kan kompletteras via fullmakt."
-            />
-            <Field
-              id="metering_point_id"
-              label="Mätpunkts-ID"
-              name="metering_point_id"
-              value={form.metering_point_id}
-              onChange={updateField}
-              help="Valfritt. Kan kompletteras via fullmakt."
-            />
-            <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-5">
-              <h3 className="text-sm font-semibold text-white">Nuvarande elleverantör <span className="font-normal text-gray-500">(valfritt)</span></h3>
-              <p className="mt-1 text-xs leading-5 text-gray-400">Uppgifterna kan göra leverantörsbytet snabbare och minska behovet av manuell komplettering.</p>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <Field id="current_supplier_name" label="Leverantörens namn" name="current_supplier_name" value={form.current_supplier_name} onChange={updateField} />
-                <Field id="current_supplier_id" label="Leverantörs-ID" name="current_supplier_id" value={form.current_supplier_id} onChange={updateField} />
-                <Field id="current_supplier_org_number" label="Organisationsnummer" name="current_supplier_org_number" value={form.current_supplier_org_number} onChange={updateField} />
-                <Field id="current_supplier_ediel_id" label="Ediel-ID" name="current_supplier_ediel_id" value={form.current_supplier_ediel_id} onChange={updateField} />
-              </div>
-            </div>
-            <div>
-              <label
-                htmlFor="requested_start_mode"
-                className="text-sm font-medium text-white/80"
-              >
-                Önskad start
-              </label>
-              <select
-                id="requested_start_mode"
-                value={form.requested_start_mode}
-                onChange={(event) =>
-                  updateField("requested_start_mode", event.target.value)
-                }
-                className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
-              >
-                <option value="earliest_possible">Så snart som möjligt</option>
-                <option value="specific_date">Jag vill välja datum</option>
-              </select>
-              <p className="mt-2 text-xs leading-5 text-white/45">
-                Vi bekräftar startdatumet när uppgifterna är kontrollerade.
-              </p>
-            </div>
-            {form.requested_start_mode === "specific_date" ? (
-              <Field
-                id="requested_start_date"
-                label="Önskat startdatum"
-                name="requested_start_date"
-                value={form.requested_start_date}
-                onChange={updateField}
-                type="date"
-                required
-                error={errors.requested_start_date}
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {step === 2 ? (
         <form action={formAction} className="space-y-6">
           <input type="hidden" name="company_website" value="" />
           <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
           <input type="hidden" name="pricing_quote_token" value={pricingPreview?.quote_token ?? ""} />
+          <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
+          <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
           <input type="hidden" name="utm_medium" value={utm.utm_medium ?? ""} />
-          <input
-            type="hidden"
-            name="utm_campaign"
-            value={utm.utm_campaign ?? ""}
-          />
-          {Object.entries(form).map(([key, value]) => (
-            <input
-              key={key}
-              type="hidden"
-              name={key}
-              value={key === "selected_offer" ? selectedValue : value}
-            />
-          ))}
-          <input
-            type="hidden"
-            name="price_area_code"
-            value={
-              pricingPreview?.price_area_code ??
-              pricingPreview?.priceArea ??
-              energyResolution?.price_area_code ??
-              ""
-            }
-          />
-          <input
-            type="hidden"
-            name="estimated_monthly_kwh"
-            value={estimatedMonthlyKwh ?? pricingPreview?.kwh ?? ""}
-          />
-          <input
-            type="hidden"
-            name="pricing_preview_snapshot"
-            value={pricingPreviewSnapshot}
-          />
-          <input
-            type="hidden"
-            name="contract_display_snapshot"
-            value={contractDisplaySnapshot}
-          />
+          <input type="hidden" name="utm_campaign" value={utm.utm_campaign ?? ""} />
+          {Object.entries(form).map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
+          <input type="hidden" name="address" value={quoteContext.address} />
+          <input type="hidden" name="postal_code" value={quoteContext.postal_code} />
+          <input type="hidden" name="city" value={quoteContext.city} />
+          <input type="hidden" name="price_area_code" value={pricingPreview?.price_area_code ?? pricingPreview?.priceArea ?? energyResolution?.price_area_code ?? ""} />
+          <input type="hidden" name="estimated_monthly_kwh" value={estimatedMonthlyKwh ?? pricingPreview?.kwh ?? ""} />
+          <input type="hidden" name="pricing_preview_snapshot" value={pricingPreview ? JSON.stringify(pricingPreview) : ""} />
+          <input type="hidden" name="contract_display_snapshot" value={activeDisplay ? JSON.stringify(activeDisplay.snapshot) : ""} />
+
           <section className="space-y-5">
             <div>
-              <h2 className="text-2xl font-bold text-white md:text-3xl">
-                Granska innan du tecknar
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-gray-400">
-                Granska ditt avtal, pris och dina uppgifter innan du tecknar.
-              </p>
+              <h2 id="signup-review" tabIndex={-1} className="text-2xl font-bold text-white md:text-3xl">Granska innan du tecknar</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-400">Kontrollera avtal, pris, kontaktuppgifter och dokumentversioner.</p>
             </div>
-            {submissionState.errorMessage ? (
-              <div
-                className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100"
-                role="alert"
-              >
-                {submissionState.errorMessage}
-              </div>
-            ) : null}
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-gray-300">
-                <div className="text-base font-semibold text-white">
-                  Valt avtal och pris
-                </div>
+                <div className="text-base font-semibold text-white">Avtal och pris</div>
                 <dl className="mt-4 space-y-3">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Avtal</dt>
-                    <dd className="text-right text-white">
-                      {selectedContract?.name ?? "Valt avtal"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Typ</dt>
-                    <dd className="text-right text-white">
-                      {selectedContract
-                        ? publicContractTypeLabel(selectedContract.type)
-                        : "Elavtal"}
-                    </dd>
-                  </div>
-                  {activeDisplay?.rows.map((row) => (
-                    <div key={row.key} className="flex justify-between gap-4">
-                      <dt className="text-gray-500">{row.label}</dt>
-                      <dd className="text-right text-white">{row.formatted}</dd>
-                    </div>
-                  ))}
-                  {pricingPreview ? (
-                    <>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-gray-500">Elområde</dt>
-                        <dd className="text-right text-white">
-                          {pricingPreview.price_area_code ??
-                            pricingPreview.priceArea}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-gray-500">Beräknad förbrukning</dt>
-                        <dd className="text-right text-white">
-                          {pricingPreview.kwh.toLocaleString("sv-SE")} kWh/mån
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-gray-500">
-                          Beräknat pris inkl. moms
-                        </dt>
-                        <dd className="text-right font-semibold text-white">
-                          {pricingPreview.totalMonthlyCostInclVatSek?.toLocaleString(
-                            "sv-SE",
-                            { maximumFractionDigits: 0 },
-                          )}{" "}
-                          kr/mån
-                        </dd>
-                      </div>
-                    </>
-                  ) : null}
+                  <ReviewRow label="Avtal" value={selectedContract?.name ?? 'Valt avtal'} />
+                  <ReviewRow label="Typ" value={publicContractTypeLabel(selectedContract?.type)} />
+                  {activeDisplay?.rows.map((row) => <ReviewRow key={row.key} label={row.label} value={row.formatted} />)}
+                  <ReviewRow label="Elområde" value={quoteContext.price_area_code} />
+                  <ReviewRow label="Förbrukning" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE')} kWh/mån`} />
+                  {pricingPreview?.totalMonthlyCostInclVatSek != null ? <ReviewRow label="Beräknat inkl. moms" value={`${pricingPreview.totalMonthlyCostInclVatSek.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr/mån`} /> : null}
                 </dl>
-                <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
-                  Ingår:{" "}
-                  {activeDisplay?.included.join(", ") ||
-                    "elhandelsavtal och avtalsadministration"}
-                  . Ingår inte:{" "}
-                  {activeDisplay?.excluded.join(", ") ||
-                    "elnätsavgift och nätägarens avgifter"}
-                  .
-                </div>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-gray-300">
-                <div className="text-base font-semibold text-white">
-                  Kontakt och start
-                </div>
+                <div className="text-base font-semibold text-white">Kund och start</div>
                 <dl className="mt-4 space-y-3">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Kundtyp</dt>
-                    <dd className="text-right text-white">
-                      {form.customer_type === "company"
-                        ? "Företag"
-                        : "Privatkund"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Namn</dt>
-                    <dd className="text-right text-white">
-                      {form.customer_type === "company"
-                        ? form.company_name
-                        : `${form.first_name} ${form.last_name}`}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">E-post</dt>
-                    <dd className="break-all text-right text-white">
-                      {form.email}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Telefon</dt>
-                    <dd className="text-right text-white">{form.phone}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Adress</dt>
-                    <dd className="text-right text-white">
-                      {form.address}, {form.postal_code} {form.city}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Start</dt>
-                    <dd className="text-right text-white">
-                      {form.requested_start_mode === "specific_date" &&
-                      form.requested_start_date
-                        ? form.requested_start_date
-                        : "Så snart som möjligt"}
-                    </dd>
-                  </div>
+                  <ReviewRow label="Kundtyp" value={customerType === 'company' ? 'Företag' : 'Privatkund'} />
+                  <ReviewRow label={customerType === 'company' ? 'Företag och firmatecknare' : 'Namn'} value={displayName} />
+                  {customerType === 'company' ? <ReviewRow label="Roll" value={form.company_signer_role} /> : null}
+                  <ReviewRow label="E-post" value={form.email} />
+                  <ReviewRow label="Telefon" value={normalizePhoneToE164(form.phone) ?? form.phone} />
+                  <ReviewRow label="Adress" value={`${quoteContext.address}, ${quoteContext.postal_code} ${quoteContext.city}`} />
+                  <ReviewRow label="Start" value={form.requested_start_mode === 'specific_date' ? form.requested_start_date : 'Så snart som möjligt'} />
                 </dl>
               </div>
             </div>
-            <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
-              <div>
-                <div className="text-base font-semibold text-white">
-                  Villkor och godkännanden
+
+            {!legalReady ? (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">Avtalets OPS-dokumentlänkar är inte kompletta. Teckning är blockerad.</div>
+            ) : (
+              <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
+                <div>
+                  <div className="text-base font-semibold text-white">Villkor och godkännanden</div>
+                  <p className="mt-1 text-sm leading-6 text-gray-400">Varje länk är den exakta publicerade OPS-version som binds till avtalet.</p>
                 </div>
-                <p className="mt-1 text-sm leading-6 text-gray-400">
-                  Dina godkännanden sparas säkert tillsammans med teckningen.
-                </p>
+                <ConsentCheckbox id="accept_terms" name="accept_terms" checked={consents.accept_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.termsUrl!}>allmänna villkor</LegalLink>.</ConsentCheckbox>
+                <ConsentCheckbox id="accept_price_terms" name="accept_price_terms" checked={consents.accept_price_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.priceTermsUrl!}>prisvillkoren</LegalLink> för valt avtal.</ConsentCheckbox>
+                <ConsentCheckbox id="accept_cancellation_right" name="accept_cancellation_right" checked={consents.accept_cancellation_right} onChange={updateConsent}>Jag har tagit del av informationen om <LegalLink href={legal!.withdrawalUrl!}>ångerrätt</LegalLink>.</ConsentCheckbox>
+                <ConsentCheckbox id="accept_privacy" name="accept_privacy" checked={consents.accept_privacy} onChange={updateConsent}>Jag har tagit del av <LegalLink href={legal!.privacyPolicyUrl!}>integritetspolicyn</LegalLink>.</ConsentCheckbox>
+                {powerOfAttorneyRequired ? (
+                  <ConsentCheckbox id="accept_power_of_attorney" name="accept_power_of_attorney" checked={consents.accept_power_of_attorney} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.powerOfAttorneyUrl!}>fullmakten</LegalLink> för anläggningsuppslag och leverantörsbyte.</ConsentCheckbox>
+                ) : null}
               </div>
-              <Checkbox
-                id="accept_terms"
-                name="accept_terms"
-                checked={consents.accept_terms}
-                onChange={updateConsent}
-              >
-                Jag godkänner Gridex{" "}
-                <Link
-                  href={termsHref}
-                  className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                  target="_blank"
-                >
-                  allmänna villkor
-                </Link>
-                .
-              </Checkbox>
-              <Checkbox
-                id="accept_price_terms"
-                name="accept_price_terms"
-                checked={consents.accept_price_terms}
-                onChange={updateConsent}
-              >
-                Jag godkänner{" "}
-                <Link
-                  href={priceTermsHref}
-                  className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                  target="_blank"
-                >
-                  prisvillkoren
-                </Link>{" "}
-                för valt elavtal.
-              </Checkbox>
-              <Checkbox
-                id="accept_cancellation_right"
-                name="accept_cancellation_right"
-                checked={consents.accept_cancellation_right}
-                onChange={updateConsent}
-              >
-                Jag har tagit del av informationen om{" "}
-                <Link
-                  href={withdrawalHref}
-                  className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                  target="_blank"
-                >
-                  ångerrätt
-                </Link>
-                .
-              </Checkbox>
-              <Checkbox
-                id="accept_privacy"
-                name="accept_privacy"
-                checked={consents.accept_privacy}
-                onChange={updateConsent}
-              >
-                Jag har tagit del av hur Gridex behandlar mina personuppgifter i{" "}
-                <Link
-                  href={privacyHref}
-                  className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                  target="_blank"
-                >
-                  integritetspolicyn
-                </Link>
-                .
-              </Checkbox>
-              {powerOfAttorneyRequired ? (
-                <Checkbox
-                  id="accept_power_of_attorney"
-                  name="accept_power_of_attorney"
-                  checked={consents.accept_power_of_attorney}
-                  onChange={updateConsent}
-                >
-                  Jag godkänner{" "}
-                  <Link
-                    href={powerOfAttorneyHref}
-                    className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                    target="_blank"
-                  >
-                    fullmakten
-                  </Link>{" "}
-                  och ger Gridex rätt att begära uppgifter från nätägaren för
-                  att hantera teckningen och starta avtalet korrekt.
-                </Checkbox>
-              ) : null}
-            </div>
+            )}
           </section>
+
           <div className="grid gap-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-            <button
-              type="button"
-              onClick={previousStep}
-              className="h-12 rounded-2xl border border-white/10 px-6 text-sm font-semibold text-white transition hover:border-cyan-500/40 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
-            >
-              Tillbaka
-            </button>
-            <div className="text-sm text-gray-400">
-              Kontrollera att uppgifterna stämmer innan du skickar teckningen.
-            </div>
+            <button type="button" onClick={() => { setErrors({}); setStep(0); }} className="h-12 rounded-2xl border border-white/10 px-6 text-sm font-semibold text-white">Tillbaka</button>
+            <div className="text-sm text-gray-400">Avtalet registreras som signerat när OPS har verifierat de låsta versionerna.</div>
             <SubmitButton disabled={submitDisabled} />
           </div>
         </form>
       ) : null}
-
-      {step < 2 ? (
-        <div className="grid gap-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <button
-            type="button"
-            onClick={previousStep}
-            disabled={step === 0}
-            className="h-12 rounded-2xl border border-white/10 px-6 text-sm font-semibold text-white transition hover:border-cyan-500/40 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
-          >
-            Tillbaka
-          </button>
-          <div className="text-sm text-gray-400">
-            {canSubmit
-              ? "Du kan granska allt innan du tecknar."
-              : "Teckning online är tillfälligt pausad."}
-          </div>
-          <button
-            type="button"
-            onClick={nextStep}
-            disabled={!canSubmit && step === 0}
-            className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
-          >
-            Nästa
-          </button>
-        </div>
-      ) : null}
     </div>
   );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-4"><dt className="text-gray-500">{label}</dt><dd className="text-right text-white">{value}</dd></div>;
+}
+
+function LegalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link href={href} className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank" rel="noreferrer">{children}</Link>;
 }

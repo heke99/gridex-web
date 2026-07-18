@@ -43,6 +43,7 @@ export default function Footer() {
           <Link href="/guider" className="block hover:text-white">Alla guider</Link>
           <Link href="/ordlista" className="block hover:text-white">Ordlista</Link>
           <Link href="/sitemap" className="block hover:text-white">Sitemap</Link>
+          <Link href="/vanliga-fragor" className="block hover:text-white">Vanliga frågor</Link>
         </div>
 
         <div className="space-y-2">

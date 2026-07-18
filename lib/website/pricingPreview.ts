@@ -27,6 +27,68 @@ function matchesReturnedContract(data: OpsWebsitePricingPreview, contract: OpsPu
   return !returnedOfferReference || returnedOfferReference === contract.offer_reference
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function nestedText(value: unknown, keys: Set<string>, depth = 0): string | null {
+  if (depth > 4 || !value || typeof value !== 'object') return null
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = nestedText(item, keys, depth + 1)
+      if (found) return found
+    }
+    return null
+  }
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (keys.has(key) && typeof item === 'string' && item.trim()) return item.trim()
+    const found = nestedText(item, keys, depth + 1)
+    if (found) return found
+  }
+  return null
+}
+
+function assertPortfolioQuoteBasis(
+  data: OpsWebsitePricingPreview,
+  contract: OpsPublicContract,
+  input: OpsWebsitePricingPreviewInput,
+): void {
+  if (!['portfolio', 'portfolio_managed', 'mix', 'mixed'].includes(contract.type)) return
+  const monthlyPrices = contract.portfolio_monthly_prices ?? []
+  if (monthlyPrices.length === 0) return
+  const basis = record(record(data.specification)?.basis)
+  const year = Number(basis?.year)
+  const month = Number(basis?.month)
+  if (!Number.isInteger(year) || !Number.isInteger(month)) {
+    throw new WebsitePricingPreviewError('Portföljpriset saknar exakt publicerad prismånad.')
+  }
+  const published = monthlyPrices.find((item) =>
+    item.year === year &&
+    item.month === month &&
+    item.price_area_code === input.price_area_code,
+  )
+  if (!published) {
+    throw new WebsitePricingPreviewError('Portföljpriset är inte publicerat för vald månad och elområde.')
+  }
+  const quoteAmount = Number(basis?.portfolioPriceOre ?? basis?.portfolio_price_ore)
+  if (Number.isFinite(quoteAmount) && Math.abs(quoteAmount - published.amount) > 0.0001) {
+    throw new WebsitePricingPreviewError('Portföljpriset stämmer inte med publicerad månadsversion.')
+  }
+  if (published.price_plan_version_id) {
+    const quoteVersion = nestedText(data.raw ?? data.specification, new Set([
+      'price_plan_version_id',
+      'pricePlanVersionId',
+      'pricing_version_id',
+      'pricingVersionId',
+    ]))
+    if (quoteVersion !== published.price_plan_version_id) {
+      throw new WebsitePricingPreviewError('Portföljpriset avser inte den publicerade prisplansversionen.')
+    }
+  }
+}
+
 export function enrichWebsitePricingPreview(
   data: OpsWebsitePricingPreview,
   contract: OpsPublicContract,
@@ -73,6 +135,7 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
   if (data.raw && typeof data.raw === 'object' && (data.raw as Record<string, unknown>).fallback_preview === true) {
     throw new WebsitePricingPreviewError('Ofullständig reservberäkning får inte användas för elavtal.')
   }
+  assertPortfolioQuoteBasis(data, contract, input)
 }
 
 export async function loadVerifiedWebsitePricingPreview(

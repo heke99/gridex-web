@@ -27,7 +27,7 @@ function labelFromPath(path: string) {
 }
 
 const groups = [
-  { title: 'Huvudsidor', match: (path: string) => ['/', '/teckna-avtal', '/kundservice'].includes(path) },
+  { title: 'Huvudsidor', match: (path: string) => ['/', '/teckna-avtal', '/kundservice', '/vanliga-fragor'].includes(path) },
   { title: 'Elavtal', match: (path: string) => path.startsWith('/elavtal') },
   { title: 'Elpriser', match: (path: string) => path.startsWith('/elpriser') },
   { title: 'Guider', match: (path: string) => path.startsWith('/guider') },

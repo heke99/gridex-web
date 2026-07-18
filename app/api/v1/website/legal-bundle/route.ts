@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteLegalBundle, getOpsClientStatus, isOpsError } from '@/lib/ops/client'
+import { toBrowserLegalBundle } from '@/lib/website/publicDtos'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -10,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Juridiska underlag kan inte hämtas just nu.' }, { status: 503 })
   }
   try {
-    const data = await fetchOpsWebsiteLegalBundle()
+    const data = toBrowserLegalBundle(await fetchOpsWebsiteLegalBundle())
     return NextResponse.json({ data }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     return NextResponse.json(

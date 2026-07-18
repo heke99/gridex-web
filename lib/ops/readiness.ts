@@ -14,6 +14,8 @@ export const REQUIRED_WEBSITE_SCOPES = [
   'website_applications.write',
   'website_events.write',
   'events.read',
+  'customer_portal.read',
+  'customer_portal.write',
   'customer_sync.write',
   'customer_profile.read',
   'customer_contracts.read',
@@ -40,6 +42,7 @@ export type OpsReadinessCode =
   | 'invalid_api_key'
   | 'missing_scope'
   | 'invalid_base_url_or_environment'
+  | 'webhook_not_configured'
   | 'ops_unavailable'
 
 export type OpsIntegrationReadiness = {
@@ -49,6 +52,13 @@ export type OpsIntegrationReadiness = {
   checkedAt: string
   probes: Array<{ name: string; ok: boolean; status: number | null; code: string | null }>
   scopes: Array<{ scope: RequiredScope; status: ScopeStatus }>
+  webhook: {
+    ready: boolean
+    enabled: boolean
+    signingSecretConfigured: boolean
+    expectedCompanyConfigured: boolean
+    secretConflict: boolean
+  }
 }
 
 type ProbeDefinition = {
@@ -86,6 +96,7 @@ function message(code: OpsReadinessCode): string {
     case 'invalid_api_key': return 'OPS avvisade API-nyckeln.'
     case 'missing_scope': return 'API-nyckeln eller scope-konfigurationen saknar minst en obligatorisk behörighet.'
     case 'invalid_base_url_or_environment': return 'OPS URL pekar på fel miljö eller saknar en dokumenterad endpoint.'
+    case 'webhook_not_configured': return 'OPS API svarar, men webhooks är inte komplett konfigurerade. Mina sidor-status får inte betraktas som live.'
     default: return 'OPS kunde inte nås eller svarade med ett tillfälligt serverfel.'
   }
 }
@@ -137,6 +148,16 @@ function probeDefinitions(): ProbeDefinition[] {
       name: 'events.read',
       scopes: ['events.read'],
       run: async () => { await fetchOpsTenantEvents({ limit: '1' }) },
+    },
+    {
+      name: 'customer_portal.read',
+      scopes: ['customer_portal.read'],
+      run: () => authorizationProbe('/api/v1/customer/portal-bundle', 'POST', {}),
+    },
+    {
+      name: 'customer_portal.write',
+      scopes: ['customer_portal.write'],
+      run: () => authorizationProbe('/api/v1/customer-portal/sync', 'POST', {}),
     },
     {
       name: 'customer_sync.write',
@@ -222,6 +243,24 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const checkedAt = new Date().toISOString()
   const client = getOpsClientStatus()
   const declared = declaredScopes()
+  const canonicalWebhookSecret = process.env.GRIDEX_WEBHOOK_SIGNING_SECRET?.trim() ?? ''
+  const legacyWebhookSecret = process.env.GRIDEX_OPS_WEBHOOK_SECRET?.trim() ?? ''
+  const webhook = {
+    enabled: process.env.GRIDEX_ENABLE_OPS_WEBHOOKS === 'true',
+    signingSecretConfigured: Boolean(canonicalWebhookSecret || legacyWebhookSecret),
+    expectedCompanyConfigured: Boolean(process.env.GRIDEX_EXPECTED_COMPANY_ID?.trim()),
+    secretConflict: Boolean(
+      canonicalWebhookSecret &&
+        legacyWebhookSecret &&
+        canonicalWebhookSecret !== legacyWebhookSecret,
+    ),
+    ready: false,
+  }
+  webhook.ready =
+    webhook.enabled &&
+    webhook.signingSecretConfigured &&
+    webhook.expectedCompanyConfigured &&
+    !webhook.secretConflict
   const declarationComplete = Boolean(
     declared && REQUIRED_WEBSITE_SCOPES.every((scope) => declared.has(scope)),
   )
@@ -236,7 +275,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   }))
 
   if (!client.configured) {
-    return { ready: false, code: 'not_configured', message: message('not_configured'), checkedAt, probes: [], scopes: initialScopes() }
+    return { ready: false, code: 'not_configured', message: message('not_configured'), checkedAt, probes: [], scopes: initialScopes(), webhook }
   }
 
   const definitions = probeDefinitions()
@@ -280,6 +319,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   if (code === 'ready' && (!declarationComplete || scopes.some((scope) => scope.status === 'missing' || scope.status === 'unverified'))) {
     code = 'missing_scope'
   }
-  const ready = code === 'ready' && probes.every((probe) => probe.ok)
-  return { ready, code, message: message(code), checkedAt, probes, scopes }
+  if (code === 'ready' && !webhook.ready) code = 'webhook_not_configured'
+  const ready = code === 'ready' && probes.every((probe) => probe.ok) && webhook.ready
+  return { ready, code, message: message(code), checkedAt, probes, scopes, webhook }
 }

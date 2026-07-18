@@ -33,12 +33,12 @@ The website integrates with `https://app.gridex.se` only from server-side code. 
 
 Before production deployment:
 
-1. Apply all Supabase migrations, including `20260710090000_customer_portal_api_hardening.sql`.
+1. Apply all Supabase migrations in filename order, including `20260710090000_customer_portal_api_hardening.sql` and `20260718160000_website_checkout_contexts.sql`.
 2. Configure the OPS token, HTTPS host allowlist, pricing quote secret and webhook signing secret from `env.example`.
 3. Configure `CRON_SECRET` or `CUSTOMER_PORTAL_OUTBOX_CRON_SECRET` so the customer write outbox and notification reconciliation routes can run.
 4. Run lint, TypeScript, launch tests and a production build.
 
-The hardening migration adds immutable website-application attempts, an OPS write outbox for customer events, notification state and profile updates, webhook retry/reconciliation state and distributed rate limiting.
+The hardening migrations add immutable website-application attempts, an OPS write outbox for customer events, notification state and profile updates, webhook retry/reconciliation state, distributed rate limiting and a short-lived server-only checkout handoff. Checkout tokens are stored hashed; the browser URL never contains address data.
 
 ## External invoice import
 
@@ -150,5 +150,8 @@ Configure these environment variables in Vercel:
 
 ```bash
 npm run lint
+npx tsc --noEmit --pretty false
+npm run test:launch
 npm run build
+npm audit --audit-level=moderate
 ```

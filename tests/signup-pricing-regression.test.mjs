@@ -223,7 +223,7 @@ assert.ok(
   "form must post the signed pricing quote token",
 );
 assert.ok(
-  form.includes("Räkna priset ovan innan du går vidare"),
+  form.includes("quoteValid") && form.includes("Prisberäkningen behöver hämtas på nytt"),
   "customer must calculate a price before progressing",
 );
 assert.ok(
@@ -323,8 +323,8 @@ assert.ok(
   "snapshot validation messages must use teckning wording",
 );
 assert.ok(
-  read("components/PriceResultCard.tsx").includes("value.spotShare * 100"),
-  "mix shares must render 0.5 as 50 %",
+  read("components/PriceResultCard.tsx").includes("share <= 1 ? share * 100 : share"),
+  "mix shares must render both 0.5 and 50 as 50 %",
 );
 assert.ok(
   read("components/PriceResultCard.tsx").includes("Fast månadspris"),

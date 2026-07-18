@@ -5,6 +5,9 @@ export type PublicContractApiShape = {
   name: string
   type: string
   customer_types: string[] | null
+  pricing_visibility: Record<string, boolean>
+  pricing_components: PublicPricingComponent[]
+  portfolio_monthly_prices: PublicPortfolioMonthlyPrice[]
   monthly_fee_sek: number | null
   invoice_fee_sek: number | null
   markup_ore_per_kwh: number | null
@@ -35,6 +38,24 @@ export type PublicContractApiShape = {
   price_terms_version: string | null
   price_terms_version_id: string | null
   price_terms_url: string | null
+}
+
+export type PublicPricingComponent = {
+  component_code: string
+  name: string
+  amount: number
+  unit: string
+  website_card_visible: boolean
+  calculation_base: string | null
+}
+
+export type PublicPortfolioMonthlyPrice = {
+  year: number
+  month: number
+  price_area_code: string
+  price_plan_version_id: string | null
+  amount: number
+  unit: string
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -75,6 +96,82 @@ function typeList(value: unknown): string[] | null {
   return single ? [single] : null
 }
 
+function normalizedCustomerTypes(row: Record<string, unknown>): string[] | null {
+  const canonical = typeList(row.customer_types ?? row.customerTypes)
+  if (canonical?.length) return canonical
+
+  const singular = text(row.customer_type ?? row.customerType)?.toLowerCase()
+  if (singular === 'both') return ['private', 'business']
+  return singular ? [singular] : null
+}
+
+function normalizedShare(value: unknown): number | null {
+  const parsed = number(value)
+  if (parsed === null) return null
+  return parsed > 1 ? parsed / 100 : parsed
+}
+
+function pricingVisibility(value: unknown): Record<string, boolean> {
+  const row = record(value)
+  if (!row) return {}
+  return Object.fromEntries(
+    Object.entries(row).flatMap(([key, raw]) => {
+      const visible = boolean(raw)
+      return visible === null ? [] : [[key, visible]]
+    }),
+  )
+}
+
+function pricingComponents(value: unknown): PublicPricingComponent[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    const row = record(item)
+    if (!row) return []
+    const componentCode = text(row.component_code ?? row.componentCode ?? row.code)
+    const componentName = text(row.name ?? row.label ?? componentCode)
+    const componentAmount = amount(row.amount ?? row.value)
+    const unit = text(row.unit)
+    if (!componentCode || !componentName || componentAmount === null || !unit) return []
+    return [{
+      component_code: componentCode,
+      name: componentName,
+      amount: componentAmount,
+      unit,
+      website_card_visible: boolean(row.website_card_visible ?? row.websiteCardVisible) ?? true,
+      calculation_base: text(row.calculation_base ?? row.calculationBase),
+    }]
+  })
+}
+
+function portfolioMonthlyPrices(value: unknown): PublicPortfolioMonthlyPrice[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    const row = record(item)
+    if (!row) return []
+    const year = number(row.year)
+    const month = number(row.month)
+    const priceAreaCode = text(row.price_area_code ?? row.priceAreaCode ?? row.price_area)
+    const price = amount(row.price ?? row.amount ?? row.portfolio_price)
+    const unit = text(record(row.price)?.unit ?? row.unit) ?? 'ore_per_kwh'
+    if (
+      year === null ||
+      month === null ||
+      month < 1 ||
+      month > 12 ||
+      !priceAreaCode ||
+      price === null
+    ) return []
+    return [{
+      year,
+      month,
+      price_area_code: priceAreaCode.toUpperCase(),
+      price_plan_version_id: text(row.price_plan_version_id ?? row.pricePlanVersionId),
+      amount: price,
+      unit,
+    }]
+  })
+}
+
 /**
  * Normalizes the documented public-contract DTO. It intentionally does not
  * require, expose or derive OPS-internal price-plan identifiers.
@@ -98,7 +195,12 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     product_code: productCode,
     name,
     type,
-    customer_types: typeList(row.customer_type ?? row.customerType ?? row.customer_types ?? row.customerTypes),
+    customer_types: normalizedCustomerTypes(row),
+    pricing_visibility: pricingVisibility(pricing.visibility),
+    pricing_components: pricingComponents(pricing.components),
+    portfolio_monthly_prices: portfolioMonthlyPrices(
+      pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,
+    ),
     monthly_fee_sek: amount(pricing.monthly_fee ?? pricing.monthlyFee ?? row.monthly_fee_sek),
     invoice_fee_sek: amount(pricing.invoice_fee ?? pricing.invoiceFee ?? row.invoice_fee_sek),
     markup_ore_per_kwh: amount(pricing.markup ?? pricing.markup_ore_per_kwh ?? row.markup_ore_per_kwh),
@@ -124,8 +226,8 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     ),
     vat_rate: number(pricing.vat_rate ?? pricing.vatRate ?? row.vat_rate ?? row.vatRate),
     pricing_model: text(pricing.pricing_model ?? pricing.pricingModel ?? row.pricing_model ?? row.pricingModel),
-    spot_share: number(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
-    portfolio_share: number(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
+    spot_share: normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
+    portfolio_share: normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
     valid_from: text(row.valid_from ?? row.validFrom),
     valid_to: text(row.valid_to ?? row.validTo),
     terms_version: text(legal.terms_version ?? legal.termsVersion ?? row.terms_version),

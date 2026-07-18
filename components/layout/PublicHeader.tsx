@@ -113,6 +113,11 @@ export default function PublicHeader() {
                 label="Kundservice"
                 onClick={() => setOpen(false)}
               />
+              <NavLink
+                href="/vanliga-fragor"
+                label="Vanliga frågor"
+                onClick={() => setOpen(false)}
+              />
             </div>
 
             <div className="mt-2 border-t border-white/10 pt-4">

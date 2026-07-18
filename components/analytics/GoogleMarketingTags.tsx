@@ -28,9 +28,7 @@ function serverConsent() {
 }
 
 function eventKey() {
-  const url = new URL(window.location.href)
-  const applicationNumber = url.searchParams.get('applicationNumber')
-  return `gridex_application_conversion_${applicationNumber || url.pathname + url.search}`
+  return 'gridex_application_conversion_verified_tack'
 }
 
 export default function GoogleMarketingTags() {
@@ -73,15 +71,20 @@ export default function GoogleMarketingTags() {
       }
 
       const url = new URL(window.location.href)
-      const pathWithQuery = `${url.pathname}${url.search}`
+      const isResultPage = url.pathname === '/teckna-avtal/tack'
+      const analyticsUrl = isResultPage ? `${url.origin}${url.pathname}` : url.href
+      const pathWithQuery = isResultPage ? url.pathname : `${url.pathname}${url.search}`
 
       window.gtag('event', 'page_view', {
         page_path: pathWithQuery,
-        page_location: url.href,
+        page_location: analyticsUrl,
         page_title: document.title,
       })
 
-      if (url.pathname === '/teckna-avtal/tack' && url.searchParams.get('status') === 'application_received') {
+      if (
+        isResultPage &&
+        document.querySelector('[data-gridex-verified-application-received="true"]')
+      ) {
         const key = eventKey()
         if (window.sessionStorage.getItem(key)) return
         window.sessionStorage.setItem(key, '1')
