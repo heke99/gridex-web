@@ -69,6 +69,31 @@ try {
   assert.equal(monthly.specification?.basis?.pricingModel, 'monthly')
   assert.equal(monthly.raw?.source, 'elprisetjustnu_api')
 
+  const componentOnly = await buildLocalWebsitePricingPreview({
+    contract: contract({
+      name: 'Komponentbaserat månadspris',
+      markup_ore_per_kwh: null,
+      variable_markup_ore_per_kwh: null,
+      elcert_ore_per_kwh: null,
+      monthly_fee_sek: null,
+      invoice_fee_sek: null,
+      pricing_components: [
+        { component_code: 'supplier_margin', name: 'Påslag', amount: 5, unit: 'ore_per_kwh', website_card_visible: true, calculation_base: null },
+        { component_code: 'energy_fee', name: 'Rörlig avgift', amount: 1, unit: 'ore_per_kwh', website_card_visible: true, calculation_base: null },
+        { component_code: 'electricity_certificate', name: 'Elcertifikat', amount: 2, unit: 'ore_per_kwh', website_card_visible: true, calculation_base: null },
+        { component_code: 'subscription', name: 'Månadsavgift', amount: 49, unit: 'sek_per_month', website_card_visible: true, calculation_base: null },
+        { component_code: 'paper_billing', name: 'Fakturaavgift', amount: 19, unit: 'sek_per_invoice', website_card_visible: true, calculation_base: null },
+      ],
+    }),
+    priceAreaCode: 'SE3',
+    estimatedMonthlyKwh: 100,
+    now: new Date('2026-07-02T10:00:00+02:00'),
+  })
+  assert.equal(componentOnly.pricePerKwhOre, 58)
+  assert.equal(componentOnly.totalMonthlyCostSek, 107)
+  assert.equal(componentOnly.specification?.fees?.invoiceFeeSek, 19)
+  assert.equal(componentOnly.specification?.fees?.monthlyFeeSek, 49)
+
   const hourly = await buildLocalWebsitePricingPreview({
     contract: contract({ type: 'spot_hourly', name: 'Timpris' }),
     priceAreaCode: 'SE3',

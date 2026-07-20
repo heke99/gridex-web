@@ -49,6 +49,105 @@ export type PublicPricingComponent = {
   calculation_base: string | null
 }
 
+export type CanonicalPublishedPricingKey =
+  | 'monthly_fee_sek'
+  | 'invoice_fee_sek'
+  | 'markup_ore_per_kwh'
+  | 'variable_markup_ore_per_kwh'
+  | 'fixed_price_ore_per_kwh'
+  | 'monthly_fixed_price_sek'
+  | 'elcert_ore_per_kwh'
+  | 'portfolio_price_ore_per_kwh'
+  | 'spot_share'
+  | 'portfolio_share'
+
+function normalizedComponentText(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9%]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+export function classifyPublishedPricingComponent(
+  component: Pick<PublicPricingComponent, 'component_code' | 'name' | 'unit' | 'calculation_base'>,
+): CanonicalPublishedPricingKey | null {
+  const text = normalizedComponentText([
+    component.component_code,
+    component.name,
+    component.unit,
+    component.calculation_base,
+  ].filter(Boolean).join(' '))
+  const unit = normalizedComponentText(component.unit)
+  if (!text) return null
+
+  if (/spot_share|rorlig_andel|variable_share/.test(text)) return 'spot_share'
+  if (/portfolio_share|portfoljandel|managed_share/.test(text)) return 'portfolio_share'
+  if (/invoice|faktura|billing/.test(text) || /sek_per_invoice|sek_invoice/.test(unit)) return 'invoice_fee_sek'
+  if (/elcert|certificate|certifikat/.test(text)) return 'elcert_ore_per_kwh'
+  if (
+    /monthly_fixed|fixed_monthly|fast_manadspris|fixed_monthly_price/.test(text) ||
+    (/monthly_price/.test(text) && /sek_per_month|sek_month/.test(unit))
+  ) {
+    return 'monthly_fixed_price_sek'
+  }
+  if (/portfolio_price|portfoljpris|managed_price/.test(text)) return 'portfolio_price_ore_per_kwh'
+  if (/variable_fee|variable_markup|rorlig_avgift|energy_fee|kwh_fee/.test(text)) {
+    return 'variable_markup_ore_per_kwh'
+  }
+  if (/markup|paslag|supplier_margin|energy_markup|forvaltningsavgift/.test(text)) {
+    return 'markup_ore_per_kwh'
+  }
+  if (/fixed_price|fastpris|fast_elpris|fixed_kwh|price_per_kwh|kwh_price/.test(text)) {
+    return 'fixed_price_ore_per_kwh'
+  }
+  if (/monthly_fee|manadsavgift|subscription_fee|abon/.test(text) || /sek_per_month|sek_month/.test(unit)) {
+    return 'monthly_fee_sek'
+  }
+
+  return null
+}
+
+export function publishedPricingComponentAmount(
+  components: readonly PublicPricingComponent[] | null | undefined,
+  key: CanonicalPublishedPricingKey,
+): number | null {
+  if (!components?.length) return null
+
+  const matches = components
+    .filter((component) => classifyPublishedPricingComponent(component) === key)
+    .filter((component) => Number.isFinite(component.amount))
+    .sort((a, b) => Number(b.website_card_visible) - Number(a.website_card_visible))
+
+  return matches[0]?.amount ?? null
+}
+
+function canonicalPublishedPricingAmounts(
+  components: readonly PublicPricingComponent[] | null | undefined,
+): Partial<Record<CanonicalPublishedPricingKey, number>> {
+  const result: Partial<Record<CanonicalPublishedPricingKey, number>> = {}
+  const keys: CanonicalPublishedPricingKey[] = [
+    'monthly_fee_sek',
+    'invoice_fee_sek',
+    'markup_ore_per_kwh',
+    'variable_markup_ore_per_kwh',
+    'fixed_price_ore_per_kwh',
+    'monthly_fixed_price_sek',
+    'elcert_ore_per_kwh',
+    'portfolio_price_ore_per_kwh',
+    'spot_share',
+    'portfolio_share',
+  ]
+
+  for (const key of keys) {
+    const amount = publishedPricingComponentAmount(components, key)
+    if (amount !== null) result[key] = amount
+  }
+  return result
+}
+
 export type PublicPortfolioMonthlyPrice = {
   year: number
   month: number
@@ -189,6 +288,9 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
 
   if (!offerReference || !name || !type) return null
 
+  const components = pricingComponents(pricing.components)
+  const componentAmounts = canonicalPublishedPricingAmounts(components)
+
   return {
     id: text(row.id),
     offer_reference: offerReference,
@@ -197,18 +299,18 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     type,
     customer_types: normalizedCustomerTypes(row),
     pricing_visibility: pricingVisibility(pricing.visibility),
-    pricing_components: pricingComponents(pricing.components),
+    pricing_components: components,
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,
     ),
-    monthly_fee_sek: amount(pricing.monthly_fee ?? pricing.monthlyFee ?? row.monthly_fee_sek),
-    invoice_fee_sek: amount(pricing.invoice_fee ?? pricing.invoiceFee ?? row.invoice_fee_sek),
-    markup_ore_per_kwh: amount(pricing.markup ?? pricing.markup_ore_per_kwh ?? row.markup_ore_per_kwh),
-    variable_markup_ore_per_kwh: amount(
+    monthly_fee_sek: componentAmounts.monthly_fee_sek ?? amount(pricing.monthly_fee ?? pricing.monthlyFee ?? row.monthly_fee_sek),
+    invoice_fee_sek: componentAmounts.invoice_fee_sek ?? amount(pricing.invoice_fee ?? pricing.invoiceFee ?? row.invoice_fee_sek),
+    markup_ore_per_kwh: componentAmounts.markup_ore_per_kwh ?? amount(pricing.markup ?? pricing.markup_ore_per_kwh ?? row.markup_ore_per_kwh),
+    variable_markup_ore_per_kwh: componentAmounts.variable_markup_ore_per_kwh ?? amount(
       pricing.variable_markup ?? pricing.variable_fee ?? pricing.variable_markup_ore_per_kwh ?? row.variable_markup_ore_per_kwh,
     ),
-    fixed_price_ore_per_kwh: amount(pricing.fixed_price ?? pricing.fixed_price_ore_per_kwh ?? row.fixed_price_ore_per_kwh),
-    monthly_fixed_price_sek: amount(
+    fixed_price_ore_per_kwh: componentAmounts.fixed_price_ore_per_kwh ?? amount(pricing.fixed_price ?? pricing.fixed_price_ore_per_kwh ?? row.fixed_price_ore_per_kwh),
+    monthly_fixed_price_sek: componentAmounts.monthly_fixed_price_sek ?? amount(
       pricing.monthly_fixed_price ??
         pricing.monthlyFixedPrice ??
         pricing.monthly_price ??
@@ -217,8 +319,8 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
         row.monthlyFixedPriceSek ??
         row.monthly_price_sek,
     ),
-    elcert_ore_per_kwh: amount(pricing.elcert ?? pricing.elcert_ore_per_kwh ?? row.elcert_ore_per_kwh),
-    portfolio_price_ore_per_kwh: amount(
+    elcert_ore_per_kwh: componentAmounts.elcert_ore_per_kwh ?? amount(pricing.elcert ?? pricing.elcert_ore_per_kwh ?? row.elcert_ore_per_kwh),
+    portfolio_price_ore_per_kwh: componentAmounts.portfolio_price_ore_per_kwh ?? amount(
       pricing.portfolio_price ??
         pricing.portfolioPrice ??
         pricing.portfolio_price_ore_per_kwh ??
@@ -226,8 +328,8 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     ),
     vat_rate: number(pricing.vat_rate ?? pricing.vatRate ?? row.vat_rate ?? row.vatRate),
     pricing_model: text(pricing.pricing_model ?? pricing.pricingModel ?? row.pricing_model ?? row.pricingModel),
-    spot_share: normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
-    portfolio_share: normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
+    spot_share: normalizedShare(componentAmounts.spot_share) ?? normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
+    portfolio_share: normalizedShare(componentAmounts.portfolio_share) ?? normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
     valid_from: text(row.valid_from ?? row.validFrom),
     valid_to: text(row.valid_to ?? row.validTo),
     terms_version: text(legal.terms_version ?? legal.termsVersion ?? row.terms_version),

@@ -661,7 +661,7 @@ function pickComponentNumber(row: Record<string, unknown>): number | null {
   ];
 
   for (const key of keys) {
-    const value = normalizeNumber(row[key]);
+    const value = amountFromObject(row[key]);
     if (value !== null) return value;
   }
 

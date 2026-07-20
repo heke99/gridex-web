@@ -7,6 +7,7 @@ import {
   stockholmDateParts,
 } from '@/lib/gridex/pricing/elprisetjustnu'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import { publishedPricingComponentAmount } from '@/lib/website/publicContractContract'
 import {
   resolveWebsiteAreaPricing,
   type ResolvedWebsiteAreaPricing,
@@ -287,7 +288,7 @@ type PublishedFees = {
 }
 
 function publishedAmount(contract: OpsPublicContract, key: PublishedFeeKey): number | null {
-  return number(contract[key])
+  return publishedPricingComponentAmount(contract.pricing_components, key) ?? number(contract[key])
 }
 
 function resolvedAmount(

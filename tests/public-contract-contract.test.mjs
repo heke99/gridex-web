@@ -49,3 +49,59 @@ assert.equal(camelCaseContract.power_of_attorney_version_id, '66666666-6666-4666
 assert.equal(camelCaseContract.price_terms_version_id, '77777777-7777-4777-8777-777777777777')
 assert.equal(camelCaseContract.power_of_attorney_url, 'https://app.gridex.se/legal/gridex/power-of-attorney/66666666-6666-4666-8666-666666666666')
 assert.equal(camelCaseContract.price_terms_url, 'https://app.gridex.se/legal/gridex/price-terms/77777777-7777-4777-8777-777777777777')
+
+const componentOnlyContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_components_only',
+  code: 'COMPONENTS-ONLY',
+  name: 'Komponentbaserat månadspris',
+  type: 'variable_spot',
+  pricing: {
+    monthly_fee: { amount: 999 },
+    invoice_fee: { amount: 999 },
+    markup: { amount: 999 },
+    components: [
+      {
+        component_code: 'supplier_margin',
+        name: 'Påslag',
+        amount: { amount: 4 },
+        unit: 'ore_per_kwh',
+        website_card_visible: true,
+      },
+      {
+        component_code: 'energy_fee',
+        name: 'Rörlig avgift',
+        amount: { amount: 1.5 },
+        unit: 'ore_per_kwh',
+        website_card_visible: true,
+      },
+      {
+        component_code: 'electricity_certificate',
+        name: 'Elcertifikat',
+        amount: { amount: 0.8 },
+        unit: 'ore_per_kwh',
+        website_card_visible: true,
+      },
+      {
+        component_code: 'subscription',
+        name: 'Månadsavgift',
+        amount: { amount: 49 },
+        unit: 'sek_per_month',
+        website_card_visible: true,
+      },
+      {
+        component_code: 'paper_billing',
+        name: 'Fakturaavgift',
+        amount: { amount: 19 },
+        unit: 'sek_per_invoice',
+        website_card_visible: true,
+      },
+    ],
+  },
+})
+
+assert.ok(componentOnlyContract, 'component-only public pricing must normalize')
+assert.equal(componentOnlyContract.markup_ore_per_kwh, 4)
+assert.equal(componentOnlyContract.variable_markup_ore_per_kwh, 1.5)
+assert.equal(componentOnlyContract.elcert_ore_per_kwh, 0.8)
+assert.equal(componentOnlyContract.monthly_fee_sek, 49)
+assert.equal(componentOnlyContract.invoice_fee_sek, 19)

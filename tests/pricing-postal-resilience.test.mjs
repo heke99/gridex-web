@@ -10,8 +10,9 @@ assert.ok(
   pricingPreview.includes('canUsePublishedPricingFallback'),
   'pricing must classify when the published-pricing fallback is allowed',
 )
+const pricingFallbackPolicy = read('lib/website/pricingFallbackPolicy.ts')
 assert.ok(
-  pricingPreview.includes('error.status === 401 || error.status === 403'),
+  pricingFallbackPolicy.includes('error.status === 401 || error.status === 403'),
   'pricing fallback must never bypass authentication or permission errors',
 )
 assert.ok(
