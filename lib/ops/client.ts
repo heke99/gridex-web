@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
 import {
   normalizePublicContractApiPayload,
+  publishedPricingComponentAmount,
   type PublicPortfolioMonthlyPrice,
   type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
@@ -584,24 +585,24 @@ function classifyComponent(
   if (/spot_share|rorlig andel|rörlig andel|variable share/.test(text)) return "spot_share";
   if (/portfolio_share|portfoljandel|portföljandel|managed share/.test(text)) return "portfolio_share";
   if (/portfolio_price|portfoliopris|portföljpris|portfolio price|managed price/.test(text)) return "portfolio_price_ore_per_kwh";
-  if (/invoice|faktura|billing/.test(text)) return "invoice_fee_sek";
-  if (/monthly|manads|manad|month|subscription|abon/.test(text))
+  if (/invoice|faktur|billing|aviavgift/.test(text)) return "invoice_fee_sek";
+  if (/monthly|manads|manad|month|subscription|abon|grundavgift|fast avgift/.test(text))
     return "monthly_fee_sek";
   if (
-    /variable_fee|rorlig_avgift|rorlig avgift|rörlig avgift|variable charge|variable_charge|energy_fee|kwh_fee/.test(
+    /variable_fee|rorlig_avgift|rorlig avgift|rörlig avgift|variable charge|variable_charge|energy_fee|kwh_fee|balansavgift/.test(
       text,
     )
   ) {
     return "variable_markup_ore_per_kwh";
   }
   if (
-    /markup|paslag|påslag|supplier_margin|margin|energy_markup|gridex/.test(
+    /markup|paslag|påslag|supplier_margin|margin|energy_markup|gridex|elhandelspaslag|forvaltningsavgift/.test(
       text,
     )
   )
     return "markup_ore_per_kwh";
   if (
-    /fixed_price|fastpris|fast pris|fixed kwh|price_per_kwh|kwh_price/.test(
+    /fixed_price|fastpris|fast pris|fixed kwh|price_per_kwh|kwh_price|energy_price|energipris|elpris/.test(
       text,
     )
   )
@@ -812,32 +813,64 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
       marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
       badge_text: pickString(r, ["badge_text", "badgeText"]),
-      monthly_fee_sek: coalesceNumber(documented.monthly_fee_sek, components.monthly_fee_sek),
-      invoice_fee_sek: coalesceNumber(documented.invoice_fee_sek, components.invoice_fee_sek),
-      markup_ore_per_kwh: coalesceNumber(documented.markup_ore_per_kwh, components.markup_ore_per_kwh),
+      monthly_fee_sek: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'monthly_fee_sek'),
+        documented.monthly_fee_sek,
+        components.monthly_fee_sek,
+      ),
+      invoice_fee_sek: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'invoice_fee_sek'),
+        documented.invoice_fee_sek,
+        components.invoice_fee_sek,
+      ),
+      markup_ore_per_kwh: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'markup_ore_per_kwh'),
+        documented.markup_ore_per_kwh,
+        components.markup_ore_per_kwh,
+      ),
       variable_markup_ore_per_kwh: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'variable_markup_ore_per_kwh'),
         documented.variable_markup_ore_per_kwh,
         components.variable_markup_ore_per_kwh,
       ),
       fixed_price_ore_per_kwh: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'fixed_price_ore_per_kwh'),
         documented.fixed_price_ore_per_kwh,
         components.fixed_price_ore_per_kwh,
       ),
       monthly_fixed_price_sek: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'monthly_fixed_price_sek'),
         documented.monthly_fixed_price_sek,
         components.monthly_fixed_price_sek,
       ),
-      elcert_ore_per_kwh: coalesceNumber(documented.elcert_ore_per_kwh, components.elcert_ore_per_kwh),
+      elcert_ore_per_kwh: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'elcert_ore_per_kwh'),
+        documented.elcert_ore_per_kwh,
+        components.elcert_ore_per_kwh,
+      ),
       portfolio_price_ore_per_kwh: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'portfolio_price_ore_per_kwh'),
         documented.portfolio_price_ore_per_kwh,
         components.portfolio_price_ore_per_kwh,
       ),
-      vat_rate: coalesceNumber(documented.vat_rate, components.vat_rate),
+      vat_rate: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'vat_rate'),
+        documented.vat_rate,
+        components.vat_rate,
+      ),
       pricing_model:
         documented.pricing_model ??
         pickFromRecords([pricing, r], ["pricing_model", "pricingModel", "price_model", "priceModel"]),
-      spot_share: coalesceNumber(documented.spot_share, components.spot_share),
-      portfolio_share: coalesceNumber(documented.portfolio_share, components.portfolio_share),
+      spot_share: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'spot_share'),
+        documented.spot_share,
+        components.spot_share,
+      ),
+      portfolio_share: coalesceNumber(
+        publishedPricingComponentAmount(documented.pricing_components, 'portfolio_share'),
+        documented.portfolio_share,
+        components.portfolio_share,
+      ),
       binding_period_months: normalizeNumber(
         r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
       ),

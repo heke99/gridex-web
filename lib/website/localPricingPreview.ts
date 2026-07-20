@@ -7,7 +7,6 @@ import {
   stockholmDateParts,
 } from '@/lib/gridex/pricing/elprisetjustnu'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { publishedPricingComponentAmount } from '@/lib/website/publicContractContract'
 import {
   resolveWebsiteAreaPricing,
   type ResolvedWebsiteAreaPricing,
@@ -18,6 +17,11 @@ import {
   usesElprisetJustNu,
   type WebsitePricingModel,
 } from '@/lib/website/contractPricingModel'
+import {
+  publishedPricingComponentAmount,
+  publishedPricingComponentDiagnostics,
+  type CanonicalPublishedPricingKey,
+} from '@/lib/website/publicContractContract'
 
 export class LocalWebsitePricingPreviewError extends Error {
   status: number
@@ -88,7 +92,7 @@ function contractNumber(contract: OpsPublicContract, direct: keyof OpsPublicCont
 }
 
 function monthlyFixedPriceSek(contract: OpsPublicContract): number | null {
-  return contractNumber(contract, 'monthly_fixed_price_sek', [
+  return publishedPricingComponentAmount(contract.pricing_components, 'monthly_fixed_price_sek') ?? contractNumber(contract, 'monthly_fixed_price_sek', [
     'monthly_fixed_price_sek',
     'monthlyFixedPriceSek',
     'monthly_price_sek',
@@ -101,7 +105,7 @@ function monthlyFixedPriceSek(contract: OpsPublicContract): number | null {
 }
 
 function portfolioPriceOre(contract: OpsPublicContract): number | null {
-  return contractNumber(contract, 'portfolio_price_ore_per_kwh', [
+  return publishedPricingComponentAmount(contract.pricing_components, 'portfolio_price_ore_per_kwh') ?? contractNumber(contract, 'portfolio_price_ore_per_kwh', [
     'portfolio_price_ore_per_kwh',
     'portfolioPriceOrePerKwh',
     'portfolio_price_ore',
@@ -146,7 +150,7 @@ function publishedPortfolioMonthlyPrice(
 }
 
 function vatRate(contract: OpsPublicContract): number {
-  const raw = contractNumber(contract, 'vat_rate', ['vat_rate', 'vatRate', 'vat'])
+  const raw = publishedPricingComponentAmount(contract.pricing_components, 'vat_rate') ?? contractNumber(contract, 'vat_rate', ['vat_rate', 'vatRate', 'vat'])
   if (raw === null) return DEFAULT_VAT_RATE
   if (raw > 1 && raw <= 100) return raw / 100
   if (raw >= 0 && raw <= 1) return raw
@@ -269,7 +273,8 @@ function roundOre(value: number): number {
   return Number(value.toFixed(6))
 }
 
-type PublishedFeeKey =
+type PublishedFeeKey = Extract<
+  CanonicalPublishedPricingKey,
   | 'markup_ore_per_kwh'
   | 'variable_markup_ore_per_kwh'
   | 'elcert_ore_per_kwh'
@@ -277,6 +282,7 @@ type PublishedFeeKey =
   | 'invoice_fee_sek'
   | 'fixed_price_ore_per_kwh'
   | 'portfolio_price_ore_per_kwh'
+>
 
 type PublishedFees = {
   markupOre: number
@@ -311,7 +317,9 @@ function resolvedAmount(
                 ? areaPricing.fixedPriceOrePerKwh
                 : areaPricing.portfolioPriceOrePerKwh
 
-  return fromArea ?? publishedAmount(contract, key)
+  // The visible OPS component is the same value rendered on the contract card
+  // and must win over compatibility fields that may be absent or stale.
+  return publishedPricingComponentAmount(contract.pricing_components, key) ?? fromArea ?? number(contract[key])
 }
 
 function requireResolvedAmount(
@@ -322,9 +330,23 @@ function requireResolvedAmount(
 ): number {
   const value = resolvedAmount(contract, areaPricing, key)
   if (value === null) {
+    console.error('[website pricing] required published price component missing', {
+      offerReference: contract.offer_reference,
+      contractType: contract.type,
+      requestedKey: key,
+      requestedLabel: label,
+      components: publishedPricingComponentDiagnostics(contract.pricing_components),
+    })
     throw new LocalWebsitePricingPreviewError(`Avtalet saknar publicerat ${label} för valt elområde.`, 409)
   }
   if (value < 0) {
+    console.error('[website pricing] invalid published price component', {
+      offerReference: contract.offer_reference,
+      contractType: contract.type,
+      requestedKey: key,
+      requestedLabel: label,
+      value,
+    })
     throw new LocalWebsitePricingPreviewError(`Avtalet har ogiltigt ${label} för valt elområde.`, 409)
   }
   return value

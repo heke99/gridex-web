@@ -1,25 +1,51 @@
 import assert from 'node:assert/strict'
-import {
-  canUsePublishedPricingFallback,
-  isUnavailableQuoteResponse,
-} from '../lib/website/pricingFallbackPolicy.ts'
+import { canUsePublishedPricingFallback } from '../lib/website/pricingFallbackPolicy.ts'
 
-const generic = (status, details = undefined) => ({
-  status,
-  message: 'Tjänsten kunde inte slutföra åtgärden just nu.',
-  details,
-})
+const generic = 'Tjänsten kunde inte slutföra åtgärden just nu.'
 
-assert.equal(canUsePublishedPricingFallback(generic(401)), false)
-assert.equal(canUsePublishedPricingFallback(generic(403)), false)
-assert.equal(canUsePublishedPricingFallback(generic(400)), true)
-assert.equal(canUsePublishedPricingFallback(generic(409)), true)
-assert.equal(canUsePublishedPricingFallback(generic(422)), true)
-assert.equal(canUsePublishedPricingFallback({ status: 409, message: 'Avtalet saknar publicerat pris.' }), false)
-assert.equal(canUsePublishedPricingFallback({ status: 404, message: 'Not found' }), true)
-assert.equal(canUsePublishedPricingFallback({ status: 405, message: 'Method not allowed' }), true)
-assert.equal(canUsePublishedPricingFallback({ status: 500, message: 'Server error' }), true)
-assert.equal(isUnavailableQuoteResponse({ status: 302, message: 'Redirect', details: { redirected: true } }), true)
-assert.equal(isUnavailableQuoteResponse({ status: 200, message: 'HTML', details: { content_type: 'text/html' } }), true)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 409, message: generic }),
+  true,
+  'generic OPS 409 must activate the strict published-pricing fallback',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 400, message: generic }),
+  true,
+  'generic OPS 400 must activate the strict published-pricing fallback',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 422, message: generic }),
+  true,
+  'generic OPS 422 must activate the strict published-pricing fallback',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 409, message: 'Avtalet är inte publicerat.' }),
+  false,
+  'a specific business validation must not be bypassed',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 401, message: generic }),
+  false,
+  'authentication failures must never be bypassed',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 403, message: generic }),
+  false,
+  'permission failures must never be bypassed',
+)
+assert.equal(
+  canUsePublishedPricingFallback({ status: 500, message: 'Internal server error' }),
+  true,
+  'server failures must activate the strict published-pricing fallback',
+)
+assert.equal(
+  canUsePublishedPricingFallback({
+    status: 409,
+    message: 'Conflict',
+    details: { content_type: 'text/html; charset=utf-8' },
+  }),
+  true,
+  'HTML returned with a validation-like status is a broken quote response',
+)
 
 console.log('pricing fallback policy tests passed')

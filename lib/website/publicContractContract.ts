@@ -49,103 +49,214 @@ export type PublicPricingComponent = {
   calculation_base: string | null
 }
 
+
 export type CanonicalPublishedPricingKey =
   | 'monthly_fee_sek'
   | 'invoice_fee_sek'
   | 'markup_ore_per_kwh'
   | 'variable_markup_ore_per_kwh'
+  | 'elcert_ore_per_kwh'
   | 'fixed_price_ore_per_kwh'
   | 'monthly_fixed_price_sek'
-  | 'elcert_ore_per_kwh'
   | 'portfolio_price_ore_per_kwh'
   | 'spot_share'
   | 'portfolio_share'
+  | 'vat_rate'
 
-function normalizedComponentText(value: unknown): string {
+function normalizedComponentToken(value: unknown): string {
   return String(value ?? '')
-    .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9%]+/g, '_')
+    .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
 }
 
-export function classifyPublishedPricingComponent(
-  component: Pick<PublicPricingComponent, 'component_code' | 'name' | 'unit' | 'calculation_base'>,
-): CanonicalPublishedPricingKey | null {
-  const text = normalizedComponentText([
-    component.component_code,
-    component.name,
-    component.unit,
-    component.calculation_base,
-  ].filter(Boolean).join(' '))
-  const unit = normalizedComponentText(component.unit)
-  if (!text) return null
-
-  if (/spot_share|rorlig_andel|variable_share/.test(text)) return 'spot_share'
-  if (/portfolio_share|portfoljandel|managed_share/.test(text)) return 'portfolio_share'
-  if (/invoice|faktura|billing/.test(text) || /sek_per_invoice|sek_invoice/.test(unit)) return 'invoice_fee_sek'
-  if (/elcert|certificate|certifikat/.test(text)) return 'elcert_ore_per_kwh'
-  if (
-    /monthly_fixed|fixed_monthly|fast_manadspris|fixed_monthly_price/.test(text) ||
-    (/monthly_price/.test(text) && /sek_per_month|sek_month/.test(unit))
-  ) {
-    return 'monthly_fixed_price_sek'
-  }
-  if (/portfolio_price|portfoljpris|managed_price/.test(text)) return 'portfolio_price_ore_per_kwh'
-  if (/variable_fee|variable_markup|rorlig_avgift|energy_fee|kwh_fee/.test(text)) {
-    return 'variable_markup_ore_per_kwh'
-  }
-  if (/markup|paslag|supplier_margin|energy_markup|forvaltningsavgift/.test(text)) {
-    return 'markup_ore_per_kwh'
-  }
-  if (/fixed_price|fastpris|fast_elpris|fixed_kwh|price_per_kwh|kwh_price/.test(text)) {
-    return 'fixed_price_ore_per_kwh'
-  }
-  if (/monthly_fee|manadsavgift|subscription_fee|abon/.test(text) || /sek_per_month|sek_month/.test(unit)) {
-    return 'monthly_fee_sek'
-  }
-
-  return null
+function componentSearchText(component: PublicPricingComponent): string {
+  return normalizedComponentToken(
+    [component.component_code, component.name, component.unit, component.calculation_base]
+      .filter(Boolean)
+      .join(' '),
+  )
 }
 
+function componentUnitKind(unitValue: unknown): 'invoice' | 'month' | 'energy' | 'percent' | 'other' {
+  const rawUnit = String(unitValue ?? '').trim().toLowerCase()
+  const unit = normalizedComponentToken(unitValue)
+  if (/invoice|faktur|billing|bill|avi/.test(unit)) return 'invoice'
+  if (/month|monthly|manad|manadsvis/.test(unit)) return 'month'
+  if (/kwh|mwh|energy/.test(unit)) return 'energy'
+  if (rawUnit.includes('%') || /percent|percentage|procent|pct/.test(unit)) return 'percent'
+  return 'other'
+}
+
+const EXACT_COMPONENT_CODES: Record<CanonicalPublishedPricingKey, Set<string>> = {
+  monthly_fee_sek: new Set([
+    'monthly_fee',
+    'monthlyfee',
+    'manadsavgift',
+    'subscription_fee',
+    'subscription',
+    'abonnemangsavgift',
+    'base_fee',
+    'fixed_fee',
+    'administration_fee_monthly',
+  ]),
+  invoice_fee_sek: new Set([
+    'invoice_fee',
+    'invoicefee',
+    'fakturaavgift',
+    'faktureringsavgift',
+    'billing_fee',
+    'bill_fee',
+    'paper_invoice_fee',
+    'paper_billing_fee',
+    'aviavgift',
+    'administration_fee_invoice',
+  ]),
+  markup_ore_per_kwh: new Set([
+    'markup',
+    'supplier_markup',
+    'supplier_margin',
+    'energy_markup',
+    'paslag',
+    'elhandelspaslag',
+    'management_fee',
+  ]),
+  variable_markup_ore_per_kwh: new Set([
+    'variable_fee',
+    'variable_markup',
+    'variable_charge',
+    'rorlig_avgift',
+    'energy_fee',
+    'kwh_fee',
+  ]),
+  elcert_ore_per_kwh: new Set([
+    'elcert',
+    'elcert_fee',
+    'electricity_certificate',
+    'electricity_certificate_fee',
+    'certifikatavgift',
+  ]),
+  fixed_price_ore_per_kwh: new Set([
+    'fixed_price',
+    'fixed_kwh_price',
+    'fixed_energy_price',
+    'fastpris',
+    'fast_elpris',
+    'price_per_kwh',
+  ]),
+  monthly_fixed_price_sek: new Set([
+    'monthly_fixed',
+    'fixed_monthly',
+    'monthly_fixed_price',
+    'monthly_price',
+    'fast_manadspris',
+  ]),
+  portfolio_price_ore_per_kwh: new Set([
+    'portfolio_price',
+    'managed_price',
+    'portfoljpris',
+    'portfolio_energy_price',
+  ]),
+  spot_share: new Set(['spot_share', 'variable_share', 'rorlig_andel']),
+  portfolio_share: new Set(['portfolio_share', 'managed_share', 'portfoljandel']),
+  vat_rate: new Set(['vat', 'vat_rate', 'moms', 'momssats']),
+}
+
+function componentMatchScore(
+  component: PublicPricingComponent,
+  key: CanonicalPublishedPricingKey,
+): number {
+  const code = normalizedComponentToken(component.component_code)
+  const textValue = componentSearchText(component)
+  const unitKind = componentUnitKind(component.unit)
+  let score = EXACT_COMPONENT_CODES[key].has(code) ? 100 : 0
+
+  switch (key) {
+    case 'invoice_fee_sek':
+      if (/invoice|faktur|billing|paper_bill|paper_invoice|aviavgift/.test(textValue)) score = Math.max(score, 90)
+      if (unitKind === 'invoice') score = Math.max(score, 80)
+      return score
+    case 'monthly_fixed_price_sek':
+      if (/monthly_fixed|fixed_monthly|monthly_price|manadspris|fast_manadspris/.test(textValue)) {
+        score = Math.max(score, 90)
+      }
+      return unitKind === 'month' ? score : 0
+    case 'monthly_fee_sek':
+      if (/monthly_fee|manadsavgift|subscription|abonnemang|grundavgift|fast_avgift/.test(textValue)) {
+        score = Math.max(score, 90)
+      }
+      if (/monthly_fixed|fixed_monthly|monthly_price|manadspris|fast_manadspris/.test(textValue)) return 0
+      if (unitKind === 'month') score = Math.max(score, 75)
+      return score
+    case 'elcert_ore_per_kwh':
+      if (/elcert|electricity_certificate|certifikat/.test(textValue)) score = Math.max(score, 90)
+      return unitKind === 'energy' ? score : 0
+    case 'portfolio_price_ore_per_kwh':
+      if (/portfolio_price|managed_price|portfoljpris|portfolj_pris|forvaltat_pris/.test(textValue)) score = Math.max(score, 90)
+      return unitKind === 'energy' ? score : 0
+    case 'variable_markup_ore_per_kwh':
+      if (/variable_fee|variable_markup|variable_charge|rorlig_avgift|energy_fee|kwh_fee|balansavgift/.test(textValue)) {
+        score = Math.max(score, 90)
+      }
+      return unitKind === 'energy' ? score : 0
+    case 'markup_ore_per_kwh':
+      if (/markup|supplier_margin|energy_markup|paslag|marginal|forvaltningsavgift|handelsavgift/.test(textValue)) {
+        score = Math.max(score, 90)
+      }
+      if (/variable_fee|variable_markup|rorlig_avgift|elcert|portfolio_price|fixed_price|fastpris/.test(textValue)) return 0
+      return unitKind === 'energy' ? score : 0
+    case 'fixed_price_ore_per_kwh':
+      if (/fixed_price|fixed_kwh|fastpris|fast_pris|fast_elpris|fixed_energy_price|energy_price|energipris|elpris/.test(textValue)) {
+        score = Math.max(score, 90)
+      }
+      return unitKind === 'energy' ? score : 0
+    case 'spot_share':
+      if (/spot_share|variable_share|rorlig_andel|spotandel/.test(textValue)) score = Math.max(score, 90)
+      return unitKind === 'percent' || score >= 90 ? score : 0
+    case 'portfolio_share':
+      if (/portfolio_share|managed_share|portfoljandel|portfolio_andel/.test(textValue)) score = Math.max(score, 90)
+      return unitKind === 'percent' || score >= 90 ? score : 0
+    case 'vat_rate':
+      if (/vat|moms|momssats/.test(textValue)) score = Math.max(score, 90)
+      return unitKind === 'percent' || score >= 90 ? score : 0
+  }
+}
+
+/**
+ * Resolves the same visible OPS component that the public contract card renders.
+ * Exact component codes win, then semantic aliases, then unambiguous units such
+ * as SEK per invoice or SEK per month. Zero is a valid published amount.
+ */
 export function publishedPricingComponentAmount(
   components: readonly PublicPricingComponent[] | null | undefined,
   key: CanonicalPublishedPricingKey,
 ): number | null {
-  if (!components?.length) return null
+  let best: { score: number; index: number; amount: number } | null = null
 
-  const matches = components
-    .filter((component) => classifyPublishedPricingComponent(component) === key)
-    .filter((component) => Number.isFinite(component.amount))
-    .sort((a, b) => Number(b.website_card_visible) - Number(a.website_card_visible))
+  for (const [index, component] of (components ?? []).entries()) {
+    if (component.website_card_visible === false || !Number.isFinite(component.amount)) continue
+    const score = componentMatchScore(component, key)
+    if (score <= 0) continue
+    if (!best || score > best.score || (score === best.score && index < best.index)) {
+      best = { score, index, amount: component.amount }
+    }
+  }
 
-  return matches[0]?.amount ?? null
+  return best?.amount ?? null
 }
 
-function canonicalPublishedPricingAmounts(
+export function publishedPricingComponentDiagnostics(
   components: readonly PublicPricingComponent[] | null | undefined,
-): Partial<Record<CanonicalPublishedPricingKey, number>> {
-  const result: Partial<Record<CanonicalPublishedPricingKey, number>> = {}
-  const keys: CanonicalPublishedPricingKey[] = [
-    'monthly_fee_sek',
-    'invoice_fee_sek',
-    'markup_ore_per_kwh',
-    'variable_markup_ore_per_kwh',
-    'fixed_price_ore_per_kwh',
-    'monthly_fixed_price_sek',
-    'elcert_ore_per_kwh',
-    'portfolio_price_ore_per_kwh',
-    'spot_share',
-    'portfolio_share',
-  ]
-
-  for (const key of keys) {
-    const amount = publishedPricingComponentAmount(components, key)
-    if (amount !== null) result[key] = amount
-  }
-  return result
+): Array<{ code: string; name: string; amount: number; unit: string; visible: boolean }> {
+  return (components ?? []).map((component) => ({
+    code: component.component_code,
+    name: component.name,
+    amount: component.amount,
+    unit: component.unit,
+    visible: component.website_card_visible,
+  }))
 }
 
 export type PublicPortfolioMonthlyPrice = {
@@ -180,9 +291,29 @@ function boolean(value: unknown): boolean | null {
   return null
 }
 
-function amount(value: unknown): number | null {
+function amount(value: unknown, seen = new Set<unknown>()): number | null {
+  const direct = number(value)
+  if (direct !== null) return direct
   const row = record(value)
-  return number(row?.amount ?? value)
+  if (!row || seen.has(value)) return null
+  seen.add(value)
+
+  for (const key of [
+    'amount',
+    'value',
+    'price',
+    'rate',
+    'sek',
+    'ore',
+    'amount_sek',
+    'amountSek',
+    'amount_ore',
+    'amountOre',
+  ]) {
+    const nested = amount(row[key], seen)
+    if (nested !== null) return nested
+  }
+  return null
 }
 
 function typeList(value: unknown): string[] | null {
@@ -226,20 +357,65 @@ function pricingComponents(value: unknown): PublicPricingComponent[] {
   return value.flatMap((item) => {
     const row = record(item)
     if (!row) return []
-    const componentCode = text(row.component_code ?? row.componentCode ?? row.code)
-    const componentName = text(row.name ?? row.label ?? componentCode)
-    const componentAmount = amount(row.amount ?? row.value)
-    const unit = text(row.unit)
-    if (!componentCode || !componentName || componentAmount === null || !unit) return []
+    const explicitCode = text(row.component_code ?? row.componentCode ?? row.code ?? row.key ?? row.type)
+    const componentName = text(row.name ?? row.label ?? row.title ?? row.description ?? explicitCode)
+    const componentCode = explicitCode ?? componentName
+    const componentAmount = amount(row.amount ?? row.value ?? row.price ?? row.rate)
+    const amountRow = record(row.amount) ?? record(row.value) ?? record(row.price)
+    const unit = text(
+      row.unit ??
+        row.unit_code ??
+        row.unitCode ??
+        row.unit_type ??
+        row.unitType ??
+        amountRow?.unit ??
+        amountRow?.unit_code ??
+        amountRow?.unitCode,
+    )
+    if (!componentCode || !componentName || componentAmount === null) return []
     return [{
       component_code: componentCode,
       name: componentName,
       amount: componentAmount,
-      unit,
-      website_card_visible: boolean(row.website_card_visible ?? row.websiteCardVisible) ?? true,
-      calculation_base: text(row.calculation_base ?? row.calculationBase),
+      unit: unit ?? '',
+      website_card_visible: boolean(
+        row.website_card_visible ??
+          row.websiteCardVisible ??
+          row.visible_on_website ??
+          row.visibleOnWebsite ??
+          row.show_on_website ??
+          row.showOnWebsite ??
+          row.visible,
+      ) ?? true,
+      calculation_base: text(
+        row.calculation_base ??
+          row.calculationBase ??
+          row.base ??
+          row.applies_to ??
+          row.appliesTo,
+      ),
     }]
   })
+}
+
+function pricingComponentSource(
+  row: Record<string, unknown>,
+  pricing: Record<string, unknown>,
+): unknown {
+  return (
+    pricing.components ??
+    pricing.pricing_components ??
+    pricing.pricingComponents ??
+    pricing.price_components ??
+    pricing.priceComponents ??
+    pricing.fees ??
+    pricing.charges ??
+    row.pricing_components ??
+    row.pricingComponents ??
+    row.price_components ??
+    row.priceComponents ??
+    row.components
+  )
 }
 
 function portfolioMonthlyPrices(value: unknown): PublicPortfolioMonthlyPrice[] {
@@ -288,8 +464,9 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
 
   if (!offerReference || !name || !type) return null
 
-  const components = pricingComponents(pricing.components)
-  const componentAmounts = canonicalPublishedPricingAmounts(components)
+  const components = pricingComponents(pricingComponentSource(row, pricing))
+  const componentAmount = (key: CanonicalPublishedPricingKey): number | null =>
+    publishedPricingComponentAmount(components, key)
 
   return {
     id: text(row.id),
@@ -303,14 +480,14 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,
     ),
-    monthly_fee_sek: componentAmounts.monthly_fee_sek ?? amount(pricing.monthly_fee ?? pricing.monthlyFee ?? row.monthly_fee_sek),
-    invoice_fee_sek: componentAmounts.invoice_fee_sek ?? amount(pricing.invoice_fee ?? pricing.invoiceFee ?? row.invoice_fee_sek),
-    markup_ore_per_kwh: componentAmounts.markup_ore_per_kwh ?? amount(pricing.markup ?? pricing.markup_ore_per_kwh ?? row.markup_ore_per_kwh),
-    variable_markup_ore_per_kwh: componentAmounts.variable_markup_ore_per_kwh ?? amount(
+    monthly_fee_sek: componentAmount('monthly_fee_sek') ?? amount(pricing.monthly_fee ?? pricing.monthlyFee ?? row.monthly_fee_sek),
+    invoice_fee_sek: componentAmount('invoice_fee_sek') ?? amount(pricing.invoice_fee ?? pricing.invoiceFee ?? row.invoice_fee_sek),
+    markup_ore_per_kwh: componentAmount('markup_ore_per_kwh') ?? amount(pricing.markup ?? pricing.markup_ore_per_kwh ?? row.markup_ore_per_kwh),
+    variable_markup_ore_per_kwh: componentAmount('variable_markup_ore_per_kwh') ?? amount(
       pricing.variable_markup ?? pricing.variable_fee ?? pricing.variable_markup_ore_per_kwh ?? row.variable_markup_ore_per_kwh,
     ),
-    fixed_price_ore_per_kwh: componentAmounts.fixed_price_ore_per_kwh ?? amount(pricing.fixed_price ?? pricing.fixed_price_ore_per_kwh ?? row.fixed_price_ore_per_kwh),
-    monthly_fixed_price_sek: componentAmounts.monthly_fixed_price_sek ?? amount(
+    fixed_price_ore_per_kwh: componentAmount('fixed_price_ore_per_kwh') ?? amount(pricing.fixed_price ?? pricing.fixed_price_ore_per_kwh ?? row.fixed_price_ore_per_kwh),
+    monthly_fixed_price_sek: componentAmount('monthly_fixed_price_sek') ?? amount(
       pricing.monthly_fixed_price ??
         pricing.monthlyFixedPrice ??
         pricing.monthly_price ??
@@ -319,17 +496,17 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
         row.monthlyFixedPriceSek ??
         row.monthly_price_sek,
     ),
-    elcert_ore_per_kwh: componentAmounts.elcert_ore_per_kwh ?? amount(pricing.elcert ?? pricing.elcert_ore_per_kwh ?? row.elcert_ore_per_kwh),
-    portfolio_price_ore_per_kwh: componentAmounts.portfolio_price_ore_per_kwh ?? amount(
+    elcert_ore_per_kwh: componentAmount('elcert_ore_per_kwh') ?? amount(pricing.elcert ?? pricing.elcert_ore_per_kwh ?? row.elcert_ore_per_kwh),
+    portfolio_price_ore_per_kwh: componentAmount('portfolio_price_ore_per_kwh') ?? amount(
       pricing.portfolio_price ??
         pricing.portfolioPrice ??
         pricing.portfolio_price_ore_per_kwh ??
         row.portfolio_price_ore_per_kwh,
     ),
-    vat_rate: number(pricing.vat_rate ?? pricing.vatRate ?? row.vat_rate ?? row.vatRate),
+    vat_rate: componentAmount('vat_rate') ?? number(pricing.vat_rate ?? pricing.vatRate ?? row.vat_rate ?? row.vatRate),
     pricing_model: text(pricing.pricing_model ?? pricing.pricingModel ?? row.pricing_model ?? row.pricingModel),
-    spot_share: normalizedShare(componentAmounts.spot_share) ?? normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
-    portfolio_share: normalizedShare(componentAmounts.portfolio_share) ?? normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
+    spot_share: normalizedShare(componentAmount('spot_share')) ?? normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
+    portfolio_share: normalizedShare(componentAmount('portfolio_share')) ?? normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
     valid_from: text(row.valid_from ?? row.validFrom),
     valid_to: text(row.valid_to ?? row.validTo),
     terms_version: text(legal.terms_version ?? legal.termsVersion ?? row.terms_version),

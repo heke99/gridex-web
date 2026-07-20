@@ -51,57 +51,59 @@ assert.equal(camelCaseContract.power_of_attorney_url, 'https://app.gridex.se/leg
 assert.equal(camelCaseContract.price_terms_url, 'https://app.gridex.se/legal/gridex/price-terms/77777777-7777-4777-8777-777777777777')
 
 const componentOnlyContract = normalizePublicContractApiPayload({
-  offer_reference: 'offer_components_only',
-  code: 'COMPONENTS-ONLY',
-  name: 'Komponentbaserat månadspris',
+  offer_reference: 'offer_component_only',
+  code: 'MANAD-API',
+  name: 'Månadspris från komponenter',
   type: 'variable_spot',
   pricing: {
-    monthly_fee: { amount: 999 },
-    invoice_fee: { amount: 999 },
-    markup: { amount: 999 },
+    invoice_fee: null,
     components: [
-      {
-        component_code: 'supplier_margin',
-        name: 'Påslag',
-        amount: { amount: 4 },
-        unit: 'ore_per_kwh',
-        website_card_visible: true,
-      },
-      {
-        component_code: 'energy_fee',
-        name: 'Rörlig avgift',
-        amount: { amount: 1.5 },
-        unit: 'ore_per_kwh',
-        website_card_visible: true,
-      },
-      {
-        component_code: 'electricity_certificate',
-        name: 'Elcertifikat',
-        amount: { amount: 0.8 },
-        unit: 'ore_per_kwh',
-        website_card_visible: true,
-      },
-      {
-        component_code: 'subscription',
-        name: 'Månadsavgift',
-        amount: { amount: 49 },
-        unit: 'sek_per_month',
-        website_card_visible: true,
-      },
-      {
-        component_code: 'paper_billing',
-        name: 'Fakturaavgift',
-        amount: { amount: 19 },
-        unit: 'sek_per_invoice',
-        website_card_visible: true,
-      },
+      { component_code: 'supplier_markup', name: 'Påslag', amount: { amount: 4 }, unit: 'ore_per_kwh', website_card_visible: true },
+      { component_code: 'monthly_fee', name: 'Månadsavgift', amount: { amount: 49 }, unit: 'month', website_card_visible: true },
+      { component_code: 'paper_invoice_fee', name: 'Fakturaavgift', amount: { amount: 0 }, unit: 'invoice', website_card_visible: true },
     ],
   },
 })
 
 assert.ok(componentOnlyContract, 'component-only public pricing must normalize')
-assert.equal(componentOnlyContract.markup_ore_per_kwh, 4)
-assert.equal(componentOnlyContract.variable_markup_ore_per_kwh, 1.5)
-assert.equal(componentOnlyContract.elcert_ore_per_kwh, 0.8)
-assert.equal(componentOnlyContract.monthly_fee_sek, 49)
-assert.equal(componentOnlyContract.invoice_fee_sek, 19)
+assert.equal(componentOnlyContract.pricing_components.length, 3)
+assert.equal(componentOnlyContract.pricing_components[2].amount, 0, 'zero invoice fee must survive component normalization')
+
+const aliasComponentContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_component_aliases',
+  code: 'ALIAS-API',
+  name: 'Prisdelar med OPS-aliaser',
+  type: 'variable_spot',
+  pricing: {
+    price_components: [
+      { code: 'charge_a', label: 'Elhandelspåslag', value: { amount: '4,5' }, unit_code: 'öre/kWh', visible_on_website: true },
+      { code: 'charge_b', label: 'Balansavgift', value: { value: 1.25 }, unit_code: 'ore_per_kwh', visible_on_website: true },
+      { code: 'charge_c', label: 'Elcertifikatsavgift', price: { amount: 0.5, unit: 'ore_per_kwh' }, visible_on_website: true },
+      { code: 'charge_d', label: 'Fast avgift', amount: 39, unit: 'SEK/månad', visible_on_website: true },
+      { code: 'charge_e', label: 'Faktureringsavgift', amount: { value: { amount: 19 } }, unit: 'SEK', visible_on_website: true },
+      { code: 'hidden_invoice', label: 'Fakturaavgift gammal', amount: 99, unit: 'SEK/faktura', visible_on_website: false },
+    ],
+  },
+})
+
+assert.ok(aliasComponentContract, 'OPS pricing component aliases must normalize')
+assert.equal(aliasComponentContract.pricing_components.length, 6)
+assert.equal(aliasComponentContract.markup_ore_per_kwh, 4.5)
+assert.equal(aliasComponentContract.variable_markup_ore_per_kwh, 1.25)
+assert.equal(aliasComponentContract.elcert_ore_per_kwh, 0.5)
+assert.equal(aliasComponentContract.monthly_fee_sek, 39)
+assert.equal(aliasComponentContract.invoice_fee_sek, 19, 'Faktureringsavgift must map to invoice fee')
+
+const unitOnlyContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_unit_only',
+  name: 'Prisdelar med enhetsstyrning',
+  type: 'variable_spot',
+  pricing_components: [
+    { key: 'admin_a', title: 'Administrationsavgift', amount: 29, unit: 'kr/faktura', show_on_website: true },
+    { key: 'admin_b', title: 'Grundavgift', amount: 59, unit: 'kr per månad', show_on_website: true },
+  ],
+})
+
+assert.ok(unitOnlyContract, 'top-level pricing_components must normalize')
+assert.equal(unitOnlyContract.invoice_fee_sek, 29)
+assert.equal(unitOnlyContract.monthly_fee_sek, 59)
