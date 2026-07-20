@@ -13,6 +13,7 @@ import type {
   PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
 import type { WebsiteCustomerType } from "@/lib/website/customerType";
+import type { WebsiteConsumptionProfile } from "@/lib/website/consumptionEstimator";
 import type {
   WebsiteEnergyResolution,
   WebsitePricingPreview,
@@ -127,6 +128,12 @@ type Consents = {
 };
 
 const STEPS = ["Dina uppgifter", "Granska och teckna"];
+function consumptionSourceLabel(profile: WebsiteConsumptionProfile | null | undefined): string {
+  if (!profile) return "Angiven förbrukning";
+  if (profile.source === "customer_entered") return "Angiven av kunden";
+  return profile.customer_adjusted ? "Uppskattad och justerad av kunden" : "Uppskattad från bostadsuppgifter";
+}
+
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -573,6 +580,7 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="city" value={quoteContext.city} />
           <input type="hidden" name="price_area_code" value={pricingPreview?.price_area_code ?? pricingPreview?.priceArea ?? energyResolution?.price_area_code ?? ""} />
           <input type="hidden" name="estimated_monthly_kwh" value={estimatedMonthlyKwh ?? pricingPreview?.kwh ?? ""} />
+          <input type="hidden" name="consumption_profile" value={quoteContext.consumption_profile ? JSON.stringify(quoteContext.consumption_profile) : ""} />
           <input type="hidden" name="pricing_preview_snapshot" value={pricingPreview ? JSON.stringify(pricingPreview) : ""} />
           <input type="hidden" name="contract_display_snapshot" value={activeDisplay ? JSON.stringify(activeDisplay.snapshot) : ""} />
 
@@ -589,7 +597,9 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="Typ" value={publicContractTypeLabel(selectedContract?.type)} />
                   {activeDisplay?.rows.map((row) => <ReviewRow key={row.key} label={row.label} value={row.formatted} />)}
                   <ReviewRow label="Elområde" value={quoteContext.price_area_code} />
-                  <ReviewRow label="Förbrukning" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE')} kWh/mån`} />
+                  <ReviewRow label="Årsförbrukning" value={`${(quoteContext.consumption_profile?.annual_kwh ?? quoteContext.estimated_monthly_kwh * 12).toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kWh/år`} />
+                  <ReviewRow label="Förbrukningsunderlag" value={consumptionSourceLabel(quoteContext.consumption_profile)} />
+                  <ReviewRow label="Beräkningsvärde" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kWh/mån`} />
                   {pricingPreview?.totalMonthlyCostInclVatSek != null ? <ReviewRow label="Beräknat inkl. moms" value={`${pricingPreview.totalMonthlyCostInclVatSek.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr/mån`} /> : null}
                 </dl>
               </div>

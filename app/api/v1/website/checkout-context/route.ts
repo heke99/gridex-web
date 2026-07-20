@@ -6,6 +6,10 @@ import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import {
+  consumptionProfileMatchesMonthlyKwh,
+  normalizeWebsiteConsumptionProfile,
+} from '@/lib/website/consumptionEstimator'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
   const address = text(body?.address)
   const area = text(body?.price_area_code).toUpperCase() as OpsWebsitePriceArea
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
+  const consumptionProfile = normalizeWebsiteConsumptionProfile(body?.consumption_profile)
 
   if (
     !offerReference ||
@@ -50,7 +55,9 @@ export async function POST(req: Request) {
     !AREAS.has(area) ||
     !Number.isFinite(estimatedMonthlyKwh) ||
     estimatedMonthlyKwh < 1 ||
-    estimatedMonthlyKwh > 200000
+    estimatedMonthlyKwh > 200000 ||
+    !consumptionProfile ||
+    !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh)
   ) {
     return NextResponse.json({ error: 'Prisberäkningen är ofullständig.' }, { status: 400 })
   }
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
-      return NextResponse.json({ error: 'Prisberäkningen har gått ut eller ändrats.' }, { status: 409 })
+      return NextResponse.json({ error: 'Uppgifterna behöver verifieras igen innan du fortsätter.' }, { status: 409 })
     }
 
     const token = await createWebsiteCheckoutContext({
@@ -93,6 +100,7 @@ export async function POST(req: Request) {
         address,
         price_area_code: area,
         estimated_monthly_kwh: estimatedMonthlyKwh,
+        consumption_profile: consumptionProfile,
       },
     })
     return NextResponse.json({ checkout_token: token })

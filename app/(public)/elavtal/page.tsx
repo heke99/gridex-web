@@ -126,7 +126,7 @@ export default async function AvtalPage() {
     loadError = "Aktuella elavtal kan inte hämtas just nu.";
   }
 
-  const faqItems = faqByIds(['avtalsskillnad', 'vad-ingar', 'prisbegrepp', 'pris-andras']);
+  const faqItems = faqByIds(['avtalsskillnad', 'vad-ingar', 'prisbegrepp']);
 
   return (
     <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">

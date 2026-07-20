@@ -87,6 +87,12 @@ The integration must never silently convert missing markup, monthly fee, invoice
 
 The full OPS quote and the displayed contract snapshot are stored in `website_application_submissions` for audit. They are deliberately not placed in the strict OPS application payload unless the published OPS schema explicitly allows them.
 
+### Consumption profile and annual estimate
+
+The public calculator must never invent a default consumption. A private customer either enters annual consumption or approves an estimate based on housing type, floor area, heating type, household size and explicitly selected larger loads. The accepted annual value is converted to the monthly kWh required by the authoritative OPS quote endpoint.
+
+The versioned `consumption_profile` travels with the website checkout context, is validated against `estimated_monthly_kwh`, is included in the immutable local application snapshot and is shown during review. It is not added to the strict OPS application payload until OPS publishes a matching schema field. This avoids divergent price inputs without sending undocumented fields.
+
 ## Legal bundle
 
 `GET /api/v1/website/legal-bundle` is available server-side for diagnostics and document views. The selected public contract itself must carry every exact, published legal version and HTTPS URL needed for sale; a temporary bundle failure is therefore not allowed to stop an otherwise complete contract. The contract determines:

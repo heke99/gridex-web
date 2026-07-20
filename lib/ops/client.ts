@@ -1176,6 +1176,28 @@ function timeoutSignal(parentSignal?: AbortSignal | null): {
   };
 }
 
+function isSafeOpsCanonicalRedirect(
+  requestUrl: string,
+  location: string | null,
+  status: number,
+): string | null {
+  if (!location || (status !== 307 && status !== 308)) return null;
+  try {
+    const current = new URL(requestUrl);
+    const redirected = new URL(location, current);
+    const canonicalPath = (value: string) => value.replace(/\/+$/, "") || "/";
+    if (
+      redirected.origin !== current.origin ||
+      canonicalPath(redirected.pathname) !== canonicalPath(current.pathname) ||
+      redirected.search !== current.search ||
+      /\/(?:login|logga-in|signin|auth)(?:\/|$)/i.test(redirected.pathname)
+    ) return null;
+    return redirected.toString();
+  } catch {
+    return null;
+  }
+}
+
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
@@ -1197,15 +1219,23 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   }
 
   const timeout = timeoutSignal(init?.signal);
+  const requestUrl = `${baseUrl}${path}`;
+  const request = (url: string) => fetch(url, {
+    ...init,
+    headers,
+    signal: timeout.signal,
+    cache: "no-store",
+    redirect: "manual",
+  });
   let res: Response;
   try {
-    res = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers,
-      signal: timeout.signal,
-      cache: "no-store",
-      redirect: "manual",
-    });
+    res = await request(requestUrl);
+    const canonicalRedirect = isSafeOpsCanonicalRedirect(
+      requestUrl,
+      res.headers.get("location"),
+      res.status,
+    );
+    if (canonicalRedirect) res = await request(canonicalRedirect);
   } catch (error) {
     if (timeout.signal.aborted && !init?.signal?.aborted) {
       timeout.cleanup();

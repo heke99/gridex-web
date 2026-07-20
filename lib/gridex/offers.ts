@@ -66,9 +66,12 @@ function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-function clampKwh(value: unknown): number {
-  const n = safeNumber(value, 2000)
-  return Math.min(200000, Math.max(1, n))
+function requireKwh(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 1 || n > 200000) {
+    throw Object.assign(new Error('Ange en giltig månadsförbrukning.'), { status: 400 })
+  }
+  return n
 }
 
 function legalTextFor(spec: CustomerSpecResult): string {
@@ -125,7 +128,7 @@ export async function calculateCustomerOffer(params: {
     params.manualPriceArea ?? null
   )
   const contract = await resolveActiveContract(params.supabase, contractSlug)
-  const kwh = clampKwh(params.kwh)
+  const kwh = requireKwh(params.kwh)
   const spec = await computeCustomerSpec({
     supabase: params.supabase,
     contract,

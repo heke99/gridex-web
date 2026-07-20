@@ -56,6 +56,10 @@ import {
   normalizePhoneToE164,
 } from "@/lib/website/signupValidation";
 import { checkoutFaqItems } from "@/lib/content/faq";
+import {
+  consumptionProfileMatchesMonthlyKwh,
+  normalizeWebsiteConsumptionProfile,
+} from "@/lib/website/consumptionEstimator";
 
 export const dynamic = "force-dynamic";
 
@@ -708,15 +712,20 @@ export default async function TecknaPage({
     const estimatedMonthlyKwh = parseOptionalNumber(
       normalizeText(formData.get("estimated_monthly_kwh")),
     );
+    const consumptionProfile = normalizeWebsiteConsumptionProfile(
+      parseJsonSnapshot(normalizeText(formData.get("consumption_profile"))),
+    );
     if (
       !estimatedMonthlyKwh ||
       estimatedMonthlyKwh < 1 ||
-      estimatedMonthlyKwh > 200000
+      estimatedMonthlyKwh > 200000 ||
+      !consumptionProfile ||
+      !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh)
     ) {
       return fail("price_snapshot", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Prisberäkningen saknas eller är ogiltig." },
+        fieldErrors: { pricing: "Förbrukningen eller prisberäkningen saknas eller är ogiltig." },
       });
     }
 
@@ -755,7 +764,7 @@ export default async function TecknaPage({
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Priset har gått ut eller ändrats. Räkna om priset." },
+        fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
       });
     }
 
@@ -787,19 +796,22 @@ export default async function TecknaPage({
         return fail("price_changed", {
           step: 0,
           requiresQuoteRefresh: true,
-          fieldErrors: { pricing: "Priset har ändrats. Räkna om priset." },
+          fieldErrors: { pricing: "Uppgifterna stämmer inte längre med kalkylen. Hämta priset på nytt." },
         });
       }
-      canonicalPricingPreviewSnapshot = quoteToWebsitePricingPreview(
-        verifiedQuote.quote,
-        pricingQuoteToken,
-      ) as unknown as Record<string, unknown>;
+      canonicalPricingPreviewSnapshot = {
+        ...(quoteToWebsitePricingPreview(
+          verifiedQuote.quote,
+          pricingQuoteToken,
+        ) as unknown as Record<string, unknown>),
+        consumption_profile: consumptionProfile,
+      };
     } catch (error) {
       console.error("[website signup] server price verification failed", error);
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Priset kunde inte verifieras. Räkna om priset." },
+        fieldErrors: { pricing: "Prisuppgifterna kunde inte verifieras. Hämta priset på nytt." },
       });
     }
 
@@ -849,6 +861,7 @@ export default async function TecknaPage({
       energyResolutionConfidence: serverResolution?.confidence ?? null,
       quoteToken: pricingQuoteToken,
       canonicalPricingPreviewSnapshot,
+      consumptionProfile,
       contractDisplaySnapshot,
       linkedAuthUserId,
       consents: {

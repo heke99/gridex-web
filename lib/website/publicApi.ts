@@ -1,3 +1,5 @@
+import type { WebsiteConsumptionProfile } from '@/lib/website/consumptionEstimator'
+
 export const WEBSITE_PRICE_AREAS = ["SE1", "SE2", "SE3", "SE4"] as const;
 
 export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
@@ -33,6 +35,7 @@ export type WebsitePricingQuoteContext = {
   address: string;
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
+  consumption_profile?: WebsiteConsumptionProfile | null;
 };
 
 export type WebsitePricingPreview = {

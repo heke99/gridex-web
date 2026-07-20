@@ -60,6 +60,7 @@ function priceArea(value: unknown): OpsWebsitePriceArea | null {
 }
 
 export async function POST(req: Request) {
+  const requestId = globalThis.crypto.randomUUID();
   const rateLimit = await checkRateLimit(
     `website-pricing-preview:${clientIpFromHeaders(new Headers(req.headers))}`,
     { limit: 30, windowMs: 5 * 60_000 },
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
     );
   }
   if (!websitePricingQuoteConfigured()) {
-    console.error("[website pricing preview] GRIDEX_WEBSITE_PRICING_QUOTE_SECRET is missing");
+    console.error("[website pricing preview] GRIDEX_WEBSITE_PRICING_QUOTE_SECRET is missing", { request_id: requestId });
     return NextResponse.json(
       { error: "Prisverifieringen är inte konfigurerad just nu." },
       { status: 503 },
@@ -174,16 +175,31 @@ export async function POST(req: Request) {
       );
     }
     if (isOpsError(error)) {
+      console.error("[website pricing preview] OPS quote failed", {
+        request_id: requestId,
+        status: error.status,
+        message: error.message,
+        details: error.details,
+      });
+      const generic = /Tjänsten kunde inte slutföra åtgärden just nu/i.test(error.message);
       return NextResponse.json(
         {
-          error: error.message || "Vi kunde inte hämta prisuppgifter just nu.",
+          error: generic
+            ? `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
+            : error.message || `Vi kunde inte hämta prisuppgifter just nu. Referens: ${requestId.slice(0, 8)}.`,
+          code: "ops_quote_failed",
+          request_id: requestId,
         },
         { status: error.status || 502 },
       );
     }
-    console.error("[website pricing preview] failed", error);
+    console.error("[website pricing preview] failed", { request_id: requestId, error });
     return NextResponse.json(
-      { error: "Vi kunde inte hämta prisuppgifter just nu." },
+      {
+        error: `Vi kunde inte hämta prisuppgifter just nu. Referens: ${requestId.slice(0, 8)}.`,
+        code: "website_pricing_failed",
+        request_id: requestId,
+      },
       { status: 502 },
     );
   }
