@@ -108,10 +108,13 @@ function normalizeContractType(
   if (type === "fixed") return "fixed";
   if (type === "monthly_fixed" || type === "fixed_monthly")
     return "monthly_fixed";
+  if (type === "spot_monthly" || type === "variable_spot") return "spot_monthly";
+  if (/quarter|15[_ -]?min|kvart/.test(type)) return "spot_quarterly";
+  if (/hour|tim/.test(type)) return "spot_hourly";
   if (type === "portfolio" || type === "portfolio_managed")
     return "portfolio_managed";
   if (type === "mix" || type === "mixed") return "mix";
-  return "spot_hourly";
+  return "spot_monthly";
 }
 
 function customerSafeError(error: unknown) {

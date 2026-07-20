@@ -127,8 +127,8 @@ assert.ok(
   "website pricing must have a calculator service",
 );
 assert.ok(
-  localPricing.includes("prevYearMonth(now)"),
-  "variable pricing must use previous calendar month",
+  localPricing.includes("throughDay: current.day"),
+  "monthly variable pricing must use the current month-to-date from Elprisetjustnu",
 );
 assert.ok(
   !localPricing.includes("fetchActiveSpotBasisPeriod"),
@@ -139,8 +139,10 @@ assert.ok(
   "pricing must support fixed monthly products",
 );
 assert.ok(
-  localPricing.includes("variable_spot_previous_month"),
-  "pricing must support previous-month spot products",
+  localPricing.includes("spot_monthly") &&
+    localPricing.includes("spot_hourly") &&
+    localPricing.includes("spot_quarterly"),
+  "pricing must distinguish monthly, hourly and quarterly spot products",
 );
 assert.ok(
   localPricing.includes("fixed_kwh_price"),
@@ -163,8 +165,8 @@ assert.ok(
   "invoice fee must be explicitly published, including real 0 values",
 );
 assert.ok(
-  localPricing.includes("Prisberäkningen är inte publicerad"),
-  "pricing must fail clearly when the previous month is missing",
+  localPricing.includes("Elprisetjustnu saknar"),
+  "pricing must fail clearly when required market data is missing",
 );
 
 const signup = read("app/(public)/teckna-avtal/page.tsx");

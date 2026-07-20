@@ -1,15 +1,22 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { OpsPublicContract, OpsWebsitePricingPreview } from '@/lib/ops/client'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
-import { tryQuery } from '@/lib/gridex/pricing/db'
-import { prevYearMonth, formatYearMonth } from '@/lib/gridex/pricing/validators'
-import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
+import { prevYearMonth } from '@/lib/gridex/pricing/validators'
+import {
+  fetchDailySpotAverageFromElprisetJustNu,
+  fetchMonthlySpotAverageFromElprisetJustNu,
+  stockholmDateParts,
+} from '@/lib/gridex/pricing/elprisetjustnu'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import {
   resolveWebsiteAreaPricing,
   type ResolvedWebsiteAreaPricing,
 } from '@/lib/website/areaPricingResolver'
 import type { EmbeddedPricingModel } from '@/lib/website/embeddedAreaPricing'
+import {
+  resolveWebsitePricingModel,
+  usesElprisetJustNu,
+  type WebsitePricingModel,
+} from '@/lib/website/contractPricingModel'
 
 export class LocalWebsitePricingPreviewError extends Error {
   status: number
@@ -21,19 +28,19 @@ export class LocalWebsitePricingPreviewError extends Error {
   }
 }
 
-type WebsitePricingModel =
-  | 'monthly_fixed'
-  | 'variable_spot_previous_month'
-  | 'fixed_kwh_price'
-  | 'portfolio'
-  | 'mix'
-
-type SpotBasis = {
-  type: 'previous_month_avg_spot'
+export type ElprisetSpotBasis = {
+  type: 'elprisetjustnu_spot'
+  pricingModel: 'monthly' | 'hourly' | 'quarterly'
+  period: 'current_month_to_date' | 'today'
   year: number
   month: number
+  day?: number
   spotAvgOre: number
-  source: 'gridex_monthly_spot_prices' | 'gridex_spot_monthly_avg' | 'elprisetjustnu_api'
+  samples: number
+  intervalMinutes: number | null
+  periodStart: string
+  periodEnd: string
+  source: 'elprisetjustnu_api'
 }
 
 type LocalPricingInput = {
@@ -43,26 +50,7 @@ type LocalPricingInput = {
   now?: Date
 }
 
-type MonthlySpotRow = { avg_spot_ore: number | string | null }
-type LegacySpotRow = { avg_ore: number | string | null }
-
 const DEFAULT_VAT_RATE = 0.25
-
-let cachedSupabase: SupabaseClient | null | undefined
-
-function optionalSupabase(): SupabaseClient | null {
-  if (cachedSupabase !== undefined) return cachedSupabase
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  if (!url || !serviceKey) {
-    cachedSupabase = null
-    return cachedSupabase
-  }
-  cachedSupabase = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-  return cachedSupabase
-}
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -171,23 +159,6 @@ function percentShare(value: number | null | undefined): number | null {
   return null
 }
 
-function normalizedContractType(contract: OpsPublicContract): string {
-  return String(contract.pricing_model ?? contract.type ?? '').trim().toLowerCase()
-}
-
-export function resolveWebsitePricingModel(contract: OpsPublicContract): WebsitePricingModel {
-  const type = normalizedContractType(contract)
-  if (monthlyFixedPriceSek(contract) !== null || /monthly_fixed|fixed_monthly|monthly_price|manadspris|månadspris/.test(type)) {
-    return 'monthly_fixed'
-  }
-  if (type === 'fixed' || type === 'fixed_kwh' || contract.fixed_price_ore_per_kwh != null) {
-    return 'fixed_kwh_price'
-  }
-  if (type === 'mix' || type === 'mixed') return 'mix'
-  if (type === 'portfolio' || type === 'portfolio_managed') return 'portfolio'
-  return 'variable_spot_previous_month'
-}
-
 function embeddedPricingModel(model: WebsitePricingModel): EmbeddedPricingModel {
   if (model === 'fixed_kwh_price') return 'fixed'
   if (model === 'portfolio') return 'portfolio'
@@ -196,79 +167,87 @@ function embeddedPricingModel(model: WebsitePricingModel): EmbeddedPricingModel 
   return 'variable'
 }
 
-async function fetchStoredSpotBasis(
-  supabase: SupabaseClient,
-  priceArea: PriceArea,
-  year: number,
-  month: number,
-): Promise<SpotBasis | null> {
-  const monthly = await tryQuery<MonthlySpotRow | null>(
-    supabase
-      .from('gridex_monthly_spot_prices')
-      .select('avg_spot_ore')
-      .eq('price_area', priceArea)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle(),
-  )
-  const monthlyValue = number(monthly.data?.avg_spot_ore)
-  if (monthlyValue !== null && monthlyValue > 0) {
-    return { type: 'previous_month_avg_spot', year, month, spotAvgOre: monthlyValue, source: 'gridex_monthly_spot_prices' }
-  }
-
-  const legacy = await tryQuery<LegacySpotRow | null>(
-    supabase
-      .from('gridex_spot_monthly_avg')
-      .select('avg_ore')
-      .eq('price_area', priceArea)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle(),
-  )
-  const legacyValue = number(legacy.data?.avg_ore)
-  if (legacyValue !== null && legacyValue > 0) {
-    return { type: 'previous_month_avg_spot', year, month, spotAvgOre: legacyValue, source: 'gridex_spot_monthly_avg' }
-  }
-
-  return null
-}
-
-export async function getPreviousMonthSpotBasis(params: {
+export async function getElprisetSpotBasis(params: {
   priceAreaCode: PriceArea
+  pricingModel: 'monthly' | 'hourly' | 'quarterly'
   now?: Date
-}): Promise<SpotBasis> {
+}): Promise<ElprisetSpotBasis> {
   const now = params.now ?? new Date()
-  const supabase = optionalSupabase()
-  // Public website pricing must always use the previous calendar month
-  // in Europe/Stockholm. It must not read gridex_spot_basis_config here:
-  // that admin setting can be used for internal publish/rollback workflows,
-  // but it must never move the public calculator back to an old month such
-  // as February when today is in June.
-  const period = prevYearMonth(now)
 
-  const stored = supabase ? await fetchStoredSpotBasis(supabase, params.priceAreaCode, period.year, period.month) : null
-  if (stored) return stored
+  const current = stockholmDateParts(now)
 
-  const apiAverage = await fetchMonthlySpotAverageFromElprisetJustNu({
-    year: period.year,
-    month: period.month,
-    priceArea: params.priceAreaCode,
-  }).catch(() => null)
-
-  if (apiAverage?.avgSpotOre && apiAverage.avgSpotOre > 0) {
+  if (params.pricingModel === 'monthly') {
+    const apiAverage = await fetchMonthlySpotAverageFromElprisetJustNu({
+      year: current.year,
+      month: current.month,
+      throughDay: current.day,
+      priceArea: params.priceAreaCode,
+    }).catch((error) => {
+      throw new LocalWebsitePricingPreviewError(
+        error instanceof Error ? error.message : 'Elprisetjustnu kunde inte hämtas.',
+        503,
+      )
+    })
+    if (!apiAverage) {
+      throw new LocalWebsitePricingPreviewError(
+        `Elprisetjustnu saknar månadspris hittills för ${params.priceAreaCode}.`,
+        503,
+      )
+    }
     return {
-      type: 'previous_month_avg_spot',
-      year: period.year,
-      month: period.month,
+      type: 'elprisetjustnu_spot',
+      pricingModel: 'monthly',
+      period: 'current_month_to_date',
+      year: apiAverage.year,
+      month: apiAverage.month,
+      day: current.day,
       spotAvgOre: apiAverage.avgSpotOre,
-      source: 'elprisetjustnu_api',
+      samples: apiAverage.samples,
+      intervalMinutes: apiAverage.intervalMinutes,
+      periodStart: apiAverage.periodStart,
+      periodEnd: apiAverage.periodEnd,
+      source: apiAverage.source,
     }
   }
+  const apiAverage = await fetchDailySpotAverageFromElprisetJustNu({
+    year: current.year,
+    month: current.month,
+    day: current.day,
+    priceArea: params.priceAreaCode,
+    reportingIntervalMinutes: params.pricingModel === 'hourly' ? 60 : undefined,
+  }).catch((error) => {
+    throw new LocalWebsitePricingPreviewError(
+      error instanceof Error ? error.message : 'Elprisetjustnu kunde inte hämtas.',
+      503,
+    )
+  })
+  if (!apiAverage) {
+    throw new LocalWebsitePricingPreviewError(
+      `Elprisetjustnu saknar dagens pris för ${params.priceAreaCode}.`,
+      503,
+    )
+  }
+  if (params.pricingModel === 'quarterly' && (apiAverage.intervalMinutes === null || apiAverage.intervalMinutes > 15)) {
+    throw new LocalWebsitePricingPreviewError(
+      'Elprisetjustnu saknar kvartspriser för dagens beräkning.',
+      503,
+    )
+  }
 
-  throw new LocalWebsitePricingPreviewError(
-    `Prisberäkningen är inte publicerad för ${params.priceAreaCode} ${formatYearMonth(period.year, period.month)}.`,
-    503,
-  )
+  return {
+    type: 'elprisetjustnu_spot',
+    pricingModel: params.pricingModel,
+    period: 'today',
+    year: apiAverage.year,
+    month: apiAverage.month,
+    day: apiAverage.day,
+    spotAvgOre: apiAverage.avgSpotOre,
+    samples: apiAverage.samples,
+    intervalMinutes: apiAverage.intervalMinutes,
+    periodStart: apiAverage.periodStart,
+    periodEnd: apiAverage.periodEnd,
+    source: apiAverage.source,
+  }
 }
 
 function previewContractType(model: WebsitePricingModel): OpsWebsitePricingPreview['contract']['contractType'] {
@@ -276,7 +255,9 @@ function previewContractType(model: WebsitePricingModel): OpsWebsitePricingPrevi
   if (model === 'fixed_kwh_price') return 'fixed'
   if (model === 'portfolio') return 'portfolio_managed'
   if (model === 'mix') return 'mix'
-  return 'spot_hourly'
+  if (model === 'spot_quarterly') return 'spot_quarterly'
+  if (model === 'spot_hourly') return 'spot_hourly'
+  return 'spot_monthly'
 }
 
 function roundMoney(value: number): number {
@@ -367,7 +348,7 @@ function baseFees(
   model: WebsitePricingModel,
   areaPricing: ResolvedWebsiteAreaPricing,
 ): PublishedFees {
-  const requiresEnergyMarkup = model === 'variable_spot_previous_month' || model === 'portfolio' || model === 'mix'
+  const requiresEnergyMarkup = usesElprisetJustNu(model) || model === 'portfolio' || model === 'mix'
   const requiresMonthlyFee = model !== 'monthly_fixed'
 
   return {
@@ -426,6 +407,10 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     priceAreaCode: input.priceAreaCode,
     model: embeddedPricingModel(model),
     now: input.now,
+    // Public fixed and market-price agreements must use exactly the price
+    // components OPS published. Local database rows are only a compatibility
+    // path for portfolio products that still rely on internal monthly data.
+    allowDatabase: model === 'portfolio' || model === 'mix',
   })
   const fees = baseFees(input.contract, model, areaPricing)
   const vat = vatRate(input.contract)
@@ -481,7 +466,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       : { type: 'admin_fixed_price', fixedPriceOre: portfolioOre }
     customerNotice = 'Prisberäkningen baseras på avtalets publicerade portföljpris och din uppskattade förbrukning.'
   } else if (model === 'mix') {
-    const spotBasis = await getPreviousMonthSpotBasis({ priceAreaCode: input.priceAreaCode, now: input.now })
+    const spotBasis = await getElprisetSpotBasis({ priceAreaCode: input.priceAreaCode, pricingModel: 'monthly', now: input.now })
     const monthlyPortfolio = publishedPortfolioMonthlyPrice(
       input.contract,
       input.priceAreaCode,
@@ -517,14 +502,27 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       portfolio_month: monthlyPortfolio?.month ?? null,
       price_plan_version_id: monthlyPortfolio?.pricePlanVersionId ?? null,
     }
-    customerNotice = 'Prisberäkningen baseras på mixavtalets andelar och föregående månads genomsnittliga elpris i valt elområde.'
+    customerNotice = 'Prisberäkningen baseras på mixavtalets andelar, portföljpriset från OPS och aktuell månads spotgenomsnitt hittills direkt från Elprisetjustnu.'
   } else {
-    const spotBasis = await getPreviousMonthSpotBasis({ priceAreaCode: input.priceAreaCode, now: input.now })
+    const spotPricingModel = model === 'spot_hourly'
+      ? 'hourly'
+      : model === 'spot_quarterly'
+        ? 'quarterly'
+        : 'monthly'
+    const spotBasis = await getElprisetSpotBasis({
+      priceAreaCode: input.priceAreaCode,
+      pricingModel: spotPricingModel,
+      now: input.now,
+    })
     pricePerKwhOre = spotBasis.spotAvgOre + fees.markupOre + fees.variableFeeOre + fees.elcertOre
     energySubtotalSek = (input.estimatedMonthlyKwh * pricePerKwhOre) / 100
     monthlyExVat = energySubtotalSek + fees.monthlyFeeSek
     basis = spotBasis
-    customerNotice = 'Prisberäkningen baseras på föregående månads genomsnittliga elpris i ditt elområde, valt avtal och uppskattad förbrukning. Rörligt pris följer marknaden och kan ändras över tid.'
+    customerNotice = model === 'spot_monthly'
+      ? 'Månadspriset beräknas med den aktuella kalendermånadens publicerade spotpriser hittills, direkt från Elprisetjustnu för ditt elområde.'
+      : model === 'spot_quarterly'
+        ? 'Kvartsprisets månadskostnad är en uppskattning baserad på dagens publicerade kvartspriser från Elprisetjustnu och din uppskattade förbrukning.'
+        : 'Timprisets månadskostnad är en uppskattning baserad på dagens publicerade spotpriser från Elprisetjustnu och din uppskattade förbrukning.'
   }
 
   const monthlyInclVat = monthlyExVat * (1 + vat)
@@ -545,7 +543,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     totalYearlyCostSek: roundMoney(monthlyInclVat * 12),
     customerNotice,
     legalText:
-      model === 'variable_spot_previous_month' || model === 'mix'
+      usesElprisetJustNu(model) || model === 'mix'
         ? 'Rörligt pris kan ändras över tid. Beräkningen är ett kundvänligt estimat baserat på publicerad prisgrund.'
         : 'Prisberäkningen baseras på det publicerade avtalet och din uppskattade förbrukning.',
     specification: {
@@ -559,7 +557,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       contract_display_snapshot: display.snapshot,
     },
     raw: {
-      source: 'gridex_web_local_pricing',
+      source: usesElprisetJustNu(model) ? 'elprisetjustnu_api' : 'ops_public_contract',
       pricing_model: model,
       area_pricing_source: areaPricing.source,
       pricing_version_id: areaPricing.pricingVersionId,

@@ -44,7 +44,7 @@ export type WebsitePricingPreview = {
     offer_reference?: string | null;
     name: string;
     contractType:
-      "spot_hourly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
+      "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
   };
   priceArea: WebsitePriceArea;
   price_area_code?: WebsitePriceArea;
@@ -58,14 +58,18 @@ export type WebsitePricingPreview = {
   specification?: {
     basis?:
       | {
-          type: "previous_month_avg_spot";
+          type: "elprisetjustnu_spot";
+          pricingModel: "monthly" | "hourly" | "quarterly";
+          period: "current_month_to_date" | "today";
           year: number;
           month: number;
+          day?: number;
           spotAvgOre: number;
-          source?:
-            | "gridex_monthly_spot_prices"
-            | "gridex_spot_monthly_avg"
-            | "elprisetjustnu_api";
+          samples: number;
+          intervalMinutes: number | null;
+          periodStart: string;
+          periodEnd: string;
+          source: "elprisetjustnu_api";
         }
       | {
           type: "admin_fixed_price" | "fixed_price";

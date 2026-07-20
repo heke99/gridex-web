@@ -257,20 +257,23 @@ export async function resolveWebsiteAreaPricing(params: {
   priceAreaCode: PriceArea
   model: EmbeddedPricingModel
   now?: Date
+  allowDatabase?: boolean
 }): Promise<ResolvedWebsiteAreaPricing> {
   const embedded = extractEmbeddedAreaPricing(
     params.contract.raw,
     params.priceAreaCode,
     params.model,
   )
-  const database = await databaseAreaPricing(params).catch((error) => {
-    console.warn('[website pricing] contract_area_pricing lookup failed', {
-      offer_reference: params.contract.offer_reference,
-      price_area_code: params.priceAreaCode,
-      message: error instanceof Error ? error.message : String(error),
-    })
-    return null
-  })
+  const database = params.allowDatabase === false
+    ? null
+    : await databaseAreaPricing(params).catch((error) => {
+        console.warn('[website pricing] contract_area_pricing lookup failed', {
+          offer_reference: params.contract.offer_reference,
+          price_area_code: params.priceAreaCode,
+          message: error instanceof Error ? error.message : String(error),
+        })
+        return null
+      })
 
   const hasEmbedded = embedded.matchedRows > 0
   const hasDatabase = Boolean(database)

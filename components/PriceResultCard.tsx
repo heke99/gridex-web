@@ -30,16 +30,24 @@ function contractTypeLabel(
 ) {
   if (type === "fixed") return "Fastpris";
   if (type === "monthly_fixed") return "Fast månadspris";
+  if (type === "spot_monthly") return "Månadspris";
+  if (type === "spot_hourly") return "Timpris";
+  if (type === "spot_quarterly") return "Kvartspris";
   if (type === "portfolio_managed") return "Förvaltat avtal";
-  if (type === "mix") return "Mixavtal";
-  return "Rörligt elpris";
+  return "Mixavtal";
 }
 
 function basisLabel(basis: PricingBasis) {
   if (!basis || typeof basis !== "object" || !("type" in basis)) return null;
   const value = basis as Record<string, unknown>;
-  if (value.type === "previous_month_avg_spot" && hasNumber(value.spotAvgOre))
-    return `Föregående månads snittspot (${String(value.month).padStart(2, "0")}/${value.year})`;
+  if (value.type === "elprisetjustnu_spot" && hasNumber(value.spotAvgOre)) {
+    const date = hasNumber(value.day)
+      ? `${String(value.day).padStart(2, "0")}/${String(value.month).padStart(2, "0")}/${value.year}`
+      : `${String(value.month).padStart(2, "0")}/${value.year}`;
+    if (value.pricingModel === "quarterly") return `Elprisetjustnu – dagens kvartsgenomsnitt (${date})`;
+    if (value.pricingModel === "hourly") return `Elprisetjustnu – dagens spotgenomsnitt (${date})`;
+    return `Elprisetjustnu – månadens genomsnitt hittills (${date})`;
+  }
   if (
     value.type === "monthly_fixed_price" &&
     hasNumber(value.monthlyFixedPriceSek)
@@ -61,7 +69,11 @@ function basisRows(basis: PricingBasis) {
   const value = basis as Record<string, unknown>;
   const rows: Array<[string, string]> = [];
   if (hasNumber(value.spotAvgOre))
-    rows.push(["Spotandel", `${formatOre(value.spotAvgOre)} öre/kWh`]);
+    rows.push(["Spotpris från Elprisetjustnu", `${formatOre(value.spotAvgOre)} öre/kWh`]);
+  if (hasNumber(value.samples))
+    rows.push(["Prispunkter i underlaget", formatNumber(value.samples)]);
+  if (hasNumber(value.intervalMinutes))
+    rows.push(["Marknadsintervall", `${formatNumber(value.intervalMinutes)} minuter`]);
   if (hasNumber(value.fixedPriceOre))
     rows.push(["Fast elpris", `${formatOre(value.fixedPriceOre)} öre/kWh`]);
   if (hasNumber(value.monthlyFixedPriceSek))
@@ -104,6 +116,11 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
   const invoiceIncluded = fees.invoiceFeeIncludedInMonthlyEstimate;
   const basisName = basisLabel(specification?.basis);
   const isMonthlyFixed = contract.contractType === "monthly_fixed";
+  const isMarketPriced =
+    contract.contractType === "spot_monthly" ||
+    contract.contractType === "spot_hourly" ||
+    contract.contractType === "spot_quarterly" ||
+    contract.contractType === "mix";
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">
@@ -245,14 +262,10 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
         </div>
 
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">
-          Rörligt pris följer marknaden och kan ändras över tid. Elnätsavgifter
-          och nätägarens avgifter ingår inte.
+          {isMarketPriced
+            ? "Den beräknade månadskostnaden är en uppskattning med publicerad marknadsdata. Elnätsavgifter och nätägarens avgifter ingår inte."
+            : "Priset och avgifterna hämtas från det publicerade OPS-avtalet. Elnätsavgifter och nätägarens avgifter ingår inte."}
         </div>
-        {data.quote_expires_at ? (
-          <div className="text-xs text-gray-400">
-            Prisberäkningen gäller till {new Date(data.quote_expires_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}. Därefter behöver du hämta ett nytt pris.
-          </div>
-        ) : null}
         <div className="grid gap-3 md:grid-cols-2">
           {onSelect ? (
             <button

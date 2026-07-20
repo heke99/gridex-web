@@ -1,6 +1,6 @@
 # Gridex website, Mina sidor and webhook integration
 
-This repository treats Gridex OPS as the source of truth for published offers, legal versions, customer applications and customer-portal data. Pricing uses the OPS quote route when that deployment exposes it. If the quote route is unavailable, the server calculates from the same OPS-published contract plus published area/month price data and signs the result for review. The website API key is server-side and determines the company. Browser requests must never select an OPS tenant or send internal OPS identifiers as authority.
+This repository treats Gridex OPS as the source of truth for published offers, fixed prices, fees, legal versions, customer applications and customer-portal data. Public monthly, hourly and quarterly spot calculations fetch their market-price basis directly from Elprisetjustnu. Portfolio and mix products may use the OPS quote route when that deployment exposes it, with a strict published-pricing fallback. Every browser-facing result is calculated server-side and signed for review. The website API key is server-side and determines the company. Browser requests must never select an OPS tenant or send internal OPS identifiers as authority.
 
 ## Required configuration
 
@@ -53,7 +53,7 @@ The admin integration page performs non-mutating authorization probes against ev
 | Method | OPS path | Primary scope | Website use |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published, sellable offers and exact `offer_reference`. Admin diagnostics use `diagnostics=1` server-side. |
-| `POST` | `/api/v1/website/quote` | `website_contracts.read` | Preferred quote route when the OPS deployment exposes it. A strict server-side published-pricing path is used only for route unavailability/5xx, never for authorization or business-validation failures. |
+| `POST` | `/api/v1/website/quote` | `website_contracts.read` | Compatibility route for portfolio and mix products when the OPS deployment exposes it. Monthly, hourly, quarterly and fixed products do not depend on this route. |
 | `GET` | `/api/v1/website/legal-bundle` | `website_legal.read` or compatible contract-read access | Published legal text/version bundle. |
 | `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Strict customer application payload. |
 | `POST` | `/api/v1/customer/portal-bundle` | customer read scopes | Preferred Mina sidor bundle and identity linking. |
@@ -74,23 +74,35 @@ The only supported flow is:
 ```text
 GET public-contracts
   -> select exact offer_reference
-  -> POST website/quote when available
-  -> otherwise calculate server-side from the selected published contract and published area/month prices
-  -> show quote and published legal versions
+  -> monthly/hourly/quarterly: fetch market basis directly from Elprisetjustnu
+  -> fixed: calculate from the exact price and fees published by OPS
+  -> portfolio/mix: use OPS quote when available, otherwise strict published-pricing calculation
+  -> show price and published legal versions
   -> lock local audit snapshot
   -> POST customer-applications with offer_reference
 ```
 
 `offer_reference` is the only contract reference that the website may use for quote selection and application. An internal `id` must never be substituted when `offer_reference` is missing. Such an offer is integration-invalid and not sellable online.
 
-The browser-facing pricing route issues a website HMAC token to bind the review page to the exact server-calculated snapshot. The browser never calculates or supplies authoritative prices. When the preferred OPS quote route is unavailable, the server-side fallback is allowed only for route-not-found/method-not-supported or 5xx conditions and uses the selected OPS public contract plus published database price rows. Authentication, permission and business-validation failures are never bypassed. Before submission, the server recalculates through the same shared path and rejects changed or expired review data.
+The browser-facing pricing route issues a website HMAC token to bind the review page to the exact server-calculated snapshot. The browser never calculates or supplies authoritative prices. `variable_spot`/monthly products use the current calendar month's published prices to date from Elprisetjustnu. Hourly products use today's published market intervals as an unweighted estimate when no measured hourly consumption profile exists. Quarterly products use today's published quarter-hour intervals and fail closed if quarter-hour data cannot be verified. Fixed products use only fixed price and fee components published by OPS; local database pricing is not allowed to override them. Portfolio and mix compatibility still permits the strict OPS-quote fallback for route-not-found/method-not-supported, redirects or HTML responses, timeouts, 5xx, and generic non-actionable OPS failures. Authentication and permission failures are never bypassed. Before submission, the server recalculates through the same shared path and rejects changed or invalid review data.
 The integration must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to zero. Missing mandatory quote values block sale. Browser-supplied `price_plan_id` and `price_plan_version_id` are forbidden; OPS resolves them from `offer_reference`.
 
 The full OPS quote and the displayed contract snapshot are stored in `website_application_submissions` for audit. They are deliberately not placed in the strict OPS application payload unless the published OPS schema explicitly allows them.
 
+
+### Elprisetjustnu market-data policy
+
+The website calls the documented static JSON endpoint server-side:
+
+```text
+GET https://www.elprisetjustnu.se/api/v1/prices/{YEAR}/{MONTH}-{DAY}_{AREA}.json
+```
+
+Market samples are duration-weighted from `SEK_per_kWh` and `time_start`/`time_end`; zero and negative spot prices remain valid input. Current-month calculations require every day through the calculation date, so a partial or missing day never silently produces a misleading average. The result snapshot records source, price area, period, sample count and detected market interval.
+
 ### Consumption profile and annual estimate
 
-The public calculator must never invent a default consumption. A private customer either enters annual consumption or approves an estimate based on housing type, floor area, heating type, household size and explicitly selected larger loads. The accepted annual value is converted to monthly kWh and used identically by both the OPS quote path and the verified published-pricing path.
+The public calculator must never invent a default consumption. A private customer either enters annual consumption or approves an estimate based on housing type, floor area, heating type, household size and explicitly selected larger loads. The accepted annual value is converted to monthly kWh and used identically by the calculator, signed quote and final server verification.
 
 ### Postal-code persistence
 

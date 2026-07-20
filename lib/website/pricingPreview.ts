@@ -6,10 +6,15 @@ import {
   isOpsError,
 } from '@/lib/ops/client'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import { canUsePublishedPricingFallback } from '@/lib/website/pricingFallbackPolicy'
 import {
   buildLocalWebsitePricingPreview,
   LocalWebsitePricingPreviewError,
 } from '@/lib/website/localPricingPreview'
+import {
+  resolveWebsitePricingModel,
+  usesDirectPublishedPricing,
+} from '@/lib/website/contractPricingModel'
 
 const PREVIEW_CACHE_TTL_MS = 60_000
 const previewCache = new Map<string, { expiresAt: number; value: OpsWebsitePricingPreview }>()
@@ -22,7 +27,10 @@ export function websitePricingPreviewSource(
   data: OpsWebsitePricingPreview,
 ): WebsitePricingPreviewSource {
   const raw = record(data.raw)
-  return raw?.source === 'gridex_web_local_pricing' || raw?.ops_quote_fallback === true
+  return raw?.source === 'gridex_web_local_pricing' ||
+    raw?.source === 'elprisetjustnu_api' ||
+    raw?.source === 'ops_public_contract' ||
+    raw?.ops_quote_fallback === true
     ? 'website'
     : 'ops'
 }
@@ -154,24 +162,30 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
   assertPortfolioQuoteBasis(data, contract, input)
 }
 
-function canUsePublishedPricingFallback(error: unknown): boolean {
-  if (!isOpsError(error)) return false
-
-  // Never bypass an authentication/permission error or a business validation
-  // response. The website fallback is only for an unavailable/not-published
-  // quote route while the selected contract itself was already fetched and
-  // verified from OPS public-contracts.
-  if (error.status === 401 || error.status === 403 || error.status === 400 || error.status === 409 || error.status === 422) {
-    return false
-  }
-
-  return error.status === 404 || error.status === 405 || error.status === 501 || error.status >= 500
+async function publishedPricingPreview(
+  input: OpsWebsitePricingPreviewInput,
+  contract: OpsPublicContract,
+): Promise<OpsWebsitePricingPreview> {
+  return buildLocalWebsitePricingPreview({
+    contract,
+    priceAreaCode: input.price_area_code,
+    estimatedMonthlyKwh: input.estimated_monthly_kwh,
+  })
 }
 
 async function loadRawPricingPreview(
   input: OpsWebsitePricingPreviewInput,
   contract: OpsPublicContract,
 ): Promise<OpsWebsitePricingPreview> {
+  const model = resolveWebsitePricingModel(contract)
+
+  // Public market-price agreements must use Elprisetjustnu directly. Fixed
+  // agreements are calculated from the price and fees published by OPS in the
+  // public contract DTO. Neither path may be replaced by a generic OPS quote.
+  if (usesDirectPublishedPricing(model)) {
+    return publishedPricingPreview(input, contract)
+  }
+
   try {
     return await fetchOpsWebsiteQuote(input)
   } catch (error) {
@@ -185,16 +199,11 @@ async function loadRawPricingPreview(
     })
 
     try {
-      const local = await buildLocalWebsitePricingPreview({
-        contract,
-        priceAreaCode: input.price_area_code,
-        estimatedMonthlyKwh: input.estimated_monthly_kwh,
-      })
+      const local = await publishedPricingPreview(input, contract)
       return {
         ...local,
         raw: {
           ...(record(local.raw) ?? {}),
-          source: 'gridex_web_local_pricing',
           ops_quote_fallback: true,
           ops_quote_status: isOpsError(error) ? error.status : null,
         },

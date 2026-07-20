@@ -78,8 +78,13 @@ export function formatPercent(value: number): string {
 export function publicContractTypeLabel(type: string | null | undefined): string {
   switch (type) {
     case 'variable_spot':
+    case 'spot_monthly':
+      return 'Månadspris'
     case 'spot_hourly':
-      return 'Rörligt elpris'
+      return 'Timpris'
+    case 'spot_quarterly':
+    case 'quarter_hourly':
+      return 'Kvartspris'
     case 'portfolio':
     case 'portfolio_managed':
       return 'Förvaltat avtal'
@@ -193,8 +198,13 @@ function defaultDescription(contract: OpsPublicContract): string {
 
   switch (contract.type) {
     case 'variable_spot':
+    case 'spot_monthly':
+      return 'För dig som vill ha ett rörligt månadspris baserat på publicerad spotdata.'
     case 'spot_hourly':
-      return 'För dig som vill följa marknadspriset och se tydliga avgifter separat.'
+      return 'För dig som vill följa spotmarknaden timme för timme.'
+    case 'spot_quarterly':
+    case 'quarter_hourly':
+      return 'För dig som vill följa spotmarknaden kvart för kvart.'
     case 'portfolio':
     case 'portfolio_managed':
       return 'För dig som vill ha ett förvaltat upplägg med tydlig risk- och prisinformation.'

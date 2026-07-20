@@ -8,7 +8,10 @@ import {
 
 export type OpsContractType =
   | "variable_spot"
+  | "spot_monthly"
   | "spot_hourly"
+  | "spot_quarterly"
+  | "quarter_hourly"
   | "portfolio"
   | "portfolio_managed"
   | "fixed"
@@ -259,7 +262,7 @@ export type OpsWebsitePricingPreview = {
     slug: string;
     offer_reference?: string | null;
     name: string;
-    contractType: "spot_hourly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
+    contractType: "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
   };
   priceArea: OpsWebsitePriceArea;
   price_area_code?: OpsWebsitePriceArea;
@@ -1450,14 +1453,16 @@ function mapWebsiteEnergyResolution(
 
 function normalizePreviewContractType(
   value: unknown,
-): "spot_hourly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed" {
-  const type = typeof value === "string" ? value : "";
+): "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed" {
+  const type = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (type === "fixed") return "fixed";
   if (type === "monthly_fixed" || type === "fixed_monthly") return "monthly_fixed";
   if (type === "portfolio" || type === "portfolio_managed")
     return "portfolio_managed";
   if (type === "mix" || type === "mixed") return "mix";
-  return "spot_hourly";
+  if (/quarter|15[_ -]?min|kvart/.test(type)) return "spot_quarterly";
+  if (/hour|tim/.test(type)) return "spot_hourly";
+  return "spot_monthly";
 }
 
 function mapWebsitePricingPreview(

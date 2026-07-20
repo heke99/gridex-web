@@ -116,25 +116,40 @@ function cloneBasis(value: unknown): QuoteBasis {
   const type = record.type;
 
   if (
-    type === "previous_month_avg_spot" &&
+    type === "elprisetjustnu_spot" &&
+    (record.pricingModel === "monthly" ||
+      record.pricingModel === "hourly" ||
+      record.pricingModel === "quarterly") &&
+    (record.period === "current_month_to_date" || record.period === "today") &&
     typeof record.year === "number" &&
     Number.isFinite(record.year) &&
     typeof record.month === "number" &&
     Number.isFinite(record.month) &&
     typeof record.spotAvgOre === "number" &&
-    Number.isFinite(record.spotAvgOre)
+    Number.isFinite(record.spotAvgOre) &&
+    typeof record.samples === "number" &&
+    Number.isFinite(record.samples) &&
+    (record.intervalMinutes === null ||
+      (typeof record.intervalMinutes === "number" && Number.isFinite(record.intervalMinutes))) &&
+    typeof record.periodStart === "string" &&
+    typeof record.periodEnd === "string" &&
+    record.source === "elprisetjustnu_api"
   ) {
-    const source = record.source;
     return {
       type,
+      pricingModel: record.pricingModel,
+      period: record.period,
       year: record.year,
       month: record.month,
-      spotAvgOre: record.spotAvgOre,
-      ...(source === "gridex_monthly_spot_prices" ||
-      source === "gridex_spot_monthly_avg" ||
-      source === "elprisetjustnu_api"
-        ? { source }
+      ...(typeof record.day === "number" && Number.isFinite(record.day)
+        ? { day: record.day }
         : {}),
+      spotAvgOre: record.spotAvgOre,
+      samples: record.samples,
+      intervalMinutes: record.intervalMinutes,
+      periodStart: record.periodStart,
+      periodEnd: record.periodEnd,
+      source: record.source,
     };
   }
 
