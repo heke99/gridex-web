@@ -778,6 +778,7 @@ export default async function TecknaPage({
           city,
           address,
           estimated_monthly_kwh: estimatedMonthlyKwh,
+          customer_type: customerType,
         },
         offer,
       );

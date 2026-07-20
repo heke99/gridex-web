@@ -37,6 +37,10 @@ type PreviewPayload = {
   estimated_monthly_kwh?: unknown;
   estimatedMonthlyKwh?: unknown;
   kwh?: unknown;
+  start_date?: unknown;
+  startDate?: unknown;
+  customer_type?: unknown;
+  customerType?: unknown;
 };
 
 function text(value: unknown, max = 180): string | null {
@@ -101,6 +105,11 @@ export async function POST(req: Request) {
   const city = text(body?.city);
   const address = text(body?.address);
   const offerReference = text(body?.offer_reference ?? body?.offerReference);
+  const startDate = text(body?.start_date ?? body?.startDate, 10);
+  const rawCustomerType = text(body?.customer_type ?? body?.customerType, 20);
+  const customerType = rawCustomerType === "private" || rawCustomerType === "company"
+    ? rawCustomerType
+    : null;
 
   if (!resolvedArea || !monthlyKwh || !postalCode || !city || !address) {
     return NextResponse.json(
@@ -137,6 +146,8 @@ export async function POST(req: Request) {
         city,
         address,
         estimated_monthly_kwh: monthlyKwh,
+        start_date: startDate,
+        customer_type: customerType,
       },
       contract,
     );

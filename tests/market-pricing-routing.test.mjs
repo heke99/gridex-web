@@ -7,8 +7,13 @@ const areaPricing = readFileSync(new URL('../lib/website/areaPricingResolver.ts'
 
 assert.match(
   pricingPreview,
-  /if \(usesDirectPublishedPricing\(model\)\) \{\s*return publishedPricingPreview\(input, contract\)/s,
-  'monthly/hourly/quarterly and fixed products must bypass the generic OPS quote route',
+  /return fetchOpsWebsiteQuote\(input\)/,
+  'all customer-facing pricing models must use the canonical OPS quote route',
+)
+assert.doesNotMatch(
+  pricingPreview,
+  /usesDirectPublishedPricing|publishedPricingPreview|buildLocalWebsitePricingPreview/,
+  'public-contracts and local market services must not replace the canonical OPS quote',
 )
 assert.match(
   localPricing,

@@ -27,6 +27,8 @@ export type WebsitePricingPreviewInput = {
   city?: string | null;
   address?: string | null;
   estimated_monthly_kwh: number;
+  start_date?: string | null;
+  customer_type?: "private" | "company" | null;
 };
 
 export type WebsitePricingQuoteContext = {

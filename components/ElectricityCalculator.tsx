@@ -556,6 +556,7 @@ export default function ElectricityCalculator({
         city: city.trim(),
         address: address.trim(),
         estimated_monthly_kwh: monthlyKwh,
+        customer_type: customerType,
       });
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
         throw new Error("Prisberäkningen returnerade en annan förbrukning än den du godkände.");

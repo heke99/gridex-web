@@ -2,19 +2,9 @@ import {
   type OpsPublicContract,
   type OpsWebsitePricingPreview,
   type OpsWebsitePricingPreviewInput,
-  fetchOpsWebsiteQuote,
-  isOpsError,
+  fetchOpsWebsiteQuote
 } from '@/lib/ops/client'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { canUsePublishedPricingFallback } from '@/lib/website/pricingFallbackPolicy'
-import {
-  buildLocalWebsitePricingPreview,
-  LocalWebsitePricingPreviewError,
-} from '@/lib/website/localPricingPreview'
-import {
-  resolveWebsitePricingModel,
-  usesDirectPublishedPricing,
-} from '@/lib/website/contractPricingModel'
 
 const PREVIEW_CACHE_TTL_MS = 60_000
 const previewCache = new Map<string, { expiresAt: number; value: OpsWebsitePricingPreview }>()
@@ -83,8 +73,14 @@ function assertPortfolioQuoteBasis(
   const monthlyPrices = contract.portfolio_monthly_prices ?? []
   if (monthlyPrices.length === 0) return
   const basis = record(record(data.specification)?.basis)
-  const year = Number(basis?.portfolio_year ?? basis?.year)
-  const month = Number(basis?.portfolio_month ?? basis?.month)
+  const billingMonth = typeof basis?.billing_month === 'string' ? basis.billing_month : null
+  const canonicalMatch = billingMonth?.match(/^(\d{4})-(\d{2})$/)
+  const year = canonicalMatch
+    ? Number(canonicalMatch[1])
+    : Number(basis?.portfolio_year ?? basis?.year)
+  const month = canonicalMatch
+    ? Number(canonicalMatch[2])
+    : Number(basis?.portfolio_month ?? basis?.month)
   if (!Number.isInteger(year) || !Number.isInteger(month)) {
     throw new WebsitePricingPreviewError('Portföljpriset saknar exakt publicerad prismånad.')
   }
@@ -142,6 +138,8 @@ function cacheKey(input: OpsWebsitePricingPreviewInput): string {
     input.city?.trim().toLowerCase(),
     input.address?.trim().toLowerCase(),
     input.estimated_monthly_kwh,
+    input.start_date ?? '',
+    input.customer_type ?? '',
   ].join('|')
 }
 
@@ -162,57 +160,13 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
   assertPortfolioQuoteBasis(data, contract, input)
 }
 
-async function publishedPricingPreview(
-  input: OpsWebsitePricingPreviewInput,
-  contract: OpsPublicContract,
-): Promise<OpsWebsitePricingPreview> {
-  return buildLocalWebsitePricingPreview({
-    contract,
-    priceAreaCode: input.price_area_code,
-    estimatedMonthlyKwh: input.estimated_monthly_kwh,
-  })
-}
-
 async function loadRawPricingPreview(
   input: OpsWebsitePricingPreviewInput,
-  contract: OpsPublicContract,
 ): Promise<OpsWebsitePricingPreview> {
-  const model = resolveWebsitePricingModel(contract)
-
-  // Public market-price agreements must use Elprisetjustnu directly. Fixed
-  // agreements are calculated from the price and fees published by OPS in the
-  // public contract DTO. Neither path may be replaced by a generic OPS quote.
-  if (usesDirectPublishedPricing(model)) {
-    return publishedPricingPreview(input, contract)
-  }
-
-  try {
-    return await fetchOpsWebsiteQuote(input)
-  } catch (error) {
-    if (!canUsePublishedPricingFallback(error)) throw error
-
-    console.warn('[website pricing] OPS quote route unavailable; using verified published pricing', {
-      offer_reference: input.offer_reference,
-      price_area_code: input.price_area_code,
-      status: isOpsError(error) ? error.status : null,
-      message: error instanceof Error ? error.message : String(error),
-    })
-
-    try {
-      const local = await publishedPricingPreview(input, contract)
-      return {
-        ...local,
-        raw: {
-          ...(record(local.raw) ?? {}),
-          ops_quote_fallback: true,
-          ops_quote_status: isOpsError(error) ? error.status : null,
-        },
-      }
-    } catch (fallbackError) {
-      if (fallbackError instanceof LocalWebsitePricingPreviewError) throw fallbackError
-      throw fallbackError
-    }
-  }
+  // OPS /website/quote is the only canonical calculation path. Public-contracts
+  // remains presentation/selection data and must never be used to reconstruct
+  // hidden or billable components locally.
+  return fetchOpsWebsiteQuote(input)
 }
 
 export async function loadVerifiedWebsitePricingPreview(
@@ -224,7 +178,7 @@ export async function loadVerifiedWebsitePricingPreview(
   const cached = previewCache.get(key)
   if (cached && cached.expiresAt > now) return cached.value
 
-  const raw = await loadRawPricingPreview(input, contract)
+  const raw = await loadRawPricingPreview(input)
   assertCompletePreview(raw, contract, input)
   const value = enrichWebsitePricingPreview(raw, contract)
   assertCompletePreview(value, contract, input)

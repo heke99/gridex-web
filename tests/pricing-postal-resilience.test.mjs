@@ -7,39 +7,20 @@ function read(path) {
 
 const pricingPreview = read('lib/website/pricingPreview.ts')
 assert.ok(
-  pricingPreview.includes('canUsePublishedPricingFallback'),
-  'pricing must classify when the published-pricing fallback is allowed',
-)
-const pricingFallbackPolicy = read('lib/website/pricingFallbackPolicy.ts')
-assert.ok(
-  pricingFallbackPolicy.includes('error.status === 401 || error.status === 403'),
-  'pricing fallback must never bypass authentication or permission errors',
+  pricingPreview.includes('OPS /website/quote is the only canonical calculation path'),
+  'pricing must use OPS quote as the only canonical calculation path',
 )
 assert.ok(
-  pricingPreview.includes('buildLocalWebsitePricingPreview'),
-  'pricing must use the strict server-side published-pricing service when OPS quote is unavailable',
+  !pricingPreview.includes('canUsePublishedPricingFallback'),
+  'pricing must not bypass OPS quote with a local total calculation',
 )
 assert.ok(
-  pricingPreview.includes("ops_quote_fallback: true"),
-  'fallback pricing snapshots must be explicitly marked for audit',
+  !pricingPreview.includes('buildLocalWebsitePricingPreview'),
+  'hidden billable components must not be reconstructed from public-contracts',
 )
 assert.ok(
-  pricingPreview.includes('loadRawPricingPreview(input, contract)'),
-  'preview and final submission must share the same resilient pricing loader',
-)
-
-const localPricing = read('lib/website/localPricingPreview.ts')
-assert.ok(
-  localPricing.includes('publishedPortfolioMonthlyPrice'),
-  'portfolio fallback must select an exact published monthly portfolio price',
-)
-assert.ok(
-  localPricing.includes("type: 'published_portfolio_month'"),
-  'portfolio snapshot must preserve the published month',
-)
-assert.ok(
-  localPricing.includes('price_plan_version_id: monthlyPortfolio.pricePlanVersionId'),
-  'portfolio snapshot must preserve the published price-plan version',
+  pricingPreview.includes('loadRawPricingPreview(input)'),
+  'preview and final submission must share the same canonical pricing loader',
 )
 
 const resolver = read('lib/website/priceAreaResolver.ts')

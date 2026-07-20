@@ -256,6 +256,8 @@ export type OpsWebsitePricingPreviewInput = {
   city?: string | null;
   address?: string | null;
   estimated_monthly_kwh: number;
+  start_date?: string | null;
+  customer_type?: "private" | "company" | null;
 };
 
 export type OpsWebsitePricingPreview = {
@@ -1503,13 +1505,14 @@ function mapWebsitePricingPreview(
   fallbackArea: OpsWebsitePriceArea,
 ): OpsWebsitePricingPreview {
   const row = extractObject(payload);
-  const contractRow =
-    row.contract &&
-    typeof row.contract === "object" &&
-    !Array.isArray(row.contract)
-      ? (row.contract as Record<string, unknown>)
-      : row;
-  const area = pickString(row, [
+  const offerRow = recordValue(row.offer);
+  const inputRow = recordValue(row.input);
+  const estimateRow = recordValue(row.estimate);
+  const contractRow = recordValue(row.contract) ?? offerRow ?? row;
+  const lines = Array.isArray(row.lines)
+    ? row.lines.map(recordValue).filter((item): item is Record<string, unknown> => item !== null)
+    : [];
+  const area = pickString(inputRow ?? row, [
     "priceArea",
     "price_area_code",
     "priceAreaCode",
@@ -1518,6 +1521,58 @@ function mapWebsitePricingPreview(
   const safeArea: OpsWebsitePriceArea = isOpsWebsitePriceArea(area)
     ? area
     : fallbackArea;
+  const monthlyKwh =
+    pickNumber(inputRow ?? row, [
+      "estimated_monthly_consumption_kwh",
+      "estimated_monthly_kwh",
+      "estimatedMonthlyKwh",
+      "monthly_kwh",
+      "monthlyKwh",
+      "kwh",
+    ]) ?? 0;
+  const monthlyExVat =
+    pickNumber(estimateRow ?? row, [
+      "monthly_ex_vat",
+      "totalMonthlyCostSek",
+      "total_monthly_cost_sek",
+      "monthlyCostSek",
+      "monthly_cost_sek",
+    ]) ?? Number.NaN;
+  const monthlyIncVat =
+    pickNumber(estimateRow ?? row, [
+      "monthly_inc_vat",
+      "totalMonthlyCostInclVatSek",
+      "total_monthly_cost_incl_vat_sek",
+      "total_monthly_cost_inc_vat_sek",
+      "monthlyCostInclVatSek",
+      "monthly_cost_incl_vat_sek",
+    ]) ?? undefined;
+  const annualIncVat =
+    pickNumber(estimateRow ?? row, [
+      "annual_inc_vat",
+      "totalYearlyCostSek",
+      "total_yearly_cost_sek",
+      "annualCostSek",
+      "annual_cost_sek",
+    ]) ?? undefined;
+  const fixedMonthlyExVat = lines.reduce((sum, line) => {
+    const calculationType = pickString(line, ["calculation_type", "calculationType"]);
+    return calculationType === "per_month" || calculationType === "per_invoice"
+      ? sum + (pickNumber(line, ["amount_ex_vat", "amountExVat"]) ?? 0)
+      : sum;
+  }, 0);
+  const derivedPricePerKwhOre =
+    Number.isFinite(monthlyExVat) && monthlyKwh > 0
+      ? Math.max(0, ((monthlyExVat - fixedMonthlyExVat) / monthlyKwh) * 100)
+      : Number.NaN;
+  const normalizedSpecification = normalizeWebsitePricingSpecification({
+    ...row,
+    components: lines,
+  });
+  const normalizedFees = recordValue(normalizedSpecification?.fees) ?? {};
+  const hasInvoiceFeeLine = lines.some(
+    (line) => pickString(line, ["component_code", "component_type"]) === "invoice_fee",
+  );
 
   return {
     contract: {
@@ -1530,12 +1585,8 @@ function mapWebsitePricingPreview(
           "productCode",
           "contract_slug",
           "contractSlug",
-        ]) ??
-        pickString(row, ["offer_reference", "offerReference", "product_code", "productCode"]) ??
-        "elavtal",
-      offer_reference:
-        pickString(contractRow, ["offer_reference", "offerReference"]) ??
-        pickString(row, ["offer_reference", "offerReference"]),
+        ]) ?? "elavtal",
+      offer_reference: pickString(contractRow, ["offer_reference", "offerReference"]),
       name:
         pickString(contractRow, ["name", "public_name", "publicName", "title", "contract_name"]) ??
         "Elavtal",
@@ -1543,65 +1594,44 @@ function mapWebsitePricingPreview(
         contractRow.contractType ??
           contractRow.contract_type ??
           contractRow.type ??
-          row.contract_type,
+          offerRow?.contract_type,
       ),
     },
     priceArea: safeArea,
     price_area_code: safeArea,
-    kwh:
-      pickNumber(row, [
-        "kwh",
-        "estimated_monthly_kwh",
-        "estimatedMonthlyKwh",
-        "monthly_kwh",
-        "monthlyKwh",
-        "estimated_kwh",
-        "estimatedKwh",
-      ]) ?? 0,
+    kwh: monthlyKwh,
     pricePerKwhOre:
       pickNumber(row, [
         "pricePerKwhOre",
         "price_per_kwh_ore",
         "totalOrePerKwh",
         "total_ore_per_kwh",
-        "total_price_ore_per_kwh",
-        "energy_price_ore_per_kwh",
-      ]) ?? Number.NaN,
-    totalMonthlyCostSek:
-      pickNumber(row, [
-        "totalMonthlyCostSek",
-        "total_monthly_cost_sek",
-        "monthlyCostSek",
-        "monthly_cost_sek",
-        "estimatedMonthlyCostSek",
-        "estimated_monthly_cost_sek",
-      ]) ?? Number.NaN,
-    totalMonthlyCostInclVatSek:
-      pickNumber(row, [
-        "totalMonthlyCostInclVatSek",
-        "total_monthly_cost_incl_vat_sek",
-        "total_monthly_cost_inc_vat_sek",
-        "totalMonthlyCostIncVatSek",
-        "totalMonthlyCostWithVatSek",
-        "total_monthly_cost_with_vat_sek",
-        "totalMonthlyCostVatIncludedSek",
-        "total_monthly_cost_vat_included_sek",
-        "monthlyCostInclVatSek",
-        "monthly_cost_incl_vat_sek",
-      ]) ?? undefined,
-    totalYearlyCostSek:
-      pickNumber(row, [
-        "totalYearlyCostSek",
-        "total_yearly_cost_sek",
-        "yearlyCostSek",
-        "yearly_cost_sek",
-        "annualCostSek",
-        "annual_cost_sek",
-      ]) ?? undefined,
+      ]) ?? derivedPricePerKwhOre,
+    totalMonthlyCostSek: monthlyExVat,
+    totalMonthlyCostInclVatSek: monthlyIncVat,
+    totalYearlyCostSek: annualIncVat,
     customerNotice:
-      pickString(row, ["customerNotice", "customer_notice"]) ?? undefined,
-    legalText: pickString(row, ["legalText", "legal_text"]) ?? undefined,
-    specification: normalizeWebsitePricingSpecification(row),
+      pickString(row, ["customerNotice", "customer_notice"]) ??
+      "Priset är beräknat server-side av OPS från avtalets låsta prisversion.",
+    legalText:
+      pickString(row, ["legalText", "legal_text"]) ??
+      "Beräkningen är en offert. Slutlig faktura använder verkliga mätvärden och avtalets låsta prisunderlag.",
+    specification: {
+      ...(normalizedSpecification ?? {}),
+      basis: {
+        type: "ops_canonical_quote",
+        snapshot_schema: pickString(row, ["snapshot_schema"]),
+        billing_month: pickString(inputRow ?? {}, ["billing_month"]),
+        price_plan_id: pickString(offerRow ?? {}, ["price_plan_id"]),
+        price_plan_version_id: pickString(offerRow ?? {}, ["price_plan_version_id"]),
+      },
+      fees: {
+        ...normalizedFees,
+        invoiceFeeIncludedInMonthlyEstimate: hasInvoiceFeeLine,
+        billingIntervalMonths: 1,
+      },
+      lines,
+    },
     quote_token:
       pickString(row, [
         "quote_token",
@@ -1967,9 +1997,22 @@ export async function resolveOpsWebsiteEnergyArea(
 export async function fetchOpsWebsiteQuote(
   input: OpsWebsitePricingPreviewInput,
 ): Promise<OpsWebsitePricingPreview> {
+  const startDate = input.start_date?.trim() || new Date().toISOString().slice(0, 10);
+  const customerType =
+    input.customer_type === "company"
+      ? "business"
+      : input.customer_type === "private"
+        ? "private"
+        : undefined;
   const payload = await opsFetch("/api/v1/website/quote", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      offer_reference: input.offer_reference,
+      price_area: input.price_area_code,
+      annual_consumption_kwh: input.estimated_monthly_kwh * 12,
+      start_date: startDate,
+      ...(customerType ? { customer_type: customerType } : {}),
+    }),
   });
   return mapWebsitePricingPreview(payload, input.price_area_code);
 }
