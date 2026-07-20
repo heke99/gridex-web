@@ -43,8 +43,8 @@ assert.ok(
   "pricing preview must use the public offer reference",
 );
 assert.ok(
-  previewRoute.includes('quote_source: "ops"'),
-  "pricing preview must identify OPS as the authoritative quote source",
+  previewRoute.includes("websitePricingPreviewSource(preview)"),
+  "pricing preview must expose whether OPS quote or verified website pricing produced the snapshot",
 );
 assert.ok(
   previewRoute.includes("status: error.status"),

@@ -13,6 +13,7 @@ import {
 import { LocalWebsitePricingPreviewError } from "@/lib/website/localPricingPreview";
 import {
   loadVerifiedWebsitePricingPreview,
+  websitePricingPreviewSource,
   WebsitePricingPreviewError,
 } from "@/lib/website/pricingPreview";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/security/rateLimit";
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
       ...quoteToWebsitePricingPreview(websiteQuote.quote, websiteQuote.token),
       customerNotice: preview.customerNotice,
       legalText: preview.legalText,
-      quote_source: "ops" as const,
+      quote_source: websitePricingPreviewSource(preview),
       token_issuer: "website" as const,
     };
 

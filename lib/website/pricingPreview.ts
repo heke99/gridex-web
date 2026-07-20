@@ -3,13 +3,29 @@ import {
   type OpsWebsitePricingPreview,
   type OpsWebsitePricingPreviewInput,
   fetchOpsWebsiteQuote,
+  isOpsError,
 } from '@/lib/ops/client'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import {
+  buildLocalWebsitePricingPreview,
+  LocalWebsitePricingPreviewError,
+} from '@/lib/website/localPricingPreview'
 
 const PREVIEW_CACHE_TTL_MS = 60_000
 const previewCache = new Map<string, { expiresAt: number; value: OpsWebsitePricingPreview }>()
 
 export class WebsitePricingPreviewError extends Error {}
+
+export type WebsitePricingPreviewSource = 'ops' | 'website'
+
+export function websitePricingPreviewSource(
+  data: OpsWebsitePricingPreview,
+): WebsitePricingPreviewSource {
+  const raw = record(data.raw)
+  return raw?.source === 'gridex_web_local_pricing' || raw?.ops_quote_fallback === true
+    ? 'website'
+    : 'ops'
+}
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -59,8 +75,8 @@ function assertPortfolioQuoteBasis(
   const monthlyPrices = contract.portfolio_monthly_prices ?? []
   if (monthlyPrices.length === 0) return
   const basis = record(record(data.specification)?.basis)
-  const year = Number(basis?.year)
-  const month = Number(basis?.month)
+  const year = Number(basis?.portfolio_year ?? basis?.year)
+  const month = Number(basis?.portfolio_month ?? basis?.month)
   if (!Number.isInteger(year) || !Number.isInteger(month)) {
     throw new WebsitePricingPreviewError('Portföljpriset saknar exakt publicerad prismånad.')
   }
@@ -138,6 +154,58 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
   assertPortfolioQuoteBasis(data, contract, input)
 }
 
+function canUsePublishedPricingFallback(error: unknown): boolean {
+  if (!isOpsError(error)) return false
+
+  // Never bypass an authentication/permission error or a business validation
+  // response. The website fallback is only for an unavailable/not-published
+  // quote route while the selected contract itself was already fetched and
+  // verified from OPS public-contracts.
+  if (error.status === 401 || error.status === 403 || error.status === 400 || error.status === 409 || error.status === 422) {
+    return false
+  }
+
+  return error.status === 404 || error.status === 405 || error.status === 501 || error.status >= 500
+}
+
+async function loadRawPricingPreview(
+  input: OpsWebsitePricingPreviewInput,
+  contract: OpsPublicContract,
+): Promise<OpsWebsitePricingPreview> {
+  try {
+    return await fetchOpsWebsiteQuote(input)
+  } catch (error) {
+    if (!canUsePublishedPricingFallback(error)) throw error
+
+    console.warn('[website pricing] OPS quote route unavailable; using verified published pricing', {
+      offer_reference: input.offer_reference,
+      price_area_code: input.price_area_code,
+      status: isOpsError(error) ? error.status : null,
+      message: error instanceof Error ? error.message : String(error),
+    })
+
+    try {
+      const local = await buildLocalWebsitePricingPreview({
+        contract,
+        priceAreaCode: input.price_area_code,
+        estimatedMonthlyKwh: input.estimated_monthly_kwh,
+      })
+      return {
+        ...local,
+        raw: {
+          ...(record(local.raw) ?? {}),
+          source: 'gridex_web_local_pricing',
+          ops_quote_fallback: true,
+          ops_quote_status: isOpsError(error) ? error.status : null,
+        },
+      }
+    } catch (fallbackError) {
+      if (fallbackError instanceof LocalWebsitePricingPreviewError) throw fallbackError
+      throw fallbackError
+    }
+  }
+}
+
 export async function loadVerifiedWebsitePricingPreview(
   input: OpsWebsitePricingPreviewInput,
   contract: OpsPublicContract,
@@ -147,7 +215,7 @@ export async function loadVerifiedWebsitePricingPreview(
   const cached = previewCache.get(key)
   if (cached && cached.expiresAt > now) return cached.value
 
-  const raw = await fetchOpsWebsiteQuote(input)
+  const raw = await loadRawPricingPreview(input, contract)
   assertCompletePreview(raw, contract, input)
   const value = enrichWebsitePricingPreview(raw, contract)
   assertCompletePreview(value, contract, input)

@@ -38,7 +38,9 @@ assert.ok(!contractNormalizer.includes('row.offer_reference ?? row.offerReferenc
 
 const pricing = read('lib/website/pricingPreview.ts')
 assert.ok(pricing.includes('fetchOpsWebsiteQuote(input)'))
-assert.ok(!pricing.includes('buildLocalWebsitePricingPreview'))
+assert.ok(pricing.includes('buildLocalWebsitePricingPreview'))
+assert.ok(pricing.includes('canUsePublishedPricingFallback'))
+assert.ok(pricing.includes('error.status === 401 || error.status === 403'))
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.ok(!signup.includes('fetchOpsWebsiteLegalBundle'))

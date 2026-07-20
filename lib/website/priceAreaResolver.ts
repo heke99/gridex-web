@@ -146,37 +146,64 @@ function toResolution(params: {
 
 async function readPostalCache(
   supabase: SupabaseClient | null,
-  postalCode: string
+  postalCode: string,
+  options: { allowExpired?: boolean } = {},
 ): Promise<WebsitePriceAreaResolution | null> {
   if (!supabase) return null
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('website_postal_code_price_areas')
       .select('postal_code,city,latitude,longitude,grid_area_code,price_area_code,confidence,source,source_chain,expires_at')
       .eq('postal_code', postalCode)
       .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .maybeSingle<PostalCacheRow>()
+    if (!options.allowExpired) query = query.gt('expires_at', new Date().toISOString())
 
-    if (error || !data || !isPriceArea(data.price_area_code)) return null
+    const { data, error } = await query.maybeSingle<PostalCacheRow>()
+
+    if (error) {
+      console.warn('[website price area] postal cache read failed', {
+        postal_code: postalCode,
+        code: error.code,
+        message: error.message,
+      })
+      return null
+    }
+    if (!data || !isPriceArea(data.price_area_code)) return null
+
+    const expired = Boolean(
+      data.expires_at && Date.parse(data.expires_at) <= Date.now(),
+    )
 
     return toResolution({
       priceArea: data.price_area_code,
       gridAreaCode: normalizeGridAreaCode(data.grid_area_code),
       confidence: numberOrNull(data.confidence) ?? 0.9,
-      source: data.source ?? 'website_postal_code_price_areas',
-      sourceChain: ['website_postal_code_price_areas', ...sourceChain(data.source_chain)],
-      customerMessage: `Elområde ${data.price_area_code} används för prisvisningen.`,
+      source: expired
+        ? 'website_postal_code_price_areas_stale'
+        : 'website_postal_code_price_areas',
+      sourceChain: [
+        'website_postal_code_price_areas',
+        ...(expired ? ['stale_exact_postal_fallback'] : []),
+        ...sourceChain(data.source_chain),
+      ],
+      customerMessage: expired
+        ? `Elområde ${data.price_area_code} hämtades från ett tidigare verifierat postnummer.`
+        : `Elområde ${data.price_area_code} hämtades direkt från postnummerregistret.`,
       raw: {
         postal_code: data.postal_code,
         city: data.city ?? null,
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
         expires_at: data.expires_at ?? null,
+        cache_expired: expired,
       },
     })
-  } catch {
+  } catch (error) {
+    console.warn('[website price area] postal cache read crashed', {
+      postal_code: postalCode,
+      message: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
 }
@@ -545,32 +572,46 @@ async function writeSuccessCache(
     sourceChain: string[]
     raw: Record<string, unknown>
   }
-) {
-  if (!supabase) return
+): Promise<boolean> {
+  if (!supabase) {
+    console.warn('[website price area] postal cache unavailable: Supabase service client is not configured')
+    return false
+  }
 
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
   const now = new Date().toISOString()
 
   try {
-    await supabase.from('website_postal_code_price_areas').upsert({
-      postal_code: params.postalCode,
-      city: params.city,
-      latitude: params.latitude,
-      longitude: params.longitude,
-      grid_area_code: params.gridAreaCode,
-      price_area_code: params.priceArea,
-      confidence: params.confidence,
-      source: params.source,
-      source_chain: params.sourceChain,
-      raw_response: params.raw,
-      used_for: 'pricing_preview_only',
-      is_active: true,
-      looked_up_at: now,
-      expires_at: expiresAt,
-      updated_at: now,
-    })
+    const { error: upsertError } = await supabase
+      .from('website_postal_code_price_areas')
+      .upsert({
+        postal_code: params.postalCode,
+        city: params.city,
+        latitude: params.latitude,
+        longitude: params.longitude,
+        grid_area_code: params.gridAreaCode,
+        price_area_code: params.priceArea,
+        confidence: params.confidence,
+        source: params.source,
+        source_chain: params.sourceChain,
+        raw_response: params.raw,
+        used_for: 'pricing_preview_only',
+        is_active: true,
+        looked_up_at: now,
+        expires_at: expiresAt,
+        updated_at: now,
+      }, { onConflict: 'postal_code' })
 
-    await supabase.from('website_price_area_lookup_cache').insert({
+    if (upsertError) {
+      console.error('[website price area] postal cache upsert failed', {
+        postal_code: params.postalCode,
+        code: upsertError.code,
+        message: upsertError.message,
+      })
+      return false
+    }
+
+    const { error: historyError } = await supabase.from('website_price_area_lookup_cache').insert({
       postal_code: params.postalCode,
       city: params.city,
       grid_area_code: params.gridAreaCode,
@@ -583,8 +624,22 @@ async function writeSuccessCache(
       used_for: 'pricing_preview_only',
       expires_at: expiresAt,
     })
-  } catch {
-    // Non-critical cache write failure. The customer can still see the price.
+
+    if (historyError) {
+      console.warn('[website price area] lookup history insert failed', {
+        postal_code: params.postalCode,
+        code: historyError.code,
+        message: historyError.message,
+      })
+    }
+
+    return true
+  } catch (error) {
+    console.error('[website price area] postal cache write crashed', {
+      postal_code: params.postalCode,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return false
   }
 }
 
@@ -628,6 +683,11 @@ export async function resolveWebsitePriceAreaForPricing(
   const cached = await readPostalCache(supabase, postalCode)
   if (cached) return cached
 
+  // Keep an exact stale database mapping as a safe fallback if the external
+  // geodata providers are temporarily unavailable. Exact postnummer is always
+  // preferred over a broader three-digit prefix match.
+  const staleExact = await readPostalCache(supabase, postalCode, { allowExpired: true })
+
   const legacy = await readLegacyPostalArea(supabase, postalCode)
   if (legacy) return legacy
 
@@ -657,7 +717,7 @@ export async function resolveWebsitePriceAreaForPricing(
     const confidence = arcgis.gridAreaCode && mapping ? 0.88 : 0.82
     const gridAreaCode = arcgis.gridAreaCode ?? 'UNKNOWN'
 
-    await writeSuccessCache(supabase, {
+    const stored = await writeSuccessCache(supabase, {
       postalCode,
       city: textOrNull(input.city, 120) ?? papilite.city,
       latitude: papilite.latitude,
@@ -669,6 +729,11 @@ export async function resolveWebsitePriceAreaForPricing(
       sourceChain,
       raw,
     })
+
+    if (stored) {
+      const databaseResult = await readPostalCache(supabase, postalCode)
+      if (databaseResult) return databaseResult
+    }
 
     return toResolution({
       priceArea,
@@ -692,6 +757,8 @@ export async function resolveWebsitePriceAreaForPricing(
         : 'Elområde kunde inte kontrolleras automatiskt just nu.'
 
     await writeFailureCache(supabase, postalCode, message, raw)
+
+    if (staleExact) return staleExact
 
     const prefixFallback = await readPostalPrefixFallback(supabase, postalCode)
     if (prefixFallback) return prefixFallback

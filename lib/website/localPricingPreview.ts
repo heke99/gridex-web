@@ -122,6 +122,40 @@ function portfolioPriceOre(contract: OpsPublicContract): number | null {
   ])
 }
 
+function publishedPortfolioMonthlyPrice(
+  contract: OpsPublicContract,
+  priceAreaCode: PriceArea,
+  now = new Date(),
+): {
+  year: number
+  month: number
+  amount: number
+  pricePlanVersionId: string | null
+} | null {
+  const target = prevYearMonth(now)
+  const targetValue = target.year * 100 + target.month
+  const rows = (contract.portfolio_monthly_prices ?? [])
+    .filter((item) => item.price_area_code === priceAreaCode)
+    .map((item) => ({
+      year: Number(item.year),
+      month: Number(item.month),
+      amount: Number(item.amount),
+      pricePlanVersionId: item.price_plan_version_id ?? null,
+    }))
+    .filter((item) =>
+      Number.isInteger(item.year) &&
+      Number.isInteger(item.month) &&
+      item.month >= 1 &&
+      item.month <= 12 &&
+      Number.isFinite(item.amount) &&
+      item.amount > 0 &&
+      item.year * 100 + item.month <= targetValue,
+    )
+    .sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month))
+
+  return rows[0] ?? null
+}
+
 function vatRate(contract: OpsPublicContract): number {
   const raw = contractNumber(contract, 'vat_rate', ['vat_rate', 'vatRate', 'vat'])
   if (raw === null) return DEFAULT_VAT_RATE
@@ -420,7 +454,13 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     basis = { type: 'fixed_price', fixedPriceOre: fixedOre }
     customerNotice = 'Prisberäkningen baseras på avtalets fasta kWh-pris och din uppskattade förbrukning.'
   } else if (model === 'portfolio') {
+    const monthlyPortfolio = publishedPortfolioMonthlyPrice(
+      input.contract,
+      input.priceAreaCode,
+      input.now,
+    )
     const portfolioOre =
+      monthlyPortfolio?.amount ??
       areaPricing.portfolioPriceOrePerKwh ??
       portfolioPriceOre(input.contract) ??
       areaPricing.fixedPriceOrePerKwh ??
@@ -429,11 +469,26 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     pricePerKwhOre = portfolioOre + fees.markupOre + fees.variableFeeOre + fees.elcertOre
     energySubtotalSek = (input.estimatedMonthlyKwh * pricePerKwhOre) / 100
     monthlyExVat = energySubtotalSek + fees.monthlyFeeSek
-    basis = { type: 'admin_fixed_price', fixedPriceOre: portfolioOre }
+    basis = monthlyPortfolio
+      ? {
+          type: 'published_portfolio_month',
+          year: monthlyPortfolio.year,
+          month: monthlyPortfolio.month,
+          portfolioPriceOre: portfolioOre,
+          price_plan_version_id: monthlyPortfolio.pricePlanVersionId,
+          source: 'ops_public_contract',
+        }
+      : { type: 'admin_fixed_price', fixedPriceOre: portfolioOre }
     customerNotice = 'Prisberäkningen baseras på avtalets publicerade portföljpris och din uppskattade förbrukning.'
   } else if (model === 'mix') {
     const spotBasis = await getPreviousMonthSpotBasis({ priceAreaCode: input.priceAreaCode, now: input.now })
+    const monthlyPortfolio = publishedPortfolioMonthlyPrice(
+      input.contract,
+      input.priceAreaCode,
+      input.now,
+    )
     const portfolioOre =
+      monthlyPortfolio?.amount ??
       areaPricing.portfolioPriceOrePerKwh ??
       portfolioPriceOre(input.contract) ??
       areaPricing.fixedPriceOrePerKwh ??
@@ -458,6 +513,9 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       year: spotBasis.year,
       month: spotBasis.month,
       source: spotBasis.source,
+      portfolio_year: monthlyPortfolio?.year ?? null,
+      portfolio_month: monthlyPortfolio?.month ?? null,
+      price_plan_version_id: monthlyPortfolio?.pricePlanVersionId ?? null,
     }
     customerNotice = 'Prisberäkningen baseras på mixavtalets andelar och föregående månads genomsnittliga elpris i valt elområde.'
   } else {
