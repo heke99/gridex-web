@@ -122,6 +122,12 @@ assert.ok(opsClient.includes('assertExpectedOpsCompany(payload)'))
 assert.ok(opsClient.includes('"ops_tenant_mismatch"'))
 assert.ok(opsClient.includes('"ops_tenant_binding_unverified"'))
 assert.ok(opsClient.includes('query.set("diagnostics", "1")'))
+const publicContractsFetchBlock = opsClient.slice(
+  opsClient.indexOf('async function fetchOpsPublicContractsUncached'),
+  opsClient.indexOf('const fetchCachedOpsPublicContracts'),
+)
+assert.ok(publicContractsFetchBlock.includes('opsFetch(publicContractsPath(customerType))'))
+assert.ok(!publicContractsFetchBlock.includes('publicContractsPath(customerType, true)'))
 
 const contractDisplay = read('lib/website/publicContractDisplay.ts')
 assert.ok(contractDisplay.includes("case 'variable_monthly':"))

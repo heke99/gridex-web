@@ -1892,7 +1892,10 @@ function extractPublicContractDiagnostics(payload: unknown): OpsPublicContractDi
 async function fetchOpsPublicContractsUncached(
   customerType?: string | null,
 ): Promise<OpsPublicContract[]> {
-  const payload = await opsFetch(publicContractsPath(customerType, true));
+  // The customer-facing contract feed must use the normal DTO response.
+  // diagnostics=1 returns a different visible/hidden/blocker payload intended
+  // only for authenticated server-side troubleshooting.
+  const payload = await opsFetch(publicContractsPath(customerType));
   assertExpectedOpsCompany(payload);
   return extractRows(payload)
     .map(mapPublicContract)
@@ -1908,7 +1911,7 @@ async function fetchOpsPublicContractsUncached(
 const fetchCachedOpsPublicContracts = unstable_cache(
   async (_tenantCacheKey: string, customerType: string) =>
     fetchOpsPublicContractsUncached(customerType || null),
-  ["ops-public-contracts-v5"],
+  ["ops-public-contracts-v6"],
   { revalidate: 60, tags: ["ops-public-contracts"] },
 );
 

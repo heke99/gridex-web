@@ -31,7 +31,12 @@ assert.ok(ops.includes('automatic_renewal'))
 assert.ok(ops.includes('opsTenantCacheKey()'))
 assert.ok(ops.includes('assertExpectedOpsCompany(payload)'))
 assert.ok(ops.includes('ops_tenant_mismatch'))
-assert.ok(ops.includes('publicContractsPath(customerType, true)'))
+const publicContractsFetchBlock = ops.slice(
+  ops.indexOf('async function fetchOpsPublicContractsUncached'),
+  ops.indexOf('const fetchCachedOpsPublicContracts'),
+)
+assert.ok(publicContractsFetchBlock.includes('opsFetch(publicContractsPath(customerType))'))
+assert.ok(!publicContractsFetchBlock.includes('publicContractsPath(customerType, true)'))
 assert.ok(ops.includes('customer_type: input.customer_type === "company" ? "business" : "private"'))
 assert.ok(ops.includes('{ org_number: input.organization_number }'))
 
