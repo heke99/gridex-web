@@ -30,6 +30,34 @@ assert.equal(
   'spot_quarterly',
 )
 assert.equal(
+  resolveWebsitePricingModel({
+    ...base,
+    type: 'variable_spot',
+    name: 'Dynamiskt elpris',
+    raw: { pricing: { price_interval_minutes: 15 } },
+  }),
+  'spot_quarterly',
+)
+assert.equal(
+  resolveWebsitePricingModel({
+    ...base,
+    type: 'variable_spot',
+    name: 'Dynamiskt elpris',
+    raw: { pricing: { settlement_interval_minutes: 60 } },
+  }),
+  'spot_hourly',
+)
+assert.equal(
+  resolveWebsitePricingModel({
+    ...base,
+    type: 'variable_monthly',
+    name: 'Rörligt månadspris',
+    raw: { pricing: { settlement_interval_minutes: 15 } },
+  }),
+  'spot_monthly',
+  'an explicit monthly product must win over a generic settlement interval',
+)
+assert.equal(
   resolveWebsitePricingModel({ ...base, type: 'variable_spot', name: 'Rörligt månadspris' }),
   'spot_monthly',
   'generic månadspris must not be mistaken for a fixed monthly subscription',

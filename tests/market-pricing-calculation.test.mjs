@@ -4,7 +4,8 @@ import { buildLocalWebsitePricingPreview } from '../lib/website/localPricingPrev
 const originalFetch = globalThis.fetch
 
 function quarterEntries(values, date) {
-  return values.map((value, index) => {
+  return Array.from({ length: 96 }, (_, index) => {
+    const value = values[index % values.length]
     const startMinute = index * 15
     const endMinute = startMinute + 15
     const iso = (minutes) => {
@@ -125,7 +126,9 @@ try {
   assert.equal(hourly.pricePerKwhOre, 58)
   assert.equal(hourly.specification?.basis?.pricingModel, 'hourly')
   assert.equal(hourly.specification?.basis?.intervalMinutes, 60)
-  assert.equal(hourly.specification?.basis?.samples, 1)
+  assert.equal(hourly.specification?.basis?.samples, 24)
+  assert.equal(hourly.specification?.basis?.sourceIntervalMinutes, 15)
+  assert.equal(hourly.specification?.basis?.sourceSamples, 96)
 
   const quarterly = await buildLocalWebsitePricingPreview({
     contract: contract({ type: 'spot_quarterly', name: 'Kvartspris' }),
@@ -137,7 +140,9 @@ try {
   assert.equal(quarterly.pricePerKwhOre, 58)
   assert.equal(quarterly.specification?.basis?.pricingModel, 'quarterly')
   assert.equal(quarterly.specification?.basis?.intervalMinutes, 15)
-  assert.equal(quarterly.specification?.basis?.samples, 4)
+  assert.equal(quarterly.specification?.basis?.samples, 96)
+  assert.equal(quarterly.specification?.basis?.sourceIntervalMinutes, 15)
+  assert.equal(quarterly.specification?.basis?.sourceSamples, 96)
 
   const callsBeforeFixed = fetchCalls
   const fixed = await buildLocalWebsitePricingPreview({

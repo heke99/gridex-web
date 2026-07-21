@@ -69,6 +69,10 @@ export type WebsitePricingPreview = {
           spotAvgOre: number;
           samples: number;
           intervalMinutes: number | null;
+          sourceSamples?: number;
+          sourceIntervalMinutes?: number | null;
+          avgSpotEurPerKwh?: number | null;
+          exchangeRate?: number | null;
           periodStart: string;
           periodEnd: string;
           source: "elprisetjustnu_api";

@@ -74,6 +74,16 @@ function basisRows(basis: PricingBasis) {
     rows.push(["Prispunkter i underlaget", formatNumber(value.samples)]);
   if (hasNumber(value.intervalMinutes))
     rows.push(["Marknadsintervall", `${formatNumber(value.intervalMinutes)} minuter`]);
+  if (
+    hasNumber(value.sourceSamples) &&
+    (!hasNumber(value.samples) || value.sourceSamples !== value.samples)
+  )
+    rows.push(["Datapunkter från källan", formatNumber(value.sourceSamples)]);
+  if (
+    hasNumber(value.sourceIntervalMinutes) &&
+    (!hasNumber(value.intervalMinutes) || value.sourceIntervalMinutes !== value.intervalMinutes)
+  )
+    rows.push(["Källans prisintervall", `${formatNumber(value.sourceIntervalMinutes)} minuter`]);
   if (hasNumber(value.fixedPriceOre))
     rows.push(["Fast elpris", `${formatOre(value.fixedPriceOre)} öre/kWh`]);
   if (hasNumber(value.monthlyFixedPriceSek))

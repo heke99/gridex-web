@@ -7,18 +7,23 @@ const areaPricing = readFileSync(new URL('../lib/website/areaPricingResolver.ts'
 
 assert.match(
   pricingPreview,
-  /return fetchOpsWebsiteQuote\(input\)/,
-  'all customer-facing pricing models must use the canonical OPS quote route',
+  /usesElprisetJustNu\(model\) \|\| model === 'mix'/,
+  'market-linked products must route through the website market-price calculation',
 )
-assert.doesNotMatch(
+assert.match(
   pricingPreview,
-  /usesDirectPublishedPricing|publishedPricingPreview|buildLocalWebsitePricingPreview/,
-  'public-contracts and local market services must not replace the canonical OPS quote',
+  /return buildLocalWebsitePricingPreview\(/,
+  'market-linked products must combine OPS contract terms with Elprisetjustnu locally',
+)
+assert.match(
+  pricingPreview,
+  /return fetchOpsWebsiteQuote\(input\)/,
+  'fixed and portfolio products may continue to use the canonical OPS quote route',
 )
 assert.match(
   localPricing,
-  /allowDatabase: model === 'portfolio' \|\| model === 'mix'/,
-  'public fixed and spot products must not be overridden by local database pricing',
+  /allowDatabase: model === 'portfolio'/,
+  'public fixed, spot and mix products must not be overridden by local database pricing',
 )
 assert.match(
   localPricing,
@@ -32,7 +37,7 @@ assert.match(
 )
 assert.match(
   localPricing,
-  /params\.pricingModel === 'quarterly'.*apiAverage\.intervalMinutes.*> 15/s,
+  /params\.pricingModel === 'quarterly'.*apiAverage\.sourceIntervalMinutes.*> 15/s,
   'quarterly pricing must fail closed unless quarter-hour data is present',
 )
 assert.match(

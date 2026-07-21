@@ -17,7 +17,51 @@ export type PublicContractPricingDescriptor = {
   raw?: Record<string, unknown>
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(typeof value === 'string' ? value.trim().replace(',', '.') : value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function pricingIntervalMinutes(contract: PublicContractPricingDescriptor): number | null {
+  const raw = record(contract.raw)
+  const pricing = record(raw?.pricing) ?? record(raw?.price) ?? record(raw?.specification)
+  const sources = [pricing, raw].filter((value): value is Record<string, unknown> => Boolean(value))
+  const keys = [
+    'pricing_interval_minutes',
+    'pricingIntervalMinutes',
+    'price_interval_minutes',
+    'priceIntervalMinutes',
+    'market_price_interval_minutes',
+    'marketPriceIntervalMinutes',
+    'settlement_price_interval_minutes',
+    'settlementPriceIntervalMinutes',
+    'settlement_interval_minutes',
+    'settlementIntervalMinutes',
+    'price_resolution_minutes',
+    'priceResolutionMinutes',
+    'granularity_minutes',
+    'granularityMinutes',
+  ]
+
+  for (const source of sources) {
+    for (const key of keys) {
+      const value = finiteNumber(source[key])
+      if (value !== null && value > 0 && value <= 1440) return value
+    }
+  }
+  return null
+}
+
 function normalizedContractDescriptor(contract: PublicContractPricingDescriptor): string {
+  const raw = record(contract.raw)
+  const pricing = record(raw?.pricing) ?? record(raw?.price) ?? record(raw?.specification)
   return [
     contract.type,
     contract.pricing_model,
@@ -27,6 +71,20 @@ function normalizedContractDescriptor(contract: PublicContractPricingDescriptor)
     contract.raw?.contractType,
     contract.raw?.pricing_model,
     contract.raw?.pricingModel,
+    raw?.billing_model,
+    raw?.billingModel,
+    raw?.settlement_model,
+    raw?.settlementModel,
+    raw?.pricing_frequency,
+    raw?.pricingFrequency,
+    raw?.price_resolution,
+    raw?.priceResolution,
+    pricing?.type,
+    pricing?.model,
+    pricing?.pricing_model,
+    pricing?.pricingModel,
+    pricing?.frequency,
+    pricing?.resolution,
   ]
     .filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
     .join(' ')
@@ -40,6 +98,7 @@ export function resolveWebsitePricingModel(
   contract: PublicContractPricingDescriptor,
 ): WebsitePricingModel {
   const descriptor = normalizedContractDescriptor(contract)
+  const intervalMinutes = pricingIntervalMinutes(contract)
   if (
     contract.monthly_fixed_price_sek !== null &&
     contract.monthly_fixed_price_sek !== undefined
@@ -50,13 +109,13 @@ export function resolveWebsitePricingModel(
     return 'monthly_fixed'
   }
   if (
-    /spot_quarter|quarter_hour|quarterly|15[ _-]?(minute|min)|kvartspris|kvart/.test(
+    /spot_quarter|quarter_hour|quarterly|quarterly_spot|variable_quarter|15[ _-]?(minute|min)|kvartspris|kvart/.test(
       descriptor,
     )
   ) {
     return 'spot_quarterly'
   }
-  if (/spot_hourly|hourly_spot|hourly|timpris|timspot|per timme/.test(descriptor)) {
+  if (/spot_hourly|hourly_spot|variable_hourly|hourly|timpris|timspot|per timme/.test(descriptor)) {
     return 'spot_hourly'
   }
   if (
@@ -77,6 +136,15 @@ export function resolveWebsitePricingModel(
   ) {
     return 'portfolio'
   }
+  if (
+    /variable_monthly|spot_monthly|monthly_spot|month_average|monthly_average|rorligt manadspris|manadspris/.test(
+      descriptor,
+    )
+  ) {
+    return 'spot_monthly'
+  }
+  if (intervalMinutes !== null && intervalMinutes <= 15) return 'spot_quarterly'
+  if (intervalMinutes !== null && intervalMinutes <= 60) return 'spot_hourly'
   return 'spot_monthly'
 }
 

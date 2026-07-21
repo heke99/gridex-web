@@ -8,7 +8,8 @@ import {
 const originalFetch = globalThis.fetch
 
 function quarterEntries(values, date) {
-  return values.map((value, index) => {
+  return Array.from({ length: 96 }, (_, index) => {
+    const value = values[index % values.length]
     const startMinute = index * 15
     const startHour = Math.floor(startMinute / 60)
     const startMin = startMinute % 60
@@ -18,6 +19,8 @@ function quarterEntries(values, date) {
     const iso = (hour, minute) => `${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+02:00`
     return {
       SEK_per_kWh: value,
+      EUR_per_kWh: value / 10,
+      EXR: 10,
       time_start: iso(startHour, startMin),
       time_end: iso(endHour, endMin),
     }
@@ -50,8 +53,12 @@ try {
   })
   assert.ok(daily)
   assert.equal(daily.avgSpotOre, 50, 'negative quarter prices must remain part of the average')
-  assert.equal(daily.samples, 4)
+  assert.equal(daily.samples, 96)
   assert.equal(daily.intervalMinutes, 15)
+  assert.equal(daily.sourceSamples, 96)
+  assert.equal(daily.sourceIntervalMinutes, 15)
+  assert.equal(daily.avgSpotEurPerKwh, 0.05)
+  assert.equal(daily.exchangeRate, 10)
   assert.equal(daily.periodStart, '2026-07-20')
 
   const hourly = await fetchDailySpotAverageFromElprisetJustNu({
@@ -63,8 +70,10 @@ try {
   })
   assert.ok(hourly)
   assert.equal(hourly.avgSpotOre, 50, 'hour aggregation must preserve the duration-weighted day average')
-  assert.equal(hourly.samples, 1)
+  assert.equal(hourly.samples, 24)
   assert.equal(hourly.intervalMinutes, 60)
+  assert.equal(hourly.sourceSamples, 96)
+  assert.equal(hourly.sourceIntervalMinutes, 15)
 
   const monthToDate = await fetchMonthlySpotAverageFromElprisetJustNu({
     year: 2026,
@@ -74,10 +83,12 @@ try {
   })
   assert.ok(monthToDate)
   assert.equal(monthToDate.avgSpotOre, 50)
-  assert.equal(monthToDate.samples, 8)
+  assert.equal(monthToDate.samples, 192)
   assert.equal(monthToDate.periodStart, '2026-07-01')
   assert.equal(monthToDate.periodEnd, '2026-07-02')
   assert.equal(monthToDate.intervalMinutes, 15)
+  assert.equal(monthToDate.sourceSamples, 192)
+  assert.equal(monthToDate.sourceIntervalMinutes, 15)
 
   await assert.rejects(
     fetchMonthlySpotAverageFromElprisetJustNu({

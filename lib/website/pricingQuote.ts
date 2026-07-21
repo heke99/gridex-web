@@ -147,6 +147,21 @@ function cloneBasis(value: unknown): QuoteBasis {
       spotAvgOre: record.spotAvgOre,
       samples: record.samples,
       intervalMinutes: record.intervalMinutes,
+      ...(typeof record.sourceSamples === "number" && Number.isFinite(record.sourceSamples)
+        ? { sourceSamples: record.sourceSamples }
+        : {}),
+      ...(record.sourceIntervalMinutes === null ||
+      (typeof record.sourceIntervalMinutes === "number" && Number.isFinite(record.sourceIntervalMinutes))
+        ? { sourceIntervalMinutes: record.sourceIntervalMinutes }
+        : {}),
+      ...(record.avgSpotEurPerKwh === null ||
+      (typeof record.avgSpotEurPerKwh === "number" && Number.isFinite(record.avgSpotEurPerKwh))
+        ? { avgSpotEurPerKwh: record.avgSpotEurPerKwh }
+        : {}),
+      ...(record.exchangeRate === null ||
+      (typeof record.exchangeRate === "number" && Number.isFinite(record.exchangeRate))
+        ? { exchangeRate: record.exchangeRate }
+        : {}),
       periodStart: record.periodStart,
       periodEnd: record.periodEnd,
       source: record.source,

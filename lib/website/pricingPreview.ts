@@ -4,6 +4,11 @@ import {
   type OpsWebsitePricingPreviewInput,
   fetchOpsWebsiteQuote
 } from '@/lib/ops/client'
+import { buildLocalWebsitePricingPreview } from '@/lib/website/localPricingPreview'
+import {
+  resolveWebsitePricingModel,
+  usesElprisetJustNu,
+} from '@/lib/website/contractPricingModel'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 
 const PREVIEW_CACHE_TTL_MS = 60_000
@@ -130,9 +135,10 @@ export function enrichWebsitePricingPreview(
   }
 }
 
-function cacheKey(input: OpsWebsitePricingPreviewInput): string {
+function cacheKey(input: OpsWebsitePricingPreviewInput, contract: OpsPublicContract): string {
   return [
     input.offer_reference,
+    contract.price_plan_version_id ?? contract.price_plan_id ?? '',
     input.price_area_code,
     input.postal_code?.replace(/\s/g, ''),
     input.city?.trim().toLowerCase(),
@@ -162,10 +168,23 @@ function assertCompletePreview(data: OpsWebsitePricingPreview, contract: OpsPubl
 
 async function loadRawPricingPreview(
   input: OpsWebsitePricingPreviewInput,
+  contract: OpsPublicContract,
 ): Promise<OpsWebsitePricingPreview> {
-  // OPS /website/quote is the only canonical calculation path. Public-contracts
-  // remains presentation/selection data and must never be used to reconstruct
-  // hidden or billable components locally.
+  const model = resolveWebsitePricingModel(contract)
+
+  // OPS owns the published agreement and its billable components. Gridex Web
+  // owns the customer estimate for market-linked products because the spot
+  // basis comes directly from Elprisetjustnu. Fixed and portfolio products may
+  // still use the canonical OPS quote endpoint because their energy price is
+  // explicitly published by OPS rather than sourced from the spot market API.
+  if (usesElprisetJustNu(model) || model === 'mix') {
+    return buildLocalWebsitePricingPreview({
+      contract,
+      priceAreaCode: input.price_area_code,
+      estimatedMonthlyKwh: input.estimated_monthly_kwh,
+    })
+  }
+
   return fetchOpsWebsiteQuote(input)
 }
 
@@ -173,12 +192,12 @@ export async function loadVerifiedWebsitePricingPreview(
   input: OpsWebsitePricingPreviewInput,
   contract: OpsPublicContract,
 ): Promise<OpsWebsitePricingPreview> {
-  const key = cacheKey(input)
+  const key = cacheKey(input, contract)
   const now = Date.now()
   const cached = previewCache.get(key)
   if (cached && cached.expiresAt > now) return cached.value
 
-  const raw = await loadRawPricingPreview(input)
+  const raw = await loadRawPricingPreview(input, contract)
   assertCompletePreview(raw, contract, input)
   const value = enrichWebsitePricingPreview(raw, contract)
   assertCompletePreview(value, contract, input)

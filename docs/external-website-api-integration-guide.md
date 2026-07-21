@@ -1,12 +1,13 @@
 # Gridex website, Mina sidor and webhook integration
 
-This repository treats Gridex OPS as the source of truth for published offers, fixed prices, fees, legal versions, customer applications and customer-portal data. Public monthly, hourly and quarterly spot calculations fetch their market-price basis directly from Elprisetjustnu. Portfolio and mix products may use the OPS quote route when that deployment exposes it, with a strict published-pricing fallback. Every browser-facing result is calculated server-side and signed for review. The website API key is server-side and determines the company. Browser requests must never select an OPS tenant or send internal OPS identifiers as authority.
+This repository treats Gridex OPS as the source of truth for published offers, fixed and portfolio prices, fees, legal versions, customer applications and customer-portal data. Public monthly, hourly and quarterly spot calculations fetch their market-price basis directly from Elprisetjustnu. The spot portion of a mix product also comes from Elprisetjustnu, while its published portfolio portion and all agreement components come from OPS. Every browser-facing result is calculated server-side and signed for review. The website API key is server-side and determines the company. Browser requests must never select an OPS tenant or send internal OPS identifiers as authority.
 
 ## Required configuration
 
 ```text
 GRIDEX_OPS_API_URL=https://app.gridex.se
 GRIDEX_OPS_TIMEOUT_MS=12000
+SPOT_PRICE_API_TIMEOUT_MS=8000
 GRIDEX_WEBSITE_API_KEY=<complete secret API token>
 GRIDEX_WEBSITE_API_SCOPES=<comma-separated scopes below>
 GRIDEX_EXPECTED_COMPANY_ID=<company UUID represented by the API key>
@@ -53,7 +54,7 @@ The admin integration page performs non-mutating authorization probes against ev
 | Method | OPS path | Primary scope | Website use |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/website/public-contracts` | `website_contracts.read` | Published, sellable offers and exact `offer_reference`. Admin diagnostics use `diagnostics=1` server-side. |
-| `POST` | `/api/v1/website/quote` | `website_contracts.read` | Compatibility route for portfolio and mix products when the OPS deployment exposes it. Monthly, hourly, quarterly and fixed products do not depend on this route. |
+| `POST` | `/api/v1/website/quote` | `website_contracts.read` | Canonical calculation route for fixed and portfolio products. Monthly, hourly and quarterly spot products do not use OPS for their market-price basis. Mix is calculated by Gridex Web from Elprisetjustnu spot data plus the published OPS portfolio portion and fees. |
 | `GET` | `/api/v1/website/legal-bundle` | `website_legal.read` or compatible contract-read access | Published legal text/version bundle. |
 | `POST` | `/api/v1/website/customer-applications` | `website_applications.write` | Strict customer application payload. |
 | `POST` | `/api/v1/customer/portal-bundle` | customer read scopes | Preferred Mina sidor bundle and identity linking. |
@@ -75,8 +76,8 @@ The only supported flow is:
 GET public-contracts
   -> select exact offer_reference
   -> monthly/hourly/quarterly: fetch market basis directly from Elprisetjustnu
-  -> fixed: calculate from the exact price and fees published by OPS
-  -> portfolio/mix: use OPS quote when available, otherwise strict published-pricing calculation
+  -> mix: combine Elprisetjustnu spot basis with the exact portfolio share, portfolio price and fees published by OPS
+  -> fixed/portfolio: use the canonical OPS quote
   -> show price and published legal versions
   -> lock local audit snapshot
   -> POST customer-applications with offer_reference
@@ -84,10 +85,10 @@ GET public-contracts
 
 `offer_reference` is the only contract reference that the website may use for quote selection and application. An internal `id` must never be substituted when `offer_reference` is missing. Such an offer is integration-invalid and not sellable online.
 
-The browser-facing pricing route issues a website HMAC token to bind the review page to the exact server-calculated snapshot. The browser never calculates or supplies authoritative prices. `variable_spot`/monthly products use the current calendar month's published prices to date from Elprisetjustnu. Hourly products use today's published market intervals as an unweighted estimate when no measured hourly consumption profile exists. Quarterly products use today's published quarter-hour intervals and fail closed if quarter-hour data cannot be verified. Fixed products use only fixed price and fee components published by OPS; local database pricing is not allowed to override them. Portfolio and mix compatibility still permits the strict OPS-quote fallback for route-not-found/method-not-supported, redirects or HTML responses, timeouts, 5xx, and generic non-actionable OPS failures. Authentication and permission failures are never bypassed. Before submission, the server recalculates through the same shared path and rejects changed or invalid review data.
+The browser-facing pricing route issues a website HMAC token to bind the review page to the exact server-calculated snapshot. The browser never calculates or supplies authoritative prices. `variable_spot`/monthly products use the current calendar month's published prices to date from Elprisetjustnu. Hourly products aggregate today's published source intervals to a 60-minute reporting basis when the API supplies quarter-hour data. Quarterly products use today's published quarter-hour intervals and fail closed if quarter-hour data cannot be verified. Mix products use the current monthly spot basis from Elprisetjustnu together with the exact portfolio share, portfolio price and fees published by OPS. Fixed and portfolio products use the canonical OPS quote. Before submission, the server recalculates through the same shared path and rejects changed or invalid review data.
 The integration must never silently convert missing markup, monthly fee, invoice fee, fixed price or portfolio price to zero. Missing mandatory quote values block sale. Browser-supplied `price_plan_id` and `price_plan_version_id` are forbidden; OPS resolves them from `offer_reference`.
 
-The full OPS quote and the displayed contract snapshot are stored in `website_application_submissions` for audit. They are deliberately not placed in the strict OPS application payload unless the published OPS schema explicitly allows them.
+The signed website pricing snapshot and displayed contract snapshot are stored in `website_application_submissions` for audit. For fixed and portfolio products, the underlying OPS quote is retained when available. These audit values are deliberately not placed in the strict OPS application payload unless the published OPS schema explicitly allows them.
 
 
 ### Elprisetjustnu market-data policy
@@ -98,7 +99,7 @@ The website calls the documented static JSON endpoint server-side:
 GET https://www.elprisetjustnu.se/api/v1/prices/{YEAR}/{MONTH}-{DAY}_{AREA}.json
 ```
 
-Market samples are duration-weighted from `SEK_per_kWh` and `time_start`/`time_end`; zero and negative spot prices remain valid input. Current-month calculations require every day through the calculation date, so a partial or missing day never silently produces a misleading average. The result snapshot records source, price area, period, sample count and detected market interval.
+Market samples are duration-weighted from `SEK_per_kWh` and `time_start`/`time_end`; zero and negative spot prices remain valid input. `EUR_per_kWh` and `EXR` are retained as source diagnostics but never replace the API's SEK value in the customer calculation. Current-month calculations require every day through the calculation date, so a partial or missing day never silently produces a misleading average. The signed result snapshot records source, price area, period, reporting sample count and interval, original API sample count and interval, EUR average and exchange rate.
 
 ### Consumption profile and annual estimate
 

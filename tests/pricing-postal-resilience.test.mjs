@@ -7,19 +7,19 @@ function read(path) {
 
 const pricingPreview = read('lib/website/pricingPreview.ts')
 assert.ok(
-  pricingPreview.includes('OPS /website/quote is the only canonical calculation path'),
-  'pricing must use OPS quote as the only canonical calculation path',
+  pricingPreview.includes("usesElprisetJustNu(model) || model === 'mix'"),
+  'market-linked pricing must use Elprisetjustnu with the selected OPS contract',
 )
 assert.ok(
   !pricingPreview.includes('canUsePublishedPricingFallback'),
-  'pricing must not bypass OPS quote with a local total calculation',
+  'pricing must not silently fall back to an unverified local calculation',
 )
 assert.ok(
-  !pricingPreview.includes('buildLocalWebsitePricingPreview'),
-  'hidden billable components must not be reconstructed from public-contracts',
+  pricingPreview.includes('buildLocalWebsitePricingPreview'),
+  'market-linked estimates must combine published OPS components with Elprisetjustnu',
 )
 assert.ok(
-  pricingPreview.includes('loadRawPricingPreview(input)'),
+  pricingPreview.includes('loadRawPricingPreview(input, contract)'),
   'preview and final submission must share the same canonical pricing loader',
 )
 

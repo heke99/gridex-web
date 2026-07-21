@@ -43,6 +43,10 @@ export type ElprisetSpotBasis = {
   spotAvgOre: number
   samples: number
   intervalMinutes: number | null
+  sourceSamples: number
+  sourceIntervalMinutes: number | null
+  avgSpotEurPerKwh: number | null
+  exchangeRate: number | null
   periodStart: string
   periodEnd: string
   source: 'elprisetjustnu_api'
@@ -56,6 +60,16 @@ type LocalPricingInput = {
 }
 
 const DEFAULT_VAT_RATE = 0.25
+
+function marketDataErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      return 'Elprisetjustnu svarade inte i tid. Försök igen om en stund.'
+    }
+    if (error.message.trim()) return error.message
+  }
+  return 'Elprisetjustnu kunde inte hämtas.'
+}
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -189,7 +203,7 @@ export async function getElprisetSpotBasis(params: {
       priceArea: params.priceAreaCode,
     }).catch((error) => {
       throw new LocalWebsitePricingPreviewError(
-        error instanceof Error ? error.message : 'Elprisetjustnu kunde inte hämtas.',
+        marketDataErrorMessage(error),
         503,
       )
     })
@@ -209,6 +223,10 @@ export async function getElprisetSpotBasis(params: {
       spotAvgOre: apiAverage.avgSpotOre,
       samples: apiAverage.samples,
       intervalMinutes: apiAverage.intervalMinutes,
+      sourceSamples: apiAverage.sourceSamples,
+      sourceIntervalMinutes: apiAverage.sourceIntervalMinutes,
+      avgSpotEurPerKwh: apiAverage.avgSpotEurPerKwh,
+      exchangeRate: apiAverage.exchangeRate,
       periodStart: apiAverage.periodStart,
       periodEnd: apiAverage.periodEnd,
       source: apiAverage.source,
@@ -222,7 +240,7 @@ export async function getElprisetSpotBasis(params: {
     reportingIntervalMinutes: params.pricingModel === 'hourly' ? 60 : undefined,
   }).catch((error) => {
     throw new LocalWebsitePricingPreviewError(
-      error instanceof Error ? error.message : 'Elprisetjustnu kunde inte hämtas.',
+      marketDataErrorMessage(error),
       503,
     )
   })
@@ -232,7 +250,7 @@ export async function getElprisetSpotBasis(params: {
       503,
     )
   }
-  if (params.pricingModel === 'quarterly' && (apiAverage.intervalMinutes === null || apiAverage.intervalMinutes > 15)) {
+  if (params.pricingModel === 'quarterly' && (apiAverage.sourceIntervalMinutes === null || apiAverage.sourceIntervalMinutes > 15)) {
     throw new LocalWebsitePricingPreviewError(
       'Elprisetjustnu saknar kvartspriser för dagens beräkning.',
       503,
@@ -249,6 +267,10 @@ export async function getElprisetSpotBasis(params: {
     spotAvgOre: apiAverage.avgSpotOre,
     samples: apiAverage.samples,
     intervalMinutes: apiAverage.intervalMinutes,
+    sourceSamples: apiAverage.sourceSamples,
+    sourceIntervalMinutes: apiAverage.sourceIntervalMinutes,
+    avgSpotEurPerKwh: apiAverage.avgSpotEurPerKwh,
+    exchangeRate: apiAverage.exchangeRate,
     periodStart: apiAverage.periodStart,
     periodEnd: apiAverage.periodEnd,
     source: apiAverage.source,
@@ -433,7 +455,7 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
     // Public fixed and market-price agreements must use exactly the price
     // components OPS published. Local database rows are only a compatibility
     // path for portfolio products that still rely on internal monthly data.
-    allowDatabase: model === 'portfolio' || model === 'mix',
+    allowDatabase: model === 'portfolio',
   })
   const fees = baseFees(input.contract, model, areaPricing)
   const vat = vatRate(input.contract)
@@ -580,7 +602,13 @@ export async function buildLocalWebsitePricingPreview(input: LocalPricingInput):
       contract_display_snapshot: display.snapshot,
     },
     raw: {
-      source: usesElprisetJustNu(model) ? 'elprisetjustnu_api' : 'ops_public_contract',
+      source: model === 'mix'
+        ? 'gridex_web_local_pricing'
+        : usesElprisetJustNu(model)
+          ? 'elprisetjustnu_api'
+          : 'ops_public_contract',
+      market_source: usesElprisetJustNu(model) || model === 'mix' ? 'elprisetjustnu_api' : null,
+      contract_source: 'ops_public_contract',
       pricing_model: model,
       area_pricing_source: areaPricing.source,
       pricing_version_id: areaPricing.pricingVersionId,

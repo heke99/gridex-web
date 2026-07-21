@@ -50,8 +50,8 @@ assert.ok(!contractNormalizer.includes('row.offer_reference ?? row.offerReferenc
 
 const pricing = read('lib/website/pricingPreview.ts')
 assert.ok(pricing.includes('fetchOpsWebsiteQuote(input)'))
-assert.ok(pricing.includes('OPS /website/quote is the only canonical calculation path'))
-assert.ok(!pricing.includes('buildLocalWebsitePricingPreview'))
+assert.ok(pricing.includes("usesElprisetJustNu(model) || model === 'mix'"))
+assert.ok(pricing.includes('buildLocalWebsitePricingPreview'))
 assert.ok(!pricing.includes('canUsePublishedPricingFallback'))
 assert.ok(ops.includes('annual_consumption_kwh: input.estimated_monthly_kwh * 12'))
 assert.ok(ops.includes('price_area: input.price_area_code'))
