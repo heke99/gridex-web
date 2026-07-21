@@ -57,6 +57,8 @@ function optionAsOpsContract(contract: SignupContractOption) {
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,
     notice_period_days: contract.noticePeriodDays ?? null,
+    notice_period_months: contract.noticePeriodMonths ?? null,
+    automatic_renewal: contract.automaticRenewal ?? null,
     included: contract.included ?? null,
     excluded: contract.excluded ?? null,
     start_info: contract.startInfo ?? null,

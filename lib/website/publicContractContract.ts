@@ -20,6 +20,9 @@ export type PublicContractApiShape = {
   pricing_model: string | null
   spot_share: number | null
   portfolio_share: number | null
+  binding_months: number | null
+  notice_months: number | null
+  automatic_renewal: boolean | null
   valid_from: string | null
   valid_to: string | null
   terms_version: string | null
@@ -507,6 +510,9 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     pricing_model: text(pricing.pricing_model ?? pricing.pricingModel ?? row.pricing_model ?? row.pricingModel),
     spot_share: normalizedShare(componentAmount('spot_share')) ?? normalizedShare(pricing.spot_share ?? pricing.spotShare ?? row.spot_share),
     portfolio_share: normalizedShare(componentAmount('portfolio_share')) ?? normalizedShare(pricing.portfolio_share ?? pricing.portfolioShare ?? row.portfolio_share),
+    binding_months: number(row.binding_months ?? row.bindingMonths ?? row.binding_period_months ?? row.bindingPeriodMonths),
+    notice_months: number(row.notice_months ?? row.noticeMonths ?? row.notice_period_months ?? row.noticePeriodMonths),
+    automatic_renewal: boolean(row.automatic_renewal ?? row.automaticRenewal),
     valid_from: text(row.valid_from ?? row.validFrom),
     valid_to: text(row.valid_to ?? row.validTo),
     terms_version: text(legal.terms_version ?? legal.termsVersion ?? row.terms_version),

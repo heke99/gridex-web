@@ -78,8 +78,10 @@ export function formatPercent(value: number): string {
 export function publicContractTypeLabel(type: string | null | undefined): string {
   switch (type) {
     case 'variable_spot':
+    case 'variable_monthly':
     case 'spot_monthly':
       return 'Månadspris'
+    case 'variable_hourly':
     case 'spot_hourly':
       return 'Timpris'
     case 'spot_quarterly':
@@ -198,8 +200,10 @@ function defaultDescription(contract: OpsPublicContract): string {
 
   switch (contract.type) {
     case 'variable_spot':
+    case 'variable_monthly':
     case 'spot_monthly':
       return 'För dig som vill ha ett rörligt månadspris baserat på publicerad spotdata.'
+    case 'variable_hourly':
     case 'spot_hourly':
       return 'För dig som vill följa spotmarknaden timme för timme.'
     case 'spot_quarterly':
@@ -272,6 +276,30 @@ function validatePublicPricingForType(blockedReasons: string[], contract: OpsPub
   }
 }
 
+function addNoticePeriodRow(
+  rows: PublicContractDisplayRow[],
+  contract: OpsPublicContract,
+): void {
+  if (hasNumberValue(contract.notice_period_months)) {
+    addNumberRow(rows, 'notice_period_months', 'Uppsägningstid', contract.notice_period_months, 'months')
+    return
+  }
+  addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+}
+
+function addAutomaticRenewalRow(
+  rows: PublicContractDisplayRow[],
+  contract: OpsPublicContract,
+): void {
+  if (contract.automatic_renewal !== true) return
+  rows.push({
+    key: 'automatic_renewal',
+    label: 'Automatisk förlängning',
+    value: 'Ja',
+    formatted: 'Ja',
+  })
+}
+
 /**
  * OPS filters publication state, active price versions and published legal text
  * before a contract reaches this website. The website validates only the public
@@ -322,12 +350,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
 
   if (usesPublishedComponents) {
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
-    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+    addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'monthly_fixed' || contract.type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null) {
     addNumberRow(rows, 'monthly_fixed_price_sek', 'Fast månadspris', contract.monthly_fixed_price_sek, 'sek_month')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
-    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+    addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'fixed') {
     if (!hasNumberValue(contract.fixed_price_ore_per_kwh)) {
       addTextRow(rows, 'area_price_notice', 'Fast elpris', 'Visas efter adress och elområde')
@@ -337,7 +365,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
-    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+    addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'portfolio' || contract.type === 'portfolio_managed') {
     if (!hasNumberValue(contract.portfolio_price_ore_per_kwh)) {
       addTextRow(rows, 'area_price_notice', 'Portföljpris', 'Visas efter adress och elområde')
@@ -347,7 +375,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
-    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+    addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'mix' || contract.type === 'mixed') {
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
     if (!hasNumberValue(contract.spot_share) && !hasNumberValue(contract.portfolio_share)) {
@@ -369,8 +397,10 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
-    addNumberRow(rows, 'notice_period_days', 'Uppsägningstid', contract.notice_period_days, 'days')
+    addNoticePeriodRow(rows, contract)
   }
+
+  addAutomaticRenewalRow(rows, contract)
 
   if (!usesPublishedComponents && Object.keys(contract.pricing_visibility ?? {}).length > 0) {
     const aliases: Record<string, string[]> = {
@@ -436,6 +466,10 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     legal_versions: legalVersions,
     valid_from: contract.valid_from ?? null,
     valid_to: contract.valid_to ?? null,
+    binding_period_months: contract.binding_period_months ?? null,
+    notice_period_months: contract.notice_period_months ?? null,
+    notice_period_days: contract.notice_period_days ?? null,
+    automatic_renewal: contract.automatic_renewal ?? null,
   }
 
   return {

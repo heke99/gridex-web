@@ -60,6 +60,8 @@ export type SignupContractOption = {
   validTo?: string | null;
   bindingPeriodMonths?: number | null;
   noticePeriodDays?: number | null;
+  noticePeriodMonths?: number | null;
+  automaticRenewal?: boolean | null;
   included?: string[] | string | null;
   excluded?: string[] | string | null;
   startInfo?: string | null;
@@ -164,6 +166,8 @@ function optionAsOpsContract(contract: SignupContractOption) {
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,
     notice_period_days: contract.noticePeriodDays ?? null,
+    notice_period_months: contract.noticePeriodMonths ?? null,
+    automatic_renewal: contract.automaticRenewal ?? null,
     included: contract.included ?? null,
     excluded: contract.excluded ?? null,
     start_info: contract.startInfo ?? null,

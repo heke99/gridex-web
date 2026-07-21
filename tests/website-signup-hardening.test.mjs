@@ -114,4 +114,21 @@ assert.ok(faq.includes('foretag-undertecknare'))
 assert.ok(read('app/(public)/vanliga-fragor/page.tsx').includes('FaqExplorer'))
 assert.ok(read('lib/seo/content.ts').includes("'/vanliga-fragor'"))
 
+
+const opsClient = read('lib/ops/client.ts')
+assert.ok(opsClient.includes('customer_type: input.customer_type === "company" ? "business" : "private"'))
+assert.ok(opsClient.includes('{ org_number: input.organization_number }'))
+assert.ok(opsClient.includes('assertExpectedOpsCompany(payload)'))
+assert.ok(opsClient.includes('"ops_tenant_mismatch"'))
+assert.ok(opsClient.includes('"ops_tenant_binding_unverified"'))
+assert.ok(opsClient.includes('query.set("diagnostics", "1")'))
+
+const contractDisplay = read('lib/website/publicContractDisplay.ts')
+assert.ok(contractDisplay.includes("case 'variable_monthly':"))
+assert.ok(contractDisplay.includes("case 'variable_hourly':"))
+assert.ok(contractDisplay.includes("'notice_period_months'"))
+assert.ok(contractDisplay.includes("'automatic_renewal'"))
+
+assert.ok(signup.includes('GRIDEX_WEBSITE_SOURCE'))
+
 console.log('Website signup hardening checks passed')

@@ -107,3 +107,34 @@ const unitOnlyContract = normalizePublicContractApiPayload({
 assert.ok(unitOnlyContract, 'top-level pricing_components must normalize')
 assert.equal(unitOnlyContract.invoice_fee_sek, 29)
 assert.equal(unitOnlyContract.monthly_fee_sek, 59)
+
+const canonicalLifecycleContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_canonical_lifecycle',
+  code: 'RORLIGT-CANONICAL',
+  name: 'Rörligt canonical',
+  type: 'variable_monthly',
+  customer_type: 'both',
+  binding_months: 0,
+  notice_months: 1,
+  automatic_renewal: true,
+  pricing: {
+    monthly_fee: 49,
+    invoice_fee: 0,
+    markup: 4,
+    vat_rate: 0.25,
+  },
+  legal: {
+    terms_version: '2026-07',
+    privacy_policy_version: '2026-07',
+    withdrawal_version: '2026-07',
+  },
+})
+
+assert.ok(canonicalLifecycleContract, 'canonical lifecycle contract must normalize')
+assert.equal(canonicalLifecycleContract.type, 'variable_monthly')
+assert.equal(canonicalLifecycleContract.binding_months, 0)
+assert.equal(canonicalLifecycleContract.notice_months, 1)
+assert.equal(canonicalLifecycleContract.automatic_renewal, true)
+assert.equal(canonicalLifecycleContract.invoice_fee_sek, 0)
+assert.equal(canonicalLifecycleContract.vat_rate, 0.25)
+

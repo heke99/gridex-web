@@ -23,6 +23,18 @@ assert.ok(ops.includes('communication: mapCustomerApplicationCommunication'))
 assert.ok(ops.includes('fetchOpsPublicContractDiagnostics'))
 assert.ok(ops.includes('query.set("diagnostics", "1")'))
 
+
+assert.ok(ops.includes('"variable_monthly"'))
+assert.ok(ops.includes('"variable_hourly"'))
+assert.ok(ops.includes('notice_period_months'))
+assert.ok(ops.includes('automatic_renewal'))
+assert.ok(ops.includes('opsTenantCacheKey()'))
+assert.ok(ops.includes('assertExpectedOpsCompany(payload)'))
+assert.ok(ops.includes('ops_tenant_mismatch'))
+assert.ok(ops.includes('publicContractsPath(customerType, true)'))
+assert.ok(ops.includes('customer_type: input.customer_type === "company" ? "business" : "private"'))
+assert.ok(ops.includes('{ org_number: input.organization_number }'))
+
 const readiness = read('lib/ops/readiness.ts')
 assert.ok(readiness.includes("'customer_power_of_attorney.write'"))
 assert.ok(readiness.includes("'/api/v1/website/customer-applications'"))

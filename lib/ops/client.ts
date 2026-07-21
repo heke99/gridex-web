@@ -9,6 +9,8 @@ import {
 
 export type OpsContractType =
   | "variable_spot"
+  | "variable_monthly"
+  | "variable_hourly"
   | "spot_monthly"
   | "spot_hourly"
   | "spot_quarterly"
@@ -52,6 +54,8 @@ export type OpsPublicContract = {
   valid_to?: string | null;
   binding_period_months?: number | null;
   notice_period_days?: number | null;
+  notice_period_months?: number | null;
+  automatic_renewal?: boolean | null;
   included?: string[] | string | null;
   excluded?: string[] | string | null;
   start_info?: string | null;
@@ -115,7 +119,7 @@ export type OpsCustomerApplicationInput = {
   current_supplier_id?: string | null;
   current_supplier_org_number?: string | null;
   current_supplier_ediel_id?: string | null;
-  source: "gridex_website";
+  source: string;
   idempotency_key: string;
   external_customer_id: string;
   customer_portal_user_id?: string | null;
@@ -317,6 +321,41 @@ function opsBaseUrl(): string | undefined {
 }
 
 const OPS_API_KEY_FULL_SECRET_NOT_PREFIX = "OPS_API_KEY_FULL_SECRET_NOT_PREFIX";
+
+function expectedOpsCompanyId(): string | null {
+  return env("GRIDEX_EXPECTED_COMPANY_ID") ?? null;
+}
+
+function opsTenantCacheKey(): string {
+  const baseUrl = opsBaseUrl() ?? "unconfigured";
+  const apiKey = opsApiKey().value ?? "missing";
+  return createHash("sha256").update(`${baseUrl}|${apiKey}`).digest("hex").slice(0, 24);
+}
+
+function authenticatedCompanyId(payload: unknown): string | null {
+  const root = extractObject(payload);
+  const diagnostics = recordValue(root.diagnostics);
+  return pickString(diagnostics ?? root, ["company_id", "companyId", "tenant_id", "tenantId"]);
+}
+
+function assertExpectedOpsCompany(payload: unknown): void {
+  const expected = expectedOpsCompanyId();
+  if (!expected) return;
+  const actual = authenticatedCompanyId(payload);
+  if (!actual) {
+    throw new OpsError("OPS kunde inte verifiera tenant-bindningen.", 503, {
+      code: "ops_tenant_binding_unverified",
+      expected_company_id: expected,
+    });
+  }
+  if (actual !== expected) {
+    throw new OpsError("OPS API-nyckeln tillhör fel tenant.", 503, {
+      code: "ops_tenant_mismatch",
+      expected_company_id: expected,
+      actual_company_id: actual,
+    });
+  }
+}
 
 const OPS_API_KEY_ENV_NAMES = [
   "GRIDEX_WEBSITE_API_KEY",
@@ -873,12 +912,16 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
         documented.portfolio_share,
         components.portfolio_share,
       ),
-      binding_period_months: normalizeNumber(
+      binding_period_months: documented.binding_months ?? normalizeNumber(
         r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
+      ),
+      notice_period_months: documented.notice_months ?? normalizeNumber(
+        r.notice_period_months ?? r.noticePeriodMonths ?? r.notice_months ?? r.noticeMonths,
       ),
       notice_period_days: normalizeNumber(
         r.notice_period_days ?? r.noticePeriodDays ?? r.notice_days,
       ),
+      automatic_renewal: documented.automatic_renewal ?? pickBooleanFromRecords([r], ["automatic_renewal", "automaticRenewal"]),
       included: Array.isArray(r.included)
         ? r.included.map(String).filter(Boolean)
         : pickString(r, ["included"]),
@@ -1015,9 +1058,13 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     binding_period_months: normalizeNumber(
       r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
     ),
+    notice_period_months: normalizeNumber(
+      r.notice_period_months ?? r.noticePeriodMonths ?? r.notice_months ?? r.noticeMonths,
+    ),
     notice_period_days: normalizeNumber(
       r.notice_period_days ?? r.noticePeriodDays ?? r.notice_days,
     ),
+    automatic_renewal: pickBooleanFromRecords([r], ["automatic_renewal", "automaticRenewal"]),
     included: Array.isArray(r.included)
       ? r.included.map(String).filter(Boolean)
       : pickString(r, ["included"]),
@@ -1845,7 +1892,8 @@ function extractPublicContractDiagnostics(payload: unknown): OpsPublicContractDi
 async function fetchOpsPublicContractsUncached(
   customerType?: string | null,
 ): Promise<OpsPublicContract[]> {
-  const payload = await opsFetch(publicContractsPath(customerType));
+  const payload = await opsFetch(publicContractsPath(customerType, true));
+  assertExpectedOpsCompany(payload);
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
@@ -1858,16 +1906,16 @@ async function fetchOpsPublicContractsUncached(
 }
 
 const fetchCachedOpsPublicContracts = unstable_cache(
-  async (customerType: string) =>
+  async (_tenantCacheKey: string, customerType: string) =>
     fetchOpsPublicContractsUncached(customerType || null),
-  ["ops-public-contracts-v4"],
+  ["ops-public-contracts-v5"],
   { revalidate: 60, tags: ["ops-public-contracts"] },
 );
 
 export async function fetchOpsPublicContracts(
   customerType?: "private" | "company" | null,
 ): Promise<OpsPublicContract[]> {
-  return fetchCachedOpsPublicContracts(customerType ?? "");
+  return fetchCachedOpsPublicContracts(opsTenantCacheKey(), customerType ?? "");
 }
 
 export async function fetchOpsPublicContractsFresh(
@@ -2079,12 +2127,12 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
     ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
-      customer_type: input.customer_type,
+      customer_type: input.customer_type === "company" ? "business" : "private",
       ...(input.first_name ? { first_name: input.first_name } : {}),
       ...(input.last_name ? { last_name: input.last_name } : {}),
       ...(input.company_name ? { company_name: input.company_name } : {}),
       ...(input.personal_number ? { personal_number: input.personal_number } : {}),
-      ...(input.organization_number ? { organization_number: input.organization_number } : {}),
+      ...(input.organization_number ? { org_number: input.organization_number } : {}),
       email: input.email,
       phone: input.phone,
     },

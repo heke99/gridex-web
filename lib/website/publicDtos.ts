@@ -35,6 +35,8 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     },
     binding_period_months: contract.binding_period_months ?? null,
     notice_period_days: contract.notice_period_days ?? null,
+    notice_period_months: contract.notice_period_months ?? null,
+    automatic_renewal: contract.automatic_renewal ?? null,
     included: contract.included ?? null,
     excluded: contract.excluded ?? null,
     start_info: contract.start_info ?? null,

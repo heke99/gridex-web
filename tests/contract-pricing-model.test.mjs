@@ -12,6 +12,15 @@ const base = {
 }
 
 assert.equal(resolveWebsitePricingModel(base), 'spot_monthly')
+
+assert.equal(
+  resolveWebsitePricingModel({ ...base, type: 'variable_monthly', name: 'Rörligt månadspris' }),
+  'spot_monthly',
+)
+assert.equal(
+  resolveWebsitePricingModel({ ...base, type: 'variable_hourly', name: 'Rörligt timpris' }),
+  'spot_hourly',
+)
 assert.equal(
   resolveWebsitePricingModel({ ...base, type: 'spot_hourly', name: 'Timpris' }),
   'spot_hourly',
