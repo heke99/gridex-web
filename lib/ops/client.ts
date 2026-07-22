@@ -292,6 +292,7 @@ export type OpsWebsitePricingPreview = {
   pricing_interval?: string;
   estimate_method?: string;
   source_period?: string;
+  source_window?: { start: string; end: string } | null;
   market_data_timestamp?: string;
   is_binding?: boolean;
   assumptions?: OpsQuoteAssumption[];
@@ -361,8 +362,8 @@ function expectedOpsTenantReference(): string | null {
 
 function opsTenantCacheKey(): string {
   const baseUrl = opsBaseUrl() ?? "unconfigured";
-  const tenantReference = expectedOpsTenantReference() ?? "missing-tenant-reference";
-  return createHash("sha256").update(`${baseUrl}|${tenantReference}`).digest("hex").slice(0, 24);
+  const apiKey = opsApiKey().value ?? "missing-api-key";
+  return createHash("sha256").update(`${baseUrl}|${apiKey}`).digest("hex").slice(0, 24);
 }
 
 function tenantReferenceFromPayload(payload: unknown): string | null {
@@ -375,12 +376,6 @@ function tenantReferenceFromPayload(payload: unknown): string | null {
 
 function assertExpectedTenantReference(actual: string | null, source: string): string {
   const expected = expectedOpsTenantReference();
-  if (!expected) {
-    throw new OpsError("OPS tenantreferens är inte konfigurerad.", 503, {
-      code: "ops_tenant_reference_not_configured",
-      source,
-    });
-  }
   if (!actual) {
     throw new OpsError("OPS kunde inte verifiera tenant-bindningen.", 503, {
       code: "ops_tenant_binding_unverified",
@@ -388,7 +383,7 @@ function assertExpectedTenantReference(actual: string | null, source: string): s
       source,
     });
   }
-  if (actual !== expected) {
+  if (expected && actual !== expected) {
     throw new OpsError("OPS API-nyckeln tillhör fel tenant.", 503, {
       code: "ops_tenant_mismatch",
       expected_tenant_reference: expected,
@@ -432,7 +427,6 @@ export function getOpsClientStatus(): OpsClientStatus {
   const apiKey = opsApiKey();
   if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
   if (!apiKey.value) missing.push(apiKey.invalidReason ?? "GRIDEX_WEBSITE_API_KEY");
-  if (!expectedOpsTenantReference()) missing.push("GRIDEX_EXPECTED_TENANT_REFERENCE");
 
   let unsafeProductionUrl = false;
   if (
@@ -1582,6 +1576,14 @@ function quoteSourcePeriod(value: unknown): string | null {
   return start && end ? `${start}–${end}` : start ?? end;
 }
 
+function quoteSourceWindow(value: unknown): { start: string; end: string } | null {
+  const row = recordValue(value);
+  if (!row) return null;
+  const start = pickString(row, ["start", "from", "period_start", "periodStart"]);
+  const end = pickString(row, ["end", "to", "period_end", "periodEnd"]);
+  return start && end ? { start, end } : null;
+}
+
 function mapWebsitePricingPreview(
   payload: unknown,
   fallbackArea: OpsWebsitePriceArea,
@@ -1731,8 +1733,13 @@ function mapWebsitePricingPreview(
     source_period:
       quoteSourcePeriod(
         quoteRow.source_period ?? metadataRow.source_period ?? row.source_period ??
-        quoteRow.sourcePeriod ?? metadataRow.sourcePeriod ?? row.sourcePeriod,
+        quoteRow.sourcePeriod ?? metadataRow.sourcePeriod ?? row.sourcePeriod ??
+        quoteRow.source_window ?? metadataRow.source_window ?? row.source_window,
       ) ?? undefined,
+    source_window: quoteSourceWindow(
+      quoteRow.source_window ?? metadataRow.source_window ?? row.source_window ??
+      quoteRow.sourceWindow ?? metadataRow.sourceWindow ?? row.sourceWindow,
+    ),
     market_data_timestamp:
       pickFromRecords([quoteRow, metadataRow, row], [
         "market_data_timestamp",
@@ -2006,7 +2013,7 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
   };
 }
 
-export async function fetchOpsIntegrationContext(forceFresh = false): Promise<OpsIntegrationContext> {
+export async function getVerifiedOpsIntegrationContext(forceFresh = false): Promise<OpsIntegrationContext> {
   const key = opsTenantCacheKey();
   const now = Date.now();
   if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
@@ -2014,14 +2021,24 @@ export async function fetchOpsIntegrationContext(forceFresh = false): Promise<Op
   }
   const payload = await opsFetch("/api/v1/integration/context");
   const value = integrationContextFromPayload(payload);
-  integrationContextCache = { key, expiresAt: now + 5 * 60_000, value };
+  integrationContextCache = { key, expiresAt: now + 60_000, value };
   return value;
 }
 
+export const fetchOpsIntegrationContext = getVerifiedOpsIntegrationContext;
+
 async function verifiedTenantReference(payload: unknown, source: string): Promise<string> {
+  const context = await getVerifiedOpsIntegrationContext();
   const direct = tenantReferenceFromPayload(payload);
-  if (direct) return assertExpectedTenantReference(direct, source);
-  return (await fetchOpsIntegrationContext()).tenant_reference;
+  if (direct && direct !== context.tenant_reference) {
+    throw new OpsError("OPS-svaret tillhör fel tenant.", 503, {
+      code: "ops_tenant_mismatch",
+      expected_tenant_reference: context.tenant_reference,
+      actual_tenant_reference: direct,
+      source,
+    });
+  }
+  return context.tenant_reference;
 }
 
 function publicationRevisionFromPayload(payload: unknown): string | null {
@@ -2065,8 +2082,12 @@ export function invalidateOpsPublicContractsCache(input?: {
   publicationRevision?: string | null;
 }): void {
   if (input?.channel && input.channel !== "website") return;
-  const expected = expectedOpsTenantReference();
-  if (input?.tenantReference && expected && input.tenantReference !== expected) return;
+  if (input?.tenantReference) {
+    for (const [key, value] of publicContractsCache.entries()) {
+      if (value.tenant_reference === input.tenantReference) publicContractsCache.delete(key);
+    }
+    return;
+  }
   publicContractsCache.clear();
 }
 
@@ -2162,6 +2183,79 @@ function mapLegalText(row: unknown): OpsLegalText | null {
   };
 }
 
+export async function fetchOpsWebsiteEnergyArea(
+  input: OpsWebsiteEnergyResolutionInput,
+): Promise<OpsWebsiteEnergyResolution> {
+  await getVerifiedOpsIntegrationContext();
+  const payload = await opsFetch("/api/v1/website/energy-area/resolve", {
+    method: "POST",
+    body: JSON.stringify({
+      postal_code: input.postal_code.replace(/\s+/g, ""),
+      ...(input.city ? { city: input.city } : {}),
+      ...(input.street ?? input.address ? { address: input.street ?? input.address } : {}),
+      ...(input.apartment ? { apartment: input.apartment } : {}),
+    }),
+  });
+  await verifiedTenantReference(payload, "/api/v1/website/energy-area/resolve");
+  return mapWebsiteEnergyResolution(payload);
+}
+
+export type OpsWebsiteQuoteValidationInput = {
+  quote_reference: string;
+  offer_reference: string;
+  customer_type: WebsiteCustomerType;
+  postal_code: string;
+  price_area: OpsWebsitePriceArea;
+  grid_area_code?: string | null;
+  annual_consumption_kwh: number;
+  start_date: string;
+};
+
+export type OpsWebsiteQuoteValidationResult = {
+  valid: boolean;
+  quote_reference: string;
+  status?: string | null;
+  valid_until?: string | null;
+  raw: Record<string, unknown>;
+};
+
+export async function validateOpsWebsiteQuote(
+  input: OpsWebsiteQuoteValidationInput,
+): Promise<OpsWebsiteQuoteValidationResult> {
+  await getVerifiedOpsIntegrationContext();
+  const payload = await opsFetch("/api/v1/website/quote/validate", {
+    method: "POST",
+    body: JSON.stringify({
+      quote_reference: input.quote_reference,
+      offer_reference: input.offer_reference,
+      customer_type: toOpsCustomerType(input.customer_type),
+      postal_code: input.postal_code.replace(/\s+/g, ""),
+      price_area: input.price_area,
+      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
+      annual_consumption_kwh: input.annual_consumption_kwh,
+      start_date: input.start_date,
+    }),
+  });
+  await verifiedTenantReference(payload, "/api/v1/website/quote/validate");
+  const root = extractObject(payload);
+  const data = recordValue(root.data) ?? root;
+  const reference = pickString(data, ["quote_reference", "quoteReference"]) ?? input.quote_reference;
+  const valid = pickBooleanFromRecords([data, root], ["valid", "is_valid", "isValid"]) ?? true;
+  if (!valid) {
+    throw new OpsError("OPS avvisade prisberäkningen.", 409, {
+      code: pickString(data, ["code", "status"]) ?? "quote_mismatch",
+      quote_reference: reference,
+    });
+  }
+  return {
+    valid,
+    quote_reference: reference,
+    status: pickString(data, ["status", "code"]),
+    valid_until: pickString(data, ["valid_until", "validUntil", "expires_at"]),
+    raw: root,
+  };
+}
+
 export type OpsWebsiteLegalBundle = {
   texts: OpsLegalText[];
   raw: Record<string, unknown>;
@@ -2242,10 +2336,7 @@ export async function fetchOpsWebsiteQuote(
       start_date: startDate,
       ...(input.customer_type ? { customer_type: toOpsCustomerType(input.customer_type) } : {}),
       ...(input.postal_code ? { postal_code: input.postal_code } : {}),
-      ...(input.city ? { city: input.city } : {}),
-      ...(input.address ? { address: input.address } : {}),
       ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
-      ...(input.metering_point_id ? { metering_point_id: input.metering_point_id } : {}),
     }),
   });
   await verifiedTenantReference(payload, "/api/v1/website/quote");
@@ -2265,7 +2356,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   if (!normalizeText(input.quote_reference)) {
     throw new OpsError("Quote reference krävs för kundansökan.", 400, {
       code: "quote_reference_required",
-      field: "contract.quote_reference",
+      field: "quote_reference",
     });
   }
   if (!Number.isFinite(input.annual_consumption_kwh) || input.annual_consumption_kwh <= 0) {
@@ -2287,6 +2378,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   return {
     external_customer_id: externalCustomerId,
     source: input.source,
+    quote_reference: input.quote_reference,
     ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
     ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
@@ -2320,7 +2412,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     },
     contract: {
       offer_reference: input.offer_reference,
-      quote_reference: input.quote_reference,
       requested_start_mode: input.requested_start_mode,
       requested_start_date:
         input.requested_start_mode === "specific_date"
@@ -2354,6 +2445,20 @@ export async function submitOpsCustomerApplication(
   if (env("GRIDEX_ENABLE_LIVE_SIGNUP") !== "true") {
     throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
   }
+
+  await getVerifiedOpsIntegrationContext();
+  await validateOpsWebsiteQuote({
+    quote_reference: input.quote_reference,
+    offer_reference: input.offer_reference,
+    customer_type: input.customer_type,
+    postal_code: input.postal_code,
+    price_area: input.price_area_code as OpsWebsitePriceArea,
+    grid_area_code: input.grid_area_code,
+    annual_consumption_kwh: input.annual_consumption_kwh,
+    start_date: input.requested_start_mode === "specific_date" && input.requested_start_date
+      ? input.requested_start_date
+      : new Date().toISOString().slice(0, 10),
+  });
 
   const applicationPayload = buildOpsCustomerApplicationPayload(input);
 
@@ -2590,7 +2695,6 @@ function portalHeaders(identity: OpsPortalIdentity): Headers {
 
   headers.set("x-gridex-customer-portal-user-id", identity.userId);
   headers.set("x-gridex-auth-user-id", identity.userId);
-  headers.set("x-gridex-portal-user-id", identity.userId);
 
   if (externalCustomerId) headers.set("x-gridex-external-customer-id", externalCustomerId);
   if (identity.customerNumber) headers.set("x-gridex-customer-number", identity.customerNumber);

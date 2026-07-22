@@ -7,6 +7,8 @@ export type OpsWebhookEvent = {
   tenant_reference?: string | null
   channel?: string | null
   publication_revision?: string | null
+  publication_reason?: string | null
+  delivery_id?: string | null
   company_id?: string | null
   customer_id?: string | null
   customer_number?: string | null
@@ -37,8 +39,6 @@ export const OPS_WEBHOOK_EVENT_TYPES = new Set([
   'invoice.sent',
   'invoice.disputed',
   'metering_values.updated',
-  'customer.opened_document',
-  'customer.downloaded_document',
 ])
 
 function text(value: unknown): string | null {
@@ -139,6 +139,11 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
       text(root.publication_revision) ?? text(root.publicationRevision) ??
       text(data.publication_revision) ?? text(data.publicationRevision) ??
       text(meta.publication_revision) ?? text(meta.publicationRevision),
+    publication_reason:
+      text(root.publication_reason) ?? text(root.publicationReason) ??
+      text(data.publication_reason) ?? text(data.publicationReason) ??
+      text(meta.publication_reason) ?? text(meta.publicationReason),
+    delivery_id: text(root.delivery_id) ?? text(root.deliveryId),
     company_id: text(root.company_id) ?? text(data.company_id),
     customer_id: text(root.customer_id) ?? text(data.customer_id),
     customer_number: text(root.customer_number) ?? text(data.customer_number),

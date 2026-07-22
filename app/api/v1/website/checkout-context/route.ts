@@ -3,7 +3,7 @@ import { fetchOpsPublicContractsFresh, type OpsWebsitePriceArea } from '@/lib/op
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore'
-import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
+import { fetchOpsWebsiteEnergyArea } from '@/lib/ops/client'
 import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import {
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
   try {
     const [contracts, resolution] = await Promise.all([
       fetchOpsPublicContractsFresh(),
-      resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address }),
+      fetchOpsWebsiteEnergyArea({ postal_code: postalCode, city, address, street: address }),
     ])
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (

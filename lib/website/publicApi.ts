@@ -101,6 +101,7 @@ export type WebsitePricingPreview = {
   pricing_interval?: string;
   estimate_method?: string;
   source_period?: string;
+  source_window?: { start: string; end: string } | null;
   market_data_timestamp?: string;
   is_binding?: boolean;
   assumptions?: WebsiteQuoteAssumption[];

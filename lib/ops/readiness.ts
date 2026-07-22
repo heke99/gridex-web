@@ -11,30 +11,14 @@ import {
 } from '@/lib/ops/client'
 
 export const REQUIRED_WEBSITE_SCOPES = [
+  'integration_context.read',
   'website_contracts.read',
-  'website_contracts.quote',
   'website_contracts.diagnostics',
-  'website_customer_applications.create',
+  'website_quotes.write',
+  'website_quotes.validate',
+  'website_energy_area.resolve',
+  'website_applications.write',
   'website_legal.read',
-  'website_events.write',
-  'events.read',
-  'customer_portal.read',
-  'customer_portal.write',
-  'customer_sync.write',
-  'customer_profile.read',
-  'customer_contracts.read',
-  'customer_sites.read',
-  'customer_invoices.read',
-  'customer_metering.read',
-  'customer_events.read',
-  'customer_documents.read',
-  'customer_legal.read',
-  'customer_power_of_attorney.read',
-  'customer_power_of_attorney.write',
-  'customer_notifications.read',
-  'customer_notifications.write',
-  'customer_contact.write',
-  'customer_facility_data.write',
 ] as const
 
 type RequiredScope = (typeof REQUIRED_WEBSITE_SCOPES)[number]
@@ -128,133 +112,14 @@ function authorizationProbe(path: string, method: 'GET' | 'POST', body?: Record<
 
 function probeDefinitions(): ProbeDefinition[] {
   return [
-    {
-      name: 'website_contracts.read',
-      scopes: ['website_contracts.read'],
-      run: async () => { await fetchOpsPublicContractsFresh() },
-    },
-    {
-      name: 'integration.context',
-      scopes: [],
-      run: async () => { await fetchOpsIntegrationContext(true) },
-    },
-    {
-      name: 'website_contracts.quote',
-      scopes: ['website_contracts.quote'],
-      run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}),
-    },
-    {
-      name: 'website_contracts.diagnostics',
-      scopes: ['website_contracts.diagnostics'],
-      run: async () => { await fetchOpsPublicContractDiagnostics() },
-    },
-    {
-      name: 'website_legal.read',
-      scopes: ['website_legal.read'],
-      run: async () => { await fetchOpsWebsiteLegalBundle() },
-    },
-    {
-      name: 'website_customer_applications.create',
-      scopes: ['website_customer_applications.create'],
-      run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}),
-    },
-    {
-      name: 'website_events.write',
-      scopes: ['website_events.write'],
-      run: () => authorizationProbe('/api/v1/website/customer-events', 'POST', {}),
-    },
-    {
-      name: 'events.read',
-      scopes: ['events.read'],
-      run: async () => { await fetchOpsTenantEvents({ limit: '1' }) },
-    },
-    {
-      name: 'customer_portal.read',
-      scopes: ['customer_portal.read'],
-      run: () => authorizationProbe('/api/v1/customer/portal-bundle', 'POST', {}),
-    },
-    {
-      name: 'customer_portal.write',
-      scopes: ['customer_portal.write'],
-      run: () => authorizationProbe('/api/v1/customer-portal/sync', 'POST', {}),
-    },
-    {
-      name: 'customer_sync.write',
-      scopes: ['customer_sync.write'],
-      run: () => authorizationProbe('/api/v1/customer/sync', 'POST', {}),
-    },
-    {
-      name: 'customer_profile.read',
-      scopes: ['customer_profile.read'],
-      run: () => authorizationProbe('/api/v1/customer/me', 'GET'),
-    },
-    {
-      name: 'customer_contracts.read',
-      scopes: ['customer_contracts.read'],
-      run: () => authorizationProbe('/api/v1/customer/contracts', 'GET'),
-    },
-    {
-      name: 'customer_sites.read',
-      scopes: ['customer_sites.read'],
-      run: () => authorizationProbe('/api/v1/customer/sites', 'GET'),
-    },
-    {
-      name: 'customer_invoices.read',
-      scopes: ['customer_invoices.read'],
-      run: () => authorizationProbe('/api/v1/customer/invoices', 'GET'),
-    },
-    {
-      name: 'customer_metering.read',
-      scopes: ['customer_metering.read'],
-      run: () => authorizationProbe('/api/v1/customer/metering-values', 'GET'),
-    },
-    {
-      name: 'customer_events.read',
-      scopes: ['customer_events.read'],
-      run: () => authorizationProbe('/api/v1/customer/events', 'GET'),
-    },
-    {
-      name: 'customer_documents.read',
-      scopes: ['customer_documents.read'],
-      run: () => authorizationProbe('/api/v1/customer/documents', 'GET'),
-    },
-    {
-      name: 'customer_legal.read',
-      scopes: ['customer_legal.read'],
-      run: () => authorizationProbe('/api/v1/customer/legal-acceptances', 'GET'),
-    },
-    {
-      name: 'customer_power_of_attorney.read',
-      scopes: ['customer_power_of_attorney.read'],
-      run: () => authorizationProbe('/api/v1/customer/powers-of-attorney', 'GET'),
-    },
-    {
-      name: 'customer_power_of_attorney.write',
-      scopes: ['customer_power_of_attorney.write'],
-      run: () => authorizationProbe('/api/v1/customer/sync', 'POST', {
-        power_of_attorney: { status: '__readiness_probe_invalid__' },
-      }),
-    },
-    {
-      name: 'customer_notifications.read',
-      scopes: ['customer_notifications.read'],
-      run: () => authorizationProbe('/api/v1/customer/notifications', 'GET'),
-    },
-    {
-      name: 'customer_notifications.write',
-      scopes: ['customer_notifications.write'],
-      run: () => authorizationProbe('/api/v1/customer/notifications/read', 'POST', {}),
-    },
-    {
-      name: 'customer_contact.write',
-      scopes: ['customer_contact.write'],
-      run: () => authorizationProbe('/api/v1/customer/profile-update', 'POST', {}),
-    },
-    {
-      name: 'customer_facility_data.write',
-      scopes: ['customer_facility_data.write'],
-      run: () => authorizationProbe('/api/v1/customer/move-out', 'POST', {}),
-    },
+    { name: 'integration_context', scopes: ['integration_context.read'], run: async () => { await fetchOpsIntegrationContext(true) } },
+    { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
+    { name: 'website_contracts.diagnostics', scopes: ['website_contracts.diagnostics'], run: async () => { await fetchOpsPublicContractDiagnostics() } },
+    { name: 'website_quotes.write', scopes: ['website_quotes.write'], run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}) },
+    { name: 'website_quotes.validate', scopes: ['website_quotes.validate'], run: () => authorizationProbe('/api/v1/website/quote/validate', 'POST', {}) },
+    { name: 'website_energy_area.resolve', scopes: ['website_energy_area.resolve'], run: () => authorizationProbe('/api/v1/website/energy-area/resolve', 'POST', {}) },
+    { name: 'website_applications.write', scopes: ['website_applications.write'], run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}) },
+    { name: 'website_legal.read', scopes: ['website_legal.read'], run: async () => { await fetchOpsWebsiteLegalBundle() } },
   ]
 }
 
@@ -338,7 +203,6 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   if (code === 'ready' && (!declarationComplete || scopes.some((scope) => scope.status === 'missing' || scope.status === 'unverified'))) {
     code = 'missing_scope'
   }
-  if (code === 'ready' && !webhook.ready) code = 'webhook_not_configured'
-  const ready = code === 'ready' && probes.every((probe) => probe.ok) && webhook.ready
+  const ready = code === 'ready' && probes.every((probe) => probe.ok)
   return { ready, code, message: message(code), checkedAt, probes, scopes, webhook }
 }

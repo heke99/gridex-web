@@ -37,7 +37,7 @@ assert.ok(ops.includes('annual_consumption_kwh: annualConsumptionKwh'))
 assert.ok(ops.includes('toOpsCustomerType(input.customer_type)'))
 
 for (const field of [
-  'quote_reference', 'pricing_interval', 'estimate_method', 'source_period',
+  'quote_reference', 'pricing_interval', 'estimate_method', 'source_period', 'source_window',
   'market_data_timestamp', 'is_binding', 'assumptions', 'market_sources',
   'pricing_snapshot_schema_version', 'valid_until',
 ]) {
@@ -56,23 +56,20 @@ assert.ok(publicContracts.includes("headers.set('ETag'"))
 assert.ok(publicContracts.includes('status: 304'))
 
 assert.ok(webhookParser.includes("'contracts.publication.changed'"))
-assert.ok(webhook.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
+assert.ok(webhook.includes('getVerifiedOpsIntegrationContext'))
 assert.ok(webhook.includes('event.tenant_reference !== expectedTenantReference'))
 assert.ok(webhook.includes('invalidateOpsPublicContractsCache'))
 assert.ok(webhook.includes("event.channel !== 'website'"))
-assert.ok(webhook.includes('publication_cache_invalidated'))
+assert.ok(webhook.includes('publication_state_updated'))
 
 assert.ok(ops.includes('"/api/v1/website/public-contracts/diagnostics"'))
 assert.ok(!ops.includes('query.set("diagnostics", "1")'))
 assert.ok(readiness.includes("'website_contracts.diagnostics'"))
-assert.ok(readiness.includes("'website_contracts.quote'"))
-assert.ok(readiness.includes("'website_customer_applications.create'"))
+assert.ok(readiness.includes("'website_quotes.write'"))
+assert.ok(readiness.includes("'website_applications.write'"))
 assert.ok(envExample.includes('GRIDEX_EXPECTED_TENANT_REFERENCE='))
 
-for (const forbidden of [
-  '/api/v1/website/energy-area/resolve',
-  '/api/v1/website/resolve-energy-area',
-  '/api/platform/energy/resolve',
-]) assert.ok(!ops.includes(forbidden), `OPS client must not call ${forbidden}`)
+assert.ok(ops.includes('/api/v1/website/energy-area/resolve'))
+assert.ok(ops.includes('/api/v1/website/quote/validate'))
 
 console.log('Gridex external tenant architecture checks passed')

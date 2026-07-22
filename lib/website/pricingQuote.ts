@@ -36,6 +36,7 @@ export type WebsitePricingQuote = {
   pricing_interval: string;
   estimate_method: string;
   source_period: string | null;
+  source_window: { start: string; end: string } | null;
   market_data_timestamp: string | null;
   is_binding: boolean;
   assumptions: WebsiteQuoteAssumption[];
@@ -140,6 +141,7 @@ export function issueWebsitePricingQuote(input: {
     pricing_interval: pricingInterval,
     estimate_method: estimateMethod,
     source_period: input.preview.source_period ?? null,
+    source_window: input.preview.source_window ?? null,
     market_data_timestamp: input.preview.market_data_timestamp ?? null,
     is_binding: isBinding,
     assumptions: input.preview.assumptions ?? [],
@@ -183,6 +185,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     pricing_interval: quote.pricing_interval,
     estimate_method: quote.estimate_method,
     source_period: quote.source_period ?? undefined,
+    source_window: quote.source_window,
     market_data_timestamp: quote.market_data_timestamp ?? undefined,
     is_binding: quote.is_binding,
     assumptions: quote.assumptions,

@@ -6,7 +6,7 @@ import {
   parseOpsWebhookEnvelope,
   verifyOpsWebhookSignature,
 } from '@/lib/webhooks/opsWebhook'
-import { invalidateOpsPublicContractsCache } from '@/lib/ops/client'
+import { getVerifiedOpsIntegrationContext, invalidateOpsPublicContractsCache } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -224,9 +224,12 @@ export async function POST(req: Request) {
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }
-  const expectedTenantReference = env('GRIDEX_EXPECTED_TENANT_REFERENCE')
-  if (!expectedTenantReference) {
-    return NextResponse.json({ error: 'Expected webhook tenant is not configured.' }, { status: 503 })
+  let expectedTenantReference: string
+  try {
+    expectedTenantReference = (await getVerifiedOpsIntegrationContext()).tenant_reference
+  } catch (error) {
+    console.error('[ops webhook] integration context unavailable', error)
+    return NextResponse.json({ error: 'Webhook tenant context is unavailable.' }, { status: 503 })
   }
 
   const rawBody = await req.text()
@@ -253,6 +256,12 @@ export async function POST(req: Request) {
   if (!event) {
     return NextResponse.json({ error: 'Invalid webhook event envelope.' }, { status: 400 })
   }
+  const headerEventId = req.headers.get('x-gridex-event-id')
+  const headerEventType = req.headers.get('x-gridex-event-type')
+  if ((headerEventId && headerEventId !== event.event_id) || (headerEventType && headerEventType !== event.event_type)) {
+    console.error('[ops webhook] header/body mismatch', { headerEventId, headerEventType, eventId: event.event_id, eventType: event.event_type })
+    return NextResponse.json({ error: 'Webhook headers do not match the signed body.' }, { status: 400 })
+  }
   if (!event.tenant_reference || event.tenant_reference !== expectedTenantReference) {
     return NextResponse.json({ error: 'Webhook tenant does not match this deployment.' }, { status: 403 })
   }
@@ -266,7 +275,7 @@ export async function POST(req: Request) {
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 
-  const deliveryId = req.headers.get('x-gridex-delivery-id')
+  const deliveryId = req.headers.get('x-gridex-delivery-id') ?? event.delivery_id
 
   const now = new Date().toISOString()
   let logRow: WebhookLogRow | null = null
@@ -282,6 +291,13 @@ export async function POST(req: Request) {
       customer_email: event.customer_email,
       portal_user_id: event.portal_user_id,
       delivery_id: deliveryId,
+      header_event_id: headerEventId,
+      header_event_type: headerEventType,
+      tenant_reference: event.tenant_reference,
+      channel: event.channel,
+      publication_revision: event.publication_revision,
+      publication_reason: event.publication_reason,
+      event_timestamp: event.occurred_at,
       occurred_at: event.occurred_at,
       status: 'processing',
       signature_valid: true,
@@ -390,11 +406,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid publication event.' }, { status: 400 })
     }
 
-    invalidateOpsPublicContractsCache({
-      tenantReference: event.tenant_reference,
-      channel: event.channel,
-      publicationRevision: event.publication_revision,
-    })
+    const { data: existingState } = await supabase
+      .from('ops_publication_state')
+      .select('publication_revision,event_timestamp,event_id')
+      .eq('tenant_reference', event.tenant_reference)
+      .eq('channel', event.channel)
+      .maybeSingle<{ publication_revision: string | null; event_timestamp: string | null; event_id: string | null }>()
+    const incomingAt = Date.parse(event.occurred_at)
+    const existingAt = Date.parse(existingState?.event_timestamp ?? '')
+    const stale = Number.isFinite(existingAt) && Number.isFinite(incomingAt) && incomingAt < existingAt
+    if (!stale && existingState?.event_id !== event.event_id) {
+      const { error: stateError } = await supabase.from('ops_publication_state').upsert({
+        tenant_reference: event.tenant_reference,
+        channel: event.channel,
+        publication_revision: event.publication_revision,
+        etag: null,
+        event_id: event.event_id,
+        event_timestamp: event.occurred_at,
+        publication_reason: event.publication_reason,
+        changed_at: event.occurred_at,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'tenant_reference,channel' })
+      if (stateError) return NextResponse.json({ error: stateError.message }, { status: 500 })
+      invalidateOpsPublicContractsCache({ tenantReference: event.tenant_reference, channel: event.channel, publicationRevision: event.publication_revision })
+    }
     const { error: publicationError } = await supabase
       .from('ops_webhook_events')
       .update({
@@ -402,7 +437,7 @@ export async function POST(req: Request) {
         processed_at: new Date().toISOString(),
         next_attempt_at: null,
         notification_created: false,
-        handling_note: 'publication_cache_invalidated',
+        handling_note: stale ? 'publication_event_ignored_as_stale' : 'publication_state_updated',
         error_message: null,
       })
       .eq('id', logRow.id)
@@ -412,7 +447,7 @@ export async function POST(req: Request) {
       ok: true,
       event_id: event.event_id,
       publication_revision: event.publication_revision,
-      cache_invalidated: true,
+      cache_invalidated: !stale,
     })
   }
 

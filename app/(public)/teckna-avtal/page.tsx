@@ -16,6 +16,7 @@ import {
   createExternalCustomerId,
   fetchOpsPublicContracts,
   fetchOpsPublicContractsFresh,
+  fetchOpsWebsiteEnergyArea,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -26,7 +27,7 @@ import {
   type OpsPublicContract,
 } from "@/lib/ops/client";
 import { checkRateLimit } from "@/lib/security/rateLimit";
-import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
+
 import {
   validateContractDisplaySnapshot,
   validatePricingPreviewSnapshot,
@@ -736,7 +737,7 @@ export default async function TecknaPage({
       });
     }
 
-    const serverResolution = await resolveWebsitePriceAreaForPricing({
+    const serverResolution = await fetchOpsWebsiteEnergyArea({
       postal_code: postalCode,
       city,
       address,
