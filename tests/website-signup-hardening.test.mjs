@@ -27,7 +27,7 @@ const modern = normalizePublicContractApiPayload({
       { component_code: 'hidden', name: 'Dold', amount: 9, unit: 'sek_per_month', website_card_visible: false },
     ],
     portfolio_monthly_prices: [
-      { year: 2026, month: 6, price_area_code: 'se3', price_plan_version_id: 'version-1', amount: 88.4, unit: 'ore_per_kwh' },
+      { year: 2026, month: 6, price_area_code: 'se3', amount: 88.4, unit: 'ore_per_kwh' },
     ],
   },
   legal: {},
@@ -44,7 +44,6 @@ assert.deepEqual(modern.portfolio_monthly_prices[0], {
   year: 2026,
   month: 6,
   price_area_code: 'SE3',
-  price_plan_version_id: 'version-1',
   amount: 88.4,
   unit: 'ore_per_kwh',
 })
@@ -83,7 +82,7 @@ assert.ok(!publicDto.includes('contract.raw'))
 assert.ok(!publicDto.includes('price_plan_id'))
 assert.ok(!publicDto.includes('contract_id'))
 assert.ok(read('app/api/v1/website/legal-texts/current/route.ts').includes('map(toBrowserLegalText)'))
-assert.ok(read('app/api/v1/website/price-plans/route.ts').includes('map(toBrowserPricePlan)'))
+assert.ok(!publicDto.includes('company_id'))
 
 const checkoutStore = read('lib/website/checkoutContextStore.ts')
 assert.ok(checkoutStore.includes('tokenHash(token)'))
@@ -116,18 +115,14 @@ assert.ok(read('lib/seo/content.ts').includes("'/vanliga-fragor'"))
 
 
 const opsClient = read('lib/ops/client.ts')
-assert.ok(opsClient.includes('customer_type: input.customer_type === "company" ? "business" : "private"'))
+assert.ok(opsClient.includes('toOpsCustomerType(input.customer_type)'))
 assert.ok(opsClient.includes('{ org_number: input.organization_number }'))
-assert.ok(opsClient.includes('assertExpectedOpsCompany(payload)'))
+assert.ok(opsClient.includes('assertExpectedTenantReference'))
 assert.ok(opsClient.includes('"ops_tenant_mismatch"'))
-assert.ok(opsClient.includes('"ops_tenant_binding_unverified"'))
-assert.ok(opsClient.includes('query.set("diagnostics", "1")'))
-const publicContractsFetchBlock = opsClient.slice(
-  opsClient.indexOf('async function fetchOpsPublicContractsUncached'),
-  opsClient.indexOf('const fetchCachedOpsPublicContracts'),
-)
-assert.ok(publicContractsFetchBlock.includes('opsFetch(publicContractsPath(customerType))'))
-assert.ok(!publicContractsFetchBlock.includes('publicContractsPath(customerType, true)'))
+assert.ok(opsClient.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
+assert.ok(opsClient.includes('"/api/v1/website/public-contracts/diagnostics"'))
+assert.ok(opsClient.includes('If-None-Match'))
+assert.ok(opsClient.includes('response.status === 304'))
 
 const contractDisplay = read('lib/website/publicContractDisplay.ts')
 assert.ok(contractDisplay.includes("case 'variable_monthly':"))

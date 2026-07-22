@@ -52,7 +52,6 @@ function optionAsOpsContract(contract: SignupContractOption) {
     portfolio_share: contract.portfolioShare ?? null,
     pricing_visibility: contract.pricingVisibility ?? {},
     pricing_components: contract.pricingComponents ?? [],
-    portfolio_monthly_prices: contract.portfolioMonthlyPrices ?? [],
     valid_from: contract.validFrom ?? null,
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,

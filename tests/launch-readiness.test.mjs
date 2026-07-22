@@ -99,8 +99,8 @@ assert.ok(
   "submit must reject a displayed price that no longer matches the server calculation",
 );
 assert.ok(
-  signup.includes("loadVerifiedWebsitePricingPreview"),
-  "submit must rebuild pricing through the shared verified area-pricing path",
+  !signup.includes("loadVerifiedWebsitePricingPreview") && signup.includes("livePreview: signedPreview"),
+  "submit must validate the exact signed OPS quote without recalculating it",
 );
 assert.ok(
   signup.includes("validateWebsitePricingQuote"),
@@ -239,7 +239,7 @@ for (const variable of [
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
   "GRIDEX_WEBSITE_API_SCOPES",
   "GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY",
-  "GRIDEX_EXPECTED_COMPANY_ID",
+  "GRIDEX_EXPECTED_TENANT_REFERENCE",
   "GRIDEX_ALLOW_UNSAFE_OPS_URL",
   "GRIDEX_ENABLE_OPS_WEBHOOKS",
   "GRIDEX_OPS_WEBHOOK_SECRET",
@@ -440,15 +440,15 @@ assertIncludes(
   "total_monthly_cost_incl_vat_sek",
   "snapshot validation must support total incl VAT aliases",
 );
-assertIncludes(
-  "lib/website/localPricingPreview.ts",
-  "prevYearMonth(now)",
-  "public local pricing must use the previous calendar month",
-);
 assertNotIncludes(
-  "lib/website/localPricingPreview.ts",
-  "fetchActiveSpotBasisPeriod",
-  "public local pricing must not use admin active spot basis",
+  "lib/website/pricingPreview.ts",
+  "buildLocalWebsitePricingPreview",
+  "offer pricing must never use a local market calculator",
+);
+assertIncludes(
+  "lib/website/pricingPreview.ts",
+  "fetchOpsWebsiteQuote(input)",
+  "offer pricing must use the canonical OPS quote endpoint",
 );
 assertIncludes(
   "app/admin/monthly-spot/page.tsx",
@@ -467,11 +467,11 @@ assertIncludes(
 );
 assertIncludes(
   "components/PriceResultCard.tsx",
-  "share <= 1 ? share * 100 : share",
-  "mix shares must display both ratio and percent upstream formats correctly",
+  "Bindande offert",
+  "price result card must display quote binding status",
 );
 assertNotIncludes(
   "components/PriceResultCard.tsx",
-  "OPS har räknat med",
-  "price card must not claim OPS calculated website-local pricing",
+  "Elprisetjustnu",
+  "offer price card must not hardcode a local spot provider",
 );

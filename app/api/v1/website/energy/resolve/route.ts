@@ -23,6 +23,9 @@ function browserResolution(resolution: Awaited<ReturnType<typeof resolveWebsiteP
   return {
     status: resolution.status,
     price_area_code: resolution.price_area_code,
+    grid_area_code: resolution.grid_area_code ?? null,
+    grid_owner_id: resolution.grid_owner_id ?? null,
+    grid_owner_name: resolution.grid_owner_name ?? null,
     confidence: resolution.confidence ?? null,
     source: resolution.source ?? null,
     customer_message: resolution.customer_message ?? null,

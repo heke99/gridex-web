@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsPublicContractsFresh, type OpsWebsitePriceArea } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
-import { contractSupportsCustomerType, type WebsiteCustomerType } from '@/lib/website/customerType'
+import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore'
 import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
-  const customerType: WebsiteCustomerType = body?.customer_type === 'company' ? 'company' : 'private'
+  const customerType = parseWebsiteCustomerType(body?.customer_type) ?? 'private'
   const offerReference = text(body?.offer_reference)
   const quoteToken = text(body?.quote_token, 12_000)
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
@@ -44,6 +44,8 @@ export async function POST(req: Request) {
   const address = text(body?.address)
   const area = text(body?.price_area_code).toUpperCase() as OpsWebsitePriceArea
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
+  const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
+  const quoteReference = text(body?.quote_reference, 180)
   const consumptionProfile = normalizeWebsiteConsumptionProfile(body?.consumption_profile)
 
   if (
@@ -56,8 +58,12 @@ export async function POST(req: Request) {
     !Number.isFinite(estimatedMonthlyKwh) ||
     estimatedMonthlyKwh < 1 ||
     estimatedMonthlyKwh > 200000 ||
+    !Number.isFinite(annualConsumptionKwh) ||
+    annualConsumptionKwh < 1 ||
+    annualConsumptionKwh > 2_400_000 ||
     !consumptionProfile ||
-    !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh)
+    !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh) ||
+    Math.abs(consumptionProfile.annual_kwh - annualConsumptionKwh) > 0.001
   ) {
     return NextResponse.json({ error: 'Prisberäkningen är ofullständig.' }, { status: 400 })
   }
@@ -84,6 +90,8 @@ export async function POST(req: Request) {
       contract,
       priceAreaCode: area,
       estimatedMonthlyKwh,
+      annualConsumptionKwh,
+      quoteReference,
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
@@ -99,7 +107,11 @@ export async function POST(req: Request) {
         city,
         address,
         price_area_code: area,
+        grid_area_code: resolution.grid_area_code ?? null,
+        grid_owner_id: resolution.grid_owner_id ?? null,
+        grid_owner_name: resolution.grid_owner_name ?? null,
         estimated_monthly_kwh: estimatedMonthlyKwh,
+        annual_consumption_kwh: annualConsumptionKwh,
         consumption_profile: consumptionProfile,
       },
     })

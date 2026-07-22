@@ -10,7 +10,6 @@ import {
   quoteToWebsitePricingPreview,
   websitePricingQuoteConfigured,
 } from "@/lib/website/pricingQuote";
-import { LocalWebsitePricingPreviewError } from "@/lib/website/localPricingPreview";
 import {
   loadVerifiedWebsitePricingPreview,
   websitePricingPreviewSource,
@@ -18,6 +17,7 @@ import {
 } from "@/lib/website/pricingPreview";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/security/rateLimit";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { parseWebsiteCustomerType } from "@/lib/website/customerType";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +35,12 @@ type PreviewPayload = {
   city?: unknown;
   address?: unknown;
   estimated_monthly_kwh?: unknown;
+  annual_consumption_kwh?: unknown;
+  annualConsumptionKwh?: unknown;
+  grid_area_code?: unknown;
+  gridAreaCode?: unknown;
+  metering_point_id?: unknown;
+  meteringPointId?: unknown;
   estimatedMonthlyKwh?: unknown;
   kwh?: unknown;
   start_date?: unknown;
@@ -49,11 +55,11 @@ function text(value: unknown, max = 180): string | null {
   return trimmed || null;
 }
 
-function requiredMonthlyKwh(value: unknown): number | null {
+function requiredConsumption(value: unknown, max = 2_400_000): number | null {
   const parsed = Number(
     typeof value === "string" ? value.replace(",", ".") : value,
   );
-  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 200000) return null;
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > max) return null;
   return parsed;
 }
 
@@ -98,20 +104,23 @@ export async function POST(req: Request) {
   const resolvedArea = priceArea(
     body?.price_area_code ?? body?.priceAreaCode ?? body?.priceArea,
   );
-  const monthlyKwh = requiredMonthlyKwh(
+  const monthlyKwh = requiredConsumption(
     body?.estimated_monthly_kwh ?? body?.estimatedMonthlyKwh ?? body?.kwh,
+    200000,
+  );
+  const annualKwh = requiredConsumption(
+    body?.annual_consumption_kwh ?? body?.annualConsumptionKwh,
   );
   const postalCode = text(body?.postal_code ?? body?.postalCode, 20);
   const city = text(body?.city);
   const address = text(body?.address);
   const offerReference = text(body?.offer_reference ?? body?.offerReference);
   const startDate = text(body?.start_date ?? body?.startDate, 10);
-  const rawCustomerType = text(body?.customer_type ?? body?.customerType, 20);
-  const customerType = rawCustomerType === "private" || rawCustomerType === "company"
-    ? rawCustomerType
-    : null;
+  const customerType = parseWebsiteCustomerType(body?.customer_type ?? body?.customerType);
+  const gridAreaCode = text(body?.grid_area_code ?? body?.gridAreaCode, 120);
+  const meteringPointId = text(body?.metering_point_id ?? body?.meteringPointId, 120);
 
-  if (!resolvedArea || !monthlyKwh || !postalCode || !city || !address) {
+  if (!resolvedArea || !monthlyKwh || !annualKwh || !postalCode || !city || !address) {
     return NextResponse.json(
       {
         error:
@@ -146,6 +155,9 @@ export async function POST(req: Request) {
         city,
         address,
         estimated_monthly_kwh: monthlyKwh,
+        annual_consumption_kwh: annualKwh,
+        grid_area_code: gridAreaCode,
+        metering_point_id: meteringPointId,
         start_date: startDate,
         customer_type: customerType,
       },
@@ -172,14 +184,6 @@ export async function POST(req: Request) {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
-    if (error instanceof LocalWebsitePricingPreviewError) {
-      return NextResponse.json(
-        {
-          error: error.message || "Vi kunde inte räkna priset för valt avtal.",
-        },
-        { status: error.status || 409 },
-      );
-    }
     if (error instanceof WebsitePricingPreviewError) {
       return NextResponse.json(
         { error: error.message || "Prisberäkningen kunde inte verifieras." },

@@ -1,4 +1,5 @@
 export type WebsiteCustomerType = 'private' | 'company'
+export type OpsCustomerType = 'private' | 'business'
 
 function normalize(value: string): WebsiteCustomerType | null {
   const type = value.trim().toLowerCase()
@@ -9,6 +10,20 @@ function normalize(value: string): WebsiteCustomerType | null {
 
 function explicitlyBoth(value: string): boolean {
   return value.trim().toLowerCase() === 'both'
+}
+
+/** Single canonical boundary conversion for every request sent to OPS. */
+export function toOpsCustomerType(value: WebsiteCustomerType): OpsCustomerType {
+  return value === 'company' ? 'business' : 'private'
+}
+
+/** Converts an OPS customer type back to the website's UI vocabulary. */
+export function fromOpsCustomerType(value: OpsCustomerType): WebsiteCustomerType {
+  return value === 'business' ? 'company' : 'private'
+}
+
+export function parseWebsiteCustomerType(value: unknown): WebsiteCustomerType | null {
+  return typeof value === 'string' ? normalize(value) : null
 }
 
 export function contractSupportsCustomerType(customerTypes: string[] | null | undefined, customerType: WebsiteCustomerType): boolean {

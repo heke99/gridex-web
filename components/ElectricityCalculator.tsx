@@ -230,6 +230,9 @@ export default function ElectricityCalculator({
       ? {
           status: "restored_verified_quote",
           price_area_code: initialQuoteContext.price_area_code,
+          grid_area_code: initialQuoteContext.grid_area_code ?? null,
+          grid_owner_id: initialQuoteContext.grid_owner_id ?? null,
+          grid_owner_name: initialQuoteContext.grid_owner_name ?? null,
           confidence: 1,
           source: "server_checkout_context",
         }
@@ -496,7 +499,7 @@ export default function ElectricityCalculator({
     clearQuote();
   }
 
-  async function resolveArea(): Promise<WebsitePriceArea> {
+  async function resolveArea(): Promise<WebsiteEnergyResolution> {
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
       !/^\d{5}$/.test(normalizedPostalCode) ||
@@ -521,7 +524,7 @@ export default function ElectricityCalculator({
           "Vi kunde inte fastställa elområdet automatiskt. Kontrollera adressen eller kontakta kundservice.",
       );
     }
-    return resolved.price_area_code;
+    return resolved;
   }
 
   async function calculate() {
@@ -548,7 +551,9 @@ export default function ElectricityCalculator({
     setError(null);
     setResult(null);
     try {
-      const resolvedArea = await resolveArea();
+      const resolved = await resolveArea();
+      const resolvedArea = resolved.price_area_code;
+      if (!resolvedArea) throw new Error("Elområdet kunde inte verifieras.");
       const preview = await previewWebsitePricing({
         offer_reference: selectedContract.offerReference,
         price_area_code: resolvedArea,
@@ -556,6 +561,8 @@ export default function ElectricityCalculator({
         city: city.trim(),
         address: address.trim(),
         estimated_monthly_kwh: monthlyKwh,
+        annual_consumption_kwh: consumptionProfile.annual_kwh,
+        grid_area_code: resolved.grid_area_code ?? null,
         customer_type: customerType,
       });
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
@@ -575,7 +582,11 @@ export default function ElectricityCalculator({
         city: city.trim(),
         address: address.trim(),
         price_area_code: resolvedArea,
+        grid_area_code: resolved.grid_area_code ?? null,
+        grid_owner_id: resolved.grid_owner_id ?? null,
+        grid_owner_name: resolved.grid_owner_name ?? null,
         estimated_monthly_kwh: monthlyKwh,
+        annual_consumption_kwh: consumptionProfile.annual_kwh,
         consumption_profile: consumptionProfile,
       } satisfies WebsitePricingQuoteContext;
       onQuoteContextChange?.(nextQuoteContext);
@@ -588,6 +599,7 @@ export default function ElectricityCalculator({
             customer_type: customerType,
             offer_reference: selectedContract.offerReference,
             quote_token: preview.quote_token,
+            quote_reference: preview.quote_reference,
             ...nextQuoteContext,
           }),
         });

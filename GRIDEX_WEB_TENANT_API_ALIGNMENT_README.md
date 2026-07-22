@@ -1,71 +1,58 @@
-# Gridex Web – tenant/API-alignment 2026-07-21
+# Gridex Web – canonical tenantintegration mot OPS
 
-## Syfte
+Gridex Web behandlas som en vanlig extern tenant och känner inte till OPS interna company-, offer- eller versions-ID:n.
 
-Denna patch anpassar Gridex Web till OPS canonical avtalsmodell och gör tenant-bindningen fail-closed när `GRIDEX_EXPECTED_COMPANY_ID` är satt.
-
-## Viktiga driftkrav
-
-Varje tenantwebb måste ha en egen server-side API-nyckel och förväntat bolags-ID:
+## Obligatorisk miljö
 
 ```env
 GRIDEX_OPS_API_URL=https://app.gridex.se
-GRIDEX_WEBSITE_API_KEY=<tenantens fullständiga hemliga API-token>
-GRIDEX_EXPECTED_COMPANY_ID=<tenantens company UUID i OPS>
-GRIDEX_WEBSITE_SOURCE=<tenantens domän, exempelvis gridex.se>
+GRIDEX_WEBSITE_API_KEY=<full server-side secret>
+GRIDEX_EXPECTED_TENANT_REFERENCE=<opak tenant_reference från OPS>
+GRIDEX_WEBSITE_API_SCOPES=website_contracts.read,website_contracts.quote,website_contracts.diagnostics,website_customer_applications.create
+GRIDEX_WEBSITE_PRICING_QUOTE_SECRET=<separat lokalt signeringshemlighet>
+GRIDEX_ENABLE_OPS_WEBHOOKS=true
+GRIDEX_WEBHOOK_SIGNING_SECRET=<OPS webhook secret>
 ```
 
-API-nyckeln får aldrig exponeras i browsern. Webbklienten skickar inte `company_id`; OPS löser tenant från API-nyckeln.
+API-nyckeln och signeringshemligheter får aldrig exponeras med `NEXT_PUBLIC_` eller skrivas i loggar.
 
-## Vad patchen rättar
+## Canonical routes
 
-- Stöd för canonical typerna `variable_monthly` och `variable_hourly`.
-- `binding_months`, `notice_months` och `automatic_renewal` följer med från OPS till kort, checkout och snapshot.
-- Företagsansökan skickar dokumenterad `customer_type=business` och `org_number`.
-- Public-contracts hämtas med `diagnostics=1` server-side och verifieras mot `GRIDEX_EXPECTED_COMPANY_ID`.
-- Cacheidentitet isoleras med fingerprint av OPS base URL och tenantens API-nyckel.
-- Källan för kundansökan konfigureras per tenant genom `GRIDEX_WEBSITE_SOURCE`.
+- `GET /api/v1/integration/context`
+- `GET /api/v1/website/public-contracts`
+- `GET /api/v1/website/public-contracts/diagnostics`
+- `POST /api/v1/website/quote`
+- `POST /api/v1/website/customer-applications`
 
-## När syns ett avtal?
+Det finns inga OPS-fallbackkedjor till alternativa energy-resolve-, quote-validation- eller diagnostics-URL:er.
 
-OPS returnerar endast avtalet när samtliga krav är uppfyllda:
+## Prisflöde
 
-- canonical avtalsversion är publicerad,
-- website/API-kanalen är aktiv,
-- tenant assignment är aktiv,
-- avtalet är datumgiltigt,
-- prisversion och prislista är aktiva,
-- fakturaavgift/priskomponenter är canonical och publiceringsklara,
-- juridikpaketet är publicerat,
-- kunden matchar avtalets kundtyp.
+1. Webbplatsen hämtar publicerade avtal med stabil `offer_reference`.
+2. Kundtypen normaliseras centralt: webbens `company` blir OPS `business`.
+3. Alla erbjudandebundna priser beräknas av OPS `/website/quote`.
+4. OPS returnerar `quote_reference`, prisperiod, metod, marknadstidpunkt, bindningsstatus, antaganden, källor, snapshot-schema och giltighet.
+5. Webbplatsen signerar exakt OPS-svaret för integritet; den beräknar inte om priset.
+6. Samma `quote_reference` och `annual_consumption_kwh` skickas i kundansökan.
 
-## Livekontroll
+Elprisetjustnu får endast användas på fristående marknadsinformationssidor och aldrig som erbjudandets prismotor.
 
-Kör server-side med tenantens API-token:
+## Cache och publicering
 
-```bash
-curl -sS "https://app.gridex.se/api/v1/website/public-contracts?customer_type=private&diagnostics=1" \
-  -H "Authorization: Bearer $GRIDEX_WEBSITE_API_KEY" \
-  -H "Accept: application/json" | jq
+- OPS `ETag` lagras per tenant, kanal och kundtyp.
+- Nästa hämtning skickar `If-None-Match` och hanterar `304`.
+- `publication_revision` skickas vidare till webbläsaren.
+- `contracts.publication.changed` verifierar signatur, `tenant_reference`, event-ID, kanal och revision innan avtalscachen invalidieras.
+
+## Go-live-kontroll
+
+API-klienten ska vara aktiv i rätt miljö och ha minst följande scopes:
+
+```text
+website_contracts.read
+website_contracts.quote
+website_contracts.diagnostics
+website_customer_applications.create
 ```
 
-Kontrollera:
-
-- `diagnostics.company_id` matchar `GRIDEX_EXPECTED_COMPANY_ID`,
-- `diagnostics.result_count` är större än noll,
-- önskat avtal finns i `data`,
-- blockerade avtal har konkreta orsaker i `diagnostics.publication`.
-
-Kör även med `customer_type=company` för företagsavtal.
-
-## Verifiering
-
-```bash
-npm ci
-npm run test:launch
-npx tsc --noEmit --pretty false
-npm run lint
-npm run build
-```
-
-I patchmiljön passerade launchtesterna, separat TypeScript-kontroll och lint. Next-kompileringen och TypeScript-fasen passerade med webpack, men den isolerade containern fastnade senare i Nexts `Collecting page data`; full build ska därför bekräftas lokalt/CI med riktiga miljövariabler.
+Varje synligt avtal måste ha aktiv website-publicering, aktiv version, komplett publik projection, pris, juridik och fakturaavgift.

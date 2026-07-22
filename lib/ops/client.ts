@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { unstable_cache } from "next/cache";
 import {
   normalizePublicContractApiPayload,
   publishedPricingComponentAmount,
   type PublicPortfolioMonthlyPrice,
   type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
+import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
 
 export type OpsContractType =
   | "variable_spot"
@@ -25,13 +25,7 @@ export type OpsContractType =
   | string;
 
 export type OpsPublicContract = {
-  id?: string | null;
   offer_reference: string;
-  contract_id?: string | null;
-  // Internal OPS identifiers are intentionally optional. The public website
-  // only relies on offer_reference and the documented public DTO.
-  price_plan_id?: string | null;
-  price_plan_version_id?: string | null;
   product_code?: string | null;
   name: string;
   type: OpsContractType;
@@ -83,7 +77,6 @@ export type OpsPublicContract = {
   is_public?: boolean | null;
   is_active?: boolean | null;
   sort_order?: number | null;
-  raw?: Record<string, unknown>;
 };
 
 export type OpsWebsitePowerOfAttorneyInput = {
@@ -100,7 +93,9 @@ export type OpsWebsitePowerOfAttorneyInput = {
 
 export type OpsCustomerApplicationInput = {
   offer_reference: string;
-  customer_type: "private" | "company";
+  quote_reference: string;
+  annual_consumption_kwh: number;
+  customer_type: WebsiteCustomerType;
   first_name?: string | null;
   last_name?: string | null;
   company_name?: string | null;
@@ -112,6 +107,10 @@ export type OpsCustomerApplicationInput = {
   postal_code: string;
   city: string;
   facility_id?: string | null;
+  metering_point_id?: string | null;
+  grid_area_code?: string | null;
+  grid_owner_id?: string | null;
+  grid_owner_name?: string | null;
   requested_start_mode: "earliest_possible" | "specific_date";
   requested_start_date?: string | null;
   price_area_code?: string | null;
@@ -219,17 +218,6 @@ export type OpsLegalText = {
   raw?: Record<string, unknown>;
 };
 
-export type OpsPricePlan = {
-  price_plan_id: string;
-  price_plan_version_id: string;
-  product_code: string;
-  name: string;
-  type: OpsContractType;
-  status?: string | null;
-  is_public?: boolean | null;
-  raw?: Record<string, unknown>;
-};
-
 export type OpsWebsitePriceArea = "SE1" | "SE2" | "SE3" | "SE4";
 
 export type OpsWebsiteEnergyResolutionInput = {
@@ -259,9 +247,27 @@ export type OpsWebsitePricingPreviewInput = {
   postal_code?: string | null;
   city?: string | null;
   address?: string | null;
+  grid_area_code?: string | null;
+  metering_point_id?: string | null;
   estimated_monthly_kwh: number;
+  annual_consumption_kwh?: number | null;
   start_date?: string | null;
-  customer_type?: "private" | "company" | null;
+  customer_type?: WebsiteCustomerType | null;
+};
+
+export type OpsQuoteAssumption = {
+  code?: string | null;
+  label: string;
+  value?: string | number | boolean | null;
+  unit?: string | null;
+  description?: string | null;
+};
+
+export type OpsQuoteMarketSource = {
+  name: string;
+  period?: string | null;
+  resolution?: string | null;
+  timestamp?: string | null;
 };
 
 export type OpsWebsitePricingPreview = {
@@ -274,6 +280,7 @@ export type OpsWebsitePricingPreview = {
   priceArea: OpsWebsitePriceArea;
   price_area_code?: OpsWebsitePriceArea;
   kwh: number;
+  annual_consumption_kwh?: number;
   pricePerKwhOre: number;
   totalMonthlyCostSek: number;
   totalMonthlyCostInclVatSek?: number;
@@ -281,6 +288,16 @@ export type OpsWebsitePricingPreview = {
   customerNotice?: string;
   legalText?: string;
   specification?: Record<string, unknown>;
+  quote_reference?: string;
+  pricing_interval?: string;
+  estimate_method?: string;
+  source_period?: string;
+  market_data_timestamp?: string;
+  is_binding?: boolean;
+  assumptions?: OpsQuoteAssumption[];
+  market_sources?: OpsQuoteMarketSource[];
+  pricing_snapshot_schema_version?: string;
+  valid_until?: string;
   quote_token?: string;
   quote_expires_at?: string;
   raw?: Record<string, unknown>;
@@ -295,6 +312,22 @@ export type OpsClientStatus = {
   configured: boolean;
   liveSignupEnabled: boolean;
   missing: string[];
+};
+
+export type OpsIntegrationContext = {
+  tenant_reference: string;
+  environment?: string | null;
+  channel?: string | null;
+  api_version?: string | null;
+  raw: Record<string, unknown>;
+};
+
+export type OpsPublicContractsSnapshot = {
+  contracts: OpsPublicContract[];
+  etag: string | null;
+  publication_revision: string | null;
+  tenant_reference: string;
+  not_modified: boolean;
 };
 
 export class OpsError extends Error {
@@ -322,39 +355,48 @@ function opsBaseUrl(): string | undefined {
 
 const OPS_API_KEY_FULL_SECRET_NOT_PREFIX = "OPS_API_KEY_FULL_SECRET_NOT_PREFIX";
 
-function expectedOpsCompanyId(): string | null {
-  return env("GRIDEX_EXPECTED_COMPANY_ID") ?? null;
+function expectedOpsTenantReference(): string | null {
+  return env("GRIDEX_EXPECTED_TENANT_REFERENCE") ?? null;
 }
 
 function opsTenantCacheKey(): string {
   const baseUrl = opsBaseUrl() ?? "unconfigured";
-  const apiKey = opsApiKey().value ?? "missing";
-  return createHash("sha256").update(`${baseUrl}|${apiKey}`).digest("hex").slice(0, 24);
+  const tenantReference = expectedOpsTenantReference() ?? "missing-tenant-reference";
+  return createHash("sha256").update(`${baseUrl}|${tenantReference}`).digest("hex").slice(0, 24);
 }
 
-function authenticatedCompanyId(payload: unknown): string | null {
-  const root = extractObject(payload);
-  const diagnostics = recordValue(root.diagnostics);
-  return pickString(diagnostics ?? root, ["company_id", "companyId", "tenant_id", "tenantId"]);
+function tenantReferenceFromPayload(payload: unknown): string | null {
+  const root = recordValue(payload);
+  const data = recordValue(root?.data);
+  const meta = recordValue(root?.meta) ?? recordValue(data?.meta);
+  const context = recordValue(root?.context) ?? recordValue(data?.context);
+  return pickFromRecords([meta, context, data, root], ["tenant_reference", "tenantReference"]);
 }
 
-function assertExpectedOpsCompany(payload: unknown): void {
-  const expected = expectedOpsCompanyId();
-  if (!expected) return;
-  const actual = authenticatedCompanyId(payload);
+function assertExpectedTenantReference(actual: string | null, source: string): string {
+  const expected = expectedOpsTenantReference();
+  if (!expected) {
+    throw new OpsError("OPS tenantreferens är inte konfigurerad.", 503, {
+      code: "ops_tenant_reference_not_configured",
+      source,
+    });
+  }
   if (!actual) {
     throw new OpsError("OPS kunde inte verifiera tenant-bindningen.", 503, {
       code: "ops_tenant_binding_unverified",
-      expected_company_id: expected,
+      expected_tenant_reference: expected,
+      source,
     });
   }
   if (actual !== expected) {
     throw new OpsError("OPS API-nyckeln tillhör fel tenant.", 503, {
       code: "ops_tenant_mismatch",
-      expected_company_id: expected,
-      actual_company_id: actual,
+      expected_tenant_reference: expected,
+      actual_tenant_reference: actual,
+      source,
     });
   }
+  return actual;
 }
 
 const OPS_API_KEY_ENV_NAMES = [
@@ -390,6 +432,7 @@ export function getOpsClientStatus(): OpsClientStatus {
   const apiKey = opsApiKey();
   if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
   if (!apiKey.value) missing.push(apiKey.invalidReason ?? "GRIDEX_WEBSITE_API_KEY");
+  if (!expectedOpsTenantReference()) missing.push("GRIDEX_EXPECTED_TENANT_REFERENCE");
 
   let unsafeProductionUrl = false;
   if (
@@ -834,23 +877,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (documented) {
     return {
       ...documented,
-      contract_id: pickString(r, [
-        "contract_id",
-        "contractId",
-        "contract_product_id",
-        "contractProductId",
-      ]),
-      price_plan_id: pickString(r, ["price_plan_id", "pricePlanId", "plan_id", "planId"]),
-      price_plan_version_id: pickString(r, [
-        "price_plan_version_id",
-        "pricePlanVersionId",
-        "pricing_version_id",
-        "pricingVersionId",
-        "price_version_id",
-        "priceVersionId",
-        "version_id",
-        "versionId",
-      ]),
       short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
       marketing_description: pickString(r, ["marketing_description", "description", "marketingDescription"]),
       badge_text: pickString(r, ["badge_text", "badgeText"]),
@@ -944,17 +970,12 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
       is_public: null,
       is_active: null,
       sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
-      raw: r,
     };
   }
 
   const offerReference = pickFromRecords([r], [
     "offer_reference",
     "offerReference",
-    "contract_offer_id",
-    "contractOfferId",
-    "public_offer_id",
-    "publicOfferId",
   ]);
   const productCode = pickFromRecords([r], [
     "product_code",
@@ -976,23 +997,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
   ]);
 
   if (!offerReference || !name) return null;
-
-  const pricePlanId = pickFromRecords([r], [
-    "price_plan_id",
-    "pricePlanId",
-    "plan_id",
-    "planId",
-  ]);
-  const pricePlanVersionId = pickFromRecords([r], [
-    "price_plan_version_id",
-    "pricePlanVersionId",
-    "version_id",
-    "versionId",
-    "pricing_version_id",
-    "pricingVersionId",
-    "price_version_id",
-    "priceVersionId",
-  ]);
 
   const isPublic = pickBooleanFromRecords([r], ["is_public", "isPublic", "public"]);
   const isActive = pickBooleanFromRecords([r], ["is_active", "isActive", "active"]);
@@ -1017,18 +1021,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
         : null;
 
   return {
-    id: pickString(r, ["id"]),
     offer_reference: offerReference,
-    contract_id: pickString(r, [
-      "contract_id",
-      "contractId",
-      "contract_product_id",
-      "contractProductId",
-      "contract_offer_id",
-      "contractOfferId",
-    ]),
-    price_plan_id: pricePlanId,
-    price_plan_version_id: pricePlanVersionId,
     product_code: productCode,
     name,
     type:
@@ -1145,7 +1138,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     is_public: isPublic,
     is_active: isActive,
     sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
-    raw: r,
   };
 }
 
@@ -1160,8 +1152,6 @@ function extractRows(payload: unknown): unknown[] {
     "public_contracts",
     "publicContracts",
     "offers",
-    "price_plans",
-    "pricePlans",
     "legal_texts",
     "legalTexts",
     "items",
@@ -1283,7 +1273,17 @@ function isSafeOpsCanonicalRedirect(
   }
 }
 
-async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
+type OpsHttpResponse = {
+  status: number;
+  headers: Headers;
+  payload: unknown;
+};
+
+async function opsRequest(
+  path: string,
+  init?: RequestInit,
+  options: { allowNotModified?: boolean } = {},
+): Promise<OpsHttpResponse> {
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
   const fallbackMessage = "Tjänsten kunde inte slutföra åtgärden just nu.";
@@ -1338,13 +1338,17 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
     const contentType = res.headers.get("content-type") ?? "";
     const location = res.headers.get("location");
 
-    if (res.status >= 300 && res.status < 400) {
+    if (res.status >= 300 && res.status < 400 && !(options.allowNotModified && res.status === 304)) {
       throw new OpsError(fallbackMessage, 502, {
         redirected: true,
         status: res.status,
         location,
         path,
       });
+    }
+
+    if (options.allowNotModified && res.status === 304) {
+      return { status: res.status, headers: new Headers(res.headers), payload: null };
     }
 
     let payload: unknown = null;
@@ -1371,7 +1375,7 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
       );
     }
 
-    return payload;
+    return { status: res.status, headers: new Headers(res.headers), payload };
   } catch (error) {
     if (timeout.signal.aborted && !init?.signal?.aborted && !isOpsError(error)) {
       throw new OpsError("Tjänsten svarade inte i tid.", 504, {
@@ -1386,27 +1390,10 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   }
 }
 
-async function opsFetchWithFallback(
-  paths: string[],
-  init?: RequestInit,
-): Promise<unknown> {
-  let lastError: unknown = null;
-
-  for (const path of paths) {
-    try {
-      return await opsFetch(path, init);
-    } catch (error) {
-      lastError = error;
-      if (isOpsError(error) && error.status !== 404) {
-        throw error;
-      }
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new OpsError("Tjänsten kunde inte nås.", 502);
+async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
+  return (await opsRequest(path, init)).payload;
 }
+
 
 /**
  * Verifies that the configured API key can pass an endpoint's authorization
@@ -1547,11 +1534,61 @@ function normalizePreviewContractType(
   return "spot_monthly";
 }
 
+function normalizeQuoteAssumptions(value: unknown): OpsQuoteAssumption[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (typeof item === "string" && item.trim()) return [{ label: item.trim() }];
+    const row = recordValue(item);
+    if (!row) return [];
+    const label = pickString(row, ["label", "name", "title", "assumption", "description"]);
+    if (!label) return [];
+    const rawValue = row.value ?? row.amount ?? row.input ?? null;
+    const safeValue = ["string", "number", "boolean"].includes(typeof rawValue) ? rawValue as string | number | boolean : null;
+    return [{
+      code: pickString(row, ["code", "key", "id"]) ?? `assumption_${index + 1}`,
+      label,
+      value: safeValue,
+      unit: pickString(row, ["unit"]),
+      description: pickString(row, ["description", "details"]),
+    }];
+  });
+}
+
+function normalizeQuoteMarketSources(value: unknown): OpsQuoteMarketSource[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item === "string" && item.trim()) return [{ name: item.trim() }];
+    const row = recordValue(item);
+    if (!row) return [];
+    const name = pickString(row, ["name", "provider", "source", "label"]);
+    if (!name) return [];
+    return [{
+      name,
+      period: pickString(row, ["period", "source_period", "sourcePeriod"]),
+      resolution: pickString(row, ["resolution", "pricing_interval", "interval"]),
+      timestamp: pickString(row, ["timestamp", "market_data_timestamp", "updated_at", "published_at"]),
+    }];
+  });
+}
+
+function quoteSourcePeriod(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  const row = recordValue(value);
+  if (!row) return null;
+  const label = pickString(row, ["label", "period", "name"]);
+  if (label) return label;
+  const start = pickString(row, ["start", "from", "period_start", "periodStart"]);
+  const end = pickString(row, ["end", "to", "period_end", "periodEnd"]);
+  return start && end ? `${start}–${end}` : start ?? end;
+}
+
 function mapWebsitePricingPreview(
   payload: unknown,
   fallbackArea: OpsWebsitePriceArea,
 ): OpsWebsitePricingPreview {
   const row = extractObject(payload);
+  const metadataRow = recordValue(row.metadata) ?? recordValue(row.meta) ?? {};
+  const quoteRow = recordValue(row.quote) ?? {};
   const offerRow = recordValue(row.offer);
   const inputRow = recordValue(row.input);
   const estimateRow = recordValue(row.estimate);
@@ -1647,6 +1684,10 @@ function mapWebsitePricingPreview(
     priceArea: safeArea,
     price_area_code: safeArea,
     kwh: monthlyKwh,
+    annual_consumption_kwh:
+      pickNumber(inputRow ?? {}, ["annual_consumption_kwh", "annualConsumptionKwh"]) ??
+      pickNumber(row, ["annual_consumption_kwh", "annualConsumptionKwh"]) ??
+      monthlyKwh * 12,
     pricePerKwhOre:
       pickNumber(row, [
         "pricePerKwhOre",
@@ -1669,8 +1710,6 @@ function mapWebsitePricingPreview(
         type: "ops_canonical_quote",
         snapshot_schema: pickString(row, ["snapshot_schema"]),
         billing_month: pickString(inputRow ?? {}, ["billing_month"]),
-        price_plan_id: pickString(offerRow ?? {}, ["price_plan_id"]),
-        price_plan_version_id: pickString(offerRow ?? {}, ["price_plan_version_id"]),
       },
       fees: {
         ...normalizedFees,
@@ -1679,17 +1718,65 @@ function mapWebsitePricingPreview(
       },
       lines,
     },
+    quote_reference:
+      pickFromRecords([quoteRow, metadataRow, row], [
+        "quote_reference",
+        "quoteReference",
+        "reference",
+      ]) ?? undefined,
+    pricing_interval:
+      pickFromRecords([quoteRow, metadataRow, row], ["pricing_interval", "pricingInterval", "interval"]) ?? undefined,
+    estimate_method:
+      pickFromRecords([quoteRow, metadataRow, row], ["estimate_method", "estimateMethod", "method"]) ?? undefined,
+    source_period:
+      quoteSourcePeriod(
+        quoteRow.source_period ?? metadataRow.source_period ?? row.source_period ??
+        quoteRow.sourcePeriod ?? metadataRow.sourcePeriod ?? row.sourcePeriod,
+      ) ?? undefined,
+    market_data_timestamp:
+      pickFromRecords([quoteRow, metadataRow, row], [
+        "market_data_timestamp",
+        "marketDataTimestamp",
+        "market_updated_at",
+        "marketUpdatedAt",
+      ]) ?? undefined,
+    is_binding:
+      pickBooleanFromRecords([quoteRow, metadataRow, row], ["is_binding", "isBinding", "binding"]) ?? undefined,
+    assumptions: normalizeQuoteAssumptions(
+      quoteRow.assumptions ?? metadataRow.assumptions ?? row.assumptions,
+    ),
+    market_sources: normalizeQuoteMarketSources(
+      quoteRow.market_sources ?? metadataRow.market_sources ?? row.market_sources ??
+      quoteRow.marketSources ?? metadataRow.marketSources ?? row.marketSources,
+    ),
+    pricing_snapshot_schema_version:
+      pickFromRecords([quoteRow, metadataRow, row], [
+        "pricing_snapshot_schema_version",
+        "pricingSnapshotSchemaVersion",
+        "snapshot_schema_version",
+        "snapshot_schema",
+      ]) ?? undefined,
+    valid_until:
+      pickFromRecords([quoteRow, metadataRow, row], [
+        "valid_until",
+        "validUntil",
+        "quote_expires_at",
+        "quoteExpiresAt",
+        "expires_at",
+        "expiresAt",
+      ]) ?? undefined,
     quote_token:
-      pickString(row, [
+      pickFromRecords([quoteRow, metadataRow, row], [
         "quote_token",
         "quoteToken",
         "pricing_quote_token",
         "pricingQuoteToken",
-        "quote",
         "token",
       ]) ?? undefined,
     quote_expires_at:
-      pickString(row, [
+      pickFromRecords([quoteRow, metadataRow, row], [
+        "valid_until",
+        "validUntil",
         "quote_expires_at",
         "quoteExpiresAt",
         "pricing_quote_expires_at",
@@ -1798,7 +1885,7 @@ function normalizeWebsitePricingSpecification(
   };
 }
 
-function normalizeCustomerTypeFilter(value?: string | null): "private" | "company" | null {
+function normalizeCustomerTypeFilter(value?: string | null): WebsiteCustomerType | null {
   return value === "private" || value === "company" ? value : null;
 }
 
@@ -1808,10 +1895,12 @@ function publicContractsPath(
 ): string {
   const query = new URLSearchParams();
   const normalizedCustomerType = normalizeCustomerTypeFilter(customerType);
-  if (normalizedCustomerType) query.set("customer_type", normalizedCustomerType);
-  if (diagnostics) query.set("diagnostics", "1");
+  if (normalizedCustomerType) query.set("customer_type", toOpsCustomerType(normalizedCustomerType));
   const suffix = query.toString();
-  return `/api/v1/website/public-contracts${suffix ? `?${suffix}` : ""}`;
+  const pathname = diagnostics
+    ? "/api/v1/website/public-contracts/diagnostics"
+    : "/api/v1/website/public-contracts";
+  return `${pathname}${suffix ? `?${suffix}` : ""}`;
 }
 
 function diagnosticBlockers(value: unknown): string[] {
@@ -1840,7 +1929,7 @@ function mapPublicContractDiagnostic(
     row.blockers ?? row.blocking_reasons ?? row.blockingReasons ?? row.reasons,
   );
   return {
-    offer_reference: pickString(row, ["offer_reference", "offerReference", "id"]),
+    offer_reference: pickString(row, ["offer_reference", "offerReference"]),
     name: pickString(row, ["name", "title", "contract_name", "contractName"]),
     visible: explicitVisible ?? visibleFallback,
     blockers,
@@ -1889,14 +1978,76 @@ function extractPublicContractDiagnostics(payload: unknown): OpsPublicContractDi
   return [...deduped.values()];
 }
 
-async function fetchOpsPublicContractsUncached(
-  customerType?: string | null,
-): Promise<OpsPublicContract[]> {
-  // The customer-facing contract feed must use the normal DTO response.
-  // diagnostics=1 returns a different visible/hidden/blocker payload intended
-  // only for authenticated server-side troubleshooting.
-  const payload = await opsFetch(publicContractsPath(customerType));
-  assertExpectedOpsCompany(payload);
+let integrationContextCache: {
+  key: string;
+  expiresAt: number;
+  value: OpsIntegrationContext;
+} | null = null;
+
+function integrationContextFromPayload(payload: unknown): OpsIntegrationContext {
+  const root = recordValue(payload) ?? {};
+  const data = recordValue(root.data);
+  const context = recordValue(root.context) ?? recordValue(data?.context) ?? data ?? root;
+  const meta = recordValue(root.meta) ?? recordValue(data?.meta);
+  const tenantReference = pickFromRecords(
+    [context, meta, data, root],
+    ["tenant_reference", "tenantReference"],
+  );
+  const verifiedTenantReference = assertExpectedTenantReference(
+    tenantReference,
+    "/api/v1/integration/context",
+  );
+  return {
+    tenant_reference: verifiedTenantReference,
+    environment: pickFromRecords([context, meta, data, root], ["environment", "api_environment"]),
+    channel: pickFromRecords([context, meta, data, root], ["channel"]),
+    api_version: pickFromRecords([context, meta, data, root], ["api_version", "apiVersion"]),
+    raw: root,
+  };
+}
+
+export async function fetchOpsIntegrationContext(forceFresh = false): Promise<OpsIntegrationContext> {
+  const key = opsTenantCacheKey();
+  const now = Date.now();
+  if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
+    return integrationContextCache.value;
+  }
+  const payload = await opsFetch("/api/v1/integration/context");
+  const value = integrationContextFromPayload(payload);
+  integrationContextCache = { key, expiresAt: now + 5 * 60_000, value };
+  return value;
+}
+
+async function verifiedTenantReference(payload: unknown, source: string): Promise<string> {
+  const direct = tenantReferenceFromPayload(payload);
+  if (direct) return assertExpectedTenantReference(direct, source);
+  return (await fetchOpsIntegrationContext()).tenant_reference;
+}
+
+function publicationRevisionFromPayload(payload: unknown): string | null {
+  const root = recordValue(payload);
+  const data = recordValue(root?.data);
+  const meta = recordValue(root?.meta) ?? recordValue(data?.meta);
+  const value =
+    meta?.publication_revision ??
+    meta?.publicationRevision ??
+    data?.publication_revision ??
+    data?.publicationRevision ??
+    root?.publication_revision ??
+    root?.publicationRevision;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+type PublicContractsCacheEntry = OpsPublicContractsSnapshot & { cache_key: string };
+const publicContractsCache = new Map<string, PublicContractsCacheEntry>();
+
+function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): string {
+  return `${opsTenantCacheKey()}|website|${customerType ? toOpsCustomerType(customerType) : "all"}`;
+}
+
+function sortedPublicContracts(payload: unknown): OpsPublicContract[] {
   return extractRows(payload)
     .map(mapPublicContract)
     .filter((item): item is OpsPublicContract => item !== null)
@@ -1908,29 +2059,80 @@ async function fetchOpsPublicContractsUncached(
     });
 }
 
-const fetchCachedOpsPublicContracts = unstable_cache(
-  async (_tenantCacheKey: string, customerType: string) =>
-    fetchOpsPublicContractsUncached(customerType || null),
-  ["ops-public-contracts-v6"],
-  { revalidate: 60, tags: ["ops-public-contracts"] },
-);
+export function invalidateOpsPublicContractsCache(input?: {
+  tenantReference?: string | null;
+  channel?: string | null;
+  publicationRevision?: string | null;
+}): void {
+  if (input?.channel && input.channel !== "website") return;
+  const expected = expectedOpsTenantReference();
+  if (input?.tenantReference && expected && input.tenantReference !== expected) return;
+  publicContractsCache.clear();
+}
+
+export async function fetchOpsPublicContractsSnapshot(
+  customerType?: WebsiteCustomerType | null,
+  options: { forceFresh?: boolean } = {},
+): Promise<OpsPublicContractsSnapshot> {
+  const cacheKey = publicContractsCacheKey(customerType);
+  const cached = publicContractsCache.get(cacheKey);
+  const headers = new Headers();
+  if (!options.forceFresh && cached?.etag) headers.set("If-None-Match", cached.etag);
+
+  const response = await opsRequest(
+    publicContractsPath(customerType),
+    { method: "GET", headers },
+    { allowNotModified: true },
+  );
+
+  if (response.status === 304) {
+    if (!cached) {
+      throw new OpsError("OPS svarade 304 utan en lokal avtalsrevision.", 502, {
+        code: "ops_public_contracts_304_without_cache",
+      });
+    }
+    return {
+      contracts: cached.contracts,
+      etag: cached.etag,
+      publication_revision: cached.publication_revision,
+      tenant_reference: cached.tenant_reference,
+      not_modified: true,
+    };
+  }
+
+  const tenantReference = await verifiedTenantReference(
+    response.payload,
+    "/api/v1/website/public-contracts",
+  );
+  const snapshot: PublicContractsCacheEntry = {
+    cache_key: cacheKey,
+    contracts: sortedPublicContracts(response.payload),
+    etag: response.headers.get("etag"),
+    publication_revision: publicationRevisionFromPayload(response.payload),
+    tenant_reference: tenantReference,
+    not_modified: false,
+  };
+  publicContractsCache.set(cacheKey, snapshot);
+  return snapshot;
+}
 
 export async function fetchOpsPublicContracts(
-  customerType?: "private" | "company" | null,
+  customerType?: WebsiteCustomerType | null,
 ): Promise<OpsPublicContract[]> {
-  return fetchCachedOpsPublicContracts(opsTenantCacheKey(), customerType ?? "");
+  return (await fetchOpsPublicContractsSnapshot(customerType)).contracts;
 }
 
 export async function fetchOpsPublicContractsFresh(
-  customerType?: "private" | "company" | null,
+  customerType?: WebsiteCustomerType | null,
 ): Promise<OpsPublicContract[]> {
-  return fetchOpsPublicContractsUncached(customerType);
+  return (await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })).contracts;
 }
 
 export async function fetchOpsPublicContractDiagnostics(
-  customerType?: "private" | "company" | null,
+  customerType?: WebsiteCustomerType | null,
 ): Promise<OpsPublicContractDiagnostics> {
   const payload = await opsFetch(publicContractsPath(customerType, true));
+  await verifiedTenantReference(payload, "/api/v1/website/public-contracts/diagnostics");
   return {
     items: extractPublicContractDiagnostics(payload),
     raw: extractObject(payload),
@@ -1956,24 +2158,6 @@ function mapLegalText(row: unknown): OpsLegalText | null {
     url: pickString(r, ["url", "href", "public_url", "publicUrl"]),
     offer_reference: pickString(r, ["offer_reference", "offerReference"]),
     published_at: pickString(r, ["published_at", "publishedAt"]),
-    raw: r,
-  };
-}
-
-function mapPricePlan(row: unknown): OpsPricePlan | null {
-  if (!row || typeof row !== "object") return null;
-  const mapped = mapPublicContract(row);
-  if (!mapped) return null;
-  const r = row as Record<string, unknown>;
-  if (!mapped.price_plan_id || !mapped.price_plan_version_id || !mapped.product_code) return null;
-  return {
-    price_plan_id: mapped.price_plan_id,
-    price_plan_version_id: mapped.price_plan_version_id,
-    product_code: mapped.product_code,
-    name: mapped.name,
-    type: mapped.type,
-    status: pickString(r, ["status", "version_status"]),
-    is_public: mapped.is_public,
     raw: r,
   };
 }
@@ -2015,95 +2199,59 @@ export async function fetchOpsWebsiteLegalBundle(): Promise<OpsWebsiteLegalBundl
   };
 }
 
-/** @deprecated Use fetchOpsWebsiteLegalBundle. */
-export async function fetchOpsLegalTextsCurrent(): Promise<OpsLegalText[]> {
-  return (await fetchOpsWebsiteLegalBundle()).texts;
-}
-
-export async function fetchOpsPricePlans(): Promise<OpsPricePlan[]> {
-  const payload = await opsFetch("/api/v1/website/public-contracts");
-  return extractRows(payload)
-    .map(mapPricePlan)
-    .filter((item): item is OpsPricePlan => item !== null);
-}
-
-export async function resolveOpsWebsiteEnergyArea(
-  input: OpsWebsiteEnergyResolutionInput,
-): Promise<OpsWebsiteEnergyResolution> {
-  const payload = await opsFetchWithFallback(
-    [
-      "/api/v1/website/energy/resolve",
-      "/api/v1/website/energy-area/resolve",
-      "/api/v1/website/resolve-energy-area",
-      "/api/platform/energy/resolve",
-    ],
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
+function assertCanonicalQuoteMetadata(preview: OpsWebsitePricingPreview): void {
+  const missing: string[] = [];
+  if (!preview.quote_reference) missing.push("quote_reference");
+  if (!preview.pricing_interval) missing.push("pricing_interval");
+  if (!preview.estimate_method) missing.push("estimate_method");
+  if (typeof preview.is_binding !== "boolean") missing.push("is_binding");
+  if (!preview.pricing_snapshot_schema_version) missing.push("pricing_snapshot_schema_version");
+  if (!preview.valid_until) missing.push("valid_until");
+  const marketLinked = ["spot_monthly", "spot_hourly", "spot_quarterly", "mix"].includes(
+    preview.contract.contractType,
   );
-  return mapWebsiteEnergyResolution(payload);
+  if (marketLinked && !preview.source_period) missing.push("source_period");
+  if (marketLinked && !preview.market_data_timestamp) missing.push("market_data_timestamp");
+  if (marketLinked && !preview.market_sources?.length) missing.push("market_sources");
+  if (missing.length) {
+    throw new OpsError("OPS quote saknar obligatorisk metadata.", 502, {
+      code: "ops_quote_metadata_incomplete",
+      missing_fields: missing,
+      offer_reference: preview.contract.offer_reference ?? null,
+    });
+  }
 }
 
 export async function fetchOpsWebsiteQuote(
   input: OpsWebsitePricingPreviewInput,
 ): Promise<OpsWebsitePricingPreview> {
   const startDate = input.start_date?.trim() || new Date().toISOString().slice(0, 10);
-  const customerType =
-    input.customer_type === "company"
-      ? "business"
-      : input.customer_type === "private"
-        ? "private"
-        : undefined;
+  const annualConsumptionKwh = input.annual_consumption_kwh ?? input.estimated_monthly_kwh * 12;
+  if (!Number.isFinite(annualConsumptionKwh) || annualConsumptionKwh <= 0) {
+    throw new OpsError("Årsförbrukningen är ogiltig.", 400, {
+      code: "annual_consumption_invalid",
+      field: "annual_consumption_kwh",
+    });
+  }
   const payload = await opsFetch("/api/v1/website/quote", {
     method: "POST",
     body: JSON.stringify({
       offer_reference: input.offer_reference,
       price_area: input.price_area_code,
-      annual_consumption_kwh: input.estimated_monthly_kwh * 12,
+      annual_consumption_kwh: annualConsumptionKwh,
       start_date: startDate,
-      ...(customerType ? { customer_type: customerType } : {}),
+      ...(input.customer_type ? { customer_type: toOpsCustomerType(input.customer_type) } : {}),
+      ...(input.postal_code ? { postal_code: input.postal_code } : {}),
+      ...(input.city ? { city: input.city } : {}),
+      ...(input.address ? { address: input.address } : {}),
+      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
+      ...(input.metering_point_id ? { metering_point_id: input.metering_point_id } : {}),
     }),
   });
-  return mapWebsitePricingPreview(payload, input.price_area_code);
-}
-
-/** @deprecated Use fetchOpsWebsiteQuote. */
-export async function fetchOpsWebsitePricingPreview(
-  input: OpsWebsitePricingPreviewInput,
-): Promise<OpsWebsitePricingPreview> {
-  return fetchOpsWebsiteQuote(input);
-}
-
-export type OpsWebsitePricingQuoteValidationInput = {
-  quote_token: string;
-  offer_reference: string;
-  price_area_code: OpsWebsitePriceArea;
-  estimated_monthly_kwh: number;
-  postal_code: string;
-  city: string;
-  address: string;
-};
-
-export type OpsWebsitePricingQuoteValidationResult = {
-  ok: boolean;
-  expires_at?: string | null;
-  customer_message?: string | null;
-};
-
-export async function validateOpsWebsitePricingQuote(
-  input: OpsWebsitePricingQuoteValidationInput,
-): Promise<OpsWebsitePricingQuoteValidationResult> {
-  const payload = await opsFetchWithFallback(
-    ["/api/v1/website/pricing/quote/validate"],
-    { method: "POST", body: JSON.stringify(input) },
-  );
-  const row = extractObject(payload);
-  return {
-    ok: row.ok === true,
-    expires_at: pickString(row, ["expires_at", "quote_expires_at", "quoteExpiresAt"]),
-    customer_message: pickString(row, ["customer_message", "customerMessage", "message", "error"]),
-  };
+  await verifiedTenantReference(payload, "/api/v1/website/quote");
+  const preview = mapWebsitePricingPreview(payload, input.price_area_code);
+  assertCanonicalQuoteMetadata(preview);
+  return preview;
 }
 
 export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
@@ -2112,6 +2260,18 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     throw new OpsError("Ett stabilt externt kund-ID krävs.", 400, {
       code: "external_customer_id_required",
       field: "external_customer_id",
+    });
+  }
+  if (!normalizeText(input.quote_reference)) {
+    throw new OpsError("Quote reference krävs för kundansökan.", 400, {
+      code: "quote_reference_required",
+      field: "contract.quote_reference",
+    });
+  }
+  if (!Number.isFinite(input.annual_consumption_kwh) || input.annual_consumption_kwh <= 0) {
+    throw new OpsError("Årsförbrukningen är ogiltig.", 400, {
+      code: "annual_consumption_invalid",
+      field: "site.annual_consumption_kwh",
     });
   }
   if (input.requested_start_mode === "specific_date" && !normalizeText(input.requested_start_date)) {
@@ -2130,7 +2290,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
     ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
-      customer_type: input.customer_type === "company" ? "business" : "private",
+      customer_type: toOpsCustomerType(input.customer_type),
       ...(input.first_name ? { first_name: input.first_name } : {}),
       ...(input.last_name ? { last_name: input.last_name } : {}),
       ...(input.company_name ? { company_name: input.company_name } : {}),
@@ -2141,6 +2301,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     },
     site: {
       ...(input.facility_id ? { facility_id: input.facility_id } : {}),
+      ...(input.metering_point_id ? { metering_point_id: input.metering_point_id } : {}),
       ...(input.requested_start_mode === "specific_date" && input.requested_start_date
         ? { move_in_date: input.requested_start_date }
         : {}),
@@ -2148,6 +2309,10 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
       postal_code: input.postal_code,
       city: input.city,
       ...(input.price_area_code ? { price_area_code: input.price_area_code } : {}),
+      annual_consumption_kwh: input.annual_consumption_kwh,
+      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
+      ...(input.grid_owner_id ? { grid_owner_id: input.grid_owner_id } : {}),
+      ...(input.grid_owner_name ? { grid_owner_name: input.grid_owner_name } : {}),
       ...(input.current_supplier_name ? { current_supplier_name: input.current_supplier_name } : {}),
       ...(input.current_supplier_id ? { current_supplier_id: input.current_supplier_id } : {}),
       ...(input.current_supplier_org_number ? { current_supplier_org_number: input.current_supplier_org_number } : {}),
@@ -2155,6 +2320,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     },
     contract: {
       offer_reference: input.offer_reference,
+      quote_reference: input.quote_reference,
       requested_start_mode: input.requested_start_mode,
       requested_start_date:
         input.requested_start_mode === "specific_date"
@@ -2193,14 +2359,12 @@ export async function submitOpsCustomerApplication(
 
   let payload: unknown;
   try {
-    payload = await opsFetchWithFallback(
-      ["/api/v1/website/customer-applications"],
-      {
-        method: "POST",
-        headers: { "Idempotency-Key": input.idempotency_key },
-        body: JSON.stringify(applicationPayload),
-      },
-    );
+    payload = await opsFetch("/api/v1/website/customer-applications", {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotency_key },
+      body: JSON.stringify(applicationPayload),
+    });
+    await verifiedTenantReference(payload, "/api/v1/website/customer-applications");
   } catch (error) {
     if (!isOpsError(error) || error.status !== 409) throw error;
     const code = opsErrorCodeValue(error) ?? "";

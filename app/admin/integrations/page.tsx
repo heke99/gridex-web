@@ -187,7 +187,7 @@ export default async function AdminIntegrationsPage() {
           <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
             <span>Aktiv: {opsReadiness.webhook.enabled ? 'ja' : 'nej'}</span>
             <span>Secret: {opsReadiness.webhook.signingSecretConfigured ? 'ja' : 'nej'}</span>
-            <span>Company: {opsReadiness.webhook.expectedCompanyConfigured ? 'ja' : 'nej'}</span>
+            <span>Tenantreferens: {opsReadiness.webhook.expectedTenantReferenceConfigured ? 'ja' : 'nej'}</span>
             <span>Konflikt: {opsReadiness.webhook.secretConflict ? 'ja' : 'nej'}</span>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default async function AdminIntegrationsPage() {
         <div>
           <h2 className="text-lg font-semibold">Publiceringsdiagnostik för avtal</h2>
           <p className="mt-1 text-sm text-white/60">
-            Hämtas server-side från OPS med diagnostics=1 och visas endast för behörig admin.
+            Hämtas server-side från OPS canonical diagnostics-endpoint och visas endast för behörig admin.
           </p>
         </div>
         {publicContractDiagnostics.error ? (

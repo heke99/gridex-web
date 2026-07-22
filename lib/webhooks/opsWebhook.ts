@@ -4,6 +4,9 @@ export type OpsWebhookEvent = {
   event_id: string
   event_type: string
   occurred_at: string
+  tenant_reference?: string | null
+  channel?: string | null
+  publication_revision?: string | null
   company_id?: string | null
   customer_id?: string | null
   customer_number?: string | null
@@ -18,6 +21,7 @@ export type OpsWebhookEvent = {
 }
 
 export const OPS_WEBHOOK_EVENT_TYPES = new Set([
+  'contracts.publication.changed',
   'customer.created',
   'customer.updated',
   'customer_number.assigned',
@@ -113,6 +117,7 @@ export function isSupportedOpsWebhookEventType(eventType: string): boolean {
 export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | null {
   const root = object(payload)
   const data = object(root.data)
+  const meta = object(root.meta)
   const eventType = text(root.event_type) ?? text(root.type)
   const eventId = text(root.event_id) ?? text(root.id) ?? text(data.event_id)
 
@@ -125,6 +130,15 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
     event_id: eventId,
     event_type: eventType,
     occurred_at: occurredAt,
+    tenant_reference:
+      text(root.tenant_reference) ?? text(root.tenantReference) ??
+      text(data.tenant_reference) ?? text(data.tenantReference) ??
+      text(meta.tenant_reference) ?? text(meta.tenantReference),
+    channel: text(root.channel) ?? text(data.channel) ?? text(meta.channel),
+    publication_revision:
+      text(root.publication_revision) ?? text(root.publicationRevision) ??
+      text(data.publication_revision) ?? text(data.publicationRevision) ??
+      text(meta.publication_revision) ?? text(meta.publicationRevision),
     company_id: text(root.company_id) ?? text(data.company_id),
     customer_id: text(root.customer_id) ?? text(data.customer_id),
     customer_number: text(root.customer_number) ?? text(data.customer_number),

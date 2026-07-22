@@ -7,6 +7,9 @@ export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 export type WebsiteEnergyResolution = {
   status: string;
   price_area_code: WebsitePriceArea | null;
+  grid_area_code?: string | null;
+  grid_owner_id?: string | null;
+  grid_owner_name?: string | null;
   confidence?: number | null;
   source?: string | null;
   customer_message?: string | null;
@@ -26,7 +29,10 @@ export type WebsitePricingPreviewInput = {
   postal_code?: string | null;
   city?: string | null;
   address?: string | null;
+  grid_area_code?: string | null;
+  metering_point_id?: string | null;
   estimated_monthly_kwh: number;
+  annual_consumption_kwh: number;
   start_date?: string | null;
   customer_type?: "private" | "company" | null;
 };
@@ -36,8 +42,28 @@ export type WebsitePricingQuoteContext = {
   city: string;
   address: string;
   price_area_code: WebsitePriceArea;
+  grid_area_code?: string | null;
+  grid_owner_id?: string | null;
+  grid_owner_name?: string | null;
+  metering_point_id?: string | null;
   estimated_monthly_kwh: number;
+  annual_consumption_kwh: number;
   consumption_profile?: WebsiteConsumptionProfile | null;
+};
+
+export type WebsiteQuoteAssumption = {
+  code?: string | null;
+  label: string;
+  value?: string | number | boolean | null;
+  unit?: string | null;
+  description?: string | null;
+};
+
+export type WebsiteQuoteMarketSource = {
+  name: string;
+  period?: string | null;
+  resolution?: string | null;
+  timestamp?: string | null;
 };
 
 export type WebsitePricingPreview = {
@@ -51,6 +77,7 @@ export type WebsitePricingPreview = {
   priceArea: WebsitePriceArea;
   price_area_code?: WebsitePriceArea;
   kwh: number;
+  annual_consumption_kwh?: number;
   pricePerKwhOre: number;
   totalMonthlyCostSek: number;
   totalMonthlyCostInclVatSek?: number;
@@ -58,43 +85,7 @@ export type WebsitePricingPreview = {
   customerNotice?: string;
   legalText?: string;
   specification?: {
-    basis?:
-      | {
-          type: "elprisetjustnu_spot";
-          pricingModel: "monthly" | "hourly" | "quarterly";
-          period: "current_month_to_date" | "today";
-          year: number;
-          month: number;
-          day?: number;
-          spotAvgOre: number;
-          samples: number;
-          intervalMinutes: number | null;
-          sourceSamples?: number;
-          sourceIntervalMinutes?: number | null;
-          avgSpotEurPerKwh?: number | null;
-          exchangeRate?: number | null;
-          periodStart: string;
-          periodEnd: string;
-          source: "elprisetjustnu_api";
-        }
-      | {
-          type: "admin_fixed_price" | "fixed_price";
-          fixedPriceOre: number;
-        }
-      | {
-          type: "monthly_fixed_price";
-          monthlyFixedPriceSek: number;
-        }
-      | {
-          type: "mix";
-          spotShare?: number;
-          portfolioShare?: number;
-          spotPriceOre?: number;
-          portfolioPriceOre?: number;
-          year?: number;
-          month?: number;
-          source?: string;
-        };
+    basis?: Record<string, unknown>;
     fees?: {
       markupOre?: number;
       variableFeeOre?: number;
@@ -104,10 +95,21 @@ export type WebsitePricingPreview = {
       invoiceFeeIncludedInMonthlyEstimate?: boolean;
       billingIntervalMonths?: number;
     };
+    [key: string]: unknown;
   };
+  quote_reference?: string;
+  pricing_interval?: string;
+  estimate_method?: string;
+  source_period?: string;
+  market_data_timestamp?: string;
+  is_binding?: boolean;
+  assumptions?: WebsiteQuoteAssumption[];
+  market_sources?: WebsiteQuoteMarketSource[];
+  pricing_snapshot_schema_version?: string;
+  valid_until?: string;
   quote_token?: string;
   quote_expires_at?: string;
-  quote_source?: "ops" | "website";
+  quote_source?: "ops";
   token_issuer?: "website";
   raw?: Record<string, unknown>;
 };
@@ -136,23 +138,17 @@ function extractErrorMessage(data: unknown, fallback: string): string {
   return message;
 }
 
-function assertOkResponse(
-  res: Response,
-  data: unknown,
-  fallback: string,
-): void {
+function assertOkResponse(res: Response, data: unknown, fallback: string): void {
   if (res.ok) return;
   throw new Error(extractErrorMessage(data, fallback));
 }
 
 async function readJsonResponse(res: Response): Promise<unknown> {
   const contentType = res.headers.get("content-type") ?? "";
-
   if (!contentType.includes("application/json")) {
     await res.text().catch(() => "");
     return null;
   }
-
   return res.json().catch(() => null);
 }
 
@@ -161,10 +157,7 @@ export function normalizeWebsitePostalCode(value: string): string {
 }
 
 export function isWebsitePriceArea(value: unknown): value is WebsitePriceArea {
-  return (
-    typeof value === "string" &&
-    WEBSITE_PRICE_AREAS.includes(value as WebsitePriceArea)
-  );
+  return typeof value === "string" && WEBSITE_PRICE_AREAS.includes(value as WebsitePriceArea);
 }
 
 export async function resolveWebsiteEnergyArea(
@@ -172,10 +165,7 @@ export async function resolveWebsiteEnergyArea(
 ): Promise<WebsiteEnergyResolution> {
   const res = await fetch("/api/v1/website/energy/resolve", {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   const data = await readJsonResponse(res);
@@ -192,10 +182,7 @@ export async function previewWebsitePricing(
 ): Promise<WebsitePricingPreview> {
   const res = await fetch("/api/v1/website/pricing/preview", {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   const data = await readJsonResponse(res);
@@ -209,10 +196,11 @@ export async function previewWebsitePricing(
 
 export async function validateWebsitePricingQuote(input: {
   quote_token: string;
-  quote_source?: "ops" | "website";
+  quote_reference?: string;
   offer_reference: string;
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
+  annual_consumption_kwh: number;
   postal_code: string;
   city: string;
   address: string;
@@ -223,13 +211,9 @@ export async function validateWebsitePricingQuote(input: {
     body: JSON.stringify(input),
   });
   const data = await readJsonResponse(res);
-  if (res.ok && data && typeof data === "object")
-    return data as { ok: boolean; error?: string };
+  if (res.ok && data && typeof data === "object") return data as { ok: boolean; error?: string };
   return {
     ok: false,
-    error: extractErrorMessage(
-      data,
-      "Vi kunde inte kontrollera valt avtal just nu.",
-    ),
+    error: extractErrorMessage(data, "Vi kunde inte kontrollera valt avtal just nu."),
   };
 }

@@ -8,10 +8,7 @@ import {
   publicContractTypeLabel,
   type PublicContractDisplay,
 } from "@/lib/website/publicContractDisplay";
-import type {
-  PublicPortfolioMonthlyPrice,
-  PublicPricingComponent,
-} from "@/lib/website/publicContractContract";
+import type { PublicPricingComponent } from "@/lib/website/publicContractContract";
 import type { WebsiteCustomerType } from "@/lib/website/customerType";
 import type { WebsiteConsumptionProfile } from "@/lib/website/consumptionEstimator";
 import type {
@@ -55,7 +52,6 @@ export type SignupContractOption = {
   portfolioShare?: number | null;
   pricingVisibility?: Record<string, boolean>;
   pricingComponents?: PublicPricingComponent[];
-  portfolioMonthlyPrices?: PublicPortfolioMonthlyPrice[];
   validFrom?: string | null;
   validTo?: string | null;
   bindingPeriodMonths?: number | null;
@@ -161,7 +157,6 @@ function optionAsOpsContract(contract: SignupContractOption) {
     portfolio_share: contract.portfolioShare ?? null,
     pricing_visibility: contract.pricingVisibility ?? {},
     pricing_components: contract.pricingComponents ?? [],
-    portfolio_monthly_prices: contract.portfolioMonthlyPrices ?? [],
     valid_from: contract.validFrom ?? null,
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,
@@ -573,6 +568,7 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="company_website" value="" />
           <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
           <input type="hidden" name="pricing_quote_token" value={pricingPreview?.quote_token ?? ""} />
+          <input type="hidden" name="quote_reference" value={pricingPreview?.quote_reference ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
@@ -584,6 +580,7 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="city" value={quoteContext.city} />
           <input type="hidden" name="price_area_code" value={pricingPreview?.price_area_code ?? pricingPreview?.priceArea ?? energyResolution?.price_area_code ?? ""} />
           <input type="hidden" name="estimated_monthly_kwh" value={estimatedMonthlyKwh ?? pricingPreview?.kwh ?? ""} />
+          <input type="hidden" name="annual_consumption_kwh" value={quoteContext.annual_consumption_kwh} />
           <input type="hidden" name="consumption_profile" value={quoteContext.consumption_profile ? JSON.stringify(quoteContext.consumption_profile) : ""} />
           <input type="hidden" name="pricing_preview_snapshot" value={pricingPreview ? JSON.stringify(pricingPreview) : ""} />
           <input type="hidden" name="contract_display_snapshot" value={activeDisplay ? JSON.stringify(activeDisplay.snapshot) : ""} />
@@ -605,6 +602,10 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="Förbrukningsunderlag" value={consumptionSourceLabel(quoteContext.consumption_profile)} />
                   <ReviewRow label="Beräkningsvärde" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kWh/mån`} />
                   {pricingPreview?.totalMonthlyCostInclVatSek != null ? <ReviewRow label="Beräknat inkl. moms" value={`${pricingPreview.totalMonthlyCostInclVatSek.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr/mån`} /> : null}
+                  {pricingPreview?.is_binding != null ? <ReviewRow label="Prisstatus" value={pricingPreview.is_binding ? 'Bindande offert' : 'Indikativ prisuppgift'} /> : null}
+                  {pricingPreview?.source_period ? <ReviewRow label="Prisperiod" value={pricingPreview.source_period} /> : null}
+                  {pricingPreview?.market_data_timestamp ? <ReviewRow label="Marknadsdata uppdaterad" value={new Date(pricingPreview.market_data_timestamp).toLocaleString('sv-SE')} /> : null}
+                  {pricingPreview?.valid_until ? <ReviewRow label="Offert giltig till" value={new Date(pricingPreview.valid_until).toLocaleString('sv-SE')} /> : null}
                 </dl>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-gray-300">

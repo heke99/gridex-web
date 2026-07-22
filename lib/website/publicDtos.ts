@@ -1,6 +1,5 @@
 import type {
   OpsLegalText,
-  OpsPricePlan,
   OpsPublicContract,
   OpsWebsiteLegalBundle,
 } from '@/lib/ops/client'
@@ -31,7 +30,13 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
       portfolio_share: contract.portfolio_share,
       visibility: contract.pricing_visibility ?? {},
       components: contract.pricing_components ?? [],
-      portfolio_monthly_prices: contract.portfolio_monthly_prices ?? [],
+      portfolio_monthly_prices: (contract.portfolio_monthly_prices ?? []).map((price) => ({
+        year: price.year,
+        month: price.month,
+        price_area_code: price.price_area_code,
+        amount: price.amount,
+        unit: price.unit,
+      })),
     },
     binding_period_months: contract.binding_period_months ?? null,
     notice_period_days: contract.notice_period_days ?? null,
@@ -73,17 +78,6 @@ export function toBrowserLegalText(text: OpsLegalText) {
     url: text.url ?? null,
     offer_reference: text.offer_reference ?? null,
     published_at: text.published_at ?? null,
-  }
-}
-
-/** Legacy price-plan facade: keep only customer-facing classification fields. */
-export function toBrowserPricePlan(plan: OpsPricePlan) {
-  return {
-    code: plan.product_code,
-    name: plan.name,
-    type: plan.type,
-    status: plan.status ?? null,
-    is_public: plan.is_public ?? null,
   }
 }
 

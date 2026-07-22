@@ -1,5 +1,4 @@
 export type PublicContractApiShape = {
-  id?: string | null
   offer_reference: string
   product_code: string | null
   name: string
@@ -266,7 +265,6 @@ export type PublicPortfolioMonthlyPrice = {
   year: number
   month: number
   price_area_code: string
-  price_plan_version_id: string | null
   amount: number
   unit: string
 }
@@ -443,7 +441,6 @@ function portfolioMonthlyPrices(value: unknown): PublicPortfolioMonthlyPrice[] {
       year,
       month,
       price_area_code: priceAreaCode.toUpperCase(),
-      price_plan_version_id: text(row.price_plan_version_id ?? row.pricePlanVersionId),
       amount: price,
       unit,
     }]
@@ -472,7 +469,6 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     publishedPricingComponentAmount(components, key)
 
   return {
-    id: text(row.id),
     offer_reference: offerReference,
     product_code: productCode,
     name,

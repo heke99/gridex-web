@@ -81,19 +81,18 @@ assert.ok(
   'contract cards must not reject an OPS-published contract only because an area price is not top-level',
 )
 
-const localPricing = read('lib/website/localPricingPreview.ts')
-assert.ok(localPricing.includes('resolveWebsiteAreaPricing'))
-assert.ok(localPricing.includes('areaPricing.fixedPriceOrePerKwh'))
-assert.ok(localPricing.includes('areaPricing.portfolioPriceOrePerKwh'))
-assert.ok(localPricing.includes('resolveMixShares'))
+const pricing = read('lib/website/pricingPreview.ts')
+assert.ok(pricing.includes('fetchOpsWebsiteQuote(input)'))
+assert.ok(!pricing.includes('resolveWebsiteAreaPricing'))
 
 const pricingRoute = read('app/api/v1/website/pricing/preview/route.ts')
 assert.ok(pricingRoute.includes('loadVerifiedWebsitePricingPreview'))
+assert.ok(pricingRoute.includes('annual_consumption_kwh: annualKwh'))
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.ok(
-  signup.includes('loadVerifiedWebsitePricingPreview'),
-  'final signup verification must use the same pricing path as the calculator',
+  !signup.includes('loadVerifiedWebsitePricingPreview') && signup.includes('livePreview: signedPreview'),
+  'final signup must bind the exact signed OPS quote instead of recalculating it',
 )
 
 const ops = read('lib/ops/client.ts')
@@ -102,8 +101,9 @@ assert.ok(
   'documented public contracts must be enriched from component pricing when available',
 )
 assert.ok(
-  ops.includes('price_plan_version_id: pickString'),
-  'area-pricing identifiers must be preserved when OPS includes them',
+  !ops.includes('price_plan_id: pickString(offerRow') &&
+    !ops.includes('price_plan_version_id: pickString(offerRow'),
+  'internal OPS price-plan identifiers must not be copied into a tenant quote',
 )
 
 console.log('area pricing product tests passed')

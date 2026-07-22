@@ -44,7 +44,6 @@ import {
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
 import { enqueuePortalWrite } from "@/lib/customerPortal/outbox";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
-import { loadVerifiedWebsitePricingPreview } from "@/lib/website/pricingPreview";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
@@ -123,7 +122,6 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     portfolioShare: item.portfolio_share ?? null,
     pricingVisibility: item.pricing_visibility ?? {},
     pricingComponents: item.pricing_components ?? [],
-    portfolioMonthlyPrices: item.portfolio_monthly_prices ?? [],
     validFrom: item.valid_from ?? null,
     validTo: item.valid_to ?? null,
     bindingPeriodMonths: item.binding_period_months ?? null,
@@ -714,6 +712,9 @@ export default async function TecknaPage({
     const estimatedMonthlyKwh = parseOptionalNumber(
       normalizeText(formData.get("estimated_monthly_kwh")),
     );
+    const annualConsumptionKwh = parseOptionalNumber(
+      normalizeText(formData.get("annual_consumption_kwh")),
+    );
     const consumptionProfile = normalizeWebsiteConsumptionProfile(
       parseJsonSnapshot(normalizeText(formData.get("consumption_profile"))),
     );
@@ -721,8 +722,12 @@ export default async function TecknaPage({
       !estimatedMonthlyKwh ||
       estimatedMonthlyKwh < 1 ||
       estimatedMonthlyKwh > 200000 ||
+      !annualConsumptionKwh ||
+      annualConsumptionKwh < 1 ||
+      annualConsumptionKwh > 2_400_000 ||
       !consumptionProfile ||
-      !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh)
+      !consumptionProfileMatchesMonthlyKwh(consumptionProfile, estimatedMonthlyKwh) ||
+      Math.abs(consumptionProfile.annual_kwh - annualConsumptionKwh) > 0.001
     ) {
       return fail("price_snapshot", {
         step: 0,
@@ -751,11 +756,14 @@ export default async function TecknaPage({
       return fail("validation", { step: 1, rotateSubmissionAttempt: true });
     }
     const pricingQuoteToken = normalizeText(formData.get("pricing_quote_token"));
+    const quoteReference = normalizeText(formData.get("quote_reference"));
     const verifiedQuote = validateWebsitePricingQuote({
       token: pricingQuoteToken,
       contract: offer,
       priceAreaCode: serverPriceAreaCode,
       estimatedMonthlyKwh,
+      annualConsumptionKwh,
+      quoteReference,
       location: { postalCode, city, address },
     });
     if (!verifiedQuote.ok) {
@@ -770,53 +778,30 @@ export default async function TecknaPage({
       });
     }
 
-    let canonicalPricingPreviewSnapshot: Record<string, unknown>;
-    try {
-      const livePreview = await loadVerifiedWebsitePricingPreview(
-        {
-          offer_reference: offer.offer_reference,
-          price_area_code: serverPriceAreaCode,
-          postal_code: postalCode,
-          city,
-          address,
-          estimated_monthly_kwh: estimatedMonthlyKwh,
-          customer_type: customerType,
-        },
-        offer,
-      );
-      const pricingValidation = validatePricingPreviewSnapshot({
-        contract: offer,
-        snapshot: pricingPreviewSnapshot,
-        livePreview,
-        expectedPriceArea: serverPriceAreaCode,
-        expectedMonthlyKwh: estimatedMonthlyKwh,
+    const signedPreview = quoteToWebsitePricingPreview(verifiedQuote.quote, pricingQuoteToken);
+    const pricingValidation = validatePricingPreviewSnapshot({
+      contract: offer,
+      snapshot: pricingPreviewSnapshot,
+      livePreview: signedPreview,
+      expectedPriceArea: serverPriceAreaCode,
+      expectedMonthlyKwh: estimatedMonthlyKwh,
+    });
+    if (!pricingValidation.ok) {
+      console.warn("[website signup] signed pricing preview snapshot mismatch", {
+        reasons: pricingValidation.reasons,
+        offer_reference: offer.offer_reference,
+        quote_reference: verifiedQuote.quote.quote_reference,
       });
-      if (!pricingValidation.ok) {
-        console.warn("[website signup] pricing preview snapshot mismatch", {
-          reasons: pricingValidation.reasons,
-          offer_reference: offer.offer_reference,
-        });
-        return fail("price_changed", {
-          step: 0,
-          requiresQuoteRefresh: true,
-          fieldErrors: { pricing: "Uppgifterna stämmer inte längre med kalkylen. Hämta priset på nytt." },
-        });
-      }
-      canonicalPricingPreviewSnapshot = {
-        ...(quoteToWebsitePricingPreview(
-          verifiedQuote.quote,
-          pricingQuoteToken,
-        ) as unknown as Record<string, unknown>),
-        consumption_profile: consumptionProfile,
-      };
-    } catch (error) {
-      console.error("[website signup] server price verification failed", error);
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Prisuppgifterna kunde inte verifieras. Hämta priset på nytt." },
+        fieldErrors: { pricing: "Uppgifterna stämmer inte med den signerade offerten. Hämta priset på nytt." },
       });
     }
+    const canonicalPricingPreviewSnapshot: Record<string, unknown> = {
+      ...(signedPreview as unknown as Record<string, unknown>),
+      consumption_profile: consumptionProfile,
+    };
 
     const idempotencyKey = `website-application:${submissionAttemptId}`;
     const externalApplicationId = createExternalApplicationId(submissionAttemptId);
@@ -862,6 +847,8 @@ export default async function TecknaPage({
       gridOwnerName: serverResolution?.grid_owner_name ?? null,
       energyResolutionStatus: serverResolution?.status ?? null,
       energyResolutionConfidence: serverResolution?.confidence ?? null,
+      quoteReference: verifiedQuote.quote.quote_reference,
+      annualConsumptionKwh,
       quoteToken: pricingQuoteToken,
       canonicalPricingPreviewSnapshot,
       consumptionProfile,
@@ -930,6 +917,8 @@ export default async function TecknaPage({
 
     const applicationInput = {
       offer_reference: offer.offer_reference,
+      quote_reference: verifiedQuote.quote.quote_reference,
+      annual_consumption_kwh: annualConsumptionKwh,
       customer_type: customerType,
       first_name: firstName || null,
       last_name: lastName || null,
@@ -942,6 +931,9 @@ export default async function TecknaPage({
       postal_code: postalCode,
       city,
       facility_id: facilityId || null,
+      grid_area_code: serverResolution?.grid_area_code ?? null,
+      grid_owner_id: serverResolution?.grid_owner_id ?? null,
+      grid_owner_name: serverResolution?.grid_owner_name ?? null,
       requested_start_mode: requestedStartMode,
       requested_start_date:
         requestedStartMode === "specific_date" ? requestedStartDate || null : null,

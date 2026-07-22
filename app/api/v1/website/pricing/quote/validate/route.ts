@@ -44,11 +44,13 @@ export async function POST(req: Request) {
   const offerReference = text(body?.offer_reference)
   const priceAreaCode = area(body?.price_area_code)
   const estimatedMonthlyKwh = kwh(body?.estimated_monthly_kwh)
+  const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
+  const quoteReference = text(body?.quote_reference)
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
   const city = text(body?.city)
   const address = text(body?.address)
 
-  if (!token || !offerReference || !priceAreaCode || !estimatedMonthlyKwh || !/^\d{5}$/.test(postalCode) || !city || !address) {
+  if (!token || !quoteReference || !offerReference || !priceAreaCode || !estimatedMonthlyKwh || !Number.isFinite(annualConsumptionKwh) || annualConsumptionKwh < 1 || annualConsumptionKwh > 2_400_000 || !/^\d{5}$/.test(postalCode) || !city || !address) {
     return NextResponse.json(
       { ok: false, error: 'Prisberäkningen saknar uppgifter och måste göras om.' },
       { status: 400 },
@@ -73,6 +75,8 @@ export async function POST(req: Request) {
       contract,
       priceAreaCode,
       estimatedMonthlyKwh,
+      annualConsumptionKwh,
+      quoteReference,
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
@@ -83,7 +87,7 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({ ok: true, quote_expires_at: verified.quote.expires_at })
+    return NextResponse.json({ ok: true, quote_reference: verified.quote.quote_reference, quote_expires_at: verified.quote.expires_at, valid_until: verified.quote.valid_until })
   } catch (error) {
     console.error('[website quote validate] failed', error)
     return NextResponse.json({ ok: false, error: 'Vi kunde inte kontrollera priset just nu.' }, { status: 503 })

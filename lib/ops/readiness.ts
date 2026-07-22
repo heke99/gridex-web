@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
+  fetchOpsIntegrationContext,
+  fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsFresh,
   fetchOpsTenantEvents,
   fetchOpsWebsiteLegalBundle,
@@ -10,8 +12,10 @@ import {
 
 export const REQUIRED_WEBSITE_SCOPES = [
   'website_contracts.read',
+  'website_contracts.quote',
+  'website_contracts.diagnostics',
+  'website_customer_applications.create',
   'website_legal.read',
-  'website_applications.write',
   'website_events.write',
   'events.read',
   'customer_portal.read',
@@ -56,7 +60,7 @@ export type OpsIntegrationReadiness = {
     ready: boolean
     enabled: boolean
     signingSecretConfigured: boolean
-    expectedCompanyConfigured: boolean
+    expectedTenantReferenceConfigured: boolean
     secretConflict: boolean
   }
 }
@@ -130,13 +134,28 @@ function probeDefinitions(): ProbeDefinition[] {
       run: async () => { await fetchOpsPublicContractsFresh() },
     },
     {
+      name: 'integration.context',
+      scopes: [],
+      run: async () => { await fetchOpsIntegrationContext(true) },
+    },
+    {
+      name: 'website_contracts.quote',
+      scopes: ['website_contracts.quote'],
+      run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}),
+    },
+    {
+      name: 'website_contracts.diagnostics',
+      scopes: ['website_contracts.diagnostics'],
+      run: async () => { await fetchOpsPublicContractDiagnostics() },
+    },
+    {
       name: 'website_legal.read',
       scopes: ['website_legal.read'],
       run: async () => { await fetchOpsWebsiteLegalBundle() },
     },
     {
-      name: 'website_applications.write',
-      scopes: ['website_applications.write'],
+      name: 'website_customer_applications.create',
+      scopes: ['website_customer_applications.create'],
       run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}),
     },
     {
@@ -248,7 +267,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const webhook = {
     enabled: process.env.GRIDEX_ENABLE_OPS_WEBHOOKS === 'true',
     signingSecretConfigured: Boolean(canonicalWebhookSecret || legacyWebhookSecret),
-    expectedCompanyConfigured: Boolean(process.env.GRIDEX_EXPECTED_COMPANY_ID?.trim()),
+    expectedTenantReferenceConfigured: Boolean(process.env.GRIDEX_EXPECTED_TENANT_REFERENCE?.trim()),
     secretConflict: Boolean(
       canonicalWebhookSecret &&
         legacyWebhookSecret &&
@@ -259,7 +278,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   webhook.ready =
     webhook.enabled &&
     webhook.signingSecretConfigured &&
-    webhook.expectedCompanyConfigured &&
+    webhook.expectedTenantReferenceConfigured &&
     !webhook.secretConflict
   const declarationComplete = Boolean(
     declared && REQUIRED_WEBSITE_SCOPES.every((scope) => declared.has(scope)),

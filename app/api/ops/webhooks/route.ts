@@ -6,6 +6,7 @@ import {
   parseOpsWebhookEnvelope,
   verifyOpsWebhookSignature,
 } from '@/lib/webhooks/opsWebhook'
+import { invalidateOpsPublicContractsCache } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -223,9 +224,9 @@ export async function POST(req: Request) {
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }
-  const expectedCompanyId = env('GRIDEX_EXPECTED_COMPANY_ID')
-  if (!expectedCompanyId) {
-    return NextResponse.json({ error: 'Expected webhook company is not configured.' }, { status: 503 })
+  const expectedTenantReference = env('GRIDEX_EXPECTED_TENANT_REFERENCE')
+  if (!expectedTenantReference) {
+    return NextResponse.json({ error: 'Expected webhook tenant is not configured.' }, { status: 503 })
   }
 
   const rawBody = await req.text()
@@ -252,8 +253,8 @@ export async function POST(req: Request) {
   if (!event) {
     return NextResponse.json({ error: 'Invalid webhook event envelope.' }, { status: 400 })
   }
-  if (!event.company_id || event.company_id !== expectedCompanyId) {
-    return NextResponse.json({ error: 'Webhook company does not match this deployment.' }, { status: 403 })
+  if (!event.tenant_reference || event.tenant_reference !== expectedTenantReference) {
+    return NextResponse.json({ error: 'Webhook tenant does not match this deployment.' }, { status: 403 })
   }
 
   const supabase = serviceClient()
@@ -371,6 +372,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: true, event_id: event.event_id }, { status: 202 })
   }
 
+  if (event.event_type === 'contracts.publication.changed') {
+    if (!event.channel || event.channel !== 'website' || !event.publication_revision) {
+      const { error: invalidPublicationError } = await supabase
+        .from('ops_webhook_events')
+        .update({
+          status: 'failed',
+          processed_at: new Date().toISOString(),
+          next_attempt_at: null,
+          notification_created: false,
+          handling_note: 'invalid_publication_event',
+          error_message: 'Publication event requires channel=website and publication_revision.',
+        })
+        .eq('id', logRow.id)
+        .eq('status', 'processing')
+      if (invalidPublicationError) return NextResponse.json({ error: invalidPublicationError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Invalid publication event.' }, { status: 400 })
+    }
+
+    invalidateOpsPublicContractsCache({
+      tenantReference: event.tenant_reference,
+      channel: event.channel,
+      publicationRevision: event.publication_revision,
+    })
+    const { error: publicationError } = await supabase
+      .from('ops_webhook_events')
+      .update({
+        status: 'processed',
+        processed_at: new Date().toISOString(),
+        next_attempt_at: null,
+        notification_created: false,
+        handling_note: 'publication_cache_invalidated',
+        error_message: null,
+      })
+      .eq('id', logRow.id)
+      .eq('status', 'processing')
+    if (publicationError) return NextResponse.json({ error: publicationError.message }, { status: 500 })
+    return NextResponse.json({
+      ok: true,
+      event_id: event.event_id,
+      publication_revision: event.publication_revision,
+      cache_invalidated: true,
+    })
+  }
+
   const notification = customerNotificationForEvent(event)
   let notificationCreated = false
 
@@ -412,7 +457,7 @@ export async function POST(req: Request) {
           metadata: {
             source: 'ops_webhook',
             event_type: event.event_type,
-            company_id: event.company_id,
+            tenant_reference: event.tenant_reference,
             customer_id: event.customer_id,
             customer_number: event.customer_number,
             external_customer_id: event.external_customer_id,
