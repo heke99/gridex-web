@@ -3,15 +3,20 @@ import type {
   OpsPublicContract,
   OpsWebsiteLegalBundle,
 } from '@/lib/ops/client'
+import { publishedPricingComponentAmount } from '@/lib/website/publicContractContract'
+import {
+  isFixedContractType,
+  sanitizePricingComponentsBeforeAreaResolution,
+} from '@/lib/website/publicPricingVisibility'
 
 /** Browser-safe, allowlisted representation. Never spread an OPS object here. */
 export function toBrowserPublicContract(contract: OpsPublicContract) {
-  const requiresArea = contract.type === 'fixed'
-  const components = (contract.pricing_components ?? []).map((component) => {
-    if (!requiresArea) return component
-    const key = String((component as { key?: unknown; code?: unknown; type?: unknown }).key ?? (component as { code?: unknown }).code ?? (component as { type?: unknown }).type ?? '').toLowerCase()
-    return key.includes('fixed_price') ? { ...component, amount: null, value: null, website_visibility: 'requires_price_area' } : component
-  })
+  const requiresArea = isFixedContractType(contract.type)
+  const components = sanitizePricingComponentsBeforeAreaResolution(
+    contract.pricing_components,
+    contract.type,
+  ).filter((component) => component.website_card_visible)
+  const visibleInvoiceFee = publishedPricingComponentAmount(components, 'invoice_fee_sek')
   return {
     offer_reference: contract.offer_reference,
     code: contract.product_code ?? null,
@@ -23,7 +28,7 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     customer_types: contract.customer_types ?? null,
     pricing: {
       monthly_fee: contract.monthly_fee_sek,
-      invoice_fee: contract.invoice_fee_sek,
+      invoice_fee: visibleInvoiceFee,
       markup: contract.markup_ore_per_kwh,
       variable_fee: contract.variable_markup_ore_per_kwh,
       fixed_price: requiresArea ? null : contract.fixed_price_ore_per_kwh,

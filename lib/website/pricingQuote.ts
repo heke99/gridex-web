@@ -82,7 +82,13 @@ function cloneRecord(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
-function cloneFees(value: unknown): QuoteFees | undefined { return cloneRecord(value) as QuoteFees | undefined; }
+function publicQuoteFees(value: unknown): QuoteFees | undefined {
+  const fees = cloneRecord(value)
+  if (!fees) return undefined
+  delete fees.invoiceFeeSek
+  delete fees.invoiceFeeIncludedInMonthlyEstimate
+  return fees as QuoteFees
+}
 function cloneBasis(value: unknown): QuoteBasis | undefined { return cloneRecord(value); }
 function validDate(value: unknown): value is string { return text(value) && Number.isFinite(Date.parse(value)); }
 
@@ -147,7 +153,7 @@ export function issueWebsitePricingQuote(input: {
     assumptions: input.preview.assumptions ?? [],
     market_sources: input.preview.market_sources ?? [],
     pricing_snapshot_schema_version: schemaVersion,
-    specification: { basis: cloneBasis(input.preview.specification?.basis), fees: cloneFees(input.preview.specification?.fees) },
+    specification: { basis: cloneBasis(input.preview.specification?.basis), fees: publicQuoteFees(input.preview.specification?.fees) },
   };
   const encoded = base64url(JSON.stringify(quote));
   return { token: `${QUOTE_VERSION}.${encoded}.${hmac(`${QUOTE_VERSION}.${encoded}`, secret)}`, quote };

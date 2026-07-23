@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { WebsitePricingPreview } from "@/lib/website/publicApi";
+import { CUSTOMER_NETWORK_FEE_NOTICE } from "@/lib/website/customerFacingCopy";
 
 type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; continueHref?: string };
 function hasNumber(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
@@ -57,7 +58,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
             {hasNumber(pricePerKwhOre) ? <div className="mt-2 text-sm text-gray-400">{formatOre(pricePerKwhOre)} öre/kWh exkl. moms före fasta avgifter</div> : null}
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/30 p-5 text-sm">
-            <div className="font-medium text-white">OPS-offert</div>
+            <div className="font-medium text-white">Prisunderlag</div>
             <dl className="mt-3 space-y-2 text-gray-300">
               {data.pricing_interval ? <div className="flex justify-between gap-4"><dt>Prisintervall</dt><dd className="text-right text-white">{data.pricing_interval}</dd></div> : null}
               {data.source_period ? <div className="flex justify-between gap-4"><dt>Underlagsperiod</dt><dd className="text-right text-white">{data.source_period}</dd></div> : null}
@@ -72,16 +73,15 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
           {hasNumber(fees.variableFeeOre) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Rörlig avgift</span><span className="text-gray-100">{formatOre(fees.variableFeeOre)} öre/kWh</span></div> : null}
           {hasNumber(fees.elcertOre) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Elcertifikat</span><span className="text-gray-100">{formatOre(fees.elcertOre)} öre/kWh</span></div> : null}
           {hasNumber(fees.monthlyFeeSek) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Månadsavgift</span><span className="text-gray-100">{formatNumber(fees.monthlyFeeSek, 2)} kr/mån</span></div> : null}
-          {hasNumber(fees.invoiceFeeSek) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Fakturaavgift</span><span className="text-right text-gray-100">{formatNumber(fees.invoiceFeeSek, 2)} kr/faktura{fees.invoiceFeeIncludedInMonthlyEstimate === true ? " • inräknad" : ""}</span></div> : null}
           <div className="border-t border-white/10 pt-3">
             {hasNumber(totalMonthlyCostSek) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Beräknat exkl. moms</span><span className="text-gray-100">{formatNumber(totalMonthlyCostSek)} kr/mån</span></div> : null}
             {hasNumber(estimatedInclVat) ? <div className="mt-2 flex justify-between gap-4"><span className="text-gray-300">Beräknat inkl. moms</span><span className="font-semibold text-white">{formatNumber(estimatedInclVat)} kr/mån</span></div> : null}
           </div>
         </div>
 
-        {data.assumptions?.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i offerten</div><ul className="mt-3 space-y-2 text-gray-300">{data.assumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
+        {data.assumptions?.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i beräkningen</div><ul className="mt-3 space-y-2 text-gray-300">{data.assumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
         {data.market_sources?.length ? <div className="text-xs leading-relaxed text-gray-400">Marknadskällor: {data.market_sources.map((source) => source.name).join(", ")}.</div> : null}
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{data.customerNotice || "Pris, avgifter och antaganden kommer från OPS. Elnätsavgifter och nätägarens avgifter ingår inte om inte offerten uttryckligen anger det."}</div>
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
         <div className="grid gap-3 md:grid-cols-2">
           {onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Teckna elavtal</Link>}

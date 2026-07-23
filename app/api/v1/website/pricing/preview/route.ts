@@ -19,6 +19,8 @@ import { checkRateLimit, clientIpFromHeaders } from "@/lib/security/rateLimit";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 import { parseWebsiteCustomerType } from "@/lib/website/customerType";
 import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
+import { CUSTOMER_NETWORK_FEE_NOTICE } from "@/lib/website/customerFacingCopy";
+import { persistWebsitePricingSnapshot } from "@/lib/website/pricingSnapshotStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -134,6 +136,12 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  if (!customerType) {
+    return NextResponse.json(
+      { error: "Välj om avtalet gäller privatkund eller företag." },
+      { status: 400 },
+    );
+  }
 
   try {
     const resolution = await resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address });
@@ -165,8 +173,14 @@ export async function POST(req: Request) {
       },
       contract,
     );
-    const websiteQuote = issueWebsitePricingQuote({
+    const pricingSnapshotReference = await persistWebsitePricingSnapshot({
       preview,
+      contract,
+      customerType,
+    });
+    const lockedPreview = { ...preview, pricing_snapshot_reference: pricingSnapshotReference };
+    const websiteQuote = issueWebsitePricingQuote({
+      preview: lockedPreview,
       contract,
       location: { postalCode, city, address },
     });
@@ -175,7 +189,7 @@ export async function POST(req: Request) {
     }
     const data = {
       ...quoteToWebsitePricingPreview(websiteQuote.quote, websiteQuote.token),
-      customerNotice: preview.customerNotice,
+      customerNotice: CUSTOMER_NETWORK_FEE_NOTICE,
       legalText: preview.legalText,
       quote_source: websitePricingPreviewSource(),
       token_issuer: "website" as const,

@@ -47,6 +47,7 @@ import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { sanitizePricingComponentsBeforeAreaResolution } from "@/lib/website/publicPricingVisibility";
 import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
 import {
   digitsOnly,
@@ -110,7 +111,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     productCode: item.product_code ?? null,
     type: item.type,
     monthlyFeeSek: item.monthly_fee_sek,
-    invoiceFeeSek: item.invoice_fee_sek,
+    invoiceFeeSek: null,
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
     fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh,
@@ -122,7 +123,8 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     spotShare: item.spot_share ?? null,
     portfolioShare: item.portfolio_share ?? null,
     pricingVisibility: item.pricing_visibility ?? {},
-    pricingComponents: item.pricing_components ?? [],
+    pricingComponents: sanitizePricingComponentsBeforeAreaResolution(item.pricing_components, item.type)
+      .filter((component) => component.website_card_visible),
     validFrom: item.valid_from ?? null,
     validTo: item.valid_to ?? null,
     bindingPeriodMonths: item.binding_period_months ?? null,

@@ -623,12 +623,12 @@ export default function CustomerApplicationForm({
             </div>
 
             {!legalReady ? (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">Avtalets OPS-dokumentlänkar är inte kompletta. Teckning är blockerad.</div>
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad.</div>
             ) : (
               <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
                 <div>
                   <div className="text-base font-semibold text-white">Villkor och godkännanden</div>
-                  <p className="mt-1 text-sm leading-6 text-gray-400">Varje länk är den exakta publicerade OPS-version som binds till avtalet.</p>
+                  <p className="mt-1 text-sm leading-6 text-gray-400">Varje länk är den exakta publicerade version som binds till avtalet.</p>
                 </div>
                 <ConsentCheckbox id="accept_terms" name="accept_terms" checked={consents.accept_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.termsUrl!}>allmänna villkor</LegalLink>.</ConsentCheckbox>
                 <ConsentCheckbox id="accept_price_terms" name="accept_price_terms" checked={consents.accept_price_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.priceTermsUrl!}>prisvillkoren</LegalLink> för valt avtal.</ConsentCheckbox>
@@ -643,7 +643,7 @@ export default function CustomerApplicationForm({
 
           <div className="grid gap-4 md:grid-cols-[auto_1fr_auto] md:items-center">
             <button type="button" onClick={() => { setErrors({}); setStep(0); }} className="h-12 rounded-2xl border border-white/10 px-6 text-sm font-semibold text-white">Tillbaka</button>
-            <div className="text-sm text-gray-400">Avtalet registreras som signerat när OPS har verifierat de låsta versionerna.</div>
+            <div className="text-sm text-gray-400">Avtalet registreras som signerat när de låsta dokumentversionerna har verifierats.</div>
             <SubmitButton disabled={submitDisabled} />
           </div>
         </form>

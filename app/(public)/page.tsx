@@ -30,7 +30,7 @@ export default async function HomePage() {
       offerReference: item.offer_reference,
       type: item.type,
       monthlyFeeSek: item.monthly_fee_sek ?? null,
-      invoiceFeeSek: item.invoice_fee_sek ?? null,
+      invoiceFeeSek: null,
       markupOrePerKwh: item.markup_ore_per_kwh ?? null,
       variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh ?? null,
       fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh ?? null,

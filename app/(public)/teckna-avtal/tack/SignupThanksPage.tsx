@@ -100,9 +100,8 @@ export default async function SignupThanksPage({
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="text-sm font-semibold text-white">Bekräftelse och leverantörsbyte</div>
-              <div className={`mt-2 text-sm ${confirmationFailed ? 'text-rose-200' : 'text-gray-300'}`}>{confirmationFailed ? 'Det första utskicksförsöket misslyckades. Aktuell status följer via e-post eller Mina sidor.' : confirmationSent ? 'OPS rapporterade att avtalsbekräftelsen skickades vid teckningen.' : confirmationQueued ? 'Avtalsbekräftelsen köades vid teckningen. Aktuell status följer via e-post eller Mina sidor.' : stored.canSendAgreementConfirmation === false ? 'Avtalsbekräftelsen kan ännu inte skickas.' : 'Utskicksstatus meddelas separat.'}</div>
+              <div className={`mt-2 text-sm ${confirmationFailed ? 'text-rose-200' : 'text-gray-300'}`}>{confirmationFailed ? 'Det första utskicksförsöket misslyckades. Aktuell status följer via e-post eller Mina sidor.' : confirmationSent ? 'Avtalsbekräftelsen skickades i samband med teckningen.' : confirmationQueued ? 'Avtalsbekräftelsen köades vid teckningen. Aktuell status följer via e-post eller Mina sidor.' : stored.canSendAgreementConfirmation === false ? 'Avtalsbekräftelsen kan ännu inte skickas.' : 'Utskicksstatus meddelas separat.'}</div>
               <div className="mt-2 text-xs text-gray-500">{stored.canDispatchSupplierSwitch === true ? 'Leverantörsbytet kan skickas till marknaden.' : stored.canCreateSupplierSwitchRequest === true ? 'Underlaget för leverantörsbyte kan skapas, men inväntar nästa kontroll.' : stored.canStartSwitch === true ? 'Leverantörsbytet kan startas.' : 'Leverantörsbytet startar först när anläggningsuppgifterna är kompletta och verifierade.'}</div>
-              {stored.supplierSwitchStatus ? <div className="mt-2 text-xs text-gray-500">OPS-status: {stored.supplierSwitchStatus}</div> : null}
             </div>
           </div>
         ) : null}
@@ -114,7 +113,7 @@ export default async function SignupThanksPage({
           <div className="text-sm font-semibold text-white">E-post och Mina sidor – i den här ordningen</div>
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-gray-300">
             <li>Först får du besked att teckningen har tagits emot.</li>
-            <li>När avtalet är klart kommer avtalsbekräftelse, fryst PDF och information om ångerrätten från OPS.</li>
+            <li>När avtalet är klart kommer avtalsbekräftelse, fryst PDF och information om ångerrätten.</li>
             <li>Om du är ny kund kommer därefter en separat länk för att aktivera Mina sidor. Har du redan konto använder du din vanliga inloggning.</li>
           </ol>
         </div>
