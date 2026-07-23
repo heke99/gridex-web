@@ -365,7 +365,7 @@ export default function CustomerApplicationForm({
   );
   const hasPricingPreview = Boolean(
     quoteValid &&
-    pricingPreview?.quote_token &&
+    pricingPreview?.pricing_token &&
     (pricingPreview.contract.offer_reference ?? pricingPreview.contract.slug) === selectedContract?.offerReference,
   );
 
@@ -394,10 +394,10 @@ export default function CustomerApplicationForm({
     const next: Record<string, string> = {};
     if (!selectedContract || !hasPricingPreview) next.pricing = "Räkna om priset innan du fortsätter.";
     if (!legalReady) next.legal = "Avtalets juridiska underlag är inte komplett. Välj ett annat avtal eller kontakta kundservice.";
-    if (!form.first_name.trim()) next.first_name = customerType === 'company' ? "Ange firmatecknarens förnamn." : "Ange ditt förnamn.";
-    if (!form.last_name.trim()) next.last_name = customerType === 'company' ? "Ange firmatecknarens efternamn." : "Ange ditt efternamn.";
+    if (!form.first_name.trim()) next.first_name = customerType === 'business' ? "Ange firmatecknarens förnamn." : "Ange ditt förnamn.";
+    if (!form.last_name.trim()) next.last_name = customerType === 'business' ? "Ange firmatecknarens efternamn." : "Ange ditt efternamn.";
     if (!isValidSwedishPersonalNumber(form.personal_number)) next.personal_number = "Ange ett giltigt svenskt personnummer med kontrollsiffra.";
-    if (customerType === 'company') {
+    if (customerType === 'business') {
       if (!form.company_name.trim()) next.company_name = "Ange företagsnamn.";
       if (!isValidSwedishOrganizationNumber(form.organization_number)) next.organization_number = "Ange ett giltigt svenskt organisationsnummer.";
       if (!form.company_signer_role.trim()) next.company_signer_role = "Ange firmatecknarens roll eller befattning.";
@@ -426,7 +426,7 @@ export default function CustomerApplicationForm({
     (!powerOfAttorneyRequired || consents.accept_power_of_attorney);
   const submitDisabled = !canSubmit || !allConsentsAccepted || !legalReady || !hasPricingPreview;
   const errorList = [...new Set(Object.values(errors))];
-  const displayName = customerType === 'company'
+  const displayName = customerType === 'business'
     ? `${form.company_name} – ${form.first_name} ${form.last_name}`.trim()
     : `${form.first_name} ${form.last_name}`.trim();
 
@@ -486,7 +486,7 @@ export default function CustomerApplicationForm({
             </div>
           </div>
 
-          {customerType === 'company' ? (
+          {customerType === 'business' ? (
             <div className="space-y-5 rounded-3xl border border-white/10 bg-white/5 p-5">
               <div>
                 <h3 className="font-semibold text-white">Företag och behörig firmatecknare</h3>
@@ -567,8 +567,8 @@ export default function CustomerApplicationForm({
         <form action={formAction} className="space-y-6">
           <input type="hidden" name="company_website" value="" />
           <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
-          <input type="hidden" name="pricing_quote_token" value={pricingPreview?.quote_token ?? ""} />
-          <input type="hidden" name="quote_reference" value={pricingPreview?.quote_reference ?? ""} />
+          <input type="hidden" name="pricing_snapshot_token" value={pricingPreview?.pricing_token ?? ""} />
+          <input type="hidden" name="pricing_snapshot_reference" value={pricingPreview?.pricing_snapshot_reference ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
@@ -611,9 +611,9 @@ export default function CustomerApplicationForm({
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-gray-300">
                 <div className="text-base font-semibold text-white">Kund och start</div>
                 <dl className="mt-4 space-y-3">
-                  <ReviewRow label="Kundtyp" value={customerType === 'company' ? 'Företag' : 'Privatkund'} />
-                  <ReviewRow label={customerType === 'company' ? 'Företag och firmatecknare' : 'Namn'} value={displayName} />
-                  {customerType === 'company' ? <ReviewRow label="Roll" value={form.company_signer_role} /> : null}
+                  <ReviewRow label="Kundtyp" value={customerType === 'business' ? 'Företag' : 'Privatkund'} />
+                  <ReviewRow label={customerType === 'business' ? 'Företag och firmatecknare' : 'Namn'} value={displayName} />
+                  {customerType === 'business' ? <ReviewRow label="Roll" value={form.company_signer_role} /> : null}
                   <ReviewRow label="E-post" value={form.email} />
                   <ReviewRow label="Telefon" value={normalizePhoneToE164(form.phone) ?? form.phone} />
                   <ReviewRow label="Adress" value={`${quoteContext.address}, ${quoteContext.postal_code} ${quoteContext.city}`} />

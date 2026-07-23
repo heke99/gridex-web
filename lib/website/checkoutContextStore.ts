@@ -32,7 +32,7 @@ export async function createWebsiteCheckoutContext(
   const client = serviceClient()
   const token = randomBytes(32).toString('base64url')
   const now = Date.now()
-  const quoteExpiresAt = Date.parse(context.pricingPreview.quote_expires_at ?? '')
+  const quoteExpiresAt = Date.parse(context.pricingPreview.pricing_expires_at ?? '')
   const expiresAt = new Date(
     Math.min(
       now + 30 * 60_000,

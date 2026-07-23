@@ -357,10 +357,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', contract.invoice_fee_sek, 'sek_invoice')
     addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'fixed') {
-    if (!hasNumberValue(contract.fixed_price_ore_per_kwh)) {
-      addTextRow(rows, 'area_price_notice', 'Fast elpris', 'Visas efter adress och elområde')
-    }
-    addNumberRow(rows, 'fixed_price_ore_per_kwh', 'Fast elpris', contract.fixed_price_ore_per_kwh, 'ore_kwh')
+    addTextRow(rows, 'area_price_notice', 'Fast elpris', 'Ange adress för att se priset i ditt elområde')
     addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')

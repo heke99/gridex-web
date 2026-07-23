@@ -28,7 +28,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
   const contractHref = continueHref ?? (contract.offer_reference ? `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}` : "/teckna-avtal");
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek) ? totalMonthlyCostInclVatSek : undefined;
   const marketTimestamp = formatDate(data.market_data_timestamp);
-  const validUntil = formatDate(data.valid_until ?? data.quote_expires_at);
+  const validUntil = formatDate(data.valid_until ?? data.pricing_expires_at);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">

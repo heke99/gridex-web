@@ -24,7 +24,7 @@ export type PortalOnboardingInput = {
   lastName?: string | null
   companyName?: string | null
   phone?: string | null
-  customerType: 'private' | 'company'
+  customerType: 'private' | 'business'
   address?: string | null
   postalCode?: string | null
   city?: string | null
@@ -58,7 +58,7 @@ function normalizeEmail(value: string): string {
 }
 
 function fullName(input: PortalOnboardingInput): string | null {
-  if (input.customerType === 'company') return input.companyName?.trim() || null
+  if (input.customerType === 'business') return input.companyName?.trim() || null
   return [input.firstName, input.lastName].filter(Boolean).join(' ').trim() || null
 }
 

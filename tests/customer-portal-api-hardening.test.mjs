@@ -80,7 +80,7 @@ assert.ok(outbox.includes('operationHash(existing.payload)'))
 assert.ok(outbox.includes('Outbox completion state was lost to a concurrent worker.'))
 
 const contractsEndpoint = read('lib/website/publicContractsEndpoint.ts')
-assert.ok(contractsEndpoint.includes("customer_type måste vara private eller company"))
+assert.ok(contractsEndpoint.includes("customer_type måste vara private eller business"))
 const publicContractsRoute = read('app/api/v1/website/public-contracts/route.ts')
 assert.ok(publicContractsRoute.includes('publicContractsResponse'))
 const legacyContractsRoute = read('app/api/v1/website/contracts/route.ts')

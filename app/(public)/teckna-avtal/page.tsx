@@ -16,7 +16,6 @@ import {
   createExternalCustomerId,
   fetchOpsPublicContracts,
   fetchOpsPublicContractsFresh,
-  fetchOpsWebsiteEnergyArea,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -48,6 +47,7 @@ import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
 import {
   digitsOnly,
   isValidRequestedStartDate,
@@ -113,7 +113,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     invoiceFeeSek: item.invoice_fee_sek,
     markupOrePerKwh: item.markup_ore_per_kwh,
     variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh,
-    fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh,
+    fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh,
     monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
     elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
     portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,
@@ -572,7 +572,7 @@ export default async function TecknaPage({
     if (!offer) return fail("offer");
 
     const customerTypeRaw = normalizeText(formData.get("customer_type"));
-    const customerType = customerTypeRaw === "company" ? "company" : "private";
+    const customerType = customerTypeRaw === "business" || customerTypeRaw === "company" ? "business" : "private";
     if (!contractSupportsCustomerType(offer.customer_types, customerType)) {
       return fail("customer_type");
     }
@@ -623,7 +623,7 @@ export default async function TecknaPage({
       offer.power_of_attorney_version_id ?? null;
 
     const hasIdentity =
-      customerType === "company"
+      customerType === "business"
         ? Boolean(
             companyName &&
               organizationNumber &&
@@ -643,7 +643,7 @@ export default async function TecknaPage({
       !isValidSwedishPostalCode(postalCode) ||
       !city ||
       !hasIdentity ||
-      (customerType === "company" &&
+      (customerType === "business" &&
         !isValidSwedishOrganizationNumber(organizationNumber)) ||
       !isValidSwedishPersonalNumber(personalNumber) ||
       !isValidRequestedStartDate(requestedStartMode, requestedStartDate);
@@ -737,7 +737,7 @@ export default async function TecknaPage({
       });
     }
 
-    const serverResolution = await fetchOpsWebsiteEnergyArea({
+    const serverResolution = await resolveWebsitePriceAreaForPricing({
       postal_code: postalCode,
       city,
       address,
@@ -756,15 +756,15 @@ export default async function TecknaPage({
     if (!isUuid(submissionAttemptId)) {
       return fail("validation", { step: 1, rotateSubmissionAttempt: true });
     }
-    const pricingQuoteToken = normalizeText(formData.get("pricing_quote_token"));
-    const quoteReference = normalizeText(formData.get("quote_reference"));
+    const pricingQuoteToken = normalizeText(formData.get("pricing_snapshot_token"));
+    const pricingSnapshotReference = normalizeText(formData.get("pricing_snapshot_reference"));
     const verifiedQuote = validateWebsitePricingQuote({
       token: pricingQuoteToken,
       contract: offer,
       priceAreaCode: serverPriceAreaCode,
       estimatedMonthlyKwh,
       annualConsumptionKwh,
-      quoteReference,
+      pricingSnapshotReference,
       location: { postalCode, city, address },
     });
     if (!verifiedQuote.ok) {
@@ -791,8 +791,7 @@ export default async function TecknaPage({
       console.warn("[website signup] signed pricing preview snapshot mismatch", {
         reasons: pricingValidation.reasons,
         offer_reference: offer.offer_reference,
-        quote_reference: verifiedQuote.quote.quote_reference,
-      });
+        });
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
@@ -813,7 +812,7 @@ export default async function TecknaPage({
       createExternalCustomerId([
         "gridex_website_customer_v2",
         customerType,
-        customerType === "company" ? organizationNumber : personalNumber,
+        customerType === "business" ? organizationNumber : personalNumber,
       ]);
 
     const signedPayloadHash = submissionPayloadHash({
@@ -848,7 +847,7 @@ export default async function TecknaPage({
       gridOwnerName: serverResolution?.grid_owner_name ?? null,
       energyResolutionStatus: serverResolution?.status ?? null,
       energyResolutionConfidence: serverResolution?.confidence ?? null,
-      quoteReference: verifiedQuote.quote.quote_reference,
+      pricingSnapshotReference: verifiedQuote.quote.pricing_snapshot_reference,
       annualConsumptionKwh,
       quoteToken: pricingQuoteToken,
       canonicalPricingPreviewSnapshot,
@@ -918,7 +917,6 @@ export default async function TecknaPage({
 
     const applicationInput = {
       offer_reference: offer.offer_reference,
-      quote_reference: verifiedQuote.quote.quote_reference,
       annual_consumption_kwh: annualConsumptionKwh,
       customer_type: customerType,
       first_name: firstName || null,

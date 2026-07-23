@@ -93,7 +93,6 @@ export type OpsWebsitePowerOfAttorneyInput = {
 
 export type OpsCustomerApplicationInput = {
   offer_reference: string;
-  quote_reference: string;
   annual_consumption_kwh: number;
   customer_type: WebsiteCustomerType;
   first_name?: string | null;
@@ -288,7 +287,7 @@ export type OpsWebsitePricingPreview = {
   customerNotice?: string;
   legalText?: string;
   specification?: Record<string, unknown>;
-  quote_reference?: string;
+  pricing_snapshot_reference?: string;
   pricing_interval?: string;
   estimate_method?: string;
   source_period?: string;
@@ -299,8 +298,8 @@ export type OpsWebsitePricingPreview = {
   market_sources?: OpsQuoteMarketSource[];
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
-  quote_token?: string;
-  quote_expires_at?: string;
+  pricing_token?: string;
+  pricing_expires_at?: string;
   raw?: Record<string, unknown>;
 };
 
@@ -1458,62 +1457,6 @@ function pickStringArray(
   return undefined;
 }
 
-function mapWebsiteEnergyResolution(
-  payload: unknown,
-): OpsWebsiteEnergyResolution {
-  const row = extractObject(payload);
-  const nested = row.resolution;
-  const r =
-    nested && typeof nested === "object" && !Array.isArray(nested)
-      ? { ...row, ...(nested as Record<string, unknown>) }
-      : row;
-
-  const area =
-    pickString(r, [
-      "price_area_code",
-      "priceAreaCode",
-      "price_area",
-      "priceArea",
-      "area",
-    ]) ?? null;
-
-  return {
-    status:
-      pickString(r, ["status", "resolution_status", "resolutionStatus"]) ??
-      (isOpsWebsitePriceArea(area) ? "resolved" : "needs_review"),
-    price_area_code: isOpsWebsitePriceArea(area) ? area : null,
-    grid_area_code: pickString(r, [
-      "grid_area_code",
-      "gridAreaCode",
-      "network_area_code",
-      "networkAreaCode",
-    ]),
-    grid_owner_id: pickString(r, [
-      "grid_owner_id",
-      "gridOwnerId",
-      "network_owner_id",
-      "networkOwnerId",
-    ]),
-    grid_owner_name: pickString(r, [
-      "grid_owner_name",
-      "gridOwnerName",
-      "network_owner_name",
-      "networkOwnerName",
-    ]),
-    confidence: normalizeNumber(
-      r.confidence ?? r.match_confidence ?? r.matchConfidence,
-    ),
-    source: pickString(r, ["source", "match_source", "matchSource"]),
-    source_chain: pickStringArray(r, ["source_chain", "sourceChain"]),
-    customer_message: pickString(r, [
-      "customer_message",
-      "customerMessage",
-      "message",
-    ]),
-    raw: row,
-  };
-}
-
 function normalizePreviewContractType(
   value: unknown,
 ): "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed" {
@@ -1582,217 +1525,6 @@ function quoteSourceWindow(value: unknown): { start: string; end: string } | nul
   const start = pickString(row, ["start", "from", "period_start", "periodStart"]);
   const end = pickString(row, ["end", "to", "period_end", "periodEnd"]);
   return start && end ? { start, end } : null;
-}
-
-function mapWebsitePricingPreview(
-  payload: unknown,
-  fallbackArea: OpsWebsitePriceArea,
-): OpsWebsitePricingPreview {
-  const row = extractObject(payload);
-  const metadataRow = recordValue(row.metadata) ?? recordValue(row.meta) ?? {};
-  const quoteRow = recordValue(row.quote) ?? {};
-  const offerRow = recordValue(row.offer);
-  const inputRow = recordValue(row.input);
-  const estimateRow = recordValue(row.estimate);
-  const contractRow = recordValue(row.contract) ?? offerRow ?? row;
-  const lines = Array.isArray(row.lines)
-    ? row.lines.map(recordValue).filter((item): item is Record<string, unknown> => item !== null)
-    : [];
-  const area = pickString(inputRow ?? row, [
-    "priceArea",
-    "price_area_code",
-    "priceAreaCode",
-    "price_area",
-  ]);
-  const safeArea: OpsWebsitePriceArea = isOpsWebsitePriceArea(area)
-    ? area
-    : fallbackArea;
-  const monthlyKwh =
-    pickNumber(inputRow ?? row, [
-      "estimated_monthly_consumption_kwh",
-      "estimated_monthly_kwh",
-      "estimatedMonthlyKwh",
-      "monthly_kwh",
-      "monthlyKwh",
-      "kwh",
-    ]) ?? 0;
-  const monthlyExVat =
-    pickNumber(estimateRow ?? row, [
-      "monthly_ex_vat",
-      "totalMonthlyCostSek",
-      "total_monthly_cost_sek",
-      "monthlyCostSek",
-      "monthly_cost_sek",
-    ]) ?? Number.NaN;
-  const monthlyIncVat =
-    pickNumber(estimateRow ?? row, [
-      "monthly_inc_vat",
-      "totalMonthlyCostInclVatSek",
-      "total_monthly_cost_incl_vat_sek",
-      "total_monthly_cost_inc_vat_sek",
-      "monthlyCostInclVatSek",
-      "monthly_cost_incl_vat_sek",
-    ]) ?? undefined;
-  const annualIncVat =
-    pickNumber(estimateRow ?? row, [
-      "annual_inc_vat",
-      "totalYearlyCostSek",
-      "total_yearly_cost_sek",
-      "annualCostSek",
-      "annual_cost_sek",
-    ]) ?? undefined;
-  const fixedMonthlyExVat = lines.reduce((sum, line) => {
-    const calculationType = pickString(line, ["calculation_type", "calculationType"]);
-    return calculationType === "per_month" || calculationType === "per_invoice"
-      ? sum + (pickNumber(line, ["amount_ex_vat", "amountExVat"]) ?? 0)
-      : sum;
-  }, 0);
-  const derivedPricePerKwhOre =
-    Number.isFinite(monthlyExVat) && monthlyKwh > 0
-      ? Math.max(0, ((monthlyExVat - fixedMonthlyExVat) / monthlyKwh) * 100)
-      : Number.NaN;
-  const normalizedSpecification = normalizeWebsitePricingSpecification({
-    ...row,
-    components: lines,
-  });
-  const normalizedFees = recordValue(normalizedSpecification?.fees) ?? {};
-  const hasInvoiceFeeLine = lines.some(
-    (line) => pickString(line, ["component_code", "component_type"]) === "invoice_fee",
-  );
-
-  return {
-    contract: {
-      slug:
-        pickString(contractRow, [
-          "slug",
-          "offer_reference",
-          "offerReference",
-          "product_code",
-          "productCode",
-          "contract_slug",
-          "contractSlug",
-        ]) ?? "elavtal",
-      offer_reference: pickString(contractRow, ["offer_reference", "offerReference"]),
-      name:
-        pickString(contractRow, ["name", "public_name", "publicName", "title", "contract_name"]) ??
-        "Elavtal",
-      contractType: normalizePreviewContractType(
-        contractRow.contractType ??
-          contractRow.contract_type ??
-          contractRow.type ??
-          offerRow?.contract_type,
-      ),
-    },
-    priceArea: safeArea,
-    price_area_code: safeArea,
-    kwh: monthlyKwh,
-    annual_consumption_kwh:
-      pickNumber(inputRow ?? {}, ["annual_consumption_kwh", "annualConsumptionKwh"]) ??
-      pickNumber(row, ["annual_consumption_kwh", "annualConsumptionKwh"]) ??
-      monthlyKwh * 12,
-    pricePerKwhOre:
-      pickNumber(row, [
-        "pricePerKwhOre",
-        "price_per_kwh_ore",
-        "totalOrePerKwh",
-        "total_ore_per_kwh",
-      ]) ?? derivedPricePerKwhOre,
-    totalMonthlyCostSek: monthlyExVat,
-    totalMonthlyCostInclVatSek: monthlyIncVat,
-    totalYearlyCostSek: annualIncVat,
-    customerNotice:
-      pickString(row, ["customerNotice", "customer_notice"]) ??
-      "Priset är beräknat server-side av OPS från avtalets låsta prisversion.",
-    legalText:
-      pickString(row, ["legalText", "legal_text"]) ??
-      "Beräkningen är en offert. Slutlig faktura använder verkliga mätvärden och avtalets låsta prisunderlag.",
-    specification: {
-      ...(normalizedSpecification ?? {}),
-      basis: {
-        type: "ops_canonical_quote",
-        snapshot_schema: pickString(row, ["snapshot_schema"]),
-        billing_month: pickString(inputRow ?? {}, ["billing_month"]),
-      },
-      fees: {
-        ...normalizedFees,
-        invoiceFeeIncludedInMonthlyEstimate: hasInvoiceFeeLine,
-        billingIntervalMonths: 1,
-      },
-      lines,
-    },
-    quote_reference:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "quote_reference",
-        "quoteReference",
-        "reference",
-      ]) ?? undefined,
-    pricing_interval:
-      pickFromRecords([quoteRow, metadataRow, row], ["pricing_interval", "pricingInterval", "interval"]) ?? undefined,
-    estimate_method:
-      pickFromRecords([quoteRow, metadataRow, row], ["estimate_method", "estimateMethod", "method"]) ?? undefined,
-    source_period:
-      quoteSourcePeriod(
-        quoteRow.source_period ?? metadataRow.source_period ?? row.source_period ??
-        quoteRow.sourcePeriod ?? metadataRow.sourcePeriod ?? row.sourcePeriod ??
-        quoteRow.source_window ?? metadataRow.source_window ?? row.source_window,
-      ) ?? undefined,
-    source_window: quoteSourceWindow(
-      quoteRow.source_window ?? metadataRow.source_window ?? row.source_window ??
-      quoteRow.sourceWindow ?? metadataRow.sourceWindow ?? row.sourceWindow,
-    ),
-    market_data_timestamp:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "market_data_timestamp",
-        "marketDataTimestamp",
-        "market_updated_at",
-        "marketUpdatedAt",
-      ]) ?? undefined,
-    is_binding:
-      pickBooleanFromRecords([quoteRow, metadataRow, row], ["is_binding", "isBinding", "binding"]) ?? undefined,
-    assumptions: normalizeQuoteAssumptions(
-      quoteRow.assumptions ?? metadataRow.assumptions ?? row.assumptions,
-    ),
-    market_sources: normalizeQuoteMarketSources(
-      quoteRow.market_sources ?? metadataRow.market_sources ?? row.market_sources ??
-      quoteRow.marketSources ?? metadataRow.marketSources ?? row.marketSources,
-    ),
-    pricing_snapshot_schema_version:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "pricing_snapshot_schema_version",
-        "pricingSnapshotSchemaVersion",
-        "snapshot_schema_version",
-        "snapshot_schema",
-      ]) ?? undefined,
-    valid_until:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "valid_until",
-        "validUntil",
-        "quote_expires_at",
-        "quoteExpiresAt",
-        "expires_at",
-        "expiresAt",
-      ]) ?? undefined,
-    quote_token:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "quote_token",
-        "quoteToken",
-        "pricing_quote_token",
-        "pricingQuoteToken",
-        "token",
-      ]) ?? undefined,
-    quote_expires_at:
-      pickFromRecords([quoteRow, metadataRow, row], [
-        "valid_until",
-        "validUntil",
-        "quote_expires_at",
-        "quoteExpiresAt",
-        "pricing_quote_expires_at",
-        "pricingQuoteExpiresAt",
-        "expires_at",
-        "expiresAt",
-      ]) ?? undefined,
-    raw: row,
-  };
 }
 
 function normalizeWebsitePricingSpecification(
@@ -1893,7 +1625,7 @@ function normalizeWebsitePricingSpecification(
 }
 
 function normalizeCustomerTypeFilter(value?: string | null): WebsiteCustomerType | null {
-  return value === "private" || value === "company" ? value : null;
+  return value === "private" || value === "business" ? value : null;
 }
 
 function publicContractsPath(
@@ -2183,79 +1915,6 @@ function mapLegalText(row: unknown): OpsLegalText | null {
   };
 }
 
-export async function fetchOpsWebsiteEnergyArea(
-  input: OpsWebsiteEnergyResolutionInput,
-): Promise<OpsWebsiteEnergyResolution> {
-  await getVerifiedOpsIntegrationContext();
-  const payload = await opsFetch("/api/v1/website/energy-area/resolve", {
-    method: "POST",
-    body: JSON.stringify({
-      postal_code: input.postal_code.replace(/\s+/g, ""),
-      ...(input.city ? { city: input.city } : {}),
-      ...(input.street ?? input.address ? { address: input.street ?? input.address } : {}),
-      ...(input.apartment ? { apartment: input.apartment } : {}),
-    }),
-  });
-  await verifiedTenantReference(payload, "/api/v1/website/energy-area/resolve");
-  return mapWebsiteEnergyResolution(payload);
-}
-
-export type OpsWebsiteQuoteValidationInput = {
-  quote_reference: string;
-  offer_reference: string;
-  customer_type: WebsiteCustomerType;
-  postal_code: string;
-  price_area: OpsWebsitePriceArea;
-  grid_area_code?: string | null;
-  annual_consumption_kwh: number;
-  start_date: string;
-};
-
-export type OpsWebsiteQuoteValidationResult = {
-  valid: boolean;
-  quote_reference: string;
-  status?: string | null;
-  valid_until?: string | null;
-  raw: Record<string, unknown>;
-};
-
-export async function validateOpsWebsiteQuote(
-  input: OpsWebsiteQuoteValidationInput,
-): Promise<OpsWebsiteQuoteValidationResult> {
-  await getVerifiedOpsIntegrationContext();
-  const payload = await opsFetch("/api/v1/website/quote/validate", {
-    method: "POST",
-    body: JSON.stringify({
-      quote_reference: input.quote_reference,
-      offer_reference: input.offer_reference,
-      customer_type: toOpsCustomerType(input.customer_type),
-      postal_code: input.postal_code.replace(/\s+/g, ""),
-      price_area: input.price_area,
-      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
-      annual_consumption_kwh: input.annual_consumption_kwh,
-      start_date: input.start_date,
-    }),
-  });
-  await verifiedTenantReference(payload, "/api/v1/website/quote/validate");
-  const root = extractObject(payload);
-  const data = recordValue(root.data) ?? root;
-  const reference = pickString(data, ["quote_reference", "quoteReference"]) ?? input.quote_reference;
-  const valid = pickBooleanFromRecords([data, root], ["valid", "is_valid", "isValid"]) ?? true;
-  if (!valid) {
-    throw new OpsError("OPS avvisade prisberäkningen.", 409, {
-      code: pickString(data, ["code", "status"]) ?? "quote_mismatch",
-      quote_reference: reference,
-    });
-  }
-  return {
-    valid,
-    quote_reference: reference,
-    status: pickString(data, ["status", "code"]),
-    valid_until: pickString(data, ["valid_until", "validUntil", "expires_at"]),
-    raw: root,
-  };
-}
-
 export type OpsWebsiteLegalBundle = {
   texts: OpsLegalText[];
   raw: Record<string, unknown>;
@@ -2266,14 +1925,23 @@ function extractLegalBundleRows(payload: unknown): unknown[] {
   const data = recordValue(root.data) ?? root;
   const rows: unknown[] = [];
   const keys = [
-    "texts", "legal_texts", "legalTexts", "documents", "items",
-    "terms", "privacy_policy", "withdrawal", "power_of_attorney", "price_terms",
+    "texts",
+    "legal_texts",
+    "legalTexts",
+    "documents",
+    "items",
+    "terms",
+    "privacy_policy",
+    "withdrawal",
+    "power_of_attorney",
+    "price_terms",
   ];
 
   for (const key of keys) {
     const value = data[key];
-    if (Array.isArray(value)) rows.push(...value);
-    else if (value && typeof value === "object") {
+    if (Array.isArray(value)) {
+      rows.push(...value);
+    } else if (value && typeof value === "object") {
       const row = { ...(value as Record<string, unknown>) };
       if (!row.type && !row.text_type && !row.legal_type) row.type = key;
       rows.push(row);
@@ -2293,70 +1961,12 @@ export async function fetchOpsWebsiteLegalBundle(): Promise<OpsWebsiteLegalBundl
   };
 }
 
-function assertCanonicalQuoteMetadata(preview: OpsWebsitePricingPreview): void {
-  const missing: string[] = [];
-  if (!preview.quote_reference) missing.push("quote_reference");
-  if (!preview.pricing_interval) missing.push("pricing_interval");
-  if (!preview.estimate_method) missing.push("estimate_method");
-  if (typeof preview.is_binding !== "boolean") missing.push("is_binding");
-  if (!preview.pricing_snapshot_schema_version) missing.push("pricing_snapshot_schema_version");
-  if (!preview.valid_until) missing.push("valid_until");
-  const marketLinked = ["spot_monthly", "spot_hourly", "spot_quarterly", "mix"].includes(
-    preview.contract.contractType,
-  );
-  if (marketLinked && !preview.source_period) missing.push("source_period");
-  if (marketLinked && !preview.market_data_timestamp) missing.push("market_data_timestamp");
-  if (marketLinked && !preview.market_sources?.length) missing.push("market_sources");
-  if (missing.length) {
-    throw new OpsError("OPS quote saknar obligatorisk metadata.", 502, {
-      code: "ops_quote_metadata_incomplete",
-      missing_fields: missing,
-      offer_reference: preview.contract.offer_reference ?? null,
-    });
-  }
-}
-
-export async function fetchOpsWebsiteQuote(
-  input: OpsWebsitePricingPreviewInput,
-): Promise<OpsWebsitePricingPreview> {
-  const startDate = input.start_date?.trim() || new Date().toISOString().slice(0, 10);
-  const annualConsumptionKwh = input.annual_consumption_kwh ?? input.estimated_monthly_kwh * 12;
-  if (!Number.isFinite(annualConsumptionKwh) || annualConsumptionKwh <= 0) {
-    throw new OpsError("Årsförbrukningen är ogiltig.", 400, {
-      code: "annual_consumption_invalid",
-      field: "annual_consumption_kwh",
-    });
-  }
-  const payload = await opsFetch("/api/v1/website/quote", {
-    method: "POST",
-    body: JSON.stringify({
-      offer_reference: input.offer_reference,
-      price_area: input.price_area_code,
-      annual_consumption_kwh: annualConsumptionKwh,
-      start_date: startDate,
-      ...(input.customer_type ? { customer_type: toOpsCustomerType(input.customer_type) } : {}),
-      ...(input.postal_code ? { postal_code: input.postal_code } : {}),
-      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
-    }),
-  });
-  await verifiedTenantReference(payload, "/api/v1/website/quote");
-  const preview = mapWebsitePricingPreview(payload, input.price_area_code);
-  assertCanonicalQuoteMetadata(preview);
-  return preview;
-}
-
 export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
   const externalCustomerId = normalizeText(input.external_customer_id);
   if (!externalCustomerId) {
     throw new OpsError("Ett stabilt externt kund-ID krävs.", 400, {
       code: "external_customer_id_required",
       field: "external_customer_id",
-    });
-  }
-  if (!normalizeText(input.quote_reference)) {
-    throw new OpsError("Quote reference krävs för kundansökan.", 400, {
-      code: "quote_reference_required",
-      field: "quote_reference",
     });
   }
   if (!Number.isFinite(input.annual_consumption_kwh) || input.annual_consumption_kwh <= 0) {
@@ -2378,7 +1988,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   return {
     external_customer_id: externalCustomerId,
     source: input.source,
-    quote_reference: input.quote_reference,
     ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
     ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
@@ -2447,18 +2056,6 @@ export async function submitOpsCustomerApplication(
   }
 
   await getVerifiedOpsIntegrationContext();
-  await validateOpsWebsiteQuote({
-    quote_reference: input.quote_reference,
-    offer_reference: input.offer_reference,
-    customer_type: input.customer_type,
-    postal_code: input.postal_code,
-    price_area: input.price_area_code as OpsWebsitePriceArea,
-    grid_area_code: input.grid_area_code,
-    annual_consumption_kwh: input.annual_consumption_kwh,
-    start_date: input.requested_start_mode === "specific_date" && input.requested_start_date
-      ? input.requested_start_date
-      : new Date().toISOString().slice(0, 10),
-  });
 
   const applicationPayload = buildOpsCustomerApplicationPayload(input);
 

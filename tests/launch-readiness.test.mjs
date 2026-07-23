@@ -113,7 +113,7 @@ assert.ok(
   "form must post the displayed pricing preview snapshot",
 );
 assert.ok(
-  form.includes("pricing_quote_token"),
+  form.includes("pricing_snapshot_token"),
   "form must post the signed pricing quote token",
 );
 assert.ok(

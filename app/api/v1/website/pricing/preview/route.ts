@@ -18,6 +18,7 @@ import {
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/security/rateLimit";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 import { parseWebsiteCustomerType } from "@/lib/website/customerType";
+import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -101,9 +102,7 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => null)) as PreviewPayload | null;
-  const resolvedArea = priceArea(
-    body?.price_area_code ?? body?.priceAreaCode ?? body?.priceArea,
-  );
+  const requestedArea = priceArea(body?.price_area_code ?? body?.priceAreaCode ?? body?.priceArea);
   const monthlyKwh = requiredConsumption(
     body?.estimated_monthly_kwh ?? body?.estimatedMonthlyKwh ?? body?.kwh,
     200000,
@@ -120,7 +119,7 @@ export async function POST(req: Request) {
   const gridAreaCode = text(body?.grid_area_code ?? body?.gridAreaCode, 120);
   const meteringPointId = text(body?.metering_point_id ?? body?.meteringPointId, 120);
 
-  if (!resolvedArea || !monthlyKwh || !annualKwh || !postalCode || !city || !address) {
+  if (!monthlyKwh || !annualKwh || !postalCode || !city || !address) {
     return NextResponse.json(
       {
         error:
@@ -137,6 +136,9 @@ export async function POST(req: Request) {
   }
 
   try {
+    const resolution = await resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address });
+    const resolvedArea = resolution.price_area_code;
+    if (!resolvedArea || (requestedArea && requestedArea !== resolvedArea)) return NextResponse.json({ error: "Adressen och elområdet måste kontrolleras igen." }, { status: 409 });
     const contracts = await fetchOpsPublicContracts();
     const contract = contracts.find(
       (item) => item.offer_reference === offerReference,
@@ -175,7 +177,7 @@ export async function POST(req: Request) {
       ...quoteToWebsitePricingPreview(websiteQuote.quote, websiteQuote.token),
       customerNotice: preview.customerNotice,
       legalText: preview.legalText,
-      quote_source: websitePricingPreviewSource(preview),
+      quote_source: websitePricingPreviewSource(),
       token_issuer: "website" as const,
     };
 
@@ -191,7 +193,7 @@ export async function POST(req: Request) {
       );
     }
     if (isOpsError(error)) {
-      console.error("[website pricing preview] OPS quote failed", {
+      console.error("[website pricing preview] OPS contract lookup failed", {
         request_id: requestId,
         status: error.status,
         message: error.message,
@@ -203,7 +205,7 @@ export async function POST(req: Request) {
           error: generic
             ? `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
             : error.message || `Vi kunde inte hämta prisuppgifter just nu. Referens: ${requestId.slice(0, 8)}.`,
-          code: "ops_quote_failed",
+          code: "ops_contract_lookup_failed",
           request_id: requestId,
         },
         { status: error.status || 502 },

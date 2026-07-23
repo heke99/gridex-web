@@ -52,7 +52,7 @@ function getCustomerLabel(
     | undefined
 ) {
   if (!profile) return null
-  if (profile.customer_type === 'company' || profile.company_name) return 'Företag'
+  if (profile.customer_type === 'business' || profile.company_name) return 'Företag'
   return profile.customer_number ? `Kundnummer ${profile.customer_number}` : null
 }
 

@@ -262,7 +262,7 @@ export default function ElectricityCalculator({
   const effectiveArea = resolution?.price_area_code ?? null;
   const hasContracts = availableContracts.length > 0;
   const effectiveConsumptionMode: ConsumptionMode =
-    customerType === "company" ? "known" : consumptionMode;
+    customerType === "business" ? "known" : consumptionMode;
 
   const suggestedAnnualKwh = useMemo(() => {
     if (
@@ -352,7 +352,7 @@ export default function ElectricityCalculator({
     }
     if (
       !controlledCustomerType &&
-      (savedType === "private" || savedType === "company")
+      (savedType === "private" || savedType === "business")
     ) {
       setInternalCustomerType(savedType);
       onCustomerTypeChange?.(savedType);
@@ -424,8 +424,8 @@ export default function ElectricityCalculator({
   }, [availableContracts, selectedContract, setSelectedValue]);
 
   useEffect(() => {
-    if (!result?.quote_expires_at) return;
-    const expiresAt = Date.parse(result.quote_expires_at);
+    if (!result?.pricing_expires_at) return;
+    const expiresAt = Date.parse(result.pricing_expires_at);
     if (!Number.isFinite(expiresAt)) return;
     const invalidate = () => {
       setResultState(null);
@@ -444,7 +444,7 @@ export default function ElectricityCalculator({
       Math.min(delay, 2_147_000_000),
     );
     return () => window.clearTimeout(timeout);
-  }, [onPricingPreviewChange, onQuoteContextChange, result?.quote_expires_at]);
+  }, [onPricingPreviewChange, onQuoteContextChange, result?.pricing_expires_at]);
 
   useEffect(() => {
     if (resetSignal <= 0) return;
@@ -532,7 +532,7 @@ export default function ElectricityCalculator({
       return setError("Välj ett avtal för att räkna pris.");
     if (!consumptionProfile || !monthlyKwh)
       return setError(
-        customerType === "company"
+        customerType === "business"
           ? "Ange företagets uppskattade årsförbrukning innan du räknar pris."
           : "Ange din årsförbrukning eller fyll i bostadsuppgifterna för att få en uppskattning.",
       );
@@ -591,15 +591,15 @@ export default function ElectricityCalculator({
       } satisfies WebsitePricingQuoteContext;
       onQuoteContextChange?.(nextQuoteContext);
 
-      if (persistCheckoutContext && preview.quote_token) {
+      if (persistCheckoutContext && preview.pricing_token) {
         const contextResponse = await fetch("/api/v1/website/checkout-context", {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({
             customer_type: customerType,
             offer_reference: selectedContract.offerReference,
-            quote_token: preview.quote_token,
-            quote_reference: preview.quote_reference,
+            pricing_token: preview.pricing_token,
+            pricing_snapshot_reference: preview.pricing_snapshot_reference,
             ...nextQuoteContext,
           }),
         });
@@ -670,7 +670,7 @@ export default function ElectricityCalculator({
               Vem ska teckna avtalet?
             </legend>
             <div className="grid gap-3 sm:grid-cols-2">
-              {(["private", "company"] as const).map((value) => (
+              {(["private", "business"] as const).map((value) => (
                 <label
                   key={value}
                   className={`cursor-pointer rounded-2xl border p-4 text-sm font-semibold transition ${customerType === value ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-100" : "border-white/10 bg-white/5 text-gray-300"}`}
@@ -789,7 +789,7 @@ export default function ElectricityCalculator({
           {effectiveConsumptionMode === "known" ? (
             <div className="max-w-xl space-y-2">
               <label htmlFor="calculator-annual-kwh" className="text-sm font-medium text-white/80">
-                {customerType === "company" ? "Uppskattad årsförbrukning" : "Årsförbrukning"} (kWh/år)
+                {customerType === "business" ? "Uppskattad årsförbrukning" : "Årsförbrukning"} (kWh/år)
               </label>
               <input
                 id="calculator-annual-kwh"

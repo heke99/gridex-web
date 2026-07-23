@@ -22,7 +22,7 @@ export async function publicContractsResponse(request: Request) {
   const filter = customerType(request)
   if (!filter.valid) {
     return NextResponse.json(
-      { error: { code: 'validation_error', message: 'customer_type måste vara private eller company.', field: 'customer_type' } },
+      { error: { code: 'validation_error', message: 'customer_type måste vara private eller business.', field: 'customer_type' } },
       { status: 400 },
     )
   }

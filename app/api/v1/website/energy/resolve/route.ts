@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { fetchOpsWebsiteEnergyArea, isOpsError } from '@/lib/ops/client'
+import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-type ResolvePayload = { postal_code?: unknown; postalCode?: unknown; city?: unknown; street?: unknown; address?: unknown; apartment?: unknown }
+type ResolvePayload = { postal_code?: unknown; postalCode?: unknown; city?: unknown; street?: unknown; address?: unknown }
 function text(value: unknown, max = 180): string | null { if (typeof value !== 'string') return null; const v=value.trim().slice(0,max); return v || null }
 
 export async function POST(req: Request) {
@@ -17,12 +17,13 @@ export async function POST(req: Request) {
   const address = text(body?.address ?? body?.street)
   if (!/^\d{5}$/.test(postalCode) || !city || !address) return NextResponse.json({ error: 'Ange adress, ort och ett svenskt postnummer med fem siffror.' }, { status: 400 })
   try {
-    const resolution = await fetchOpsWebsiteEnergyArea({ postal_code: postalCode, city, address, apartment: text(body?.apartment) })
-    if (!resolution.price_area_code) return NextResponse.json({ error: resolution.customer_message || 'Vi kunde inte hitta elområdet automatiskt.', data: resolution }, { status: 422 })
-    return NextResponse.json({ data: { status: resolution.status, price_area_code: resolution.price_area_code, grid_area_code: resolution.grid_area_code ?? null, grid_owner_id: resolution.grid_owner_id ?? null, grid_owner_name: resolution.grid_owner_name ?? null, confidence: resolution.confidence ?? null, source: resolution.source ?? null, customer_message: resolution.customer_message ?? null } })
+    const resolution = await resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address })
+    if (!resolution.price_area_code) return NextResponse.json({ error: resolution.customer_message || 'Vi kunde inte fastställa elområdet säkert.', data: resolution }, { status: 422 })
+    const confidence = resolution.confidence ?? 0
+    const assurance_level = confidence >= 0.95 ? 'sufficient_for_application' : confidence >= 0.75 ? 'indicative_only' : 'unresolved'
+    return NextResponse.json({ data: { ...resolution, assurance_level } }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
-    console.error('[website energy resolve] OPS failed', error)
-    const status = isOpsError(error) && [400,401,403,404,409,422,429,503].includes(error.status) ? error.status : 503
-    return NextResponse.json({ error: status === 422 ? 'Vi kunde inte fastställa elområdet för adressen.' : 'Vi kunde inte kontrollera elområdet just nu.' }, { status })
+    console.error('[website energy resolve] local resolver failed', { error: error instanceof Error ? error.message : String(error) })
+    return NextResponse.json({ error: 'Vi kunde inte kontrollera elområdet just nu.' }, { status: 503 })
   }
 }

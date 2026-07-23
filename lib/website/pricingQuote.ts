@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { OpsPublicContract } from "@/lib/ops/client";
 import type {
   WebsitePricingPreview,
@@ -13,14 +13,14 @@ const QUOTE_TTL_MS = 20 * 60 * 1000;
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
 type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
-/** Immutable website signature around the exact canonical OPS quote shown to the customer. */
+/** Immutable website signature around the exact local pricing snapshot shown to the customer. */
 export type WebsitePricingQuote = {
   version: 2;
   issued_at: string;
   expires_at: string;
   valid_until: string;
   location_fingerprint: string;
-  quote_reference: string;
+  pricing_snapshot_reference: string;
   contract: {
     offer_reference: string;
     name: string;
@@ -91,7 +91,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
   return q.version === 2 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
-    text(q.location_fingerprint) && text(q.quote_reference) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
+    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
@@ -109,13 +109,13 @@ export function issueWebsitePricingQuote(input: {
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
   const opsValidUntil = input.preview.valid_until;
-  const required = input.preview.quote_reference && input.preview.pricing_interval && input.preview.estimate_method &&
+  const required = input.preview.pricing_interval && input.preview.estimate_method &&
     input.preview.pricing_snapshot_schema_version && validDate(opsValidUntil) && typeof input.preview.is_binding === "boolean";
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
       !finite(input.preview.totalMonthlyCostSek) || !finite(input.preview.totalMonthlyCostInclVatSek)) return null;
 
-  const quoteReference = input.preview.quote_reference as string;
+  const pricingSnapshotReference = input.preview.pricing_snapshot_reference ?? `wps_${createHash("sha256").update([input.contract.offer_reference, area, String(input.preview.kwh), now.toISOString()].join("|")).digest("hex").slice(0, 24)}`;
   const pricingInterval = input.preview.pricing_interval as string;
   const estimateMethod = input.preview.estimate_method as string;
   const isBinding = input.preview.is_binding as boolean;
@@ -129,7 +129,7 @@ export function issueWebsitePricingQuote(input: {
     expires_at: new Date(Math.min(localExpiry, opsExpiry)).toISOString(),
     valid_until: validUntil,
     location_fingerprint: locationFingerprint,
-    quote_reference: quoteReference,
+    pricing_snapshot_reference: pricingSnapshotReference,
     contract: { offer_reference: input.contract.offer_reference, name: input.contract.name, contract_type: input.preview.contract.contractType },
     price_area_code: area,
     estimated_monthly_kwh: input.preview.kwh,
@@ -181,7 +181,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     totalMonthlyCostInclVatSek: quote.total_monthly_cost_incl_vat_sek,
     totalYearlyCostSek: quote.total_yearly_cost_sek ?? undefined,
     specification: quote.specification,
-    quote_reference: quote.quote_reference,
+    pricing_snapshot_reference: quote.pricing_snapshot_reference,
     pricing_interval: quote.pricing_interval,
     estimate_method: quote.estimate_method,
     source_period: quote.source_period ?? undefined,
@@ -192,15 +192,15 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     market_sources: quote.market_sources,
     pricing_snapshot_schema_version: quote.pricing_snapshot_schema_version,
     valid_until: quote.valid_until,
-    quote_token: token,
-    quote_expires_at: quote.expires_at,
-    quote_source: "ops",
+    pricing_token: token,
+    pricing_expires_at: quote.expires_at,
+    quote_source: "website",
   };
 }
 
 export function validateWebsitePricingQuote(input: {
   token: string | null | undefined;
-  quoteReference?: string | null;
+  pricingSnapshotReference?: string | null;
   contract: OpsPublicContract;
   priceAreaCode: WebsitePriceArea;
   estimatedMonthlyKwh: number;
@@ -211,7 +211,7 @@ export function validateWebsitePricingQuote(input: {
   if (!verified.ok) return { ok: false, reason: verified.reason };
   const { quote } = verified;
   if (quote.contract.offer_reference !== input.contract.offer_reference) return { ok: false, reason: "contract_changed" };
-  if (input.quoteReference && quote.quote_reference !== input.quoteReference) return { ok: false, reason: "quote_changed" };
+  if (input.pricingSnapshotReference && quote.pricing_snapshot_reference !== input.pricingSnapshotReference) return { ok: false, reason: "quote_changed" };
   if (quote.price_area_code !== input.priceAreaCode) return { ok: false, reason: "area_changed" };
   if (Math.abs(quote.estimated_monthly_kwh - input.estimatedMonthlyKwh) > 0.001) return { ok: false, reason: "kwh_changed" };
   if (Math.abs(quote.annual_consumption_kwh - input.annualConsumptionKwh) > 0.001) return { ok: false, reason: "annual_kwh_changed" };

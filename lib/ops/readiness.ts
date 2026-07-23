@@ -3,7 +3,6 @@ import {
   fetchOpsIntegrationContext,
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsFresh,
-  fetchOpsTenantEvents,
   fetchOpsWebsiteLegalBundle,
   getOpsClientStatus,
   isOpsError,
@@ -14,9 +13,6 @@ export const REQUIRED_WEBSITE_SCOPES = [
   'integration_context.read',
   'website_contracts.read',
   'website_contracts.diagnostics',
-  'website_quotes.write',
-  'website_quotes.validate',
-  'website_energy_area.resolve',
   'website_applications.write',
   'website_legal.read',
 ] as const
@@ -115,9 +111,6 @@ function probeDefinitions(): ProbeDefinition[] {
     { name: 'integration_context', scopes: ['integration_context.read'], run: async () => { await fetchOpsIntegrationContext(true) } },
     { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
     { name: 'website_contracts.diagnostics', scopes: ['website_contracts.diagnostics'], run: async () => { await fetchOpsPublicContractDiagnostics() } },
-    { name: 'website_quotes.write', scopes: ['website_quotes.write'], run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}) },
-    { name: 'website_quotes.validate', scopes: ['website_quotes.validate'], run: () => authorizationProbe('/api/v1/website/quote/validate', 'POST', {}) },
-    { name: 'website_energy_area.resolve', scopes: ['website_energy_area.resolve'], run: () => authorizationProbe('/api/v1/website/energy-area/resolve', 'POST', {}) },
     { name: 'website_applications.write', scopes: ['website_applications.write'], run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}) },
     { name: 'website_legal.read', scopes: ['website_legal.read'], run: async () => { await fetchOpsWebsiteLegalBundle() } },
   ]

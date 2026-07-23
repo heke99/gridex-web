@@ -124,7 +124,7 @@ export default async function MinaSidorPage() {
               <InfoCard label="Namn" value={profile?.full_name || profile?.company_name || '—'} />
               <InfoCard label="E-post" value={profile?.email || user.email || '—'} />
               <InfoCard label="Telefon" value={profile?.phone || '—'} />
-              <InfoCard label="Kundtyp" value={profile?.customer_type === 'company' ? 'Företag' : 'Privatkund'} />
+              <InfoCard label="Kundtyp" value={profile?.customer_type === 'business' ? 'Företag' : 'Privatkund'} />
             </div>
           </section>
 

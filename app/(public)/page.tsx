@@ -33,7 +33,7 @@ export default async function HomePage() {
       invoiceFeeSek: item.invoice_fee_sek ?? null,
       markupOrePerKwh: item.markup_ore_per_kwh ?? null,
       variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh ?? null,
-      fixedPriceOrePerKwh: item.fixed_price_ore_per_kwh ?? null,
+      fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh ?? null,
       monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
       elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
       portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,

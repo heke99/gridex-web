@@ -6,6 +6,12 @@ import type {
 
 /** Browser-safe, allowlisted representation. Never spread an OPS object here. */
 export function toBrowserPublicContract(contract: OpsPublicContract) {
+  const requiresArea = contract.type === 'fixed'
+  const components = (contract.pricing_components ?? []).map((component) => {
+    if (!requiresArea) return component
+    const key = String((component as { key?: unknown; code?: unknown; type?: unknown }).key ?? (component as { code?: unknown }).code ?? (component as { type?: unknown }).type ?? '').toLowerCase()
+    return key.includes('fixed_price') ? { ...component, amount: null, value: null, website_visibility: 'requires_price_area' } : component
+  })
   return {
     offer_reference: contract.offer_reference,
     code: contract.product_code ?? null,
@@ -20,7 +26,7 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
       invoice_fee: contract.invoice_fee_sek,
       markup: contract.markup_ore_per_kwh,
       variable_fee: contract.variable_markup_ore_per_kwh,
-      fixed_price: contract.fixed_price_ore_per_kwh,
+      fixed_price: requiresArea ? null : contract.fixed_price_ore_per_kwh,
       monthly_fixed_price: contract.monthly_fixed_price_sek,
       elcert: contract.elcert_ore_per_kwh,
       portfolio_price: contract.portfolio_price_ore_per_kwh,
@@ -29,7 +35,7 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
       spot_share: contract.spot_share,
       portfolio_share: contract.portfolio_share,
       visibility: contract.pricing_visibility ?? {},
-      components: contract.pricing_components ?? [],
+      components,
       portfolio_monthly_prices: (contract.portfolio_monthly_prices ?? []).map((price) => ({
         year: price.year,
         month: price.month,

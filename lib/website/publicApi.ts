@@ -34,7 +34,7 @@ export type WebsitePricingPreviewInput = {
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
   start_date?: string | null;
-  customer_type?: "private" | "company" | null;
+  customer_type?: "private" | "business" | null;
 };
 
 export type WebsitePricingQuoteContext = {
@@ -97,7 +97,7 @@ export type WebsitePricingPreview = {
     };
     [key: string]: unknown;
   };
-  quote_reference?: string;
+  pricing_snapshot_reference?: string;
   pricing_interval?: string;
   estimate_method?: string;
   source_period?: string;
@@ -108,9 +108,9 @@ export type WebsitePricingPreview = {
   market_sources?: WebsiteQuoteMarketSource[];
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
-  quote_token?: string;
-  quote_expires_at?: string;
-  quote_source?: "ops";
+  pricing_token?: string;
+  pricing_expires_at?: string;
+  quote_source?: "website";
   token_issuer?: "website";
   raw?: Record<string, unknown>;
 };
@@ -195,9 +195,9 @@ export async function previewWebsitePricing(
   ) as WebsitePricingPreview;
 }
 
-export async function validateWebsitePricingQuote(input: {
-  quote_token: string;
-  quote_reference?: string;
+export async function verifyWebsitePricingSnapshot(input: {
+  pricing_token: string;
+  pricing_snapshot_reference?: string;
   offer_reference: string;
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
@@ -206,7 +206,7 @@ export async function validateWebsitePricingQuote(input: {
   city: string;
   address: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch("/api/v1/website/pricing/quote/validate", {
+  const res = await fetch("/api/v1/website/pricing/verify", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),

@@ -86,7 +86,7 @@ assert.ok(!publicDto.includes('company_id'))
 
 const checkoutStore = read('lib/website/checkoutContextStore.ts')
 assert.ok(checkoutStore.includes('tokenHash(token)'))
-assert.ok(checkoutStore.includes('quote_expires_at'))
+assert.ok(checkoutStore.includes('pricing_expires_at'))
 assert.ok(checkoutStore.includes(".lt('expires_at'"))
 
 const calculator = read('components/ElectricityCalculator.tsx')

@@ -3,9 +3,9 @@ import { fetchOpsPublicContractsFresh, type OpsWebsitePriceArea } from '@/lib/op
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore'
-import { fetchOpsWebsiteEnergyArea } from '@/lib/ops/client'
 import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import {
   consumptionProfileMatchesMonthlyKwh,
   normalizeWebsiteConsumptionProfile,
@@ -38,14 +38,14 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
   const customerType = parseWebsiteCustomerType(body?.customer_type) ?? 'private'
   const offerReference = text(body?.offer_reference)
-  const quoteToken = text(body?.quote_token, 12_000)
+  const quoteToken = text(body?.pricing_token, 12_000)
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
   const city = text(body?.city)
   const address = text(body?.address)
   const area = text(body?.price_area_code).toUpperCase() as OpsWebsitePriceArea
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
   const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
-  const quoteReference = text(body?.quote_reference, 180)
+  const pricingSnapshotReference = text(body?.pricing_snapshot_reference, 180)
   const consumptionProfile = normalizeWebsiteConsumptionProfile(body?.consumption_profile)
 
   if (
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
   try {
     const [contracts, resolution] = await Promise.all([
       fetchOpsPublicContractsFresh(),
-      fetchOpsWebsiteEnergyArea({ postal_code: postalCode, city, address, street: address }),
+      resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address }),
     ])
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       priceAreaCode: area,
       estimatedMonthlyKwh,
       annualConsumptionKwh,
-      quoteReference,
+      pricingSnapshotReference,
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
