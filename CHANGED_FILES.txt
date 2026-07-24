@@ -1,3 +1,61 @@
-lib/ops/client.ts
-lib/ops/readiness.ts
-app/api/v1/website/pricing/preview/route.ts
+# Ändrade, tillagda och borttagna filer – OPS website contract 2026-07-23.1
+
+ÄNDRAD	CHANGED_FILES.txt
+BORTTAGEN	GRIDEX_WEB_TENANT_API_ALIGNMENT_README.md
+BORTTAGEN	GRIDEX_WEB_TENANT_FIX_REPORT.md
+BORTTAGEN	HOTFIX_README.md
+BORTTAGEN	IMPLEMENTATION_2026-07-22.2.md
+TILLAGD	IMPLEMENTATION_2026-07-23.1.md
+ÄNDRAD	PATCH_NOTES.md
+ÄNDRAD	app/(public)/page.tsx
+ÄNDRAD	app/(public)/teckna-avtal/page.tsx
+ÄNDRAD	app/(public)/teckna-avtal/tack/SignupThanksPage.tsx
+ÄNDRAD	app/admin/integrations/page.tsx
+ÄNDRAD	app/api/v1/website/checkout-context/route.ts
+ÄNDRAD	app/api/v1/website/energy/resolve/route.ts
+TILLAGD	app/api/v1/website/portfolio-prices/route.ts
+ÄNDRAD	app/api/v1/website/pricing/preview/route.ts
+ÄNDRAD	app/api/v1/website/pricing/quote/validate/route.ts
+ÄNDRAD	app/api/v1/website/pricing/verify/route.ts
+ÄNDRAD	app/api/v1/website/quote/route.ts
+TILLAGD	app/api/v1/website/switch-status/route.ts
+ÄNDRAD	components/ElectricityCalculator.tsx
+ÄNDRAD	components/signup/CustomerApplicationForm.tsx
+ÄNDRAD	components/signup/SignupFlowClient.tsx
+TILLAGD	components/signup/SwitchStatusCard.tsx
+BORTTAGEN	docs/external-website-api-integration-guide.md
+TILLAGD	docs/website-integration-2026-07-23.1.md
+ÄNDRAD	env.example
+ÄNDRAD	lib/gridex/pricing/elprisetjustnu.ts
+ÄNDRAD	lib/ops/client.ts
+TILLAGD	lib/ops/contract.ts
+TILLAGD	lib/ops/generated/README.md
+TILLAGD	lib/ops/portalReadiness.ts
+ÄNDRAD	lib/ops/readiness.ts
+TILLAGD	lib/website/canonicalQuoteValidation.ts
+TILLAGD	lib/website/componentCalculator.ts
+TILLAGD	lib/website/energyAreaStore.ts
+TILLAGD	lib/website/energyAreaToken.ts
+TILLAGD	lib/website/marketPriceService.ts
+BORTTAGEN	lib/website/pricingPreview.ts
+ÄNDRAD	lib/website/pricingQuote.ts
+ÄNDRAD	lib/website/pricingSnapshotStore.ts
+ÄNDRAD	lib/website/publicApi.ts
+ÄNDRAD	lib/website/publicContractContract.ts
+ÄNDRAD	lib/website/publicContractDisplay.ts
+ÄNDRAD	lib/website/publicDtos.ts
+ÄNDRAD	lib/website/submissionStore.ts
+ÄNDRAD	package.json
+TILLAGD	supabase/migrations/20260724120000_ops_website_contract_20260723_1.sql
+ÄNDRAD	tests/area-pricing-products.test.mjs
+TILLAGD	tests/component-calculator.test.mjs
+ÄNDRAD	tests/customer-facing-pricing-visibility.test.mjs
+ÄNDRAD	tests/launch-readiness.test.mjs
+ÄNDRAD	tests/public-contract-contract.test.mjs
+BORTTAGEN	tests/website-api-2026-07-22-2.test.mjs
+TILLAGD	tests/website-api-2026-07-23-1.contract.test.mjs
+ÄNDRAD	tests/website-signup-hardening.test.mjs
+
+Totalt: 55 filer.
+
+Se PATCH_NOTES.md för funktions-, risk- och verifieringsrapport.

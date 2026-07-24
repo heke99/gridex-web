@@ -557,6 +557,7 @@ export default function ElectricityCalculator({
       const preview = await previewWebsitePricing({
         offer_reference: selectedContract.offerReference,
         price_area_code: resolvedArea,
+        resolution_token: resolved.resolution_token ?? null,
         postal_code: normalizedPostalCode,
         city: city.trim(),
         address: address.trim(),
@@ -578,6 +579,8 @@ export default function ElectricityCalculator({
         },
       } satisfies WebsitePricingPreview;
       const nextQuoteContext = {
+        resolution_token: resolved.resolution_token ?? null,
+        resolution_reference: resolved.resolution_reference ?? null,
         postal_code: normalizedPostalCode,
         city: city.trim(),
         address: address.trim(),

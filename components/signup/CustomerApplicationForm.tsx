@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import {
   buildPublicContractDisplay,
   publicContractTypeLabel,
   type PublicContractDisplay,
 } from "@/lib/website/publicContractDisplay";
-import type { PublicPricingComponent } from "@/lib/website/publicContractContract";
+import type { PublicLegalRequirement, PublicPricingComponent } from "@/lib/website/publicContractContract";
 import type { WebsiteCustomerType } from "@/lib/website/customerType";
 import type { WebsiteConsumptionProfile } from "@/lib/website/consumptionEstimator";
 import type {
@@ -78,6 +78,7 @@ export type SignupContractOption = {
   priceTermsVersion?: string | null;
   priceTermsVersionId?: string | null;
   priceTermsUrl?: string | null;
+  legalRequirements?: PublicLegalRequirement[];
 };
 
 type Props = {
@@ -117,13 +118,7 @@ type FormValues = {
   requested_start_date: string;
 };
 
-type Consents = {
-  accept_terms: boolean;
-  accept_price_terms: boolean;
-  accept_cancellation_right: boolean;
-  accept_privacy: boolean;
-  accept_power_of_attorney: boolean;
-};
+type Consents = Record<string, boolean>;
 
 const STEPS = ["Dina uppgifter", "Granska och teckna"];
 function consumptionSourceLabel(profile: WebsiteConsumptionProfile | null | undefined): string {
@@ -150,7 +145,7 @@ function optionAsOpsContract(contract: SignupContractOption) {
     fixed_price_ore_per_kwh: contract.fixedPriceOrePerKwh ?? null,
     monthly_fixed_price_sek: contract.monthlyFixedPriceSek ?? null,
     elcert_ore_per_kwh: contract.elcertOrePerKwh ?? null,
-    portfolio_price_ore_per_kwh: contract.portfolioPriceOrePerKwh ?? null,
+    portfolio_price_ore_per_kwh: null,
     vat_rate: contract.vatRate ?? null,
     pricing_model: contract.pricingModel ?? null,
     spot_share: contract.spotShare ?? null,
@@ -246,13 +241,15 @@ function ConsentCheckbox({
   name,
   checked,
   onChange,
+  required = true,
   children,
 }: {
   id: string;
-  name: keyof Consents;
+  name: string;
   checked: boolean;
-  onChange: (name: keyof Consents, value: boolean) => void;
-  children: React.ReactNode;
+  onChange: (name: string, value: boolean) => void;
+  required?: boolean;
+  children: ReactNode;
 }) {
   return (
     <label htmlFor={id} className="flex items-start gap-3 text-sm leading-6 text-gray-300">
@@ -262,7 +259,7 @@ function ConsentCheckbox({
         name={name}
         checked={checked}
         onChange={(event) => onChange(name, event.target.checked)}
-        required
+        required={required}
         className="mt-1 h-4 w-4 rounded border-white/20 bg-black/40 focus:ring-2 focus:ring-cyan-500/40"
       />
       <span>{children}</span>
@@ -321,13 +318,7 @@ export default function CustomerApplicationForm({
     requested_start_mode: "earliest_possible",
     requested_start_date: "",
   });
-  const [consents, setConsents] = useState<Consents>({
-    accept_terms: false,
-    accept_price_terms: false,
-    accept_cancellation_right: false,
-    accept_privacy: false,
-    accept_power_of_attorney: false,
-  });
+  const [consents, setConsents] = useState<Consents>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submissionState, formAction] = useActionState(action, { errorMessage: null });
 
@@ -350,15 +341,13 @@ export default function CustomerApplicationForm({
     [selectedContract],
   );
   const activeDisplay = contractDisplay ?? fallbackDisplay;
-  const legal = activeDisplay?.legalVersions;
-  const powerOfAttorneyRequired = legal?.powerOfAttorneyRequired === true;
+  const legalRequirements: PublicLegalRequirement[] = selectedContract?.legalRequirements ?? [];
   const legalReady = Boolean(
     activeDisplay?.ready &&
-    legal?.termsUrl &&
-    legal.priceTermsUrl &&
-    legal.withdrawalUrl &&
-    legal.privacyPolicyUrl &&
-    (!powerOfAttorneyRequired || legal.powerOfAttorneyUrl),
+    legalRequirements.length > 0 &&
+    legalRequirements.every((requirement) =>
+      !requirement.required || Boolean(requirement.label && requirement.public_url && (requirement.document_id || requirement.legal_bundle_version_document_id)),
+    ),
   );
   const authenticatedEmailMismatch = Boolean(
     authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
@@ -385,7 +374,7 @@ export default function CustomerApplicationForm({
     if (name === 'email') setDifferentEmailConfirmed(false);
   }
 
-  function updateConsent(name: keyof Consents, value: boolean) {
+  function updateConsent(name: string, value: boolean) {
     rotateSubmissionAttempt();
     setConsents((current) => ({ ...current, [name]: value }));
   }
@@ -418,12 +407,9 @@ export default function CustomerApplicationForm({
     window.requestAnimationFrame(() => document.getElementById('signup-review')?.focus());
   }
 
-  const allConsentsAccepted =
-    consents.accept_terms &&
-    consents.accept_price_terms &&
-    consents.accept_cancellation_right &&
-    consents.accept_privacy &&
-    (!powerOfAttorneyRequired || consents.accept_power_of_attorney);
+  const allConsentsAccepted = legalRequirements.every(
+    (requirement) => !requirement.required || consents[requirement.requirement_code] === true,
+  );
   const submitDisabled = !canSubmit || !allConsentsAccepted || !legalReady || !hasPricingPreview;
   const errorList = [...new Set(Object.values(errors))];
   const displayName = customerType === 'business'
@@ -569,6 +555,8 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
           <input type="hidden" name="pricing_snapshot_token" value={pricingPreview?.pricing_token ?? ""} />
           <input type="hidden" name="pricing_snapshot_reference" value={pricingPreview?.pricing_snapshot_reference ?? ""} />
+          <input type="hidden" name="energy_area_resolution_token" value={quoteContext.resolution_token ?? ""} />
+          <input type="hidden" name="energy_area_resolution_reference" value={quoteContext.resolution_reference ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
@@ -630,13 +618,19 @@ export default function CustomerApplicationForm({
                   <div className="text-base font-semibold text-white">Villkor och godkännanden</div>
                   <p className="mt-1 text-sm leading-6 text-gray-400">Varje länk är den exakta publicerade version som binds till avtalet.</p>
                 </div>
-                <ConsentCheckbox id="accept_terms" name="accept_terms" checked={consents.accept_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.termsUrl!}>allmänna villkor</LegalLink>.</ConsentCheckbox>
-                <ConsentCheckbox id="accept_price_terms" name="accept_price_terms" checked={consents.accept_price_terms} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.priceTermsUrl!}>prisvillkoren</LegalLink> för valt avtal.</ConsentCheckbox>
-                <ConsentCheckbox id="accept_cancellation_right" name="accept_cancellation_right" checked={consents.accept_cancellation_right} onChange={updateConsent}>Jag har tagit del av informationen om <LegalLink href={legal!.withdrawalUrl!}>ångerrätt</LegalLink>.</ConsentCheckbox>
-                <ConsentCheckbox id="accept_privacy" name="accept_privacy" checked={consents.accept_privacy} onChange={updateConsent}>Jag har tagit del av <LegalLink href={legal!.privacyPolicyUrl!}>integritetspolicyn</LegalLink>.</ConsentCheckbox>
-                {powerOfAttorneyRequired ? (
-                  <ConsentCheckbox id="accept_power_of_attorney" name="accept_power_of_attorney" checked={consents.accept_power_of_attorney} onChange={updateConsent}>Jag godkänner <LegalLink href={legal!.powerOfAttorneyUrl!}>fullmakten</LegalLink> för anläggningsuppslag och leverantörsbyte.</ConsentCheckbox>
-                ) : null}
+                {legalRequirements.map((requirement) => (
+                  <ConsentCheckbox
+                    key={requirement.requirement_code}
+                    id={`legal-${requirement.requirement_code}`}
+                    name={`legal_acceptance:${requirement.requirement_code}`}
+                    checked={consents[requirement.requirement_code] === true}
+                    required={requirement.required}
+                    onChange={(_, value) => updateConsent(requirement.requirement_code, value)}
+                  >
+                    {requirement.label}{' '}
+                    {requirement.public_url ? <LegalLink href={requirement.public_url}>Öppna dokument</LegalLink> : null}
+                  </ConsentCheckbox>
+                ))}
               </div>
             )}
           </section>
@@ -656,6 +650,6 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between gap-4"><dt className="text-gray-500">{label}</dt><dd className="text-right text-white">{value}</dd></div>;
 }
 
-function LegalLink({ href, children }: { href: string; children: React.ReactNode }) {
+function LegalLink({ href, children }: { href: string; children: ReactNode }) {
   return <Link href={href} className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200" target="_blank" rel="noreferrer">{children}</Link>;
 }

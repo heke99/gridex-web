@@ -139,3 +139,54 @@ assert.equal(canonicalLifecycleContract.automatic_renewal, true)
 assert.equal(canonicalLifecycleContract.invoice_fee_sek, 0)
 assert.equal(canonicalLifecycleContract.vat_rate, 0.25)
 
+
+const canonicalAreaContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_fixed_area_canonical',
+  product_code: 'FAST-AREA',
+  name: 'Fastpris per område',
+  contract_type: 'fixed',
+  customer_types: ['private', 'business'],
+  price_areas: ['SE1', 'SE2', 'SE3', 'SE4'],
+  area_pricing: [
+    { price_area_code: 'SE1', fixed_price: { amount: 95, unit: 'ore_per_kwh', vat_included: false, vat_rate: 0.25 } },
+    { price_area_code: 'SE4', fixed_price: { amount: 140, unit: 'ore_per_kwh', vat_included: false, vat_rate: 0.25 } },
+  ],
+  pricing: {
+    calculation_components: [
+      { component_code: 'monthly_fee', name: 'Månadsavgift', amount: 49, unit: 'sek_month', calculation_inclusion: 'included', website_visibility: 'visible', vat_included: false, vat_rate: 0.25 },
+      { component_code: 'invoice_fee', name: 'Fakturaavgift', amount: 19, unit: 'sek_invoice', calculation_inclusion: 'included', website_visibility: 'hidden', invoices_per_year: 12, vat_included: false, vat_rate: 0.25 },
+    ],
+    display_components: [
+      { component_code: 'monthly_fee', name: 'Månadsavgift', amount: 49, unit: 'sek_month', website_visibility: 'visible' },
+    ],
+    summary_components: [
+      { component_code: 'terms_summary', name: 'Prissammanställning', amount: 0, unit: 'sek', website_visibility: 'summary_only' },
+    ],
+  },
+  legal: {
+    requirements: [
+      {
+        requirement_code: 'terms',
+        acceptance_type: 'checkbox',
+        required: true,
+        label: 'Jag godkänner villkoren.',
+        document_id: 'doc_terms',
+        legal_bundle_version_document_id: 'bundle_doc_terms',
+        document_version: '2026-07-23.1',
+        document_hash: 'b'.repeat(64),
+        public_url: 'https://app.gridex.se/legal/terms',
+      },
+    ],
+  },
+})
+
+assert.ok(canonicalAreaContract, 'canonical 2026-07-23.1 contract must normalize')
+assert.equal(canonicalAreaContract.contract_type, 'fixed')
+assert.deepEqual(canonicalAreaContract.price_areas, ['SE1', 'SE2', 'SE3', 'SE4'])
+assert.equal(canonicalAreaContract.area_pricing.find((row) => row.price_area_code === 'SE4')?.fixed_price_ore_per_kwh, 140)
+assert.equal(canonicalAreaContract.calculation_components.length, 2)
+assert.equal(canonicalAreaContract.display_components.length, 1)
+assert.equal(canonicalAreaContract.summary_components[0].website_visibility, 'summary_only')
+assert.equal(canonicalAreaContract.calculation_components.find((row) => row.component_code === 'invoice_fee')?.website_visibility, 'hidden')
+assert.equal(canonicalAreaContract.calculation_components.find((row) => row.component_code === 'invoice_fee')?.invoices_per_year, 12)
+assert.equal(canonicalAreaContract.legal_requirements[0].document_hash, 'b'.repeat(64))

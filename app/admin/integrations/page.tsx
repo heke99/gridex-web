@@ -2,6 +2,7 @@ import { requireAdminPageAccess } from '@/lib/admin/guards'
 import CisActionButton from '@/components/admin/CisActionButton'
 import PortalOutboxReplayButton from '@/components/admin/PortalOutboxReplayButton'
 import { checkOpsIntegrationReadiness } from '@/lib/ops/readiness'
+import { checkOpsCustomerPortalReadiness } from '@/lib/ops/portalReadiness'
 import { fetchOpsPublicContractDiagnostics } from '@/lib/ops/client'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +55,7 @@ export default async function AdminIntegrationsPage() {
     anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
   })
 
-  const [jobsRes, cisRes, outboxRes, opsReadiness, publicContractDiagnostics] = await Promise.all([
+  const [jobsRes, cisRes, outboxRes, opsReadiness, portalReadiness, publicContractDiagnostics] = await Promise.all([
     ctx.supabase
       .from('integration_sync_jobs')
       .select('id,provider_key,entity_type,entity_id,direction,status,last_error,created_at')
@@ -74,6 +75,7 @@ export default async function AdminIntegrationsPage() {
       .limit(30)
       .returns<PortalOutboxRow[]>(),
     checkOpsIntegrationReadiness(),
+    checkOpsCustomerPortalReadiness(),
     fetchOpsPublicContractDiagnostics()
       .then((data) => ({ data, error: null as string | null }))
       .catch((error) => ({
@@ -190,6 +192,29 @@ export default async function AdminIntegrationsPage() {
             <span>Tenantreferens: {opsReadiness.webhook.expectedTenantReferenceConfigured ? 'ja' : 'nej'}</span>
             <span>Konflikt: {opsReadiness.webhook.secretConflict ? 'ja' : 'nej'}</span>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Mina sidor-readiness</h2>
+            <p className="mt-1 text-sm text-white/60">{portalReadiness.message}</p>
+          </div>
+          <span className={portalReadiness.ready ? 'text-emerald-300' : 'text-rose-300'}>
+            {portalReadiness.ready ? 'redo' : 'blockerad'}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {portalReadiness.scopes.map((scope) => (
+            <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <code className="text-[11px] text-white/70">{scope.scope}</code>
+              <span className={scope.status === 'missing' ? 'text-rose-300' : scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}>{scope.status}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 text-xs text-white/60">
+          portal-bundle: {portalReadiness.portalBundleProbe.ok ? 'verifierad' : 'fel'} ({portalReadiness.portalBundleProbe.status ?? 'n/a'}{portalReadiness.portalBundleProbe.code ? `, ${portalReadiness.portalBundleProbe.code}` : ''})
         </div>
       </section>
 

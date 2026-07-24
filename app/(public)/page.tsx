@@ -36,7 +36,7 @@ export default async function HomePage() {
       fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh ?? null,
       monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
       elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
-      portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,
+      portfolioPriceOrePerKwh: null,
       vatRate: item.vat_rate ?? null,
       pricingModel: item.pricing_model ?? null,
       spotShare: item.spot_share ?? null,

@@ -45,7 +45,7 @@ function optionAsOpsContract(contract: SignupContractOption) {
     fixed_price_ore_per_kwh: contract.fixedPriceOrePerKwh ?? null,
     monthly_fixed_price_sek: contract.monthlyFixedPriceSek ?? null,
     elcert_ore_per_kwh: contract.elcertOrePerKwh ?? null,
-    portfolio_price_ore_per_kwh: contract.portfolioPriceOrePerKwh ?? null,
+    portfolio_price_ore_per_kwh: null,
     vat_rate: contract.vatRate ?? null,
     pricing_model: contract.pricingModel ?? null,
     spot_share: contract.spotShare ?? null,

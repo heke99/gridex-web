@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { fetchOpsPublicContractsFresh, type OpsWebsitePriceArea } from '@/lib/ops/client'
+import { fetchOpsPublicContractsFresh } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore'
-import { quoteToWebsitePricingPreview, validateWebsitePricingQuote } from '@/lib/website/pricingQuote'
+import { quoteToWebsitePricingPreview } from '@/lib/website/pricingQuote'
+import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { resolveWebsitePriceAreaForPricing } from '@/lib/website/priceAreaResolver'
 import {
   consumptionProfileMatchesMonthlyKwh,
   normalizeWebsiteConsumptionProfile,
@@ -14,7 +14,6 @@ import {
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const AREAS = new Set<OpsWebsitePriceArea>(['SE1', 'SE2', 'SE3', 'SE4'])
 
 function text(value: unknown, max = 180): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
   const city = text(body?.city)
   const address = text(body?.address)
-  const area = text(body?.price_area_code).toUpperCase() as OpsWebsitePriceArea
+  const resolutionToken = text(body?.resolution_token, 12_000)
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
   const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
   const pricingSnapshotReference = text(body?.pricing_snapshot_reference, 180)
@@ -54,7 +53,7 @@ export async function POST(req: Request) {
     !/^\d{5}$/.test(postalCode) ||
     !city ||
     !address ||
-    !AREAS.has(area) ||
+    !resolutionToken ||
     !Number.isFinite(estimatedMonthlyKwh) ||
     estimatedMonthlyKwh < 1 ||
     estimatedMonthlyKwh > 200000 ||
@@ -69,10 +68,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const [contracts, resolution] = await Promise.all([
-      fetchOpsPublicContractsFresh(),
-      resolveWebsitePriceAreaForPricing({ postal_code: postalCode, city, address, street: address }),
-    ])
+    const contracts = await fetchOpsPublicContractsFresh(customerType)
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (
       !contract ||
@@ -81,17 +77,15 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json({ error: 'Det valda avtalet är inte tillgängligt för kundtypen.' }, { status: 409 })
     }
-    if (!resolution.price_area_code || resolution.price_area_code !== area) {
-      return NextResponse.json({ error: 'Adressen och elområdet måste kontrolleras igen.' }, { status: 409 })
-    }
-
-    const verified = validateWebsitePricingQuote({
-      token: quoteToken,
+    const verified = await validateCanonicalWebsiteQuote({
+      pricingToken: quoteToken,
+      pricingSnapshotReference,
+      resolutionToken,
       contract,
-      priceAreaCode: area,
+      customerType,
       estimatedMonthlyKwh,
       annualConsumptionKwh,
-      pricingSnapshotReference,
+      requestedStartMode: 'earliest_possible',
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
@@ -101,15 +95,17 @@ export async function POST(req: Request) {
     const token = await createWebsiteCheckoutContext({
       customerType,
       selectedOffer: offerReference,
-      pricingPreview: quoteToWebsitePricingPreview(verified.quote, quoteToken),
+      pricingPreview: quoteToWebsitePricingPreview(verified.value.quote, quoteToken),
       quoteContext: {
         postal_code: postalCode,
         city,
         address,
-        price_area_code: area,
-        grid_area_code: resolution.grid_area_code ?? null,
-        grid_owner_id: resolution.grid_owner_id ?? null,
-        grid_owner_name: resolution.grid_owner_name ?? null,
+        resolution_token: resolutionToken,
+        resolution_reference: verified.value.area.resolutionReference,
+        price_area_code: verified.value.area.priceAreaCode,
+        grid_area_code: verified.value.area.gridAreaCode,
+        grid_owner_id: verified.value.area.gridOwnerId,
+        grid_owner_name: verified.value.area.gridOwnerName,
         estimated_monthly_kwh: estimatedMonthlyKwh,
         annual_consumption_kwh: annualConsumptionKwh,
         consumption_profile: consumptionProfile,

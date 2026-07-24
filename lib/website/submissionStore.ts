@@ -18,6 +18,8 @@ type SubmissionRow = {
   offer_reference: string
   payload_hash: string
   ops_payload_hash: string | null
+  normalized_ops_payload_sha256: string | null
+  ops_quote_reference: string | null
   accepted_at: string
   request_context: SubmissionRequestContext | null
   pricing_quote_snapshot: Record<string, unknown> | null
@@ -57,7 +59,7 @@ async function readSubmission(submissionAttemptId: string): Promise<SubmissionRo
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,ops_result_snapshot,status')
+    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,normalized_ops_payload_sha256,ops_quote_reference,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,ops_result_snapshot,status')
     .eq('submission_attempt_id', submissionAttemptId)
     .maybeSingle<SubmissionRow>()
   if (error) throw new Error(`Submission storage read failed: ${error.message}`)
@@ -116,6 +118,9 @@ export async function prepareWebsiteSubmission(input: {
     request_context: requestContext,
     pricing_quote_snapshot: input.pricingQuoteSnapshot,
     contract_display_snapshot: input.contractDisplaySnapshot,
+    ops_quote_reference: typeof input.pricingQuoteSnapshot.ops_quote_reference === 'string'
+      ? input.pricingQuoteSnapshot.ops_quote_reference
+      : null,
     status: 'prepared',
   })
 
@@ -147,7 +152,12 @@ export async function lockWebsiteSubmissionOpsPayload(input: {
 
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .update({ ops_payload_hash: input.opsPayloadHash, updated_at: new Date().toISOString() })
+    .update({
+      ops_payload_hash: input.opsPayloadHash,
+      normalized_ops_payload_sha256: input.opsPayloadHash,
+      attempt_count: existing.ops_payload_hash ? undefined : 1,
+      updated_at: new Date().toISOString(),
+    })
     .eq('submission_attempt_id', input.submissionAttemptId)
     .is('ops_payload_hash', null)
     .select('ops_payload_hash')
@@ -166,6 +176,8 @@ export async function updateWebsiteSubmission(input: {
   status: 'submitting' | 'accepted' | 'failed'
   opsApplicationId?: string | null
   opsCustomerId?: string | null
+  opsApplicationNumber?: string | null
+  opsContractId?: string | null
   opsResultSnapshot?: Record<string, unknown> | null
   contractStatus?: string | null
   signedAt?: string | null
@@ -184,6 +196,8 @@ export async function updateWebsiteSubmission(input: {
       status: input.status,
       ops_application_id: input.opsApplicationId ?? null,
       ops_customer_id: input.opsCustomerId ?? null,
+      ops_application_number: input.opsApplicationNumber ?? null,
+      ops_contract_id: input.opsContractId ?? null,
       ops_result_snapshot: input.opsResultSnapshot ?? null,
       contract_status: input.contractStatus ?? null,
       signed_at: input.signedAt ?? null,

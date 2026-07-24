@@ -1,0 +1,107 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
+
+const TOKEN_VERSION = 'ea1'
+const MAX_TOKEN_TTL_MS = 30 * 60_000
+
+export type WebsiteEnergyAreaTokenPayload = {
+  version: 1
+  issued_at: string
+  expires_at: string
+  resolution_reference: string
+  price_area_code: OpsWebsitePriceArea
+  grid_area_code: string | null
+  grid_owner_id: string | null
+  grid_owner_name: string | null
+  confidence: number | null
+  location_fingerprint: string
+}
+
+function secret(): string | null {
+  return process.env.GRIDEX_WEBSITE_ENERGY_AREA_TOKEN_SECRET?.trim() ||
+    process.env.GRIDEX_WEBSITE_PRICING_QUOTE_SECRET?.trim() || null
+}
+
+function normalized(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('sv-SE')
+}
+
+function fingerprint(input: { postalCode: string; city: string; address: string }, key: string): string {
+  const source = [input.postalCode.replace(/\s+/g, ''), normalized(input.city), normalized(input.address)].join('|')
+  return createHmac('sha256', key).update(`energy-area:${source}`).digest('base64url')
+}
+
+function sign(value: string, key: string): string {
+  return createHmac('sha256', key).update(value).digest('base64url')
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left)
+  const b = Buffer.from(right)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+export function energyAreaTokenConfigured(): boolean {
+  return Boolean(secret())
+}
+
+export function issueWebsiteEnergyAreaToken(input: {
+  resolution: OpsWebsiteEnergyResolution
+  location: { postalCode: string; city: string; address: string }
+  now?: Date
+}): { token: string; payload: WebsiteEnergyAreaTokenPayload } | null {
+  const key = secret()
+  const reference = input.resolution.resolution_reference?.trim()
+  const area = input.resolution.price_area_code
+  const validUntil = input.resolution.valid_until?.trim()
+  if (!key || !reference || !area || !validUntil || !Number.isFinite(Date.parse(validUntil))) return null
+  const now = input.now ?? new Date()
+  const upstreamExpiry = Date.parse(validUntil)
+  if (upstreamExpiry <= now.getTime()) return null
+  const expiresAt = new Date(Math.min(upstreamExpiry, now.getTime() + MAX_TOKEN_TTL_MS)).toISOString()
+  const payload: WebsiteEnergyAreaTokenPayload = {
+    version: 1,
+    issued_at: now.toISOString(),
+    expires_at: expiresAt,
+    resolution_reference: reference,
+    price_area_code: area,
+    grid_area_code: input.resolution.grid_area_code ?? null,
+    grid_owner_id: input.resolution.grid_owner_id ?? null,
+    grid_owner_name: input.resolution.grid_owner_name ?? null,
+    confidence: input.resolution.confidence ?? null,
+    location_fingerprint: fingerprint(input.location, key),
+  }
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const unsigned = `${TOKEN_VERSION}.${encoded}`
+  return { token: `${unsigned}.${sign(unsigned, key)}`, payload }
+}
+
+export function verifyWebsiteEnergyAreaToken(input: {
+  token: string | null | undefined
+  location: { postalCode: string; city: string; address: string }
+  now?: Date
+}): { ok: true; payload: WebsiteEnergyAreaTokenPayload } | { ok: false; reason: string } {
+  const key = secret()
+  if (!key) return { ok: false, reason: 'not_configured' }
+  const [version, encoded, signature, ...rest] = (input.token ?? '').split('.')
+  if (version !== TOKEN_VERSION || !encoded || !signature || rest.length) return { ok: false, reason: 'invalid' }
+  const unsigned = `${version}.${encoded}`
+  if (!safeEqual(sign(unsigned, key), signature)) return { ok: false, reason: 'invalid' }
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as WebsiteEnergyAreaTokenPayload
+    if (
+      payload.version !== 1 ||
+      !payload.resolution_reference ||
+      !['SE1', 'SE2', 'SE3', 'SE4'].includes(payload.price_area_code) ||
+      !Number.isFinite(Date.parse(payload.issued_at)) ||
+      !Number.isFinite(Date.parse(payload.expires_at)) ||
+      Date.parse(payload.issued_at) > (input.now ?? new Date()).getTime() + 60_000 ||
+      Date.parse(payload.expires_at) <= (input.now ?? new Date()).getTime() ||
+      Date.parse(payload.expires_at) - Date.parse(payload.issued_at) > MAX_TOKEN_TTL_MS + 1_000 ||
+      !safeEqual(payload.location_fingerprint, fingerprint(input.location, key))
+    ) return { ok: false, reason: 'invalid_or_expired' }
+    return { ok: true, payload }
+  } catch {
+    return { ok: false, reason: 'invalid' }
+  }
+}

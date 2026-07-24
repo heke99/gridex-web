@@ -1,5 +1,4 @@
 import type { OpsPublicContract } from '@/lib/ops/client'
-import { publishedPricingComponentAmount } from '@/lib/website/publicContractContract'
 import {
   isFixedContractType,
   sanitizePricingComponentsBeforeAreaResolution,
@@ -167,25 +166,25 @@ function componentUnit(unit: string): PublicContractDisplayRow['unit'] | null {
 }
 
 function publiclyVisibleInvoiceFee(contract: OpsPublicContract): number | null {
-  const componentAmount = publishedPricingComponentAmount(
-    contract.pricing_components,
-    'invoice_fee_sek',
-  )
-  if (componentAmount !== null) return componentAmount
-
-  const visibility = contract.pricing_visibility ?? {}
-  for (const key of ['invoice_fee', 'invoiceFee', 'invoice_fee_sek']) {
-    if (visibility[key] === true) return hasNumberValue(contract.invoice_fee_sek) ? contract.invoice_fee_sek : null
-    if (visibility[key] === false) return null
-  }
+  // Business rule: invoice_fee is calculation-only and must never be exposed
+  // as a customer-facing row, regardless of a legacy visibility alias.
   return null
 }
 
 function addPublishedComponents(rows: PublicContractDisplayRow[], contract: OpsPublicContract): boolean {
+  const displaySource = contract.display_components?.length
+    ? contract.display_components
+    : contract.pricing_components
+  const hidesHistoricalPortfolioPrice = contract.type === 'portfolio' || contract.type === 'portfolio_managed' || contract.type === 'mix' || contract.type === 'mixed'
   const components = sanitizePricingComponentsBeforeAreaResolution(
-    contract.pricing_components,
+    displaySource,
     contract.type,
-  ).filter((item) => item.website_card_visible)
+  ).filter((item) => {
+    const code = item.component_code.toLowerCase()
+    return item.website_visibility === 'visible' &&
+      code !== 'invoice_fee' &&
+      !(hidesHistoricalPortfolioPrice && /portfolio.*price|managed.*price|portfolj.*pris/.test(code))
+  })
   for (const component of components) {
     const unit = componentUnit(component.unit)
     if (!unit) {
@@ -336,26 +335,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (!contract.offer_reference) blockedReasons.push('offer_reference saknas')
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
-  if (!contract.terms_version) blockedReasons.push('allmänna villkor saknas')
-  if (!contract.terms_version_id) blockedReasons.push('allmänna villkors juridiska ID saknas')
-  if (!legalUrlReady(contract.terms_url)) blockedReasons.push('allmänna villkorens publicerade dokumentlänk saknas')
-  if (!contract.privacy_policy_version) blockedReasons.push('integritetspolicy saknas')
-  if (!contract.privacy_policy_version_id) blockedReasons.push('integritetspolicyns juridiska ID saknas')
-  if (!legalUrlReady(contract.privacy_policy_url)) blockedReasons.push('integritetspolicyns publicerade dokumentlänk saknas')
-  if (!contract.cancellation_right_version && !contract.withdrawal_version) blockedReasons.push('ångerrätt saknas')
-  if (!contract.withdrawal_version_id) blockedReasons.push('ångerrättens juridiska ID saknas')
-  if (!legalUrlReady(contract.withdrawal_url)) blockedReasons.push('ångerrättens publicerade dokumentlänk saknas')
-  if (!contract.price_terms_version) blockedReasons.push('prisvillkor saknas')
-  if (!contract.price_terms_version_id) blockedReasons.push('prisvillkorens juridiska ID saknas')
-  if (!legalUrlReady(contract.price_terms_url)) blockedReasons.push('prisvillkorens publicerade dokumentlänk saknas')
-  if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version) {
-    blockedReasons.push('fullmaktsversion saknas')
-  }
-  if (contract.power_of_attorney_required === true && !contract.power_of_attorney_version_id) {
-    blockedReasons.push('fullmaktens juridiska ID saknas')
-  }
-  if (contract.power_of_attorney_required === true && !legalUrlReady(contract.power_of_attorney_url)) {
-    blockedReasons.push('fullmaktens publicerade dokumentlänk saknas')
+  const legalRequirements = contract.legal_requirements ?? []
+  if (legalRequirements.length) {
+    for (const requirement of legalRequirements) {
+      if (!requirement.required) continue
+      if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
+      if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
+      if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
+      if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {
+        blockedReasons.push(`${requirement.requirement_code}: juridiskt dokument-ID saknas`)
+      }
+      if (!legalUrlReady(requirement.public_url)) blockedReasons.push(`${requirement.requirement_code}: publicerad dokumentlänk saknas`)
+    }
+  } else {
+    blockedReasons.push('dynamiska juridikkrav saknas')
   }
   validatePublicPricingForType(blockedReasons, contract)
 
@@ -394,7 +387,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     if (!hasNumberValue(contract.portfolio_price_ore_per_kwh)) {
       addTextRow(rows, 'area_price_notice', 'Portföljpris', 'Visas efter adress och elområde')
     }
-    addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'markup_ore_per_kwh', 'Förvaltningsavgift/påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
@@ -410,7 +402,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     }
     addNumberRow(rows, 'spot_share', 'Rörlig andel', contract.spot_share, 'percent')
     addNumberRow(rows, 'portfolio_share', 'Portföljandel', contract.portfolio_share, 'percent')
-    addNumberRow(rows, 'portfolio_price_ore_per_kwh', 'Portföljpris', contract.portfolio_price_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'markup_ore_per_kwh', 'Påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')

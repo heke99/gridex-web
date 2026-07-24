@@ -7,7 +7,7 @@ import type {
   WebsiteQuoteMarketSource,
 } from "@/lib/website/publicApi";
 
-const QUOTE_VERSION = "v2";
+const QUOTE_VERSION = "v3";
 const QUOTE_TTL_MS = 20 * 60 * 1000;
 
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
@@ -15,12 +15,18 @@ type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
 /** Immutable website signature around the exact local pricing snapshot shown to the customer. */
 export type WebsitePricingQuote = {
-  version: 2;
+  version: 3;
   issued_at: string;
   expires_at: string;
   valid_until: string;
   location_fingerprint: string;
   pricing_snapshot_reference: string;
+  ops_quote_reference: string;
+  public_contract_etag: string | null;
+  publication_revision: string | null;
+  contract_payload_sha256: string | null;
+  legal_bundle_version: string | null;
+  legal_document_hashes: Record<string, string>;
   contract: {
     offer_reference: string;
     name: string;
@@ -96,8 +102,8 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
-  return q.version === 2 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
-    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
+  return q.version === 3 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
+    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
@@ -115,7 +121,7 @@ export function issueWebsitePricingQuote(input: {
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
   const opsValidUntil = input.preview.valid_until;
-  const required = input.preview.pricing_interval && input.preview.estimate_method &&
+  const required = input.preview.ops_quote_reference && input.preview.pricing_interval && input.preview.estimate_method &&
     input.preview.pricing_snapshot_schema_version && validDate(opsValidUntil) && typeof input.preview.is_binding === "boolean";
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
@@ -130,12 +136,18 @@ export function issueWebsitePricingQuote(input: {
   const localExpiry = now.getTime() + QUOTE_TTL_MS;
   const opsExpiry = Date.parse(validUntil);
   const quote: WebsitePricingQuote = {
-    version: 2,
+    version: 3,
     issued_at: now.toISOString(),
     expires_at: new Date(Math.min(localExpiry, opsExpiry)).toISOString(),
     valid_until: validUntil,
     location_fingerprint: locationFingerprint,
     pricing_snapshot_reference: pricingSnapshotReference,
+    ops_quote_reference: input.preview.ops_quote_reference as string,
+    public_contract_etag: input.preview.public_contract_etag ?? null,
+    publication_revision: input.preview.publication_revision ?? null,
+    contract_payload_sha256: input.preview.contract_payload_sha256 ?? null,
+    legal_bundle_version: input.preview.legal_bundle_version ?? null,
+    legal_document_hashes: input.preview.legal_document_hashes ?? {},
     contract: { offer_reference: input.contract.offer_reference, name: input.contract.name, contract_type: input.preview.contract.contractType },
     price_area_code: area,
     estimated_monthly_kwh: input.preview.kwh,
@@ -188,6 +200,12 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     totalYearlyCostSek: quote.total_yearly_cost_sek ?? undefined,
     specification: quote.specification,
     pricing_snapshot_reference: quote.pricing_snapshot_reference,
+    ops_quote_reference: quote.ops_quote_reference,
+    public_contract_etag: quote.public_contract_etag,
+    publication_revision: quote.publication_revision,
+    contract_payload_sha256: quote.contract_payload_sha256,
+    legal_bundle_version: quote.legal_bundle_version,
+    legal_document_hashes: quote.legal_document_hashes,
     pricing_interval: quote.pricing_interval,
     estimate_method: quote.estimate_method,
     source_period: quote.source_period ?? undefined,

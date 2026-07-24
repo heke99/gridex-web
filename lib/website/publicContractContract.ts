@@ -1,11 +1,39 @@
+export type WebsiteVisibility = 'visible' | 'summary_only' | 'hidden'
+
+export type PublicAreaPricing = {
+  price_area_code: 'SE1' | 'SE2' | 'SE3' | 'SE4'
+  fixed_price_ore_per_kwh: number
+  vat_included: boolean | null
+  vat_rate: number | null
+}
+
+export type PublicLegalRequirement = {
+  requirement_code: string
+  acceptance_type: string
+  required: boolean
+  label: string
+  document_id: string | null
+  legal_bundle_version_document_id: string | null
+  document_version: string | null
+  document_hash: string | null
+  public_url: string | null
+}
+
 export type PublicContractApiShape = {
   offer_reference: string
   product_code: string | null
   name: string
+  contract_type: string
   type: string
   customer_types: string[] | null
+  price_areas: Array<'SE1' | 'SE2' | 'SE3' | 'SE4'>
+  area_pricing: PublicAreaPricing[]
   pricing_visibility: Record<string, boolean>
   pricing_components: PublicPricingComponent[]
+  calculation_components: PublicPricingComponent[]
+  display_components: PublicPricingComponent[]
+  summary_components: PublicPricingComponent[]
+  legal_requirements: PublicLegalRequirement[]
   portfolio_monthly_prices: PublicPortfolioMonthlyPrice[]
   monthly_fee_sek: number | null
   invoice_fee_sek: number | null
@@ -46,11 +74,18 @@ export type PublicPricingComponent = {
   component_code: string
   name: string
   amount: number
+  currency: string | null
   unit: string
+  calculation_inclusion: 'included' | 'excluded'
+  website_visibility: WebsiteVisibility
+  /** Compatibility projection. Never use this to represent summary_only. */
   website_card_visible: boolean
   calculation_base: string | null
+  vat_included: boolean | null
+  vat_rate: number | null
+  billing_interval_months?: number | null
+  invoices_per_year?: number | null
 }
-
 
 export type CanonicalPublishedPricingKey =
   | 'monthly_fee_sek'
@@ -249,6 +284,22 @@ export function publishedPricingComponentAmount(
   return best?.amount ?? null
 }
 
+export function calculationPricingComponentAmount(
+  components: readonly PublicPricingComponent[] | null | undefined,
+  key: CanonicalPublishedPricingKey,
+): number | null {
+  let best: { score: number; index: number; amount: number } | null = null
+  for (const [index, component] of (components ?? []).entries()) {
+    if (component.calculation_inclusion === 'excluded' || !Number.isFinite(component.amount)) continue
+    const score = componentMatchScore(component, key)
+    if (score <= 0) continue
+    if (!best || score > best.score || (score === best.score && index < best.index)) {
+      best = { score, index, amount: component.amount }
+    }
+  }
+  return best?.amount ?? null
+}
+
 export function publishedPricingComponentDiagnostics(
   components: readonly PublicPricingComponent[] | null | undefined,
 ): Array<{ code: string; name: string; amount: number; unit: string; visible: boolean }> {
@@ -353,7 +404,19 @@ function pricingVisibility(value: unknown): Record<string, boolean> {
   )
 }
 
-function pricingComponents(value: unknown): PublicPricingComponent[] {
+function websiteVisibility(value: unknown, fallback: WebsiteVisibility): WebsiteVisibility {
+  const normalized = text(value)?.toLowerCase()
+  if (normalized === 'visible' || normalized === 'summary_only' || normalized === 'hidden') return normalized
+  const legacy = boolean(value)
+  if (legacy === true) return 'visible'
+  if (legacy === false) return 'hidden'
+  return fallback
+}
+
+function pricingComponents(
+  value: unknown,
+  fallbackVisibility: WebsiteVisibility = 'hidden',
+): PublicPricingComponent[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((item) => {
     const row = record(item)
@@ -364,37 +427,33 @@ function pricingComponents(value: unknown): PublicPricingComponent[] {
     const componentAmount = amount(row.amount ?? row.value ?? row.price ?? row.rate)
     const amountRow = record(row.amount) ?? record(row.value) ?? record(row.price)
     const unit = text(
-      row.unit ??
-        row.unit_code ??
-        row.unitCode ??
-        row.unit_type ??
-        row.unitType ??
-        amountRow?.unit ??
-        amountRow?.unit_code ??
-        amountRow?.unitCode,
+      row.unit ?? row.unit_code ?? row.unitCode ?? row.unit_type ?? row.unitType ??
+      amountRow?.unit ?? amountRow?.unit_code ?? amountRow?.unitCode,
     )
     if (!componentCode || !componentName || componentAmount === null) return []
+    const visibility = websiteVisibility(
+      row.website_visibility ?? row.websiteVisibility ?? row.website_card_visible ??
+      row.websiteCardVisible ?? row.visible_on_website ?? row.visibleOnWebsite ??
+      row.show_on_website ?? row.showOnWebsite ?? row.visible,
+      fallbackVisibility,
+    )
+    const inclusion = text(row.calculation_inclusion ?? row.calculationInclusion)?.toLowerCase() === 'excluded'
+      ? 'excluded' as const
+      : 'included' as const
     return [{
       component_code: componentCode,
       name: componentName,
       amount: componentAmount,
+      currency: text(row.currency ?? amountRow?.currency),
       unit: unit ?? '',
-      website_card_visible: boolean(
-        row.website_card_visible ??
-          row.websiteCardVisible ??
-          row.visible_on_website ??
-          row.visibleOnWebsite ??
-          row.show_on_website ??
-          row.showOnWebsite ??
-          row.visible,
-      ) ?? true,
-      calculation_base: text(
-        row.calculation_base ??
-          row.calculationBase ??
-          row.base ??
-          row.applies_to ??
-          row.appliesTo,
-      ),
+      calculation_inclusion: inclusion,
+      website_visibility: visibility,
+      website_card_visible: visibility === 'visible',
+      calculation_base: text(row.calculation_base ?? row.calculationBase ?? row.base ?? row.applies_to ?? row.appliesTo),
+      vat_included: boolean(row.vat_included ?? row.vatIncluded ?? amountRow?.vat_included ?? amountRow?.vatIncluded),
+      vat_rate: number(row.vat_rate ?? row.vatRate ?? amountRow?.vat_rate ?? amountRow?.vatRate),
+      billing_interval_months: number(row.billing_interval_months ?? row.billingIntervalMonths),
+      invoices_per_year: number(row.invoices_per_year ?? row.invoicesPerYear),
     }]
   })
 }
@@ -447,6 +506,81 @@ function portfolioMonthlyPrices(value: unknown): PublicPortfolioMonthlyPrice[] {
   })
 }
 
+function normalizedPriceAreas(value: unknown): Array<'SE1' | 'SE2' | 'SE3' | 'SE4'> {
+  if (!Array.isArray(value)) return []
+  const allowed = new Set(['SE1', 'SE2', 'SE3', 'SE4'])
+  return [...new Set(value.map((item) => text(item)?.toUpperCase()).filter((item): item is 'SE1' | 'SE2' | 'SE3' | 'SE4' => Boolean(item && allowed.has(item))))]
+}
+
+function areaPricing(value: unknown): PublicAreaPricing[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    const row = record(item)
+    if (!row) return []
+    const priceAreaCode = text(row.price_area_code ?? row.priceAreaCode ?? row.price_area)?.toUpperCase()
+    if (!priceAreaCode || !['SE1', 'SE2', 'SE3', 'SE4'].includes(priceAreaCode)) return []
+    const fixed = record(row.fixed_price ?? row.fixedPrice)
+    const fixedAmount = amount(fixed ?? row.fixed_price_ore_per_kwh ?? row.fixedPriceOrePerKwh ?? row.price)
+    if (fixedAmount === null) return []
+    return [{
+      price_area_code: priceAreaCode as PublicAreaPricing['price_area_code'],
+      fixed_price_ore_per_kwh: fixedAmount,
+      vat_included: boolean(fixed?.vat_included ?? fixed?.vatIncluded ?? row.vat_included ?? row.vatIncluded),
+      vat_rate: number(fixed?.vat_rate ?? fixed?.vatRate ?? row.vat_rate ?? row.vatRate),
+    }]
+  })
+}
+
+
+function legalRequirements(row: Record<string, unknown>, legal: Record<string, unknown>): PublicLegalRequirement[] {
+  const source = legal.requirements ?? legal.legal_requirements ?? row.legal_requirements
+  if (Array.isArray(source)) {
+    return source.flatMap((item) => {
+      const requirement = record(item)
+      if (!requirement) return []
+      const code = text(requirement.requirement_code ?? requirement.requirementCode ?? requirement.code)
+      const label = text(requirement.label ?? requirement.title ?? requirement.name)
+      if (!code || !label) return []
+      return [{
+        requirement_code: code,
+        acceptance_type: text(requirement.acceptance_type ?? requirement.acceptanceType) ?? 'checkbox',
+        required: boolean(requirement.required) !== false,
+        label,
+        document_id: text(requirement.document_id ?? requirement.documentId),
+        legal_bundle_version_document_id: text(requirement.legal_bundle_version_document_id ?? requirement.legalBundleVersionDocumentId),
+        document_version: text(requirement.document_version ?? requirement.documentVersion ?? requirement.version),
+        document_hash: text(requirement.document_hash ?? requirement.documentHash ?? requirement.sha256),
+        public_url: text(requirement.public_url ?? requirement.publicUrl ?? requirement.url),
+      }]
+    })
+  }
+
+  const make = (code: string, label: string, version: unknown, documentId: unknown, url: unknown, required = true): PublicLegalRequirement | null => {
+    const normalizedVersion = text(version)
+    const normalizedId = text(documentId)
+    const normalizedUrl = text(url)
+    if (!normalizedVersion && !normalizedId && !normalizedUrl) return null
+    return {
+      requirement_code: code,
+      acceptance_type: 'checkbox',
+      required,
+      label,
+      document_id: normalizedId,
+      legal_bundle_version_document_id: normalizedId,
+      document_version: normalizedVersion,
+      document_hash: null,
+      public_url: normalizedUrl,
+    }
+  }
+  return [
+    make('terms', 'Jag godkänner allmänna villkor.', legal.terms_version ?? row.terms_version, legal.terms_version_id ?? row.terms_version_id, legal.terms_url ?? row.terms_url),
+    make('price_terms', 'Jag godkänner prisvillkoren för valt avtal.', legal.price_terms_version ?? row.price_terms_version, legal.price_terms_version_id ?? row.price_terms_version_id, legal.price_terms_url ?? row.price_terms_url),
+    make('withdrawal', 'Jag har tagit del av informationen om ångerrätt.', legal.withdrawal_version ?? legal.cancellation_right_version ?? row.withdrawal_version, legal.withdrawal_version_id ?? legal.cancellation_right_version_id ?? row.withdrawal_version_id, legal.withdrawal_url ?? legal.cancellation_right_url ?? row.withdrawal_url),
+    make('privacy_policy', 'Jag har tagit del av integritetspolicyn.', legal.privacy_policy_version ?? row.privacy_policy_version, legal.privacy_policy_version_id ?? row.privacy_policy_version_id, legal.privacy_policy_url ?? row.privacy_policy_url),
+    make('power_of_attorney', 'Jag godkänner fullmakten för anläggningsuppslag och leverantörsbyte.', legal.power_of_attorney_version ?? row.power_of_attorney_version, legal.power_of_attorney_version_id ?? row.power_of_attorney_version_id, legal.power_of_attorney_url ?? row.power_of_attorney_url, boolean(legal.power_of_attorney_required ?? row.power_of_attorney_required) === true),
+  ].filter((item): item is PublicLegalRequirement => Boolean(item))
+}
+
 /**
  * Normalizes the documented public-contract DTO. It intentionally does not
  * require, expose or derive OPS-internal price-plan identifiers.
@@ -460,22 +594,34 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
   const offerReference = text(row.offer_reference ?? row.offerReference)
   const productCode = text(row.code ?? row.product_code ?? row.productCode)
   const name = text(row.name)
-  const type = text(row.type)
+  const type = text(row.contract_type ?? row.contractType ?? row.type)
 
   if (!offerReference || !name || !type) return null
 
-  const components = pricingComponents(pricingComponentSource(row, pricing))
+  const canonicalCalculation = pricingComponents(pricing.calculation_components ?? pricing.calculationComponents, 'hidden')
+  const legacyComponents = pricingComponents(pricingComponentSource(row, pricing), 'hidden')
+  const calculationComponents = canonicalCalculation.length ? canonicalCalculation : legacyComponents
+  const displayComponents = pricingComponents(pricing.display_components ?? pricing.displayComponents, 'visible')
+  const summaryComponents = pricingComponents(pricing.summary_components ?? pricing.summaryComponents, 'summary_only')
+  const components = calculationComponents
   const componentAmount = (key: CanonicalPublishedPricingKey): number | null =>
-    publishedPricingComponentAmount(components, key)
+    calculationPricingComponentAmount(components, key)
 
   return {
     offer_reference: offerReference,
     product_code: productCode,
     name,
+    contract_type: type,
     type,
     customer_types: normalizedCustomerTypes(row),
+    price_areas: normalizedPriceAreas(row.price_areas ?? row.priceAreas),
+    area_pricing: areaPricing(row.area_pricing ?? row.areaPricing ?? pricing.area_pricing ?? pricing.areaPricing),
     pricing_visibility: pricingVisibility(pricing.visibility),
     pricing_components: components,
+    calculation_components: calculationComponents,
+    display_components: displayComponents,
+    summary_components: summaryComponents,
+    legal_requirements: legalRequirements(row, legal),
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,
     ),

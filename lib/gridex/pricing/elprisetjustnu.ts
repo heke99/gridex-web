@@ -8,6 +8,14 @@ export type ElprisetJustNuEntry = {
   time_end?: unknown
 }
 
+
+export type SpotPriceInterval = {
+  time_start: string
+  time_end: string
+  duration_minutes: number
+  amount_ore_per_kwh: number
+}
+
 export type SpotApiAverage = {
   source: 'elprisetjustnu_api'
   priceArea: PriceArea
@@ -178,11 +186,12 @@ async function fetchDailySpotSamples(params: {
   day: number
   area: PriceArea
 }): Promise<SpotSample[]> {
-  const response = await fetch(marketUrl(params), {
+  const requestInit: RequestInit & { next: { revalidate: number } } = {
     headers: { accept: 'application/json' },
     next: { revalidate: 5 * 60 },
     signal: AbortSignal.timeout(apiTimeoutMs()),
-  })
+  }
+  const response = await fetch(marketUrl(params), requestInit)
 
   if (response.status === 404) return []
 
@@ -220,6 +229,26 @@ export function stockholmDateParts(now = new Date()): {
   const day = Number(parts.find((part) => part.type === 'day')?.value)
   if ([year, month, day].every(Number.isFinite)) return { year, month, day }
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }
+}
+
+export async function fetchDailySpotSeriesFromElprisetJustNu(params: {
+  year: number
+  month: number
+  day: number
+  priceArea: PriceArea
+}): Promise<SpotPriceInterval[]> {
+  const samples = await fetchDailySpotSamples({
+    year: params.year,
+    month: params.month,
+    day: params.day,
+    area: params.priceArea,
+  })
+  return samples.map((sample) => ({
+    time_start: new Date(sample.startMs).toISOString(),
+    time_end: new Date(sample.endMs).toISOString(),
+    duration_minutes: sample.durationMinutes,
+    amount_ore_per_kwh: Number((sample.sekPerKwh * 100).toFixed(6)),
+  }))
 }
 
 export async function fetchDailySpotAverageFromElprisetJustNu(params: {

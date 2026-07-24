@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 import { toBrowserPublicContract } from '../lib/website/publicDtos.ts'
 import { sanitizePricingComponentsBeforeAreaResolution } from '../lib/website/publicPricingVisibility.ts'
-import { loadVerifiedWebsitePricingPreview } from '../lib/website/pricingPreview.ts'
 import { issueWebsitePricingQuote } from '../lib/website/pricingQuote.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -55,22 +54,53 @@ assert.equal(browserContract.pricing.invoice_fee, null)
 assert.equal(browserContract.pricing.components.some((component) => component.component_code === 'fixed_price_ore_per_kwh'), false)
 assert.equal(browserContract.pricing.components.some((component) => component.component_code === 'invoice_fee'), false)
 
-const preview = await loadVerifiedWebsitePricingPreview({
-  offer_reference: fixedContract.offer_reference,
-  price_area_code: 'SE3',
-  postal_code: '58222',
-  city: 'Linköping',
-  address: 'Storgatan 1',
-  estimated_monthly_kwh: 100,
+const preview = {
+  contract: { offerReference: fixedContract.offer_reference, name: fixedContract.name, contractType: 'fixed' },
+  kwh: 100,
   annual_consumption_kwh: 1200,
-  customer_type: 'private',
-}, fixedContract)
-assert.equal(preview.specification?.fees?.invoiceFeeSek, 19, 'hidden invoice fee must remain in the server calculation')
+  price_area_code: 'SE3',
+  pricePerKwhOre: 140,
+  totalMonthlyCostSek: 208,
+  totalMonthlyCostInclVatSek: 260,
+  totalYearlyCostSek: 3120,
+  pricing_interval: 'month',
+  estimate_method: 'ops_canonical_quote',
+  source_window: null,
+  market_data_timestamp: new Date().toISOString(),
+  is_binding: true,
+  assumptions: [],
+  market_sources: [],
+  specification: {
+    basis: { market_ore_per_kwh: 140, source_period: null, price_area_code: 'SE3' },
+    fees: {
+      monthlyFeeSek: 49,
+      invoiceFeeSek: 19,
+      invoiceFeeIncludedInMonthlyEstimate: true,
+      billingIntervalMonths: 1,
+    },
+    contract_display_snapshot: display.snapshot,
+  },
+}
+assert.equal(preview.specification.fees.invoiceFeeSek, 19, 'hidden invoice fee must remain in the server calculation')
 assert.equal(preview.totalMonthlyCostSek, 208, 'hidden invoice fee must remain included in the total')
 
 process.env.GRIDEX_WEBSITE_PRICING_QUOTE_SECRET = 'test-secret-that-is-long-enough-for-hmac'
 const issued = issueWebsitePricingQuote({
-  preview: { ...preview, pricing_snapshot_reference: 'wps_visibility_test' },
+  preview: {
+    ...preview,
+    pricing_snapshot_reference: 'wps_visibility_test',
+    ops_quote_reference: 'quote_visibility_test',
+    valid_until: new Date(Date.now() + 10 * 60_000).toISOString(),
+    pricing_interval: 'month',
+    estimate_method: 'ops_canonical_quote',
+    pricing_snapshot_schema_version: '2026-07-23.1',
+    is_binding: true,
+    public_contract_etag: '"visibility-etag"',
+    publication_revision: 'revision_visibility_test',
+    contract_payload_sha256: 'a'.repeat(64),
+    legal_bundle_version: 'legal_visibility_test',
+    legal_document_hashes: {},
+  },
   contract: fixedContract,
   location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
 })

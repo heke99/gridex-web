@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
+import SwitchStatusCard from '@/components/signup/SwitchStatusCard'
 import {
   statusLabel as friendlyStatusLabel,
   statusDescription as friendlyStatusDescription,
@@ -58,7 +59,8 @@ export default async function SignupThanksPage({
   searchParams?: Promise<{ result?: string }>
 }) {
   const params = (await searchParams) ?? {}
-  const stored = await readWebsiteApplicationResult(params.result).catch((error) => {
+  const resultToken = typeof params.result === 'string' ? params.result : ''
+  const stored = await readWebsiteApplicationResult(resultToken).catch((error) => {
     console.error('[website signup] result token read failed', error)
     return null
   })
@@ -109,6 +111,9 @@ export default async function SignupThanksPage({
           <div className="text-sm font-semibold text-white">{portal.title}</div>
           <p className="mt-2 text-sm leading-6 text-gray-200">{portal.body}</p>
         </div>
+        {stored?.applicationNumber && resultToken ? (
+          <SwitchStatusCard resultToken={resultToken} initialStatus={stored.supplierSwitchStatus} />
+        ) : null}
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
           <div className="text-sm font-semibold text-white">E-post och Mina sidor – i den här ordningen</div>
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-gray-300">

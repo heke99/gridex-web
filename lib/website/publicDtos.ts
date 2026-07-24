@@ -3,7 +3,6 @@ import type {
   OpsPublicContract,
   OpsWebsiteLegalBundle,
 } from '@/lib/ops/client'
-import { publishedPricingComponentAmount } from '@/lib/website/publicContractContract'
 import {
   isFixedContractType,
   sanitizePricingComponentsBeforeAreaResolution,
@@ -12,11 +11,19 @@ import {
 /** Browser-safe, allowlisted representation. Never spread an OPS object here. */
 export function toBrowserPublicContract(contract: OpsPublicContract) {
   const requiresArea = isFixedContractType(contract.type)
+  const displaySource = contract.display_components?.length
+    ? contract.display_components
+    : contract.pricing_components
+  const hidesHistoricalPortfolioPrice = contract.type === 'portfolio' || contract.type === 'portfolio_managed' || contract.type === 'mix' || contract.type === 'mixed'
   const components = sanitizePricingComponentsBeforeAreaResolution(
-    contract.pricing_components,
+    displaySource,
     contract.type,
-  ).filter((component) => component.website_card_visible)
-  const visibleInvoiceFee = publishedPricingComponentAmount(components, 'invoice_fee_sek')
+  ).filter((component) => {
+    const code = component.component_code.toLowerCase()
+    return component.website_visibility === 'visible' &&
+      code !== 'invoice_fee' &&
+      !(hidesHistoricalPortfolioPrice && /portfolio.*price|managed.*price|portfolj.*pris/.test(code))
+  })
   return {
     offer_reference: contract.offer_reference,
     code: contract.product_code ?? null,
@@ -28,26 +35,20 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     customer_types: contract.customer_types ?? null,
     pricing: {
       monthly_fee: contract.monthly_fee_sek,
-      invoice_fee: visibleInvoiceFee,
+      invoice_fee: null,
       markup: contract.markup_ore_per_kwh,
       variable_fee: contract.variable_markup_ore_per_kwh,
       fixed_price: requiresArea ? null : contract.fixed_price_ore_per_kwh,
       monthly_fixed_price: contract.monthly_fixed_price_sek,
       elcert: contract.elcert_ore_per_kwh,
-      portfolio_price: contract.portfolio_price_ore_per_kwh,
+      portfolio_price: null,
       vat_rate: contract.vat_rate,
       pricing_model: contract.pricing_model ?? null,
       spot_share: contract.spot_share,
       portfolio_share: contract.portfolio_share,
       visibility: contract.pricing_visibility ?? {},
       components,
-      portfolio_monthly_prices: (contract.portfolio_monthly_prices ?? []).map((price) => ({
-        year: price.year,
-        month: price.month,
-        price_area_code: price.price_area_code,
-        amount: price.amount,
-        unit: price.unit,
-      })),
+      portfolio_monthly_prices: [],
     },
     binding_period_months: contract.binding_period_months ?? null,
     notice_period_days: contract.notice_period_days ?? null,
@@ -73,6 +74,17 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
       price_terms_version: contract.price_terms_version ?? null,
       price_terms_version_id: contract.price_terms_version_id ?? null,
       price_terms_url: contract.price_terms_url ?? null,
+      requirements: (contract.legal_requirements ?? []).map((requirement) => ({
+        requirement_code: requirement.requirement_code,
+        acceptance_type: requirement.acceptance_type,
+        required: requirement.required,
+        label: requirement.label,
+        document_id: requirement.document_id,
+        legal_bundle_version_document_id: requirement.legal_bundle_version_document_id,
+        document_version: requirement.document_version,
+        document_hash: requirement.document_hash,
+        public_url: requirement.public_url,
+      })),
     },
     valid_from: contract.valid_from ?? null,
     valid_to: contract.valid_to ?? null,
@@ -85,7 +97,7 @@ export function toBrowserLegalText(text: OpsLegalText) {
     type: text.type,
     version: text.version,
     title: text.title,
-    body: text.body,
+    body: text.body ?? null,
     url: text.url ?? null,
     offer_reference: text.offer_reference ?? null,
     published_at: text.published_at ?? null,

@@ -81,12 +81,10 @@ assert.ok(
   'contract cards must not reject an OPS-published contract only because an area price is not top-level',
 )
 
-const pricing = read('lib/website/pricingPreview.ts')
-assert.ok(pricing.includes('fetchOpsWebsiteQuote(input)'))
-assert.ok(!pricing.includes('resolveWebsiteAreaPricing'))
-
 const pricingRoute = read('app/api/v1/website/pricing/preview/route.ts')
-assert.ok(pricingRoute.includes('loadVerifiedWebsitePricingPreview'))
+assert.ok(pricingRoute.includes('fetchOpsWebsiteQuote'))
+assert.ok(pricingRoute.includes('verifyWebsiteEnergyAreaToken'))
+assert.ok(!pricingRoute.includes('resolveWebsiteAreaPricing'))
 assert.ok(pricingRoute.includes('annual_consumption_kwh: annualKwh'))
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')

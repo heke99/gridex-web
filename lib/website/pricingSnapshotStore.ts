@@ -28,6 +28,7 @@ export async function persistWebsitePricingSnapshot(input: {
   preview: WebsitePricingPreview
   contract: OpsPublicContract
   customerType: WebsiteCustomerType
+  marketPriceSnapshotId?: string | null
 }): Promise<string> {
   const issuedAt = new Date().toISOString()
   const validUntil = input.preview.valid_until ?? input.preview.pricing_expires_at
@@ -48,9 +49,12 @@ export async function persistWebsitePricingSnapshot(input: {
       offer_reference: input.contract.offer_reference,
       type: input.contract.type,
       pricing_model: input.contract.pricing_model ?? null,
+      public_contract_etag: input.preview.public_contract_etag ?? null,
+      publication_revision: input.preview.publication_revision ?? null,
     },
     price_area_code: input.preview.price_area_code ?? input.preview.priceArea,
     annual_consumption_kwh: annualConsumptionKwh,
+    market_price_snapshot_id: input.marketPriceSnapshotId ?? null,
     estimated_monthly_kwh: input.preview.kwh,
     price_per_kwh_ore: input.preview.pricePerKwhOre,
     specification: input.preview.specification ?? null,
@@ -61,10 +65,18 @@ export async function persistWebsitePricingSnapshot(input: {
 
   const { error } = await serviceClient().from('website_pricing_snapshots').insert({
     pricing_snapshot_reference: reference,
+    ops_quote_reference: input.preview.ops_quote_reference ?? null,
+    ops_quote_valid_until: input.preview.valid_until ?? null,
+    ops_quote_payload_sha256: snapshotHash(input.preview.raw ?? input.preview),
+    ops_quote_validation_status: 'issued',
+    ops_publication_revision: input.preview.publication_revision ?? null,
+    ops_public_contract_etag: input.preview.public_contract_etag ?? null,
+    ops_contract_payload_sha256: input.preview.contract_payload_sha256 ?? null,
     offer_reference: input.contract.offer_reference,
     customer_type: input.customerType,
     price_area_code: input.preview.price_area_code ?? input.preview.priceArea,
     annual_consumption_kwh: annualConsumptionKwh,
+    market_price_snapshot_id: input.marketPriceSnapshotId ?? null,
     calculation_components_json: fullCalculation,
     subtotal_ex_vat: subtotalExVat,
     vat_amount: Number((totalIncVat - subtotalExVat).toFixed(6)),
@@ -78,4 +90,22 @@ export async function persistWebsitePricingSnapshot(input: {
 
   if (error) throw new Error(`Website pricing snapshot storage failed: ${error.message}`)
   return reference
+}
+
+export async function markWebsitePricingSnapshotValidated(input: {
+  pricingSnapshotReference: string
+  quoteReference: string
+  status: 'valid' | 'invalid'
+  validatedAt?: string
+}): Promise<void> {
+  const { error } = await serviceClient()
+    .from('website_pricing_snapshots')
+    .update({
+      ops_quote_reference: input.quoteReference,
+      ops_quote_validation_status: input.status,
+      ops_quote_validated_at: input.validatedAt ?? new Date().toISOString(),
+    })
+    .eq('pricing_snapshot_reference', input.pricingSnapshotReference)
+    .eq('ops_quote_reference', input.quoteReference)
+  if (error) throw new Error(`Website pricing validation audit failed: ${error.message}`)
 }

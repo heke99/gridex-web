@@ -6,6 +6,9 @@ export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 
 export type WebsiteEnergyResolution = {
   status: string;
+  resolution_reference?: string | null;
+  resolution_token?: string;
+  valid_until?: string | null;
   price_area_code: WebsitePriceArea | null;
   grid_area_code?: string | null;
   grid_owner_id?: string | null;
@@ -26,6 +29,7 @@ export type WebsiteEnergyResolveInput = {
 export type WebsitePricingPreviewInput = {
   offer_reference: string;
   price_area_code: WebsitePriceArea;
+  resolution_token?: string | null;
   postal_code?: string | null;
   city?: string | null;
   address?: string | null;
@@ -38,6 +42,8 @@ export type WebsitePricingPreviewInput = {
 };
 
 export type WebsitePricingQuoteContext = {
+  resolution_token?: string | null;
+  resolution_reference?: string | null;
   postal_code: string;
   city: string;
   address: string;
@@ -98,6 +104,12 @@ export type WebsitePricingPreview = {
     [key: string]: unknown;
   };
   pricing_snapshot_reference?: string;
+  ops_quote_reference?: string;
+  public_contract_etag?: string | null;
+  publication_revision?: string | null;
+  contract_payload_sha256?: string | null;
+  legal_bundle_version?: string | null;
+  legal_document_hashes?: Record<string, string>;
   pricing_interval?: string;
   estimate_method?: string;
   source_period?: string;
@@ -198,6 +210,12 @@ export async function previewWebsitePricing(
 export async function verifyWebsitePricingSnapshot(input: {
   pricing_token: string;
   pricing_snapshot_reference?: string;
+  ops_quote_reference?: string;
+  public_contract_etag?: string | null;
+  publication_revision?: string | null;
+  contract_payload_sha256?: string | null;
+  legal_bundle_version?: string | null;
+  legal_document_hashes?: Record<string, string>;
   offer_reference: string;
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;

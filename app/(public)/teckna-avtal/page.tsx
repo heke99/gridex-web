@@ -48,7 +48,7 @@ import { createWebsiteApplicationResult } from "@/lib/website/applicationResultS
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
 import { sanitizePricingComponentsBeforeAreaResolution } from "@/lib/website/publicPricingVisibility";
-import { resolveWebsitePriceAreaForPricing } from "@/lib/website/priceAreaResolver";
+import { validateCanonicalWebsiteQuote } from "@/lib/website/canonicalQuoteValidation";
 import {
   digitsOnly,
   isValidRequestedStartDate,
@@ -117,7 +117,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh,
     monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
     elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
-    portfolioPriceOrePerKwh: item.portfolio_price_ore_per_kwh ?? null,
+    portfolioPriceOrePerKwh: null,
     vatRate: item.vat_rate ?? null,
     pricingModel: item.pricing_model ?? null,
     spotShare: item.spot_share ?? null,
@@ -151,6 +151,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     priceTermsVersion: item.price_terms_version ?? null,
     priceTermsVersionId: item.price_terms_version_id ?? null,
     priceTermsUrl: item.price_terms_url ?? null,
+    legalRequirements: item.legal_requirements ?? [],
   };
 }
 
@@ -168,14 +169,18 @@ function selectedContractFromParams(
 
 function isSignupReadyContract(offer: OpsPublicContract): boolean {
   if (!buildPublicContractDisplay(offer).ready) return false;
-  if (!isUuid(offer.terms_version_id ?? null)) return false;
-  if (!isUuid(offer.privacy_policy_version_id ?? null)) return false;
-  if (!isUuid(offer.withdrawal_version_id ?? null)) return false;
-  if (!isUuid(offer.price_terms_version_id ?? null)) return false;
-  if (offer.power_of_attorney_required === true && !isUuid(offer.power_of_attorney_version_id ?? null)) {
-    return false;
-  }
-  return true;
+  const requirements = offer.legal_requirements ?? [];
+  if (!requirements.length) return false;
+  return requirements.every((requirement) =>
+    !requirement.required || Boolean(
+      requirement.requirement_code &&
+      requirement.acceptance_type === 'checkbox' &&
+      requirement.label &&
+      requirement.document_version &&
+      requirement.public_url &&
+      (requirement.document_id || requirement.legal_bundle_version_document_id),
+    ),
+  );
 }
 
 function errorText(code?: string) {
@@ -612,16 +617,24 @@ export default async function TecknaPage({
       formData.get("requested_start_date"),
     );
 
-    const acceptTerms = String(formData.get("accept_terms") || "") === "on";
-    const acceptPrivacy = String(formData.get("accept_privacy") || "") === "on";
-    const acceptPowerOfAttorney =
-      String(formData.get("accept_power_of_attorney") || "") === "on";
-    const acceptCancellation =
-      String(formData.get("accept_cancellation_right") || "") === "on";
-    const acceptPriceTerms =
-      String(formData.get("accept_price_terms") || "") === "on";
-    const powerOfAttorneyRequired = offer.power_of_attorney_required === true;
+    const legalRequirements = offer.legal_requirements ?? [];
+    const legalConsents = Object.fromEntries(
+      legalRequirements.map((requirement) => [
+        requirement.requirement_code,
+        String(formData.get(`legal_acceptance:${requirement.requirement_code}`) || "") === "on",
+      ]),
+    );
+    const missingRequiredConsent = legalRequirements.some(
+      (requirement) => requirement.required && legalConsents[requirement.requirement_code] !== true,
+    );
+    const powerOfAttorneyRequirement = legalRequirements.find(
+      (requirement) => requirement.requirement_code === "power_of_attorney",
+    );
+    const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
+    const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
     const powerOfAttorneyTextVersionId =
+      powerOfAttorneyRequirement?.legal_bundle_version_document_id ??
+      powerOfAttorneyRequirement?.document_id ??
       offer.power_of_attorney_version_id ?? null;
 
     const hasIdentity =
@@ -673,13 +686,7 @@ export default async function TecknaPage({
       });
     }
 
-    if (
-      !acceptTerms ||
-      !acceptPrivacy ||
-      !acceptCancellation ||
-      !acceptPriceTerms ||
-      (powerOfAttorneyRequired && !acceptPowerOfAttorney)
-    ) {
+    if (missingRequiredConsent) {
       return fail("consent", { step: 1 });
     }
 
@@ -739,14 +746,8 @@ export default async function TecknaPage({
       });
     }
 
-    const serverResolution = await resolveWebsitePriceAreaForPricing({
-      postal_code: postalCode,
-      city,
-      address,
-      street: address,
-    }).catch(() => null);
-    const serverPriceAreaCode = serverResolution?.price_area_code;
-    if (!serverPriceAreaCode) {
+    const resolutionToken = normalizeText(formData.get("energy_area_resolution_token"));
+    if (!resolutionToken) {
       return fail("area_mismatch", {
         step: 0,
         requiresQuoteRefresh: true,
@@ -760,17 +761,20 @@ export default async function TecknaPage({
     }
     const pricingQuoteToken = normalizeText(formData.get("pricing_snapshot_token"));
     const pricingSnapshotReference = normalizeText(formData.get("pricing_snapshot_reference"));
-    const verifiedQuote = validateWebsitePricingQuote({
-      token: pricingQuoteToken,
+    const verifiedQuote = await validateCanonicalWebsiteQuote({
+      pricingToken: pricingQuoteToken,
+      pricingSnapshotReference,
+      resolutionToken,
       contract: offer,
-      priceAreaCode: serverPriceAreaCode,
+      customerType,
       estimatedMonthlyKwh,
       annualConsumptionKwh,
-      pricingSnapshotReference,
+      requestedStartMode,
+      requestedStartDate: requestedStartMode === "specific_date" ? requestedStartDate : null,
       location: { postalCode, city, address },
     });
     if (!verifiedQuote.ok) {
-      console.warn("[website signup] pricing quote verification failed", {
+      console.warn("[website signup] canonical quote verification failed", {
         reason: verifiedQuote.reason,
         offer_reference: offer.offer_reference,
       });
@@ -780,8 +784,9 @@ export default async function TecknaPage({
         fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
       });
     }
-
-    const signedPreview = quoteToWebsitePricingPreview(verifiedQuote.quote, pricingQuoteToken);
+    const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
+    const serverResolution = verifiedQuote.value.area;
+    const signedPreview = quoteToWebsitePricingPreview(verifiedQuote.value.quote, pricingQuoteToken);
     const pricingValidation = validatePricingPreviewSnapshot({
       contract: offer,
       snapshot: pricingPreviewSnapshot,
@@ -844,25 +849,19 @@ export default async function TecknaPage({
       requestedStartMode,
       requestedStartDate,
       serverPriceAreaCode,
-      gridAreaCode: serverResolution?.grid_area_code ?? null,
-      gridOwnerId: serverResolution?.grid_owner_id ?? null,
-      gridOwnerName: serverResolution?.grid_owner_name ?? null,
-      energyResolutionStatus: serverResolution?.status ?? null,
-      energyResolutionConfidence: serverResolution?.confidence ?? null,
-      pricingSnapshotReference: verifiedQuote.quote.pricing_snapshot_reference,
+      gridAreaCode: serverResolution.gridAreaCode,
+      gridOwnerId: serverResolution.gridOwnerId,
+      gridOwnerName: serverResolution.gridOwnerName,
+      energyResolutionStatus: "resolved",
+      energyResolutionConfidence: serverResolution.confidence,
+      pricingSnapshotReference: verifiedQuote.value.quote.pricing_snapshot_reference,
       annualConsumptionKwh,
       quoteToken: pricingQuoteToken,
       canonicalPricingPreviewSnapshot,
       consumptionProfile,
       contractDisplaySnapshot,
       linkedAuthUserId,
-      consents: {
-        acceptTerms,
-        acceptPrivacy,
-        acceptCancellation,
-        acceptPriceTerms,
-        acceptPowerOfAttorney,
-      },
+      consents: legalConsents,
     });
 
     let acceptedAt: string;
@@ -919,6 +918,7 @@ export default async function TecknaPage({
 
     const applicationInput = {
       offer_reference: offer.offer_reference,
+      quote_reference: verifiedQuote.value.quote.ops_quote_reference,
       annual_consumption_kwh: annualConsumptionKwh,
       customer_type: customerType,
       first_name: firstName || null,
@@ -932,9 +932,9 @@ export default async function TecknaPage({
       postal_code: postalCode,
       city,
       facility_id: facilityId || null,
-      grid_area_code: serverResolution?.grid_area_code ?? null,
-      grid_owner_id: serverResolution?.grid_owner_id ?? null,
-      grid_owner_name: serverResolution?.grid_owner_name ?? null,
+      grid_area_code: serverResolution.gridAreaCode,
+      grid_owner_id: serverResolution.gridOwnerId,
+      grid_owner_name: serverResolution.gridOwnerName,
       requested_start_mode: requestedStartMode,
       requested_start_date:
         requestedStartMode === "specific_date" ? requestedStartDate || null : null,
@@ -948,13 +948,16 @@ export default async function TecknaPage({
       external_customer_id: externalCustomerId,
       customer_portal_user_id: linkedAuthUserId,
       auth_user_id: linkedAuthUserId,
-      consents: {
-        terms: acceptTerms,
-        privacy_policy: acceptPrivacy,
-        withdrawal: acceptCancellation,
-        power_of_attorney: powerOfAttorneyRequired ? acceptPowerOfAttorney : false,
-        price_terms: acceptPriceTerms,
-      },
+      consents: legalConsents,
+      legal_acceptances: legalRequirements.map((requirement) => ({
+        requirement_code: requirement.requirement_code,
+        accepted: legalConsents[requirement.requirement_code] === true,
+        document_id: requirement.document_id,
+        legal_bundle_version_document_id: requirement.legal_bundle_version_document_id,
+        document_version: requirement.document_version,
+        document_hash: requirement.document_hash,
+        accepted_at: acceptedAt,
+      })),
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;
 
@@ -986,6 +989,8 @@ export default async function TecknaPage({
         status: "accepted",
         opsApplicationId: result.application_id ?? null,
         opsCustomerId: result.customer_id ?? null,
+        opsApplicationNumber: result.application_number ?? null,
+        opsContractId: result.contract_id ?? null,
         opsResultSnapshot: result.raw ?? null,
         contractStatus: result.contract_status ?? null,
         signedAt: result.signed_at ?? null,
@@ -1124,7 +1129,7 @@ export default async function TecknaPage({
       console.error("[website signup] result token storage failed after successful application", error);
     }
 
-    redirect(successRedirect);
+    return redirect(successRedirect);
   }
 
   return (

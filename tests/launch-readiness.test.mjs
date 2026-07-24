@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -125,12 +125,12 @@ assert.ok(
   "form must require a price preview before progressing",
 );
 assert.ok(
-  form.includes("accept_price_terms"),
-  "form must require separate price terms consent",
+  form.includes("legalRequirements.map") && form.includes("legal_acceptance:${requirement.requirement_code}"),
+  "form must render OPS-driven legal requirements dynamically",
 );
 assert.ok(
-  form.includes("legal!.powerOfAttorneyUrl!") && !form.includes('?? "/fullmakt"'),
-  "form must use the exact OPS power-of-attorney URL without a local fallback",
+  form.includes("requirement.public_url") && !form.includes('?? "/fullmakt"'),
+  "form must use the exact OPS legal document URL without a local fallback",
 );
 assert.ok(
   !form.includes("Allmänna villkor: version"),
@@ -328,12 +328,12 @@ assertIncludes(
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
-  "docs/external-website-api-integration-guide.md",
+  "docs/website-integration-2026-07-23.1.md",
   "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
-  "docs/external-website-api-integration-guide.md",
+  "docs/website-integration-2026-07-23.1.md",
   "powerOfAttorney",
   "repo must document the signed power of attorney application payload",
 );
@@ -440,14 +440,39 @@ assertIncludes(
   "total_monthly_cost_incl_vat_sek",
   "snapshot validation must support total incl VAT aliases",
 );
-assertNotIncludes(
-  "lib/website/pricingPreview.ts",
-  "buildLocalWebsitePricingPreview",
-  "offer pricing must never use a local market calculator",
+assert.equal(
+  existsSync(new URL("../lib/website/pricingPreview.ts", import.meta.url)),
+  false,
+  "the competing local pricing engine must be removed",
 );
+for (const path of [
+  "app/api/v1/website/quote/route.ts",
+  "app/api/v1/website/pricing/verify/route.ts",
+]) {
+  assertIncludes(
+    path,
+    "export const dynamic = 'force-dynamic'",
+    "Next.js route config must be declared locally for static analysis",
+  );
+  assertIncludes(
+    path,
+    "export const runtime = 'nodejs'",
+    "Next.js runtime config must be declared locally for static analysis",
+  );
+  assertNotIncludes(
+    path,
+    "export { dynamic",
+    "Next.js route config must not be re-exported",
+  );
+  assertNotIncludes(
+    path,
+    "runtime } from",
+    "Next.js runtime config must not be re-exported",
+  );
+}
 assertIncludes(
-  "lib/website/pricingPreview.ts",
-  "fetchOpsWebsiteQuote(input)",
+  "app/api/v1/website/pricing/preview/route.ts",
+  "fetchOpsWebsiteQuote",
   "offer pricing must use the canonical OPS quote endpoint",
 );
 assertIncludes(
