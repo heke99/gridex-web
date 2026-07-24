@@ -311,18 +311,27 @@ export type OpsWebsiteEnergyResolutionInput = {
 };
 
 export type OpsWebsiteEnergyResolution = {
+  /** Normalized compatibility status. Prefer resolution_status for OPS semantics. */
   status: string;
   resolution_id?: string | null;
   /** Deprecated response alias accepted during rollout. */
   resolution_reference?: string | null;
   resolution_status?: string | null;
+  automation_allowed: boolean | null;
+  next_required_action?: string | null;
+  warnings: string[];
   resolved_at?: string | null;
   valid_until?: string | null;
   price_area_code: OpsWebsitePriceArea | null;
   grid_area_code?: string | null;
+  grid_area_name?: string | null;
   grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
+  resolver_version?: string | null;
+  geodata_version?: string | null;
+  conflict_code?: string | null;
+  error_code?: string | null;
   source?: string | null;
   source_chain?: string[];
   customer_message?: string | null;
@@ -1375,34 +1384,35 @@ function upstreamOpsErrorCode(payload: unknown): string | null {
 
 function rateLimitErrorDetails(payload: unknown, status: number, headers: Headers, path: string): unknown {
   const upstreamCode = upstreamOpsErrorCode(payload)
+  const row = recordValue(payload)
+  const base = row ? { ...row, endpoint: path } : { endpoint: path, upstream: payload }
   let code: string | null = null
   if (status === 429) code = 'ops_rate_limited'
   else if (upstreamCode === 'api_rate_limiter_unavailable') code = 'ops_rate_limiter_unavailable'
   else if (upstreamCode === 'api_rate_limit_invalid') code = 'ops_rate_limit_configuration_error'
-  if (!code) return payload
+  if (!code) return base
   return {
+    ...base,
     code,
     upstream_code: upstreamCode,
     retry_after: headers.get('retry-after'),
-    path,
-    upstream: payload,
   }
 }
 
 function customerSafeOpsMessage(payload: unknown, fallback: string): string {
   if (looksLikeRedirectOrHtml(payload)) return fallback;
 
-  if (payload && typeof payload === "object") {
-    const raw =
-      (payload as Record<string, unknown>).customer_message ??
-      (payload as Record<string, unknown>).customerMessage ??
-      (payload as Record<string, unknown>).message ??
-      (payload as Record<string, unknown>).error;
+  const row = recordValue(payload)
+  const nested = recordValue(row?.error)
+  const raw = pickFromRecords(
+    [nested, row],
+    ["customer_message", "customerMessage", "message"],
+  )
+  if (raw) return looksLikeRedirectOrHtml(raw) ? fallback : raw
 
-    if (typeof raw === "string" && raw.trim()) {
-      const trimmed = raw.trim();
-      return looksLikeRedirectOrHtml(trimmed) ? fallback : trimmed;
-    }
+  if (typeof row?.error === "string" && row.error.trim()) {
+    const trimmed = row.error.trim()
+    return looksLikeRedirectOrHtml(trimmed) ? fallback : trimmed
   }
 
   if (typeof payload === "string" && payload.trim()) {
@@ -2321,18 +2331,27 @@ export async function fetchOpsWebsiteEnergyArea(
   await verifiedTenantReference(payload, '/api/v1/website/energy-area/resolve');
   const row = extractObject(payload);
   const areaValue = pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])?.toUpperCase();
+  const resolutionStatus = pickString(row, ['resolution_status', 'resolutionStatus', 'status'])
   return {
-    status: pickString(row, ['status', 'resolution_status', 'resolutionStatus']) ?? (isOpsWebsitePriceArea(areaValue) ? 'resolved' : 'unresolved'),
+    status: resolutionStatus ?? (isOpsWebsitePriceArea(areaValue) ? 'resolved' : 'unresolved'),
     resolution_id: pickString(row, ['resolution_id', 'resolutionId', 'resolution_reference', 'resolutionReference', 'reference']),
     resolution_reference: pickString(row, ['resolution_reference', 'resolutionReference', 'resolution_id', 'resolutionId', 'reference']),
-    resolution_status: pickString(row, ['resolution_status', 'resolutionStatus', 'status']),
+    resolution_status: resolutionStatus,
+    automation_allowed: pickBoolean(row, ['automation_allowed', 'automationAllowed']),
+    next_required_action: pickString(row, ['next_required_action', 'nextRequiredAction']),
+    warnings: pickStringArray(row, ['warnings']) ?? [],
     resolved_at: pickString(row, ['resolved_at', 'resolvedAt']),
-    valid_until: pickString(row, ['valid_until', 'validUntil', 'expires_at', 'expiresAt']),
+    valid_until: pickString(row, ['expires_at', 'expiresAt', 'valid_until', 'validUntil']),
     price_area_code: isOpsWebsitePriceArea(areaValue) ? areaValue : null,
     grid_area_code: pickString(row, ['grid_area_code', 'gridAreaCode']),
+    grid_area_name: pickString(row, ['grid_area_name', 'gridAreaName']),
     grid_owner_id: pickString(row, ['grid_owner_id', 'gridOwnerId']),
     grid_owner_name: pickString(row, ['grid_owner_name', 'gridOwnerName']),
     confidence: normalizeNumber(row.confidence),
+    resolver_version: pickString(row, ['resolver_version', 'resolverVersion']),
+    geodata_version: pickString(row, ['geodata_version', 'geodataVersion']),
+    conflict_code: pickString(row, ['conflict_code', 'conflictCode']),
+    error_code: pickString(row, ['error_code', 'errorCode']),
     source: pickString(row, ['source', 'resolver_source', 'resolverSource']),
     source_chain: pickStringArray(row, ['source_chain', 'sourceChain']) ?? [],
     customer_message: pickString(row, ['customer_message', 'customerMessage', 'message']),

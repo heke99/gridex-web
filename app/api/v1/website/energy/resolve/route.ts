@@ -15,6 +15,17 @@ function text(value: unknown, max = 180): string | null {
   return normalized || null
 }
 
+function resolutionBlockedMessage(nextAction: string | null | undefined): string {
+  const action = (nextAction ?? '').trim().toLowerCase()
+  if (/facility|metering|anlägg|matpunkt|mätpunkt/.test(action)) {
+    return 'Vi behöver fler anläggningsuppgifter innan priset kan hämtas.'
+  }
+  if (/address|postal|street|city|adress|postnummer|ort/.test(action)) {
+    return 'Adressen behöver kompletteras eller kontrolleras innan priset kan hämtas.'
+  }
+  return 'Adressen behöver kontrolleras innan priset kan hämtas.'
+}
+
 export async function POST(req: Request) {
   const requestId = globalThis.crypto.randomUUID()
   const rateLimit = await checkRateLimit(
@@ -49,18 +60,37 @@ export async function POST(req: Request) {
       apartment,
     })
     const resolutionStatus = String(resolution.resolution_status ?? resolution.status).trim().toLowerCase()
-    const explicitlyUnresolved = /unresolved|ambiguous|manual|review|failed|invalid|not_found/.test(resolutionStatus)
+    const explicitlyUnresolved = /unresolved|ambiguous|manual|review|failed|invalid|not_found|needs_review/.test(resolutionStatus)
     const confidenceTooLow = resolution.confidence != null && resolution.confidence < 0.75
+    const automationBlocked = resolution.automation_allowed !== true
     if (
       !resolution.price_area_code ||
       !resolution.resolution_id ||
       !resolution.valid_until ||
       explicitlyUnresolved ||
-      confidenceTooLow
+      confidenceTooLow ||
+      automationBlocked
     ) {
+      console.warn('[website energy resolve] resolution is not ready for automatic pricing', {
+        request_id: requestId,
+        resolution_id: resolution.resolution_id ?? null,
+        resolution_status: resolution.resolution_status ?? resolution.status,
+        automation_allowed: resolution.automation_allowed,
+        next_required_action: resolution.next_required_action ?? null,
+        warnings: resolution.warnings,
+        conflict_code: resolution.conflict_code ?? null,
+        error_code: resolution.error_code ?? null,
+        confidence: resolution.confidence ?? null,
+      })
       return NextResponse.json(
-        { error: resolution.customer_message || 'Vi kunde inte fastställa elområdet säkert.' },
-        { status: 422 },
+        {
+          error: resolution.customer_message || resolutionBlockedMessage(resolution.next_required_action),
+          code: 'resolution_not_ready',
+          next_required_action: resolution.next_required_action ?? null,
+          warnings: resolution.warnings,
+          request_id: requestId,
+        },
+        { status: 409, headers: { 'Cache-Control': 'private, no-store' } },
       )
     }
     const location = { postalCode, city, address }
@@ -81,6 +111,8 @@ export async function POST(req: Request) {
           grid_owner_id: resolution.grid_owner_id ?? null,
           grid_owner_name: resolution.grid_owner_name ?? null,
           confidence: resolution.confidence ?? null,
+          automation_allowed: true,
+          warnings: resolution.warnings,
           source: 'ops',
           customer_message: resolution.customer_message ?? null,
           assurance_level: assuranceLevel,

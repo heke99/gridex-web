@@ -183,18 +183,37 @@ export async function POST(req: Request) {
     console.error('[website pricing quote] failed', {
       request_id: requestId,
       correlation_id: isOpsError(error) ? error.correlationId : null,
+      endpoint: isOpsError(error) ? error.endpoint : null,
       status: isOpsError(error) ? error.status : null,
       code: opsCode,
+      retryable: isOpsError(error) ? error.retryable : null,
+      details: isOpsError(error) ? error.details : null,
       message: error instanceof Error ? error.message : String(error),
     })
     const publicCode = opsCode === 'market_price_stale'
       ? 'market_price_stale'
-      : isOpsError(error)
-        ? 'ops_quote_failed'
-        : 'website_quote_failed'
+      : opsCode === 'resolution_not_ready'
+        ? 'resolution_not_ready'
+        : opsCode === 'resolution_expired'
+          ? 'resolution_expired'
+          : opsCode === 'resolution_not_found'
+            ? 'resolution_not_found'
+            : opsCode === 'current_market_price_unavailable'
+              ? 'current_market_price_unavailable'
+              : isOpsError(error)
+                ? 'ops_quote_failed'
+                : 'website_quote_failed'
     const publicMessage = publicCode === 'market_price_stale'
       ? 'Ett aktuellt marknadspris kan inte hämtas just nu.'
-      : `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
+      : publicCode === 'resolution_not_ready'
+        ? 'Adressen behöver kompletteras eller kontrolleras innan priset kan hämtas.'
+        : publicCode === 'resolution_expired'
+          ? 'Adresskontrollen har löpt ut. Kontrollera adressen igen.'
+          : publicCode === 'resolution_not_found'
+            ? 'Adresskontrollen kunde inte verifieras. Kontrollera adressen igen.'
+            : publicCode === 'current_market_price_unavailable'
+              ? 'Ett aktuellt marknadspris kan inte hämtas just nu.'
+              : `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
     return NextResponse.json(
       { error: publicMessage, code: publicCode, request_id: requestId },
       { status: isOpsError(error) ? error.status : 503 },

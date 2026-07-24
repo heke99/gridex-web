@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
 import { websiteServerSigningSecret } from '@/lib/website/serverTokenSecret'
 
-const TOKEN_VERSION = 'ea2'
+const TOKEN_VERSION = 'ea3'
 const MAX_TOKEN_TTL_MS = 30 * 60_000
 
 export type WebsiteEnergyAreaTokenPayload = {
@@ -15,6 +15,7 @@ export type WebsiteEnergyAreaTokenPayload = {
   grid_owner_id: string | null
   grid_owner_name: string | null
   confidence: number | null
+  automation_allowed: true
   location_fingerprint: string
 }
 
@@ -56,7 +57,14 @@ export function issueWebsiteEnergyAreaToken(input: {
   const resolutionId = input.resolution.resolution_id?.trim()
   const area = input.resolution.price_area_code
   const validUntil = input.resolution.valid_until?.trim()
-  if (!key || !resolutionId || !area || !validUntil || !Number.isFinite(Date.parse(validUntil))) return null
+  if (
+    !key ||
+    !resolutionId ||
+    !area ||
+    input.resolution.automation_allowed !== true ||
+    !validUntil ||
+    !Number.isFinite(Date.parse(validUntil))
+  ) return null
   const now = input.now ?? new Date()
   const upstreamExpiry = Date.parse(validUntil)
   if (upstreamExpiry <= now.getTime()) return null
@@ -71,6 +79,7 @@ export function issueWebsiteEnergyAreaToken(input: {
     grid_owner_id: input.resolution.grid_owner_id ?? null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
     confidence: input.resolution.confidence ?? null,
+    automation_allowed: true,
     location_fingerprint: fingerprint(input.location, key),
   }
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -95,6 +104,7 @@ export function verifyWebsiteEnergyAreaToken(input: {
       payload.version !== 1 ||
       !payload.resolution_id ||
       !['SE1', 'SE2', 'SE3', 'SE4'].includes(payload.price_area_code) ||
+      payload.automation_allowed !== true ||
       !Number.isFinite(Date.parse(payload.issued_at)) ||
       !Number.isFinite(Date.parse(payload.expires_at)) ||
       Date.parse(payload.issued_at) > (input.now ?? new Date()).getTime() + 60_000 ||

@@ -213,34 +213,37 @@
       "EnergyAreaResolution": {
         "type": "object",
         "required": [
-          "status",
-          "resolution_id",
-          "price_area_code"
+          "resolution_status",
+          "automation_allowed",
+          "warnings"
         ],
         "properties": {
-          "status": {
-            "type": "string"
-          },
           "resolution_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "valid_until": {
+          "price_area": {
             "type": [
               "string",
               "null"
             ],
-            "format": "date-time"
-          },
-          "price_area_code": {
-            "type": "string",
             "enum": [
               "SE1",
               "SE2",
               "SE3",
-              "SE4"
+              "SE4",
+              null
             ]
           },
           "grid_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grid_area_name": {
             "type": [
               "string",
               "null"
@@ -258,13 +261,68 @@
               "null"
             ]
           },
+          "resolution_status": {
+            "type": "string"
+          },
           "confidence": {
+            "type": "number"
+          },
+          "automation_allowed": {
+            "type": "boolean"
+          },
+          "next_required_action": {
             "type": [
-              "number",
+              "string",
+              "null"
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "resolver_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "geodata_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conflict_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
               "null"
             ]
           }
-        }
+        },
+        "additionalProperties": true,
+        "description": "Tenantbunden OPS-resolution. automation_allowed=false och needs_review blockerar quote och leverantörsbyte."
       },
       "QuoteRequest": {
         "type": "object",
@@ -867,9 +925,25 @@
         ],
         "properties": {
           "resolution_id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
+          },
+          "price_area": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4",
+              null
+            ],
+            "description": "Optional assertion only. It cannot override the canonical area stored on resolution_id."
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CurrentMarketPrice": {
         "type": "object",
@@ -989,6 +1063,22 @@
           "business"
         ],
         "description": "Canonical values. company is a deprecated alias for business."
+      },
+      "EnergyAreaResolveResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EnergyAreaResolution"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
       }
     }
   },
@@ -1029,7 +1119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnergyAreaResolution"
+                  "$ref": "#/components/schemas/EnergyAreaResolveResponse"
                 }
               }
             }

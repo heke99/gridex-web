@@ -100,7 +100,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["EnergyAreaResolution"];
+                        "application/json": components["schemas"]["EnergyAreaResolveResponse"];
                     };
                 };
             };
@@ -384,16 +384,34 @@ export interface components {
             requested_start_date?: string | null;
         } | unknown | unknown | unknown | unknown;
         EnergyAreaResolution: {
-            status: string;
-            resolution_id: string;
-            /** Format: date-time */
-            valid_until?: string | null;
-            /** @enum {string} */
-            price_area_code: "SE1" | "SE2" | "SE3" | "SE4";
+            resolution_id?: string | null;
+            /** @enum {string|null} */
+            price_area?: "SE1" | "SE2" | "SE3" | "SE4" | null;
             grid_area_code?: string | null;
+            grid_area_name?: string | null;
             grid_owner_id?: string | null;
             grid_owner_name?: string | null;
-            confidence?: number | null;
+            resolution_status: string;
+            confidence?: number;
+            automation_allowed: boolean;
+            next_required_action?: string | null;
+            warnings: string[];
+            /** Format: date-time */
+            resolved_at?: string | null;
+            /** Format: date-time */
+            expires_at?: string | null;
+            resolver_version?: string | null;
+            geodata_version?: string | null;
+            conflict_code?: string | null;
+            error_code?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        EnergyAreaResolveResponse: {
+            data: components["schemas"]["EnergyAreaResolution"];
+            request_id: string;
+        } & {
+            [key: string]: unknown;
         };
         QuoteRequest: {
             resolution_id: string;
@@ -542,7 +560,10 @@ export interface components {
             updated_at: string;
         };
         CurrentMarketPriceRequest: {
+            /** Format: uuid */
             resolution_id: string;
+            /** @enum {string|null} */
+            price_area?: "SE1" | "SE2" | "SE3" | "SE4" | null;
         };
         CurrentMarketPrice: {
             provider: string;

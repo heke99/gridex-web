@@ -14,6 +14,8 @@ export type WebsiteEnergyResolution = {
   grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
+  automation_allowed?: boolean;
+  warnings?: string[];
   source?: string | null;
   customer_message?: string | null;
 };
