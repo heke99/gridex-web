@@ -1,0 +1,99 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Gridex Customer Portal API",
+    "version": "2026-07-24.2"
+  },
+  "servers": [
+    {
+      "url": "https://app.gridex.se/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "PortalBundle": {
+        "type": "object",
+        "properties": {
+          "customer": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "contracts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "supplier_switch": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/customer/portal-bundle": {
+      "post": {
+        "x-gridex-required-scope": "customer_portal.read",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "external_customer_id": {
+                    "type": "string"
+                  },
+                  "customer_number": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical customer portal bundle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalBundle"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

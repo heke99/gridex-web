@@ -24,6 +24,8 @@ export type WebsitePricingQuote = {
   location_fingerprint: string;
   pricing_snapshot_reference: string;
   ops_quote_reference: string;
+  resolution_id: string;
+  start_date: string;
   public_contract_etag: string | null;
   publication_revision: string | null;
   contract_payload_sha256: string | null;
@@ -102,7 +104,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
   return q.version === 3 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
-    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
+    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) && validDate(q.start_date) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
@@ -120,7 +122,7 @@ export function issueWebsitePricingQuote(input: {
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
   const opsValidUntil = input.preview.valid_until;
-  const required = input.preview.ops_quote_reference && input.preview.pricing_interval && input.preview.estimate_method &&
+  const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date && input.preview.pricing_interval && input.preview.estimate_method &&
     input.preview.pricing_snapshot_schema_version && validDate(opsValidUntil) && typeof input.preview.is_binding === "boolean";
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
@@ -142,6 +144,8 @@ export function issueWebsitePricingQuote(input: {
     location_fingerprint: locationFingerprint,
     pricing_snapshot_reference: pricingSnapshotReference,
     ops_quote_reference: input.preview.ops_quote_reference as string,
+    resolution_id: input.preview.resolution_id,
+    start_date: input.preview.start_date,
     public_contract_etag: input.preview.public_contract_etag ?? null,
     publication_revision: input.preview.publication_revision ?? null,
     contract_payload_sha256: input.preview.contract_payload_sha256 ?? null,
@@ -189,6 +193,8 @@ export function verifyWebsitePricingQuote(token: string | null | undefined, now 
 
 export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?: string): WebsitePricingPreview {
   return {
+    resolution_id: quote.resolution_id,
+    start_date: quote.start_date,
     contract: { slug: quote.contract.offer_reference, offer_reference: quote.contract.offer_reference, name: quote.contract.name, contractType: quote.contract.contract_type },
     priceArea: quote.price_area_code,
     price_area_code: quote.price_area_code,

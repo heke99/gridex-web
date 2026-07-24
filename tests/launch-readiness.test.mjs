@@ -236,11 +236,10 @@ assertIncludes(
 
 const envExample = read("env.example");
 for (const variable of [
-  "GRIDEX_WEBSITE_API_KEY",
+  "GRIDEX_API_KEY",
   "GRIDEX_DISABLE_LIVE_SIGNUP",
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
   "GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY",
-  "GRIDEX_ALLOW_UNSAFE_OPS_URL",
   "GRIDEX_ENABLE_OPS_WEBHOOKS",
   "GRIDEX_WEBHOOK_SIGNING_SECRET",
   "GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS",
@@ -255,6 +254,8 @@ for (const variable of [
 }
 
 for (const removedVariable of [
+  "GRIDEX_WEBSITE_API_KEY=",
+  "GRIDEX_OPS_API_KEY=",
   "GRIDEX_WEBSITE_API_SCOPES",
   "GRIDEX_CUSTOMER_PORTAL_API_SCOPES",
   "GRIDEX_CUSTOMER_PORTAL_REQUIRED_SCOPES",
@@ -339,12 +340,12 @@ assertIncludes(
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-24.1.md",
+  "docs/website-integration-2026-07-24.2.md",
   "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-24.1.md",
+  "docs/website-integration-2026-07-24.2.md",
   "powerOfAttorney",
   "repo must document the signed power of attorney application payload",
 );

@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
-import { getLivePriceSummary } from '@/lib/gridex/livePrices'
-import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
+import {
+  GENERIC_MARKET_INFORMATION_NOTICE,
+  getGenericCurrentMarketInformation,
+  getGenericMonthlyMarketInformation,
+} from '@/lib/website/marketInformationAdapter'
 import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 
 type Area = 'SE1' | 'SE2' | 'SE3' | 'SE4'
@@ -32,12 +35,12 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
   // Public SEO pages should show the same previous-month spot price
   // as the calculator when spot data is available.
   const [spotAverage, live] = await Promise.all([
-    fetchMonthlySpotAverageFromElprisetJustNu({
+    getGenericMonthlyMarketInformation({
       year,
       month,
       priceArea: area,
     }).catch(() => null),
-    getLivePriceSummary({
+    getGenericCurrentMarketInformation({
       supabase,
       area,
     }).catch(() => null),
@@ -94,8 +97,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
               : '—'}
           </div>
           <div className="text-xs text-cyan-100/70 mt-2">
-            Källa: Elpriset just nu.se. Utan moms, skatter, elnätsavgifter och
-            påslag.
+            {GENERIC_MARKET_INFORMATION_NOTICE}
           </div>
         </div>
 

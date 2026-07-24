@@ -43,7 +43,7 @@ export async function persistOpsEnergyAreaResolution(input: {
     assurance_level: assuranceLevel,
     source: input.resolution.source ?? 'ops',
     source_chain: input.resolution.source_chain ?? [],
-    resolver_version: 'ops-2026-07-24.1',
+    resolver_version: 'ops-2026-07-24.2',
     resolved_at: input.resolution.resolved_at ?? new Date().toISOString(),
     valid_until: validUntil,
     ops_resolution_id: input.resolution.resolution_id ?? null,

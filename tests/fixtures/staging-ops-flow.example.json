@@ -1,0 +1,37 @@
+{
+  "customer_type": "private",
+  "offer_reference": "offer_replace_with_published_reference",
+  "postal_code": "58200",
+  "city": "Linköping",
+  "street": "Testgatan 1",
+  "annual_consumption_kwh": 5000,
+  "start_date": "2026-09-01",
+  "external_customer_id": "gridex-web-staging-customer-unique-001",
+  "idempotency_key": "gridex-web-staging-application-unique-001",
+  "portal_user_id": null,
+  "customer": {
+    "customer_type": "private",
+    "first_name": "Test",
+    "last_name": "Kund",
+    "email": "replace-with-controlled-test-address@example.se",
+    "phone": "+46700000000",
+    "personal_number": "REPLACE_WITH_APPROVED_TEST_IDENTITY"
+  },
+  "site": {
+    "facility_id": null,
+    "move_in_date": "2026-09-01",
+    "current_supplier_name": null
+  },
+  "contract": {
+    "requested_start_mode": "specific_date",
+    "requested_start_date": "2026-09-01"
+  },
+  "legal_acceptances": {
+    "terms": true,
+    "privacy_policy": true,
+    "withdrawal": true,
+    "power_of_attorney": false,
+    "price_terms": true
+  },
+  "powerOfAttorney": null
+}

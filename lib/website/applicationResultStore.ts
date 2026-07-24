@@ -2,6 +2,9 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 export type WebsiteApplicationPublicResult = {
+  applicationId: string | null
+  workflowId: string | null
+  workflowState: string | null
   status: string
   portalStatus: string
   portalMessage: string | null

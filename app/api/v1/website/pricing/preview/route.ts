@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import {
+  fetchOpsCurrentMarketPrice,
   fetchOpsPublicContractsSnapshot,
   fetchOpsWebsiteQuote,
   getOpsClientStatus,
@@ -85,7 +86,8 @@ export async function POST(req: Request) {
   const city = text(body?.city)
   const address = text(body?.address)
   const offerReference = text(body?.offer_reference ?? body?.offerReference)
-  const startDate = text(body?.start_date ?? body?.startDate, 10)
+  const requestedStartDate = text(body?.start_date ?? body?.startDate, 10)
+  const canonicalStartDate = requestedStartDate ?? new Date().toISOString().slice(0, 10)
   const customerType = parseWebsiteCustomerType(body?.customer_type ?? body?.customerType)
   const areaToken = text(body?.resolution_token ?? body?.resolutionToken, 12_000)
   const claimedArea = requestedPriceArea(body?.price_area_code ?? body?.priceAreaCode ?? body?.priceArea)
@@ -103,7 +105,26 @@ export async function POST(req: Request) {
   }
 
   try {
-    const contractsSnapshot = await fetchOpsPublicContractsSnapshot(customerType)
+    const [contractsSnapshot, currentMarketPrice] = await Promise.all([
+      fetchOpsPublicContractsSnapshot(customerType),
+      fetchOpsCurrentMarketPrice(verifiedArea.payload.resolution_id),
+    ])
+    if (
+      currentMarketPrice.resolution_id !== verifiedArea.payload.resolution_id ||
+      currentMarketPrice.price_area !== verifiedArea.payload.price_area_code
+    ) {
+      return NextResponse.json(
+        { error: 'OPS-marknadspriset matchar inte den verifierade adressen.', code: 'ops_market_price_context_mismatch' },
+        { status: 409 },
+      )
+    }
+    if (currentMarketPrice.is_stale) {
+      return NextResponse.json(
+        { error: 'Ett aktuellt marknadspris kan inte hämtas just nu.', code: 'market_price_stale' },
+        { status: 409 },
+      )
+    }
+
     const contract = contractsSnapshot.contracts.find((item) => item.offer_reference === offerReference)
     if (!contract || !buildPublicContractDisplay(contract).ready) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
@@ -113,11 +134,13 @@ export async function POST(req: Request) {
       resolution_id: verifiedArea.payload.resolution_id,
       offer_reference: offerReference,
       annual_consumption_kwh: annualKwh,
-      start_date: startDate,
+      start_date: canonicalStartDate,
       customer_type: customerType,
     })
     if (
       opsQuote.contract.offer_reference !== offerReference ||
+      opsQuote.resolution_id !== verifiedArea.payload.resolution_id ||
+      opsQuote.start_date !== canonicalStartDate ||
       opsQuote.priceArea !== verifiedArea.payload.price_area_code ||
       Math.abs((opsQuote.annual_consumption_kwh ?? 0) - annualKwh) > 0.001
     ) {
@@ -145,26 +168,35 @@ export async function POST(req: Request) {
     })
     if (!websiteQuote) throw new Error('OPS quote could not be locked for checkout.')
 
+    const { raw: _marketPriceRaw, ...publicCurrentMarketPrice } = currentMarketPrice
     const data = {
       ...quoteToWebsitePricingPreview(websiteQuote.quote, websiteQuote.token),
       customerNotice: CUSTOMER_NETWORK_FEE_NOTICE,
       quote_source: 'website' as const,
       token_issuer: 'website' as const,
       canonical_source: 'ops' as const,
+      current_market_price: publicCurrentMarketPrice,
     }
     return NextResponse.json({ data }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
+    const opsCode = isOpsError(error) ? error.code : null
     console.error('[website pricing quote] failed', {
       request_id: requestId,
+      correlation_id: isOpsError(error) ? error.correlationId : null,
       status: isOpsError(error) ? error.status : null,
+      code: opsCode,
       message: error instanceof Error ? error.message : String(error),
     })
+    const publicCode = opsCode === 'market_price_stale'
+      ? 'market_price_stale'
+      : isOpsError(error)
+        ? 'ops_quote_failed'
+        : 'website_quote_failed'
+    const publicMessage = publicCode === 'market_price_stale'
+      ? 'Ett aktuellt marknadspris kan inte hämtas just nu.'
+      : `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
     return NextResponse.json(
-      {
-        error: `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`,
-        code: isOpsError(error) ? 'ops_quote_failed' : 'website_quote_failed',
-        request_id: requestId,
-      },
+      { error: publicMessage, code: publicCode, request_id: requestId },
       { status: isOpsError(error) ? error.status : 503 },
     )
   }

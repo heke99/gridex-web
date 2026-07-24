@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { getLivePriceSummary } from '@/lib/gridex/livePrices'
-import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
+import {
+  GENERIC_MARKET_INFORMATION_NOTICE,
+  getGenericCurrentMarketInformation,
+  getGenericMonthlyMarketInformation,
+} from '@/lib/website/marketInformationAdapter'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
 import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
@@ -45,12 +48,12 @@ export default async function ElprisIdagPage() {
   const [summaries, previousMonthAverages] = await Promise.all([
     Promise.all(
       AREAS.map((area) =>
-        getLivePriceSummary({ supabase, area }).catch(() => null)
+        getGenericCurrentMarketInformation({ supabase, area }).catch(() => null)
       )
     ),
     Promise.all(
       AREAS.map((area) =>
-        fetchMonthlySpotAverageFromElprisetJustNu({
+        getGenericMonthlyMarketInformation({
           year: period.year,
           month: period.month,
           priceArea: area,
@@ -111,9 +114,9 @@ export default async function ElprisIdagPage() {
           Elpris idag och föregående månads spotpris
         </h1>
         <p className="mt-3 max-w-3xl text-gray-400">
-          Här visas aktuellt marknadspris samt föregående månads genomsnittliga
-          spotpris per elområde. På sidan ser du marknadspriset innan avtalade
-          påslag, avgifter och moms läggs till.
+          Här visas generell marknadsinformation för elområdena. Det är inte en
+          personlig offert och används aldrig som avtals- eller faktureringspris.
+          {` ${GENERIC_MARKET_INFORMATION_NOTICE}`}
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link href="/#rakna-elpris" className="rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black transition hover:bg-cyan-400">
@@ -134,7 +137,7 @@ export default async function ElprisIdagPage() {
             </p>
           </div>
           <Link href="/#rakna-elpris" className="rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black transition hover:bg-cyan-400">
-            Räkna med detta pris
+            Hämta personlig OPS-offert
           </Link>
         </div>
 

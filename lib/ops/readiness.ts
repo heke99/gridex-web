@@ -66,7 +66,7 @@ function classifyProbeFailure(error: unknown): OpsReadinessCode {
 function readinessMessage(code: OpsReadinessCode): string {
   switch (code) {
     case 'ready': return 'OPS checkout-flöde, juridik och endpoint-behörigheter har verifierats direkt mot API:t.'
-    case 'not_configured': return 'OPS API-nyckel eller en lokal serverhemlighet saknas, eller så stoppas anslutningen av produktionsskyddet.'
+    case 'not_configured': return 'GRIDEX_API_KEY saknas eller är ogiltig.'
     case 'invalid_api_key': return 'OPS avvisade API-nyckeln.'
     case 'missing_scope': return 'API-nyckeln saknar minst en behörighet som det aktiva checkoutflödet använder.'
     case 'invalid_base_url_or_environment': return 'OPS URL pekar på fel miljö eller saknar en dokumenterad endpoint.'
@@ -87,10 +87,23 @@ function authorizationProbe(path: string, method: 'GET' | 'POST', body?: Record<
 
 function probeDefinitions(): ProbeDefinition[] {
   return [
-    { name: 'integration_context', scopes: ['integration_context.read'], run: async () => { await fetchOpsIntegrationContext(true) } },
+    { name: 'integration_context', scopes: ['integration_context.read'], run: async () => {
+      const context = await fetchOpsIntegrationContext(true)
+      if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_checkout_scopes.length > 0) {
+        return {
+          ok: false,
+          status: 403,
+          code: `missing_scope:${context.capabilities.missing_website_checkout_scopes.join(',')}`,
+        }
+      }
+      if (context.configuration.application_reference_location !== 'top_level') {
+        throw new Error('application_reference_location_mismatch')
+      }
+    } },
     { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
     { name: 'website_contracts.diagnostics', scopes: ['website_contracts.diagnostics'], run: async () => { await fetchOpsPublicContractDiagnostics() } },
     { name: 'website_energy_area.resolve', scopes: ['website_energy_area.resolve'], run: () => authorizationProbe('/api/v1/website/energy-area/resolve', 'POST', {}) },
+    { name: 'website_market_prices.read', scopes: ['website_market_prices.read'], run: () => authorizationProbe('/api/v1/website/market-price/current', 'POST', {}) },
     { name: 'website_quotes.write', scopes: ['website_quotes.write'], run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}) },
     { name: 'website_quotes.validate', scopes: ['website_quotes.validate'], run: () => authorizationProbe('/api/v1/website/quote/validate', 'POST', {}) },
     { name: 'website_applications.write', scopes: ['website_applications.write'], run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}) },

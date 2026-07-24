@@ -1,0 +1,1196 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Gridex Website and Partner Integration API",
+    "version": "2026-07-24.2"
+  },
+  "servers": [
+    {
+      "url": "https://app.gridex.se"
+    }
+  ],
+  "x-gridex-tenant-setup": {
+    "required_environment_variables": [
+      "GRIDEX_API_KEY"
+    ],
+    "api_base_url": "https://app.gridex.se/api/v1",
+    "application_reference_location": "top_level"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "IntegrationContext": {
+        "type": "object",
+        "required": [
+          "tenant_reference",
+          "api_version",
+          "contract_version",
+          "configuration",
+          "capabilities"
+        ],
+        "properties": {
+          "tenant_reference": {
+            "type": "string"
+          },
+          "company_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "environment": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "api_version": {
+            "const": "v1"
+          },
+          "contract_version": {
+            "const": "2026-07-24.2"
+          },
+          "configuration": {
+            "type": "object",
+            "required": [
+              "required_environment_variables",
+              "api_base_url",
+              "application_reference_location",
+              "tenant_id_environment_required",
+              "company_id_environment_required"
+            ],
+            "properties": {
+              "required_environment_variables": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "const": "GRIDEX_API_KEY"
+                  }
+                ],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "api_base_url": {
+                "const": "https://app.gridex.se/api/v1"
+              },
+              "application_reference_location": {
+                "const": "top_level"
+              },
+              "tenant_id_environment_required": {
+                "const": false
+              },
+              "company_id_environment_required": {
+                "const": false
+              }
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "website_checkout_ready",
+              "missing_website_scopes"
+            ],
+            "properties": {
+              "website_checkout_ready": {
+                "type": "boolean"
+              },
+              "required_website_scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "missing_website_scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EnergyAreaResolveRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "street": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postal_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": "SE"
+          },
+          "grid_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "facility_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metering_point_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_start_mode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "postal_code"
+            ]
+          },
+          {
+            "required": [
+              "grid_area_code"
+            ]
+          },
+          {
+            "required": [
+              "facility_id"
+            ]
+          },
+          {
+            "required": [
+              "metering_point_id"
+            ]
+          }
+        ]
+      },
+      "EnergyAreaResolution": {
+        "type": "object",
+        "required": [
+          "status",
+          "resolution_id",
+          "price_area_code"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "resolution_id": {
+            "type": "string"
+          },
+          "valid_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "price_area_code": {
+            "type": "string",
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4"
+            ]
+          },
+          "grid_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grid_owner_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grid_owner_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "required": [
+          "resolution_id",
+          "offer_reference",
+          "annual_consumption_kwh",
+          "customer_type",
+          "start_date"
+        ],
+        "properties": {
+          "resolution_id": {
+            "type": "string"
+          },
+          "offer_reference": {
+            "type": "string"
+          },
+          "annual_consumption_kwh": {
+            "type": "number"
+          },
+          "customer_type": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "QuoteValidationRequest": {
+        "type": "object",
+        "required": [
+          "quote_reference",
+          "offer_reference",
+          "resolution_id",
+          "annual_consumption_kwh",
+          "customer_type",
+          "start_date"
+        ],
+        "properties": {
+          "quote_reference": {
+            "type": "string"
+          },
+          "offer_reference": {
+            "type": "string"
+          },
+          "resolution_id": {
+            "type": "string"
+          },
+          "annual_consumption_kwh": {
+            "type": "number"
+          },
+          "customer_type": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "MarketReference": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_area": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4",
+              null
+            ]
+          },
+          "reference_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reference_period": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_sek_per_kwh": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "price_ore_per_kwh": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "requested_days": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "included_days": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "period_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "source_as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "generated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "stale_after": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "effective_stale_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "includes_vat": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "includes_supplier_fees": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "includes_grid_fees": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "is_indicative": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "is_stale": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "fallback_used": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "fallback_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "required": [
+          "quote_reference",
+          "offer_reference",
+          "resolution_id",
+          "start_date",
+          "price_area_code",
+          "valid_until"
+        ],
+        "properties": {
+          "quote_reference": {
+            "type": "string"
+          },
+          "offer_reference": {
+            "type": "string"
+          },
+          "resolution_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "price_area_code": {
+            "type": "string",
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4"
+            ]
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "market_reference": {
+            "$ref": "#/components/schemas/MarketReference"
+          }
+        }
+      },
+      "CustomerApplicationRequest": {
+        "type": "object",
+        "required": [
+          "external_customer_id",
+          "source",
+          "offer_reference",
+          "quote_reference",
+          "resolution_id",
+          "annual_consumption_kwh",
+          "start_date",
+          "customer",
+          "site",
+          "contract",
+          "consents",
+          "legal_acceptances"
+        ],
+        "properties": {
+          "external_customer_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "offer_reference": {
+            "type": "string"
+          },
+          "quote_reference": {
+            "type": "string"
+          },
+          "resolution_id": {
+            "type": "string"
+          },
+          "annual_consumption_kwh": {
+            "type": "number"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "customer": {
+            "type": "object",
+            "required": [
+              "customer_type",
+              "email"
+            ],
+            "properties": {
+              "customer_type": {
+                "$ref": "#/components/schemas/CustomerType"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "first_name": {
+                "type": "string"
+              },
+              "last_name": {
+                "type": "string"
+              },
+              "company_name": {
+                "type": "string"
+              },
+              "personal_number": {
+                "type": "string"
+              },
+              "org_number": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "site": {
+            "type": "object",
+            "properties": {
+              "facility_id": {
+                "type": "string"
+              },
+              "metering_point_id": {
+                "type": "string"
+              },
+              "street": {
+                "type": "string"
+              },
+              "postal_code": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "move_in_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "current_supplier_name": {
+                "type": "string"
+              },
+              "current_supplier_id": {
+                "type": "string"
+              },
+              "current_supplier_org_number": {
+                "type": "string"
+              },
+              "current_supplier_ediel_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true,
+            "not": {
+              "required": [
+                "price_area_code"
+              ]
+            }
+          },
+          "contract": {
+            "type": "object",
+            "properties": {
+              "requested_start_mode": {
+                "type": "string",
+                "enum": [
+                  "earliest_possible",
+                  "specific_date"
+                ]
+              },
+              "requested_start_date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              }
+            },
+            "additionalProperties": true,
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "offer_reference"
+                  ]
+                },
+                {
+                  "required": [
+                    "quote_reference"
+                  ]
+                },
+                {
+                  "required": [
+                    "resolution_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "consents": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "powerOfAttorney": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "legal_acceptances": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "CustomerApplicationResult": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "application_number",
+          "status"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string"
+          },
+          "application_number": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "customer_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customer_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "site_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metering_point_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "continuation_job_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflow_state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CustomerApplicationStatus": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "status",
+          "stage",
+          "missing_customer_action",
+          "updated_at"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string"
+          },
+          "application_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "processing",
+              "needs_customer_information",
+              "completed",
+              "rejected",
+              "failed"
+            ]
+          },
+          "stage": {
+            "type": "string"
+          },
+          "customer_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supplier_switch_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supply_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_start_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmed_start_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "missing_customer_action": {
+            "type": "boolean"
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blocking_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CurrentMarketPriceRequest": {
+        "type": "object",
+        "required": [
+          "resolution_id"
+        ],
+        "properties": {
+          "resolution_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CurrentMarketPrice": {
+        "type": "object",
+        "required": [
+          "provider",
+          "resolution_id",
+          "price_area",
+          "reference_type",
+          "resolution",
+          "time_start",
+          "time_end",
+          "price_sek_per_kwh",
+          "price_ore_per_kwh",
+          "includes_vat",
+          "includes_supplier_fees",
+          "includes_grid_fees",
+          "is_indicative",
+          "is_stale",
+          "source_as_of",
+          "next_update_at"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "resolution_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "price_area": {
+            "type": "string",
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4"
+            ]
+          },
+          "reference_type": {
+            "const": "current_interval"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "hourly",
+              "quarterly"
+            ]
+          },
+          "time_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "price_sek_per_kwh": {
+            "type": "number"
+          },
+          "price_ore_per_kwh": {
+            "type": "number"
+          },
+          "price_ex_vat_sek_per_kwh": {
+            "type": "number"
+          },
+          "price_ex_vat_ore_per_kwh": {
+            "type": "number"
+          },
+          "includes_vat": {
+            "type": "boolean"
+          },
+          "includes_supplier_fees": {
+            "type": "boolean"
+          },
+          "includes_grid_fees": {
+            "type": "boolean"
+          },
+          "is_indicative": {
+            "type": "boolean"
+          },
+          "is_stale": {
+            "type": "boolean"
+          },
+          "source_as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_update_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CurrentMarketPriceResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CurrentMarketPrice"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "contract_schema_version": {
+            "const": "2026-07-24.2"
+          }
+        }
+      },
+      "CustomerType": {
+        "type": "string",
+        "enum": [
+          "private",
+          "business"
+        ],
+        "description": "Canonical values. company is a deprecated alias for business."
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/integration/context": {
+      "get": {
+        "x-gridex-required-scope": "integration_context.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationContext"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/public-contracts": {
+      "get": {
+        "x-gridex-required-scope": "website_contracts.read",
+        "responses": {
+          "200": {
+            "description": "Published contracts"
+          }
+        }
+      }
+    },
+    "/api/v1/website/energy-area/resolve": {
+      "post": {
+        "x-gridex-required-scope": "website_energy_area.resolve",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnergyAreaResolution"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnergyAreaResolveRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/market-price/current": {
+      "post": {
+        "x-gridex-required-scope": "website_market_prices.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentMarketPriceResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurrentMarketPriceRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/quote": {
+      "post": {
+        "x-gridex-required-scope": "website_quotes.write",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/quote/validate": {
+      "post": {
+        "x-gridex-required-scope": "website_quotes.validate",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteValidationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/customer-applications": {
+      "post": {
+        "x-gridex-required-scope": "website_applications.write",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerApplicationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerApplicationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/customer-applications/{application_id}": {
+      "get": {
+        "x-gridex-required-scope": "website_applications.read",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerApplicationStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website/switch-status": {
+      "get": {
+        "x-gridex-required-scope": "website_switch_status.read",
+        "responses": {
+          "200": {
+            "description": "Supplier switch detail status"
+          }
+        }
+      }
+    }
+  }
+}

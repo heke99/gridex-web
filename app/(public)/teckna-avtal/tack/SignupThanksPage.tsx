@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
 import SwitchStatusCard from '@/components/signup/SwitchStatusCard'
+import ApplicationStatusCard from '@/components/signup/ApplicationStatusCard'
 import {
   statusLabel as friendlyStatusLabel,
   statusDescription as friendlyStatusDescription,
@@ -111,6 +112,13 @@ export default async function SignupThanksPage({
           <div className="text-sm font-semibold text-white">{portal.title}</div>
           <p className="mt-2 text-sm leading-6 text-gray-200">{portal.body}</p>
         </div>
+        {stored?.applicationId && resultToken ? (
+          <ApplicationStatusCard
+            applicationId={stored.applicationId}
+            resultToken={resultToken}
+            initialStatus={stored.status}
+          />
+        ) : null}
         {stored?.applicationNumber && resultToken ? (
           <SwitchStatusCard resultToken={resultToken} initialStatus={stored.supplierSwitchStatus} />
         ) : null}

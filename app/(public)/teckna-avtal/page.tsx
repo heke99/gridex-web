@@ -24,6 +24,7 @@ import {
   submitOpsCustomerPortalSync,
   type OpsCustomerApplicationInput,
   type OpsPublicContract,
+  type OpsWebsitePowerOfAttorneyInput,
 } from "@/lib/ops/client";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 
@@ -202,7 +203,8 @@ function errorText(code?: string) {
     case "idempotency_retry_failed":
       return "Vi kunde inte skicka teckningen just nu. Försök igen om en stund eller kontakta kundservice så hjälper vi dig.";
     case "idempotency_mismatch":
-      return "Uppgifterna ändrades efter ett tidigare skickningsförsök. Vi har skapat ett nytt säkert försök – granska och skicka igen.";
+    case "idempotency_conflict":
+      return "Ansökan kunde inte återupptas eftersom uppgifterna har ändrats. Granska uppgifterna och skicka igen.";
     case "idempotency_in_progress":
       return "Samma teckning behandlas redan. Vänta en kort stund och kontrollera din e-post innan du försöker igen.";
     case "duplicate_application":
@@ -223,6 +225,14 @@ function errorText(code?: string) {
       return "Priset eller avtalet har ändrats. Räkna om priset och granska den uppdaterade teckningen.";
     case "area_mismatch":
       return "Vi kunde inte bekräfta elområdet för adressen. Kontrollera adressen och räkna om priset.";
+    case "resolution_expired":
+      return "Adressen behöver kontrolleras igen innan avtalet kan tecknas.";
+    case "quote_expired":
+      return "Prisberäkningen har löpt ut. Hämta ett nytt pris.";
+    case "market_price_stale":
+      return "Ett aktuellt marknadspris kan inte hämtas just nu.";
+    case "missing_scope":
+      return "Webbplatsens API-nyckel saknar behörighet för denna funktion.";
     case "customer_type":
       return "Det valda avtalet är inte tillgängligt för den valda kundtypen. Välj ett aktuellt avtal.";
     case "rate_limit":
@@ -336,9 +346,14 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
   });
 
   if (error.status === 503) return "live_disabled";
-  if (error.status === 401 || error.status === 403) return "ops_auth";
+  if (error.status === 401) return "ops_auth";
+  if (error.status === 403) {
+    if (/missing_scope|scope/i.test(context.code)) return "missing_scope";
+    return "ops_auth";
+  }
   if (error.status === 400) return "ops_validation";
   if (error.status === 409) {
+    if (/idempotency_conflict/i.test(context.code)) return "idempotency_conflict";
     if (/idempotency_key_payload_mismatch|idempotency.*mismatch/i.test(context.code)) return "idempotency_mismatch";
     if (/idempotency_in_progress|application_business_in_progress/i.test(context.code)) return "idempotency_in_progress";
     if (/duplicate|business_conflict/i.test(context.code)) return "duplicate_application";
@@ -346,6 +361,9 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
     return "ops_unavailable";
   }
+  if (/resolution_expired/i.test(context.code)) return "resolution_expired";
+  if (/quote_expired/i.test(context.code)) return "quote_expired";
+  if (/market_price_stale/i.test(context.code)) return "market_price_stale";
   if (error.status === 422) {
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
     if (/legal|consent|power_of_attorney|price_terms/i.test(context.code))
@@ -458,7 +476,12 @@ function signerNameForApplication(input: {
   firstName: string;
   lastName: string;
 }): string | null {
-  return [input.firstName, input.lastName].filter(Boolean).join(" ") || null;
+  return (
+    [input.firstName, input.lastName]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ") || null
+  );
 }
 
 async function getCurrentPortalAuth() {
@@ -898,53 +921,78 @@ export default async function TecknaPage({
       });
     }
 
-    const powerOfAttorney =
-      powerOfAttorneyRequired && acceptPowerOfAttorney
-        ? {
-            accepted: true,
-            scope: ["supplier_switch", "facility_information_lookup"],
-            signerName: signerNameForApplication({
-              firstName,
-              lastName,
-            }),
-            signerIdentityNumber: personalNumber,
-            method: "website_acceptance",
-            acceptedAt,
-            textVersionId: powerOfAttorneyTextVersionId,
-            ipAddress: immutableContext.ipAddress,
-            userAgent: immutableContext.userAgent,
-          }
-        : null;
+    let powerOfAttorney: OpsWebsitePowerOfAttorneyInput | null = null;
+
+    if (powerOfAttorneyRequired && acceptPowerOfAttorney) {
+      const signerName = signerNameForApplication({ firstName, lastName });
+
+      if (!signerName) {
+        return fail("validation", {
+          step: 0,
+          fieldErrors: {
+            form: "Ange för- och efternamn för personen som godkänner fullmakten.",
+          },
+        });
+      }
+
+      if (!powerOfAttorneyTextVersionId) {
+        console.error(
+          "[website signup] required power of attorney is missing a legal text version",
+          { offer_reference: offer.offer_reference },
+        );
+        return fail("legal_config", { step: 1 });
+      }
+
+      powerOfAttorney = {
+        accepted: true,
+        scope: ["supplier_switch", "facility_information_lookup"],
+        signerName,
+        signerIdentityNumber: personalNumber,
+        method: "website_acceptance",
+        acceptedAt,
+        textVersionId: powerOfAttorneyTextVersionId,
+        ipAddress: immutableContext.ipAddress,
+        userAgent: immutableContext.userAgent,
+      };
+    }
 
     const applicationInput = {
-      offer_reference: offer.offer_reference,
-      annual_consumption_kwh: annualConsumptionKwh,
-      customer_type: customerType,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      company_name: companyName || null,
-      personal_number: personalNumber || null,
-      organization_number: organizationNumber || null,
-      email,
-      phone,
-      address,
-      postal_code: postalCode,
-      city,
-      facility_id: facilityId || null,
-      grid_area_code: serverResolution.gridAreaCode,
-      grid_owner_id: serverResolution.gridOwnerId,
-      grid_owner_name: serverResolution.gridOwnerName,
-      requested_start_mode: requestedStartMode,
-      requested_start_date:
-        requestedStartMode === "specific_date" ? requestedStartDate || null : null,
-      price_area_code: serverPriceAreaCode,
-      current_supplier_name: currentSupplierName || null,
-      current_supplier_id: currentSupplierId || null,
-      current_supplier_org_number: currentSupplierOrgNumber || null,
-      current_supplier_ediel_id: currentSupplierEdielId || null,
-      source: process.env.GRIDEX_WEBSITE_SOURCE?.trim() || "gridex.se",
-      idempotency_key: idempotencyKey,
       external_customer_id: externalCustomerId,
+      source: "gridex_web",
+      offer_reference: offer.offer_reference,
+      quote_reference: verifiedQuote.value.quote.ops_quote_reference,
+      resolution_id: verifiedQuote.value.area.resolutionId,
+      annual_consumption_kwh: annualConsumptionKwh,
+      start_date: verifiedQuote.value.quote.start_date,
+      customer: {
+        customer_type: customerType,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        company_name: companyName || null,
+        personal_number: personalNumber || null,
+        organization_number: organizationNumber || null,
+        email,
+        phone,
+      },
+      site: {
+        facility_id: facilityId || null,
+        street: address,
+        postal_code: postalCode,
+        city,
+        move_in_date: verifiedQuote.value.quote.start_date,
+        current_supplier_name: currentSupplierName || null,
+        current_supplier_id: currentSupplierId || null,
+        current_supplier_org_number: currentSupplierOrgNumber || null,
+        current_supplier_ediel_id: currentSupplierEdielId || null,
+      },
+      contract: {
+        requested_start_mode: requestedStartMode,
+        requested_start_date:
+          requestedStartMode === "specific_date"
+            ? verifiedQuote.value.quote.start_date
+            : null,
+      },
+      idempotency_key: idempotencyKey,
       customer_portal_user_id: linkedAuthUserId,
       auth_user_id: linkedAuthUserId,
       consents: legalConsents,
@@ -981,6 +1029,16 @@ export default async function TecknaPage({
         opsCustomerId: result.customer_id ?? null,
         opsApplicationNumber: result.application_number ?? null,
         opsContractId: result.contract_id ?? null,
+        opsCustomerNumber: result.customer_number ?? null,
+        opsSiteId: result.site_id ?? null,
+        opsMeteringPointId: result.metering_point_id ?? null,
+        opsWorkflowId: result.workflow_id ?? null,
+        opsContinuationJobId: result.continuation_job_id ?? null,
+        opsWorkflowState: result.workflow_state ?? null,
+        opsStatus: result.status,
+        opsSupplierSwitchStatus: result.supplier_switch_status ?? null,
+        opsCorrelationId: result.correlation_id ?? null,
+        lastStatusSyncedAt: new Date().toISOString(),
         opsResultSnapshot: result.raw ?? null,
         contractStatus: result.contract_status ?? null,
         signedAt: result.signed_at ?? null,
@@ -1087,6 +1145,9 @@ export default async function TecknaPage({
         submissionAttemptId,
         userId: linkedAuthUserId,
         result: {
+          applicationId: result.application_id ?? null,
+          workflowId: result.workflow_id ?? null,
+          workflowState: result.workflow_state ?? null,
           status: result.status,
           portalStatus: safePortalStatus(portalOnboarding.status),
           portalMessage: portalOnboarding.message?.slice(0, 500) ?? null,

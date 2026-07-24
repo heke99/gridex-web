@@ -8,8 +8,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:launch": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-2026-07-24-1.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
-    "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs"
+    "test:launch": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-2026-07-24-2.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
+    "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "npm run test:launch",
+    "api:contract": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-2026-07-24-2.contract.test.mjs",
+    "api:generate": "npx --yes openapi-typescript docs/openapi/website-integration-v1.json -o lib/ops/generated/website-api.d.ts && npx --yes openapi-typescript docs/openapi/customer-portal-v1.json -o lib/ops/generated/customer-portal-api.d.ts",
+    "api:drift": "node scripts/check-openapi-drift.mjs",
+    "test:canonical-market-flow": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-2026-07-24-2.contract.test.mjs",
+    "test:customer-application": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-2026-07-24-2.contract.test.mjs",
+    "test:idempotency": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
+    "test:portal": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs",
+    "test:staging:ops": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/staging-canonical-ops-flow.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

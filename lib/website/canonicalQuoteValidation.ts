@@ -58,13 +58,24 @@ export async function validateCanonicalWebsiteQuote(
   })
   if (!local.ok) return { ok: false, reason: local.reason }
 
+  if (local.quote.resolution_id !== area.payload.resolution_id) {
+    return { ok: false, reason: 'quote_resolution_mismatch' }
+  }
+  const requestedStartDate =
+    input.requestedStartMode === 'specific_date'
+      ? input.requestedStartDate ?? null
+      : local.quote.start_date
+  if (!requestedStartDate || local.quote.start_date !== requestedStartDate) {
+    return { ok: false, reason: 'quote_start_date_mismatch' }
+  }
+
   const opsValidation = await validateOpsWebsiteQuote({
     quote_reference: local.quote.ops_quote_reference,
     offer_reference: input.contract.offer_reference,
     customer_type: input.customerType,
-    price_area_code: area.payload.price_area_code,
+    resolution_id: area.payload.resolution_id,
     annual_consumption_kwh: input.annualConsumptionKwh,
-    start_date: input.requestedStartMode === 'specific_date' ? input.requestedStartDate ?? null : null,
+    start_date: requestedStartDate,
   })
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }

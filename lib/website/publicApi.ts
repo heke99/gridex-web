@@ -74,14 +74,34 @@ export type WebsiteQuoteMarketSource = {
 
 export type WebsiteQuoteMarketReference = {
   provider: string | null;
+  price_area: WebsitePriceArea | null;
+  reference_type: string | null;
   reference_period: string | null;
+  price_sek_per_kwh: number | null;
+  price_ore_per_kwh: number | null;
+  requested_days: number | null;
+  included_days: number | null;
+  period_start: string | null;
+  period_end: string | null;
   as_of: string | null;
+  source_as_of: string | null;
+  generated_at: string | null;
+  stale_after: string | null;
+  effective_stale_at: string | null;
+  unit: string | null;
+  includes_vat: boolean | null;
+  includes_supplier_fees: boolean | null;
+  includes_grid_fees: boolean | null;
   is_indicative: boolean | null;
+  is_stale: boolean | null;
+  fallback_used: boolean | null;
+  fallback_reason: string | null;
   freshness: string | null;
-  fallback: string | null;
 };
 
 export type WebsitePricingPreview = {
+  resolution_id: string;
+  start_date: string;
   contract: {
     slug: string;
     offer_reference?: string | null;

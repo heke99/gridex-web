@@ -96,7 +96,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
   if (!getOpsClientStatus().configured) {
     return {
       ready: false,
-      message: 'Mina sidor kan inte verifieras innan OPS API-nyckeln och lokal serverkonfiguration är klara.',
+      message: 'Mina sidor kan inte verifieras innan GRIDEX_API_KEY är konfigurerad.',
       scopes: allScopes.map((scope) => ({ scope, status: 'unverified' })),
       probes,
       portalBundleProbe: { ok: false, status: null, code: 'ops_not_configured' },

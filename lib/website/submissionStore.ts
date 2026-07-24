@@ -110,6 +110,7 @@ export async function prepareWebsiteSubmission(input: {
     submission_attempt_id: input.submissionAttemptId,
     user_id: input.userId,
     idempotency_key: input.idempotencyKey,
+    submission_idempotency_key: input.idempotencyKey,
     external_application_id: input.externalApplicationId,
     external_customer_id: input.externalCustomerId,
     accepted_at: acceptedAt,
@@ -155,6 +156,7 @@ export async function lockWebsiteSubmissionOpsPayload(input: {
     .update({
       ops_payload_hash: input.opsPayloadHash,
       normalized_ops_payload_sha256: input.opsPayloadHash,
+      submission_payload_hash: input.opsPayloadHash,
       attempt_count: existing.ops_payload_hash ? undefined : 1,
       updated_at: new Date().toISOString(),
     })
@@ -178,6 +180,16 @@ export async function updateWebsiteSubmission(input: {
   opsCustomerId?: string | null
   opsApplicationNumber?: string | null
   opsContractId?: string | null
+  opsCustomerNumber?: string | null
+  opsSiteId?: string | null
+  opsMeteringPointId?: string | null
+  opsWorkflowId?: string | null
+  opsContinuationJobId?: string | null
+  opsWorkflowState?: string | null
+  opsStatus?: string | null
+  opsSupplierSwitchStatus?: string | null
+  opsCorrelationId?: string | null
+  lastStatusSyncedAt?: string | null
   opsResultSnapshot?: Record<string, unknown> | null
   contractStatus?: string | null
   signedAt?: string | null
@@ -198,6 +210,16 @@ export async function updateWebsiteSubmission(input: {
       ops_customer_id: input.opsCustomerId ?? null,
       ops_application_number: input.opsApplicationNumber ?? null,
       ops_contract_id: input.opsContractId ?? null,
+      ops_customer_number: input.opsCustomerNumber ?? null,
+      ops_site_id: input.opsSiteId ?? null,
+      ops_metering_point_id: input.opsMeteringPointId ?? null,
+      ops_workflow_id: input.opsWorkflowId ?? null,
+      ops_continuation_job_id: input.opsContinuationJobId ?? null,
+      ops_workflow_state: input.opsWorkflowState ?? null,
+      ops_status: input.opsStatus ?? null,
+      ops_supplier_switch_status: input.opsSupplierSwitchStatus ?? null,
+      ops_correlation_id: input.opsCorrelationId ?? null,
+      last_status_synced_at: input.lastStatusSyncedAt ?? null,
       ops_result_snapshot: input.opsResultSnapshot ?? null,
       contract_status: input.contractStatus ?? null,
       signed_at: input.signedAt ?? null,
@@ -212,4 +234,33 @@ export async function updateWebsiteSubmission(input: {
     })
     .eq('submission_attempt_id', input.submissionAttemptId)
   if (error) throw new Error(`Submission storage update failed: ${error.message}`)
+}
+
+export async function syncWebsiteSubmissionStatus(input: {
+  opsApplicationId: string
+  opsStatus: string
+  opsWorkflowState?: string | null
+  opsCustomerNumber?: string | null
+  contractStatus?: string | null
+  supplierSwitchStatus?: string | null
+  snapshot: Record<string, unknown>
+}): Promise<void> {
+  const applicationId = input.opsApplicationId.trim()
+  if (!applicationId) throw new Error('OPS application ID is required for status sync.')
+  const now = new Date().toISOString()
+  const supabase = serviceClient()
+  const { error } = await supabase
+    .from('website_application_submissions')
+    .update({
+      ops_status: input.opsStatus,
+      ops_workflow_state: input.opsWorkflowState ?? input.opsStatus,
+      ops_customer_number: input.opsCustomerNumber ?? undefined,
+      contract_status: input.contractStatus ?? undefined,
+      ops_supplier_switch_status: input.supplierSwitchStatus ?? undefined,
+      last_status_synced_at: now,
+      ops_result_snapshot: input.snapshot,
+      updated_at: now,
+    })
+    .eq('ops_application_id', applicationId)
+  if (error) throw new Error(`Submission status sync failed: ${error.message}`)
 }
