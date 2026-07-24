@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       ok: true,
       quote_reference: result.value.quote.ops_quote_reference,
       pricing_snapshot_reference: result.value.quote.pricing_snapshot_reference,
-      resolution_reference: result.value.area.resolutionReference,
+      resolution_id: result.value.area.resolutionId,
       valid_until: result.value.opsValidation.valid_until ?? result.value.quote.valid_until,
     })
   } catch (error) {

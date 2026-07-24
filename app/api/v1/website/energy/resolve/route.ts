@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     const confidenceTooLow = resolution.confidence != null && resolution.confidence < 0.75
     if (
       !resolution.price_area_code ||
-      !resolution.resolution_reference ||
+      !resolution.resolution_id ||
       !resolution.valid_until ||
       explicitlyUnresolved ||
       confidenceTooLow
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       {
         data: {
           status: resolution.status,
-          resolution_reference: resolution.resolution_reference,
+          resolution_id: resolution.resolution_id,
           resolution_token: issued.token,
           valid_until: resolution.valid_until,
           price_area_code: resolution.price_area_code,

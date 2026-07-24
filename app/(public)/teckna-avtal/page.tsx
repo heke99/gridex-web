@@ -918,7 +918,6 @@ export default async function TecknaPage({
 
     const applicationInput = {
       offer_reference: offer.offer_reference,
-      quote_reference: verifiedQuote.value.quote.ops_quote_reference,
       annual_consumption_kwh: annualConsumptionKwh,
       customer_type: customerType,
       first_name: firstName || null,
@@ -949,15 +948,6 @@ export default async function TecknaPage({
       customer_portal_user_id: linkedAuthUserId,
       auth_user_id: linkedAuthUserId,
       consents: legalConsents,
-      legal_acceptances: legalRequirements.map((requirement) => ({
-        requirement_code: requirement.requirement_code,
-        accepted: legalConsents[requirement.requirement_code] === true,
-        document_id: requirement.document_id,
-        legal_bundle_version_document_id: requirement.legal_bundle_version_document_id,
-        document_version: requirement.document_version,
-        document_hash: requirement.document_hash,
-        accepted_at: acceptedAt,
-      })),
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;
 

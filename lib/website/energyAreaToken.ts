@@ -1,14 +1,15 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
+import { websiteServerSigningSecret } from '@/lib/website/serverTokenSecret'
 
-const TOKEN_VERSION = 'ea1'
+const TOKEN_VERSION = 'ea2'
 const MAX_TOKEN_TTL_MS = 30 * 60_000
 
 export type WebsiteEnergyAreaTokenPayload = {
   version: 1
   issued_at: string
   expires_at: string
-  resolution_reference: string
+  resolution_id: string
   price_area_code: OpsWebsitePriceArea
   grid_area_code: string | null
   grid_owner_id: string | null
@@ -19,8 +20,9 @@ export type WebsiteEnergyAreaTokenPayload = {
 
 function secret(): string | null {
   return process.env.GRIDEX_WEBSITE_ENERGY_AREA_TOKEN_SECRET?.trim() ||
-    process.env.GRIDEX_WEBSITE_PRICING_QUOTE_SECRET?.trim() || null
+    websiteServerSigningSecret('energy-area')
 }
+
 
 function normalized(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('sv-SE')
@@ -51,10 +53,10 @@ export function issueWebsiteEnergyAreaToken(input: {
   now?: Date
 }): { token: string; payload: WebsiteEnergyAreaTokenPayload } | null {
   const key = secret()
-  const reference = input.resolution.resolution_reference?.trim()
+  const resolutionId = input.resolution.resolution_id?.trim()
   const area = input.resolution.price_area_code
   const validUntil = input.resolution.valid_until?.trim()
-  if (!key || !reference || !area || !validUntil || !Number.isFinite(Date.parse(validUntil))) return null
+  if (!key || !resolutionId || !area || !validUntil || !Number.isFinite(Date.parse(validUntil))) return null
   const now = input.now ?? new Date()
   const upstreamExpiry = Date.parse(validUntil)
   if (upstreamExpiry <= now.getTime()) return null
@@ -63,7 +65,7 @@ export function issueWebsiteEnergyAreaToken(input: {
     version: 1,
     issued_at: now.toISOString(),
     expires_at: expiresAt,
-    resolution_reference: reference,
+    resolution_id: resolutionId,
     price_area_code: area,
     grid_area_code: input.resolution.grid_area_code ?? null,
     grid_owner_id: input.resolution.grid_owner_id ?? null,
@@ -91,7 +93,7 @@ export function verifyWebsiteEnergyAreaToken(input: {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as WebsiteEnergyAreaTokenPayload
     if (
       payload.version !== 1 ||
-      !payload.resolution_reference ||
+      !payload.resolution_id ||
       !['SE1', 'SE2', 'SE3', 'SE4'].includes(payload.price_area_code) ||
       !Number.isFinite(Date.parse(payload.issued_at)) ||
       !Number.isFinite(Date.parse(payload.expires_at)) ||

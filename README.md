@@ -34,11 +34,11 @@ The website integrates with `https://app.gridex.se` only from server-side code. 
 Before production deployment:
 
 1. Apply all Supabase migrations in filename order, including `20260710090000_customer_portal_api_hardening.sql` and `20260718160000_website_checkout_contexts.sql`.
-2. Configure the OPS token, HTTPS host allowlist, pricing quote secret and webhook signing secret from `env.example`.
+2. Configure `GRIDEX_WEBSITE_API_KEY`. The API key selects the tenant; `GRIDEX_OPS_API_URL` is only an optional override. Configure a webhook signing secret only when webhook reception is enabled.
 3. Configure `CRON_SECRET` or `CUSTOMER_PORTAL_OUTBOX_CRON_SECRET` so the customer write outbox and notification reconciliation routes can run.
 4. Run lint, TypeScript, launch tests and a production build.
 
-The hardening migrations add immutable website-application attempts, an OPS write outbox for customer events, notification state and profile updates, webhook retry/reconciliation state, distributed rate limiting and a short-lived server-only checkout handoff. Checkout tokens are stored hashed; the browser URL never contains address data.
+The hardening migrations add immutable website-application attempts, an OPS write outbox for customer events, notification state and profile updates, webhook retry/reconciliation state, distributed rate limiting and a short-lived server-only checkout handoff. Checkout tokens are stored hashed; the browser URL never contains address data. The canonical website flow uses OPS energy-area resolution, OPS quote and OPS quote validation without local tenant selection or price recomputation.
 
 ## External invoice import
 

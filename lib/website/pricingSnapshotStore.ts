@@ -28,7 +28,6 @@ export async function persistWebsitePricingSnapshot(input: {
   preview: WebsitePricingPreview
   contract: OpsPublicContract
   customerType: WebsiteCustomerType
-  marketPriceSnapshotId?: string | null
 }): Promise<string> {
   const issuedAt = new Date().toISOString()
   const validUntil = input.preview.valid_until ?? input.preview.pricing_expires_at
@@ -54,7 +53,8 @@ export async function persistWebsitePricingSnapshot(input: {
     },
     price_area_code: input.preview.price_area_code ?? input.preview.priceArea,
     annual_consumption_kwh: annualConsumptionKwh,
-    market_price_snapshot_id: input.marketPriceSnapshotId ?? null,
+    market_reference: input.preview.market_reference ?? null,
+    market_price_snapshot_id: null,
     estimated_monthly_kwh: input.preview.kwh,
     price_per_kwh_ore: input.preview.pricePerKwhOre,
     specification: input.preview.specification ?? null,
@@ -76,7 +76,7 @@ export async function persistWebsitePricingSnapshot(input: {
     customer_type: input.customerType,
     price_area_code: input.preview.price_area_code ?? input.preview.priceArea,
     annual_consumption_kwh: annualConsumptionKwh,
-    market_price_snapshot_id: input.marketPriceSnapshotId ?? null,
+    market_price_snapshot_id: null,
     calculation_components_json: fullCalculation,
     subtotal_ex_vat: subtotalExVat,
     vat_amount: Number((totalIncVat - subtotalExVat).toFixed(6)),

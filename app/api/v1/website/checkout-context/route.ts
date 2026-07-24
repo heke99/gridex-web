@@ -101,7 +101,7 @@ export async function POST(req: Request) {
         city,
         address,
         resolution_token: resolutionToken,
-        resolution_reference: verified.value.area.resolutionReference,
+        resolution_id: verified.value.area.resolutionId,
         price_area_code: verified.value.area.priceAreaCode,
         grid_area_code: verified.value.area.gridAreaCode,
         grid_owner_id: verified.value.area.gridOwnerId,

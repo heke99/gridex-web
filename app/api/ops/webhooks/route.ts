@@ -224,14 +224,6 @@ export async function POST(req: Request) {
   if (!secret) {
     return NextResponse.json({ error: 'Webhook secret is not configured.' }, { status: 503 })
   }
-  let expectedTenantReference: string
-  try {
-    expectedTenantReference = (await getVerifiedOpsIntegrationContext()).tenant_reference
-  } catch (error) {
-    console.error('[ops webhook] integration context unavailable', error)
-    return NextResponse.json({ error: 'Webhook tenant context is unavailable.' }, { status: 503 })
-  }
-
   const rawBody = await req.text()
   const toleranceSeconds = Number(env('GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS') ?? '300')
   const signature = verifyOpsWebhookSignature({
@@ -262,8 +254,18 @@ export async function POST(req: Request) {
     console.error('[ops webhook] header/body mismatch', { headerEventId, headerEventType, eventId: event.event_id, eventType: event.event_type })
     return NextResponse.json({ error: 'Webhook headers do not match the signed body.' }, { status: 400 })
   }
-  if (!event.tenant_reference || event.tenant_reference !== expectedTenantReference) {
-    return NextResponse.json({ error: 'Webhook tenant does not match this deployment.' }, { status: 403 })
+  if (event.tenant_reference) {
+    try {
+      const expectedTenantReference = (await getVerifiedOpsIntegrationContext()).tenant_reference
+      if (event.tenant_reference !== expectedTenantReference) {
+        return NextResponse.json({ error: 'Webhook tenant does not match this deployment.' }, { status: 403 })
+      }
+    } catch (error) {
+      console.error('[ops webhook] tenant verification failed', {
+        status: error && typeof error === 'object' && 'status' in error ? Number((error as { status: unknown }).status) : null,
+      })
+      return NextResponse.json({ error: 'Webhook tenant context is unavailable.' }, { status: 503 })
+    }
   }
 
   const supabase = serviceClient()

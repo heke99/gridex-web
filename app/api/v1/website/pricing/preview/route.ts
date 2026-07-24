@@ -4,7 +4,6 @@ import {
   fetchOpsWebsiteQuote,
   getOpsClientStatus,
   isOpsError,
-  type OpsPublicContract,
   type OpsWebsitePriceArea,
 } from '@/lib/ops/client'
 import {
@@ -18,11 +17,6 @@ import { parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { CUSTOMER_NETWORK_FEE_NOTICE } from '@/lib/website/customerFacingCopy'
 import { persistWebsitePricingSnapshot } from '@/lib/website/pricingSnapshotStore'
 import { verifyWebsiteEnergyAreaToken } from '@/lib/website/energyAreaToken'
-import { buildOpsMarketPriceInput, persistMarketPriceSnapshot } from '@/lib/website/marketPriceService'
-import {
-  UnsupportedPricingComponentError,
-  validatePricingComponentsForQuote,
-} from '@/lib/website/componentCalculator'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -66,18 +60,6 @@ function requiredConsumption(value: unknown, max = 2_400_000): number | null {
 function requestedPriceArea(value: unknown): OpsWebsitePriceArea | null {
   const area = typeof value === 'string' ? value.toUpperCase() : ''
   return AREAS.has(area as OpsWebsitePriceArea) ? area as OpsWebsitePriceArea : null
-}
-
-function fixedContractPreflight(contract: OpsPublicContract, area: OpsWebsitePriceArea): string | null {
-  if (String(contract.contract_type ?? contract.type).toLowerCase() !== 'fixed') return null
-  if (contract.price_areas?.length && !contract.price_areas.includes(area)) return 'offer_not_available_in_price_area'
-  const rows = (contract.area_pricing ?? []).filter((row) => row.price_area_code === area)
-  if (rows.length !== 1) return rows.length === 0 ? 'fixed_area_price_missing' : 'fixed_area_price_ambiguous'
-  const areaPrice = rows[0]?.fixed_price_ore_per_kwh
-  if (contract.fixed_price_ore_per_kwh != null && areaPrice != null && Math.abs(contract.fixed_price_ore_per_kwh - areaPrice) > 0.000001) {
-    return 'public_contract_pricing_conflict'
-  }
-  return null
 }
 
 export async function POST(req: Request) {
@@ -126,33 +108,25 @@ export async function POST(req: Request) {
     if (!contract || !buildPublicContractDisplay(contract).ready) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
-    const fixedBlocker = fixedContractPreflight(contract, verifiedArea.payload.price_area_code)
-    if (fixedBlocker) {
-      return NextResponse.json({ error: 'Fastpriset saknas eller är inkonsekvent för valt elområde.', code: fixedBlocker }, { status: 409 })
-    }
-    validatePricingComponentsForQuote(
-      contract.calculation_components?.length
-        ? contract.calculation_components
-        : contract.pricing_components ?? [],
-    )
 
-    const marketPrice = await buildOpsMarketPriceInput({
-      contract,
-      priceArea: verifiedArea.payload.price_area_code,
-    })
-    const marketPriceSnapshotId = await persistMarketPriceSnapshot(marketPrice)
     const opsQuote = await fetchOpsWebsiteQuote({
+      resolution_id: verifiedArea.payload.resolution_id,
       offer_reference: offerReference,
-      price_area_code: verifiedArea.payload.price_area_code,
-      resolution_reference: verifiedArea.payload.resolution_reference,
-      estimated_monthly_kwh: monthlyKwh,
       annual_consumption_kwh: annualKwh,
       start_date: startDate,
       customer_type: customerType,
-      market_price: marketPrice,
-      public_contract_etag: contractsSnapshot.etag,
-      publication_revision: contractsSnapshot.publication_revision,
     })
+    if (
+      opsQuote.contract.offer_reference !== offerReference ||
+      opsQuote.priceArea !== verifiedArea.payload.price_area_code ||
+      Math.abs((opsQuote.annual_consumption_kwh ?? 0) - annualKwh) > 0.001
+    ) {
+      return NextResponse.json(
+        { error: 'OPS-priset matchar inte den verifierade adressen eller förbrukningen.', code: 'ops_quote_context_mismatch' },
+        { status: 409 },
+      )
+    }
+
     const enrichedQuote = {
       ...opsQuote,
       public_contract_etag: opsQuote.public_contract_etag ?? contractsSnapshot.etag,
@@ -162,7 +136,6 @@ export async function POST(req: Request) {
       preview: enrichedQuote,
       contract,
       customerType,
-      marketPriceSnapshotId,
     })
     const lockedPreview = { ...enrichedQuote, pricing_snapshot_reference: pricingSnapshotReference }
     const websiteQuote = issueWebsitePricingQuote({
@@ -181,21 +154,6 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ data }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
-    if (error instanceof UnsupportedPricingComponentError) {
-      console.error('[website pricing quote] unsupported component', {
-        request_id: requestId,
-        component_code: error.componentCode,
-        message: error.message,
-      })
-      return NextResponse.json(
-        {
-          error: 'Det valda avtalet innehåller en prisdel som inte kan beräknas säkert.',
-          code: 'unsupported_pricing_component',
-          request_id: requestId,
-        },
-        { status: 409 },
-      )
-    }
     console.error('[website pricing quote] failed', {
       request_id: requestId,
       status: isOpsError(error) ? error.status : null,

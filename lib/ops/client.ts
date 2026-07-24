@@ -9,6 +9,7 @@ import {
   type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION, GRIDEX_WEBSITE_API_VERSION_HEADER } from '@/lib/ops/contract';
+import { websiteServerSigningConfigured } from '@/lib/website/serverTokenSecret';
 import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
 
 export type OpsContractType =
@@ -104,7 +105,6 @@ export type OpsWebsitePowerOfAttorneyInput = {
 
 export type OpsCustomerApplicationInput = {
   offer_reference: string;
-  quote_reference?: string | null;
   annual_consumption_kwh: number;
   customer_type: WebsiteCustomerType;
   first_name?: string | null;
@@ -135,15 +135,6 @@ export type OpsCustomerApplicationInput = {
   customer_portal_user_id?: string | null;
   auth_user_id?: string | null;
   consents: Record<string, boolean>;
-  legal_acceptances?: Array<{
-    requirement_code: string;
-    accepted: boolean;
-    document_id?: string | null;
-    legal_bundle_version_document_id?: string | null;
-    document_version?: string | null;
-    document_hash?: string | null;
-    accepted_at?: string | null;
-  }>;
   powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
 };
 
@@ -240,10 +231,13 @@ export type OpsWebsiteEnergyResolutionInput = {
   street?: string | null;
   address?: string | null;
   apartment?: string | null;
+  grid_area_code?: string | null;
 };
 
 export type OpsWebsiteEnergyResolution = {
   status: string;
+  resolution_id?: string | null;
+  /** Deprecated response alias accepted during rollout. */
   resolution_reference?: string | null;
   resolution_status?: string | null;
   resolved_at?: string | null;
@@ -259,39 +253,12 @@ export type OpsWebsiteEnergyResolution = {
   raw?: Record<string, unknown>;
 };
 
-export type OpsWebsitePricingPreviewInput = {
+export type OpsWebsiteQuoteInput = {
+  resolution_id: string;
   offer_reference: string;
-  price_area_code: OpsWebsitePriceArea;
-  postal_code?: string | null;
-  city?: string | null;
-  address?: string | null;
-  grid_area_code?: string | null;
-  metering_point_id?: string | null;
-  estimated_monthly_kwh: number;
-  annual_consumption_kwh?: number | null;
+  annual_consumption_kwh: number;
+  customer_type: WebsiteCustomerType;
   start_date?: string | null;
-  customer_type?: WebsiteCustomerType | null;
-};
-
-export type OpsWebsiteMarketPriceInput = {
-  provider: string;
-  price_area_code: OpsWebsitePriceArea;
-  period_start: string;
-  period_end: string;
-  amount_ore_per_kwh: number;
-  interval_minutes?: number | null;
-  payload_sha256?: string | null;
-  calculation_method?: string | null;
-  expected_intervals?: number | null;
-  received_intervals?: number | null;
-  completeness_ratio?: number | null;
-};
-
-export type OpsWebsiteQuoteInput = OpsWebsitePricingPreviewInput & {
-  resolution_reference?: string | null;
-  market_price?: OpsWebsiteMarketPriceInput | null;
-  public_contract_etag?: string | null;
-  publication_revision?: string | null;
 };
 
 export type OpsWebsiteQuoteValidationInput = {
@@ -300,9 +267,7 @@ export type OpsWebsiteQuoteValidationInput = {
   customer_type: WebsiteCustomerType;
   price_area_code: OpsWebsitePriceArea;
   annual_consumption_kwh: number;
-  estimated_monthly_kwh: number;
-  requested_start_mode: 'earliest_possible' | 'specific_date';
-  requested_start_date?: string | null;
+  start_date?: string | null;
 };
 
 export type OpsWebsiteQuoteValidation = {
@@ -329,6 +294,15 @@ export type OpsQuoteMarketSource = {
   period?: string | null;
   resolution?: string | null;
   timestamp?: string | null;
+};
+
+export type OpsQuoteMarketReference = {
+  provider: string | null;
+  reference_period: string | null;
+  as_of: string | null;
+  is_indicative: boolean | null;
+  freshness: string | null;
+  fallback: string | null;
 };
 
 export type OpsWebsitePricingPreview = {
@@ -364,6 +338,7 @@ export type OpsWebsitePricingPreview = {
   is_binding?: boolean;
   assumptions?: OpsQuoteAssumption[];
   market_sources?: OpsQuoteMarketSource[];
+  market_reference?: OpsQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
   pricing_token?: string;
@@ -415,17 +390,12 @@ function env(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-function opsBaseUrl(): string | undefined {
-  const value = env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL");
-  if (!value) return undefined;
+function opsBaseUrl(): string {
+  const value = env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL") ?? "https://app.gridex.se";
   return value.replace(/\/+$/, "");
 }
 
 const OPS_API_KEY_FULL_SECRET_NOT_PREFIX = "OPS_API_KEY_FULL_SECRET_NOT_PREFIX";
-
-function expectedOpsTenantReference(): string | null {
-  return env("GRIDEX_EXPECTED_TENANT_REFERENCE") ?? null;
-}
 
 function opsTenantCacheKey(): string {
   const baseUrl = opsBaseUrl() ?? "unconfigured";
@@ -441,20 +411,10 @@ function tenantReferenceFromPayload(payload: unknown): string | null {
   return pickFromRecords([meta, context, data, root], ["tenant_reference", "tenantReference"]);
 }
 
-function assertExpectedTenantReference(actual: string | null, source: string): string {
-  const expected = expectedOpsTenantReference();
+function assertTenantReference(actual: string | null, source: string): string {
   if (!actual) {
-    throw new OpsError("OPS kunde inte verifiera tenant-bindningen.", 503, {
+    throw new OpsError("OPS kunde inte verifiera tenant-bindningen från API-nyckeln.", 503, {
       code: "ops_tenant_binding_unverified",
-      expected_tenant_reference: expected,
-      source,
-    });
-  }
-  if (expected && actual !== expected) {
-    throw new OpsError("OPS API-nyckeln tillhör fel tenant.", 503, {
-      code: "ops_tenant_mismatch",
-      expected_tenant_reference: expected,
-      actual_tenant_reference: actual,
       source,
     });
   }
@@ -492,7 +452,6 @@ export function getOpsClientStatus(): OpsClientStatus {
   const missing: string[] = [];
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
-  if (!baseUrl) missing.push("GRIDEX_OPS_API_URL");
   if (!apiKey.value) missing.push(apiKey.invalidReason ?? "GRIDEX_WEBSITE_API_KEY");
 
   let unsafeProductionUrl = false;
@@ -521,19 +480,9 @@ export function getOpsClientStatus(): OpsClientStatus {
     missing.push("GRIDEX_OPS_API_URL_PRODUCTION_GUARD");
   }
 
-  const liveSignupEnabled = env("GRIDEX_ENABLE_LIVE_SIGNUP") === "true";
-  if (
-    liveSignupEnabled &&
-    !env("GRIDEX_WEBSITE_HASH_PEPPER") &&
-    !env("PII_HASH_PEPPER")
-  ) {
-    missing.push("GRIDEX_WEBSITE_HASH_PEPPER_OR_PII_HASH_PEPPER");
-  }
-  if (liveSignupEnabled) {
-    const quoteReferenceMode = env("GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE")?.toLowerCase();
-    if (quoteReferenceMode !== "top_level" && quoteReferenceMode !== "contract") {
-      missing.push("GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE");
-    }
+  const liveSignupEnabled = env("GRIDEX_DISABLE_LIVE_SIGNUP") !== "true";
+  if (liveSignupEnabled && !websiteServerSigningConfigured()) {
+    missing.push("GRIDEX_WEBSITE_SERVER_SIGNING_SECRET_SOURCE");
   }
 
   return {
@@ -1778,7 +1727,20 @@ function quoteNumber(row: Record<string, unknown>, paths: string[][]): number | 
   return null;
 }
 
-function mapOpsWebsiteQuote(payload: unknown): OpsWebsitePricingPreview {
+function normalizeQuoteMarketReference(value: unknown): OpsQuoteMarketReference | null {
+  const row = recordValue(value);
+  if (!row) return null;
+  return {
+    provider: pickString(row, ['provider', 'source', 'name']),
+    reference_period: pickString(row, ['reference_period', 'referencePeriod', 'period']),
+    as_of: pickString(row, ['as_of', 'asOf', 'timestamp']),
+    is_indicative: pickBoolean(row, ['is_indicative', 'isIndicative']),
+    freshness: pickString(row, ['freshness', 'freshness_status', 'freshnessStatus']),
+    fallback: pickString(row, ['fallback', 'fallback_reason', 'fallbackReason']),
+  };
+}
+
+function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsWebsitePricingPreview {
   const row = extractQuoteRow(payload);
   const contract = recordValue(row.contract) ?? recordValue(row.offer) ?? {};
   const totals = recordValue(row.totals) ?? recordValue(row.total) ?? {};
@@ -1786,8 +1748,8 @@ function mapOpsWebsiteQuote(payload: unknown): OpsWebsitePricingPreview {
   const offerReference = pickString(contract, ['offer_reference', 'offerReference']) ?? pickString(row, ['offer_reference', 'offerReference']);
   const name = pickString(contract, ['name', 'title']) ?? pickString(row, ['contract_name', 'name']) ?? 'Elavtal';
   const area = pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])?.toUpperCase();
-  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']]);
-  const annualKwh = quoteNumber(row, [['annual_consumption_kwh'], ['annual_kwh'], ['consumption', 'annual_consumption_kwh']]);
+  const annualKwh = quoteNumber(row, [['annual_consumption_kwh'], ['annual_kwh'], ['consumption', 'annual_consumption_kwh']]) ?? input.annual_consumption_kwh;
+  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']]) ?? annualKwh / 12;
   const pricePerKwh = quoteNumber(row, [['price_per_kwh_ore'], ['energy_price_ore_per_kwh'], ['pricing', 'price_per_kwh_ore'], ['totals', 'price_per_kwh_ore']]);
   const monthlyExVat = normalizeNumber(totals.monthly_ex_vat ?? totals.monthly_cost_ex_vat ?? row.total_monthly_cost_sek ?? row.monthly_cost_ex_vat);
   const monthlyIncVat = normalizeNumber(totals.monthly_inc_vat ?? totals.monthly_cost_inc_vat ?? row.total_monthly_cost_incl_vat_sek ?? row.monthly_cost_inc_vat);
@@ -1803,6 +1765,15 @@ function mapOpsWebsiteQuote(payload: unknown): OpsWebsitePricingPreview {
   }
   const rawHashes = recordValue(row.legal_document_hashes ?? row.document_hashes);
   const hashes = rawHashes ? Object.fromEntries(Object.entries(rawHashes).flatMap(([key, value]) => typeof value === 'string' ? [[key, value]] : [])) : undefined;
+  const marketReference = normalizeQuoteMarketReference(row.market_reference ?? row.marketReference);
+  const marketSources = normalizeQuoteMarketSources(row.market_sources ?? row.marketSources);
+  if (marketSources.length === 0 && marketReference?.provider) {
+    marketSources.push({
+      name: marketReference.provider,
+      period: marketReference.reference_period,
+      timestamp: marketReference.as_of,
+    });
+  }
   return {
     contract: {
       slug: offerReference,
@@ -1828,12 +1799,13 @@ function mapOpsWebsiteQuote(payload: unknown): OpsWebsitePricingPreview {
     legal_document_hashes: hashes,
     pricing_interval: pickString(row, ['pricing_interval', 'pricingInterval', 'interval']) ?? 'month',
     estimate_method: pickString(row, ['estimate_method', 'estimateMethod', 'calculation_method']) ?? 'ops_canonical_quote',
-    source_period: quoteSourcePeriod(row.source_period ?? row.sourcePeriod) ?? undefined,
+    source_period: quoteSourcePeriod(row.source_period ?? row.sourcePeriod) ?? marketReference?.reference_period ?? undefined,
     source_window: quoteSourceWindow(row.source_window ?? row.sourceWindow),
-    market_data_timestamp: pickString(row, ['market_data_timestamp', 'marketDataTimestamp']) ?? undefined,
-    is_binding: pickBoolean(row, ['is_binding', 'isBinding']) ?? true,
+    market_data_timestamp: pickString(row, ['market_data_timestamp', 'marketDataTimestamp']) ?? marketReference?.as_of ?? undefined,
+    is_binding: pickBoolean(row, ['is_binding', 'isBinding']) ?? false,
     assumptions: normalizeQuoteAssumptions(row.assumptions),
-    market_sources: normalizeQuoteMarketSources(row.market_sources ?? row.marketSources),
+    market_sources: marketSources,
+    market_reference: marketReference,
     pricing_snapshot_schema_version: pickString(row, ['pricing_snapshot_schema_version', 'schema_version', 'schemaVersion']) ?? GRIDEX_WEBSITE_API_CONTRACT_VERSION,
     valid_until: validUntil,
     raw: row,
@@ -1944,7 +1916,7 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
     [context, meta, data, root],
     ["tenant_reference", "tenantReference"],
   );
-  const verifiedTenantReference = assertExpectedTenantReference(
+  const verifiedTenantReference = assertTenantReference(
     tenantReference,
     "/api/v1/integration/context",
   );
@@ -2046,6 +2018,7 @@ export async function fetchOpsWebsiteEnergyArea(
       ...(input.city ? { city: input.city } : {}),
       ...(input.street ?? input.address ? { street: input.street ?? input.address } : {}),
       ...(input.apartment ? { apartment: input.apartment } : {}),
+      ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
     }),
   });
   await verifiedTenantReference(payload, '/api/v1/website/energy-area/resolve');
@@ -2053,7 +2026,8 @@ export async function fetchOpsWebsiteEnergyArea(
   const areaValue = pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])?.toUpperCase();
   return {
     status: pickString(row, ['status', 'resolution_status', 'resolutionStatus']) ?? (isOpsWebsitePriceArea(areaValue) ? 'resolved' : 'unresolved'),
-    resolution_reference: pickString(row, ['resolution_reference', 'resolutionReference', 'reference']),
+    resolution_id: pickString(row, ['resolution_id', 'resolutionId', 'resolution_reference', 'resolutionReference', 'reference']),
+    resolution_reference: pickString(row, ['resolution_reference', 'resolutionReference', 'resolution_id', 'resolutionId', 'reference']),
     resolution_status: pickString(row, ['resolution_status', 'resolutionStatus', 'status']),
     resolved_at: pickString(row, ['resolved_at', 'resolvedAt']),
     valid_until: pickString(row, ['valid_until', 'validUntil', 'expires_at', 'expiresAt']),
@@ -2077,27 +2051,15 @@ export async function fetchOpsWebsiteQuote(
     method: 'POST',
     headers: { 'Idempotency-Key': `website-quote:${randomUUID()}` },
     body: JSON.stringify({
+      resolution_id: input.resolution_id,
       offer_reference: input.offer_reference,
-      price_area_code: input.price_area_code,
-      estimated_monthly_kwh: input.estimated_monthly_kwh,
-      annual_consumption_kwh: input.annual_consumption_kwh ?? input.estimated_monthly_kwh * 12,
-      ...(input.customer_type ? { customer_type: toOpsCustomerType(input.customer_type) } : {}),
+      annual_consumption_kwh: input.annual_consumption_kwh,
+      customer_type: toOpsCustomerType(input.customer_type),
       ...(input.start_date ? { start_date: input.start_date } : {}),
-      ...(input.resolution_reference ? { resolution_reference: input.resolution_reference } : {}),
-      ...(input.market_price ? { market_price: {
-        provider: input.market_price.provider,
-        price_area_code: input.market_price.price_area_code,
-        period_start: input.market_price.period_start,
-        period_end: input.market_price.period_end,
-        amount_ore_per_kwh: input.market_price.amount_ore_per_kwh,
-        ...(input.market_price.payload_sha256 ? { payload_sha256: input.market_price.payload_sha256 } : {}),
-      } } : {}),
-      ...(input.public_contract_etag ? { public_contract_etag: input.public_contract_etag } : {}),
-      ...(input.publication_revision ? { publication_revision: input.publication_revision } : {}),
     }),
   });
   await verifiedTenantReference(payload, '/api/v1/website/quote');
-  return mapOpsWebsiteQuote(payload);
+  return mapOpsWebsiteQuote(payload, input);
 }
 
 export async function validateOpsWebsiteQuote(
@@ -2112,9 +2074,7 @@ export async function validateOpsWebsiteQuote(
       customer_type: toOpsCustomerType(input.customer_type),
       price_area_code: input.price_area_code,
       annual_consumption_kwh: input.annual_consumption_kwh,
-      estimated_monthly_kwh: input.estimated_monthly_kwh,
-      requested_start_mode: input.requested_start_mode,
-      requested_start_date: input.requested_start_mode === 'specific_date' ? input.requested_start_date ?? null : null,
+      ...(input.start_date ? { start_date: input.start_date } : {}),
     }),
   });
   await verifiedTenantReference(payload, '/api/v1/website/quote/validate');
@@ -2318,31 +2278,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   const portalUserId = input.customer_portal_user_id ?? input.auth_user_id ?? null;
   const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
 
-  const quoteReference = normalizeText(input.quote_reference);
-  const quoteReferenceMode = env('GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE')?.toLowerCase();
-  if (!quoteReference) {
-    throw new OpsError('OPS quote-reference saknas.', 400, {
-      code: 'quote_reference_required',
-      field: 'quote_reference',
-    });
-  }
-  if (quoteReferenceMode !== 'top_level' && quoteReferenceMode !== 'contract') {
-    throw new OpsError('OPS dokumenterar ännu inte var quote_reference ska bindas i kundansökan.', 503, {
-      code: 'quote_reference_binding_not_configured',
-      field: 'GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE',
-      hint: 'Sätt top_level eller contract först när OPS OpenAPI/runtime uttryckligen stödjer placeringen.',
-    });
-  }
-  const legalAcceptanceMode = (env('GRIDEX_OPS_APPLICATION_LEGAL_ACCEPTANCES_MODE') ?? 'consents_only').toLowerCase();
-  if (!['consents_only', 'top_level'].includes(legalAcceptanceMode)) {
-    throw new OpsError('Ogiltigt läge för juridiska acceptanser.', 503, {
-      code: 'legal_acceptances_mode_invalid',
-      field: 'GRIDEX_OPS_APPLICATION_LEGAL_ACCEPTANCES_MODE',
-    });
-  }
-
   return {
-    ...(quoteReferenceMode === 'top_level' ? { quote_reference: quoteReference } : {}),
     external_customer_id: externalCustomerId,
     source: input.source,
     ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
@@ -2369,8 +2305,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
       ...(input.price_area_code ? { price_area_code: input.price_area_code } : {}),
       annual_consumption_kwh: input.annual_consumption_kwh,
       ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
-      ...(input.grid_owner_id ? { grid_owner_id: input.grid_owner_id } : {}),
-      ...(input.grid_owner_name ? { grid_owner_name: input.grid_owner_name } : {}),
       ...(input.current_supplier_name ? { current_supplier_name: input.current_supplier_name } : {}),
       ...(input.current_supplier_id ? { current_supplier_id: input.current_supplier_id } : {}),
       ...(input.current_supplier_org_number ? { current_supplier_org_number: input.current_supplier_org_number } : {}),
@@ -2378,7 +2312,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     },
     contract: {
       offer_reference: input.offer_reference,
-      ...(quoteReferenceMode === 'contract' ? { quote_reference: quoteReference } : {}),
       requested_start_mode: input.requested_start_mode,
       requested_start_date:
         input.requested_start_mode === "specific_date"
@@ -2386,7 +2319,6 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
           : null,
     },
     consents: input.consents,
-    ...(legalAcceptanceMode === 'top_level' && input.legal_acceptances?.length ? { legal_acceptances: input.legal_acceptances } : {}),
     ...(input.powerOfAttorney ? { powerOfAttorney: input.powerOfAttorney } : {}),
   };
 }
@@ -2410,8 +2342,8 @@ function mapCustomerApplicationCommunication(
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
 ): Promise<OpsCustomerApplicationResult> {
-  if (env("GRIDEX_ENABLE_LIVE_SIGNUP") !== "true") {
-    throw new OpsError("Live-teckning är inte aktiverad för hemsidan.", 503);
+  if (!getOpsClientStatus().liveSignupEnabled) {
+    throw new OpsError("Live-teckning är avstängd för hemsidan.", 503);
   }
 
   await getVerifiedOpsIntegrationContext();

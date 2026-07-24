@@ -172,7 +172,7 @@ const canonicalAreaContract = normalizePublicContractApiPayload({
         label: 'Jag godkänner villkoren.',
         document_id: 'doc_terms',
         legal_bundle_version_document_id: 'bundle_doc_terms',
-        document_version: '2026-07-23.1',
+        document_version: '2026-07-24.1',
         document_hash: 'b'.repeat(64),
         public_url: 'https://app.gridex.se/legal/terms',
       },
@@ -180,7 +180,7 @@ const canonicalAreaContract = normalizePublicContractApiPayload({
   },
 })
 
-assert.ok(canonicalAreaContract, 'canonical 2026-07-23.1 contract must normalize')
+assert.ok(canonicalAreaContract, 'canonical 2026-07-24.1 contract must normalize')
 assert.equal(canonicalAreaContract.contract_type, 'fixed')
 assert.deepEqual(canonicalAreaContract.price_areas, ['SE1', 'SE2', 'SE3', 'SE4'])
 assert.equal(canonicalAreaContract.area_pricing.find((row) => row.price_area_code === 'SE4')?.fixed_price_ore_per_kwh, 140)

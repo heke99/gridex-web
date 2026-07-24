@@ -1,10 +1,12 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { websiteServerSigningSecret } from "@/lib/website/serverTokenSecret";
 import type { OpsPublicContract } from "@/lib/ops/client";
 import type {
   WebsitePricingPreview,
   WebsitePriceArea,
   WebsiteQuoteAssumption,
   WebsiteQuoteMarketSource,
+  WebsiteQuoteMarketReference,
 } from "@/lib/website/publicApi";
 
 const QUOTE_VERSION = "v3";
@@ -13,7 +15,7 @@ const QUOTE_TTL_MS = 20 * 60 * 1000;
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
 type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
-/** Immutable website signature around the exact local pricing snapshot shown to the customer. */
+/** Immutable browser signature around the exact OPS quote snapshot shown to the customer. */
 export type WebsitePricingQuote = {
   version: 3;
   issued_at: string;
@@ -47,6 +49,7 @@ export type WebsitePricingQuote = {
   is_binding: boolean;
   assumptions: WebsiteQuoteAssumption[];
   market_sources: WebsiteQuoteMarketSource[];
+  market_reference: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version: string;
   specification: {
     basis?: QuoteBasis;
@@ -58,11 +61,7 @@ export type PricingQuoteVerification =
   | { ok: true; quote: WebsitePricingQuote }
   | { ok: false; reason: "invalid" | "expired" | "not_configured" };
 
-function env(name: string): string | null {
-  const value = process.env[name]?.trim();
-  return value || null;
-}
-function quoteSecret(): string | null { return env("GRIDEX_WEBSITE_PRICING_QUOTE_SECRET"); }
+function quoteSecret(): string | null { return websiteServerSigningSecret("pricing-quote"); }
 export function websitePricingQuoteConfigured(): boolean { return Boolean(quoteSecret()); }
 function base64url(value: string): string { return Buffer.from(value).toString("base64url"); }
 function fromBase64url(value: string): string | null {
@@ -164,6 +163,7 @@ export function issueWebsitePricingQuote(input: {
     is_binding: isBinding,
     assumptions: input.preview.assumptions ?? [],
     market_sources: input.preview.market_sources ?? [],
+    market_reference: input.preview.market_reference ?? null,
     pricing_snapshot_schema_version: schemaVersion,
     specification: { basis: cloneBasis(input.preview.specification?.basis), fees: publicQuoteFees(input.preview.specification?.fees) },
   };
@@ -214,6 +214,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     is_binding: quote.is_binding,
     assumptions: quote.assumptions,
     market_sources: quote.market_sources,
+    market_reference: quote.market_reference,
     pricing_snapshot_schema_version: quote.pricing_snapshot_schema_version,
     valid_until: quote.valid_until,
     pricing_token: token,

@@ -160,7 +160,7 @@ export default async function AdminIntegrationsPage() {
           {opsReadiness.scopes.map((scope) => (
             <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
               <code className="text-[11px] text-white/70">{scope.scope}</code>
-              <span className={`text-[11px] ${scope.status === 'missing' ? 'text-rose-300' : scope.status === 'verified' || scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}`}>{scope.status}</span>
+              <span className={`text-[11px] ${scope.status === 'missing' ? 'text-rose-300' : scope.status === 'verified' || scope.status === 'alternative_verified' ? 'text-emerald-300' : 'text-amber-300'}`}>{scope.status}</span>
             </div>
           ))}
         </div>
@@ -179,17 +179,16 @@ export default async function AdminIntegrationsPage() {
             <div>
               <div className="text-sm font-semibold">OPS-webhooks för portalstatus</div>
               <p className="mt-1 text-xs text-white/60">
-                Kräver aktiverad mottagning, signeringshemlighet och förväntat company-ID utan konflikt mellan hemlighetsalias.
+                När mottagning är aktiverad krävs en signeringshemlighet utan konflikt mellan hemlighetsalias. Tenant verifieras av API-nyckeln och signerade event.
               </p>
             </div>
             <span className={opsReadiness.webhook.ready ? 'text-emerald-300' : 'text-rose-300'}>
               {opsReadiness.webhook.ready ? 'redo' : 'blockerad'}
             </span>
           </div>
-          <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
+          <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
             <span>Aktiv: {opsReadiness.webhook.enabled ? 'ja' : 'nej'}</span>
             <span>Secret: {opsReadiness.webhook.signingSecretConfigured ? 'ja' : 'nej'}</span>
-            <span>Tenantreferens: {opsReadiness.webhook.expectedTenantReferenceConfigured ? 'ja' : 'nej'}</span>
             <span>Konflikt: {opsReadiness.webhook.secretConflict ? 'ja' : 'nej'}</span>
           </div>
         </div>
@@ -209,12 +208,19 @@ export default async function AdminIntegrationsPage() {
           {portalReadiness.scopes.map((scope) => (
             <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
               <code className="text-[11px] text-white/70">{scope.scope}</code>
-              <span className={scope.status === 'missing' ? 'text-rose-300' : scope.status === 'declared' ? 'text-emerald-300' : 'text-amber-300'}>{scope.status}</span>
+              <span className={scope.status === 'missing' ? 'text-rose-300' : scope.status === 'verified' || scope.status === 'alternative_verified' ? 'text-emerald-300' : 'text-amber-300'}>{scope.status}</span>
             </div>
           ))}
         </div>
-        <div className="mt-4 text-xs text-white/60">
-          portal-bundle: {portalReadiness.portalBundleProbe.ok ? 'verifierad' : 'fel'} ({portalReadiness.portalBundleProbe.status ?? 'n/a'}{portalReadiness.portalBundleProbe.code ? `, ${portalReadiness.portalBundleProbe.code}` : ''})
+        <div className="mt-4 space-y-2">
+          {portalReadiness.probes.map((probe) => (
+            <div key={probe.name} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs">
+              <span className="text-white/65">{probe.name}</span>
+              <span className={probe.ok ? 'text-emerald-300' : 'text-rose-300'}>
+                {probe.ok ? `verifierad (${probe.status ?? 200})` : `fel (${probe.status ?? 'n/a'}${probe.code ? `, ${probe.code}` : ''})`}
+              </span>
+            </div>
+          ))}
         </div>
       </section>
 

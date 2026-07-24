@@ -1,82 +1,81 @@
-# Gridex Web – OPS website contract 2026-07-23.1
+# Gridex Web – OPS website contract 2026-07-24.1
 
 ## Genomfört
 
-Patchen ersätter det konkurrerande lokala checkoutflödet med ett enda tenantbundet flöde:
+Integrationen använder nu API-nyckeln som enda tenantkonfiguration och följer ett enda OPS-bundet checkoutflöde:
 
 ```text
-OPS public-contracts + ETag/revision
+OPS public-contracts
 → OPS energy-area/resolve
-→ kortlivad signerad area-token
-→ extern marknadsprissnapshot när modellen kräver det
-→ OPS canonical quote
-→ server-snapshot + sanerad signerad browsertoken
+→ signerad resolution_id-token
+→ OPS quote
+→ signerad och sanerad browser-quote
 → OPS quote/validate
-→ dynamiska juridikkrav
+→ dynamiska consents
 → idempotent customer-applications
-→ opakt kvittotoken för switch-status
+→ website switch-status
 ```
 
 Viktigaste ändringarna:
 
-- Central kontraktsversion `2026-07-23.1` och canonical checkout-scopes.
-- Tenant verifieras genom API-nyckel och integration context; browsern väljer aldrig tenant.
-- OPS elområdesresolver är bindande. Lokal resolver är borttagen ur checkoutflödet.
-- Den gamla lokala prismotorn `lib/website/pricingPreview.ts` är borttagen.
-- OPS quote och quote/validate används före checkout och igen omedelbart före ansökan.
-- Fastpris kräver exakt `area_pricing`-rad för verifierat SE-område. Global konflikt blockerar.
-- `calculation_components`, `display_components` och `summary_components` hålls separata.
-- `website_visibility` bevaras som enum och saknat värde failar stängt.
-- Fakturaavgiften räknas server-side men filtreras från kort, DTO, token och sammanställning.
-- Canonical komponenter valideras aktivt; okänd enhet/bas eller saknad faktureringsfrekvens blockerar quote.
-- Moms och faktureringsfrekvens stöds per komponent.
-- Tim-/kvartskontrakt använder komplett marknadsdygn och märker tydligt när källupplösningen är en schablon.
-- Portföljhistorik är separat, allowlistad och används inte som aktuell prognos.
-- Juridiska krav renderas dynamiskt med dokument-ID, version, hash och publik URL.
-- Checkout-readiness och Mina sidor-readiness är separata.
-- `Retry-After` respekteras och rate-limitfel klassificeras separat.
-- Switch-status kräver opakt resultattoken; fritt `application_number` accepteras inte från browsern.
-- Lokala revisionsspår utökas för resolution, marknadsdata, quote, validering, idempotency och OPS-resultat.
-- Gamla 2026-07-22.2-dokument och det motstridiga launchtestet är borttagna.
+- Kontraktsversionen är `2026-07-24.1`.
+- `GRIDEX_WEBSITE_API_KEY` väljer tenant; `tenant_reference` verifieras dynamiskt genom integration context.
+- Inga manuella tenant-ID:n, company-ID:n eller scope-listor krävs i miljön.
+- OPS `resolution_id` används som enda bindande elområdesreferens.
+- Quote-requesten innehåller endast dokumenterade fält: `resolution_id`, `offer_reference`, `annual_consumption_kwh`, `customer_type` och valfritt `start_date`.
+- OPS äger energipris, avgifter, moms och indikativ `market_reference`; Gridex Web räknar inte en konkurrerande checkout-quote.
+- Kundansökan skickar inte `quote_reference` eller top-level `legal_acceptances`.
+- Juridiska godkännanden skickas dynamiskt som `consents`, med valfri dokumenterad `powerOfAttorney`.
+- Readiness provar de riktiga endpointsen och härleder behörighet från API-svaren.
+- Webhookmottagaren verifierar HMAC, tidsstämpel och deduplicering; tenantreferens verifieras endast när eventet innehåller den.
+- Gamla lokala resolver-, marknadspris- och komponentmotorer är borttagna från checkoutflödet.
+- Next.js route-konfiguration deklareras lokalt och återexporteras inte.
 
+## Borttagna konfigurationskrav
 
-## Hotfix 2026-07-24.1
+Följande variabler används inte längre:
 
-- `app/api/v1/website/quote/route.ts` deklarerar nu `dynamic` och `runtime` lokalt och delegerar endast `POST` till canonical quote-routen.
-- `app/api/v1/website/pricing/verify/route.ts` deklarerar nu `dynamic` och `runtime` lokalt och delegerar endast `POST` till canonical validate-routen.
-- Launchtestet blockerar framtida re-export av Next.js route-konfiguration.
-- Vid synk av en äldre arbetskatalog måste `lib/website/pricingPreview.ts` raderas explicit eller rsync köras med kontrollerad borttagning. Filen finns inte i den canonical leveransen.
+```text
+GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE
+GRIDEX_EXPECTED_TENANT_REFERENCE
+GRIDEX_OPS_APPLICATION_LEGAL_ACCEPTANCES_MODE
+GRIDEX_WEBSITE_API_SCOPES
+GRIDEX_CUSTOMER_PORTAL_API_SCOPES
+GRIDEX_CUSTOMER_PORTAL_REQUIRED_SCOPES
+```
+
+Minimal OPS-konfiguration:
+
+```env
+GRIDEX_WEBSITE_API_KEY=<fullständig API-nyckel>
+```
+
+Valfri URL-override:
+
+```env
+GRIDEX_OPS_API_URL=https://app.gridex.se
+```
+
+Webhooks kräver separat signing secret endast när mottagning aktiveras:
+
+```env
+GRIDEX_ENABLE_OPS_WEBHOOKS=true
+GRIDEX_WEBHOOK_SIGNING_SECRET=<hemlighet>
+```
 
 ## Databas
 
 Ny migration:
 
 ```text
-supabase/migrations/20260724120000_ops_website_contract_20260723_1.sql
+supabase/migrations/20260724190000_ops_website_contract_20260724_1.sql
 ```
 
-Den lägger till canonical OPS-referenser, hash/evidence, valideringsstatus, ansökningsnummer och RLS/service-role-skydd.
+Den introducerar canonical `ops_resolution_id`, backfyller den äldre referensen och lägger ett unikt partiellt index för revisionsspåret.
 
-## OPS-blockerare som patchen failar stängt på
+## Verifiering
 
-Developer-guiden anger quote, quote/validate och dynamisk juridik, men den tillgängliga kundansökningsbeskrivningen anger inte entydigt var `quote_reference` ska ligga. Därför är följande tom som standard:
-
-```text
-GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE=
-```
-
-Sätt endast `top_level` eller `contract` efter att OPS OpenAPI/runtime har bekräftat exakt placering. Live-signup markeras annars som inte redo och skickar inte ett odokumenterat fält.
-
-Den maskinläsbara OpenAPI-filen var inte tillgänglig i projektet eller från den publicerade sökvägen under granskningen. Inga genererade typer har därför fabricerats; `lib/ops/generated/README.md` beskriver den kvarvarande atomiska genereringsåtgärden.
-
-## Verifierat i leveransen
-
-- `npm run test:launch`: samtliga 11 testfiler passerar.
-- TypeScript syntaxtranspilering: samtliga 31 ändrade TS/TSX-filer passerar.
-- `git diff --check`: passerar.
-- Full `npm ci`, ESLint, TypeScript-projektkontroll och Next.js build kunde inte köras i arbetsmiljön eftersom det interna npm-registret returnerade HTTP 503 för Next/Supabase/typpaket. Kör kommandona nedan lokalt efter synk.
-
-## Lokal verifiering efter synk
+Kör efter synk:
 
 ```bash
 npm ci

@@ -580,7 +580,7 @@ export default function ElectricityCalculator({
       } satisfies WebsitePricingPreview;
       const nextQuoteContext = {
         resolution_token: resolved.resolution_token ?? null,
-        resolution_reference: resolved.resolution_reference ?? null,
+        resolution_id: resolved.resolution_id ?? null,
         postal_code: normalizedPostalCode,
         city: city.trim(),
         address: address.trim(),

@@ -556,7 +556,7 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="pricing_snapshot_token" value={pricingPreview?.pricing_token ?? ""} />
           <input type="hidden" name="pricing_snapshot_reference" value={pricingPreview?.pricing_snapshot_reference ?? ""} />
           <input type="hidden" name="energy_area_resolution_token" value={quoteContext.resolution_token ?? ""} />
-          <input type="hidden" name="energy_area_resolution_reference" value={quoteContext.resolution_reference ?? ""} />
+          <input type="hidden" name="energy_area_resolution_id" value={quoteContext.resolution_id ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />

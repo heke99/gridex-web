@@ -6,7 +6,7 @@ export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 
 export type WebsiteEnergyResolution = {
   status: string;
-  resolution_reference?: string | null;
+  resolution_id?: string | null;
   resolution_token?: string;
   valid_until?: string | null;
   price_area_code: WebsitePriceArea | null;
@@ -43,7 +43,7 @@ export type WebsitePricingPreviewInput = {
 
 export type WebsitePricingQuoteContext = {
   resolution_token?: string | null;
-  resolution_reference?: string | null;
+  resolution_id?: string | null;
   postal_code: string;
   city: string;
   address: string;
@@ -70,6 +70,15 @@ export type WebsiteQuoteMarketSource = {
   period?: string | null;
   resolution?: string | null;
   timestamp?: string | null;
+};
+
+export type WebsiteQuoteMarketReference = {
+  provider: string | null;
+  reference_period: string | null;
+  as_of: string | null;
+  is_indicative: boolean | null;
+  freshness: string | null;
+  fallback: string | null;
 };
 
 export type WebsitePricingPreview = {
@@ -118,6 +127,7 @@ export type WebsitePricingPreview = {
   is_binding?: boolean;
   assumptions?: WebsiteQuoteAssumption[];
   market_sources?: WebsiteQuoteMarketSource[];
+  market_reference?: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
   pricing_token?: string;

@@ -30,7 +30,7 @@ export type CanonicalQuoteValidationSuccess = {
   opsValidation: OpsWebsiteQuoteValidation
   area: {
     priceAreaCode: OpsWebsitePriceArea
-    resolutionReference: string
+    resolutionId: string
     gridAreaCode: string | null
     gridOwnerId: string | null
     gridOwnerName: string | null
@@ -64,9 +64,7 @@ export async function validateCanonicalWebsiteQuote(
     customer_type: input.customerType,
     price_area_code: area.payload.price_area_code,
     annual_consumption_kwh: input.annualConsumptionKwh,
-    estimated_monthly_kwh: input.estimatedMonthlyKwh,
-    requested_start_mode: input.requestedStartMode,
-    requested_start_date: input.requestedStartDate,
+    start_date: input.requestedStartMode === 'specific_date' ? input.requestedStartDate ?? null : null,
   })
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }
@@ -95,7 +93,7 @@ export async function validateCanonicalWebsiteQuote(
       opsValidation,
       area: {
         priceAreaCode: area.payload.price_area_code,
-        resolutionReference: area.payload.resolution_reference,
+        resolutionId: area.payload.resolution_id,
         gridAreaCode: area.payload.grid_area_code,
         gridOwnerId: area.payload.grid_owner_id,
         gridOwnerName: area.payload.grid_owner_name,

@@ -236,25 +236,36 @@ assertIncludes(
 
 const envExample = read("env.example");
 for (const variable of [
+  "GRIDEX_WEBSITE_API_KEY",
+  "GRIDEX_DISABLE_LIVE_SIGNUP",
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
-  "GRIDEX_WEBSITE_API_SCOPES",
   "GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY",
-  "GRIDEX_EXPECTED_TENANT_REFERENCE",
   "GRIDEX_ALLOW_UNSAFE_OPS_URL",
   "GRIDEX_ENABLE_OPS_WEBHOOKS",
-  "GRIDEX_OPS_WEBHOOK_SECRET",
+  "GRIDEX_WEBHOOK_SIGNING_SECRET",
   "GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS",
   "NEXT_PUBLIC_SITE_URL",
   "CONTRACTS_BUCKET",
-  "PAPILITE_API_KEY",
-  "PAPILITE_BASE_URL",
-  "WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL",
   "GRIDEX_WEBSITE_PRICING_QUOTE_SECRET",
 ]) {
   assert.ok(
     envExample.includes(variable),
     `env.example must document ${variable}`,
   );
+}
+
+for (const removedVariable of [
+  "GRIDEX_WEBSITE_API_SCOPES",
+  "GRIDEX_CUSTOMER_PORTAL_API_SCOPES",
+  "GRIDEX_CUSTOMER_PORTAL_REQUIRED_SCOPES",
+  "GRIDEX_EXPECTED_TENANT_REFERENCE",
+  "GRIDEX_OPS_APPLICATION_QUOTE_REFERENCE_MODE",
+  "GRIDEX_OPS_APPLICATION_LEGAL_ACCEPTANCES_MODE",
+  "PAPILITE_API_KEY",
+  "PAPILITE_BASE_URL",
+  "WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL",
+]) {
+  assert.ok(!envExample.includes(removedVariable), `env.example must not require ${removedVariable}`);
 }
 
 const opsClient = read("lib/ops/client.ts");
@@ -328,12 +339,12 @@ assertIncludes(
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-23.1.md",
+  "docs/website-integration-2026-07-24.1.md",
   "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-23.1.md",
+  "docs/website-integration-2026-07-24.1.md",
   "powerOfAttorney",
   "repo must document the signed power of attorney application payload",
 );
@@ -445,6 +456,15 @@ assert.equal(
   false,
   "the competing local pricing engine must be removed",
 );
+for (const removedPath of [
+  "../lib/website/marketPriceService.ts",
+  "../lib/website/componentCalculator.ts",
+  "../lib/website/priceAreaResolver.ts",
+  "../lib/website/embeddedAreaPricing.ts",
+  "../lib/website/pricingFallbackPolicy.ts",
+]) {
+  assert.equal(existsSync(new URL(removedPath, import.meta.url)), false, `${removedPath} must be removed from checkout`);
+}
 for (const path of [
   "app/api/v1/website/quote/route.ts",
   "app/api/v1/website/pricing/verify/route.ts",
