@@ -1,4 +1,4 @@
-name: OpenAPI drift
+name: OpenAPI compatibility
 on:
   pull_request:
   workflow_dispatch:
@@ -12,5 +12,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run api:contract
-      - run: npm run api:drift
+      - name: Sync exact live OpenAPI and regenerate types
+        run: npm run api:refresh
+      - name: Verify client compatibility with the live contract
+        run: npm run api:contract

@@ -277,8 +277,8 @@ assertIncludes(
 );
 assertIncludes(
   "lib/ops/client.ts",
-  "OPS_API_KEY_ENV_NAMES",
-  "OPS client must support explicit customer portal API key env aliases",
+  'const name = "GRIDEX_API_KEY" as const',
+  "OPS client must use GRIDEX_API_KEY as the only tenant API key",
 );
 assertIncludes(
   "lib/ops/client.ts",
@@ -314,10 +314,10 @@ assert.ok(
   !opsClient.includes("identity.externalCustomerId ?? identity.customerNumber"),
   "customer number must not be sent as external customer id",
 );
-assertIncludes(
+assertNotIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "customer_portal_user_id: linkedAuthUserId",
-  "logged-in signup must send customer_portal_user_id to OPS",
+  "strict customer application payload must not send undocumented portal identity fields",
 );
 assertIncludes(
   "app/api/v1/customer/portal-bundle/route.ts",
@@ -340,19 +340,19 @@ assertIncludes(
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-24.2.md",
+  "docs/website-integration-2026-07-25.1.md",
   "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-24.2.md",
+  "docs/website-integration-2026-07-25.1.md",
   "powerOfAttorney",
   "repo must document the signed power of attorney application payload",
 );
 assertIncludes(
   "lib/ops/client.ts",
-  "powerOfAttorney: input.powerOfAttorney",
-  "customer application payload must forward the signed powerOfAttorney object",
+  "accepted: true as const",
+  "customer application payload must build the canonical signed powerOfAttorney object",
 );
 assertIncludes(
   "lib/ops/client.ts",

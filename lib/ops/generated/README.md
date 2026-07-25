@@ -1,10 +1,15 @@
-# Genererade OPS-typer
+# Genererade API-typer
 
-Filerna i denna katalog genereras från de versionslåsta OpenAPI-kopiorna i `docs/openapi`.
+Filerna genereras från de versionslåsta OpenAPI-kopiorna i `docs/openapi` utan ett externt kodgenereringspaket:
 
 ```bash
-npx openapi-typescript docs/openapi/website-integration-v1.json -o lib/ops/generated/website-api.d.ts
-npx openapi-typescript docs/openapi/customer-portal-v1.json -o lib/ops/generated/customer-portal-api.d.ts
+npm run api:generate
 ```
 
-OpenAPI hämtas aldrig i runtime. CI hämtar live-specifikationerna, genererar till en temporär katalog och stoppar releasen om den semantiska kontraktsversionen eller de genererade typerna avviker.
+För en fullständig uppdatering från de publika Gridex-specifikationerna:
+
+```bash
+npm run api:refresh
+```
+
+`api:sync` hämtar specifikationerna, `api:generate` skapar typerna och `api:check` jämför de incheckade filerna mot live-specifikationerna. OpenAPI hämtas aldrig i applikationens runtime.

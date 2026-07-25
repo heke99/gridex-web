@@ -76,6 +76,9 @@ export async function validateCanonicalWebsiteQuote(
     resolution_id: area.payload.resolution_id,
     annual_consumption_kwh: input.annualConsumptionKwh,
     start_date: requestedStartDate,
+    price_area: area.payload.price_area_code,
+    grid_area_code: area.payload.grid_area_code,
+    postal_code: input.location.postalCode,
   })
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }

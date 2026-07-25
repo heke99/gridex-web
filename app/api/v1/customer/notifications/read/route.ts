@@ -23,10 +23,9 @@ export async function POST(request: Request) {
   const body = object(await request.json().catch(() => null))
   if (!body) return validationError('Ogiltig request-body.')
 
-  const all = body.all === true
   const rawIds = body.notification_ids ?? body.notificationIds ?? body.ids
-  if (!all && !Array.isArray(rawIds)) {
-    return validationError('Ange notification_ids eller all=true.', 'notification_ids')
+  if (!Array.isArray(rawIds)) {
+    return validationError('Ange notification_ids.', 'notification_ids')
   }
 
   const ids = Array.isArray(rawIds)
@@ -36,17 +35,13 @@ export async function POST(request: Request) {
         .filter(Boolean)
     : []
 
-  if (!all && ids.length === 0) {
+  if (ids.length === 0) {
     return validationError('Minst en giltig notis måste anges.', 'notification_ids')
-  }
-  if (all && ids.length > 0) {
-    return validationError('Skicka antingen all=true eller notification_ids, inte båda.')
   }
 
   try {
     const result = await markCustomerNotificationsRead({
       notificationIds: ids,
-      all,
       operationId: operationId(body.client_operation_id ?? body.idempotency_key),
     })
     return NextResponse.json(result)

@@ -846,16 +846,14 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
 }
 
 export async function markCustomerNotificationsRead(input: {
-  notificationIds?: string[]
-  all?: boolean
+  notificationIds: string[]
   operationId?: string | null
 }): Promise<{ ok: true; opsSynced: boolean; localSynced: boolean; queued: boolean }> {
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
-  const ids = (input.notificationIds ?? []).map((id) => id.trim()).filter(Boolean)
-  const all = input.all === true
-  if (!all && ids.length === 0) throw new Error('Minst en notis måste anges.')
+  const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))]
+  if (ids.length === 0) throw new Error('Minst en notis måste anges.')
   const operationId = input.operationId?.trim() || randomUUID()
   const readAt = new Date().toISOString()
   let opsSynced = false
@@ -864,7 +862,6 @@ export async function markCustomerNotificationsRead(input: {
   try {
     await markOpsCustomerNotificationsRead(identity, {
       notificationIds: ids,
-      all,
       operationId,
     })
     opsSynced = true
@@ -875,7 +872,7 @@ export async function markCustomerNotificationsRead(input: {
       operationType: 'notification_read',
       idempotencyKey: `notification-read:${user.id}:${operationId}`,
       identity,
-      payload: { notification_ids: ids, all, operation_id: operationId },
+      payload: { notification_ids: ids, operation_id: operationId },
     })
     queued = true
   }
@@ -884,7 +881,7 @@ export async function markCustomerNotificationsRead(input: {
     .from('customer_notifications')
     .update({ is_read: true, read_at: readAt })
     .eq('user_id', user.id)
-  if (!all) localQuery = localQuery.in('id', ids)
+  localQuery = localQuery.in('id', ids)
   const { error: localError } = await localQuery
 
   return { ok: true, opsSynced, localSynced: !localError, queued }

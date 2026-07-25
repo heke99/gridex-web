@@ -35,9 +35,9 @@ Gridex Web är en extern tenant och använder endast server-side:
 GRIDEX_API_KEY=gridex_live_xxxxxxxxx
 ```
 
-API-basen är fast i kod till `https://app.gridex.se/api/v1`, och kontraktsversionen är `2026-07-24.2`. API-nyckeln löser tenant, bolag, website-kanal och scopes via integration context. Ingen tenant/company-identitet eller API-nyckel skickas från browsern.
+API-basen är fast i kod till `https://app.gridex.se/api/v1`, och kontraktsversionen är `2026-07-25.1`. API-nyckeln löser tenant, bolag, website-kanal och scopes via integration context. Ingen tenant/company-identitet eller API-nyckel skickas från browsern.
 
-Canonical checkout är: publicerade avtal → OPS resolution → OPS current market price → OPS quote → quote validation → kundansökan → application status. Mina sidor använder canonical portal bundle. Se `docs/website-integration-2026-07-24.2.md`.
+Canonical checkout är: publicerade avtal → OPS resolution → OPS quote → quote validation → kundansökan → application status. Aktuellt marknadspris är en separat informationsfunktion och blockerar inte offerten. Mina sidor använder canonical portal bundle. Se `docs/website-integration-2026-07-25.1.md`.
 
 Kör före deploy:
 
@@ -154,9 +154,8 @@ Kör en ren verifiering, OpenAPI-kontroll, migration och deploy i denna ordning:
 ```bash
 rm -rf node_modules .next tsconfig.tsbuildinfo
 npm ci
-npm run api:generate
+npm run api:refresh
 npm run api:contract
-npm run api:drift
 npm run typecheck
 npm test
 npm run build
@@ -164,14 +163,14 @@ npx supabase db push --include-all
 npx vercel --prod
 ```
 
-De nya migrationerna är:
+Befintliga OPS-auditmigrationer som fortfarande ska finnas i migrationshistoriken är:
 
 ```text
 supabase/migrations/20260724184500_ops_website_contract_20260724_2.sql
 supabase/migrations/20260724190000_ops_website_contract_20260724_2.sql
 ```
 
-Se `IMPLEMENTATION_2026-07-24.2.md` och `VERIFICATION_2026-07-24.2.md` för leveransstatus och verifieringsblockerare.
+Se `IMPLEMENTATION_2026-07-25.1.md` och `VERIFICATION_2026-07-25.1.md` för leveransstatus och verifieringsblockerare.
 
 ```bash
 # Kräver GRIDEX_API_KEY och GRIDEX_STAGING_E2E_FIXTURE

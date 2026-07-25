@@ -30,7 +30,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-07-24.2')
+assert.equal(context.contract_version, '2026-07-25.1')
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -78,7 +78,6 @@ assert.equal(validation.quote_reference, quote.ops_quote_reference)
 const idempotencyKey = requiredText('idempotency_key')
 const applicationInput = {
   external_customer_id: requiredText('external_customer_id'),
-  source: 'gridex_web_staging_e2e',
   offer_reference: offerReference,
   quote_reference: quote.ops_quote_reference,
   resolution_id: resolution.resolution_id,
@@ -98,8 +97,6 @@ const applicationInput = {
   consents: fixture.legal_acceptances ?? fixture.consents,
   powerOfAttorney: fixture.powerOfAttorney ?? null,
   idempotency_key: idempotencyKey,
-  customer_portal_user_id: fixture.portal_user_id ?? null,
-  auth_user_id: fixture.portal_user_id ?? null,
 }
 assert.ok(applicationInput.customer && applicationInput.consents)
 

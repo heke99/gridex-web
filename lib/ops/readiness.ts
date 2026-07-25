@@ -32,6 +32,14 @@ export type OpsIntegrationReadiness = {
   checkedAt: string
   probes: Array<{ name: string; ok: boolean; status: number | null; code: string | null }>
   scopes: Array<{ scope: string; status: ScopeStatus }>
+  contextReadiness: {
+    websiteCheckoutReady: boolean
+    customerPortalReady: boolean
+    completeTenantWebsiteReady: boolean
+    missingWebsiteScopes: string[]
+    missingCustomerPortalScopes: string[]
+    missingRecommendedScopes: string[]
+  } | null
   webhook: {
     ready: boolean
     enabled: boolean
@@ -103,11 +111,9 @@ function probeDefinitions(): ProbeDefinition[] {
     { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
     { name: 'website_contracts.diagnostics', scopes: ['website_contracts.diagnostics'], run: async () => { await fetchOpsPublicContractDiagnostics() } },
     { name: 'website_energy_area.resolve', scopes: ['website_energy_area.resolve'], run: () => authorizationProbe('/api/v1/website/energy-area/resolve', 'POST', {}) },
-    { name: 'website_market_prices.read', scopes: ['website_market_prices.read'], run: () => authorizationProbe('/api/v1/website/market-price/current', 'POST', {}) },
     { name: 'website_quotes.write', scopes: ['website_quotes.write'], run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}) },
     { name: 'website_quotes.validate', scopes: ['website_quotes.validate'], run: () => authorizationProbe('/api/v1/website/quote/validate', 'POST', {}) },
     { name: 'website_applications.write', scopes: ['website_applications.write'], run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}) },
-    { name: 'website_switch_status.read', scopes: ['website_switch_status.read'], run: () => authorizationProbe('/api/v1/website/switch-status?application_number=READINESS-NO-APPLICATION', 'GET') },
     {
       name: 'website_legal.read_any_of',
       scopes: GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
@@ -146,6 +152,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       checkedAt,
       probes: [],
       scopes: scopes(),
+      contextReadiness: null,
       webhook,
     }
   }
@@ -153,6 +160,20 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const definitions = probeDefinitions()
   const probes: OpsIntegrationReadiness['probes'] = []
   let code: OpsReadinessCode = 'ready'
+  let contextReadiness: OpsIntegrationReadiness['contextReadiness'] = null
+  try {
+    const context = await fetchOpsIntegrationContext(true)
+    contextReadiness = {
+      websiteCheckoutReady: context.capabilities.website_checkout_ready,
+      customerPortalReady: context.capabilities.customer_portal_ready,
+      completeTenantWebsiteReady: context.capabilities.complete_tenant_website_ready,
+      missingWebsiteScopes: context.capabilities.missing_website_checkout_scopes,
+      missingCustomerPortalScopes: context.capabilities.missing_customer_portal_scopes,
+      missingRecommendedScopes: context.capabilities.recommended_missing_scopes,
+    }
+  } catch {
+    contextReadiness = null
+  }
   const results = await Promise.allSettled(definitions.map(async (probe) => ({ probe, result: await probe.run() })))
 
   for (let index = 0; index < results.length; index += 1) {
@@ -181,6 +202,6 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     })
   }
 
-  const ready = code === 'ready' && probes.every((probe) => probe.ok)
-  return { ready, code, message: readinessMessage(code), checkedAt, probes, scopes: scopes(), webhook }
+  const ready = code === 'ready' && probes.every((probe) => probe.ok) && contextReadiness?.websiteCheckoutReady !== false
+  return { ready, code, message: readinessMessage(code), checkedAt, probes, scopes: scopes(), contextReadiness, webhook }
 }

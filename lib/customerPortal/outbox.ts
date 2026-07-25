@@ -201,7 +201,6 @@ async function dispatch(row: OutboxRow): Promise<void> {
     : []
   await markOpsCustomerNotificationsRead(row.identity, {
     notificationIds: ids,
-    all: row.payload.all === true,
     operationId,
   })
 }

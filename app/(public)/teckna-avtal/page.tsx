@@ -956,24 +956,35 @@ export default async function TecknaPage({
       };
     }
 
+    const applicationCustomer: OpsCustomerApplicationInput["customer"] =
+      customerType === "business"
+        ? {
+            customer_type: "business",
+            first_name: firstName,
+            last_name: lastName,
+            company_name: companyName,
+            organization_number: organizationNumber,
+            personal_number: personalNumber,
+            email,
+            phone,
+          }
+        : {
+            customer_type: "private",
+            first_name: firstName,
+            last_name: lastName,
+            personal_number: personalNumber,
+            email,
+            phone,
+          };
+
     const applicationInput = {
       external_customer_id: externalCustomerId,
-      source: "gridex_web",
       offer_reference: offer.offer_reference,
       quote_reference: verifiedQuote.value.quote.ops_quote_reference,
       resolution_id: verifiedQuote.value.area.resolutionId,
       annual_consumption_kwh: annualConsumptionKwh,
       start_date: verifiedQuote.value.quote.start_date,
-      customer: {
-        customer_type: customerType,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        company_name: companyName || null,
-        personal_number: personalNumber || null,
-        organization_number: organizationNumber || null,
-        email,
-        phone,
-      },
+      customer: applicationCustomer,
       site: {
         facility_id: facilityId || null,
         street: address,
@@ -981,9 +992,13 @@ export default async function TecknaPage({
         city,
         move_in_date: verifiedQuote.value.quote.start_date,
         current_supplier_name: currentSupplierName || null,
-        current_supplier_id: currentSupplierId || null,
         current_supplier_org_number: currentSupplierOrgNumber || null,
         current_supplier_ediel_id: currentSupplierEdielId || null,
+        country: "SE",
+        price_area_code: verifiedQuote.value.area.priceAreaCode,
+        grid_area_code: verifiedQuote.value.area.gridAreaCode,
+        grid_owner_id: verifiedQuote.value.area.gridOwnerId,
+        grid_owner_name: verifiedQuote.value.area.gridOwnerName,
       },
       contract: {
         requested_start_mode: requestedStartMode,
@@ -993,8 +1008,6 @@ export default async function TecknaPage({
             : null,
       },
       idempotency_key: idempotencyKey,
-      customer_portal_user_id: linkedAuthUserId,
-      auth_user_id: linkedAuthUserId,
       consents: legalConsents,
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;

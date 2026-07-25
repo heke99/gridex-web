@@ -1,54 +1,48 @@
-# Gridex Web 2026-07-24.2 – ändrade filer
+# Gridex Web 2026-07-25.1 – ändrade filer
 
-Totalt: 50 filer
+Totalt: 42 filer
 
-A  .github/workflows/openapi-drift.yml
-A  COMMANDS_2026-07-24.2.md
-A  IMPLEMENTATION_2026-07-24.2.md
-A  VERIFICATION_2026-07-24.2.log
-A  VERIFICATION_2026-07-24.2.md
-A  app/api/v1/website/customer-applications/[applicationId]/route.ts
-A  app/api/v1/website/market-price/current/route.ts
-A  components/signup/ApplicationStatusCard.tsx
-A  docs/openapi/customer-portal-v1.json
-A  docs/openapi/website-integration-v1.json
-A  docs/website-integration-2026-07-24.2.md
-A  lib/ops/generated/customer-portal-api.d.ts
-A  lib/ops/generated/website-api.d.ts
-A  lib/website/marketInformationAdapter.ts
-A  scripts/check-openapi-drift.mjs
-A  supabase/migrations/20260724184500_ops_website_contract_20260724_2.sql
-A  supabase/migrations/20260724190000_ops_website_contract_20260724_2.sql
-A  tests/fixtures/staging-ops-flow.example.json
-A  tests/staging-canonical-ops-flow.mjs
-A  tests/website-api-2026-07-24-2.contract.test.mjs
 M  CHANGED_FILES.txt
+M  .github/workflows/openapi-drift.yml
+D  COMMANDS_2026-07-24.2.md
+A  COMMANDS_2026-07-25.1.md
+D  IMPLEMENTATION_2026-07-24.2.md
+A  IMPLEMENTATION_2026-07-25.1.md
 M  PATCH_NOTES.md
 M  README.md
-M  app/(public)/elpriser/elpris-idag/page.tsx
+D  VERIFICATION_2026-07-24.2.log
+D  VERIFICATION_2026-07-24.2.md
+A  VERIFICATION_2026-07-25.1.md
 M  app/(public)/teckna-avtal/page.tsx
-M  app/(public)/teckna-avtal/tack/SignupThanksPage.tsx
+M  app/api/v1/customer/notifications/read/route.ts
+M  app/api/v1/website/energy/resolve/route.ts
 M  app/api/v1/website/pricing/preview/route.ts
-M  components/seo/ElprisAreaLanding.tsx
-M  env.example
+M  docs/openapi/customer-portal-v1.json
+M  docs/openapi/website-integration-v1.json
+D  docs/website-integration-2026-07-24.2.md
+A  docs/website-integration-2026-07-25.1.md
+M  lib/customerPortal/outbox.ts
+M  lib/customerPortal/service.ts
 M  lib/ops/client.ts
 M  lib/ops/contract.ts
 M  lib/ops/generated/README.md
+M  lib/ops/generated/customer-portal-api.d.ts
+M  lib/ops/generated/website-api.d.ts
 M  lib/ops/portalReadiness.ts
 M  lib/ops/readiness.ts
-M  lib/website/applicationResultStore.ts
 M  lib/website/canonicalQuoteValidation.ts
 M  lib/website/energyAreaStore.ts
-M  lib/website/pricingQuote.ts
+M  lib/website/energyAreaToken.ts
 M  lib/website/publicApi.ts
-M  lib/website/submissionStore.ts
 M  package.json
-M  tests/customer-facing-pricing-visibility.test.mjs
+M  scripts/check-openapi-drift.mjs
+A  scripts/generate-openapi-types.mjs
+A  scripts/sync-openapi.mjs
 M  tests/customer-portal-api-hardening.test.mjs
 M  tests/launch-readiness.test.mjs
-M  tests/public-contract-contract.test.mjs
+M  tests/staging-canonical-ops-flow.mjs
+D  tests/website-api-2026-07-24-2.contract.test.mjs
+A  tests/website-api-2026-07-25-1.contract.test.mjs
 M  tests/website-signup-hardening.test.mjs
-D  IMPLEMENTATION_2026-07-24.1.md
-D  docs/website-integration-2026-07-24.1.md
-D  supabase/migrations/20260724190000_ops_website_contract_20260724_1.sql
-D  tests/website-api-2026-07-24-1.contract.test.mjs
+
+A = tillagd, M = ändrad, D = borttagen.

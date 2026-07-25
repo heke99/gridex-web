@@ -14,23 +14,45 @@ export type WebsiteEnergyResolution = {
   grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
-  automation_allowed?: boolean;
+  capabilities?: {
+    pricing_ready: boolean;
+    quote_ready: boolean;
+    facility_lookup_ready: boolean;
+    switch_request_creatable: boolean;
+    switch_dispatch_ready: boolean;
+  };
+  blockers?: {
+    pricing: Array<{ code: string; message?: string | null; field?: string | null; retryable?: boolean | null }>;
+    quote: Array<{ code: string; message?: string | null; field?: string | null; retryable?: boolean | null }>;
+    facility_lookup: Array<{ code: string; message?: string | null; field?: string | null; retryable?: boolean | null }>;
+    switch_creation: Array<{ code: string; message?: string | null; field?: string | null; retryable?: boolean | null }>;
+    switch_dispatch: Array<{ code: string; message?: string | null; field?: string | null; retryable?: boolean | null }>;
+  };
+  retryable?: boolean;
+  contract_version?: string;
   warnings?: string[];
-  source?: string | null;
+  source?: string | { provider?: string | null; reference?: string | null; resolved_by?: string | null; as_of?: string | null } | null;
   customer_message?: string | null;
 };
 
 export type WebsiteEnergyResolveInput = {
-  postal_code: string;
+  postal_code?: string | null;
   city?: string | null;
   street?: string | null;
+  street_number?: string | null;
   address?: string | null;
   apartment?: string | null;
+  country?: string | null;
+  grid_area_code?: string | null;
+  facility_id?: string | null;
+  metering_point_id?: string | null;
+  requested_start_mode?: 'earliest_possible' | 'specific_date' | null;
+  requested_start_date?: string | null;
 };
 
 export type WebsitePricingPreviewInput = {
   offer_reference: string;
-  price_area_code: WebsitePriceArea;
+  price_area_code?: WebsitePriceArea | null;
   resolution_token?: string | null;
   postal_code?: string | null;
   city?: string | null;

@@ -15,57 +15,6 @@ import {
   GRIDEX_WEBSITE_API_VERSION_HEADER,
 } from '@/lib/ops/contract';
 import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
-import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
-
-type GeneratedEnergyAreaResolveRequest = WebsiteApiComponents['schemas']['EnergyAreaResolveRequest'];
-type GeneratedWebsiteQuoteRequest = WebsiteApiComponents['schemas']['QuoteRequest'];
-type GeneratedWebsiteQuoteValidationRequest = WebsiteApiComponents['schemas']['QuoteValidationRequest'];
-type GeneratedCurrentMarketPriceRequest = WebsiteApiComponents['schemas']['CurrentMarketPriceRequest'];
-type GeneratedCustomerApplicationRequest = WebsiteApiComponents['schemas']['CustomerApplicationRequest'];
-
-/**
- * The upstream OpenAPI contract intentionally allows additive fields in the
- * nested customer/site/contract objects. Some openapi-typescript versions map
- * an underspecified object snapshot to Record<string, never>, which makes every
- * valid nested property fail with `not assignable to never`.
- *
- * Keep the generated contract authoritative for the top-level envelope, while
- * replacing only those additive nested objects with the explicit adapter shape
- * that Gridex Web sends. This remains type-safe and avoids casts or `any`.
- */
-type GeneratedCustomerApplicationPayload = Omit<
-  GeneratedCustomerApplicationRequest,
-  "customer" | "site" | "contract" | "powerOfAttorney"
-> & {
-  customer: {
-    customer_type: ReturnType<typeof toOpsCustomerType>;
-    first_name?: string;
-    last_name?: string;
-    company_name?: string;
-    personal_number?: string;
-    org_number?: string;
-    email: string;
-    phone: string;
-  };
-  site: {
-    facility_id?: string;
-    metering_point_id?: string;
-    move_in_date?: string;
-    street: string;
-    postal_code: string;
-    city: string;
-    current_supplier_name?: string;
-    current_supplier_id?: string;
-    current_supplier_org_number?: string;
-    current_supplier_ediel_id?: string;
-  };
-  contract: {
-    requested_start_mode: OpsContractInput["requested_start_mode"];
-    requested_start_date?: string | null;
-  };
-  powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
-};
-
 export type OpsContractType =
   | "variable_spot"
   | "variable_monthly"
@@ -145,40 +94,73 @@ export type OpsPublicContract = {
   sort_order?: number | null;
 };
 
+export type OpsPowerOfAttorneyScope =
+  | "supplier_switch"
+  | "facility_information_lookup";
+
+export type OpsPowerOfAttorneyMethod =
+  | "website_acceptance"
+  | "bankid"
+  | "electronic_signature"
+  | "manual_signature";
+
 export type OpsWebsitePowerOfAttorneyInput = {
-  accepted: boolean;
-  scope: Array<"supplier_switch" | "facility_information_lookup" | string>;
+  accepted: true;
+  scope: OpsPowerOfAttorneyScope[];
   signerName: string;
   signerIdentityNumber: string;
-  method: "website_acceptance" | string;
-  acceptedAt: string;
+  method: OpsPowerOfAttorneyMethod;
+  acceptedAt?: string | null;
   textVersionId: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 };
 
-export type OpsCustomerInput = {
-  customer_type: WebsiteCustomerType;
+type OpsCustomerBaseInput = {
   first_name?: string | null;
   last_name?: string | null;
-  company_name?: string | null;
-  personal_number?: string | null;
-  organization_number?: string | null;
   email: string;
   phone: string;
 };
 
+export type OpsPrivateCustomerInput = OpsCustomerBaseInput & {
+  customer_type: "private";
+  personal_number: string;
+  organization_number?: never;
+  company_name?: never;
+};
+
+export type OpsBusinessCustomerInput = OpsCustomerBaseInput & {
+  customer_type: "business";
+  company_name: string;
+  organization_number: string;
+  personal_number: string;
+};
+
+export type OpsCustomerInput =
+  | OpsPrivateCustomerInput
+  | OpsBusinessCustomerInput;
+
 export type OpsSiteInput = {
   facility_id?: string | null;
-  metering_point_id?: string | null;
   street: string;
+  street_number?: string | null;
+  apartment?: string | null;
   postal_code: string;
   city: string;
+  country?: string | null;
+  price_area_code?: OpsWebsitePriceArea | null;
+  grid_area_code?: string | null;
+  grid_owner_id?: string | null;
+  grid_owner_name?: string | null;
   move_in_date?: string | null;
   current_supplier_name?: string | null;
-  current_supplier_id?: string | null;
   current_supplier_org_number?: string | null;
   current_supplier_ediel_id?: string | null;
+};
+
+export type OpsMeteringPointInput = {
+  metering_point_id: string;
 };
 
 export type OpsContractInput = {
@@ -190,7 +172,6 @@ export type OpsConsentInput = Record<string, boolean>;
 
 export type OpsCustomerApplicationInput = {
   external_customer_id: string;
-  source: string;
   offer_reference: string;
   quote_reference: string;
   resolution_id: string;
@@ -198,12 +179,11 @@ export type OpsCustomerApplicationInput = {
   start_date: string;
   customer: OpsCustomerInput;
   site: OpsSiteInput;
+  metering_point?: OpsMeteringPointInput | null;
   contract: OpsContractInput;
   consents: OpsConsentInput;
   powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
   idempotency_key: string;
-  customer_portal_user_id?: string | null;
-  auth_user_id?: string | null;
 };
 
 export type OpsCustomerApplicationResult = {
@@ -302,22 +282,61 @@ export type OpsLegalText = {
 export type OpsWebsitePriceArea = "SE1" | "SE2" | "SE3" | "SE4";
 
 export type OpsWebsiteEnergyResolutionInput = {
-  postal_code: string;
+  postal_code?: string | null;
   city?: string | null;
   street?: string | null;
+  street_number?: string | null;
   address?: string | null;
   apartment?: string | null;
+  country?: string | null;
   grid_area_code?: string | null;
+  facility_id?: string | null;
+  metering_point_id?: string | null;
+  requested_start_mode?: "earliest_possible" | "specific_date" | null;
+  requested_start_date?: string | null;
+};
+
+export type OpsResolutionBlocker = {
+  code: string;
+  message?: string | null;
+  field?: string | null;
+  retryable?: boolean | null;
+  details?: Record<string, unknown> | null;
+};
+
+export type OpsResolutionCapabilities = {
+  pricing_ready: boolean;
+  quote_ready: boolean;
+  facility_lookup_ready: boolean;
+  switch_request_creatable: boolean;
+  switch_dispatch_ready: boolean;
+};
+
+export type OpsResolutionBlockers = {
+  pricing: OpsResolutionBlocker[];
+  quote: OpsResolutionBlocker[];
+  facility_lookup: OpsResolutionBlocker[];
+  switch_creation: OpsResolutionBlocker[];
+  switch_dispatch: OpsResolutionBlocker[];
+};
+
+export type OpsResolutionSource = {
+  provider?: string | null;
+  reference?: string | null;
+  resolved_by?: string | null;
+  as_of?: string | null;
+  metadata?: Record<string, unknown> | null;
+  raw: Record<string, unknown>;
 };
 
 export type OpsWebsiteEnergyResolution = {
-  /** Normalized compatibility status. Prefer resolution_status for OPS semantics. */
   status: string;
   resolution_id?: string | null;
-  /** Deprecated response alias accepted during rollout. */
   resolution_reference?: string | null;
   resolution_status?: string | null;
-  automation_allowed: boolean | null;
+  capabilities: OpsResolutionCapabilities;
+  blockers: OpsResolutionBlockers;
+  retryable: boolean;
   next_required_action?: string | null;
   warnings: string[];
   resolved_at?: string | null;
@@ -328,11 +347,12 @@ export type OpsWebsiteEnergyResolution = {
   grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
+  contract_version: string;
   resolver_version?: string | null;
   geodata_version?: string | null;
   conflict_code?: string | null;
   error_code?: string | null;
-  source?: string | null;
+  source?: OpsResolutionSource | null;
   source_chain?: string[];
   customer_message?: string | null;
   raw?: Record<string, unknown>;
@@ -353,6 +373,10 @@ export type OpsWebsiteQuoteValidationInput = {
   customer_type: WebsiteCustomerType;
   annual_consumption_kwh: number;
   start_date: string;
+  price_area?: OpsWebsitePriceArea | null;
+  grid_area_code?: string | null;
+  postal_code?: string | null;
+  application_id?: string | null;
 };
 
 export type OpsWebsiteQuoteValidation = {
@@ -465,32 +489,52 @@ export type OpsClientStatus = {
 export type OpsIntegrationContext = {
   tenant_reference: string;
   company_id?: string | null;
+  api_client_reference?: string | null;
+  authoritative_identity?: string | Record<string, unknown> | null;
+  authentication?: Record<string, unknown> | null;
   environment: string;
   channel: string;
   api_version: string;
   contract_version: string;
+  active_scopes: string[];
   configuration: {
     required_environment_variables: string[];
     api_base_url: string;
     application_reference_location: "top_level";
+    website_openapi_url?: string | null;
+    customer_portal_openapi_url?: string | null;
   };
   capabilities: {
     website_checkout_ready: boolean;
+    customer_portal_ready: boolean;
+    complete_tenant_website_ready: boolean;
     missing_website_checkout_scopes: string[];
+    missing_customer_portal_scopes: string[];
+    missing_complete_tenant_website_scopes: string[];
+    recommended_missing_scopes: string[];
+    required_website_checkout_scopes: string[];
+    required_customer_portal_scopes: string[];
   };
   raw: Record<string, unknown>;
 };
 
 export type OpsCurrentMarketPrice = {
   provider: string;
+  provider_reference?: string | null;
   resolution_id: string;
   price_area: OpsWebsitePriceArea;
   reference_type: string;
   resolution: string;
+  selected_resolution: string;
+  available_resolutions: string[];
   interval_start: string;
   interval_end: string;
   price_sek_per_kwh: number;
   price_ore_per_kwh: number;
+  price_ex_vat_sek_per_kwh?: number | null;
+  price_ex_vat_ore_per_kwh?: number | null;
+  price_inc_vat_sek_per_kwh?: number | null;
+  price_inc_vat_ore_per_kwh?: number | null;
   unit: string;
   includes_vat: boolean;
   includes_supplier_fees: boolean;
@@ -499,8 +543,12 @@ export type OpsCurrentMarketPrice = {
   is_stale: boolean;
   fallback_used: boolean;
   fallback_reason?: string | null;
+  freshness?: string | null;
   as_of: string;
+  source_as_of?: string | null;
   stale_after: string;
+  next_update_at?: string | null;
+  contract_version?: string | null;
   raw: Record<string, unknown>;
 };
 
@@ -542,6 +590,7 @@ export class OpsError extends Error {
   status: number;
   details?: unknown;
   code: string | null;
+  requestId: string | null;
   correlationId: string | null;
   retryable: boolean;
   endpoint: string | null;
@@ -554,7 +603,8 @@ export class OpsError extends Error {
     const row = recordValue(details);
     const nested = recordValue(row?.error);
     this.code = pickFromRecords([nested, row], ["code", "error_code"]);
-    this.correlationId = pickFromRecords([nested, row], ["correlation_id", "request_id"]);
+    this.requestId = pickFromRecords([nested, row], ["request_id", "requestId"]);
+    this.correlationId = pickFromRecords([nested, row], ["correlation_id", "correlationId"]);
     this.retryable = pickBooleanFromRecords([nested, row], ["retryable"]) ?? (status === 429 || status >= 500);
     this.endpoint = pickFromRecords([nested, row], ["endpoint", "path"]);
   }
@@ -571,15 +621,7 @@ function normalizeOpsApiBase(value: string): string {
 }
 
 function opsBaseUrl(): string {
-  const nonProductionOverrideAllowed =
-    process.env.NODE_ENV !== "production" ||
-    process.env.VERCEL_ENV === "preview" ||
-    process.env.VERCEL_ENV === "development" ||
-    process.env.GRIDEX_ENVIRONMENT === "staging";
-  const override = nonProductionOverrideAllowed
-    ? env("GRIDEX_OPS_API_URL") ?? env("GRIDEX_OPS_BASE_URL")
-    : undefined;
-  return normalizeOpsApiBase(override ?? GRIDEX_API_BASE_URL);
+  return normalizeOpsApiBase(GRIDEX_API_BASE_URL);
 }
 
 function opsRelativePath(path: string): string {
@@ -614,29 +656,20 @@ function assertTenantReference(actual: string | null, source: string): string {
   return actual;
 }
 
-const OPS_API_KEY_ENV_NAMES = [
-  "GRIDEX_API_KEY",
-  "GRIDEX_WEBSITE_API_KEY",
-  "GRIDEX_OPS_API_KEY",
-] as const;
-
 function opsApiKey(): { value?: string; source?: string; invalidReason?: string } {
-  for (const name of OPS_API_KEY_ENV_NAMES) {
-    const value = env(name);
-    if (!value) continue;
+  const name = "GRIDEX_API_KEY" as const;
+  const value = env(name);
+  if (!value) return {};
 
-    const prefixOnly = /^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18;
-    if (prefixOnly) {
-      return {
-        source: name,
-        invalidReason: `${OPS_API_KEY_FULL_SECRET_NOT_PREFIX}: ${name} innehåller bara API-nyckelns prefix, inte hela token.`,
-      };
-    }
-
-    return { value, source: name };
+  const prefixOnly = /^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18;
+  if (prefixOnly) {
+    return {
+      source: name,
+      invalidReason: `${OPS_API_KEY_FULL_SECRET_NOT_PREFIX}: ${name} innehåller bara API-nyckelns prefix, inte hela token.`,
+    };
   }
 
-  return {};
+  return { value, source: name };
 }
 
 export function getOpsClientStatus(): OpsClientStatus {
@@ -1385,7 +1418,13 @@ function upstreamOpsErrorCode(payload: unknown): string | null {
 function rateLimitErrorDetails(payload: unknown, status: number, headers: Headers, path: string): unknown {
   const upstreamCode = upstreamOpsErrorCode(payload)
   const row = recordValue(payload)
-  const base = row ? { ...row, endpoint: path } : { endpoint: path, upstream: payload }
+  const responseIds = {
+    request_id: headers.get('x-request-id'),
+    correlation_id: headers.get('x-correlation-id'),
+  }
+  const base = row
+    ? { ...responseIds, ...row, endpoint: path }
+    : { ...responseIds, endpoint: path, upstream: payload }
   let code: string | null = null
   if (status === 429) code = 'ops_rate_limited'
   else if (upstreamCode === 'api_rate_limiter_unavailable') code = 'ops_rate_limiter_unavailable'
@@ -1572,7 +1611,8 @@ async function opsRequest(
         expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
         received: responseContractVersion,
         endpoint: path,
-        correlation_id: res.headers.get("x-correlation-id") ?? res.headers.get("x-request-id"),
+        request_id: res.headers.get('x-request-id'),
+        correlation_id: res.headers.get('x-correlation-id'),
         retryable: false,
       });
     }
@@ -1948,8 +1988,6 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     ['totals', 'price_per_kwh_ore'],
     ['selected_area_price', 'energy_price_ore_per_kwh'],
     ['selectedAreaPrice', 'energyPriceOrePerKwh'],
-    ['market_reference', 'price_ore_per_kwh'],
-    ['marketReference', 'priceOrePerKwh'],
   ]);
   const monthlyExVat = normalizeNumber(
     estimate.monthly_ex_vat ?? estimate.monthly_cost_ex_vat ??
@@ -2131,109 +2169,146 @@ let integrationContextCache: {
 } | null = null;
 
 function integrationContextFromPayload(payload: unknown): OpsIntegrationContext {
-  const root = recordValue(payload) ?? {};
-  const data = recordValue(root.data);
-  const context = recordValue(root.context) ?? recordValue(data?.context) ?? data ?? root;
-  const meta = recordValue(root.meta) ?? recordValue(data?.meta);
+  const root = recordValue(payload) ?? {}
+  const data = recordValue(root.data)
+  const context = recordValue(root.context) ?? recordValue(data?.context) ?? data ?? root
+  const meta = recordValue(root.meta) ?? recordValue(data?.meta)
   const configuration =
     recordValue(context.configuration) ??
     recordValue(data?.configuration) ??
     recordValue(root.configuration) ??
-    {};
+    {}
   const capabilities =
     recordValue(context.capabilities) ??
     recordValue(data?.capabilities) ??
     recordValue(root.capabilities) ??
-    {};
+    {}
+  const authentication =
+    recordValue(configuration.authentication) ??
+    recordValue(context.authentication) ??
+    recordValue(data?.authentication) ??
+    recordValue(root.authentication) ??
+    null
+  const authoritativeIdentity =
+    pickFromRecords([context, data, root], ['authoritative_identity', 'authoritativeIdentity']) ??
+    recordValue(context.authoritative_identity) ??
+    recordValue(context.authoritativeIdentity) ??
+    null
   const tenantReference = pickFromRecords(
     [context, meta, data, root],
-    ["tenant_reference", "tenantReference"],
-  );
+    ['tenant_reference', 'tenantReference'],
+  )
   const verifiedTenantReference = assertTenantReference(
     tenantReference,
-    "/api/v1/integration/context",
-  );
+    '/api/v1/integration/context',
+  )
   const contractVersion =
-    pickFromRecords([context, meta, data, root], ["contract_version", "contractVersion"]);
+    pickFromRecords([context, meta, data, root], ['contract_version', 'contractVersion'])
   const requiredEnvironmentVariables =
-    pickStringArray(configuration, ["required_environment_variables", "requiredEnvironmentVariables"]) ??
-    [];
-  const missingScopes =
+    pickStringArray(configuration, ['required_environment_variables', 'requiredEnvironmentVariables']) ?? []
+  const websiteMissing =
     pickStringArray(capabilities, [
-      "missing_website_scopes",
-      "missingWebsiteScopes",
-      "missing_website_checkout_scopes",
-      "missingWebsiteCheckoutScopes",
-    ]) ?? [];
+      'missing_website_checkout_scopes',
+      'missingWebsiteCheckoutScopes',
+      'missing_website_scopes',
+      'missingWebsiteScopes',
+    ]) ?? []
+  const portalMissing =
+    pickStringArray(capabilities, ['missing_customer_portal_scopes', 'missingCustomerPortalScopes']) ?? []
+  const completeMissing =
+    pickStringArray(capabilities, ['missing_complete_tenant_website_scopes', 'missingCompleteTenantWebsiteScopes']) ??
+    [...new Set([...websiteMissing, ...portalMissing])]
+  const recommendedMissing =
+    pickStringArray(capabilities, ['missing_recommended_scopes', 'missingRecommendedScopes', 'recommended_missing_scopes', 'recommendedMissingScopes']) ?? []
+  const requiredWebsiteScopes =
+    pickStringArray(capabilities, ['required_website_checkout_scopes', 'requiredWebsiteCheckoutScopes', 'required_website_scopes', 'requiredWebsiteScopes']) ?? []
+  const requiredPortalScopes =
+    pickStringArray(capabilities, ['required_customer_portal_scopes', 'requiredCustomerPortalScopes']) ?? []
   const applicationReferenceLocation =
-    pickString(configuration, ["application_reference_location", "applicationReferenceLocation"]);
+    pickString(configuration, ['application_reference_location', 'applicationReferenceLocation'])
   const value: OpsIntegrationContext = {
     tenant_reference: verifiedTenantReference,
-    company_id: pickFromRecords([context, meta, data, root], ["company_id", "companyId"]),
-    environment: pickFromRecords([context, meta, data, root], ["environment", "api_environment"]) ?? "production",
-    channel: pickFromRecords([context, meta, data, root], ["channel"]) ?? "website",
-    api_version: pickFromRecords([context, meta, data, root], ["api_version", "apiVersion"]) ?? "v1",
-    contract_version: contractVersion ?? "",
+    company_id: pickFromRecords([context, meta, data, root], ['company_id', 'companyId']),
+    api_client_reference: pickFromRecords([context, meta, data, root], ['api_client_reference', 'apiClientReference']),
+    authoritative_identity: authoritativeIdentity,
+    authentication,
+    environment: pickFromRecords([context, meta, data, root], ['environment', 'api_environment']) ?? 'production',
+    channel: pickFromRecords([context, meta, data, root], ['channel']) ?? 'website',
+    api_version: pickFromRecords([context, meta, data, root], ['api_version', 'apiVersion']) ?? 'v1',
+    contract_version: contractVersion ?? '',
+    active_scopes:
+      pickStringArray(context, ['active_scopes', 'activeScopes', 'scopes']) ??
+      pickStringArray(authentication ?? {}, ['active_scopes', 'activeScopes', 'scopes']) ??
+      [],
     configuration: {
       required_environment_variables: requiredEnvironmentVariables,
-      api_base_url: pickString(configuration, ["api_base_url", "apiBaseUrl"]) ?? "",
-      application_reference_location:
-        applicationReferenceLocation === "top_level" ? "top_level" : "top_level",
+      api_base_url: pickString(configuration, ['api_base_url', 'apiBaseUrl']) ?? '',
+      application_reference_location: 'top_level',
+      website_openapi_url: pickString(configuration, ['openapi_url', 'openapiUrl', 'website_openapi_url', 'websiteOpenapiUrl', 'website_integration_openapi_url', 'websiteIntegrationOpenapiUrl']),
+      customer_portal_openapi_url: pickString(configuration, ['customer_portal_openapi_url', 'customerPortalOpenapiUrl']),
     },
     capabilities: {
       website_checkout_ready:
-        pickBoolean(capabilities, ["website_checkout_ready", "websiteCheckoutReady"]) ??
-        missingScopes.length === 0,
-      missing_website_checkout_scopes: missingScopes,
+        pickBoolean(capabilities, ['website_checkout_ready', 'websiteCheckoutReady']) ?? websiteMissing.length === 0,
+      customer_portal_ready:
+        pickBoolean(capabilities, ['customer_portal_ready', 'customerPortalReady']) ?? portalMissing.length === 0,
+      complete_tenant_website_ready:
+        pickBoolean(capabilities, ['complete_tenant_website_ready', 'completeTenantWebsiteReady']) ?? completeMissing.length === 0,
+      missing_website_checkout_scopes: websiteMissing,
+      missing_customer_portal_scopes: portalMissing,
+      missing_complete_tenant_website_scopes: completeMissing,
+      recommended_missing_scopes: recommendedMissing,
+      required_website_checkout_scopes: requiredWebsiteScopes,
+      required_customer_portal_scopes: requiredPortalScopes,
     },
     raw: root,
-  };
+  }
   if (!contractVersion) {
-    throw new OpsError("OPS integration context saknar kontraktsversion.", 502, {
-      code: "ops_contract_version_mismatch",
+    throw new OpsError('OPS integration context saknar kontraktsversion.', 502, {
+      code: 'ops_contract_version_mismatch',
       expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       received: null,
-      endpoint: "/api/v1/integration/context",
+      endpoint: '/api/v1/integration/context',
       retryable: false,
-    });
+    })
   }
-  if (requiredEnvironmentVariables.length !== 1 || requiredEnvironmentVariables[0] !== "GRIDEX_API_KEY") {
-    throw new OpsError("OPS integration context annonserar en ogiltig tenantkonfiguration.", 502, {
-      code: "ops_integration_configuration_mismatch",
-      expected: ["GRIDEX_API_KEY"],
+  if (requiredEnvironmentVariables.length !== 1 || requiredEnvironmentVariables[0] !== 'GRIDEX_API_KEY') {
+    throw new OpsError('OPS integration context annonserar en ogiltig tenantkonfiguration.', 502, {
+      code: 'ops_integration_configuration_mismatch',
+      expected: ['GRIDEX_API_KEY'],
       received: requiredEnvironmentVariables,
-      endpoint: "/api/v1/integration/context",
+      endpoint: '/api/v1/integration/context',
       retryable: false,
-    });
+    })
   }
   if (value.configuration.api_base_url !== GRIDEX_API_BASE_URL) {
-    throw new OpsError("OPS integration context annonserar fel API-bas.", 502, {
-      code: "ops_api_base_url_mismatch",
+    throw new OpsError('OPS integration context annonserar fel API-bas.', 502, {
+      code: 'ops_api_base_url_mismatch',
       expected: GRIDEX_API_BASE_URL,
       received: value.configuration.api_base_url || null,
-      endpoint: "/api/v1/integration/context",
+      endpoint: '/api/v1/integration/context',
       retryable: false,
-    });
+    })
   }
-  if (applicationReferenceLocation !== "top_level") {
-    throw new OpsError("OPS kräver en okänd eller saknad placering av ansökningsreferenser.", 502, {
-      code: "ops_application_reference_location_mismatch",
-      expected: "top_level",
-      received: applicationReferenceLocation ?? null,
-      endpoint: "/api/v1/integration/context",
+  if (applicationReferenceLocation && applicationReferenceLocation !== 'top_level') {
+    throw new OpsError('OPS kräver en okänd placering av ansökningsreferenser.', 502, {
+      code: 'ops_application_reference_location_mismatch',
+      expected: 'top_level',
+      received: applicationReferenceLocation,
+      endpoint: '/api/v1/integration/context',
       retryable: false,
-    });
+    })
   }
   if (value.contract_version !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
-    throw new OpsError("OPS API-kontraktets version matchar inte Gridex Web.", 502, {
-      code: "ops_contract_version_mismatch",
+    throw new OpsError('OPS API-kontraktets version matchar inte Gridex Web.', 502, {
+      code: 'ops_contract_version_mismatch',
       expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       received: value.contract_version,
-      endpoint: "/api/v1/integration/context",
+      endpoint: '/api/v1/integration/context',
       retryable: false,
-    });
+    })
   }
-  return value;
+  return value
 }
 
 export async function getVerifiedOpsIntegrationContext(forceFresh = false): Promise<OpsIntegrationContext> {
@@ -2314,30 +2389,103 @@ export function invalidateOpsPublicContractsCache(input?: {
   publicContractsCache.clear();
 }
 
+function mapResolutionBlocker(value: unknown): OpsResolutionBlocker | null {
+  const row = recordValue(value)
+  if (!row) return null
+  const code = pickString(row, ['code', 'blocker_code', 'blockerCode'])
+  if (!code) return null
+  return {
+    code,
+    message: pickString(row, ['message', 'customer_message', 'customerMessage']),
+    field: pickString(row, ['field', 'path']),
+    retryable: pickBoolean(row, ['retryable', 'is_retryable', 'isRetryable']),
+    details: recordValue(row.details) ?? null,
+  }
+}
+
+function mapResolutionBlockerList(container: Record<string, unknown>, keys: string[]): OpsResolutionBlocker[] {
+  for (const key of keys) {
+    const value = container[key]
+    if (!Array.isArray(value)) continue
+    return value.map(mapResolutionBlocker).filter((item): item is OpsResolutionBlocker => item !== null)
+  }
+  return []
+}
+
+function mapResolutionSource(value: unknown): OpsResolutionSource | null {
+  if (typeof value === 'string' && value.trim()) {
+    return { provider: value.trim(), raw: { provider: value.trim() } }
+  }
+  const row = recordValue(value)
+  if (!row) return null
+  return {
+    provider: pickString(row, ['provider', 'name', 'source']),
+    reference: pickString(row, ['reference', 'provider_reference', 'providerReference']),
+    resolved_by: pickString(row, ['resolved_by', 'resolvedBy', 'method']),
+    as_of: pickString(row, ['as_of', 'asOf', 'source_as_of', 'sourceAsOf']),
+    metadata: recordValue(row.metadata) ?? null,
+    raw: row,
+  }
+}
+
 export async function fetchOpsWebsiteEnergyArea(
   input: OpsWebsiteEnergyResolutionInput,
 ): Promise<OpsWebsiteEnergyResolution> {
-  await getVerifiedOpsIntegrationContext();
+  const context = await getVerifiedOpsIntegrationContext()
+  const postalCode = input.postal_code?.replace(/\s+/g, '') || null
   const requestBody = {
-    postal_code: input.postal_code.replace(/\s+/g, ''),
+    ...(postalCode ? { postal_code: postalCode } : {}),
     ...(input.city ? { city: input.city } : {}),
     ...(input.street ?? input.address ? { street: input.street ?? input.address } : {}),
+    ...(input.street_number ? { street_number: input.street_number } : {}),
+    ...(input.country ? { country: input.country } : {}),
     ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
-  } satisfies GeneratedEnergyAreaResolveRequest;
+    ...(input.facility_id ? { facility_id: input.facility_id } : {}),
+    ...(input.metering_point_id ? { metering_point_id: input.metering_point_id } : {}),
+    ...(input.requested_start_mode ? { requested_start_mode: input.requested_start_mode } : {}),
+    ...(input.requested_start_date ? { requested_start_date: input.requested_start_date } : {}),
+  }
+  if (Object.keys(requestBody).length === 0) {
+    throw new OpsError('Minst en adress- eller anläggningsidentifierare krävs.', 400, {
+      code: 'energy_resolution_identifier_required',
+    })
+  }
   const payload = await opsFetch('/api/v1/website/energy-area/resolve', {
     method: 'POST',
     body: JSON.stringify(requestBody),
-  });
-  await verifiedTenantReference(payload, '/api/v1/website/energy-area/resolve');
-  const row = extractObject(payload);
-  const areaValue = pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])?.toUpperCase();
+  })
+  await verifiedTenantReference(payload, '/api/v1/website/energy-area/resolve')
+  const row = extractObject(payload)
+  const areaValue = pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])?.toUpperCase()
   const resolutionStatus = pickString(row, ['resolution_status', 'resolutionStatus', 'status'])
+  const capabilitiesRow = recordValue(row.capabilities) ?? {}
+  const blockersRow = recordValue(row.blockers) ?? {}
+  const pricingBlockers = mapResolutionBlockerList(blockersRow, ['pricing'])
+  const quoteBlockers = mapResolutionBlockerList(blockersRow, ['quote'])
+  const facilityLookupBlockers = mapResolutionBlockerList(blockersRow, ['facility_lookup', 'facilityLookup'])
+  const switchCreationBlockers = mapResolutionBlockerList(blockersRow, ['switch_creation', 'switchCreation', 'switch_request', 'switchRequest'])
+  const switchDispatchBlockers = mapResolutionBlockerList(blockersRow, ['switch_dispatch', 'switchDispatch'])
   return {
     status: resolutionStatus ?? (isOpsWebsitePriceArea(areaValue) ? 'resolved' : 'unresolved'),
     resolution_id: pickString(row, ['resolution_id', 'resolutionId', 'resolution_reference', 'resolutionReference', 'reference']),
     resolution_reference: pickString(row, ['resolution_reference', 'resolutionReference', 'resolution_id', 'resolutionId', 'reference']),
     resolution_status: resolutionStatus,
-    automation_allowed: pickBoolean(row, ['automation_allowed', 'automationAllowed']),
+    capabilities: {
+      pricing_ready: pickBoolean(capabilitiesRow, ['pricing_ready', 'pricingReady']) ?? false,
+      quote_ready: pickBoolean(capabilitiesRow, ['quote_ready', 'quoteReady']) ?? false,
+      facility_lookup_ready: pickBoolean(capabilitiesRow, ['facility_lookup_ready', 'facilityLookupReady']) ?? false,
+      switch_request_creatable: pickBoolean(capabilitiesRow, ['switch_request_creatable', 'switchRequestCreatable']) ?? false,
+      switch_dispatch_ready: pickBoolean(capabilitiesRow, ['switch_dispatch_ready', 'switchDispatchReady']) ?? false,
+    },
+    blockers: {
+      pricing: pricingBlockers,
+      quote: quoteBlockers,
+      facility_lookup: facilityLookupBlockers,
+      switch_creation: switchCreationBlockers,
+      switch_dispatch: switchDispatchBlockers,
+    },
+    retryable: pickBoolean(row, ['retryable', 'is_retryable', 'isRetryable']) ??
+      [...pricingBlockers, ...quoteBlockers].some((blocker) => blocker.retryable === true),
     next_required_action: pickString(row, ['next_required_action', 'nextRequiredAction']),
     warnings: pickStringArray(row, ['warnings']) ?? [],
     resolved_at: pickString(row, ['resolved_at', 'resolvedAt']),
@@ -2348,41 +2496,44 @@ export async function fetchOpsWebsiteEnergyArea(
     grid_owner_id: pickString(row, ['grid_owner_id', 'gridOwnerId']),
     grid_owner_name: pickString(row, ['grid_owner_name', 'gridOwnerName']),
     confidence: normalizeNumber(row.confidence),
+    contract_version: pickString(row, ['contract_version', 'contractVersion']) ?? context.contract_version,
     resolver_version: pickString(row, ['resolver_version', 'resolverVersion']),
     geodata_version: pickString(row, ['geodata_version', 'geodataVersion']),
     conflict_code: pickString(row, ['conflict_code', 'conflictCode']),
     error_code: pickString(row, ['error_code', 'errorCode']),
-    source: pickString(row, ['source', 'resolver_source', 'resolverSource']),
+    source: mapResolutionSource(row.source ?? row.resolver_source ?? row.resolverSource),
     source_chain: pickStringArray(row, ['source_chain', 'sourceChain']) ?? [],
     customer_message: pickString(row, ['customer_message', 'customerMessage', 'message']),
     raw: row,
-  };
+  }
 }
 
 export async function fetchOpsWebsiteQuote(
   input: OpsWebsiteQuoteInput,
 ): Promise<OpsWebsitePricingPreview> {
-  await getVerifiedOpsIntegrationContext();
+  await getVerifiedOpsIntegrationContext()
+  // The canonical quote request is bound only by resolution_id; price_area is
+  // resolved and enforced by OPS and is not accepted as a client field.
   const requestBody = {
     resolution_id: input.resolution_id,
     offer_reference: input.offer_reference,
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
     start_date: input.start_date,
-  } satisfies GeneratedWebsiteQuoteRequest;
+  }
   const payload = await opsFetch('/api/v1/website/quote', {
     method: 'POST',
     headers: { 'Idempotency-Key': `website-quote:${randomUUID()}` },
     body: JSON.stringify(requestBody),
-  });
-  await verifiedTenantReference(payload, '/api/v1/website/quote');
-  return mapOpsWebsiteQuote(payload, input);
+  })
+  await verifiedTenantReference(payload, '/api/v1/website/quote')
+  return mapOpsWebsiteQuote(payload, input)
 }
 
 export async function validateOpsWebsiteQuote(
   input: OpsWebsiteQuoteValidationInput,
 ): Promise<OpsWebsiteQuoteValidation> {
-  await getVerifiedOpsIntegrationContext();
+  await getVerifiedOpsIntegrationContext()
   const requestBody = {
     quote_reference: input.quote_reference,
     offer_reference: input.offer_reference,
@@ -2390,15 +2541,19 @@ export async function validateOpsWebsiteQuote(
     resolution_id: input.resolution_id,
     annual_consumption_kwh: input.annual_consumption_kwh,
     start_date: input.start_date,
-  } satisfies GeneratedWebsiteQuoteValidationRequest;
+    ...(input.price_area ? { price_area: input.price_area } : {}),
+    ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
+    ...(input.postal_code ? { postal_code: input.postal_code.replace(/\s+/g, '') } : {}),
+    ...(input.application_id ? { application_id: input.application_id } : {}),
+  }
   const payload = await opsFetch('/api/v1/website/quote/validate', {
     method: 'POST',
     body: JSON.stringify(requestBody),
-  });
-  await verifiedTenantReference(payload, '/api/v1/website/quote/validate');
-  const row = extractObject(payload);
-  const status = pickString(row, ['status', 'validation_status', 'validationStatus']);
-  const explicitValid = pickBoolean(row, ['valid', 'is_valid', 'isValid', 'ok']);
+  })
+  await verifiedTenantReference(payload, '/api/v1/website/quote/validate')
+  const row = extractObject(payload)
+  const status = pickString(row, ['status', 'validation_status', 'validationStatus'])
+  const explicitValid = pickBoolean(row, ['valid', 'is_valid', 'isValid', 'ok'])
   return {
     valid: explicitValid ?? status === 'valid',
     status,
@@ -2408,55 +2563,69 @@ export async function validateOpsWebsiteQuote(
     publication_revision: pickString(row, ['publication_revision', 'publicationRevision']),
     legal_bundle_version: pickString(row, ['legal_bundle_version', 'legalBundleVersion']),
     raw: row,
-  };
+  }
 }
 
 export async function fetchOpsCurrentMarketPrice(
   resolutionId: string,
 ): Promise<OpsCurrentMarketPrice> {
-  const normalized = normalizeText(resolutionId);
+  const normalized = normalizeText(resolutionId)
   if (!normalized) {
-    throw new OpsError("Resolution ID krävs för aktuellt marknadspris.", 400, {
-      code: "resolution_required",
-      field: "resolution_id",
-    });
+    throw new OpsError('Resolution ID krävs för aktuellt marknadspris.', 400, {
+      code: 'resolution_required',
+      field: 'resolution_id',
+    })
   }
-  await getVerifiedOpsIntegrationContext();
-  const requestBody = { resolution_id: normalized } satisfies GeneratedCurrentMarketPriceRequest;
-  const payload = await opsFetch("/api/v1/website/market-price/current", {
-    method: "POST",
+  const context = await getVerifiedOpsIntegrationContext()
+  const requestBody = { resolution_id: normalized }
+  const payload = await opsFetch('/api/v1/website/market-price/current', {
+    method: 'POST',
     body: JSON.stringify(requestBody),
-  });
-  await verifiedTenantReference(payload, "/api/v1/website/market-price/current");
-  const row = extractObject(payload);
-  const area = pickString(row, ["price_area", "priceArea", "price_area_code", "priceAreaCode"])?.toUpperCase();
+  })
+  await verifiedTenantReference(payload, '/api/v1/website/market-price/current')
+  const row = extractObject(payload)
+  const area = pickString(row, ['price_area', 'priceArea', 'price_area_code', 'priceAreaCode'])?.toUpperCase()
   if (!isOpsWebsitePriceArea(area)) {
-    throw new OpsError("OPS returnerade ett ogiltigt elområde.", 502, {
-      code: "ops_market_price_contract_invalid",
-    });
+    throw new OpsError('OPS returnerade ett ogiltigt elområde.', 502, {
+      code: 'ops_market_price_contract_invalid',
+    })
   }
+  const source = recordValue(row.source)
+  const selectedResolution = pickString(row, ['selected_resolution', 'selectedResolution', 'resolution', 'interval']) ?? 'current'
+  const availableResolutions = pickStringArray(row, ['available_resolutions', 'availableResolutions']) ?? [selectedResolution]
   const result: OpsCurrentMarketPrice = {
-    provider: pickString(row, ["provider", "source"]) ?? "OPS",
-    resolution_id: pickString(row, ["resolution_id", "resolutionId"]) ?? normalized,
+    provider: pickString(row, ['provider']) ?? pickString(source ?? {}, ['provider', 'name']) ?? 'OPS',
+    provider_reference: pickString(row, ['provider_reference', 'providerReference']) ?? pickString(source ?? {}, ['reference', 'provider_reference', 'providerReference']),
+    resolution_id: pickString(row, ['resolution_id', 'resolutionId']) ?? normalized,
     price_area: area,
-    reference_type: pickString(row, ["reference_type", "referenceType"]) ?? "current",
-    resolution: pickString(row, ["resolution", "interval"]) ?? "current",
-    interval_start: pickString(row, ["interval_start", "intervalStart", "time_start", "timeStart"]) ?? "",
-    interval_end: pickString(row, ["interval_end", "intervalEnd", "time_end", "timeEnd"]) ?? "",
-    price_sek_per_kwh: normalizeNumber(row.price_sek_per_kwh ?? row.priceSekPerKwh) ?? Number.NaN,
-    price_ore_per_kwh: normalizeNumber(row.price_ore_per_kwh ?? row.priceOrePerKwh) ?? Number.NaN,
-    unit: pickString(row, ["unit"]) ?? "sek_per_kwh",
-    includes_vat: pickBoolean(row, ["includes_vat", "includesVat"]) ?? false,
-    includes_supplier_fees: pickBoolean(row, ["includes_supplier_fees", "includesSupplierFees"]) ?? false,
-    includes_grid_fees: pickBoolean(row, ["includes_grid_fees", "includesGridFees"]) ?? false,
-    is_indicative: pickBoolean(row, ["is_indicative", "isIndicative"]) ?? false,
-    is_stale: pickBoolean(row, ["is_stale", "isStale"]) ?? false,
-    fallback_used: pickBoolean(row, ["fallback_used", "fallbackUsed"]) ?? false,
-    fallback_reason: pickString(row, ["fallback_reason", "fallbackReason"]),
-    as_of: pickString(row, ["as_of", "asOf", "source_as_of", "sourceAsOf"]) ?? "",
-    stale_after: pickString(row, ["stale_after", "staleAfter", "next_update_at", "nextUpdateAt"]) ?? "",
+    reference_type: pickString(row, ['reference_type', 'referenceType']) ?? 'current',
+    resolution: pickString(row, ['resolution', 'interval']) ?? selectedResolution,
+    selected_resolution: selectedResolution,
+    available_resolutions: availableResolutions,
+    interval_start: pickString(row, ['interval_start', 'intervalStart', 'time_start', 'timeStart']) ?? '',
+    interval_end: pickString(row, ['interval_end', 'intervalEnd', 'time_end', 'timeEnd']) ?? '',
+    price_sek_per_kwh: normalizeNumber(row.price_sek_per_kwh ?? row.priceSekPerKwh ?? row.price_inc_vat_sek_per_kwh ?? row.priceIncVatSekPerKwh) ?? Number.NaN,
+    price_ore_per_kwh: normalizeNumber(row.price_ore_per_kwh ?? row.priceOrePerKwh ?? row.price_inc_vat_ore_per_kwh ?? row.priceIncVatOrePerKwh) ?? Number.NaN,
+    price_ex_vat_sek_per_kwh: normalizeNumber(row.price_ex_vat_sek_per_kwh ?? row.priceExVatSekPerKwh),
+    price_ex_vat_ore_per_kwh: normalizeNumber(row.price_ex_vat_ore_per_kwh ?? row.priceExVatOrePerKwh),
+    price_inc_vat_sek_per_kwh: normalizeNumber(row.price_inc_vat_sek_per_kwh ?? row.priceIncVatSekPerKwh),
+    price_inc_vat_ore_per_kwh: normalizeNumber(row.price_inc_vat_ore_per_kwh ?? row.priceIncVatOrePerKwh),
+    unit: pickString(row, ['unit']) ?? 'sek_per_kwh',
+    includes_vat: pickBoolean(row, ['includes_vat', 'includesVat']) ?? false,
+    includes_supplier_fees: pickBoolean(row, ['includes_supplier_fees', 'includesSupplierFees']) ?? false,
+    includes_grid_fees: pickBoolean(row, ['includes_grid_fees', 'includesGridFees']) ?? false,
+    is_indicative: pickBoolean(row, ['is_indicative', 'isIndicative']) ?? false,
+    is_stale: pickBoolean(row, ['is_stale', 'isStale']) ?? false,
+    fallback_used: pickBoolean(row, ['fallback_used', 'fallbackUsed']) ?? false,
+    fallback_reason: pickString(row, ['fallback_reason', 'fallbackReason']),
+    freshness: pickString(row, ['freshness']),
+    as_of: pickString(row, ['as_of', 'asOf', 'source_as_of', 'sourceAsOf']) ?? '',
+    source_as_of: pickString(row, ['source_as_of', 'sourceAsOf']) ?? pickString(source ?? {}, ['as_of', 'asOf']),
+    stale_after: pickString(row, ['stale_after', 'staleAfter', 'next_update_at', 'nextUpdateAt']) ?? '',
+    next_update_at: pickString(row, ['next_update_at', 'nextUpdateAt']),
+    contract_version: pickString(row, ['contract_version', 'contractVersion']) ?? context.contract_version,
     raw: row,
-  };
+  }
   if (
     result.resolution_id !== normalized ||
     !result.interval_start ||
@@ -2466,13 +2635,13 @@ export async function fetchOpsCurrentMarketPrice(
     !result.as_of ||
     !result.stale_after
   ) {
-    throw new OpsError("OPS returnerade ett ofullständigt aktuellt marknadspris.", 502, {
-      code: "ops_market_price_contract_invalid",
-      endpoint: "/api/v1/website/market-price/current",
+    throw new OpsError('OPS returnerade ett ofullständigt aktuellt marknadspris.', 502, {
+      code: 'ops_market_price_contract_invalid',
+      endpoint: '/api/v1/website/market-price/current',
       resolution_id: normalized,
-    });
+    })
   }
-  return result;
+  return result
 }
 
 export async function fetchOpsWebsiteApplicationStatus(
@@ -2687,85 +2856,195 @@ export async function fetchOpsWebsiteLegalBundle(): Promise<OpsWebsiteLegalBundl
 }
 
 export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
-  const externalCustomerId = normalizeText(input.external_customer_id);
-  const offerReference = normalizeText(input.offer_reference);
-  const quoteReference = normalizeText(input.quote_reference);
-  const resolutionId = normalizeText(input.resolution_id);
-  const startDate = normalizeText(input.start_date);
+  const externalCustomerId = normalizeText(input.external_customer_id)
+  const offerReference = normalizeText(input.offer_reference)
+  const quoteReference = normalizeText(input.quote_reference)
+  const resolutionId = normalizeText(input.resolution_id)
+  const startDate = normalizeText(input.start_date)
   if (!externalCustomerId) {
-    throw new OpsError("Ett stabilt externt kund-ID krävs.", 400, {
-      code: "external_customer_id_required",
-      field: "external_customer_id",
-    });
+    throw new OpsError('Ett stabilt externt kund-ID krävs.', 400, {
+      code: 'external_customer_id_required',
+      field: 'external_customer_id',
+    })
   }
   const required: Array<[string, string | null]> = [
-    ["offer_reference", offerReference],
-    ["quote_reference", quoteReference],
-    ["resolution_id", resolutionId],
-    ["start_date", startDate],
-  ];
+    ['offer_reference', offerReference],
+    ['quote_reference', quoteReference],
+    ['resolution_id', resolutionId],
+    ['start_date', startDate],
+  ]
   for (const [field, value] of required) {
     if (!value) {
       throw new OpsError(`Obligatoriskt OPS-fält saknas: ${field}.`, 400, {
         code: `${field}_required`,
         field,
-      });
+      })
     }
   }
   if (!Number.isFinite(input.annual_consumption_kwh) || input.annual_consumption_kwh <= 0) {
-    throw new OpsError("Årsförbrukningen är ogiltig.", 400, {
-      code: "annual_consumption_invalid",
-      field: "annual_consumption_kwh",
-    });
+    throw new OpsError('Årsförbrukningen är ogiltig.', 400, {
+      code: 'annual_consumption_invalid',
+      field: 'annual_consumption_kwh',
+    })
+  }
+  const customerEmail = normalizeText(input.customer.email)
+  const customerPhone = normalizeText(input.customer.phone)
+  const personalNumber = normalizeText(input.customer.personal_number)
+  if (!customerEmail || !customerPhone) {
+    throw new OpsError('Kundens kontaktuppgifter är ofullständiga.', 400, {
+      code: 'customer_contact_required',
+      field: !customerEmail ? 'customer.email' : 'customer.phone',
+    })
+  }
+  if (!personalNumber) {
+    throw new OpsError('Kundens eller firmatecknarens personnummer saknas.', 400, {
+      code: 'customer_personal_number_required',
+      field: 'customer.personal_number',
+    })
+  }
+  if (input.customer.customer_type === 'business') {
+    if (!normalizeText(input.customer.company_name)) {
+      throw new OpsError('Företagsnamn saknas.', 400, {
+        code: 'customer_company_name_required',
+        field: 'customer.company_name',
+      })
+    }
+    if (!normalizeText(input.customer.organization_number)) {
+      throw new OpsError('Organisationsnummer saknas.', 400, {
+        code: 'customer_organization_number_required',
+        field: 'customer.organization_number',
+      })
+    }
   }
 
-  const portalUserId = input.customer_portal_user_id ?? input.auth_user_id ?? null;
-  const authUserId = input.auth_user_id ?? input.customer_portal_user_id ?? null;
+  const signerName = input.powerOfAttorney?.signerName?.trim()
+  if (input.powerOfAttorney) {
+    if (input.powerOfAttorney.accepted !== true) {
+      throw new OpsError('Fullmakten måste vara uttryckligen godkänd.', 400, {
+        code: 'power_of_attorney_acceptance_required',
+        field: 'powerOfAttorney.accepted',
+      })
+    }
+    if (!signerName) {
+      throw new OpsError('Fullmaktens undertecknarnamn saknas.', 400, {
+        code: 'power_of_attorney_signer_name_required',
+        field: 'powerOfAttorney.signerName',
+      })
+    }
+    const signerIdentityNumber = normalizeText(input.powerOfAttorney.signerIdentityNumber)
+    if (!signerIdentityNumber || signerIdentityNumber.length < 6) {
+      throw new OpsError('Fullmaktens undertecknaridentitet är ogiltig.', 400, {
+        code: 'power_of_attorney_signer_identity_required',
+        field: 'powerOfAttorney.signerIdentityNumber',
+      })
+    }
+    const uniqueScopes = new Set(input.powerOfAttorney.scope)
+    if (uniqueScopes.size < 1 || uniqueScopes.size !== input.powerOfAttorney.scope.length) {
+      throw new OpsError('Fullmaktens behörighetsomfång är ogiltigt.', 400, {
+        code: 'power_of_attorney_scope_invalid',
+        field: 'powerOfAttorney.scope',
+      })
+    }
+    const validScopes: OpsPowerOfAttorneyScope[] = [
+      'supplier_switch',
+      'facility_information_lookup',
+    ]
+    if (input.powerOfAttorney.scope.some((scope) => !validScopes.includes(scope))) {
+      throw new OpsError('Fullmakten innehåller ett okänt behörighetsomfång.', 400, {
+        code: 'power_of_attorney_scope_invalid',
+        field: 'powerOfAttorney.scope',
+      })
+    }
+    const validMethods: OpsPowerOfAttorneyMethod[] = [
+      'website_acceptance',
+      'bankid',
+      'electronic_signature',
+      'manual_signature',
+    ]
+    if (!validMethods.includes(input.powerOfAttorney.method)) {
+      throw new OpsError('Fullmaktens signeringsmetod är ogiltig.', 400, {
+        code: 'power_of_attorney_method_invalid',
+        field: 'powerOfAttorney.method',
+      })
+    }
+    if (!normalizeText(input.powerOfAttorney.textVersionId)) {
+      throw new OpsError('Fullmaktens textversion saknas.', 400, {
+        code: 'power_of_attorney_text_version_required',
+        field: 'powerOfAttorney.textVersionId',
+      })
+    }
+  }
 
-  const payload = {
+  return {
     external_customer_id: externalCustomerId,
-    source: input.source,
     offer_reference: offerReference!,
     quote_reference: quoteReference!,
     resolution_id: resolutionId!,
     annual_consumption_kwh: input.annual_consumption_kwh,
     start_date: startDate!,
-    ...(portalUserId ? { customer_portal_user_id: portalUserId } : {}),
-    ...(authUserId ? { auth_user_id: authUserId } : {}),
     customer: {
       customer_type: toOpsCustomerType(input.customer.customer_type),
-      ...(input.customer.first_name ? { first_name: input.customer.first_name } : {}),
-      ...(input.customer.last_name ? { last_name: input.customer.last_name } : {}),
-      ...(input.customer.company_name ? { company_name: input.customer.company_name } : {}),
-      ...(input.customer.personal_number ? { personal_number: input.customer.personal_number } : {}),
-      ...(input.customer.organization_number ? { org_number: input.customer.organization_number } : {}),
-      email: input.customer.email,
-      phone: input.customer.phone,
+      ...(normalizeText(input.customer.first_name) ? { first_name: normalizeText(input.customer.first_name)! } : {}),
+      ...(normalizeText(input.customer.last_name) ? { last_name: normalizeText(input.customer.last_name)! } : {}),
+      ...(input.customer.customer_type === 'business'
+        ? {
+            company_name: normalizeText(input.customer.company_name)!,
+            org_number: normalizeText(input.customer.organization_number)!,
+          }
+        : {}),
+      personal_number: personalNumber,
+      email: customerEmail,
+      phone: customerPhone,
     },
     site: {
       ...(input.site.facility_id ? { facility_id: input.site.facility_id } : {}),
-      ...(input.site.metering_point_id ? { metering_point_id: input.site.metering_point_id } : {}),
       ...(input.site.move_in_date ? { move_in_date: input.site.move_in_date } : {}),
       street: input.site.street,
-      postal_code: input.site.postal_code,
+      postal_code: input.site.postal_code.replace(/\s+/g, ''),
       city: input.site.city,
+      country: input.site.country ?? 'SE',
+      ...(input.site.price_area_code ? { price_area_code: input.site.price_area_code } : {}),
+      ...(input.site.grid_area_code ? { grid_area_code: input.site.grid_area_code } : {}),
+      ...(input.site.grid_owner_id ? { grid_owner_id: input.site.grid_owner_id } : {}),
+      annual_consumption_kwh: input.annual_consumption_kwh,
       ...(input.site.current_supplier_name ? { current_supplier_name: input.site.current_supplier_name } : {}),
-      ...(input.site.current_supplier_id ? { current_supplier_id: input.site.current_supplier_id } : {}),
       ...(input.site.current_supplier_org_number ? { current_supplier_org_number: input.site.current_supplier_org_number } : {}),
       ...(input.site.current_supplier_ediel_id ? { current_supplier_ediel_id: input.site.current_supplier_ediel_id } : {}),
     },
+    ...(input.metering_point?.metering_point_id
+      ? { metering_point: { metering_point_id: input.metering_point.metering_point_id } }
+      : {}),
     contract: {
       requested_start_mode: input.contract.requested_start_mode,
-      requested_start_date:
-        input.contract.requested_start_mode === "specific_date"
-          ? input.contract.requested_start_date ?? startDate
-          : input.contract.requested_start_date ?? null,
+      ...(input.contract.requested_start_mode === 'specific_date'
+        ? { requested_start_date: input.contract.requested_start_date ?? startDate! }
+        : input.contract.requested_start_date
+          ? { requested_start_date: input.contract.requested_start_date }
+          : {}),
     },
     legal_acceptances: input.consents,
-    consents: input.consents,
-    ...(input.powerOfAttorney ? { powerOfAttorney: input.powerOfAttorney } : {}),
-  } satisfies GeneratedCustomerApplicationPayload;
-  return payload;
+    ...(input.powerOfAttorney
+      ? {
+          powerOfAttorney: {
+            accepted: true as const,
+            scope: input.powerOfAttorney.scope,
+            signerName: signerName!,
+            signerIdentityNumber: input.powerOfAttorney.signerIdentityNumber.trim(),
+            method: input.powerOfAttorney.method,
+            ...(input.powerOfAttorney.acceptedAt
+              ? { acceptedAt: input.powerOfAttorney.acceptedAt }
+              : {}),
+            textVersionId: input.powerOfAttorney.textVersionId.trim(),
+            ...(input.powerOfAttorney.ipAddress
+              ? { ipAddress: input.powerOfAttorney.ipAddress }
+              : {}),
+            ...(input.powerOfAttorney.userAgent
+              ? { userAgent: input.powerOfAttorney.userAgent }
+              : {}),
+          },
+        }
+      : {}),
+  }
 }
 
 function mapCustomerApplicationCommunication(
@@ -3274,8 +3553,7 @@ export async function fetchOpsCustomerPortalBundle(
   try {
     return normalizePortalBundle(
       await opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {
-        method: "POST",
-        body: JSON.stringify(portalIdentityPayload(identity)),
+        method: "GET",
       }),
     );
   } catch (error) {
@@ -3293,10 +3571,10 @@ export async function fetchOpsCustomerPortalBundle(
 
 export async function markOpsCustomerNotificationsRead(
   identity: OpsPortalIdentity,
-  input: { notificationIds?: string[]; all?: boolean; operationId: string },
+  input: { notificationIds: string[]; operationId: string },
 ): Promise<void> {
-  const ids = (input.notificationIds ?? []).map((id) => id.trim()).filter(Boolean);
-  if (!input.all && ids.length === 0) {
+  const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0) {
     throw new OpsError("Minst en notis måste anges.", 400, {
       code: "validation_error",
       field: "notification_ids",
@@ -3311,7 +3589,7 @@ export async function markOpsCustomerNotificationsRead(
   await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
     method: "POST",
     headers,
-    body: JSON.stringify(input.all ? { all: true } : { notification_ids: ids }),
+    body: JSON.stringify({ notification_ids: ids }),
   });
 }
 

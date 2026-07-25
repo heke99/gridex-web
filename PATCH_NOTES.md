@@ -1,72 +1,44 @@
-# Gridex Web – OPS website contract 2026-07-24.2
+# Gridex Web – Customer Portal API 2026-07-25.1
 
 ## Canonical målbild
 
-Gridex Web använder nu ett tenantbundet OPS-flöde där API-nyckeln är den enda obligatoriska OPS-konfigurationen:
+Gridex Web använder OPS som enda source of truth för tenantidentitet, publicerade avtal, elområdesresolution, marknadsreferens, quote, avgifter, moms, quote validation, kundansökan och Mina sidor-data.
 
 ```text
 GRIDEX_API_KEY
 → integration context
 → publicerade avtal
-→ OPS energy-area resolution
-→ OPS market-price/current
+→ tenantbunden energy-area resolution
+→ capabilitybaserad pricing/quote readiness
 → canonical OPS quote
 → quote validation
 → idempotent customer application
-→ application status
-→ OPS continuation workflow
+→ OPS workflow
 → customer portal bundle
 ```
 
-## Viktigaste rättningarna
+`market-price/current` är en separat informationsfunktion och är inte ett förkrav för quote.
 
-- Kontraktsversionen är `2026-07-24.2` i runtime, request-header, svarskontroll, tester och dokumentation.
-- Klienten skickar `X-Gridex-Accept-Contract-Version: 2026-07-24.2` och validerar OPS-svaret `X-Gridex-Contract-Version`.
-- `GRIDEX_API_KEY` har högst prioritet och är den enda dokumenterade tenantinställningen. `GRIDEX_WEBSITE_API_KEY` och `GRIDEX_OPS_API_KEY` accepteras endast som deprecated runtime-alias.
-- Produktionsbasen är fast till `https://app.gridex.se/api/v1`. Override används endast lokalt, i preview eller staging.
-- Integration context verifierar API-nyckelns tenantbindning, kontraktsversion, API-bas, `top_level`-placering och saknade website-scopes.
-- `website_market_prices.read` ingår i website-readiness.
-- Kundansökan skickar `offer_reference`, `quote_reference`, `resolution_id`, `annual_consumption_kwh` och `start_date` top-level.
-- `contract.offer_reference`, `contract.quote_reference` och `site.price_area_code` skickas inte.
-- Den signerade browser-quoten låser `resolution_id`, `quote_reference`, årsförbrukning och startdatum. Validation och application måste använda exakt samma värden.
-- Varje checkoutförsök får en stabil `Idempotency-Key`. Exakt OPS-payload hash-låses före submit och nyckeln återanvänds vid retry.
-- `POST /api/v1/website/market-price/current` har en server-only OPS-klient och en rate-limitad BFF-route.
-- Generiska SE1–SE4-/historiksidor är separerad marknadsinformation och får inte användas som quote, avtal eller faktureringsunderlag.
-- `GET /api/v1/website/customer-applications/{application_id}` har en skyddad BFF-route och används som primär status på tack-sidan.
-- Application status och supplier-switch status är separata modeller.
-- OPS workflow-, kund-, site-, mätpunkt-, avtals-, status-, correlation- och idempotensfält sparas lokalt enbart för audit och återupptagning. OPS förblir canonical.
-- Officiella `legal_acceptances` skickas. `consents` speglas samtidigt som ett kompatibilitetsalias under övergången.
-- OpenAPI-snapshots, genererade deklarationer och CI-kontroll mot live-specifikationerna har lagts till.
+## Huvudrättningar
 
-## Databasmigrationer
+- Kontraktsversionen är `2026-07-25.1`.
+- `automation_allowed` är borttaget ur produktionsflödet, tokenformatet och readiness.
+- Resolution använder `pricing_ready`, `quote_ready` och separata lifecycle blockers.
+- Quote-request skickar inte `price_area`; OPS härleder canonical område från `resolution_id`.
+- Quote validation skickar endast dokumenterade assertions.
+- Fastpris och andra giltiga quotes blockeras inte av stale eller saknat `market-price/current`.
+- Kundansökan skickar top-level `offer_reference`, `quote_reference` och `resolution_id` exakt en gång.
+- Mätpunkt skickas i separat `metering_point`-objekt.
+- Kundtyp är en discriminated union och fullmakt valideras innan requesten lämnar webbservern.
+- Mina sidor-readiness använder de faktiska portal-scopes som bundle-routen kräver.
+- Notiser markeras lästa med explicita `notification_ids`; `{ all: true }` används inte.
+- Endast `GRIDEX_API_KEY` används som tenant-API-nyckel. Inga tenant- eller quote-modevariabler krävs.
+- OpenAPI kan synkas och typer regenereras reproducerbart med `npm run api:refresh`.
 
-```text
-supabase/migrations/20260724184500_ops_website_contract_20260724_2.sql
-supabase/migrations/20260724190000_ops_website_contract_20260724_2.sql
-```
+## Databas
 
-Den första migrationen lägger additivt till workflow-, status-, correlation-, idempotency- och payload-hashfält samt index och unik koppling för `ops_application_id`.
+Denna leverans lägger inte till eller ändrar någon Supabase-migration. Befintliga OPS-auditmigrationer lämnas oförändrade eftersom de kan vara applicerade och ingår i projektets migrationshistorik.
 
-Den andra ersätter den tidigare `20260724190000_ops_website_contract_20260724_1.sql` och canonicaliserar `ops_resolution_id` för lokal revisionsspårning.
+## Verifiering
 
-## Verifiering i leveransmiljön
-
-Grönt:
-
-```text
-npm run api:contract
-npm run test:canonical-market-flow
-npm run test:customer-application
-npm run test:idempotency
-npm run test:portal
-npm run test:launch
-npm test
-```
-
-Inte slutfört i leveransmiljön:
-
-- `npm ci` stoppades av HTTP 503 från det tillgängliga npm-registret.
-- Därför saknades Next.js/React/Supabase-paketen för en tillförlitlig `npm run typecheck` och `npm run build`.
-- Supabase CLI, staging-nyckel och stagingdatabas var inte tillgängliga, så migration och live E2E kördes inte här.
-
-Se `VERIFICATION_2026-07-24.2.md` och `VERIFICATION_2026-07-24.2.log`.
+Se `VERIFICATION_2026-07-25.1.md`. Lokala kontrakts- och regressionsviter passerar. Full typecheck, lint, build, live OpenAPI-drift och staging-E2E måste köras efter `npm ci` i en miljö med DNS och en giltig testnyckel.

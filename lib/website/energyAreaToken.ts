@@ -2,11 +2,11 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
 import { websiteServerSigningSecret } from '@/lib/website/serverTokenSecret'
 
-const TOKEN_VERSION = 'ea3'
+const TOKEN_VERSION = 'ea4'
 const MAX_TOKEN_TTL_MS = 30 * 60_000
 
 export type WebsiteEnergyAreaTokenPayload = {
-  version: 1
+  version: 2
   issued_at: string
   expires_at: string
   resolution_id: string
@@ -15,7 +15,9 @@ export type WebsiteEnergyAreaTokenPayload = {
   grid_owner_id: string | null
   grid_owner_name: string | null
   confidence: number | null
-  automation_allowed: true
+  pricing_ready: true
+  quote_ready: boolean
+  contract_version: string
   location_fingerprint: string
 }
 
@@ -23,7 +25,6 @@ function secret(): string | null {
   return process.env.GRIDEX_WEBSITE_ENERGY_AREA_TOKEN_SECRET?.trim() ||
     websiteServerSigningSecret('energy-area')
 }
-
 
 function normalized(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('sv-SE')
@@ -61,16 +62,18 @@ export function issueWebsiteEnergyAreaToken(input: {
     !key ||
     !resolutionId ||
     !area ||
-    input.resolution.automation_allowed !== true ||
+    input.resolution.capabilities.pricing_ready !== true ||
     !validUntil ||
-    !Number.isFinite(Date.parse(validUntil))
+    !Number.isFinite(Date.parse(validUntil)) ||
+    !input.resolution.contract_version
   ) return null
+
   const now = input.now ?? new Date()
   const upstreamExpiry = Date.parse(validUntil)
   if (upstreamExpiry <= now.getTime()) return null
   const expiresAt = new Date(Math.min(upstreamExpiry, now.getTime() + MAX_TOKEN_TTL_MS)).toISOString()
   const payload: WebsiteEnergyAreaTokenPayload = {
-    version: 1,
+    version: 2,
     issued_at: now.toISOString(),
     expires_at: expiresAt,
     resolution_id: resolutionId,
@@ -79,7 +82,9 @@ export function issueWebsiteEnergyAreaToken(input: {
     grid_owner_id: input.resolution.grid_owner_id ?? null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
     confidence: input.resolution.confidence ?? null,
-    automation_allowed: true,
+    pricing_ready: true,
+    quote_ready: input.resolution.capabilities.quote_ready,
+    contract_version: input.resolution.contract_version,
     location_fingerprint: fingerprint(input.location, key),
   }
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -100,15 +105,18 @@ export function verifyWebsiteEnergyAreaToken(input: {
   if (!safeEqual(sign(unsigned, key), signature)) return { ok: false, reason: 'invalid' }
   try {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as WebsiteEnergyAreaTokenPayload
+    const now = input.now ?? new Date()
     if (
-      payload.version !== 1 ||
+      payload.version !== 2 ||
       !payload.resolution_id ||
       !['SE1', 'SE2', 'SE3', 'SE4'].includes(payload.price_area_code) ||
-      payload.automation_allowed !== true ||
+      payload.pricing_ready !== true ||
+      typeof payload.quote_ready !== 'boolean' ||
+      !payload.contract_version ||
       !Number.isFinite(Date.parse(payload.issued_at)) ||
       !Number.isFinite(Date.parse(payload.expires_at)) ||
-      Date.parse(payload.issued_at) > (input.now ?? new Date()).getTime() + 60_000 ||
-      Date.parse(payload.expires_at) <= (input.now ?? new Date()).getTime() ||
+      Date.parse(payload.issued_at) > now.getTime() + 60_000 ||
+      Date.parse(payload.expires_at) <= now.getTime() ||
       Date.parse(payload.expires_at) - Date.parse(payload.issued_at) > MAX_TOKEN_TTL_MS + 1_000 ||
       !safeEqual(payload.location_fingerprint, fingerprint(input.location, key))
     ) return { ok: false, reason: 'invalid_or_expired' }

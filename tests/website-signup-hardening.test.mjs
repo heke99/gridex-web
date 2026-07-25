@@ -123,7 +123,7 @@ assert.ok(read('lib/seo/content.ts').includes("'/vanliga-fragor'"))
 
 const opsClient = read('lib/ops/client.ts')
 assert.ok(opsClient.includes('toOpsCustomerType(input.customer.customer_type)'))
-assert.ok(opsClient.includes('{ org_number: input.customer.organization_number }'))
+assert.ok(opsClient.includes('org_number: normalizeText(input.customer.organization_number)!'))
 assert.ok(opsClient.includes('assertTenantReference'))
 assert.ok(opsClient.includes('ops_tenant_binding_unverified'))
 assert.ok(!opsClient.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
@@ -137,6 +137,7 @@ assert.ok(contractDisplay.includes("case 'variable_hourly':"))
 assert.ok(contractDisplay.includes("'notice_period_months'"))
 assert.ok(contractDisplay.includes("'automatic_renewal'"))
 
-assert.ok(signup.includes('source: "gridex_web"'))
+assert.ok(!signup.includes('source: "gridex_web"'))
+assert.ok(signup.includes('quote_reference: verifiedQuote.value.quote.ops_quote_reference'))
 
 console.log('Website signup hardening checks passed')

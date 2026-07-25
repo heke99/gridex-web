@@ -1,36 +1,60 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 
+const CONTRACT_VERSION = '2026-07-25.1'
+const BASE_URL = 'https://app.gridex.se/api/v1/openapi'
 const specs = [
   ['website-integration-v1.json', 'website-api.d.ts'],
   ['customer-portal-v1.json', 'customer-portal-api.d.ts'],
 ]
-const base = 'https://app.gridex.se/api/v1/openapi/'
-const temp = await mkdtemp(path.join(tmpdir(), 'gridex-openapi-'))
-try {
-  for (const [specName, typeName] of specs) {
-    const response = await fetch(`${base}${specName}`, { headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new Error(`OpenAPI fetch failed for ${specName}: ${response.status}`)
-    const body = await response.text()
-    const live = JSON.parse(body)
-    if (live.info?.version !== '2026-07-24.2') throw new Error(`${specName} contract version mismatch: ${live.info?.version}`)
-    const specPath = path.join(temp, specName)
-    await writeFile(specPath, `${JSON.stringify(live, null, 2)}\n`)
-    const generatedPath = path.join(temp, typeName)
-    const run = spawnSync('npx', ['--yes', 'openapi-typescript', specPath, '-o', generatedPath], { stdio: 'inherit' })
-    if (run.status !== 0) process.exit(run.status ?? 1)
-    const [expected, actual] = await Promise.all([
-      readFile(path.join('lib/ops/generated', typeName)),
-      readFile(generatedPath),
-    ])
-    if (!expected.equals(actual)) {
-      const sha = (value) => createHash('sha256').update(value).digest('hex')
-      throw new Error(`${typeName} drift: checked-in=${sha(expected)} live=${sha(actual)}`)
-    }
+
+function canonical(value) {
+  return `${JSON.stringify(value)}\n`
+}
+
+function sha(value) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function assertOpenApiDocument(spec, specName, source) {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+    throw new Error(`${specName} ${source} document is not an object`)
   }
-} finally {
-  await rm(temp, { recursive: true, force: true })
+  if (spec.info?.version !== CONTRACT_VERSION) {
+    throw new Error(`${specName} ${source} contract version mismatch: ${spec.info?.version ?? 'missing'}`)
+  }
+  if (typeof spec.openapi !== 'string' || !spec.openapi.startsWith('3.')) {
+    throw new Error(`${specName} ${source} document is not OpenAPI 3`)
+  }
+  if (!spec.paths || typeof spec.paths !== 'object' || Object.keys(spec.paths).length === 0) {
+    throw new Error(`${specName} ${source} document contains no paths`)
+  }
+}
+
+for (const [specName, typeName] of specs) {
+  const localSpec = JSON.parse(await readFile(`docs/openapi/${specName}`, 'utf8'))
+  assertOpenApiDocument(localSpec, specName, 'local')
+
+  const localHash = sha(canonical(localSpec))
+  const generated = await readFile(`lib/ops/generated/${typeName}`, 'utf8')
+  if (!generated.includes(`Contract version: ${CONTRACT_VERSION}.`) || !generated.includes(`Source SHA-256: ${localHash}.`)) {
+    throw new Error(`${typeName} was not generated from the checked-in ${specName}; run npm run api:generate`)
+  }
+
+  const response = await fetch(`${BASE_URL}/${specName}`, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!response.ok) throw new Error(`OpenAPI fetch failed for ${specName}: ${response.status}`)
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.toLowerCase().includes('json')) {
+    throw new Error(`${specName} returned unexpected content type: ${contentType || 'missing'}`)
+  }
+
+  const liveSpec = await response.json()
+  assertOpenApiDocument(liveSpec, specName, 'live')
+  if (canonical(liveSpec) !== canonical(localSpec)) {
+    throw new Error(`${specName} drift detected: local=${localHash} live=${sha(canonical(liveSpec))}`)
+  }
+  console.log(`${specName}: no drift (${CONTRACT_VERSION})`)
 }
