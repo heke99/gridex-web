@@ -35,13 +35,14 @@ export async function publicContractsResponse(request: Request) {
   try {
     const snapshot = await fetchOpsPublicContractsSnapshot(filter.value)
     const headers = new Headers({
-      'Cache-Control': 'public, no-cache, must-revalidate',
-      'Vary': 'Accept-Encoding, If-None-Match',
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400',
+      'Vary': 'Accept-Encoding',
     })
     if (snapshot.etag) headers.set('ETag', snapshot.etag)
     if (snapshot.publication_revision) {
       headers.set('X-Gridex-Publication-Revision', snapshot.publication_revision)
     }
+    headers.set('X-Gridex-Data-Stale', snapshot.stale ? '1' : '0')
 
     if (etagMatches(request, snapshot.etag)) {
       return new NextResponse(null, { status: 304, headers })
@@ -54,6 +55,8 @@ export async function publicContractsResponse(request: Request) {
           tenant_reference: snapshot.tenant_reference,
           channel: 'website',
           publication_revision: snapshot.publication_revision,
+          fetched_at: snapshot.fetched_at,
+          stale: snapshot.stale,
         },
       },
       { headers },

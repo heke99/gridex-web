@@ -335,20 +335,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (!contract.offer_reference) blockedReasons.push('offer_reference saknas')
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
+  // OPS public-contracts is the publication source of truth. An empty
+  // legal.requirements array is a valid published contract: it means that this
+  // exact legal bundle has no customer checkboxes. Only validate requirements
+  // that OPS actually publishes; never invent a local minimum count.
   const legalRequirements = contract.legal_requirements ?? []
-  if (legalRequirements.length) {
-    for (const requirement of legalRequirements) {
-      if (!requirement.required) continue
-      if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
-      if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
-      if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
-      if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {
-        blockedReasons.push(`${requirement.requirement_code}: juridiskt dokument-ID saknas`)
-      }
-      if (!legalUrlReady(requirement.public_url)) blockedReasons.push(`${requirement.requirement_code}: publicerad dokumentlänk saknas`)
+  for (const requirement of legalRequirements) {
+    if (!requirement.required) continue
+    if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
+    if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
+    if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
+    if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {
+      blockedReasons.push(`${requirement.requirement_code}: juridiskt dokument-ID saknas`)
     }
-  } else {
-    blockedReasons.push('dynamiska juridikkrav saknas')
+    if (!legalUrlReady(requirement.public_url)) blockedReasons.push(`${requirement.requirement_code}: publicerad dokumentlänk saknas`)
   }
   validatePublicPricingForType(blockedReasons, contract)
 

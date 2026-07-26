@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import {
-  fetchOpsPublicContracts,
   getOpsClientStatus,
   type OpsPublicContract,
 } from "@/lib/ops/client";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 import { faqByIds } from "@/lib/content/faq";
 
 export const dynamic = "force-dynamic";
@@ -115,12 +115,10 @@ export default async function AvtalPage() {
 
   if (status.configured) {
     try {
-      contracts = await fetchOpsPublicContracts();
+      contracts = (await loadWebsitePublicContractFeed({ context: "website contracts" })).contracts;
     } catch (error) {
-      loadError =
-        error instanceof Error
-          ? error.message
-          : "Kunde inte hämta aktuella elavtal.";
+      logWebsitePublicContractFeedError("website contracts", error);
+      loadError = "Kunde inte hämta aktuella elavtal.";
     }
   } else {
     loadError = "Aktuella elavtal kan inte hämtas just nu.";

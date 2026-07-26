@@ -584,6 +584,9 @@ export type OpsPublicContractsSnapshot = {
   publication_revision: string | null;
   tenant_reference: string;
   not_modified: boolean;
+  fetched_at: string;
+  stale: boolean;
+  stale_reason: string | null;
 };
 
 export class OpsError extends Error {
@@ -1527,10 +1530,17 @@ type OpsHttpResponse = {
   payload: unknown;
 };
 
+type OpsRequestOptions = {
+  allowNotModified?: boolean;
+  cache?: RequestCache;
+  revalidateSeconds?: number;
+};
+
+
 async function opsRequest(
   path: string,
   init?: RequestInit,
-  options: { allowNotModified?: boolean } = {},
+  options: OpsRequestOptions = {},
 ): Promise<OpsHttpResponse> {
   const baseUrl = opsBaseUrl();
   const apiKey = opsApiKey();
@@ -1554,13 +1564,19 @@ async function opsRequest(
 
   const timeout = timeoutSignal(init?.signal);
   const requestUrl = `${baseUrl}${opsRelativePath(path)}`;
-  const request = (url: string) => fetch(url, {
-    ...init,
-    headers,
-    signal: timeout.signal,
-    cache: "no-store",
-    redirect: "manual",
-  });
+  const request = (url: string) => {
+    const requestInit: RequestInit = {
+      ...init,
+      headers,
+      signal: timeout.signal,
+      cache: options.cache ?? "no-store",
+      redirect: "manual",
+    };
+    if (options.revalidateSeconds !== undefined) {
+      requestInit.next = { revalidate: options.revalidateSeconds };
+    }
+    return fetch(url, requestInit);
+  };
   let res: Response;
   try {
     const method = (init?.method ?? 'GET').toUpperCase();
@@ -2725,11 +2741,35 @@ export async function fetchOpsPublicContractsSnapshot(
   const headers = new Headers();
   if (!options.forceFresh && cached?.etag) headers.set("If-None-Match", cached.etag);
 
-  const response = await opsRequest(
-    publicContractsPath(customerType),
-    { method: "GET", headers },
-    { allowNotModified: true },
-  );
+  let response: OpsHttpResponse;
+  try {
+    response = await opsRequest(
+      publicContractsPath(customerType),
+      { method: "GET", headers },
+      {
+        allowNotModified: true,
+        // The public product feed is safe to cache server-side. Next's data
+        // cache survives serverless instance rotation and keys the response by
+        // URL + request headers, including the tenant API key.
+        cache: options.forceFresh ? "no-store" : "force-cache",
+        revalidateSeconds: options.forceFresh ? undefined : 60,
+      },
+    );
+  } catch (error) {
+    if (!options.forceFresh && cached && isTransientOpsError(error)) {
+      return {
+        contracts: cached.contracts,
+        etag: cached.etag,
+        publication_revision: cached.publication_revision,
+        tenant_reference: cached.tenant_reference,
+        not_modified: true,
+        fetched_at: cached.fetched_at,
+        stale: true,
+        stale_reason: isOpsError(error) ? error.code ?? `http_${error.status}` : "ops_transport_error",
+      };
+    }
+    throw error;
+  }
 
   if (response.status === 304) {
     if (!cached) {
@@ -2743,6 +2783,9 @@ export async function fetchOpsPublicContractsSnapshot(
       publication_revision: cached.publication_revision,
       tenant_reference: cached.tenant_reference,
       not_modified: true,
+      fetched_at: cached.fetched_at,
+      stale: false,
+      stale_reason: null,
     };
   }
 
@@ -2757,6 +2800,9 @@ export async function fetchOpsPublicContractsSnapshot(
     publication_revision: publicationRevisionFromPayload(response.payload),
     tenant_reference: tenantReference,
     not_modified: false,
+    fetched_at: new Date().toISOString(),
+    stale: false,
+    stale_reason: null,
   };
   publicContractsCache.set(cacheKey, snapshot);
   return snapshot;

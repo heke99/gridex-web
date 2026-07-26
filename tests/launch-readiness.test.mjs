@@ -391,8 +391,13 @@ assertIncludes(
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
-  "isSignupReadyContract",
-  "signup must block applications when required legal UUIDs or URLs are missing",
+  "isPublicContractReady",
+  "signup must use the centralized public-contract validator",
+);
+assertNotIncludes(
+  "lib/website/publicContractDisplay.ts",
+  "dynamiska juridikkrav saknas",
+  "an empty OPS legal.requirements array is a valid published contract",
 );
 assertNotIncludes(
   "components/signup/CustomerApplicationForm.tsx",

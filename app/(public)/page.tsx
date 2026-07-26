@@ -3,10 +3,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import ElectricityCalculator from "@/components/ElectricityCalculator";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
-import { fetchOpsPublicContracts } from "@/lib/ops/client";
 import type { ContractOption } from "@/components/ElectricityCalculator";
 import { faqByIds } from "@/lib/content/faq";
-import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +22,8 @@ export default async function HomePage() {
   let options: ContractOption[] = [];
 
   try {
-    const visibleContracts = await fetchOpsPublicContracts();
-    options = visibleContracts.filter((item) => buildPublicContractDisplay(item).ready).map((item) => ({
+    const { contracts } = await loadWebsitePublicContractFeed({ context: "website home" });
+    options = contracts.map((item) => ({
       name: item.name,
       value: item.offer_reference,
       offerReference: item.offer_reference,
@@ -43,7 +42,8 @@ export default async function HomePage() {
       portfolioShare: item.portfolio_share ?? null,
       customerTypes: item.customer_types ?? null,
     }));
-  } catch {
+  } catch (error) {
+    logWebsitePublicContractFeedError("website home", error);
     options = [];
   }
 

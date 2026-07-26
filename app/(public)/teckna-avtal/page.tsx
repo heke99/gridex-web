@@ -14,7 +14,6 @@ import {
   buildOpsCustomerApplicationPayload,
   createExternalApplicationId,
   createExternalCustomerId,
-  fetchOpsPublicContracts,
   fetchOpsPublicContractsFresh,
   getOpsClientStatus,
   hashIp,
@@ -47,7 +46,8 @@ import { enqueuePortalWrite } from "@/lib/customerPortal/outbox";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
-import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
+import { buildPublicContractDisplay, isPublicContractReady } from "@/lib/website/publicContractDisplay";
+import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 import { sanitizePricingComponentsBeforeAreaResolution } from "@/lib/website/publicPricingVisibility";
 import { validateCanonicalWebsiteQuote } from "@/lib/website/canonicalQuoteValidation";
 import {
@@ -165,22 +165,6 @@ function selectedContractFromParams(
   return (
     contracts.find((contract) => contract.offer_reference === offerReference) ??
     null
-  );
-}
-
-function isSignupReadyContract(offer: OpsPublicContract): boolean {
-  if (!buildPublicContractDisplay(offer).ready) return false;
-  const requirements = offer.legal_requirements ?? [];
-  if (!requirements.length) return false;
-  return requirements.every((requirement) =>
-    !requirement.required || Boolean(
-      requirement.requirement_code &&
-      requirement.acceptance_type === 'checkbox' &&
-      requirement.label &&
-      requirement.document_version &&
-      requirement.public_url &&
-      (requirement.document_id || requirement.legal_bundle_version_document_id),
-    ),
   );
 }
 
@@ -519,18 +503,9 @@ export default async function TecknaPage({
 
   if (status.configured) {
     try {
-      const publicContracts = await fetchOpsPublicContracts();
-      contracts = publicContracts.filter(isSignupReadyContract);
-      const blocked = publicContracts.filter((contract) => !isSignupReadyContract(contract));
-      if (blocked.length > 0) {
-        console.warn("[website signup] blocked non-ready public contracts", {
-          offers: blocked.map((contract) => ({
-            offer_reference: contract.offer_reference,
-            reasons: buildPublicContractDisplay(contract).blockedReasons,
-          })),
-        });
-      }
-    } catch {
+      contracts = (await loadWebsitePublicContractFeed({ context: "website signup" })).contracts;
+    } catch (error) {
+      logWebsitePublicContractFeedError("website signup", error);
       loadError = "Vi kunde inte hämta aktuella elavtal just nu.";
     }
   } else {
@@ -543,9 +518,20 @@ export default async function TecknaPage({
         return null;
       })
     : null;
-  const selectedContract = checkoutContext
+  const requestedOffer = params.offer?.trim() || null;
+  const requestedOfferExists = requestedOffer
+    ? contracts.some((contract) => contract.offer_reference === requestedOffer)
+    : true;
+  const restoredCheckoutContract = checkoutContext
     ? contracts.find((contract) => contract.offer_reference === checkoutContext.selectedOffer) ?? null
-    : selectedContractFromParams(contracts, params);
+    : null;
+  const checkoutContextUsable = checkoutContext && restoredCheckoutContract
+    ? checkoutContext
+    : null;
+  const selectedContract = restoredCheckoutContract ?? selectedContractFromParams(
+    contracts,
+    requestedOfferExists ? params : { ...params, offer: undefined },
+  );
   const signupOptions = contracts.map(toSignupContractOption);
   const selectedValue = selectedContract?.offer_reference ?? "";
   const currentAuth = await getCurrentPortalAuth();
@@ -554,7 +540,8 @@ export default async function TecknaPage({
     (params.checkout && !checkoutContext
       ? "Prisberäkningen har gått ut eller kunde inte återställas. Räkna priset igen."
       : null) ??
-    (params.offer && !selectedContract ? errorText("offer") : null);
+    (checkoutContext && !restoredCheckoutContract ? errorText("price_changed") : null) ??
+    (requestedOffer && !requestedOfferExists ? errorText("offer") : null);
   const canSubmit =
     status.configured &&
     status.liveSignupEnabled &&
@@ -593,10 +580,16 @@ export default async function TecknaPage({
     if (honeypot) return fail("honeypot");
 
     const selectedOffer = normalizeText(formData.get("selected_offer"));
-    const liveContracts = await fetchOpsPublicContractsFresh().catch(() => []);
+    let liveContracts: OpsPublicContract[];
+    try {
+      liveContracts = await fetchOpsPublicContractsFresh();
+    } catch (error) {
+      logWebsitePublicContractFeedError("website signup submit", error);
+      return fail(isTransientOpsError(error) ? "ops_unavailable" : "offer");
+    }
     const offer = liveContracts.find(
       (contract) =>
-        contract.offer_reference === selectedOffer && isSignupReadyContract(contract),
+        contract.offer_reference === selectedOffer && isPublicContractReady(contract),
     );
 
     if (!offer) return fail("offer");
@@ -713,8 +706,8 @@ export default async function TecknaPage({
       return fail("consent", { step: 1 });
     }
 
-    if (!isSignupReadyContract(offer)) {
-      console.error("[website signup] selected offer is missing required OPS legal_text_versions UUIDs", {
+    if (!isPublicContractReady(offer)) {
+      console.error("[website signup] selected offer failed public contract validation", {
         offer_reference: offer.offer_reference,
         terms_version_id: offer.terms_version_id ?? null,
         privacy_policy_version_id: offer.privacy_policy_version_id ?? null,
@@ -1279,7 +1272,7 @@ export default async function TecknaPage({
       <SignupFlowClient
         contracts={signupOptions}
         initialSelectedValue={selectedValue}
-        initialCustomerType={checkoutContext?.customerType ?? "private"}
+        initialCustomerType={checkoutContextUsable?.customerType ?? "private"}
         authenticatedEmail={currentAuth?.email ?? null}
         canSubmit={canSubmit}
         utm={{
@@ -1288,8 +1281,8 @@ export default async function TecknaPage({
           utm_campaign: params.utm_campaign,
         }}
         action={submitApplicationAction}
-        initialPricingPreview={checkoutContext?.pricingPreview ?? null}
-        initialQuoteContext={checkoutContext?.quoteContext ?? null}
+        initialPricingPreview={checkoutContextUsable?.pricingPreview ?? null}
+        initialQuoteContext={checkoutContextUsable?.quoteContext ?? null}
       />
 
       <FaqList

@@ -1,9 +1,46 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
+import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/public-contracts.documented.json', import.meta.url), 'utf8'))
 const contract = normalizePublicContractApiPayload(fixture.data[0])
+
+
+const emptyLegalRequirementsContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_empty_legal_requirements',
+  name: 'Publicerat avtal utan checkboxkrav',
+  type: 'variable_monthly',
+  legal: { requirements: [] },
+})
+assert.ok(emptyLegalRequirementsContract)
+assert.equal(
+  buildPublicContractDisplay(emptyLegalRequirementsContract).ready,
+  true,
+  'OPS legal.requirements=[] must remain a valid published contract',
+)
+
+const malformedRequiredLegalContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer_malformed_required_legal',
+  name: 'Avtal med trasigt obligatoriskt krav',
+  type: 'variable_monthly',
+  legal: {
+    requirements: [{
+      requirement_code: 'terms',
+      acceptance_type: 'checkbox',
+      required: true,
+      label: 'Jag godkänner villkoren',
+      document_version: null,
+      public_url: null,
+    }],
+  },
+})
+assert.ok(malformedRequiredLegalContract)
+assert.equal(
+  buildPublicContractDisplay(malformedRequiredLegalContract).ready,
+  false,
+  'a malformed required legal requirement must still fail closed',
+)
 
 assert.ok(contract, 'the documented public-contracts payload must normalize')
 assert.equal(contract.offer_reference, 'offer_variable_202606')
