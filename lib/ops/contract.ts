@@ -1,4 +1,4 @@
-export const GRIDEX_WEBSITE_API_CONTRACT_VERSION = '2026-07-25.1' as const
+export const GRIDEX_WEBSITE_API_CONTRACT_VERSION = '2026-07-27.1' as const
 export const GRIDEX_WEBSITE_API_ACCEPT_VERSION_HEADER = 'X-Gridex-Accept-Contract-Version' as const
 export const GRIDEX_WEBSITE_API_VERSION_HEADER = 'X-Gridex-Contract-Version' as const
 export const GRIDEX_API_BASE_URL = 'https://app.gridex.se/api/v1' as const

@@ -1,4 +1,5 @@
 import type { WebsiteConsumptionProfile } from '@/lib/website/consumptionEstimator'
+import type { PublicEnergyDirection, PublicProductionPricing } from '@/lib/website/publicContractContract'
 
 export const WEBSITE_PRICE_AREAS = ["SE1", "SE2", "SE3", "SE4"] as const;
 
@@ -125,6 +126,8 @@ export type WebsiteQuoteMarketReference = {
 
 export type WebsitePricingPreview = {
   resolution_id: string;
+  energy_direction: PublicEnergyDirection;
+  production_pricing: PublicProductionPricing | null;
   start_date: string;
   contract: {
     slug: string;

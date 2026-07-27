@@ -12,7 +12,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Sync exact live OpenAPI and regenerate types
-        run: npm run api:refresh
-      - name: Verify client compatibility with the live contract
+      - name: Verify checked-in OpenAPI and generated types against production
+        run: npm run api:check
+      - name: Verify runtime compatibility with the checked-in contract
         run: npm run api:contract

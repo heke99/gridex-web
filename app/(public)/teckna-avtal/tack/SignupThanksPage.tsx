@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
+import { readWebsiteApplicationResult, type WebsiteCommunicationItem } from '@/lib/website/applicationResultStore'
 import SwitchStatusCard from '@/components/signup/SwitchStatusCard'
 import ApplicationStatusCard from '@/components/signup/ApplicationStatusCard'
 import {
@@ -50,8 +50,8 @@ function formatTimestamp(value: string | null | undefined) {
   return date.toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function includesCommunicationEvent(events: string[] | undefined, event: string) {
-  return (events ?? []).some((value) => value === event || value.startsWith(`${event}:`))
+function includesCommunicationEvent(events: WebsiteCommunicationItem[] | undefined, event: string) {
+  return (events ?? []).some((value) => value.event_type === event || value.code === event)
 }
 
 export default async function SignupThanksPage({

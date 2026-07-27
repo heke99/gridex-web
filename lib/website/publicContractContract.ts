@@ -1,10 +1,44 @@
 export type WebsiteVisibility = 'visible' | 'summary_only' | 'hidden'
 
+export type PublicEnergyDirection = 'consumption' | 'production'
+
+export type PublicProductionPricing = {
+  enabled: true
+  compensation_model: 'fixed_compensation'
+  resolution: 'monthly' | 'hourly' | 'quarterly'
+  deduction_ore_per_kwh: number | null
+  premium_ore_per_kwh: number | null
+  fixed_compensation_ore_per_kwh: number | null
+  compensation_ore_per_kwh: number | null
+  compensation_sek_per_kwh: number | null
+  settlement_mode: 'credit_invoice' | 'self_billing'
+  billing_direction: 'credit_invoice' | 'self_billing'
+  vat_rate: number | null
+  vat_rate_percent: number | null
+  vat_treatment: string | null
+  metering_point_role: 'production'
+}
+
 export type PublicAreaPricing = {
   price_area_code: 'SE1' | 'SE2' | 'SE3' | 'SE4'
   fixed_price_ore_per_kwh: number
   vat_included: boolean | null
   vat_rate: number | null
+}
+
+
+export const PUBLIC_LEGAL_ACCEPTANCE_CODES = [
+  'terms',
+  'privacy_policy',
+  'withdrawal',
+  'power_of_attorney',
+  'price_terms',
+] as const
+
+export type PublicLegalAcceptanceCode = typeof PUBLIC_LEGAL_ACCEPTANCE_CODES[number]
+
+export function isPublicLegalAcceptanceCode(value: unknown): value is PublicLegalAcceptanceCode {
+  return typeof value === 'string' && (PUBLIC_LEGAL_ACCEPTANCE_CODES as readonly string[]).includes(value)
 }
 
 export type PublicLegalRequirement = {
@@ -23,8 +57,10 @@ export type PublicContractApiShape = {
   offer_reference: string
   product_code: string | null
   name: string
-  contract_type: string
-  type: string
+  contract_type: 'fixed' | 'variable_monthly' | 'variable_hourly' | 'variable_quarterly' | 'portfolio' | 'mixed'
+  type: 'fixed' | 'variable_monthly' | 'variable_hourly' | 'variable_quarterly' | 'portfolio' | 'mixed'
+  energy_direction: PublicEnergyDirection
+  production_pricing: PublicProductionPricing | null
   customer_types: string[] | null
   price_areas: Array<'SE1' | 'SE2' | 'SE3' | 'SE4'>
   area_pricing: PublicAreaPricing[]
@@ -506,6 +542,39 @@ function portfolioMonthlyPrices(value: unknown): PublicPortfolioMonthlyPrice[] {
   })
 }
 
+export function normalizeProductionPricing(value: unknown): PublicProductionPricing | null {
+  const row = record(value)
+  if (!row || row.enabled !== true) return null
+  const compensationModel = text(row.compensation_model)
+  const resolution = text(row.resolution)
+  const settlementMode = text(row.settlement_mode)
+  const billingDirection = text(row.billing_direction)
+  const meteringPointRole = text(row.metering_point_role)
+  if (
+    compensationModel !== 'fixed_compensation' ||
+    !resolution || !['monthly', 'hourly', 'quarterly'].includes(resolution) ||
+    !settlementMode || !['credit_invoice', 'self_billing'].includes(settlementMode) ||
+    !billingDirection || !['credit_invoice', 'self_billing'].includes(billingDirection) ||
+    meteringPointRole !== 'production'
+  ) return null
+  return {
+    enabled: true,
+    compensation_model: 'fixed_compensation',
+    resolution: resolution as PublicProductionPricing['resolution'],
+    deduction_ore_per_kwh: number(row.deduction_ore_per_kwh),
+    premium_ore_per_kwh: number(row.premium_ore_per_kwh),
+    fixed_compensation_ore_per_kwh: number(row.fixed_compensation_ore_per_kwh),
+    compensation_ore_per_kwh: number(row.compensation_ore_per_kwh),
+    compensation_sek_per_kwh: number(row.compensation_sek_per_kwh),
+    settlement_mode: settlementMode as PublicProductionPricing['settlement_mode'],
+    billing_direction: billingDirection as PublicProductionPricing['billing_direction'],
+    vat_rate: number(row.vat_rate),
+    vat_rate_percent: number(row.vat_rate_percent),
+    vat_treatment: text(row.vat_treatment),
+    metering_point_role: 'production',
+  }
+}
+
 function normalizedPriceAreas(value: unknown): Array<'SE1' | 'SE2' | 'SE3' | 'SE4'> {
   if (!Array.isArray(value)) return []
   const allowed = new Set(['SE1', 'SE2', 'SE3', 'SE4'])
@@ -595,8 +664,14 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
   const productCode = text(row.code ?? row.product_code ?? row.productCode)
   const name = text(row.name)
   const type = text(row.contract_type ?? row.contractType ?? row.type)
-
-  if (!offerReference || !name || !type) return null
+  const energyDirection = text(row.energy_direction ?? row.energyDirection ?? pricing.energy_direction ?? pricing.energyDirection)
+  const canonicalTypes = new Set(['fixed', 'variable_monthly', 'variable_hourly', 'variable_quarterly', 'portfolio', 'mixed'])
+  if (!offerReference || !name || !type || !canonicalTypes.has(type)) return null
+  if (energyDirection !== 'consumption' && energyDirection !== 'production') return null
+  const canonicalProductionPricing = normalizeProductionPricing(
+    row.production_pricing ?? row.productionPricing ?? pricing.production_pricing ?? pricing.productionPricing,
+  )
+  if (energyDirection === 'production' && !canonicalProductionPricing) return null
 
   const canonicalCalculation = pricingComponents(pricing.calculation_components ?? pricing.calculationComponents, 'hidden')
   const legacyComponents = pricingComponents(pricingComponentSource(row, pricing), 'hidden')
@@ -611,8 +686,10 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     offer_reference: offerReference,
     product_code: productCode,
     name,
-    contract_type: type,
-    type,
+    contract_type: type as PublicContractApiShape['contract_type'],
+    type: type as PublicContractApiShape['type'],
+    energy_direction: energyDirection,
+    production_pricing: canonicalProductionPricing,
     customer_types: normalizedCustomerTypes(row),
     price_areas: normalizedPriceAreas(row.price_areas ?? row.priceAreas),
     area_pricing: areaPricing(row.area_pricing ?? row.areaPricing ?? pricing.area_pricing ?? pricing.areaPricing),

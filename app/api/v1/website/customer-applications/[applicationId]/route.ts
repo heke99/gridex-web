@@ -53,7 +53,8 @@ export async function GET(
         message: syncError instanceof Error ? syncError.message : 'unknown_error',
       })
     })
-    const { raw: _raw, ...publicData } = data
+    const { raw, ...publicData } = data
+    void raw
     return NextResponse.json({ data: publicData }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     if (isOpsError(error) && error.status === 404) {

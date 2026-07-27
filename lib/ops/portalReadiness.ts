@@ -50,7 +50,8 @@ function probeDefinitions(): PortalProbe[] {
       name: 'customer_portal.bundle.read',
       scopes: DEFAULT_CUSTOMER_PORTAL_SCOPES.filter((scope) => scope.endsWith('.read')),
       path: '/api/v1/customer/portal-bundle',
-      method: 'GET',
+      method: 'POST',
+      body: { external_customer_id: READINESS_EXTERNAL_ID },
     },
     {
       name: 'customer_sync.write',

@@ -29,6 +29,8 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     code: contract.product_code ?? null,
     name: contract.name,
     type: contract.type,
+    energy_direction: contract.energy_direction,
+    production_pricing: contract.production_pricing,
     short_description: contract.short_description ?? null,
     marketing_description: contract.marketing_description ?? null,
     badge_text: contract.badge_text ?? null,

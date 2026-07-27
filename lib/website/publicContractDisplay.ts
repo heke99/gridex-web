@@ -1,5 +1,8 @@
 import type { OpsPublicContract } from '@/lib/ops/client'
 import {
+  isPublicLegalAcceptanceCode,
+} from '@/lib/website/publicContractContract'
+import {
   isFixedContractType,
   sanitizePricingComponentsBeforeAreaResolution,
 } from '@/lib/website/publicPricingVisibility'
@@ -84,10 +87,11 @@ export function publicContractTypeLabel(type: string | null | undefined): string
     case 'variable_spot':
     case 'variable_monthly':
     case 'spot_monthly':
-      return 'Månadspris'
+      return 'Rörligt månadspris'
     case 'variable_hourly':
     case 'spot_hourly':
       return 'Timpris'
+    case 'variable_quarterly':
     case 'spot_quarterly':
     case 'quarter_hourly':
       return 'Kvartspris'
@@ -95,7 +99,7 @@ export function publicContractTypeLabel(type: string | null | undefined): string
     case 'portfolio_managed':
       return 'Förvaltat avtal'
     case 'fixed':
-      return 'Fastpris'
+      return 'Fast pris'
     case 'mix':
     case 'mixed':
       return 'Mixavtal'
@@ -165,7 +169,7 @@ function componentUnit(unit: string): PublicContractDisplayRow['unit'] | null {
   }
 }
 
-function publiclyVisibleInvoiceFee(contract: OpsPublicContract): number | null {
+function publiclyVisibleInvoiceFee(): number | null {
   // Business rule: invoice_fee is calculation-only and must never be exposed
   // as a customer-facing row, regardless of a legacy visibility alias.
   return null
@@ -224,13 +228,20 @@ function defaultDescription(contract: OpsPublicContract): string {
     case 'variable_spot':
     case 'variable_monthly':
     case 'spot_monthly':
-      return 'För dig som vill ha ett rörligt månadspris baserat på publicerad spotdata.'
+      return contract.energy_direction === 'production'
+        ? 'Ersättning för din elproduktion med månadsvis avräkning enligt avtalet.'
+        : 'För dig som vill ha ett rörligt månadspris baserat på publicerad spotdata.'
     case 'variable_hourly':
     case 'spot_hourly':
-      return 'För dig som vill följa spotmarknaden timme för timme.'
+      return contract.energy_direction === 'production'
+        ? 'Ersättning för din elproduktion med timvis avräkning enligt avtalet.'
+        : 'För dig som vill följa spotmarknaden timme för timme.'
+    case 'variable_quarterly':
     case 'spot_quarterly':
     case 'quarter_hourly':
-      return 'För dig som vill följa spotmarknaden kvart för kvart.'
+      return contract.energy_direction === 'production'
+        ? 'Ersättning för din elproduktion med kvartsvis avräkning enligt avtalet.'
+        : 'För dig som vill följa spotmarknaden kvart för kvart.'
     case 'portfolio':
     case 'portfolio_managed':
       return 'För dig som vill ha ett förvaltat upplägg med tydlig risk- och prisinformation.'
@@ -245,6 +256,34 @@ function defaultDescription(contract: OpsPublicContract): string {
     default:
       return 'Ett publicerat elavtal med tydliga avgifter och villkor.'
   }
+}
+
+function addProductionPricingRows(
+  rows: PublicContractDisplayRow[],
+  contract: OpsPublicContract,
+): void {
+  const pricing = contract.production_pricing
+  if (contract.energy_direction !== 'production' || !pricing) return
+
+  const compensationOre = pricing.compensation_ore_per_kwh
+    ?? pricing.fixed_compensation_ore_per_kwh
+    ?? (pricing.compensation_sek_per_kwh == null ? null : pricing.compensation_sek_per_kwh * 100)
+  addNumberRow(rows, 'production_compensation_ore_per_kwh', 'Ersättning', compensationOre, 'ore_kwh')
+  addNumberRow(rows, 'production_premium_ore_per_kwh', 'Premie', pricing.premium_ore_per_kwh, 'ore_kwh')
+  addNumberRow(rows, 'production_deduction_ore_per_kwh', 'Avdrag', pricing.deduction_ore_per_kwh, 'ore_kwh')
+
+  const resolutionLabel = pricing.resolution === 'monthly'
+    ? 'Månadsvis'
+    : pricing.resolution === 'hourly'
+      ? 'Timvis'
+      : 'Kvartsvis'
+  addTextRow(rows, 'production_resolution', 'Avräkning', resolutionLabel)
+  addTextRow(
+    rows,
+    'production_settlement_mode',
+    'Utbetalning',
+    pricing.settlement_mode === 'self_billing' ? 'Självfakturering' : 'Kreditfaktura',
+  )
 }
 
 function stringList(value: unknown, fallback: string[]): string[] {
@@ -335,6 +374,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (!contract.offer_reference) blockedReasons.push('offer_reference saknas')
   if (!contract.name) blockedReasons.push('namn saknas')
   if (!contract.type) blockedReasons.push('avtalstyp saknas')
+  if (contract.energy_direction !== 'consumption' && contract.energy_direction !== 'production') {
+    blockedReasons.push('energiriktning saknas eller är ogiltig')
+  }
+  if (contract.energy_direction === 'production' && !contract.production_pricing) {
+    blockedReasons.push('produktionsprissättning saknas')
+  }
   // OPS public-contracts is the publication source of truth. An empty
   // legal.requirements array is a valid published contract: it means that this
   // exact legal bundle has no customer checkboxes. Only validate requirements
@@ -343,6 +388,9 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   for (const requirement of legalRequirements) {
     if (!requirement.required) continue
     if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
+    else if (!isPublicLegalAcceptanceCode(requirement.requirement_code)) {
+      blockedReasons.push(`${requirement.requirement_code}: stöds inte av kundansökans OpenAPI-schema`)
+    }
     if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
     if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
     if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {
@@ -368,20 +416,24 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   }
 
   const usesPublishedComponents = addPublishedComponents(rows, contract)
+  addProductionPricingRows(rows, contract)
 
   if (usesPublishedComponents) {
+    addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
+    addNoticePeriodRow(rows, contract)
+  } else if (contract.energy_direction === 'production') {
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'monthly_fixed' || contract.type === 'fixed_monthly' || contract.monthly_fixed_price_sek != null) {
     addNumberRow(rows, 'monthly_fixed_price_sek', 'Fast månadspris', contract.monthly_fixed_price_sek, 'sek_month')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
-    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(contract), 'sek_invoice')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(), 'sek_invoice')
     addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'fixed') {
     addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'binding_period_months', 'Bindningstid', contract.binding_period_months, 'months')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
-    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(contract), 'sek_invoice')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(), 'sek_invoice')
     addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'portfolio' || contract.type === 'portfolio_managed') {
     if (!hasNumberValue(contract.portfolio_price_ore_per_kwh)) {
@@ -390,7 +442,7 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'markup_ore_per_kwh', 'Förvaltningsavgift/påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
-    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(contract), 'sek_invoice')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(), 'sek_invoice')
     addNoticePeriodRow(rows, contract)
   } else if (contract.type === 'mix' || contract.type === 'mixed') {
     addTextRow(rows, 'start_info', 'Upplägg', contract.start_info)
@@ -406,12 +458,12 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'elcert_ore_per_kwh', 'Elcertifikat', contract.elcert_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
-    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(contract), 'sek_invoice')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(), 'sek_invoice')
   } else {
     addNumberRow(rows, 'markup_ore_per_kwh', 'Påslag', contract.markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'variable_markup_ore_per_kwh', 'Rörlig avgift', contract.variable_markup_ore_per_kwh, 'ore_kwh')
     addNumberRow(rows, 'monthly_fee_sek', 'Månadsavgift', contract.monthly_fee_sek, 'sek_month')
-    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(contract), 'sek_invoice')
+    addNumberRow(rows, 'invoice_fee_sek', 'Fakturaavgift', publiclyVisibleInvoiceFee(), 'sek_invoice')
     addNoticePeriodRow(rows, contract)
   }
 
@@ -440,8 +492,14 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     rows.splice(0, rows.length, ...visibleRows)
   }
 
-  const included = stringList(contract.included, ['Elhandelsavtal', 'Avtalsadministration', 'Kundkommunikation'])
-  const excluded = stringList(contract.excluded, ['Elnätsavgift', 'Eventuell effektavgift', 'Avgifter från nätägaren'])
+  const includedFallback = contract.energy_direction === 'production'
+    ? ['Ersättning för inmatad el', 'Avräkning enligt avtalet', 'Kundkommunikation']
+    : ['Elhandelsavtal', 'Avtalsadministration', 'Kundkommunikation']
+  const excludedFallback = contract.energy_direction === 'production'
+    ? ['Elnätsavgifter och nätägarens avgifter ingår inte.']
+    : ['Elnätsavgifter och nätägarens avgifter ingår inte.']
+  const included = stringList(contract.included, includedFallback)
+  const excluded = stringList(contract.excluded, excludedFallback)
   const legalVersions = {
     terms: contract.terms_version ?? null,
     terms_version_id: contract.terms_version_id ?? null,
@@ -467,6 +525,8 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     code: contract.product_code ?? null,
     name: contract.name,
     type: contract.type,
+    energy_direction: contract.energy_direction,
+    production_pricing: contract.production_pricing,
     pricing_model: contract.pricing_model ?? null,
     type_label: typeLabel,
     displayed_rows: rows.map((row) => ({

@@ -14,6 +14,7 @@ import {
   contractSupportsCustomerType,
   type WebsiteCustomerType,
 } from "@/lib/website/customerType";
+import type { OpsPublicContract } from "@/lib/ops/client";
 import type {
   WebsiteEnergyResolution,
   WebsitePricingPreview,
@@ -32,12 +33,14 @@ type Props = {
   initialQuoteContext?: WebsitePricingQuoteContext | null;
 };
 
-function optionAsOpsContract(contract: SignupContractOption) {
+function optionAsOpsContract(contract: SignupContractOption): OpsPublicContract {
   return {
     offer_reference: contract.offerReference,
     product_code: contract.productCode ?? null,
     name: contract.name,
     type: contract.type,
+    energy_direction: contract.energyDirection,
+    production_pricing: contract.productionPricing,
     monthly_fee_sek: contract.monthlyFeeSek ?? null,
     invoice_fee_sek: contract.invoiceFeeSek ?? null,
     markup_ore_per_kwh: contract.markupOrePerKwh ?? null,
@@ -210,7 +213,7 @@ export default function SignupFlowClient({
         </section>
       ) : (
         <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center text-sm text-gray-400">
-          Börja med kundtyp, adress, förbrukning och avtal ovan. Kunduppgifterna öppnas först när priset är verifierat.
+          Börja med kundtyp, adress, energimängd och avtal ovan. Kunduppgifterna öppnas först när priset är verifierat.
         </div>
       )}
     </div>

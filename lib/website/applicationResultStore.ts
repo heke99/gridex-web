@@ -1,11 +1,20 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
+export type WebsiteCommunicationItem = {
+  event_type?: string
+  code?: string
+  status?: string
+  message?: string
+  occurred_at?: string
+}
+
 export type WebsiteApplicationPublicResult = {
   applicationId: string | null
   workflowId: string | null
   workflowState: string | null
   status: string
+  energyDirection: 'consumption' | 'production'
   portalStatus: string
   portalMessage: string | null
   customerNumber: string | null
@@ -26,9 +35,9 @@ export type WebsiteApplicationPublicResult = {
   supplierSwitchStatus: string | null
   blockingReasons: string[]
   warnings: string[]
-  communicationQueued: string[]
-  communicationSent: string[]
-  communicationFailed: string[]
+  communicationQueued: WebsiteCommunicationItem[]
+  communicationSent: WebsiteCommunicationItem[]
+  communicationFailed: WebsiteCommunicationItem[]
 }
 
 type StoredResultRow = {

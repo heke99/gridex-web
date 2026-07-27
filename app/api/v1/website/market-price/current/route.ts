@@ -36,7 +36,8 @@ export async function POST(request: Request) {
 
   try {
     const data = await fetchOpsCurrentMarketPrice(resolutionId)
-    const { raw: _raw, ...publicData } = data
+    const { raw, ...publicData } = data
+    void raw
     return NextResponse.json({ data: publicData }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     const code = isOpsError(error) ? error.code : null

@@ -9,7 +9,7 @@ npm run api:generate
 För en fullständig uppdatering från de publika Gridex-specifikationerna:
 
 ```bash
-npm run api:refresh
+npm run api:sync
 ```
 
 `api:sync` hämtar specifikationerna, `api:generate` skapar typerna och `api:check` jämför de incheckade filerna mot live-specifikationerna. OpenAPI hämtas aldrig i applikationens runtime.

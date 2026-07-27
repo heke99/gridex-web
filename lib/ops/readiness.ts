@@ -10,6 +10,8 @@ import {
 import {
   GRIDEX_WEBSITE_CHECKOUT_SCOPES,
   GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
+  GRIDEX_WEBSITE_MARKET_PRICE_SCOPE,
+  GRIDEX_WEBSITE_SWITCH_STATUS_SCOPE,
 } from '@/lib/ops/contract'
 
 export const REQUIRED_WEBSITE_SCOPES = GRIDEX_WEBSITE_CHECKOUT_SCOPES
@@ -40,6 +42,14 @@ export type OpsIntegrationReadiness = {
     missingCustomerPortalScopes: string[]
     missingRecommendedScopes: string[]
   } | null
+  featureCapabilities: {
+    websiteSales: boolean
+    websiteMarketPrices: boolean
+    websiteDiagnostics: boolean
+    customerPortal: boolean
+    supplierSwitchStatus: boolean
+    productionContracts: boolean
+  }
   webhook: {
     ready: boolean
     enabled: boolean
@@ -52,6 +62,7 @@ type ProbeDefinition = {
   name: string
   scopes: readonly string[]
   alternative?: boolean
+  requiredForWebsiteSales?: boolean
   run: () => Promise<{ ok: boolean; status: number; code: string | null } | void>
 }
 
@@ -120,13 +131,30 @@ function probeDefinitions(): ProbeDefinition[] {
       alternative: true,
       run: () => authorizationProbe('/api/v1/website/legal-bundle', 'GET'),
     },
+    {
+      name: 'website_market_prices.read',
+      scopes: [GRIDEX_WEBSITE_MARKET_PRICE_SCOPE],
+      requiredForWebsiteSales: false,
+      run: () => authorizationProbe('/api/v1/website/market-price/current', 'POST', {}),
+    },
+    {
+      name: 'website_switch_status.read',
+      scopes: [GRIDEX_WEBSITE_SWITCH_STATUS_SCOPE],
+      requiredForWebsiteSales: false,
+      run: () => authorizationProbe('/api/v1/website/switch-status', 'GET'),
+    },
   ]
 }
 
 export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationReadiness> {
   const checkedAt = new Date().toISOString()
   const client = getOpsClientStatus()
-  const allScopes = [...new Set([...REQUIRED_WEBSITE_SCOPES, ...GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES])]
+  const allScopes = [...new Set([
+    ...REQUIRED_WEBSITE_SCOPES,
+    ...GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
+    GRIDEX_WEBSITE_MARKET_PRICE_SCOPE,
+    GRIDEX_WEBSITE_SWITCH_STATUS_SCOPE,
+  ])]
   const scopeStatuses = new Map<string, ScopeStatus>(allScopes.map((scope) => [scope, 'unverified']))
 
   const canonicalWebhookSecret = process.env.GRIDEX_WEBHOOK_SIGNING_SECRET?.trim() ?? ''
@@ -153,6 +181,14 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       probes: [],
       scopes: scopes(),
       contextReadiness: null,
+      featureCapabilities: {
+        websiteSales: false,
+        websiteMarketPrices: false,
+        websiteDiagnostics: false,
+        customerPortal: false,
+        supplierSwitchStatus: false,
+        productionContracts: false,
+      },
       webhook,
     }
   }
@@ -187,12 +223,16 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       for (const scope of definition.scopes) {
         scopeStatuses.set(scope, ok ? (definition.alternative ? 'alternative_verified' : 'verified') : 'missing')
       }
-      if (!ok) code = status === 401 ? 'invalid_api_key' : 'missing_scope'
+      if (!ok && definition.requiredForWebsiteSales !== false) {
+        code = status === 401 ? 'invalid_api_key' : 'missing_scope'
+      }
       continue
     }
 
     const classified = classifyProbeFailure(settled.reason)
-    if (code === 'ready' || classified !== 'ops_unavailable') code = classified
+    if (definition.requiredForWebsiteSales !== false && (code === 'ready' || classified !== 'ops_unavailable')) {
+      code = classified
+    }
     for (const scope of definition.scopes) scopeStatuses.set(scope, classified === 'missing_scope' ? 'missing' : 'unverified')
     probes.push({
       name: definition.name,
@@ -202,6 +242,21 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     })
   }
 
-  const ready = code === 'ready' && probes.every((probe) => probe.ok) && contextReadiness?.websiteCheckoutReady !== false
-  return { ready, code, message: readinessMessage(code), checkedAt, probes, scopes: scopes(), contextReadiness, webhook }
+  const requiredProbeNames = new Set(definitions
+    .filter((definition) => definition.requiredForWebsiteSales !== false)
+    .map((definition) => definition.name))
+  const requiredProbesReady = probes
+    .filter((probe) => requiredProbeNames.has(probe.name))
+    .every((probe) => probe.ok)
+  const probeReady = (name: string) => probes.find((probe) => probe.name === name)?.ok === true
+  const ready = code === 'ready' && requiredProbesReady && contextReadiness?.websiteCheckoutReady !== false
+  const featureCapabilities = {
+    websiteSales: ready,
+    websiteMarketPrices: probeReady('website_market_prices.read'),
+    websiteDiagnostics: probeReady('website_contracts.diagnostics'),
+    customerPortal: contextReadiness?.customerPortalReady === true,
+    supplierSwitchStatus: probeReady('website_switch_status.read'),
+    productionContracts: ready,
+  }
+  return { ready, code, message: readinessMessage(code), checkedAt, probes, scopes: scopes(), contextReadiness, featureCapabilities, webhook }
 }

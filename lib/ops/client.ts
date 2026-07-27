@@ -3,11 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   calculationPricingComponentAmount,
   normalizePublicContractApiPayload,
-  publishedPricingComponentAmount,
+  normalizeProductionPricing,
+  isPublicLegalAcceptanceCode,
   type PublicAreaPricing,
   type PublicPortfolioMonthlyPrice,
   type PublicLegalRequirement,
   type PublicPricingComponent,
+  type PublicProductionPricing,
 } from "@/lib/website/publicContractContract";
 import {
   GRIDEX_API_BASE_URL,
@@ -16,25 +18,37 @@ import {
   GRIDEX_WEBSITE_API_VERSION_HEADER,
 } from '@/lib/ops/contract';
 import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
+import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
 export type OpsContractType =
-  | "variable_spot"
-  | "variable_monthly"
-  | "variable_hourly"
-  | "spot_monthly"
-  | "spot_hourly"
-  | "spot_quarterly"
-  | "quarter_hourly"
-  | "portfolio"
-  | "portfolio_managed"
-  | "fixed"
-  | "mix"
-  | "mixed"
-  | "monthly_fixed"
-  | "fixed_monthly"
-  | string;
+  | 'fixed'
+  | 'variable_monthly'
+  | 'variable_hourly'
+  | 'variable_quarterly'
+  | 'portfolio'
+  | 'mixed'
+  // Presentation-only aliases accepted from historical cached fixtures.
+  | 'variable_spot'
+  | 'spot_monthly'
+  | 'spot_hourly'
+  | 'spot_quarterly'
+  | 'quarter_hourly'
+  | 'portfolio_managed'
+  | 'mix'
+  | 'monthly_fixed'
+  | 'fixed_monthly';
+
+export type OpsEnergyDirection = WebsiteApiComponents['schemas']['EnergyDirection'];
+export type OpsProductionPricing = WebsiteApiComponents['schemas']['ProductionPricing'];
+type OpsWebsiteQuoteRequestDto = WebsiteApiComponents['schemas']['WebsiteQuoteRequest'];
+type OpsCustomerApplicationRequestDto = WebsiteApiComponents['schemas']['CustomerApplicationRequest'];
+type OpsWebsiteQuoteValidationRequestDto = WebsiteApiComponents['schemas']['QuoteValidationRequest'];
+type OpsLegalAcceptancesDto = WebsiteApiComponents['schemas']['LegalAcceptances'];
+
 
 export type OpsPublicContract = {
   offer_reference: string;
+  energy_direction: OpsEnergyDirection;
+  production_pricing: PublicProductionPricing | null;
   product_code?: string | null;
   name: string;
   type: OpsContractType;
@@ -169,7 +183,7 @@ export type OpsContractInput = {
   requested_start_date?: string | null;
 };
 
-export type OpsConsentInput = Record<string, boolean>;
+export type OpsConsentInput = OpsLegalAcceptancesDto;
 
 export type OpsCustomerApplicationInput = {
   external_customer_id: string;
@@ -187,39 +201,64 @@ export type OpsCustomerApplicationInput = {
   idempotency_key: string;
 };
 
+export type OpsWebsiteSupplierSwitchState = WebsiteApiComponents['schemas']['WebsiteSupplierSwitchState'];
+export type OpsPowerOfAttorneyState = { status: 'signed' | 'missing' };
+export type OpsCustomerApplicationCommunicationItem = WebsiteApiComponents['schemas']['WebsiteApplicationCommunicationItem'];
+
+export type OpsCustomerApplicationCommunication = {
+  pending: boolean;
+  source_of_truth: 'communication_logs';
+  triggered: OpsCustomerApplicationCommunicationItem[];
+  queued: OpsCustomerApplicationCommunicationItem[];
+  sent: OpsCustomerApplicationCommunicationItem[];
+  failed: OpsCustomerApplicationCommunicationItem[];
+  raw?: Record<string, unknown>;
+};
+
 export type OpsCustomerApplicationResult = {
   status: string;
   application_id?: string | null;
   application_number?: string | null;
   customer_id?: string | null;
   customer_number?: string | null;
+  external_customer_id?: string | null;
+  external_customer_reference?: string | null;
+  customer_site_id?: string | null;
   site_id?: string | null;
   metering_point_id?: string | null;
   contract_id?: string | null;
-  workflow_id?: string | null;
-  continuation_job_id?: string | null;
-  workflow_state?: string | null;
+  contract_number?: string | null;
   contract_status?: string | null;
+  offer_reference?: string | null;
+  quote_reference?: string | null;
+  quote_valid_until?: string | null;
+  quote_bound?: boolean | null;
+  created_customer?: boolean | null;
+  requested_start_date?: string | null;
+  confirmed_start_date?: string | null;
+  actual_start_date?: string | null;
+  requested_start_mode?: string | null;
+  calculated_earliest_start_date?: string | null;
+  grid_area_code?: string | null;
+  price_area_code?: string | null;
+  resolution_id?: string | null;
+  resolution_status?: string | null;
+  resolution_confidence?: number | null;
+  grid_owner_verification_status?: string | null;
+  grid_owner_verification_issues: string[];
+  can_request_grid_owner_information?: boolean | null;
+  can_send_agreement_confirmation?: boolean | null;
+  can_activate_customer?: boolean | null;
   signed_at?: string | null;
   withdrawal_deadline_at?: string | null;
   signature_snapshot_sha256?: string | null;
-  can_send_agreement_confirmation?: boolean | null;
-  can_start_switch?: boolean | null;
-  can_create_supplier_switch_request?: boolean | null;
-  can_dispatch_supplier_switch?: boolean | null;
-  supplier_switch_status?: string | null;
-  external_customer_id?: string | null;
-  portal_identity_id?: string | null;
-  contract_number?: string | null;
-  customer_site_id?: string | null;
-  price_plan_id?: string | null;
-  price_plan_version_id?: string | null;
-  contract_price_snapshot_id?: string | null;
-  offer_reference?: string | null;
-  power_of_attorney_id?: string | null;
-  power_of_attorney?: Record<string, unknown> | null;
+  workflow_id?: string | null;
+  continuation_job_id?: string | null;
+  workflow_state?: string | null;
+  energy_direction?: OpsEnergyDirection | null;
+  supplier_switch: OpsWebsiteSupplierSwitchState;
+  power_of_attorney?: OpsPowerOfAttorneyState | null;
   nextAction?: Record<string, unknown> | null;
-  manualInformationRequest?: Record<string, unknown> | null;
   communication?: OpsCustomerApplicationCommunication | null;
   correlation_id?: string | null;
   missing_fields: string[];
@@ -227,19 +266,6 @@ export type OpsCustomerApplicationResult = {
   warnings: string[];
   next_step?: string | null;
   message?: string | null;
-  raw?: Record<string, unknown>;
-};
-
-export type OpsCustomerApplicationCommunication = {
-  pending?: boolean | null;
-  email_sent?: boolean | null;
-  sms_sent?: boolean | null;
-  triggered: string[];
-  queued: string[];
-  sent: string[];
-  failed: string[];
-  source_of_truth?: string | null;
-  dispatch_status?: string | null;
   raw?: Record<string, unknown>;
 };
 
@@ -385,6 +411,7 @@ export type OpsWebsiteQuoteValidation = {
   status: string | null;
   code: string | null;
   quote_reference: string;
+  offer_reference: string;
   valid_until?: string | null;
   publication_revision?: string | null;
   legal_bundle_version?: string | null;
@@ -435,6 +462,8 @@ export type OpsQuoteMarketReference = {
 
 export type OpsWebsitePricingPreview = {
   resolution_id: string;
+  energy_direction: OpsEnergyDirection;
+  production_pricing: PublicProductionPricing | null;
   start_date: string;
   contract: {
     slug: string;
@@ -490,9 +519,9 @@ export type OpsClientStatus = {
 export type OpsIntegrationContext = {
   tenant_reference: string;
   company_id?: string | null;
-  api_client_reference?: string | null;
-  authoritative_identity?: string | Record<string, unknown> | null;
-  authentication?: Record<string, unknown> | null;
+  api_client_reference: string;
+  authoritative_identity: 'api_key';
+  authentication: { header: 'Authorization'; scheme: 'Bearer'; server_side_only: true };
   environment: string;
   channel: string;
   api_version: string;
@@ -502,8 +531,11 @@ export type OpsIntegrationContext = {
     required_environment_variables: string[];
     api_base_url: string;
     application_reference_location: "top_level";
-    website_openapi_url?: string | null;
-    customer_portal_openapi_url?: string | null;
+    authentication: { header: 'Authorization'; scheme: 'Bearer'; server_side_only: true };
+    tenant_id_environment_required: false;
+    company_id_environment_required: false;
+    website_openapi_url: string;
+    customer_portal_openapi_url: string;
   };
   capabilities: {
     website_checkout_ready: boolean;
@@ -625,7 +657,7 @@ function normalizeOpsApiBase(value: string): string {
 }
 
 function opsBaseUrl(): string {
-  return normalizeOpsApiBase(GRIDEX_API_BASE_URL);
+  return normalizeOpsApiBase(env("GRIDEX_API_BASE_URL") ?? GRIDEX_API_BASE_URL);
 }
 
 function opsRelativePath(path: string): string {
@@ -751,17 +783,6 @@ function pickString(
   for (const key of keys) {
     const picked = normalizeText(row[key]);
     if (picked) return picked;
-  }
-  return null;
-}
-
-function pickNumber(
-  row: Record<string, unknown>,
-  keys: string[],
-): number | null {
-  for (const key of keys) {
-    const picked = normalizeNumber(row[key]);
-    if (picked !== null) return picked;
   }
   return null;
 }
@@ -1084,7 +1105,6 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
   if (!row || typeof row !== "object") return null;
   const r = row as Record<string, unknown>;
   const pricing = recordValue(r.pricing);
-  const legal = recordValue(r.legal);
   const components = extractOpsPriceComponents(r);
   const documented = normalizePublicContractApiPayload(r);
   if (documented) {
@@ -1194,172 +1214,12 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     };
   }
 
-  const offerReference = pickFromRecords([r], [
-    "offer_reference",
-    "offerReference",
-  ]);
-  const productCode = pickFromRecords([r], [
-    "product_code",
-    "productCode",
-    "code",
-    "offer_code",
-    "offerCode",
-  ]);
-  const name = pickFromRecords([r], [
-    "name",
-    "public_name",
-    "publicName",
-    "title",
-    "contract_name",
-    "offer_name",
-    "offerName",
-    "display_name",
-    "displayName",
-  ]);
-
-  if (!offerReference || !name) return null;
-
-  const isPublic = pickBooleanFromRecords([r], ["is_public", "isPublic", "public"]);
-  const isActive = pickBooleanFromRecords([r], ["is_active", "isActive", "active"]);
-  // Legacy OPS responses may contain these fields, but public contracts are
-  // already publication-filtered by OPS and must not be rejected for omitting them.
-
-
-  const withdrawalVersion = pickFromRecords([legal, r], [
-    "withdrawal_version",
-    "withdrawalVersion",
-    "cancellation_right_version",
-    "cancellationRightVersion",
-  ]);
-
-  const singleCustomerType = pickFromRecords([r], ["customer_type", "customerType"]);
-  const customerTypes = Array.isArray(r.customer_types)
-    ? r.customer_types.map(String).filter(Boolean)
-    : Array.isArray(r.customerTypes)
-      ? r.customerTypes.map(String).filter(Boolean)
-      : singleCustomerType
-        ? [singleCustomerType]
-        : null;
-
-  return {
-    offer_reference: offerReference,
-    product_code: productCode,
-    name,
-    type:
-      pickString(r, ["contract_type", "contractType", "type", "product_type"]) ??
-      "variable_spot",
-    short_description: pickString(r, ["short_description", "shortDescription", "public_description"]),
-    marketing_description: pickString(r, [
-      "marketing_description",
-      "description",
-      "marketingDescription",
-    ]),
-    badge_text: pickString(r, ["badge_text", "badgeText"]),
-    monthly_fee_sek: components.monthly_fee_sek ?? null,
-    invoice_fee_sek: components.invoice_fee_sek ?? null,
-    markup_ore_per_kwh: components.markup_ore_per_kwh ?? null,
-    variable_markup_ore_per_kwh: components.variable_markup_ore_per_kwh ?? null,
-    fixed_price_ore_per_kwh: components.fixed_price_ore_per_kwh ?? null,
-    monthly_fixed_price_sek: components.monthly_fixed_price_sek ?? null,
-    elcert_ore_per_kwh: components.elcert_ore_per_kwh ?? null,
-    portfolio_price_ore_per_kwh: components.portfolio_price_ore_per_kwh ?? null,
-    vat_rate: components.vat_rate ?? null,
-    pricing_model: pickFromRecords([pricing, r], ["pricing_model", "pricingModel", "price_model", "priceModel"]),
-    spot_share: components.spot_share ?? null,
-    portfolio_share: components.portfolio_share ?? null,
-    valid_from: pickString(r, ["valid_from", "validFrom"]),
-    valid_to: pickString(r, ["valid_to", "validTo"]),
-    binding_period_months: normalizeNumber(
-      r.binding_period_months ?? r.bindingPeriodMonths ?? r.binding_months,
-    ),
-    notice_period_months: normalizeNumber(
-      r.notice_period_months ?? r.noticePeriodMonths ?? r.notice_months ?? r.noticeMonths,
-    ),
-    notice_period_days: normalizeNumber(
-      r.notice_period_days ?? r.noticePeriodDays ?? r.notice_days,
-    ),
-    automatic_renewal: pickBooleanFromRecords([r], ["automatic_renewal", "automaticRenewal"]),
-    included: Array.isArray(r.included)
-      ? r.included.map(String).filter(Boolean)
-      : pickString(r, ["included"]),
-    excluded: Array.isArray(r.excluded)
-      ? r.excluded.map(String).filter(Boolean)
-      : pickString(r, ["excluded"]),
-    start_info: pickString(r, ["start_info", "startInfo"]),
-    customer_types: customerTypes,
-    terms_version: pickFromRecords([legal, r], ["terms_version", "termsVersion"]),
-    terms_version_id: pickFromRecords([legal, r], ["terms_version_id", "termsVersionId"]),
-    terms_url: pickFromRecords([legal, r], ["terms_url", "termsUrl"]),
-    privacy_policy_version: pickFromRecords([legal, r], [
-      "privacy_policy_version",
-      "privacyPolicyVersion",
-    ]),
-    privacy_policy_version_id: pickFromRecords([legal, r], [
-      "privacy_policy_version_id",
-      "privacyPolicyVersionId",
-    ]),
-    privacy_policy_url: pickFromRecords([legal, r], ["privacy_policy_url", "privacyPolicyUrl"]),
-    cancellation_right_version: withdrawalVersion,
-    withdrawal_version: withdrawalVersion,
-    withdrawal_version_id: pickFromRecords([legal, r], [
-      "withdrawal_version_id",
-      "withdrawalVersionId",
-      "cancellation_right_version_id",
-      "cancellationRightVersionId",
-    ]),
-    withdrawal_url: pickFromRecords([legal, r], [
-      "withdrawal_url",
-      "withdrawalUrl",
-      "cancellation_right_url",
-      "cancellationRightUrl",
-    ]),
-    power_of_attorney_version: pickFromRecords([legal, r], [
-      "power_of_attorney_version",
-      "powerOfAttorneyVersion",
-      "power_of_attorney_text_version",
-      "powerOfAttorneyTextVersion",
-      "power_of_attorney_legal_text_version",
-      "powerOfAttorneyLegalTextVersion",
-      "poa_version",
-      "poaVersion",
-    ]),
-    power_of_attorney_version_id: pickFromRecords([legal, r], [
-      "power_of_attorney_version_id",
-      "powerOfAttorneyVersionId",
-      "power_of_attorney_text_version_id",
-      "powerOfAttorneyTextVersionId",
-      "power_of_attorney_legal_text_version_id",
-      "powerOfAttorneyLegalTextVersionId",
-      "poa_version_id",
-      "poaVersionId",
-    ]),
-    power_of_attorney_url: pickFromRecords([legal, r], [
-      "power_of_attorney_url",
-      "powerOfAttorneyUrl",
-      "power_of_attorney_text_url",
-      "powerOfAttorneyTextUrl",
-      "poa_url",
-      "poaUrl",
-    ]),
-    power_of_attorney_required: pickBooleanFromRecords([legal, r], [
-      "power_of_attorney_required",
-      "powerOfAttorneyRequired",
-    ]),
-    price_terms_version: pickFromRecords([legal, r], [
-      "price_terms_version",
-      "priceTermsVersion",
-      "price_terms",
-      "priceTerms",
-    ]),
-    price_terms_version_id: pickFromRecords([legal, r], [
-      "price_terms_version_id",
-      "priceTermsVersionId",
-    ]),
-    price_terms_url: pickFromRecords([legal, r], ["price_terms_url", "priceTermsUrl"]),
-    is_public: isPublic,
-    is_active: isActive,
-    sort_order: normalizeNumber(r.sort_order ?? r.sortOrder),
-  };
+  throw new OpsError('OPS publicerade ett avtal som inte följer det aktuella publika kontraktet.', 502, {
+    code: 'ops_public_contract_invalid',
+    offer_reference: pickString(r, ['offer_reference', 'offerReference']),
+    contract_type: pickString(r, ['contract_type', 'contractType', 'type']),
+    energy_direction: pickString(r, ['energy_direction', 'energyDirection']),
+  });
 }
 
 function extractRows(payload: unknown): unknown[] {
@@ -1537,7 +1397,6 @@ type OpsRequestOptions = {
   revalidateSeconds?: number;
 };
 
-
 async function opsRequest(
   path: string,
   init?: RequestInit,
@@ -1563,13 +1422,12 @@ async function opsRequest(
     headers.set("Content-Type", "application/json");
   }
 
-  const timeout = timeoutSignal(init?.signal);
   const requestUrl = `${baseUrl}${opsRelativePath(path)}`;
-  const request = (url: string) => {
+  const request = (url: string, signal: AbortSignal) => {
     const requestInit: RequestInit = {
       ...init,
       headers,
-      signal: timeout.signal,
+      signal,
       cache: options.cache ?? "no-store",
       redirect: "manual",
     };
@@ -1578,50 +1436,96 @@ async function opsRequest(
     }
     return fetch(url, requestInit);
   };
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const canRetry = method === 'GET' || method === 'HEAD' || headers.has('Idempotency-Key');
+  const maxAttempts = canRetry ? 3 : 1;
+  const startedAt = Date.now();
+  let attempt = 0;
   let res: Response;
-  try {
-    const method = (init?.method ?? 'GET').toUpperCase();
-    const retryable = method === 'GET' || method === 'HEAD' || headers.has('Idempotency-Key');
-    const maxAttempts = retryable ? 3 : 1;
-    let attempt = 0;
-    while (true) {
-      attempt += 1;
-      res = await request(requestUrl);
+  let finalTimeout: ReturnType<typeof timeoutSignal> | null = null;
+
+  const waitBeforeRetry = async (response?: Response) => {
+    const rawRetryAfter = response?.headers.get('retry-after') ?? null;
+    const retryAfterSeconds = rawRetryAfter && /^\d+$/.test(rawRetryAfter) ? Number(rawRetryAfter) : null;
+    const retryAfterDate = rawRetryAfter && retryAfterSeconds === null ? Date.parse(rawRetryAfter) : Number.NaN;
+    const exponential = 250 * 2 ** Math.max(0, attempt - 1);
+    const waitMs = retryAfterSeconds !== null
+      ? retryAfterSeconds * 1_000
+      : Number.isFinite(retryAfterDate)
+        ? Math.max(0, retryAfterDate - Date.now())
+        : exponential;
+    const jitter = Math.floor(Math.random() * 125);
+    await new Promise((resolve) => setTimeout(resolve, Math.min(10_000, waitMs + jitter)));
+  };
+
+  while (true) {
+    attempt += 1;
+    const timeout = timeoutSignal(init?.signal);
+    try {
+      res = await request(requestUrl, timeout.signal);
       const canonicalRedirect = isSafeOpsCanonicalRedirect(
         requestUrl,
         res.headers.get("location"),
         res.status,
       );
-      if (canonicalRedirect) res = await request(canonicalRedirect);
-      if (res.status !== 429 || attempt >= maxAttempts) break;
-      const rawRetryAfter = res.headers.get('retry-after');
-      const retryAfterSeconds = rawRetryAfter && /^\d+$/.test(rawRetryAfter) ? Number(rawRetryAfter) : null;
-      const retryAfterDate = rawRetryAfter && retryAfterSeconds === null ? Date.parse(rawRetryAfter) : Number.NaN;
-      const waitMs = retryAfterSeconds !== null
-        ? retryAfterSeconds * 1_000
-        : Number.isFinite(retryAfterDate)
-          ? Math.max(0, retryAfterDate - Date.now())
-          : 250 * 2 ** (attempt - 1);
-      const jitter = Math.floor(Math.random() * 125);
-      await new Promise((resolve) => setTimeout(resolve, Math.min(10_000, waitMs + jitter)));
-    }
-  } catch (error) {
-    if (timeout.signal.aborted && !init?.signal?.aborted) {
+      if (canonicalRedirect) res = await request(canonicalRedirect, timeout.signal);
+      const retryableStatus = [429, 502, 503, 504].includes(res.status);
+      if (canRetry && retryableStatus && attempt < maxAttempts) {
+        timeout.cleanup();
+        await waitBeforeRetry(res);
+        continue;
+      }
+      finalTimeout = timeout;
+      break;
+    } catch (error) {
+      const timedOut = timeout.signal.aborted && !init?.signal?.aborted;
       timeout.cleanup();
-      throw new OpsError("Tjänsten svarade inte i tid.", 504, {
-        code: "ops_request_timeout",
-        path,
-        timeout_ms: opsTimeoutMs(),
-      });
+      if (init?.signal?.aborted) throw error;
+      const networkFailure = error instanceof TypeError || timedOut;
+      if (canRetry && networkFailure && attempt < maxAttempts) {
+        await waitBeforeRetry();
+        continue;
+      }
+      if (timedOut) {
+        throw new OpsError("Tjänsten svarade inte i tid.", 504, {
+          code: "ops_request_timeout",
+          path,
+          endpoint: path,
+          timeout_ms: opsTimeoutMs(),
+          retry_count: attempt - 1,
+          duration_ms: Date.now() - startedAt,
+        });
+      }
+      if (error instanceof TypeError) {
+        throw new OpsError("Tjänsten kunde inte nås just nu.", 503, {
+          code: "ops_network_error",
+          path,
+          endpoint: path,
+          retry_count: attempt - 1,
+          duration_ms: Date.now() - startedAt,
+        });
+      }
+      throw error;
     }
-    timeout.cleanup();
-    throw error;
   }
 
   try {
     const contentType = res.headers.get("content-type") ?? "";
     const location = res.headers.get("location");
     const responseContractVersion = res.headers.get(GRIDEX_WEBSITE_API_VERSION_HEADER);
+    if (!responseContractVersion && process.env.NODE_ENV === 'production') {
+      throw new OpsError('OPS-svaret saknar obligatorisk kontraktsversionsheader.', 502, {
+        code: 'ops_contract_version_header_missing',
+        expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+        received: null,
+        endpoint: path,
+        request_id: res.headers.get('x-request-id'),
+        correlation_id: res.headers.get('x-correlation-id'),
+        retry_count: attempt - 1,
+        duration_ms: Date.now() - startedAt,
+        retryable: false,
+      });
+    }
     if (responseContractVersion && responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
       throw new OpsError('OPS API-kontraktets version matchar inte Gridex Web.', 502, {
         code: 'ops_contract_version_mismatch',
@@ -1630,6 +1534,8 @@ async function opsRequest(
         endpoint: path,
         request_id: res.headers.get('x-request-id'),
         correlation_id: res.headers.get('x-correlation-id'),
+        retry_count: attempt - 1,
+        duration_ms: Date.now() - startedAt,
         retryable: false,
       });
     }
@@ -1667,13 +1573,17 @@ async function opsRequest(
       throw new OpsError(
         customerSafeOpsMessage(payload, fallbackMessage),
         res.status,
-        rateLimitErrorDetails(payload, res.status, res.headers, path),
+        {
+          ...recordValue(rateLimitErrorDetails(payload, res.status, res.headers, path)),
+          retry_count: attempt - 1,
+          duration_ms: Date.now() - startedAt,
+        },
       );
     }
 
     return { status: res.status, headers: new Headers(res.headers), payload };
   } catch (error) {
-    if (timeout.signal.aborted && !init?.signal?.aborted && !isOpsError(error)) {
+    if (finalTimeout?.signal.aborted && !init?.signal?.aborted && !isOpsError(error)) {
       throw new OpsError("Tjänsten svarade inte i tid.", 504, {
         code: "ops_request_timeout",
         path,
@@ -1682,7 +1592,7 @@ async function opsRequest(
     }
     throw error;
   } finally {
-    timeout.cleanup();
+    finalTimeout?.cleanup();
   }
 }
 
@@ -1990,6 +1900,18 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   const quoteReference = pickString(row, ['quote_reference', 'quoteReference', 'reference']);
   const offerReference = pickString(contract, ['offer_reference', 'offerReference']) ?? pickString(row, ['offer_reference', 'offerReference']);
   const name = pickString(contract, ['name', 'title']) ?? pickString(row, ['contract_name', 'name']) ?? 'Elavtal';
+  const rawEnergyDirection = pickString(row, ['energy_direction', 'energyDirection']);
+  const energyDirection = rawEnergyDirection === 'consumption' || rawEnergyDirection === 'production'
+    ? rawEnergyDirection
+    : null;
+  const productionPricing = normalizeProductionPricing(row.production_pricing ?? row.productionPricing);
+  if (!energyDirection || (energyDirection === 'production' && !productionPricing)) {
+    throw new OpsError('OPS-offerten saknar giltig energiriktning eller produktionsprissättning.', 502, {
+      code: 'ops_quote_energy_direction_invalid',
+      energy_direction: rawEnergyDirection,
+      has_production_pricing: Boolean(productionPricing),
+    });
+  }
   const area = (
     pickString(quoteInput, ['price_area', 'priceArea', 'price_area_code', 'priceAreaCode']) ??
     pickString(selectedAreaPrice, ['price_area', 'priceArea', 'price_area_code', 'priceAreaCode']) ??
@@ -2005,6 +1927,9 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     ['totals', 'price_per_kwh_ore'],
     ['selected_area_price', 'energy_price_ore_per_kwh'],
     ['selectedAreaPrice', 'energyPriceOrePerKwh'],
+    ['production_pricing', 'compensation_ore_per_kwh'],
+    ['productionPricing', 'compensationOrePerKwh'],
+    ['production_pricing', 'fixed_compensation_ore_per_kwh'],
   ]);
   const monthlyExVat = normalizeNumber(
     estimate.monthly_ex_vat ?? estimate.monthly_cost_ex_vat ??
@@ -2052,6 +1977,8 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   }
   return {
     resolution_id: resolutionId,
+    energy_direction: energyDirection,
+    production_pricing: productionPricing,
     start_date: startDate,
     contract: {
       slug: offerReference,
@@ -2243,12 +2170,21 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
     pickStringArray(capabilities, ['required_customer_portal_scopes', 'requiredCustomerPortalScopes']) ?? []
   const applicationReferenceLocation =
     pickString(configuration, ['application_reference_location', 'applicationReferenceLocation'])
+  const apiClientReference = pickFromRecords([context, meta, data, root], ['api_client_reference', 'apiClientReference'])
+  const authoritativeIdentityValue = typeof authoritativeIdentity === 'string' ? authoritativeIdentity : null
+  const authHeader = pickString(authentication ?? {}, ['header'])
+  const authScheme = pickString(authentication ?? {}, ['scheme'])
+  const authServerSideOnly = pickBoolean(authentication ?? {}, ['server_side_only', 'serverSideOnly'])
+  const websiteOpenapiUrl = pickString(configuration, ['openapi_url', 'openapiUrl', 'website_openapi_url', 'websiteOpenapiUrl', 'website_integration_openapi_url', 'websiteIntegrationOpenapiUrl'])
+  const customerPortalOpenapiUrl = pickString(configuration, ['customer_portal_openapi_url', 'customerPortalOpenapiUrl'])
+  const tenantIdEnvironmentRequired = pickBoolean(configuration, ['tenant_id_environment_required', 'tenantIdEnvironmentRequired'])
+  const companyIdEnvironmentRequired = pickBoolean(configuration, ['company_id_environment_required', 'companyIdEnvironmentRequired'])
   const value: OpsIntegrationContext = {
     tenant_reference: verifiedTenantReference,
     company_id: pickFromRecords([context, meta, data, root], ['company_id', 'companyId']),
-    api_client_reference: pickFromRecords([context, meta, data, root], ['api_client_reference', 'apiClientReference']),
-    authoritative_identity: authoritativeIdentity,
-    authentication,
+    api_client_reference: apiClientReference ?? '',
+    authoritative_identity: 'api_key',
+    authentication: { header: 'Authorization', scheme: 'Bearer', server_side_only: true },
     environment: pickFromRecords([context, meta, data, root], ['environment', 'api_environment']) ?? 'production',
     channel: pickFromRecords([context, meta, data, root], ['channel']) ?? 'website',
     api_version: pickFromRecords([context, meta, data, root], ['api_version', 'apiVersion']) ?? 'v1',
@@ -2261,8 +2197,11 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
       required_environment_variables: requiredEnvironmentVariables,
       api_base_url: pickString(configuration, ['api_base_url', 'apiBaseUrl']) ?? '',
       application_reference_location: 'top_level',
-      website_openapi_url: pickString(configuration, ['openapi_url', 'openapiUrl', 'website_openapi_url', 'websiteOpenapiUrl', 'website_integration_openapi_url', 'websiteIntegrationOpenapiUrl']),
-      customer_portal_openapi_url: pickString(configuration, ['customer_portal_openapi_url', 'customerPortalOpenapiUrl']),
+      authentication: { header: 'Authorization', scheme: 'Bearer', server_side_only: true },
+      tenant_id_environment_required: false,
+      company_id_environment_required: false,
+      website_openapi_url: websiteOpenapiUrl ?? '',
+      customer_portal_openapi_url: customerPortalOpenapiUrl ?? '',
     },
     capabilities: {
       website_checkout_ready:
@@ -2298,11 +2237,51 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
       retryable: false,
     })
   }
-  if (value.configuration.api_base_url !== GRIDEX_API_BASE_URL) {
+  const expectedApiBaseUrl = opsBaseUrl()
+  const expectedWebsiteOpenapiUrl = `${expectedApiBaseUrl}/openapi/website-integration-v1.json`
+  const expectedCustomerPortalOpenapiUrl = `${expectedApiBaseUrl}/openapi/customer-portal-v1.json`
+  if (value.configuration.api_base_url !== expectedApiBaseUrl) {
     throw new OpsError('OPS integration context annonserar fel API-bas.', 502, {
       code: 'ops_api_base_url_mismatch',
-      expected: GRIDEX_API_BASE_URL,
+      expected: expectedApiBaseUrl,
       received: value.configuration.api_base_url || null,
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
+  if (!apiClientReference || authoritativeIdentityValue !== 'api_key') {
+    throw new OpsError('OPS integration context saknar auktoritativ API-nyckelidentitet.', 502, {
+      code: 'ops_authoritative_identity_mismatch',
+      expected: 'api_key',
+      received: authoritativeIdentityValue,
+      api_client_reference_present: Boolean(apiClientReference),
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
+  if (authHeader !== 'Authorization' || authScheme !== 'Bearer' || authServerSideOnly !== true) {
+    throw new OpsError('OPS integration context annonserar en okänd autentiseringsmodell.', 502, {
+      code: 'ops_authentication_configuration_mismatch',
+      expected: { header: 'Authorization', scheme: 'Bearer', server_side_only: true },
+      received: { header: authHeader, scheme: authScheme, server_side_only: authServerSideOnly },
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
+  if (tenantIdEnvironmentRequired !== false || companyIdEnvironmentRequired !== false) {
+    throw new OpsError('OPS integration context kräver otillåtna tenantvariabler.', 502, {
+      code: 'ops_tenant_environment_requirement_mismatch',
+      expected: { tenant_id_environment_required: false, company_id_environment_required: false },
+      received: { tenant_id_environment_required: tenantIdEnvironmentRequired, company_id_environment_required: companyIdEnvironmentRequired },
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
+  if (websiteOpenapiUrl !== expectedWebsiteOpenapiUrl || customerPortalOpenapiUrl !== expectedCustomerPortalOpenapiUrl) {
+    throw new OpsError('OPS integration context annonserar fel OpenAPI-adresser.', 502, {
+      code: 'ops_openapi_url_mismatch',
+      expected: { website: expectedWebsiteOpenapiUrl, customer_portal: expectedCustomerPortalOpenapiUrl },
+      received: { website: websiteOpenapiUrl, customer_portal: customerPortalOpenapiUrl },
       endpoint: '/api/v1/integration/context',
       retryable: false,
     })
@@ -2537,7 +2516,7 @@ export async function fetchOpsWebsiteQuote(
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
     start_date: input.start_date,
-  }
+  } satisfies OpsWebsiteQuoteRequestDto
   const payload = await opsFetch('/api/v1/website/quote', {
     method: 'POST',
     headers: { 'Idempotency-Key': `website-quote:${randomUUID()}` },
@@ -2562,7 +2541,7 @@ export async function validateOpsWebsiteQuote(
     ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
     ...(input.postal_code ? { postal_code: input.postal_code.replace(/\s+/g, '') } : {}),
     ...(input.application_id ? { application_id: input.application_id } : {}),
-  }
+  } satisfies OpsWebsiteQuoteValidationRequestDto
   const payload = await opsFetch('/api/v1/website/quote/validate', {
     method: 'POST',
     body: JSON.stringify(requestBody),
@@ -2570,12 +2549,32 @@ export async function validateOpsWebsiteQuote(
   await verifiedTenantReference(payload, '/api/v1/website/quote/validate')
   const row = extractObject(payload)
   const status = pickString(row, ['status', 'validation_status', 'validationStatus'])
-  const explicitValid = pickBoolean(row, ['valid', 'is_valid', 'isValid', 'ok'])
+  const explicitValid = pickBoolean(row, ['valid'])
+  const quoteReference = pickString(row, ['quote_reference'])
+  const offerReference = pickString(row, ['offer_reference'])
+  if (explicitValid !== true || !quoteReference || !offerReference) {
+    throw new OpsError('OPS returnerade ett ofullständigt offertvalideringssvar.', 502, {
+      code: 'ops_quote_validation_contract_invalid',
+      valid: explicitValid,
+      quote_reference: quoteReference,
+      offer_reference: offerReference,
+    })
+  }
+  if (quoteReference !== input.quote_reference || offerReference !== input.offer_reference) {
+    throw new OpsError('Offerten är inte bunden till valt avtal.', 409, {
+      code: 'ops_quote_binding_mismatch',
+      expected_quote_reference: input.quote_reference,
+      received_quote_reference: quoteReference,
+      expected_offer_reference: input.offer_reference,
+      received_offer_reference: offerReference,
+    })
+  }
   return {
-    valid: explicitValid ?? status === 'valid',
+    valid: true,
     status,
     code: pickString(row, ['code', 'validation_code', 'validationCode']),
-    quote_reference: pickString(row, ['quote_reference', 'quoteReference']) ?? input.quote_reference,
+    quote_reference: quoteReference,
+    offer_reference: offerReference,
     valid_until: pickString(row, ['valid_until', 'validUntil']),
     publication_revision: pickString(row, ['publication_revision', 'publicationRevision']),
     legal_bundle_version: pickString(row, ['legal_bundle_version', 'legalBundleVersion']),
@@ -2964,6 +2963,23 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     }
   }
 
+  const rawConsentKeys = Object.keys(input.consents as Record<string, unknown>)
+  const unsupportedConsentKeys = rawConsentKeys.filter((key) => !isPublicLegalAcceptanceCode(key))
+  if (unsupportedConsentKeys.length > 0) {
+    throw new OpsError('Juridiska godkännanden innehåller fält som OpenAPI inte tillåter.', 400, {
+      code: 'legal_acceptances_schema_mismatch',
+      unsupported_fields: unsupportedConsentKeys,
+      field: 'legal_acceptances',
+    })
+  }
+  const legalAcceptances: OpsLegalAcceptancesDto = {
+    ...(typeof input.consents.terms === 'boolean' ? { terms: input.consents.terms } : {}),
+    ...(typeof input.consents.privacy_policy === 'boolean' ? { privacy_policy: input.consents.privacy_policy } : {}),
+    ...(typeof input.consents.withdrawal === 'boolean' ? { withdrawal: input.consents.withdrawal } : {}),
+    ...(typeof input.consents.power_of_attorney === 'boolean' ? { power_of_attorney: input.consents.power_of_attorney } : {}),
+    ...(typeof input.consents.price_terms === 'boolean' ? { price_terms: input.consents.price_terms } : {}),
+  }
+
   const signerName = input.powerOfAttorney?.signerName?.trim()
   if (input.powerOfAttorney) {
     if (input.powerOfAttorney.accepted !== true) {
@@ -3022,7 +3038,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     }
   }
 
-  return {
+  const payload: OpsCustomerApplicationRequestDto = {
     external_customer_id: externalCustomerId,
     offer_reference: offerReference!,
     quote_reference: quoteReference!,
@@ -3069,7 +3085,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
           ? { requested_start_date: input.contract.requested_start_date }
           : {}),
     },
-    legal_acceptances: input.consents,
+    legal_acceptances: legalAcceptances,
     ...(input.powerOfAttorney
       ? {
           powerOfAttorney: {
@@ -3092,25 +3108,68 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
         }
       : {}),
   }
+  return payload
+}
+
+function mapCustomerApplicationCommunicationItem(
+  value: unknown,
+): OpsCustomerApplicationCommunicationItem | null {
+  const row = recordValue(value)
+  if (!row) return null
+  const item: OpsCustomerApplicationCommunicationItem = {
+    ...(pickString(row, ['event_type']) ? { event_type: pickString(row, ['event_type'])! } : {}),
+    ...(pickString(row, ['code']) ? { code: pickString(row, ['code'])! } : {}),
+    ...(pickString(row, ['status']) ? { status: pickString(row, ['status'])! } : {}),
+    ...(pickString(row, ['message']) ? { message: pickString(row, ['message'])! } : {}),
+    ...(pickString(row, ['occurred_at']) ? { occurred_at: pickString(row, ['occurred_at'])! } : {}),
+  }
+  return Object.keys(item).length > 0 ? item : null
+}
+
+function mapCommunicationItems(
+  row: Record<string, unknown>,
+  key: 'triggered' | 'queued' | 'sent' | 'failed',
+): OpsCustomerApplicationCommunicationItem[] {
+  const value = row[key]
+  if (!Array.isArray(value)) {
+    throw new OpsError('OPS kommunikationsresultat följer inte API-kontraktet.', 502, {
+      code: 'ops_application_communication_invalid',
+      field: `communication.${key}`,
+    })
+  }
+  return value
+    .map(mapCustomerApplicationCommunicationItem)
+    .filter((item): item is OpsCustomerApplicationCommunicationItem => item !== null)
 }
 
 function mapCustomerApplicationCommunication(
   value: unknown,
 ): OpsCustomerApplicationCommunication | null {
-  const row = recordValue(value);
-  if (!row) return null;
+  if (value === null || value === undefined) return null
+  const row = recordValue(value)
+  if (!row) {
+    throw new OpsError('OPS kommunikationsresultat följer inte API-kontraktet.', 502, {
+      code: 'ops_application_communication_invalid',
+    })
+  }
+  const pending = pickBoolean(row, ['pending'])
+  const sourceOfTruth = pickString(row, ['source_of_truth'])
+  if (pending === null || sourceOfTruth !== 'communication_logs') {
+    throw new OpsError('OPS kommunikationsresultat saknar obligatoriska fält.', 502, {
+      code: 'ops_application_communication_invalid',
+      pending,
+      source_of_truth: sourceOfTruth,
+    })
+  }
   return {
-    pending: pickBoolean(row, ["pending", "is_pending", "isPending"]),
-    email_sent: pickBoolean(row, ["email_sent", "emailSent"]),
-    sms_sent: pickBoolean(row, ["sms_sent", "smsSent"]),
-    triggered: pickStringArray(row, ["triggered"]) ?? [],
-    queued: pickStringArray(row, ["queued"]) ?? [],
-    sent: pickStringArray(row, ["sent"]) ?? [],
-    failed: pickStringArray(row, ["failed"]) ?? [],
-    source_of_truth: pickString(row, ["source_of_truth", "sourceOfTruth"]),
-    dispatch_status: pickString(row, ["dispatch_status", "dispatchStatus"]),
+    pending,
+    source_of_truth: 'communication_logs',
+    triggered: mapCommunicationItems(row, 'triggered'),
+    queued: mapCommunicationItems(row, 'queued'),
+    sent: mapCommunicationItems(row, 'sent'),
+    failed: mapCommunicationItems(row, 'failed'),
     raw: row,
-  };
+  }
 }
 
 export async function submitOpsCustomerApplication(
@@ -3165,112 +3224,138 @@ function recoverCustomerApplicationConflict(value: unknown): unknown | null {
   return null;
 }
 
+function mapWebsiteSupplierSwitchState(value: unknown): OpsWebsiteSupplierSwitchState {
+  const row = recordValue(value)
+  if (!row) {
+    throw new OpsError('OPS kundansökan saknar supplier_switch.', 502, {
+      code: 'ops_application_supplier_switch_invalid',
+    })
+  }
+  const status = pickString(row, ['status'])
+  const canCreateRequest = pickBoolean(row, ['can_create_request'])
+  const canDispatch = pickBoolean(row, ['can_dispatch'])
+  const nextAction = pickString(row, ['next_action'])
+  const blockers = Array.isArray(row.blockers) ? row.blockers.map(String) : null
+  if (
+    (status !== 'not_created' && status !== 'created') ||
+    canCreateRequest === null ||
+    canDispatch === null ||
+    blockers === null ||
+    !nextAction ||
+    !['create_supplier_switch_request', 'await_supplier_switch_processing', 'resolve_switch_blockers'].includes(nextAction)
+  ) {
+    throw new OpsError('OPS supplier_switch följer inte API-kontraktet.', 502, {
+      code: 'ops_application_supplier_switch_invalid',
+      status,
+      can_create_request: canCreateRequest,
+      can_dispatch: canDispatch,
+      next_action: nextAction,
+    })
+  }
+  return {
+    request_id: pickString(row, ['request_id']),
+    status,
+    can_create_request: canCreateRequest,
+    can_dispatch: canDispatch,
+    blockers,
+    next_action: nextAction as OpsWebsiteSupplierSwitchState['next_action'],
+  }
+}
+
+function mapApplicationPowerOfAttorney(value: unknown): OpsPowerOfAttorneyState | null {
+  if (value === null || value === undefined) return null
+  const row = recordValue(value)
+  const status = row ? pickString(row, ['status']) : null
+  if (status !== 'signed' && status !== 'missing') {
+    throw new OpsError('OPS fullmaktsstatus följer inte API-kontraktet.', 502, {
+      code: 'ops_application_power_of_attorney_invalid',
+      status,
+    })
+  }
+  return { status }
+}
+
 export function mapOpsCustomerApplicationResult(
   payload: unknown,
 ): OpsCustomerApplicationResult {
-
-  const root = recordValue(payload) ?? {};
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? ((payload as { data?: unknown }).data ?? payload)
-      : payload;
-
-  const row =
-    data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-
-  const missing = Array.isArray(row.missing_fields)
-    ? row.missing_fields.map(String)
-    : Array.isArray(row.missingFields)
-      ? row.missingFields.map(String)
-      : [];
-  const blockingReasons = Array.isArray(row.blocking_reasons)
-    ? row.blocking_reasons.map(String)
-    : Array.isArray(row.blockingReasons)
-      ? row.blockingReasons.map(String)
-      : [];
-  const warnings = Array.isArray(row.warnings)
-    ? row.warnings.map(String)
-    : [];
+  const root = recordValue(payload) ?? {}
+  const row = recordValue(root.data) ?? root
+  const stringArray = (key: string): string[] => {
+    const value = row[key]
+    if (!Array.isArray(value)) {
+      throw new OpsError('OPS kundansökningssvar saknar obligatorisk lista.', 502, {
+        code: 'ops_application_contract_invalid',
+        field: key,
+      })
+    }
+    return value.map(String)
+  }
+  const rawDirection = pickString(row, ['energy_direction'])
+  const energyDirection = rawDirection === null
+    ? null
+    : rawDirection === 'consumption' || rawDirection === 'production'
+      ? rawDirection
+      : null
+  if (rawDirection && !energyDirection) {
+    throw new OpsError('OPS kundansökan innehåller okänd energiriktning.', 502, {
+      code: 'ops_application_energy_direction_invalid',
+      energy_direction: rawDirection,
+    })
+  }
 
   return {
-    status: pickString(row, ["status"]) ?? "application_received",
-    contract_status: pickString(row, ["contract_status", "contractStatus"]),
-    signed_at: pickString(row, ["signed_at", "signedAt"]),
-    withdrawal_deadline_at: pickString(row, [
-      "withdrawal_deadline_at",
-      "withdrawalDeadlineAt",
-    ]),
-    signature_snapshot_sha256: pickString(row, [
-      "signature_snapshot_sha256",
-      "signatureSnapshotSha256",
-    ]),
-    can_send_agreement_confirmation: pickBoolean(row, [
-      "can_send_agreement_confirmation",
-      "canSendAgreementConfirmation",
-    ]),
-    can_start_switch: pickBoolean(row, ["can_start_switch", "canStartSwitch"]),
-    can_create_supplier_switch_request: pickBoolean(row, [
-      "can_create_supplier_switch_request",
-      "canCreateSupplierSwitchRequest",
-    ]),
-    can_dispatch_supplier_switch: pickBoolean(row, [
-      "can_dispatch_supplier_switch",
-      "canDispatchSupplierSwitch",
-    ]),
-    supplier_switch_status: pickString(row, [
-      "supplier_switch_status",
-      "supplierSwitchStatus",
-    ]),
-    site_id: pickString(row, ["site_id", "siteId", "customer_site_id", "customerSiteId"]),
-    workflow_id: pickString(row, ["workflow_id", "workflowId"]),
-    continuation_job_id: pickString(row, ["continuation_job_id", "continuationJobId"]),
-    workflow_state: pickString(row, ["workflow_state", "workflowState"]),
-    customer_id: pickString(row, ["customer_id", "customerId"]),
-    customer_number: pickString(row, ["customer_number", "customerNumber"]),
-    application_id: pickString(row, ["application_id", "applicationId"]),
-    application_number: pickString(row, [
-      "application_number",
-      "applicationNumber",
-    ]),
-    external_customer_id: pickString(row, ["external_customer_id", "externalCustomerId"]),
-    portal_identity_id: pickString(row, ["portal_identity_id", "portalIdentityId"]),
-    contract_id: pickString(row, ["contract_id", "contractId"]),
-    contract_number: pickString(row, ["contract_number", "contractNumber"]),
-    customer_site_id: pickString(row, ["customer_site_id", "customerSiteId"]),
-    metering_point_id: pickString(row, [
-      "metering_point_id",
-      "meteringPointId",
-    ]),
-    price_plan_id: pickString(row, ["price_plan_id", "pricePlanId"]),
-    price_plan_version_id: pickString(row, [
-      "price_plan_version_id",
-      "pricePlanVersionId",
-    ]),
-    contract_price_snapshot_id: pickString(row, [
-      "contract_price_snapshot_id",
-      "contractPriceSnapshotId",
-    ]),
-    offer_reference: pickString(row, ["offer_reference", "offerReference"]),
-    power_of_attorney_id: pickString(row, [
-      "power_of_attorney_id",
-      "powerOfAttorneyId",
-      "power_of_attorneyId",
-    ]),
-    power_of_attorney:
-      recordValue(row.power_of_attorney) ?? recordValue(row.powerOfAttorney),
-    nextAction: recordValue(row.nextAction) ?? recordValue(row.next_action),
-    manualInformationRequest:
-      recordValue(row.manualInformationRequest) ??
-      recordValue(row.manual_information_request),
+    status: pickString(row, ['status']) ?? 'application_received',
+    customer_id: pickString(row, ['customer_id']),
+    customer_number: pickString(row, ['customer_number']),
+    application_id: pickString(row, ['application_id']),
+    application_number: pickString(row, ['application_number']),
+    external_customer_id: pickString(row, ['external_customer_id']),
+    external_customer_reference: pickString(row, ['external_customer_reference']),
+    customer_site_id: pickString(row, ['customer_site_id']),
+    site_id: pickString(row, ['site_id']),
+    metering_point_id: pickString(row, ['metering_point_id']),
+    contract_id: pickString(row, ['contract_id']),
+    contract_number: pickString(row, ['contract_number']),
+    contract_status: pickString(row, ['contract_status']),
+    offer_reference: pickString(row, ['offer_reference']),
+    quote_reference: pickString(row, ['quote_reference']),
+    quote_valid_until: pickString(row, ['quote_valid_until']),
+    quote_bound: pickBoolean(row, ['quote_bound']),
+    created_customer: pickBoolean(row, ['created_customer']),
+    requested_start_date: pickString(row, ['requested_start_date']),
+    confirmed_start_date: pickString(row, ['confirmed_start_date']),
+    actual_start_date: pickString(row, ['actual_start_date']),
+    requested_start_mode: pickString(row, ['requested_start_mode']),
+    calculated_earliest_start_date: pickString(row, ['calculated_earliest_start_date']),
+    grid_area_code: pickString(row, ['grid_area_code']),
+    price_area_code: pickString(row, ['price_area_code']),
+    resolution_id: pickString(row, ['resolution_id']),
+    resolution_status: pickString(row, ['resolution_status']),
+    resolution_confidence: normalizeNumber(row.resolution_confidence),
+    grid_owner_verification_status: pickString(row, ['grid_owner_verification_status']),
+    grid_owner_verification_issues: stringArray('grid_owner_verification_issues'),
+    can_request_grid_owner_information: pickBoolean(row, ['can_request_grid_owner_information']),
+    can_send_agreement_confirmation: pickBoolean(row, ['can_send_agreement_confirmation']),
+    can_activate_customer: pickBoolean(row, ['can_activate_customer']),
+    signed_at: pickString(row, ['signed_at']),
+    withdrawal_deadline_at: pickString(row, ['withdrawal_deadline_at']),
+    signature_snapshot_sha256: pickString(row, ['signature_snapshot_sha256']),
+    workflow_id: pickString(row, ['workflow_id']),
+    continuation_job_id: pickString(row, ['continuation_job_id']),
+    workflow_state: pickString(row, ['workflow_state']),
+    energy_direction: energyDirection,
+    supplier_switch: mapWebsiteSupplierSwitchState(row.supplier_switch),
+    power_of_attorney: mapApplicationPowerOfAttorney(row.power_of_attorney),
+    nextAction: recordValue(row.next_action),
     communication: mapCustomerApplicationCommunication(row.communication),
-    correlation_id: pickFromRecords([row, root], ["correlation_id", "correlationId", "request_id", "requestId"]),
-    missing_fields: missing,
-    blocking_reasons: blockingReasons,
-    warnings,
-    next_step: pickString(row, ["next_step", "nextStep"]),
-    message: pickString(row, ["message"]),
+    correlation_id: pickFromRecords([root], ['correlation_id', 'request_id']),
+    missing_fields: stringArray('missing_fields'),
+    blocking_reasons: stringArray('blocking_reasons'),
+    warnings: stringArray('warnings'),
+    next_step: pickString(row, ['next_step']),
+    message: pickString(row, ['message']),
     raw: row,
-  };
+  }
 }
 
 export type OpsPortalIdentity = {
@@ -3600,7 +3685,8 @@ export async function fetchOpsCustomerPortalBundle(
   try {
     return normalizePortalBundle(
       await opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {
-        method: "GET",
+        method: "POST",
+        body: JSON.stringify(portalIdentityPayload(identity)),
       }),
     );
   } catch (error) {

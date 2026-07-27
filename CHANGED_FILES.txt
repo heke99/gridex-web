@@ -1,28 +1,32 @@
-# Gridex Web 2026-07-25.1 – ändrade filer
+# Gridex Web – exakt ändringsmanifest
 
-Totalt: 42 filer
+Jämförelse: bifogad originalkod mot leveransen `2026-07-27.1`.
 
-M  CHANGED_FILES.txt
+Totalt: 48 filer (`A` 8, `M` 35, `D` 5).
+
+```text
+A = tillagd, M = ändrad, D = borttagen
+
 M  .github/workflows/openapi-drift.yml
-D  COMMANDS_2026-07-24.2.md
-A  COMMANDS_2026-07-25.1.md
-D  IMPLEMENTATION_2026-07-24.2.md
-A  IMPLEMENTATION_2026-07-25.1.md
+M  CHANGED_FILES.txt
+A  COMMANDS.md
+D  COMMANDS_2026-07-25.1.md
+A  DELIVERY_REPORT.md
+A  IMPLEMENTATION.md
+D  IMPLEMENTATION_2026-07-25.1.md
 M  PATCH_NOTES.md
 M  README.md
-D  VERIFICATION_2026-07-24.2.log
-D  VERIFICATION_2026-07-24.2.md
-A  VERIFICATION_2026-07-25.1.md
+A  VERIFICATION.md
+D  VERIFICATION_2026-07-25.1.md
 M  app/(public)/teckna-avtal/page.tsx
-M  app/api/v1/customer/notifications/read/route.ts
-M  app/api/v1/website/energy/resolve/route.ts
-M  app/api/v1/website/pricing/preview/route.ts
+M  app/(public)/teckna-avtal/tack/SignupThanksPage.tsx
+M  components/signup/CustomerApplicationForm.tsx
+M  components/signup/SignupFlowClient.tsx
 M  docs/openapi/customer-portal-v1.json
 M  docs/openapi/website-integration-v1.json
-D  docs/website-integration-2026-07-24.2.md
-A  docs/website-integration-2026-07-25.1.md
-M  lib/customerPortal/outbox.ts
-M  lib/customerPortal/service.ts
+D  docs/website-integration-2026-07-25.1.md
+A  docs/website-integration.md
+M  env.example
 M  lib/ops/client.ts
 M  lib/ops/contract.ts
 M  lib/ops/generated/README.md
@@ -30,19 +34,27 @@ M  lib/ops/generated/customer-portal-api.d.ts
 M  lib/ops/generated/website-api.d.ts
 M  lib/ops/portalReadiness.ts
 M  lib/ops/readiness.ts
-M  lib/website/canonicalQuoteValidation.ts
-M  lib/website/energyAreaStore.ts
-M  lib/website/energyAreaToken.ts
+M  lib/website/applicationResultStore.ts
+M  lib/website/pricingQuote.ts
 M  lib/website/publicApi.ts
+M  lib/website/publicContractContract.ts
+M  lib/website/publicContractDisplay.ts
+M  lib/website/publicDtos.ts
 M  package.json
 M  scripts/check-openapi-drift.mjs
-A  scripts/generate-openapi-types.mjs
-A  scripts/sync-openapi.mjs
+M  scripts/generate-openapi-types.mjs
+A  scripts/openapi-common.mjs
+M  scripts/sync-openapi.mjs
+M  tests/customer-facing-pricing-visibility.test.mjs
 M  tests/customer-portal-api-hardening.test.mjs
+M  tests/fixtures/public-contracts.documented.json
 M  tests/launch-readiness.test.mjs
+M  tests/public-contract-contract.test.mjs
 M  tests/staging-canonical-ops-flow.mjs
-D  tests/website-api-2026-07-24-2.contract.test.mjs
-A  tests/website-api-2026-07-25-1.contract.test.mjs
+D  tests/website-api-2026-07-25-1.contract.test.mjs
+A  tests/website-api-runtime.contract.test.mjs
+A  tests/website-api.contract.test.mjs
 M  tests/website-signup-hardening.test.mjs
+```
 
-A = tillagd, M = ändrad, D = borttagen.
+Databasmigrationer: inga.

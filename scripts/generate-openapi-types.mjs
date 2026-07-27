@@ -33,6 +33,15 @@ function schemaType(schema, depth = 0) {
     return alternatives.map((item) => schemaType(item, depth + 1)).join(' | ')
   }
   if (Array.isArray(schema.allOf) && schema.allOf.length) {
+    // Preserve the schema's own object properties. OpenAPI commonly uses allOf
+    // only for cross-field required constraints; reducing the whole schema to
+    // the allOf branch would otherwise generate `unknown` and disconnect
+    // runtime request builders from the canonical network contract.
+    if (schema.type === 'object' || schema.properties || schema.additionalProperties !== undefined) {
+      const base = { ...schema }
+      delete base.allOf
+      return schemaType(base, depth + 1)
+    }
     return schema.allOf.map((item) => schemaType(item, depth + 1)).join(' & ')
   }
 

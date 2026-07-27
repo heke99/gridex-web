@@ -15,7 +15,7 @@ const modern = normalizePublicContractApiPayload({
   offer_reference: 'offer-modern',
   code: 'MODERN',
   name: 'Modern mix',
-  type: 'mix',
+  contract_type: 'mixed', energy_direction: 'consumption',
   customer_type: 'both',
   customer_types: ['private', 'business'],
   pricing: {
@@ -49,7 +49,7 @@ assert.deepEqual(modern.portfolio_monthly_prices[0], {
 })
 
 const singularBoth = normalizePublicContractApiPayload({
-  offer_reference: 'offer-both', name: 'Båda', type: 'variable_spot', customer_type: 'both', pricing: {}, legal: {},
+  offer_reference: 'offer-both', name: 'Båda', contract_type: 'variable_monthly', energy_direction: 'consumption', customer_type: 'both', pricing: {}, legal: {},
 })
 assert.deepEqual(singularBoth?.customer_types, ['private', 'business'])
 

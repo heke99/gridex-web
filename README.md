@@ -29,25 +29,30 @@ integration secrets.
 
 ## Gridex OPS website- och kundportal-API
 
-Gridex Web är en extern tenant och använder endast server-side:
+Gridex Web använder OPS server-side. Canonical produktion kräver endast:
 
 ```env
 GRIDEX_API_KEY=gridex_live_xxxxxxxxx
 ```
 
-API-basen är fast i kod till `https://app.gridex.se/api/v1`, och kontraktsversionen är `2026-07-25.1`. API-nyckeln löser tenant, bolag, website-kanal och scopes via integration context. Ingen tenant/company-identitet eller API-nyckel skickas från browsern.
+`GRIDEX_API_BASE_URL` är valfri och standardvärdet är `https://app.gridex.se/api/v1`. Den används endast när en godkänd stagingmiljö har en annan bas-URL. API-nyckeln identifierar tenant, bolag och scopes via integration context; inga tenant-/companyvariabler eller quote-lägen krävs.
 
-Canonical checkout är: publicerade avtal → OPS resolution → OPS quote → quote validation → kundansökan → application status. Aktuellt marknadspris är en separat informationsfunktion och blockerar inte offerten. Mina sidor använder canonical portal bundle. Se `docs/website-integration-2026-07-25.1.md`.
+Kontraktsversion: `2026-07-27.1`.
 
-Kör före deploy:
+Canonical checkout är publicerade avtal → OPS energy-area resolution → OPS quote → strikt quote validation → idempotent customer application. `energy_direction` och produktionsprissättning bevaras genom hela flödet. Market price är separat information och Mina sidor använder POST portal bundle som huvudflöde. Se `docs/website-integration.md`.
+
+Verifiera före deploy:
 
 ```bash
+rm -rf node_modules .next tsconfig.tsbuildinfo
 npm ci
+npm run api:sync
+npm run api:check
+npm run api:contract
 npm run typecheck
+npm run lint
 npm test
 npm run build
-npm run api:contract
-npm run api:drift
 ```
 
 ## External invoice import
@@ -149,31 +154,27 @@ npm audit --audit-level=moderate
 
 ## Canonical OPS deployment
 
-Kör en ren verifiering, OpenAPI-kontroll, migration och deploy i denna ordning:
+Kör samma verifieringskedja före deploy. `api:sync` uppdaterar båda live-OpenAPI-filerna och genererar typer; `api:check` är read-only och stoppar drift.
 
 ```bash
 rm -rf node_modules .next tsconfig.tsbuildinfo
 npm ci
-npm run api:refresh
+npm run api:sync
+npm run api:check
 npm run api:contract
 npm run typecheck
+npm run lint
 npm test
 npm run build
-npx supabase db push --include-all
 npx vercel --prod
 ```
 
-Befintliga OPS-auditmigrationer som fortfarande ska finnas i migrationshistoriken är:
+Denna API-klienträttning kräver ingen ny Supabase-migration. Kör inte `supabase db push` enbart på grund av denna leverans.
 
-```text
-supabase/migrations/20260724184500_ops_website_contract_20260724_2.sql
-supabase/migrations/20260724190000_ops_website_contract_20260724_2.sql
-```
-
-Se `IMPLEMENTATION_2026-07-25.1.md` och `VERIFICATION_2026-07-25.1.md` för leveransstatus och verifieringsblockerare.
+Se `IMPLEMENTATION.md`, `VERIFICATION.md` och `DELIVERY_REPORT.md` för exakt status.
 
 ```bash
-# Kräver GRIDEX_API_KEY och GRIDEX_STAGING_E2E_FIXTURE
+# Kräver giltig testnyckel och godkänd fixture
 npm run test:staging:ops
 ```
 

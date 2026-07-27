@@ -33,7 +33,6 @@ import {
 } from "@/lib/website/snapshotValidation";
 import {
   quoteToWebsitePricingPreview,
-  validateWebsitePricingQuote,
 } from "@/lib/website/pricingQuote";
 import {
   lockWebsiteSubmissionOpsPayload,
@@ -46,7 +45,7 @@ import { enqueuePortalWrite } from "@/lib/customerPortal/outbox";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
-import { buildPublicContractDisplay, isPublicContractReady } from "@/lib/website/publicContractDisplay";
+import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
 import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 import { sanitizePricingComponentsBeforeAreaResolution } from "@/lib/website/publicPricingVisibility";
 import { validateCanonicalWebsiteQuote } from "@/lib/website/canonicalQuoteValidation";
@@ -111,6 +110,8 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     offerReference: item.offer_reference,
     productCode: item.product_code ?? null,
     type: item.type,
+    energyDirection: item.energy_direction,
+    productionPricing: item.production_pricing,
     monthlyFeeSek: item.monthly_fee_sek,
     invoiceFeeSek: null,
     markupOrePerKwh: item.markup_ore_per_kwh,
@@ -444,15 +445,6 @@ function publicApplicationMessage(
   const message = value?.message;
   return typeof message === "string" && message.trim()
     ? message.trim().slice(0, 500)
-    : null;
-}
-
-function publicCaseReference(
-  value: Record<string, unknown> | null | undefined,
-): string | null {
-  const raw = value?.case_reference ?? value?.caseReference;
-  return typeof raw === "string" && raw.trim()
-    ? raw.trim().slice(0, 120)
     : null;
 }
 
@@ -800,6 +792,18 @@ export default async function TecknaPage({
         fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
       });
     }
+    if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
+      console.error("[website signup] quote energy direction mismatch", {
+        offer_reference: offer.offer_reference,
+        expected_energy_direction: offer.energy_direction,
+        received_energy_direction: verifiedQuote.value.quote.energy_direction,
+      });
+      return fail("price_changed", {
+        step: 0,
+        requiresQuoteRefresh: true,
+        fieldErrors: { pricing: "Offerten stämmer inte med valt avtal. Hämta priset på nytt." },
+      });
+    }
     const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
     const serverResolution = verifiedQuote.value.area;
     const signedPreview = quoteToWebsitePricingPreview(verifiedQuote.value.quote, pricingQuoteToken);
@@ -1028,6 +1032,9 @@ export default async function TecknaPage({
     let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
     try {
       result = await submitApplicationToOps();
+      if (result.energy_direction && result.energy_direction !== offer.energy_direction) {
+        throw new Error("OPS returned an application with a different energy direction than the selected offer.");
+      }
       await updateWebsiteSubmission({
         submissionAttemptId,
         status: "accepted",
@@ -1042,7 +1049,7 @@ export default async function TecknaPage({
         opsContinuationJobId: result.continuation_job_id ?? null,
         opsWorkflowState: result.workflow_state ?? null,
         opsStatus: result.status,
-        opsSupplierSwitchStatus: result.supplier_switch_status ?? null,
+        opsSupplierSwitchStatus: result.supplier_switch.status,
         opsCorrelationId: result.correlation_id ?? null,
         lastStatusSyncedAt: new Date().toISOString(),
         opsResultSnapshot: result.raw ?? null,
@@ -1051,7 +1058,7 @@ export default async function TecknaPage({
         withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
         signatureSnapshotSha256: result.signature_snapshot_sha256 ?? null,
         canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
-        canStartSwitch: result.can_start_switch ?? null,
+        canStartSwitch: result.supplier_switch.can_create_request,
         communication: result.communication?.raw ?? null,
       });
     } catch (error) {
@@ -1155,6 +1162,7 @@ export default async function TecknaPage({
           workflowId: result.workflow_id ?? null,
           workflowState: result.workflow_state ?? null,
           status: result.status,
+          energyDirection: result.energy_direction ?? offer.energy_direction,
           portalStatus: safePortalStatus(portalOnboarding.status),
           portalMessage: portalOnboarding.message?.slice(0, 500) ?? null,
           customerNumber: result.customer_number ?? null,
@@ -1162,18 +1170,17 @@ export default async function TecknaPage({
           applicationNumber: result.application_number ?? null,
           nextStep: result.next_step ?? null,
           nextActionMessage: publicApplicationMessage(result.nextAction),
-          caseReference: publicCaseReference(result.manualInformationRequest),
-          powerOfAttorneySigned: Boolean(result.power_of_attorney_id),
+          caseReference: result.supplier_switch.request_id ?? null,
+          powerOfAttorneySigned: result.power_of_attorney?.status === 'signed',
           missingFields: result.missing_fields,
           contractStatus: result.contract_status ?? null,
           signedAt: result.signed_at ?? null,
           withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
           canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
-          canStartSwitch: result.can_start_switch ?? null,
-          canCreateSupplierSwitchRequest:
-            result.can_create_supplier_switch_request ?? null,
-          canDispatchSupplierSwitch: result.can_dispatch_supplier_switch ?? null,
-          supplierSwitchStatus: result.supplier_switch_status ?? null,
+          canStartSwitch: result.supplier_switch.can_create_request,
+          canCreateSupplierSwitchRequest: result.supplier_switch.can_create_request,
+          canDispatchSupplierSwitch: result.supplier_switch.can_dispatch,
+          supplierSwitchStatus: result.supplier_switch.status,
           blockingReasons: result.blocking_reasons,
           warnings: result.warnings,
           communicationQueued: result.communication?.queued ?? [],

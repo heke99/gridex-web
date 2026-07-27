@@ -10,7 +10,8 @@ const contract = normalizePublicContractApiPayload(fixture.data[0])
 const emptyLegalRequirementsContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_empty_legal_requirements',
   name: 'Publicerat avtal utan checkboxkrav',
-  type: 'variable_monthly',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   legal: { requirements: [] },
 })
 assert.ok(emptyLegalRequirementsContract)
@@ -23,7 +24,8 @@ assert.equal(
 const malformedRequiredLegalContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_malformed_required_legal',
   name: 'Avtal med trasigt obligatoriskt krav',
-  type: 'variable_monthly',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   legal: {
     requirements: [{
       requirement_code: 'terms',
@@ -66,7 +68,8 @@ const camelCaseContract = normalizePublicContractApiPayload({
   offerReference: 'offer_camel_poa',
   code: 'RORLIGT-POA',
   name: 'Rörligt med fullmakt',
-  type: 'variable_spot',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   legal: {
     termsVersion: '2026-06',
     privacyPolicyVersion: '2026-06',
@@ -92,7 +95,8 @@ const componentOnlyContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_component_only',
   code: 'MANAD-API',
   name: 'Månadspris från komponenter',
-  type: 'variable_spot',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   pricing: {
     invoice_fee: null,
     components: [
@@ -111,7 +115,8 @@ const aliasComponentContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_component_aliases',
   code: 'ALIAS-API',
   name: 'Prisdelar med OPS-aliaser',
-  type: 'variable_spot',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   pricing: {
     price_components: [
       { code: 'charge_a', label: 'Elhandelspåslag', value: { amount: '4,5' }, unit_code: 'öre/kWh', visible_on_website: true },
@@ -135,7 +140,8 @@ assert.equal(aliasComponentContract.invoice_fee_sek, 19, 'Faktureringsavgift mus
 const unitOnlyContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_unit_only',
   name: 'Prisdelar med enhetsstyrning',
-  type: 'variable_spot',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   pricing_components: [
     { key: 'admin_a', title: 'Administrationsavgift', amount: 29, unit: 'kr/faktura', show_on_website: true },
     { key: 'admin_b', title: 'Grundavgift', amount: 59, unit: 'kr per månad', show_on_website: true },
@@ -150,7 +156,8 @@ const canonicalLifecycleContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_canonical_lifecycle',
   code: 'RORLIGT-CANONICAL',
   name: 'Rörligt canonical',
-  type: 'variable_monthly',
+  energy_direction: 'consumption',
+  contract_type: 'variable_monthly',
   customer_type: 'both',
   binding_months: 0,
   notice_months: 1,
@@ -181,6 +188,7 @@ const canonicalAreaContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_fixed_area_canonical',
   product_code: 'FAST-AREA',
   name: 'Fastpris per område',
+  energy_direction: 'consumption',
   contract_type: 'fixed',
   customer_types: ['private', 'business'],
   price_areas: ['SE1', 'SE2', 'SE3', 'SE4'],
@@ -217,7 +225,7 @@ const canonicalAreaContract = normalizePublicContractApiPayload({
   },
 })
 
-assert.ok(canonicalAreaContract, 'canonical 2026-07-24.2 contract must normalize')
+assert.ok(canonicalAreaContract, 'canonical current contract must normalize')
 assert.equal(canonicalAreaContract.contract_type, 'fixed')
 assert.deepEqual(canonicalAreaContract.price_areas, ['SE1', 'SE2', 'SE3', 'SE4'])
 assert.equal(canonicalAreaContract.area_pricing.find((row) => row.price_area_code === 'SE4')?.fixed_price_ore_per_kwh, 140)

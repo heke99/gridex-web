@@ -103,7 +103,7 @@ assert.ok(
   "submit must validate the exact signed OPS quote without recalculating it",
 );
 assert.ok(
-  signup.includes("validateWebsitePricingQuote"),
+  signup.includes("validateCanonicalWebsiteQuote"),
   "submit must verify the signed website pricing quote before writing",
 );
 
@@ -340,12 +340,12 @@ assertIncludes(
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-25.1.md",
+  "docs/website-integration.md",
   "Mina sidor identity rules",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
-  "docs/website-integration-2026-07-25.1.md",
+  "docs/website-integration.md",
   "powerOfAttorney",
   "repo must document the signed power of attorney application payload",
 );
@@ -356,18 +356,23 @@ assertIncludes(
 );
 assertIncludes(
   "lib/ops/client.ts",
-  "power_of_attorney_id",
-  "customer application result must expose OPS power of attorney id",
+  "mapApplicationPowerOfAttorney(row.power_of_attorney)",
+  "customer application result must use the public power-of-attorney status object",
+);
+assertNotIncludes(
+  "lib/ops/client.ts",
+  "power_of_attorney_id: pickString(row",
+  "customer application mapper must not read internal power-of-attorney IDs",
 );
 assertIncludes(
   "lib/ops/client.ts",
   "nextAction",
   "customer application result must expose OPS nextAction",
 );
-assertIncludes(
+assertNotIncludes(
   "lib/ops/client.ts",
   "manualInformationRequest",
-  "customer application result must expose OPS manualInformationRequest",
+  "customer application result must not depend on removed internal manual-information fields",
 );
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal and Website API",
-    "version": "2026-07-25.1",
+    "version": "2026-07-27.1",
     "description": "Canonical V1 contract for the authenticated customer portal and customer self-service APIs. Website checkout, public contracts, energy-area resolution, current market price and quote are documented exclusively in website-integration-v1.json."
   },
   "servers": [
@@ -56,11 +56,22 @@
         },
         "responses": {
           "200": {
-            "description": "Lyckat svar.",
+            "description": "Tenant- och kundfiltrerad fakturalista. Varje canonical rad exponerar kundavtal, underlag och exportitem; draft/blockerade adminrader visas inte i portalen.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerInvoice"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -1474,7 +1485,7 @@
               },
               "X-Gridex-Contract-Version": {
                 "schema": {
-                  "const": "2026-07-25.1"
+                  "const": "2026-07-27.1"
                 }
               }
             },
@@ -2096,57 +2107,24 @@
       },
       "ApiError": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
-          "error",
+          "ok",
           "code",
-          "message"
+          "message",
+          "request_id",
+          "correlation_id",
+          "blockers"
         ],
         "properties": {
-          "error": {
-            "type": "object",
-            "required": [
-              "code",
-              "message"
-            ],
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "stage": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "field": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "hint": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "correlation_id": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Correlation ID for support and audit; normally identical to request_id."
-              },
-              "retryable": {
-                "type": "boolean",
-                "description": "Whether the same operation can be retried after the underlying condition changes."
-              }
-            }
+          "ok": {
+            "type": "boolean",
+            "const": false
           },
           "code": {
+            "type": "string"
+          },
+          "error_code": {
             "type": "string"
           },
           "message": {
@@ -2155,19 +2133,100 @@
           "request_id": {
             "type": "string"
           },
-          "error_code": {
-            "type": "string",
-            "description": "Additive machine-readable alias of error.code."
-          },
           "correlation_id": {
-            "type": "string",
-            "description": "Correlation ID for logs, audit and support."
+            "type": "string"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiBlocker"
+            }
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "retryable": {
-            "type": "boolean",
-            "description": "Whether retry may succeed after a transient dependency or data condition is resolved."
+            "type": "boolean"
+          },
+          "details": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "error_stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "correlation_id",
+              "blockers"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "correlation_id": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "blockers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApiBlocker"
+                }
+              }
+            }
           }
-        }
+        },
+        "description": "Canonical error envelope. Expected business conflicts use 409/422; provider readiness uses 503. Codes include contract_version_not_publishable, contract_not_ready, contract_closed, contract_archived, contract_delete_blocked, quote_expired, quote_revoked, quote_consumed, quote_mismatch, offer_reference_mismatch, resolution_not_ready, price_area_not_supported and legal_bundle_not_ready."
       },
       "CustomerContract": {
         "type": "object",
@@ -2233,6 +2292,9 @@
               "type": "object",
               "additionalProperties": true
             }
+          },
+          "energy_direction": {
+            "$ref": "#/components/schemas/EnergyDirection"
           }
         },
         "additionalProperties": true
@@ -2541,6 +2603,157 @@
         "additionalProperties": true,
         "description": "Publicerat avtalsvärde. Returneras även när website_visibility är hidden."
       },
+      "CustomerInvoice": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agreement_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Legacy compatibility reference."
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "customer_contract_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "billing_underlay_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "invoice_export_item_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "canonical_export_item_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "partner_export_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "partner_invoice_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoice_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "period_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "total_kwh": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amount_ex_vat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vat_amount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amount_inc_vat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "due_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "issued",
+              "sent",
+              "paid",
+              "overdue",
+              "cancelled",
+              "credited"
+            ]
+          }
+        }
+      },
       "IntegrationContext": {
         "type": "object",
         "required": [
@@ -2566,7 +2779,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-07-25.1"
+            "const": "2026-07-27.1"
           },
           "configuration": {
             "type": "object",
@@ -2690,10 +2903,71 @@
             "additionalProperties": false
           }
         }
+      },
+      "EnergyDirection": {
+        "type": "string",
+        "enum": [
+          "consumption",
+          "production"
+        ],
+        "description": "Canonical economic direction. Consumption creates ordinary supply/invoice flows; production creates compensation settlement flows."
+      },
+      "ApiBlocker": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "recommended_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
       }
     }
   },
-  "x-contract-schema-version": "2026-07-25.1",
+  "x-contract-schema-version": "2026-07-27.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

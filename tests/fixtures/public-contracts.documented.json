@@ -1,11 +1,9 @@
 {
   "data": [
     {
-      "id": "offer_variable_202606",
       "offer_reference": "offer_variable_202606",
       "code": "RORLIGT-ELPRIS",
       "name": "Rörligt elpris",
-      "type": "variable_spot",
       "customer_type": "both",
       "pricing": {
         "monthly_fee": {
@@ -16,6 +14,15 @@
         "markup": {
           "amount": 4,
           "unit": "ore_per_kwh"
+        },
+        "visibility": {},
+        "calculation_components": [],
+        "display_components": [],
+        "summary_components": [],
+        "calculation_contract": {
+          "includes_all_applicable_components": true,
+          "hidden_components_must_be_calculated": true,
+          "market_price_supplied_by_ops": true
         }
       },
       "legal": {
@@ -37,7 +44,9 @@
         "price_terms_url": "https://app.gridex.se/legal/gridex/price-terms/55555555-5555-4555-8555-555555555555"
       },
       "valid_from": "2026-06-01T00:00:00Z",
-      "valid_to": null
+      "valid_to": null,
+      "contract_type": "variable_monthly",
+      "energy_direction": "consumption"
     }
   ]
 }

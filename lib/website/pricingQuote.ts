@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { websiteServerSigningSecret } from "@/lib/website/serverTokenSecret";
 import type { OpsPublicContract } from "@/lib/ops/client";
+import type { PublicEnergyDirection, PublicProductionPricing } from "@/lib/website/publicContractContract";
 import type {
   WebsitePricingPreview,
   WebsitePriceArea,
@@ -25,6 +26,8 @@ export type WebsitePricingQuote = {
   pricing_snapshot_reference: string;
   ops_quote_reference: string;
   resolution_id: string;
+  energy_direction: PublicEnergyDirection;
+  production_pricing: PublicProductionPricing | null;
   start_date: string;
   public_contract_etag: string | null;
   publication_revision: string | null;
@@ -104,7 +107,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
   return q.version === 3 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
-    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) && validDate(q.start_date) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
+    text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) && (q.energy_direction === "consumption" || q.energy_direction === "production") && validDate(q.start_date) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
@@ -145,6 +148,8 @@ export function issueWebsitePricingQuote(input: {
     pricing_snapshot_reference: pricingSnapshotReference,
     ops_quote_reference: input.preview.ops_quote_reference as string,
     resolution_id: input.preview.resolution_id,
+    energy_direction: input.preview.energy_direction,
+    production_pricing: input.preview.production_pricing,
     start_date: input.preview.start_date,
     public_contract_etag: input.preview.public_contract_etag ?? null,
     publication_revision: input.preview.publication_revision ?? null,
@@ -194,6 +199,8 @@ export function verifyWebsitePricingQuote(token: string | null | undefined, now 
 export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?: string): WebsitePricingPreview {
   return {
     resolution_id: quote.resolution_id,
+    energy_direction: quote.energy_direction,
+    production_pricing: quote.production_pricing,
     start_date: quote.start_date,
     contract: { slug: quote.contract.offer_reference, offer_reference: quote.contract.offer_reference, name: quote.contract.name, contractType: quote.contract.contract_type },
     priceArea: quote.price_area_code,
@@ -242,6 +249,8 @@ export function validateWebsitePricingQuote(input: {
   if (!verified.ok) return { ok: false, reason: verified.reason };
   const { quote } = verified;
   if (quote.contract.offer_reference !== input.contract.offer_reference) return { ok: false, reason: "contract_changed" };
+  if (quote.energy_direction !== input.contract.energy_direction) return { ok: false, reason: "energy_direction_changed" };
+  if (quote.energy_direction === "production" && !quote.production_pricing) return { ok: false, reason: "production_pricing_missing" };
   if (input.pricingSnapshotReference && quote.pricing_snapshot_reference !== input.pricingSnapshotReference) return { ok: false, reason: "quote_changed" };
   if (quote.price_area_code !== input.priceAreaCode) return { ok: false, reason: "area_changed" };
   if (Math.abs(quote.estimated_monthly_kwh - input.estimatedMonthlyKwh) > 0.001) return { ok: false, reason: "kwh_changed" };

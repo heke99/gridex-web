@@ -39,7 +39,7 @@ assert.ok(!onboarding.includes('userAfterError.id'))
 
 const ops = read('lib/ops/client.ts')
 assert.ok(ops.includes('GRIDEX_API_BASE_URL'))
-assert.ok(ops.includes('return normalizeOpsApiBase(GRIDEX_API_BASE_URL)'))
+assert.ok(ops.includes('return normalizeOpsApiBase(env("GRIDEX_API_BASE_URL") ?? GRIDEX_API_BASE_URL)'))
 assert.ok(!ops.includes('NEXT_PUBLIC_GRIDEX_API_KEY'))
 const signingSecret = read('lib/website/serverTokenSecret.ts')
 assert.ok(signingSecret.includes('GRIDEX_WEBSITE_HASH_PEPPER'))

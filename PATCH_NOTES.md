@@ -1,44 +1,22 @@
-# Gridex Web – Customer Portal API 2026-07-25.1
+# Gridex Web – Customer Portal API 2026-07-27.1
 
-## Canonical målbild
+Denna leverans korrigerar verifierade kontraktsbrott i website checkout och Mina sidor-integrationen.
 
-Gridex Web använder OPS som enda source of truth för tenantidentitet, publicerade avtal, elområdesresolution, marknadsreferens, quote, avgifter, moms, quote validation, kundansökan och Mina sidor-data.
+## Viktigaste ändringar
 
-```text
-GRIDEX_API_KEY
-→ integration context
-→ publicerade avtal
-→ tenantbunden energy-area resolution
-→ capabilitybaserad pricing/quote readiness
-→ canonical OPS quote
-→ quote validation
-→ idempotent customer application
-→ OPS workflow
-→ customer portal bundle
-```
+- Kontraktsversion, snapshots, genererade typer och headers är flyttade till `2026-07-27.1`.
+- OpenAPI-sync är deterministisk och CI-driftkontrollen är read-only.
+- Public contracts kräver explicit `energy_direction`; produktion kräver komplett `production_pricing`.
+- `variable_quarterly` får egen etikett och fungerar genom hela presentationen.
+- Quote validation kräver matchande `quote_reference` och `offer_reference` i API-svaret.
+- Kundansökningsresultatet läser aktuell nästlad supplier-switch-modell.
+- Fullmakt bedöms via publik status, inte internt ID.
+- Communications förblir strukturerade objekt.
+- Portal bundle använder POST primärt och legacy-GET är opt-in.
+- Market price är separat information och blockerar inte en giltig quote.
+- Endast API-nyckel är obligatorisk tenanthemlighet; bas-URL kan anges för godkänd staging.
+- Ingen lokal prismotor används i checkout.
 
-`market-price/current` är en separat informationsfunktion och är inte ett förkrav för quote.
+## Verifieringsläge
 
-## Huvudrättningar
-
-- Kontraktsversionen är `2026-07-25.1`.
-- `automation_allowed` är borttaget ur produktionsflödet, tokenformatet och readiness.
-- Resolution använder `pricing_ready`, `quote_ready` och separata lifecycle blockers.
-- Quote-request skickar inte `price_area`; OPS härleder canonical område från `resolution_id`.
-- Quote validation skickar endast dokumenterade assertions.
-- Fastpris och andra giltiga quotes blockeras inte av stale eller saknat `market-price/current`.
-- Kundansökan skickar top-level `offer_reference`, `quote_reference` och `resolution_id` exakt en gång.
-- Mätpunkt skickas i separat `metering_point`-objekt.
-- Kundtyp är en discriminated union och fullmakt valideras innan requesten lämnar webbservern.
-- Mina sidor-readiness använder de faktiska portal-scopes som bundle-routen kräver.
-- Notiser markeras lästa med explicita `notification_ids`; `{ all: true }` används inte.
-- Endast `GRIDEX_API_KEY` används som tenant-API-nyckel. Inga tenant- eller quote-modevariabler krävs.
-- OpenAPI kan synkas och typer regenereras reproducerbart med `npm run api:refresh`.
-
-## Databas
-
-Denna leverans lägger inte till eller ändrar någon Supabase-migration. Befintliga OPS-auditmigrationer lämnas oförändrade eftersom de kan vara applicerade och ingår i projektets migrationshistorik.
-
-## Verifiering
-
-Se `VERIFICATION_2026-07-25.1.md`. Lokala kontrakts- och regressionsviter passerar. Full typecheck, lint, build, live OpenAPI-drift och staging-E2E måste köras efter `npm ci` i en miljö med DNS och en giltig testnyckel.
+Lokala kontrakts- och regressionstester passerar. Full installation, typecheck, lint och Next-build kunde inte slutföras i leveransmiljön eftersom dess interna npm-registry svarade 503. Live OpenAPI byte-för-byte-kontroll kunde inte köras från containern eftersom `app.gridex.se` inte kunde DNS-resolveras. Se `VERIFICATION.md` och `DELIVERY_REPORT.md`.

@@ -8,9 +8,15 @@ import {
   publicContractTypeLabel,
   type PublicContractDisplay,
 } from "@/lib/website/publicContractDisplay";
-import type { PublicLegalRequirement, PublicPricingComponent } from "@/lib/website/publicContractContract";
+import type {
+  PublicEnergyDirection,
+  PublicLegalRequirement,
+  PublicPricingComponent,
+  PublicProductionPricing,
+} from "@/lib/website/publicContractContract";
 import type { WebsiteCustomerType } from "@/lib/website/customerType";
 import type { WebsiteConsumptionProfile } from "@/lib/website/consumptionEstimator";
+import type { OpsContractType, OpsPublicContract } from "@/lib/ops/client";
 import type {
   WebsiteEnergyResolution,
   WebsitePricingPreview,
@@ -37,7 +43,9 @@ export type SignupContractOption = {
   value: string;
   offerReference: string;
   productCode?: string | null;
-  type: string;
+  type: OpsContractType;
+  energyDirection: PublicEnergyDirection;
+  productionPricing: PublicProductionPricing | null;
   monthlyFeeSek?: number | null;
   invoiceFeeSek?: number | null;
   markupOrePerKwh?: number | null;
@@ -132,12 +140,14 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-function optionAsOpsContract(contract: SignupContractOption) {
+function optionAsOpsContract(contract: SignupContractOption): OpsPublicContract {
   return {
     offer_reference: contract.offerReference,
     product_code: contract.productCode ?? null,
     name: contract.name,
     type: contract.type,
+    energy_direction: contract.energyDirection,
+    production_pricing: contract.productionPricing,
     monthly_fee_sek: contract.monthlyFeeSek ?? null,
     invoice_fee_sek: contract.invoiceFeeSek ?? null,
     markup_ore_per_kwh: contract.markupOrePerKwh ?? null,
@@ -586,8 +596,8 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="Typ" value={publicContractTypeLabel(selectedContract?.type)} />
                   {activeDisplay?.rows.map((row) => <ReviewRow key={row.key} label={row.label} value={row.formatted} />)}
                   <ReviewRow label="Elområde" value={quoteContext.price_area_code} />
-                  <ReviewRow label="Årsförbrukning" value={`${(quoteContext.consumption_profile?.annual_kwh ?? quoteContext.estimated_monthly_kwh * 12).toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kWh/år`} />
-                  <ReviewRow label="Förbrukningsunderlag" value={consumptionSourceLabel(quoteContext.consumption_profile)} />
+                  <ReviewRow label={selectedContract?.energyDirection === "production" ? "Årsproduktion" : "Årsförbrukning"} value={`${(quoteContext.consumption_profile?.annual_kwh ?? quoteContext.estimated_monthly_kwh * 12).toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kWh/år`} />
+                  <ReviewRow label={selectedContract?.energyDirection === "production" ? "Produktionsunderlag" : "Förbrukningsunderlag"} value={selectedContract?.energyDirection === "production" ? "Angiven årsproduktion" : consumptionSourceLabel(quoteContext.consumption_profile)} />
                   <ReviewRow label="Beräkningsvärde" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kWh/mån`} />
                   {pricingPreview?.totalMonthlyCostInclVatSek != null ? <ReviewRow label="Beräknat inkl. moms" value={`${pricingPreview.totalMonthlyCostInclVatSek.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr/mån`} /> : null}
                   {pricingPreview?.is_binding != null ? <ReviewRow label="Prisstatus" value={pricingPreview.is_binding ? 'Bindande offert' : 'Indikativ prisuppgift'} /> : null}
