@@ -1,150 +1,122 @@
-# Gridex Web ↔ Customer Portal API
+# Gridex Web ↔ OPS
 
-Senast verifierad kontraktsversion: `2026-07-27.1`.
+Verifierad maskinläsbar kontraktsversion: `2026-07-28.1`.
 
-## Ansvar och konfiguration
+## Kontraktsgräns
 
-OPS är source of truth för tenantidentitet, publicerade avtal, elområdesresolution, aktuellt marknadspris, quote, prisrader, avgifter, moms, juridik, kundansökan och fortsatt leverantörsbytesflöde. Webbprojektet samlar in kunddata, gör server-side API-anrop och presenterar OPS svar utan en konkurrerande prismotor.
-
-Den enda obligatoriska tenantspecifika hemligheten i produktion är:
-
-```env
-GRIDEX_API_KEY=
-```
-
-Följande är valfri och används bara för en godkänd stagingmiljö eller explicit bas-URL-konfiguration:
-
-```env
-GRIDEX_API_BASE_URL=https://app.gridex.se/api/v1
-```
-
-API-nyckeln skickas endast server-side som Bearer-token. Tenant och bolag väljs aldrig med `company_id`, tenant-ID eller extra miljövariabler.
-
-## OpenAPI och versionshantering
-
-De incheckade specifikationerna finns i:
+OpenAPI-snapshots:
 
 ```text
 docs/openapi/website-integration-v1.json
 docs/openapi/customer-portal-v1.json
+docs/openapi/manifest.json
 ```
 
-Kommandon:
+`GRIDEX_API_CONTRACT_VERSION` i `lib/ops/contract.ts` är enda importerbara
+versionskällan. Klienten skickar inte
+`X-Gridex-Accept-Contract-Version`. Responseheadern
+`X-Gridex-Contract-Version` kontrolleras bara på operationer där OpenAPI
+deklarerar den; övriga operationer verifieras med strikt runtimevalidering av
+response body.
 
-```bash
-npm run api:sync        # hämtar båda live-specifikationerna, validerar gemensam version, skriver atomiskt och genererar typer
-npm run api:generate    # genererar typer från incheckade snapshots
-npm run api:check       # read-only driftkontroll mot live-specifikationerna
-npm run api:check:local # read-only hash-/versionskontroll utan nätverk
+Transporten blockerar redirects, begränsar retry till säkra eller idempotenta
+operationer och skickar aldrig API-nyckeln till en icke allowlistad origin.
+
+## Checkout och juridik
+
+Webb-BFF ligger under `/api/checkout/*`. Canonical OPS-paths används endast
+utgående server-side.
+
+Legal bundle hämtas med obligatorisk, opak `offer_reference`. UI byggs från
+returnerade `required_types` och dokumentversioner. Servern hämtar bunten på
+nytt före submission och blockerar om bundle-versionen ändrats, om ett
+obligatoriskt dokument saknas eller om en required typ inte kan uttryckas av
+`CustomerApplicationRequest`.
+
+Immutable ansökningsbevis innehåller bundle-version, requirement code,
+dokument-ID, dokumentversion, hash och acceptance state. `accepted_at` lagras
+på samma rad. Endast de fem fält som nuvarande OpenAPI tillåter serialiseras
+till `legal_acceptances`.
+
+Kundansökan skickar de canonicala optionalfälten för fakturering,
+`current_supplier_unknown` och full metering-point-modell. Det borttagna
+`current_supplier_id` och portalens auth-ID:n skickas inte eftersom de saknas i
+OpenAPI. `application_business_conflict` förblir konflikt; endast uttryckligt
+`duplicate_application` kan återuppta ett identiskt resultat.
+
+## Kundportal
+
+Granulära webbroutes anropar exakt motsvarande OPS-route:
+
+```text
+/api/web/customer/invoices/:id
+→ GET /api/v1/customer/invoices/{id}
 ```
 
-Runtime skickar `X-Gridex-Accept-Contract-Version: 2026-07-27.1` och verifierar `X-Gridex-Contract-Version` i svar. Fel eller saknad obligatorisk versionsheader behandlas som kontraktsfel i produktion.
+Invoice-ID är opakt. Ingen matchning görs mot fakturanummer, OCR,
+betalreferens eller lagringssökväg. Portal-bundle används en gång för en hel
+sidvy och får endast falla tillbaka till lokal read model vid transient fel.
+Fallback är tekniskt read-only och får inte driva writes.
 
-## Integrationskontext och readiness
+Alla writes kräver `client_operation_id` som skapas före första browseranropet.
+Servern skapar inte ett nytt UUID och returnerar inte lokal outbox-status som
+framgång när OPS är otillgängligt.
 
-`GET /api/v1/integration/context` verifieras strikt för:
+## Webhook
 
-- `contract_version=2026-07-27.1`
-- `authoritative_identity=api_key`
-- `api_client_reference` och `tenant_reference`
-- `Authorization` + `Bearer` + `server_side_only=true`
-- exakt obligatorisk tenantvariabel `GRIDEX_API_KEY`
-- top-level-placering av ansökningsreferenser
-- aktuella OpenAPI-URL:er
-- capabilities och scopes
+Canonical endpoint:
 
-Readiness delas upp i separata funktioner: website sales/checkout, diagnostics, market price, customer portal, supplier switch och production contracts. Ett valfritt market-price-scope får inte blockera ett i övrigt giltigt checkoutflöde.
-
-## Public contracts
-
-`GET /api/v1/website/public-contracts` normaliseras strikt. Nätverksmodellen drivs av genererade OpenAPI-typer och kräver bland annat:
-
-- `offer_reference`
-- `contract_type`
-- `energy_direction`
-- `pricing`
-- `production_pricing` för produktionsavtal
-
-Canonical kontraktstyper presenteras som:
-
-- `variable_monthly` → Rörligt månadspris
-- `variable_hourly` → Timpris
-- `variable_quarterly` → Kvartspris
-- `fixed` → Fast pris
-- `portfolio` och `mixed` med egna kundvänliga texter
-
-`energy_direction` bevaras från feed till quote, signerad quote, kundansökningsresultat och UI. Ett avtal med `energy_direction=production` utan giltig `production_pricing` blockeras som kontraktsfel. Produktionsavtal får egna texter för ersättning, upplösning, mätpunktsroll och kredit-/självfakturering.
-
-OPS beräkningskomponenter får innehålla dolda avgifter. UI visar endast tillåtna display-/summary-komponenter. Fakturaavgiften 19 kr visas inte separat i kalkylatorn när den är inräknad. Kundtexten `Elnätsavgifter och nätägarens avgifter ingår inte.` behålls.
-
-## Elområde, marknadspris och quote
-
-Elområde löses endast med `POST /api/v1/website/energy-area/resolve`. Checkout använder inte lokal postnummergissning eller lokalt valt SE-område som bindande källa. `resolution_not_ready` och blockerande readiness stoppar quote utan lokal fallback.
-
-`POST /api/v1/website/market-price/current` är en separat informationsfunktion. Den kan visa aktuellt spotpris men är inte ett bindande avtalspris och ersätter aldrig quote.
-
-`POST /api/v1/website/quote` skickar endast OpenAPI-tillåtna fält, inklusive canonical `offer_reference` och `resolution_id`. UI använder OPS totalsumma, prisrader, moms, estimat, varningar och giltighetstid utan lokal omräkning.
-
-Direkt före ansökan körs `POST /api/v1/website/quote/validate`. Runtime kräver att svaret uttryckligen innehåller och matchar både `quote_reference` och `offer_reference`. Saknade referenser fylls aldrig från requesten. Mismatch, utgången, återkallad, förbrukad eller ofullständig quote blockerar submission.
-
-## Customer application
-
-`POST /api/v1/website/customer-applications` använder en stabil `Idempotency-Key` bunden till normaliserad payload. Samma nyckel med ändrad payload blockeras.
-
-`offer_reference`, `quote_reference` och `resolution_id` skickas exakt en gång på top-level. De läggs inte under `contract`. Requesten använder den aktuella OpenAPI-modellen för customer, site, valfri metering point, startuppgifter, juridiska accepteranden och fullmakt.
-
-OpenAPI har `additionalProperties: false`. Därför skickas inte `auth_user_id` eller `customer_portal_user_id` i kundansökan, trots att en mening på dokumentationssidan fortfarande nämner dem. Portalidentitet skickas i portalens egna sync-/bundleflöden. Detta beslut är skyddat med kontraktstest tills dokumentationssidan och OpenAPI är synkroniserade.
-
-### powerOfAttorney
-
-När fullmakt krävs bygger runtime det dokumenterade `powerOfAttorney`-objektet med accepterad status, scopes, signer, signeringsmetod och dokumentversion. Initialt svar bedöms via den publika fullmaktsstatusen, aldrig ett internt ID.
-
-Juridikpaketet hämtas dynamiskt från OPS. Den faktiska nätverkspayloaden för `legal_acceptances` är den fasta OpenAPI-allowlisten `terms`, `privacy_policy`, `withdrawal`, `power_of_attorney` och `price_terms`; okända nycklar skickas inte.
-
-## Kundansökningsresultat
-
-Resultatet läses från den publika `data`-modellen. Mappningen bevarar bland annat kund-/ansöknings-/avtalsnummer, quote-bindning, startdatum, resolution, grid-owner-status, blockers, warnings och `energy_direction`.
-
-`supplier_switch` läses som nästlat objekt med `request_id`, `status`, `can_create_request`, `can_dispatch`, `blockers` och `next_action`.
-
-Fullmakt bedöms från publik status (`signed` eller `missing` i det initiala svaret), aldrig från ett internt `power_of_attorney_id`.
-
-`communication` bevarar strukturerade eventobjekt i `triggered`, `queued`, `sent` och `failed`. Objekt konverteras inte till strängar eller `[object Object]`.
-
-## Mina sidor
-
-### Mina sidor identity rules
-
-Portalidentitet hålls skild från website customer application. Supabase-användaren och stabila kundidentifierare används endast server-side i portalens sync-/bundleflöden.
-
-`POST /api/v1/customer/portal-bundle` är huvudflöde och skickar JSON-body med verifierade kundidentifierare. GET/header-flödet kan endast aktiveras som uttryckligt legacykompatibilitetslager med `GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY=true`.
-
-Portaldata cacheas inte publikt och får inte återanvändas mellan tenants eller användare. Supabase `session.user.id` används server-side i portalens identitets-/syncflöde, inte som fritt kund- eller company-ID från browsern.
-
-## Retry, cache och loggning
-
-Begränsad retry används för `429`, `502`, `503`, `504`, timeout och nätverksfel. Retry sker endast för GET/HEAD eller write-anrop med idempotency key, med exponentiell backoff, jitter och respekt för `Retry-After`. `400`, `401`, `403`, `409` och `422` retryas inte blint.
-
-Publika feedanrop kan använda ETag. Kundspecifik portaldata använder `no-store`. Loggar innehåller endpoint, status, kod, request-/correlation-ID, referens, duration och retry count men aldrig API-nyckel, fullständigt personnummer eller full kundpayload.
-
-## Verifiering före deploy
-
-```bash
-rm -rf node_modules .next tsconfig.tsbuildinfo
-npm ci
-npm run api:sync
-npm run api:check
-npm run api:contract
-npm run typecheck
-npm run lint
-npm test
-npm run build
+```text
+POST /webhooks/contracts.publication.changed
 ```
 
-Live-E2E kräver en giltig testnyckel och en godkänd staging-fixture:
+Följande headers krävs utan aliases:
 
-```bash
-GRIDEX_API_KEY='gridex_test_xxxxxxxxx' \
-GRIDEX_STAGING_E2E_FIXTURE="$PWD/.local/gridex-staging-e2e.json" \
-npm run test:staging:ops
+```text
+x-gridex-event-id
+x-gridex-delivery-id
+x-gridex-timestamp
+x-gridex-signature
 ```
+
+HMAC-SHA256 verifieras constant-time över exakt
+`${timestamp}.${rawBody}` före JSON-parse. Därefter valideras OpenAPI-schema,
+root/data/integration-tenant, event-ID och revisionsdata.
+
+Databasfunktionen `apply_ops_publication_event` serialiserar per
+tenant+kanal, deduplicerar event och delivery, jämför payloadhash, ignorerar
+äldre numeriska revisioner och tillämpar `revision_token`. Andra kanaler lagras
+och kvitteras med 2xx utan website-cacheinvalidering. Den gamla
+`/api/ops/webhooks` svarar `410 Gone`.
+
+## Upstreammotsägelser
+
+### Legal scope
+
+- Guide: `website_legal.read` eller `website_contracts.read`.
+- OpenAPI `2026-07-28.1`: endast `website_legal.read`.
+- Runtime: följer OpenAPI och readiness kräver `website_legal.read`.
+- Föreslagen OPS-ändring: uppdatera guiden, eller versionsbumpa OpenAPI med en
+  explicit alternativ scope-regel.
+
+### Dynamisk juridik
+
+- Guide: juridikmoduler kan vara dynamiska.
+- OpenAPI: application request har fem fasta booleanfält och
+  `additionalProperties: false`.
+- Runtime: okända required moduler blockeras fail-closed.
+- Föreslagen OPS-ändring: lägg till en versionerad
+  `legal_acceptances[]`-modell med requirement code, dokument-ID/version/hash,
+  bundle-version och accepted-at, eller begränsa legal-bundle till de fem
+  requestfälten.
+
+### Atomisk portalidentitet
+
+- Guide nämner `customer_portal_user_id`/`auth_user_id`.
+- OpenAPI saknar båda i `CustomerApplicationRequest`.
+- Runtime skickar dem inte och använder idempotent portal-sync som
+  reconciliation.
+- Föreslagen OPS-ändring: lägg explicit nullable portal identity i request och
+  definiera dess atomiska transaktionssemantik.
+
+Webben implementerar inga odokumenterade workaroundfält för dessa tre fall.

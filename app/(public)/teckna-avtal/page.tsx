@@ -15,6 +15,7 @@ import {
   createExternalApplicationId,
   createExternalCustomerId,
   fetchOpsPublicContractsFresh,
+  fetchOpsWebsiteLegalBundle,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -56,6 +57,7 @@ import {
   isValidSwedishPersonalNumber,
   normalizePhoneToE164,
 } from "@/lib/website/signupValidation";
+import { isStrictCalendarDate } from "@/lib/website/businessDate";
 import { checkoutFaqItems } from "@/lib/content/faq";
 import {
   consumptionProfileMatchesMonthlyKwh,
@@ -611,11 +613,35 @@ export default async function TecknaPage({
       normalizeText(formData.get("postal_code")),
     );
     const city = normalizeText(formData.get("city"));
+    const billingSameAsContact =
+      String(formData.get("billing_same_as_contact") || "") === "on";
+    const invoiceEmail = billingSameAsContact
+      ? email
+      : normalizeEmail(formData.get("invoice_email"));
+    const billingStreet = billingSameAsContact
+      ? address
+      : normalizeText(formData.get("billing_street"));
+    const billingPostalCode = billingSameAsContact
+      ? postalCode
+      : normalizePostalCodeForApplication(
+          normalizeText(formData.get("billing_postal_code")),
+        );
+    const billingCity = billingSameAsContact
+      ? city
+      : normalizeText(formData.get("billing_city"));
+    const billingCountry = billingSameAsContact
+      ? "SE"
+      : normalizeText(formData.get("billing_country")).toUpperCase();
     const facilityId = normalizeText(formData.get("facility_id"));
+    const meteringPointId = normalizeText(formData.get("metering_point_id"));
+    const readingFrequency = normalizeText(formData.get("reading_frequency"));
+    const measurementType = normalizeText(formData.get("measurement_type"));
+    const installationDate = normalizeText(formData.get("installation_date"));
     const currentSupplierName = normalizeText(formData.get("current_supplier_name"));
-    const currentSupplierId = normalizeText(formData.get("current_supplier_id"));
     const currentSupplierOrgNumber = normalizeText(formData.get("current_supplier_org_number"));
     const currentSupplierEdielId = normalizeText(formData.get("current_supplier_ediel_id"));
+    const currentSupplierUnknown =
+      String(formData.get("current_supplier_unknown") || "") === "on";
     const requestedStartModeRaw = normalizeText(
       formData.get("requested_start_mode"),
     );
@@ -625,7 +651,47 @@ export default async function TecknaPage({
       formData.get("requested_start_date"),
     );
 
-    const legalRequirements = offer.legal_requirements ?? [];
+    const submittedLegalBundleVersion = normalizeText(
+      formData.get("legal_bundle_version"),
+    );
+    let legalBundle: Awaited<ReturnType<typeof fetchOpsWebsiteLegalBundle>>;
+    try {
+      legalBundle = await fetchOpsWebsiteLegalBundle(offer.offer_reference);
+    } catch (error) {
+      console.error("[website signup] legal bundle fetch failed", {
+        offer_reference: offer.offer_reference,
+        code: isOpsError(error) ? error.code : null,
+        request_id: isOpsError(error) ? error.requestId : null,
+      });
+      return fail("legal_config", { step: 1 });
+    }
+    if (
+      !legalBundle.complete ||
+      legalBundle.unsupported_required_types.length > 0 ||
+      !submittedLegalBundleVersion ||
+      submittedLegalBundleVersion !== legalBundle.bundle_version
+    ) {
+      console.error("[website signup] legal bundle is unsupported or changed", {
+        offer_reference: offer.offer_reference,
+        submitted_bundle_version: submittedLegalBundleVersion || null,
+        current_bundle_version: legalBundle.bundle_version,
+        complete: legalBundle.complete,
+        missing_types: legalBundle.missing_types,
+        unsupported_required_types: legalBundle.unsupported_required_types,
+      });
+      return fail("legal_config", { step: 1 });
+    }
+    const legalRequirements = legalBundle.required_types.map((requirementCode) => {
+      const document = legalBundle.texts.find((item) => item.type === requirementCode);
+      return {
+        requirement_code: requirementCode,
+        required: true,
+        document_id: document?.id ?? null,
+        document_version: document?.version ?? null,
+        document_hash: document?.content_sha256 ?? null,
+        legal_bundle_version_id: document?.legal_bundle_version_id ?? null,
+      };
+    });
     const legalConsents = Object.fromEntries(
       legalRequirements.map((requirement) => [
         requirement.requirement_code,
@@ -635,13 +701,20 @@ export default async function TecknaPage({
     const missingRequiredConsent = legalRequirements.some(
       (requirement) => requirement.required && legalConsents[requirement.requirement_code] !== true,
     );
+    const legalEvidenceSnapshot = {
+      offer_reference: legalBundle.offer_reference,
+      bundle_version: legalBundle.bundle_version,
+      requirements: legalRequirements.map((requirement) => ({
+        ...requirement,
+        accepted: legalConsents[requirement.requirement_code] === true,
+      })),
+    };
     const powerOfAttorneyRequirement = legalRequirements.find(
       (requirement) => requirement.requirement_code === "power_of_attorney",
     );
     const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
     const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
     const powerOfAttorneyTextVersionId =
-      powerOfAttorneyRequirement?.legal_bundle_version_document_id ??
       powerOfAttorneyRequirement?.document_id ??
       offer.power_of_attorney_version_id ?? null;
 
@@ -665,6 +738,19 @@ export default async function TecknaPage({
       !address ||
       !isValidSwedishPostalCode(postalCode) ||
       !city ||
+      !invoiceEmail ||
+      !isValidEmail(invoiceEmail) ||
+      !billingStreet ||
+      !isValidSwedishPostalCode(billingPostalCode) ||
+      !billingCity ||
+      !/^[A-Z]{2}$/.test(billingCountry) ||
+      (installationDate && !isStrictCalendarDate(installationDate)) ||
+      (currentSupplierUnknown &&
+        Boolean(
+          currentSupplierName ||
+          currentSupplierOrgNumber ||
+          currentSupplierEdielId,
+        )) ||
       !hasIdentity ||
       (customerType === "business" &&
         !isValidSwedishOrganizationNumber(organizationNumber)) ||
@@ -792,6 +878,16 @@ export default async function TecknaPage({
         fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
       });
     }
+    if (
+      verifiedQuote.value.quote.legal_bundle_version &&
+      verifiedQuote.value.quote.legal_bundle_version !== legalBundle.bundle_version
+    ) {
+      return fail("price_changed", {
+        step: 0,
+        requiresQuoteRefresh: true,
+        fieldErrors: { pricing: "Juridikpaketet har ändrats. Hämta offerten på nytt." },
+      });
+    }
     if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
       console.error("[website signup] quote energy direction mismatch", {
         offer_reference: offer.offer_reference,
@@ -863,9 +959,18 @@ export default async function TecknaPage({
       city,
       facilityId,
       currentSupplierName,
-      currentSupplierId,
+      currentSupplierUnknown,
       currentSupplierOrgNumber,
       currentSupplierEdielId,
+      invoiceEmail,
+      billingStreet,
+      billingPostalCode,
+      billingCity,
+      billingCountry,
+      meteringPointId,
+      readingFrequency,
+      measurementType,
+      installationDate,
       requestedStartMode,
       requestedStartDate,
       serverPriceAreaCode,
@@ -882,6 +987,7 @@ export default async function TecknaPage({
       contractDisplaySnapshot,
       linkedAuthUserId,
       consents: legalConsents,
+      legalEvidenceSnapshot,
     });
 
     let acceptedAt: string;
@@ -897,6 +1003,7 @@ export default async function TecknaPage({
         payloadHash: signedPayloadHash,
         pricingQuoteSnapshot: canonicalPricingPreviewSnapshot,
         contractDisplaySnapshot,
+        legalEvidenceSnapshot,
         requestContext: {
           ipAddress: ip,
           ipHash: hashIp(ip),
@@ -964,6 +1071,11 @@ export default async function TecknaPage({
             personal_number: personalNumber,
             email,
             phone,
+            invoice_email: invoiceEmail,
+            billing_street: billingStreet,
+            billing_postal_code: billingPostalCode,
+            billing_city: billingCity,
+            billing_country: billingCountry,
           }
         : {
             customer_type: "private",
@@ -972,6 +1084,11 @@ export default async function TecknaPage({
             personal_number: personalNumber,
             email,
             phone,
+            invoice_email: invoiceEmail,
+            billing_street: billingStreet,
+            billing_postal_code: billingPostalCode,
+            billing_city: billingCity,
+            billing_country: billingCountry,
           };
 
     const applicationInput = {
@@ -991,12 +1108,30 @@ export default async function TecknaPage({
         current_supplier_name: currentSupplierName || null,
         current_supplier_org_number: currentSupplierOrgNumber || null,
         current_supplier_ediel_id: currentSupplierEdielId || null,
+        current_supplier_unknown: currentSupplierUnknown,
         country: "SE",
         price_area_code: verifiedQuote.value.area.priceAreaCode,
         grid_area_code: verifiedQuote.value.area.gridAreaCode,
         grid_owner_id: verifiedQuote.value.area.gridOwnerId,
         grid_owner_name: verifiedQuote.value.area.gridOwnerName,
       },
+      metering_point:
+        meteringPointId ||
+        readingFrequency ||
+        measurementType ||
+        installationDate
+          ? {
+              metering_point_id: meteringPointId || null,
+              site_facility_id: facilityId || null,
+              reading_frequency: readingFrequency || null,
+              measurement_type: measurementType || null,
+              price_area_code: verifiedQuote.value.area.priceAreaCode,
+              grid_area_code: verifiedQuote.value.area.gridAreaCode,
+              grid_owner_id: verifiedQuote.value.area.gridOwnerId,
+              start_date: verifiedQuote.value.quote.start_date,
+              installation_date: installationDate || null,
+            }
+          : null,
       contract: {
         requested_start_mode: requestedStartMode,
         requested_start_date:

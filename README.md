@@ -1,181 +1,143 @@
-# Gridex web
+# Gridex Web
 
-Next.js customer portal and admin surface for Gridex. The app uses Supabase for
-auth, portal data, RBAC, invoices, integration status and pricing data.
+Next.js-webb, checkout, kundportal och adminyta för Gridex. Supabase används för
+autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
+Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
+kundportal.
 
-## Getting Started
+Aktuell verifierad API-kontraktsversion är `2026-07-28.1`.
 
-Install dependencies and run the development server:
+## Lokal start
 
 ```bash
+cp env.example .env.local
 npm ci
+npm run api:check:local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Öppna `http://localhost:3000`.
 
-Copy `env.example` to your local env file and fill in the Supabase and
-integration secrets.
+## Gridex tenant integration
 
-## Customer portal and auth
-
-- `/dashboard` requires a Supabase session and shows contracts, invoices,
-  support tickets, notifications and integration status.
-- `/admin` requires admin access through the legacy `admin_users` table or the
-  `admin.access` permission.
-- Customer invoice visibility is protected by RLS on `customer_invoices`; import
-  routes use the Supabase service role server-side.
-
-
-## Gridex OPS website- och kundportal-API
-
-Gridex Web använder OPS server-side. Canonical produktion kräver endast:
+Den tenantspecifika integrationen kräver endast en server-side API-nyckel:
 
 ```env
-GRIDEX_API_KEY=gridex_live_xxxxxxxxx
+GRIDEX_API_KEY=
 ```
 
-`GRIDEX_API_BASE_URL` är valfri och standardvärdet är `https://app.gridex.se/api/v1`. Den används endast när en godkänd stagingmiljö har en annan bas-URL. API-nyckeln identifierar tenant, bolag och scopes via integration context; inga tenant-/companyvariabler eller quote-lägen krävs.
+`GET /api/v1/integration/context` härleder och verifierar tenant, API-klient,
+kanal, scopes, capabilities och `contract_version`. Ingen separat tenant- eller
+companyvariabel får användas som genväg.
 
-Kontraktsversion: `2026-07-27.1`.
+OPS-routes anropas endast server-side. Webbens egna routes är separerade:
 
-Canonical checkout är publicerade avtal → OPS energy-area resolution → OPS quote → strikt quote validation → idempotent customer application. `energy_direction` och produktionsprissättning bevaras genom hela flödet. Market price är separat information och Mina sidor använder POST portal bundle som huvudflöde. Se `docs/website-integration.md`.
+- `/api/checkout/*` – checkout-BFF
+- `/api/web/*` – publik och autentiserad webb-BFF
+- `/webhooks/contracts.publication.changed` – canonical signerad webhook
 
-Verifiera före deploy:
+Projektet exponerar inga egna `/api/v1/*`-facader.
 
-```bash
-rm -rf node_modules .next tsconfig.tsbuildinfo
-npm ci
-npm run api:sync
-npm run api:check
-npm run api:contract
-npm run typecheck
-npm run lint
-npm test
-npm run build
+## Gridex Web infrastructure
+
+Följande är webbapplikationens infrastruktur, inte tenantidentitet:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+GRIDEX_API_BASE_URL=https://app.gridex.se/api/v1
+GRIDEX_OPS_STAGING_ALLOWED_ORIGINS=
+GRIDEX_WEBSITE_STATE_SIGNING_SECRET=
+GRIDEX_WEBSITE_STATE_SIGNING_KID=
+GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET=
+GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_KID=
+GRIDEX_WEBHOOK_SIGNING_SECRET=
+GRIDEX_WEBHOOK_TOLERANCE_SECONDS=300
+
+CRON_SECRET=
+GRIDEX_INTEGRATION_API_KEY=
+PII_HASH_PEPPER=
+PII_ENCRYPTION_KEY=
 ```
 
-## External invoice import
+`GRIDEX_WEBSITE_STATE_SIGNING_SECRET` och webhookhemligheten ska vara separata,
+slumpmässiga värden om minst 32 byte. State-nyckeln stödjer aktiv och föregående
+`kid` under rotation. I produktion får `GRIDEX_API_BASE_URL` endast vara
+`https://app.gridex.se/api/v1`; andra HTTPS-origins måste uttryckligen
+allowlistas för staging.
 
-CIS/factoring systems can push invoices into the customer portal:
+## Canonical dataflöde
 
-```http
-POST /api/integrations/invoices
-Authorization: Bearer <GRIDEX_INTEGRATION_API_KEY>
-Content-Type: application/json
-```
-
-Minimal payload:
-
-```json
-{
-  "providerKey": "cis_invoice_webhook",
-  "externalInvoiceRef": "INV-10001",
-  "invoiceNumber": "10001",
-  "customer": {
-    "billingCustomerRef": "CUST-123",
-    "email": "kund@example.se"
-  },
-  "currencyCode": "SEK",
-  "invoicePeriodStart": "2026-05-01",
-  "invoicePeriodEnd": "2026-05-31",
-  "issuedAt": "2026-06-01",
-  "dueAt": "2026-06-30",
-  "status": "issued",
-  "totalAmount": 1250.5,
-  "vatAmount": 250.1,
-  "pdfUrl": "https://example.se/invoices/10001.pdf",
-  "lineItems": []
-}
-```
-
-The import is idempotent on `providerKey + externalInvoiceRef`. The invoice must
-match an existing portal customer by `userId`, `billingCustomerRef`,
-`contractCustomerRef`, `externalIdentityRef` or `email`; unmatched invoices are
-written as `dead_letter` sync jobs for investigation.
-
-## Allmän marknadsinformation
-
-Generiska SE1–SE4-, dags- och historiksidor använder en separat informationskälla genom `lib/website/marketInformationAdapter.ts`. Den informationen är inte en personlig offert, exkluderar avtalsavgifter/moms/skatter/elnät och får aldrig användas som avtals- eller faktureringspris.
-
-Checkout använder inte denna källa. Kundens aktuella marknadsreferens hämtas från OPS med `resolution_id`, och OPS quote är ensam source of truth för teckning.
-
-## Admin integrations
-
-`/admin/integrations` shows:
-
-- provider catalog and capabilities
-- external connection status
-- latest sync jobs
-- required Vercel/Supabase environment variable status
-- endpoint contracts for invoice and spot imports
-
-## Supabase migrations
-
-Run the migrations in `supabase/migrations` in order. The integration migration
-adds:
-
-- `gridex_monthly_spot_prices`
-- `gridex_spot_basis_config`
-- `gridex_spot_basis_publish_log`
-- publish/rollback functions for active monthly spot basis
-- provider catalog entries for elprisetjustnu and CIS invoice webhooks
-
-## Deploy on Vercel
-
-The repository includes `vercel.json` with `npm ci`, `npm run build`, the monthly spot-price cron and hourly customer-portal outbox/reconciliation crons:
+Checkout:
 
 ```text
-/api/integrations/spot-prices/import?publish=false
-/api/internal/customer-portal/outbox/process
-/api/internal/customer-portal/notifications/reconcile
+integration/context
+→ public-contracts (fresh före CTA)
+→ energy-area/resolve
+→ quote
+→ offer-specifikt legal-bundle
+→ quote/validate
+→ customer-applications
+→ application status
 ```
 
-Configure these environment variables in Vercel:
+Browsern får signerad state, men OPS `quote_reference`, `resolution_id`,
+`offer_reference`, juridikversioner och kommersiell snapshot bevaras
+oförändrade. Svenska affärsdatum hanteras i `Europe/Stockholm`.
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `GRIDEX_API_KEY`
-- `GRIDEX_INTEGRATION_API_KEY`
-- `CRON_SECRET`
-- optional `SPOT_PRICE_API_URL_TEMPLATE`
+Kundportalens granulara `/api/web/customer/*`-routes anropar exakt motsvarande
+OPS-endpoint. Sidans portal-bundle kan använda lokal fallback för visning, men
+den markeras `authoritative=false`, `readOnly=true` och
+`dataFreshness=local_fallback`; writes köas inte som lyckade.
 
-## Useful scripts
+## OpenAPI och deploy-preflight
 
-```bash
-npm run lint
-npm run typecheck
-npm run test:launch
-npm run build
-npm audit --audit-level=moderate
-```
-
-
-## Canonical OPS deployment
-
-Kör samma verifieringskedja före deploy. `api:sync` uppdaterar båda live-OpenAPI-filerna och genererar typer; `api:check` är read-only och stoppar drift.
+Snapshots och godkända hashvärden finns i `docs/openapi/`. `api:check` är
+read-only, jämför version och hash mot produktion och visar semantiska ändringar
+innan den blockerar. Ett nytt livekontrakt accepteras aldrig automatiskt.
 
 ```bash
-rm -rf node_modules .next tsconfig.tsbuildinfo
-npm ci
-npm run api:sync
+npm run api:generate
+npm run api:check:local
 npm run api:check
-npm run api:contract
+npm run api:preflight
+```
+
+`npm run api:sync` är en avsiktlig utvecklaråtgärd: den hämtar båda
+specifikationerna, regenererar typer och skriver ett nytt hashmanifest som ska
+granskas i diff före merge. GitHub-workflowen kör preflight vid pull request,
+manuellt och schemalagt.
+
+## Databas
+
+Kör migrationerna i `supabase/migrations` i ordning. De senaste migrationerna:
+
+- gör publication revision numerisk och tillämpar webhookevent transaktionellt
+- lagrar `revision_token` och deduplicerar event/delivery
+- bevarar immutable juridikbevis per ansökan
+- lägger tenant-, OPS-ID-, revision- och synkmetadata på portalprojektioner
+
+## Verifiering före deploy
+
+```bash
+npm ci
 npm run typecheck
 npm run lint
 npm test
+npm run api:check
+npm run api:contract
 npm run build
-npx vercel --prod
 ```
 
-Denna API-klienträttning kräver ingen ny Supabase-migration. Kör inte `supabase db push` enbart på grund av denna leverans.
-
-Se `IMPLEMENTATION.md`, `VERIFICATION.md` och `DELIVERY_REPORT.md` för exakt status.
+Staging-E2E kräver en godkänd testnyckel och en git-ignorerad fixture:
 
 ```bash
-# Kräver giltig testnyckel och godkänd fixture
+GRIDEX_API_KEY='gridex_test_xxxxxxxxx' \
+GRIDEX_STAGING_E2E_FIXTURE="$PWD/.local/gridex-staging-e2e.json" \
 npm run test:staging:ops
 ```
 
-Staging-fixture: `tests/fixtures/staging-ops-flow.example.json`. Kopiera den till en git-ignorerad fil och använd endast godkända testidentiteter.
+Mer integrationsdetaljer och kända upstreammotsägelser finns i
+`docs/website-integration.md`.

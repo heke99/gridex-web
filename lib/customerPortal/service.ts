@@ -1,11 +1,12 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
+import { createHash } from 'node:crypto'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
+  fetchOpsCustomerResource,
   isTransientOpsError,
   markOpsCustomerNotificationsRead,
+  type OpsCustomerReadResource,
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
 import type {
@@ -753,6 +754,33 @@ export async function getOpsPortalIdentityForUser(
   return portalIdentityFromProfile(user, profile)
 }
 
+function unwrapOpsData(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload
+  const row = payload as Record<string, unknown>
+  return Object.prototype.hasOwnProperty.call(row, 'data') ? row.data : payload
+}
+
+export async function getCanonicalCustomerResource(
+  resource: OpsCustomerReadResource,
+  opaqueId?: string | null,
+): Promise<{
+  data: unknown
+  authoritative: true
+  read_only: false
+  data_freshness: 'live'
+}> {
+  const { supabase, user } = await getPortalSession()
+  const profile = await getCustomerProfile(supabase, user.id, user)
+  const identity = portalIdentityFromProfile(user, profile)
+  const payload = await fetchOpsCustomerResource(identity, resource, opaqueId)
+  return {
+    data: unwrapOpsData(payload),
+    authoritative: true,
+    read_only: false,
+    data_freshness: 'live',
+  }
+}
+
 export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
   const { supabase, user } = await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
@@ -838,6 +866,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     notifications: opsAvailable ? (bundle?.notifications ?? []).map(mapOpsNotification) : localNotifications,
     opsAvailable,
     opsError: opsResult.error,
+    authoritative: opsAvailable,
+    readOnly: !opsAvailable,
     dataFreshness: opsAvailable ? 'live' : 'local_fallback',
     dataFreshnessMessage: opsAvailable
       ? null
@@ -848,34 +878,19 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
 export async function markCustomerNotificationsRead(input: {
   notificationIds: string[]
   operationId?: string | null
-}): Promise<{ ok: true; opsSynced: boolean; localSynced: boolean; queued: boolean }> {
+}): Promise<{ ok: true; opsSynced: true; localSynced: boolean; queued: false }> {
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
   const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))]
   if (ids.length === 0) throw new Error('Minst en notis måste anges.')
-  const operationId = input.operationId?.trim() || randomUUID()
+  const operationId = input.operationId?.trim()
+  if (!operationId) throw new Error('client_operation_id krävs för skrivoperationer.')
   const readAt = new Date().toISOString()
-  let opsSynced = false
-  let queued = false
-
-  try {
-    await markOpsCustomerNotificationsRead(identity, {
-      notificationIds: ids,
-      operationId,
-    })
-    opsSynced = true
-  } catch (error) {
-    if (!isTransientOpsError(error)) throw error
-    await enqueuePortalWrite({
-      userId: user.id,
-      operationType: 'notification_read',
-      idempotencyKey: `notification-read:${user.id}:${operationId}`,
-      identity,
-      payload: { notification_ids: ids, operation_id: operationId },
-    })
-    queued = true
-  }
+  await markOpsCustomerNotificationsRead(identity, {
+    notificationIds: ids,
+    operationId,
+  })
 
   let localQuery = supabase
     .from('customer_notifications')
@@ -884,6 +899,5 @@ export async function markCustomerNotificationsRead(input: {
   localQuery = localQuery.in('id', ids)
   const { error: localError } = await localQuery
 
-  return { ok: true, opsSynced, localSynced: !localError, queued }
+  return { ok: true, opsSynced: true, localSynced: !localError, queued: false }
 }
-

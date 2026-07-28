@@ -107,5 +107,30 @@ export function toBrowserLegalText(text: OpsLegalText) {
 }
 
 export function toBrowserLegalBundle(bundle: OpsWebsiteLegalBundle) {
-  return { texts: bundle.texts.map(toBrowserLegalText) }
+  const texts = bundle.texts.map(toBrowserLegalText)
+  return {
+    offer_reference: bundle.offer_reference,
+    bundle_version: bundle.bundle_version,
+    complete: bundle.complete,
+    missing_types: bundle.missing_types,
+    unsupported_required_types: bundle.unsupported_required_types,
+    supported_by_application_contract:
+      bundle.complete && bundle.unsupported_required_types.length === 0,
+    requirements: bundle.required_types.map((requirementCode) => {
+      const document = bundle.texts.find((item) => item.type === requirementCode)
+      return {
+        requirement_code: requirementCode,
+        required: true,
+        label: document?.title ?? requirementCode,
+        document_id: document?.id ?? null,
+        document_version: document?.version ?? null,
+        document_hash: document?.content_sha256 ?? null,
+        legal_bundle_version_document_id:
+          document?.legal_bundle_version_id ?? null,
+        public_url: document?.url ?? null,
+        bundle_version: bundle.bundle_version,
+      }
+    }),
+    texts,
+  }
 }

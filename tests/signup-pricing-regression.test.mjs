@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
-const route = read('app/api/v1/website/pricing/preview/route.ts')
+const route = read('app/api/checkout/quote/route.ts')
 const calculator = read('components/ElectricityCalculator.tsx')
 const form = read('components/signup/CustomerApplicationForm.tsx')
 const signup = read('app/(public)/teckna-avtal/page.tsx')

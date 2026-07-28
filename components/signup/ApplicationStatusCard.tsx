@@ -34,7 +34,7 @@ export default function ApplicationStatusCard({ applicationId, resultToken, init
     let active = true
     const load = async () => {
       const response = await fetch(
-        `/api/v1/website/customer-applications/${encodeURIComponent(applicationId)}?result_token=${encodeURIComponent(resultToken)}`,
+        `/api/checkout/applications/${encodeURIComponent(applicationId)}?result_token=${encodeURIComponent(resultToken)}`,
         { headers: { Accept: 'application/json' }, cache: 'no-store' },
       ).catch(() => null)
       if (!active) return

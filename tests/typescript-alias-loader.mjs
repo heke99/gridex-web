@@ -1,4 +1,5 @@
 import { existsSync, statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { dirname, extname, resolve as resolvePath } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -24,4 +25,16 @@ export async function resolve(specifier, context, nextResolve) {
   }
 
   return nextResolve(specifier, context)
+}
+
+export async function load(url, context, nextLoad) {
+  if (url.startsWith('file:') && url.endsWith('.json')) {
+    const source = await readFile(fileURLToPath(url), 'utf8')
+    return {
+      format: 'module',
+      source: `export default ${source.trim()};`,
+      shortCircuit: true,
+    }
+  }
+  return nextLoad(url, context)
 }

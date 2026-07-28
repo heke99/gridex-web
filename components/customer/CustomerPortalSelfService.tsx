@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { stockholmCalendarDate } from '@/lib/website/businessDate'
 
 type Props = {
   site: {
@@ -64,12 +65,12 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
   const [priceAreaCode, setPriceAreaCode] = useState(site?.priceAreaCode ?? '')
   const [moveOutDate, setMoveOutDate] = useState('')
 
-  const minimumMoveOutDate = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const minimumMoveOutDate = useMemo(() => stockholmCalendarDate(), [])
 
   async function syncPortal() {
     setSyncState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/v1/customer-portal/sync', {
+      const result = await postJson('/api/web/customer-portal/sync', {
         client_operation_id: operationId('portal-sync'),
       })
       setSyncState({
@@ -87,7 +88,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     event.preventDefault()
     setFacilityState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/v1/customer/sync', {
+      const result = await postJson('/api/web/customer/sync', {
         client_operation_id: operationId('facility-data'),
         facility_data: {
           site_id: site?.id ?? undefined,
@@ -114,7 +115,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     event.preventDefault()
     setMoveState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/v1/customer/move-out', {
+      const result = await postJson('/api/web/customer/move-out', {
         client_operation_id: operationId('move-out'),
         move_out: {
           site_id: site?.id ?? undefined,
@@ -139,7 +140,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     if (!latestUnreadNotificationId) return
     setNotificationState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/v1/customer/notifications/read', {
+      const result = await postJson('/api/web/customer/notifications/read', {
         client_operation_id: operationId('notification-read'),
         notification_ids: [latestUnreadNotificationId],
       })

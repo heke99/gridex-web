@@ -42,7 +42,6 @@ export type WebsiteEnergyResolveInput = {
   street?: string | null;
   street_number?: string | null;
   address?: string | null;
-  apartment?: string | null;
   country?: string | null;
   grid_area_code?: string | null;
   facility_id?: string | null;
@@ -162,7 +161,7 @@ export type WebsitePricingPreview = {
   pricing_snapshot_reference?: string;
   ops_quote_reference?: string;
   public_contract_etag?: string | null;
-  publication_revision?: string | null;
+  publication_revision?: number | null;
   contract_payload_sha256?: string | null;
   legal_bundle_version?: string | null;
   legal_document_hashes?: Record<string, string>;
@@ -233,7 +232,7 @@ export function isWebsitePriceArea(value: unknown): value is WebsitePriceArea {
 export async function resolveWebsiteEnergyArea(
   input: WebsiteEnergyResolveInput,
 ): Promise<WebsiteEnergyResolution> {
-  const res = await fetch("/api/v1/website/energy/resolve", {
+  const res = await fetch("/api/checkout/energy-area/resolve", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -250,7 +249,7 @@ export async function resolveWebsiteEnergyArea(
 export async function previewWebsitePricing(
   input: WebsitePricingPreviewInput,
 ): Promise<WebsitePricingPreview> {
-  const res = await fetch("/api/v1/website/pricing/preview", {
+  const res = await fetch("/api/checkout/quote", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -269,7 +268,7 @@ export async function verifyWebsitePricingSnapshot(input: {
   pricing_snapshot_reference?: string;
   ops_quote_reference?: string;
   public_contract_etag?: string | null;
-  publication_revision?: string | null;
+  publication_revision?: number | null;
   contract_payload_sha256?: string | null;
   legal_bundle_version?: string | null;
   legal_document_hashes?: Record<string, string>;
@@ -281,7 +280,7 @@ export async function verifyWebsitePricingSnapshot(input: {
   city: string;
   address: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch("/api/v1/website/pricing/verify", {
+  const res = await fetch("/api/checkout/quote/validate", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),

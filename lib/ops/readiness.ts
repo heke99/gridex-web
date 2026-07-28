@@ -3,19 +3,21 @@ import {
   fetchOpsIntegrationContext,
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsFresh,
+  fetchOpsWebsiteLegalBundle,
   getOpsClientStatus,
   isOpsError,
   probeOpsEndpointAuthorization,
 } from '@/lib/ops/client'
 import {
   GRIDEX_WEBSITE_CHECKOUT_SCOPES,
-  GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
+  GRIDEX_WEBSITE_DIAGNOSTICS_SCOPE,
+  GRIDEX_WEBSITE_LEGAL_SCOPE,
   GRIDEX_WEBSITE_MARKET_PRICE_SCOPE,
   GRIDEX_WEBSITE_SWITCH_STATUS_SCOPE,
 } from '@/lib/ops/contract'
 
 export const REQUIRED_WEBSITE_SCOPES = GRIDEX_WEBSITE_CHECKOUT_SCOPES
-export const ALTERNATIVE_WEBSITE_SCOPE_GROUPS = [GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES] as const
+export const ALTERNATIVE_WEBSITE_SCOPE_GROUPS = [] as const
 
 type ScopeStatus = 'verified' | 'alternative_verified' | 'missing' | 'unverified'
 export type OpsReadinessCode =
@@ -120,16 +122,24 @@ function probeDefinitions(): ProbeDefinition[] {
       }
     } },
     { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
-    { name: 'website_contracts.diagnostics', scopes: ['website_contracts.diagnostics'], run: async () => { await fetchOpsPublicContractDiagnostics() } },
+    {
+      name: 'website_contracts.diagnostics',
+      scopes: [GRIDEX_WEBSITE_DIAGNOSTICS_SCOPE],
+      requiredForWebsiteSales: false,
+      run: async () => { await fetchOpsPublicContractDiagnostics() },
+    },
     { name: 'website_energy_area.resolve', scopes: ['website_energy_area.resolve'], run: () => authorizationProbe('/api/v1/website/energy-area/resolve', 'POST', {}) },
     { name: 'website_quotes.write', scopes: ['website_quotes.write'], run: () => authorizationProbe('/api/v1/website/quote', 'POST', {}) },
     { name: 'website_quotes.validate', scopes: ['website_quotes.validate'], run: () => authorizationProbe('/api/v1/website/quote/validate', 'POST', {}) },
     { name: 'website_applications.write', scopes: ['website_applications.write'], run: () => authorizationProbe('/api/v1/website/customer-applications', 'POST', {}) },
     {
-      name: 'website_legal.read_any_of',
-      scopes: GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
-      alternative: true,
-      run: () => authorizationProbe('/api/v1/website/legal-bundle', 'GET'),
+      name: 'website_legal.read',
+      scopes: [GRIDEX_WEBSITE_LEGAL_SCOPE],
+      run: async () => {
+        const [offer] = await fetchOpsPublicContractsFresh()
+        if (!offer?.offer_reference) throw new Error('legal_readiness_offer_unavailable')
+        await fetchOpsWebsiteLegalBundle(offer.offer_reference)
+      },
     },
     {
       name: 'website_market_prices.read',
@@ -151,19 +161,17 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const client = getOpsClientStatus()
   const allScopes = [...new Set([
     ...REQUIRED_WEBSITE_SCOPES,
-    ...GRIDEX_WEBSITE_LEGAL_SCOPE_ALTERNATIVES,
+    GRIDEX_WEBSITE_LEGAL_SCOPE,
+    GRIDEX_WEBSITE_DIAGNOSTICS_SCOPE,
     GRIDEX_WEBSITE_MARKET_PRICE_SCOPE,
     GRIDEX_WEBSITE_SWITCH_STATUS_SCOPE,
   ])]
   const scopeStatuses = new Map<string, ScopeStatus>(allScopes.map((scope) => [scope, 'unverified']))
 
   const canonicalWebhookSecret = process.env.GRIDEX_WEBHOOK_SIGNING_SECRET?.trim() ?? ''
-  const legacyWebhookSecret = process.env.GRIDEX_OPS_WEBHOOK_SECRET?.trim() ?? ''
-  const webhookEnabled = process.env.GRIDEX_ENABLE_OPS_WEBHOOKS === 'true'
-  const webhookSecretConfigured = Boolean(canonicalWebhookSecret || legacyWebhookSecret)
-  const webhookSecretConflict = Boolean(
-    canonicalWebhookSecret && legacyWebhookSecret && canonicalWebhookSecret !== legacyWebhookSecret,
-  )
+  const webhookEnabled = Boolean(canonicalWebhookSecret)
+  const webhookSecretConfigured = Buffer.byteLength(canonicalWebhookSecret, 'utf8') >= 32
+  const webhookSecretConflict = false
   const webhook = {
     enabled: webhookEnabled,
     signingSecretConfigured: webhookSecretConfigured,

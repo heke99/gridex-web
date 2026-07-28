@@ -358,7 +358,7 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/teckna')
   revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
-    revalidatePath('/api/price')
+    revalidatePath('/api/web/market-price/current')
 
     redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
   }
@@ -406,7 +406,7 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/teckna')
   revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
-    revalidatePath('/api/price')
+    revalidatePath('/api/web/market-price/current')
 
     redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
   }
@@ -446,7 +446,7 @@ export default async function AdminMonthlySpotPage({
     revalidatePath('/teckna')
   revalidatePath('/teckna-avtal')
     revalidatePath('/elpris')
-    revalidatePath('/api/price')
+    revalidatePath('/api/web/market-price/current')
 
     redirect('/admin/monthly-spot')
   }

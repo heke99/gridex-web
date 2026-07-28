@@ -22,14 +22,15 @@ export default function EventLink({
       event_type: eventType,
       entity_type: entityType ?? null,
       entity_id: entityId ?? null,
+      client_operation_id: `customer-event:${crypto.randomUUID()}`,
     })
 
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/customer/events', new Blob([payload], { type: 'application/json' }))
+      navigator.sendBeacon('/api/web/customer/events', new Blob([payload], { type: 'application/json' }))
       return
     }
 
-    void fetch('/api/customer/events', {
+    void fetch('/api/web/customer/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,

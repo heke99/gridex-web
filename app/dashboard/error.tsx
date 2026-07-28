@@ -7,7 +7,7 @@ export default function DashboardError({ reset }: { error: Error & { digest?: st
 
   async function repairLink() {
     setState('working')
-    const response = await fetch('/api/v1/customer-portal/sync', {
+    const response = await fetch('/api/web/customer-portal/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_operation_id: `portal-repair:${crypto.randomUUID()}` }),

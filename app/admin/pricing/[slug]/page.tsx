@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { computeCustomerSpec, type PriceArea } from '@/lib/gridex/previewEngine'
+import { stockholmCalendarDate } from '@/lib/website/businessDate'
 import { unpublishPricingForContract } from '../actions'
 import {
   createVersionAction,
@@ -425,7 +426,7 @@ export default async function AdminPricingContractPage({
             </label>
             <input
               name="valid_from"
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={stockholmCalendarDate()}
               className="mt-2 h-11 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
               placeholder="2026-02-27"
               disabled={!canWrite}

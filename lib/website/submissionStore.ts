@@ -24,6 +24,7 @@ type SubmissionRow = {
   request_context: SubmissionRequestContext | null
   pricing_quote_snapshot: Record<string, unknown> | null
   contract_display_snapshot: Record<string, unknown> | null
+  legal_evidence_snapshot: Record<string, unknown> | null
   ops_result_snapshot: Record<string, unknown> | null
   status: string
 }
@@ -59,7 +60,7 @@ async function readSubmission(submissionAttemptId: string): Promise<SubmissionRo
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,normalized_ops_payload_sha256,ops_quote_reference,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,ops_result_snapshot,status')
+    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,normalized_ops_payload_sha256,ops_quote_reference,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,legal_evidence_snapshot,ops_result_snapshot,status')
     .eq('submission_attempt_id', submissionAttemptId)
     .maybeSingle<SubmissionRow>()
   if (error) throw new Error(`Submission storage read failed: ${error.message}`)
@@ -93,6 +94,7 @@ export async function prepareWebsiteSubmission(input: {
   requestContext: SubmissionRequestContext
   pricingQuoteSnapshot: Record<string, unknown>
   contractDisplaySnapshot: Record<string, unknown>
+  legalEvidenceSnapshot: Record<string, unknown>
 }): Promise<{ acceptedAt: string; requestContext: SubmissionRequestContext }> {
   const existing = await readSubmission(input.submissionAttemptId)
   if (existing) {
@@ -119,6 +121,8 @@ export async function prepareWebsiteSubmission(input: {
     request_context: requestContext,
     pricing_quote_snapshot: input.pricingQuoteSnapshot,
     contract_display_snapshot: input.contractDisplaySnapshot,
+    legal_evidence_snapshot: input.legalEvidenceSnapshot,
+    legal_evidence_sha256: submissionPayloadHash(input.legalEvidenceSnapshot),
     ops_quote_reference: typeof input.pricingQuoteSnapshot.ops_quote_reference === 'string'
       ? input.pricingQuoteSnapshot.ops_quote_reference
       : null,

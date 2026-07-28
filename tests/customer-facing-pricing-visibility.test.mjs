@@ -86,7 +86,8 @@ const preview = {
 assert.equal(preview.specification.fees.invoiceFeeSek, 19, 'hidden invoice fee must remain in the server calculation')
 assert.equal(preview.totalMonthlyCostSek, 208, 'hidden invoice fee must remain included in the total')
 
-process.env.GRIDEX_WEBSITE_PRICING_QUOTE_SECRET = 'test-secret-that-is-long-enough-for-hmac'
+process.env.GRIDEX_WEBSITE_STATE_SIGNING_SECRET = 'test-secret-that-is-long-enough-for-hmac'
+process.env.GRIDEX_WEBSITE_STATE_SIGNING_KID = 'test-state-key'
 const issued = issueWebsitePricingQuote({
   preview: {
     ...preview,
@@ -97,10 +98,10 @@ const issued = issueWebsitePricingQuote({
     valid_until: new Date(Date.now() + 10 * 60_000).toISOString(),
     pricing_interval: 'month',
     estimate_method: 'ops_canonical_quote',
-    pricing_snapshot_schema_version: '2026-07-27.1',
+    pricing_snapshot_schema_version: '2026-07-28.1',
     is_binding: true,
     public_contract_etag: '"visibility-etag"',
-    publication_revision: 'revision_visibility_test',
+    publication_revision: 42,
     contract_payload_sha256: 'a'.repeat(64),
     legal_bundle_version: 'legal_visibility_test',
     legal_document_hashes: {},
@@ -109,8 +110,8 @@ const issued = issueWebsitePricingQuote({
   location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
 })
 assert.ok(issued, 'a signed website quote must be issued')
-const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[1], 'base64url').toString('utf8'))
-assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, undefined, 'hidden invoice fee must not be disclosed in the browser token')
+const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[2], 'base64url').toString('utf8'))
+assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, 19, 'canonical signed audit state must retain hidden fees')
 assert.equal(tokenPayload.total_monthly_cost_sek, 208, 'the browser total must still include the hidden invoice fee')
 
 const resultCard = read('components/PriceResultCard.tsx')
@@ -121,8 +122,8 @@ assert.equal(resultCard.includes('• inräknad'), false)
 assert.equal(resultCard.includes('CUSTOMER_NETWORK_FEE_NOTICE'), true)
 
 const quote = read('lib/website/pricingQuote.ts')
-assert.equal(quote.includes('delete fees.invoiceFeeSek'), true, 'signed browser token must not disclose the hidden invoice fee')
-assert.equal(quote.includes('delete fees.invoiceFeeIncludedInMonthlyEstimate'), true)
+assert.equal(quote.includes('delete fees.invoiceFeeSek'), false, 'canonical quote must not erase hidden commercial terms')
+assert.equal(quote.includes('delete fees.invoiceFeeIncludedInMonthlyEstimate'), false)
 
 for (const file of [
   'components/signup/CustomerApplicationForm.tsx',

@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { isOpsError } from '@/lib/ops/client'
 import { CustomerPortalAccessError } from '@/lib/customerPortal/service'
+import { webErrorResponse } from '@/lib/api/webBoundary'
 
 type ErrorDetails = {
   code: string | null
@@ -49,9 +49,9 @@ export function customerApiErrorResponse(
   options: { logLabel: string; fallbackMessage: string },
 ) {
   if (error instanceof CustomerPortalAccessError) {
-    return NextResponse.json(
-      { error: { code: error.code, message: error.message } },
-      { status: error.status },
+    return webErrorResponse(
+      { code: error.code, message: error.message, retryable: false },
+      error.status,
     )
   }
 
@@ -64,9 +64,9 @@ export function customerApiErrorResponse(
   ) {
     const status = (error as { status: number }).status
     const code = (error as { code: string }).code
-    return NextResponse.json(
-      { error: { code, message: error.message || options.fallbackMessage } },
-      { status },
+    return webErrorResponse(
+      { code, message: error.message || options.fallbackMessage, retryable: false },
+      status,
     )
   }
 
@@ -77,32 +77,33 @@ export function customerApiErrorResponse(
       message: error.message,
       ...details,
     })
-    return NextResponse.json(
+    return webErrorResponse(
       {
-        error: {
-          code: details.code ?? 'ops_request_failed',
-          message: error.message || options.fallbackMessage,
-          stage: details.stage,
-          field: details.field,
-          hint: details.hint,
-          action: details.action,
-          request_id: details.requestId,
-        },
+        code: details.code ?? 'ops_request_failed',
+        message: error.message || options.fallbackMessage,
+        stage: details.stage,
+        field: details.field,
+        hint: details.hint,
+        action: details.action,
+        requestId: details.requestId,
+        correlationId: error.correlationId,
+        upstreamStatus: error.status,
+        retryable: error.retryable,
       },
-      { status: error.status || 502 },
+      error.status || 502,
     )
   }
 
   console.error(`[customer portal] ${options.logLabel} failed`, error)
-  return NextResponse.json(
-    { error: { code: 'customer_portal_unavailable', message: options.fallbackMessage } },
-    { status: 503 },
+  return webErrorResponse(
+    { code: 'customer_portal_unavailable', message: options.fallbackMessage, retryable: true },
+    503,
   )
 }
 
 export function validationError(message: string, field?: string) {
-  return NextResponse.json(
-    { error: { code: 'validation_error', message, field: field ?? null } },
-    { status: 400 },
+  return webErrorResponse(
+    { code: 'validation_error', message, field: field ?? null, retryable: false },
+    400,
   )
 }

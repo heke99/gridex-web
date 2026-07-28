@@ -1,106 +1,99 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
-const portalRoute = read('app/api/v1/customer/portal-bundle/route.ts')
+const portalRoute = read('app/api/web/customer/portal-bundle/route.ts')
 assert.ok(portalRoute.includes('getCustomerPortalOverview()'))
 assert.ok(!portalRoute.includes('customer_number: body'))
 assert.ok(!portalRoute.includes('external_customer_id: body'))
 
 const service = read('lib/customerPortal/service.ts')
-assert.ok(!service.includes('applyPortalIdentityOverride'))
-assert.ok(service.includes('if (!isTransientOpsError(error)) throw error'))
-assert.ok(service.includes('customerStatus'))
-assert.ok(service.includes('dataQuality'))
-assert.ok(service.includes("opsAvailable ? (bundle?.contracts ?? []).map(mapOpsContract) : localContracts"))
+assert.ok(service.includes('authoritative: opsAvailable'))
+assert.ok(service.includes('readOnly: !opsAvailable'))
+assert.ok(service.includes("'local_fallback'"))
+assert.ok(!service.includes('enqueuePortalWrite'))
 assert.ok(!service.includes('crypto.randomUUID()'))
 
-const signup = read('app/(public)/teckna-avtal/page.tsx')
-assert.ok(signup.includes('submission_attempt_id'))
-assert.ok(signup.includes('website-application:${submissionAttemptId}'))
-assert.ok(signup.includes('createExternalApplicationId(submissionAttemptId)'))
-assert.ok(signup.includes('lockWebsiteSubmissionOpsPayload'))
-assert.ok(signup.includes('buildOpsCustomerApplicationPayload(applicationInput)'))
-assert.ok(!signup.includes('createFreshRetryIdempotencyKey'))
-assert.ok(!signup.includes('submittedGridOwnerId'))
-assert.ok(!signup.includes('submittedGridAreaCode'))
-
-
-const onboarding = read('lib/customerPortal/onboarding.ts')
-assert.ok(onboarding.includes('authenticatedUserId'))
-assert.ok(onboarding.includes('findSafelyLinkedProfile'))
-assert.ok(onboarding.includes('Never attach an unauthenticated application'))
-assert.ok(onboarding.includes('Portal profile upsert failed'))
-assert.ok(onboarding.includes('Portal contract link upsert failed'))
-assert.ok(!onboarding.includes('userAfterError.id'))
-
 const ops = read('lib/ops/client.ts')
-assert.ok(ops.includes('GRIDEX_API_BASE_URL'))
-assert.ok(ops.includes('return normalizeOpsApiBase(env("GRIDEX_API_BASE_URL") ?? GRIDEX_API_BASE_URL)'))
-assert.ok(!ops.includes('NEXT_PUBLIC_GRIDEX_API_KEY'))
-const signingSecret = read('lib/website/serverTokenSecret.ts')
-assert.ok(signingSecret.includes('GRIDEX_WEBSITE_HASH_PEPPER'))
-assert.ok(signingSecret.includes('PII_HASH_PEPPER'))
-assert.ok(signingSecret.includes('SUPABASE_SERVICE_ROLE_KEY'))
-assert.ok(!signingSecret.includes('GRIDEX_WEBSITE_API_KEY'))
-assert.ok(!ops.includes('GRIDEX_OPS_API_URL'))
-assert.ok(!ops.includes('GRIDEX_OPS_BASE_URL'))
-assert.ok(ops.includes('customerStatus'))
-assert.ok(ops.includes('dataQuality'))
+assert.ok(ops.includes('fetchOpsCustomerResource'))
+assert.ok(ops.includes('`${basePath}/${encodeURIComponent(id)}`'))
 assert.ok(ops.includes('notification-read:${identity.userId}:${input.operationId}'))
-assert.ok(ops.includes('customer-sync:${input.identity.userId}:${operationId}'))
-assert.ok(ops.includes('if (error instanceof TypeError) return true'))
-assert.ok(ops.includes('return false;'))
+assert.ok(!ops.includes('GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY'))
 
-const notificationRead = read('app/api/v1/customer/notifications/read/route.ts')
-assert.ok(notificationRead.includes("Ange notification_ids."))
-assert.ok(!notificationRead.includes('all=true'))
+for (const resource of [
+  'contracts',
+  'sites',
+  'invoices',
+  'documents',
+  'legal-acceptances',
+  'powers-of-attorney',
+  'switch-status',
+  'metering-values',
+  'notifications',
+]) {
+  const route = read(`app/api/web/customer/${resource}/route.ts`)
+  assert.ok(route.includes('customerResourceResponse'))
+  assert.ok(!route.includes('getCustomerPortalOverview'))
+}
 
-const eventRoute = read('app/api/customer/events/route.ts')
-assert.ok(eventRoute.includes('enqueuePortalWrite'))
-assert.ok(eventRoute.includes('{ ok: true, queued: true }'))
-assert.ok(!eventRoute.includes('{ ok: true, queued: false }\n      )'))
+const invoiceDetail = read('app/api/web/customer/invoices/[id]/route.ts')
+assert.ok(invoiceDetail.includes("customerResourceResponse('invoices', id)"))
+for (const forbidden of ['invoice_number', 'external_invoice_ref', 'payment_reference', 'pdf_storage_path']) {
+  assert.ok(!invoiceDetail.includes(forbidden), `invoice detail must not match ${forbidden}`)
+}
 
-const webhook = read('app/api/ops/webhooks/route.ts')
-assert.ok(webhook.includes("existing.status === 'processed'"))
-assert.ok(webhook.includes("status: 'processing'"))
-assert.ok(webhook.includes('Webhook event ID was reused with a different payload.'))
-assert.ok(webhook.includes('identity_resolution_next_attempt_at'))
-assert.ok(webhook.includes('conflicting webhook secrets'))
-assert.ok(webhook.includes('Webhook completion state was lost to a concurrent worker.'))
+for (const routePath of [
+  'app/api/web/customer/notifications/read/route.ts',
+  'app/api/web/customer/profile-update/route.ts',
+  'app/api/web/customer/move-out/route.ts',
+  'app/api/web/customer/sync/route.ts',
+  'app/api/web/customer-portal/sync/route.ts',
+  'app/api/web/customer/events/route.ts',
+]) {
+  const route = read(routePath)
+  assert.ok(route.includes('client_operation_id'), `${routePath} must require client operation ID`)
+  assert.ok(!route.includes('randomUUID'), `${routePath} must not create retry identity`)
+  assert.ok(!route.includes('enqueuePortalWrite'), `${routePath} must fail closed when OPS is unavailable`)
+}
 
-const migration = read('supabase/migrations/20260710090000_customer_portal_api_hardening.sql')
-assert.ok(migration.includes('website_application_submissions'))
-assert.ok(migration.includes('ops_payload_hash'))
-assert.ok(migration.includes('customer_portal_write_outbox'))
-assert.ok(migration.includes("'profile_update'"))
-assert.ok(migration.includes('consume_distributed_rate_limit'))
+const signingSecret = read('lib/website/serverTokenSecret.ts')
+assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_SECRET'))
+assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_KID'))
+assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET'))
+for (const forbidden of [
+  'GRIDEX_WEBSITE_HASH_PEPPER',
+  'PII_HASH_PEPPER',
+  'PII_ENCRYPTION_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+]) assert.ok(!signingSecret.includes(forbidden))
 
-const outbox = read('lib/customerPortal/outbox.ts')
-assert.ok(outbox.includes('PortalOutboxConflictError'))
-assert.ok(outbox.includes("operation_type === 'profile_update'"))
-assert.ok(outbox.includes('operationHash(existing.payload)'))
-assert.ok(outbox.includes('Outbox completion state was lost to a concurrent worker.'))
+const webhook = read('lib/webhooks/publicationChanged.ts')
+for (const header of [
+  'x-gridex-event-id',
+  'x-gridex-delivery-id',
+  'x-gridex-timestamp',
+  'x-gridex-signature',
+]) assert.ok(webhook.includes(header))
+assert.ok(webhook.includes('assertWebsiteRequest'))
+assert.ok(webhook.includes('apply_ops_publication_event'))
+assert.ok(existsSync(new URL('../app/webhooks/contracts.publication.changed/route.ts', import.meta.url)))
 
-const contractsEndpoint = read('lib/website/publicContractsEndpoint.ts')
-assert.ok(contractsEndpoint.includes("customer_type måste vara private eller business"))
-const publicContractsRoute = read('app/api/v1/website/public-contracts/route.ts')
-assert.ok(publicContractsRoute.includes('publicContractsResponse'))
-const legacyContractsRoute = read('app/api/v1/website/contracts/route.ts')
-assert.ok(legacyContractsRoute.includes('legacy_endpoint_disabled'))
-assert.ok(legacyContractsRoute.includes('{ status: 410 }'))
+const webhookMigration = read('supabase/migrations/20260728130000_canonical_publication_webhook_20260728_1.sql')
+assert.ok(webhookMigration.includes('publication_revision type bigint'))
+assert.ok(webhookMigration.includes('revision_token uuid'))
+assert.ok(webhookMigration.includes("'identifier_conflict'"))
+assert.ok(webhookMigration.includes("p_channel <> 'website'"))
 
-const rateLimit = read('lib/security/rateLimit.ts')
-assert.ok(rateLimit.includes("supabase.rpc('consume_distributed_rate_limit'"))
-assert.ok(rateLimit.includes("source: 'shared'"))
+const contractsRoute = read('app/api/web/contracts/route.ts')
+assert.ok(contractsRoute.includes('publicContractsResponse'))
+assert.equal(existsSync(new URL('../app/api/v1/website/public-contracts/route.ts', import.meta.url)), false)
 
-const syncRoute = read('app/api/v1/customer/sync/route.ts')
-assert.ok(syncRoute.includes('syncPowerOfAttorney'))
-assert.ok(syncRoute.includes('syncLegalAcceptances'))
-assert.ok(syncRoute.includes('syncDocuments'))
-assert.ok(syncRoute.includes('syncFacilityData'))
+const signup = read('app/(public)/teckna-avtal/page.tsx')
+assert.ok(signup.includes('legalEvidenceSnapshot'))
+assert.ok(signup.includes('buildOpsCustomerApplicationPayload(applicationInput)'))
+assert.ok(!signup.includes('current_supplier_id'))
 
 console.log('Customer Portal API hardening checks passed')

@@ -2,6 +2,8 @@ name: OpenAPI compatibility
 on:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
 jobs:
   contract:
     runs-on: ubuntu-latest
@@ -12,7 +14,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Verify checked-in OpenAPI and generated types against production
-        run: npm run api:check
-      - name: Verify runtime compatibility with the checked-in contract
-        run: npm run api:contract
+      - name: Block unknown OpenAPI versions or schema hashes
+        run: npm run api:preflight

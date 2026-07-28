@@ -117,9 +117,17 @@ type FormValues = {
   company_signer_role: string;
   email: string;
   phone: string;
+  invoice_email: string;
+  billing_street: string;
+  billing_postal_code: string;
+  billing_city: string;
+  billing_country: string;
   facility_id: string;
+  metering_point_id: string;
+  reading_frequency: string;
+  measurement_type: string;
+  installation_date: string;
   current_supplier_name: string;
-  current_supplier_id: string;
   current_supplier_org_number: string;
   current_supplier_ediel_id: string;
   requested_start_mode: "earliest_possible" | "specific_date";
@@ -127,6 +135,13 @@ type FormValues = {
 };
 
 type Consents = Record<string, boolean>;
+type LegalBundleState = {
+  status: "loading" | "ready" | "error";
+  bundleVersion: string | null;
+  supported: boolean;
+  requirements: PublicLegalRequirement[];
+  message: string | null;
+};
 
 const STEPS = ["Dina uppgifter", "Granska och teckna"];
 function consumptionSourceLabel(profile: WebsiteConsumptionProfile | null | undefined): string {
@@ -309,6 +324,8 @@ export default function CustomerApplicationForm({
   const [submissionAttemptId, setSubmissionAttemptId] = useState(() => crypto.randomUUID());
   const [companySignerAuthorized, setCompanySignerAuthorized] = useState(false);
   const [differentEmailConfirmed, setDifferentEmailConfirmed] = useState(false);
+  const [billingSameAsContact, setBillingSameAsContact] = useState(true);
+  const [currentSupplierUnknown, setCurrentSupplierUnknown] = useState(false);
   const [form, setForm] = useState<FormValues>({
     customer_type: customerType,
     selected_offer: selectedValue,
@@ -320,15 +337,30 @@ export default function CustomerApplicationForm({
     company_signer_role: "",
     email: authenticatedEmail ?? "",
     phone: "",
+    invoice_email: "",
+    billing_street: "",
+    billing_postal_code: "",
+    billing_city: "",
+    billing_country: "SE",
     facility_id: "",
+    metering_point_id: "",
+    reading_frequency: "",
+    measurement_type: "",
+    installation_date: "",
     current_supplier_name: "",
-    current_supplier_id: "",
     current_supplier_org_number: "",
     current_supplier_ediel_id: "",
     requested_start_mode: "earliest_possible",
     requested_start_date: "",
   });
   const [consents, setConsents] = useState<Consents>({});
+  const [legalBundle, setLegalBundle] = useState<LegalBundleState>({
+    status: "loading",
+    bundleVersion: null,
+    supported: false,
+    requirements: [],
+    message: null,
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submissionState, formAction] = useActionState(action, { errorMessage: null });
 
@@ -351,14 +383,110 @@ export default function CustomerApplicationForm({
     [selectedContract],
   );
   const activeDisplay = contractDisplay ?? fallbackDisplay;
-  const legalRequirements: PublicLegalRequirement[] = selectedContract?.legalRequirements ?? [];
+  const legalRequirements = legalBundle.requirements;
   const legalReady = Boolean(
     activeDisplay?.ready &&
+    legalBundle.status === "ready" &&
+    legalBundle.supported &&
     legalRequirements.length > 0 &&
     legalRequirements.every((requirement) =>
       !requirement.required || Boolean(requirement.label && requirement.public_url && (requirement.document_id || requirement.legal_bundle_version_document_id)),
     ),
   );
+
+  useEffect(() => {
+    const offerReference = selectedContract?.offerReference;
+    if (!offerReference) {
+      return;
+    }
+    const controller = new AbortController();
+    const loadingTimer = window.setTimeout(() => {
+      setConsents({});
+      setLegalBundle({
+        status: "loading",
+        bundleVersion: null,
+        supported: false,
+        requirements: [],
+        message: null,
+      });
+    }, 0);
+    void fetch(
+      `/api/checkout/legal-bundle?offer_reference=${encodeURIComponent(offerReference)}`,
+      { headers: { Accept: "application/json" }, signal: controller.signal, cache: "no-store" },
+    )
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null) as {
+          data?: {
+            bundle_version?: unknown;
+            supported_by_application_contract?: unknown;
+            unsupported_required_types?: unknown;
+            requirements?: unknown;
+          };
+          error?: { message?: unknown };
+        } | null;
+        if (!response.ok || !payload?.data) {
+          throw new Error(
+            typeof payload?.error?.message === "string"
+              ? payload.error.message
+              : "Juridikpaketet kunde inte hämtas.",
+          );
+        }
+        const rows = Array.isArray(payload.data.requirements)
+          ? payload.data.requirements
+          : [];
+        const requirements: PublicLegalRequirement[] = rows.flatMap((value) => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+          const row = value as Record<string, unknown>;
+          if (
+            typeof row.requirement_code !== "string" ||
+            typeof row.label !== "string"
+          ) return [];
+          return [{
+            requirement_code: row.requirement_code,
+            acceptance_type: "checkbox",
+            required: row.required === true,
+            label: row.label,
+            document_id: typeof row.document_id === "string" ? row.document_id : null,
+            legal_bundle_version_document_id:
+              typeof row.document_id === "string" ? row.document_id : null,
+            document_version:
+              typeof row.document_version === "string" ? row.document_version : null,
+            document_hash:
+              typeof row.document_hash === "string" ? row.document_hash : null,
+            public_url: typeof row.public_url === "string" ? row.public_url : null,
+          }];
+        });
+        const supported = payload.data.supported_by_application_contract === true;
+        setLegalBundle({
+          status: "ready",
+          bundleVersion:
+            typeof payload.data.bundle_version === "string"
+              ? payload.data.bundle_version
+              : null,
+          supported,
+          requirements,
+          message: supported
+            ? null
+            : "Avtalet innehåller obligatoriska villkor som ännu inte kan godkännas digitalt.",
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setLegalBundle({
+          status: "error",
+          bundleVersion: null,
+          supported: false,
+          requirements: [],
+          message: error instanceof Error
+            ? error.message
+            : "Juridikpaketet kunde inte hämtas.",
+        });
+      });
+    return () => {
+      window.clearTimeout(loadingTimer);
+      controller.abort();
+    };
+  }, [selectedContract?.offerReference]);
   const authenticatedEmailMismatch = Boolean(
     authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
   );
@@ -515,6 +643,34 @@ export default function CustomerApplicationForm({
             <Field id="phone" label="Telefon" name="phone" value={form.phone} onChange={updateField} required error={errors.phone} autoComplete="tel" inputMode="tel" help="Svenska nummer normaliseras automatiskt till +46." />
           </div>
 
+          <div className="space-y-5 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div>
+              <h3 className="font-semibold text-white">Fakturauppgifter</h3>
+              <p className="mt-1 text-xs leading-5 text-gray-400">Faktureringsuppgifterna används bara om du väljer en annan adress eller e-post för fakturor.</p>
+            </div>
+            <label className="flex items-start gap-3 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={billingSameAsContact}
+                onChange={(event) => {
+                  rotateSubmissionAttempt();
+                  setBillingSameAsContact(event.target.checked);
+                }}
+                className="mt-1 h-4 w-4"
+              />
+              <span>Använd kontaktens e-post och leveransadress för fakturering.</span>
+            </label>
+            {!billingSameAsContact ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                <Field id="invoice_email" label="Faktura-e-post" name="invoice_email" value={form.invoice_email} onChange={updateField} type="email" autoComplete="email" inputMode="email" />
+                <Field id="billing_street" label="Fakturaadress" name="billing_street" value={form.billing_street} onChange={updateField} autoComplete="street-address" />
+                <Field id="billing_postal_code" label="Fakturapostnummer" name="billing_postal_code" value={form.billing_postal_code} onChange={updateField} inputMode="numeric" />
+                <Field id="billing_city" label="Fakturaort" name="billing_city" value={form.billing_city} onChange={updateField} />
+                <Field id="billing_country" label="Landkod" name="billing_country" value={form.billing_country} onChange={updateField} help="Två bokstäver, exempelvis SE." />
+              </div>
+            ) : null}
+          </div>
+
           {authenticatedEmailMismatch ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               <div className="font-semibold">Du är inloggad med {authenticatedEmail}</div>
@@ -546,10 +702,37 @@ export default function CustomerApplicationForm({
             <p className="mt-2 text-xs leading-5 text-gray-400">Valfritt. Du kan fortsätta utan uppgifterna; med fullmakt kan Gridex verifiera dem med nätägaren.</p>
             <div className="mt-5 grid gap-5 md:grid-cols-2">
               <Field id="facility_id" label="Anläggnings-ID" name="facility_id" value={form.facility_id} onChange={updateField} help="Finns ofta på nätfakturan. Mätpunkts-ID kompletteras efter verifiering." />
-              <Field id="current_supplier_name" label="Nuvarande elleverantör" name="current_supplier_name" value={form.current_supplier_name} onChange={updateField} />
-              <Field id="current_supplier_id" label="Leverantörs-ID" name="current_supplier_id" value={form.current_supplier_id} onChange={updateField} help="Lämna tomt om du inte känner till det." />
-              <Field id="current_supplier_org_number" label="Leverantörens organisationsnummer" name="current_supplier_org_number" value={form.current_supplier_org_number} onChange={updateField} />
-              <Field id="current_supplier_ediel_id" label="Ediel-ID" name="current_supplier_ediel_id" value={form.current_supplier_ediel_id} onChange={updateField} />
+              <Field id="metering_point_id" label="Mätpunkts-ID" name="metering_point_id" value={form.metering_point_id} onChange={updateField} />
+              <Field id="reading_frequency" label="Avläsningsfrekvens" name="reading_frequency" value={form.reading_frequency} onChange={updateField} help="Exempelvis monthly, hourly eller quarterly om du känner till den." />
+              <Field id="measurement_type" label="Mättyp" name="measurement_type" value={form.measurement_type} onChange={updateField} />
+              <Field id="installation_date" label="Installationsdatum" name="installation_date" value={form.installation_date} onChange={updateField} type="date" />
+              <label className="flex items-start gap-3 text-sm text-gray-300 md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={currentSupplierUnknown}
+                  onChange={(event) => {
+                    rotateSubmissionAttempt();
+                    setCurrentSupplierUnknown(event.target.checked);
+                    if (event.target.checked) {
+                      setForm((current) => ({
+                        ...current,
+                        current_supplier_name: "",
+                        current_supplier_org_number: "",
+                        current_supplier_ediel_id: "",
+                      }));
+                    }
+                  }}
+                  className="mt-1 h-4 w-4"
+                />
+                <span>Jag känner inte till min nuvarande elleverantör.</span>
+              </label>
+              {!currentSupplierUnknown ? (
+                <>
+                  <Field id="current_supplier_name" label="Nuvarande elleverantör" name="current_supplier_name" value={form.current_supplier_name} onChange={updateField} />
+                  <Field id="current_supplier_org_number" label="Leverantörens organisationsnummer" name="current_supplier_org_number" value={form.current_supplier_org_number} onChange={updateField} />
+                  <Field id="current_supplier_ediel_id" label="Ediel-ID" name="current_supplier_ediel_id" value={form.current_supplier_ediel_id} onChange={updateField} />
+                </>
+              ) : null}
             </div>
           </details>
 
@@ -567,8 +750,11 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="pricing_snapshot_reference" value={pricingPreview?.pricing_snapshot_reference ?? ""} />
           <input type="hidden" name="energy_area_resolution_token" value={quoteContext.resolution_token ?? ""} />
           <input type="hidden" name="energy_area_resolution_id" value={quoteContext.resolution_id ?? ""} />
+          <input type="hidden" name="legal_bundle_version" value={legalBundle.bundleVersion ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
+          <input type="hidden" name="billing_same_as_contact" value={billingSameAsContact ? "on" : ""} />
+          <input type="hidden" name="current_supplier_unknown" value={currentSupplierUnknown ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
           <input type="hidden" name="utm_medium" value={utm.utm_medium ?? ""} />
           <input type="hidden" name="utm_campaign" value={utm.utm_campaign ?? ""} />
@@ -621,7 +807,11 @@ export default function CustomerApplicationForm({
             </div>
 
             {!legalReady ? (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad.</div>
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+                {legalBundle.status === "loading"
+                  ? "Hämtar erbjudandets juridikpaket…"
+                  : legalBundle.message ?? "Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad."}
+              </div>
             ) : (
               <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
                 <div>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { randomUUID } from 'node:crypto'
 import Link from 'next/link'
 import { getCustomerProfile, getPortalSession } from '@/lib/customerPortal/service'
 import {
@@ -21,10 +22,8 @@ function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
       return 'Dina kontaktuppgifter har sparats och synkats.'
-    case 'profile-sync-queued':
-      return 'Dina kontaktuppgifter har sparats. Synkningen till kundsystemet fortsätter automatiskt.'
-    case 'profile-local-only':
-      return 'Dina kontaktuppgifter sparades lokalt, men kundsystemet avvisade synkningen. Kontakta kundservice om uppgifterna inte uppdateras.'
+    case 'profile-sync-failed':
+      return 'Kontaktuppgifterna kunde inte uppdateras just nu. Inga lokala ändringar har behandlats som genomförda.'
     case 'email-updated':
       return 'E-postadressen har uppdaterats eller behöver bekräftas via e-post.'
     case 'password-updated':
@@ -39,6 +38,7 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
   const profile = await getCustomerProfile(supabase, user.id, user)
   const params = (await searchParams) ?? {}
   const message = statusMessage(params.status)
+  const profileOperationId = `profile-update:${randomUUID()}`
 
   return (
     <div className="space-y-6">
@@ -60,6 +60,7 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
           action={updateCustomerProfileAction}
           className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6"
         >
+          <input type="hidden" name="client_operation_id" value={profileOperationId} />
           <h2 className="text-lg font-semibold">Kontaktuppgifter</h2>
 
           <div className="grid gap-4 sm:grid-cols-2">

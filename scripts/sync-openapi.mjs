@@ -41,5 +41,7 @@ for (const { specName, version } of downloaded) {
 
 const generated = spawnSync(process.execPath, ['scripts/generate-openapi-types.mjs'], { stdio: 'inherit' })
 if (generated.status !== 0) process.exit(generated.status ?? 1)
+const manifested = spawnSync(process.execPath, ['scripts/write-openapi-manifest.mjs'], { stdio: 'inherit' })
+if (manifested.status !== 0) process.exit(manifested.status ?? 1)
 const checked = spawnSync(process.execPath, ['scripts/check-openapi-drift.mjs', '--local-only'], { stdio: 'inherit' })
 if (checked.status !== 0) process.exit(checked.status ?? 1)

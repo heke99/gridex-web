@@ -64,21 +64,8 @@ assertIncludes(
   "legal accept route must be idempotent",
 );
 
-for (const path of [
-  "app/api/price/route.ts",
-  "app/api/offers/calculate/route.ts",
-]) {
-  assertIncludes(
-    path,
-    "status: 410",
-    "legacy public price route must be closed",
-  );
-  assertIncludes(
-    path,
-    "/elavtal",
-    "legacy public price route must point customers to the public contract page",
-  );
-}
+assert.equal(existsSync(new URL("../app/api/price/route.ts", import.meta.url)), false);
+assert.equal(existsSync(new URL("../app/api/offers/calculate/route.ts", import.meta.url)), false);
 
 const signup = read("app/(public)/teckna-avtal/page.tsx");
 assert.ok(
@@ -239,13 +226,12 @@ for (const variable of [
   "GRIDEX_API_KEY",
   "GRIDEX_DISABLE_LIVE_SIGNUP",
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
-  "GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY",
-  "GRIDEX_ENABLE_OPS_WEBHOOKS",
   "GRIDEX_WEBHOOK_SIGNING_SECRET",
-  "GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS",
+  "GRIDEX_WEBHOOK_TOLERANCE_SECONDS",
   "NEXT_PUBLIC_SITE_URL",
   "CONTRACTS_BUCKET",
-  "GRIDEX_WEBSITE_PRICING_QUOTE_SECRET",
+  "GRIDEX_WEBSITE_STATE_SIGNING_SECRET",
+  "GRIDEX_WEBSITE_STATE_SIGNING_KID",
 ]) {
   assert.ok(
     envExample.includes(variable),
@@ -276,13 +262,13 @@ assertIncludes(
   "customer portal calls must send the explicit OPS auth-link header",
 );
 assertIncludes(
-  "lib/ops/client.ts",
-  'const name = "GRIDEX_API_KEY" as const',
+  "lib/ops/transport.ts",
+  "env('GRIDEX_API_KEY')",
   "OPS client must use GRIDEX_API_KEY as the only tenant API key",
 );
 assertIncludes(
-  "lib/ops/client.ts",
-  "OPS_API_KEY_FULL_SECRET_NOT_PREFIX",
+  "lib/ops/transport.ts",
+  "GRIDEX_API_KEY innehåller endast ett nyckelprefix",
   "OPS client must reject key_prefix-only API tokens",
 );
 assertNotIncludes(
@@ -320,33 +306,33 @@ assertNotIncludes(
   "strict customer application payload must not send undocumented portal identity fields",
 );
 assertIncludes(
-  "app/api/v1/customer/portal-bundle/route.ts",
+  "app/api/web/customer/portal-bundle/route.ts",
   "overview",
   "web must expose local portal-bundle route",
 );
 assertIncludes(
-  "app/api/v1/customer/events/route.ts",
-  "overview.events",
+  "app/api/web/customer/events/route.ts",
+  "customerResourceResponse('events')",
   "web must expose customer events route",
 );
 assertIncludes(
-  "app/api/v1/customer/metering-values/route.ts",
-  "overview.meteringValues",
+  "app/api/web/customer/metering-values/route.ts",
+  "customerResourceResponse('metering-values')",
   "web must expose metering values route",
 );
 assertIncludes(
-  "app/api/v1/customer/notifications/read/route.ts",
+  "app/api/web/customer/notifications/read/route.ts",
   "markCustomerNotificationsRead",
   "web must expose notification read route through the server-side portal service",
 );
 assertIncludes(
   "docs/website-integration.md",
-  "Mina sidor identity rules",
+  "## Kundportal",
   "repo must document the tenant-to-OPS linking contract",
 );
 assertIncludes(
   "docs/website-integration.md",
-  "powerOfAttorney",
+  "full metering-point-modell",
   "repo must document the signed power of attorney application payload",
 );
 assertIncludes(
@@ -430,12 +416,12 @@ assertIncludes(
   "thank-you page must surface customer-safe OPS nextAction message",
 );
 assertIncludes(
-  "app/api/v1/customer/profile-update/route.ts",
+  "app/api/web/customer/profile-update/route.ts",
   "submitOpsCustomerProfileUpdate",
   "web must expose the documented profile-update route",
 );
 assertIncludes(
-  "app/api/v1/customer/move-out/route.ts",
+  "app/api/web/customer/move-out/route.ts",
   "submitOpsCustomerMoveOut",
   "web must expose the documented move-out route",
 );
@@ -477,8 +463,8 @@ for (const removedPath of [
   assert.equal(existsSync(new URL(removedPath, import.meta.url)), false, `${removedPath} must be removed from checkout`);
 }
 for (const path of [
-  "app/api/v1/website/quote/route.ts",
-  "app/api/v1/website/pricing/verify/route.ts",
+  "app/api/checkout/quote/route.ts",
+  "app/api/checkout/quote/validate/route.ts",
 ]) {
   assertIncludes(
     path,
@@ -502,7 +488,7 @@ for (const path of [
   );
 }
 assertIncludes(
-  "app/api/v1/website/pricing/preview/route.ts",
+  "app/api/checkout/quote/route.ts",
   "fetchOpsWebsiteQuote",
   "offer pricing must use the canonical OPS quote endpoint",
 );

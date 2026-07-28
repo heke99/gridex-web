@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
-import { websiteServerSigningSecret } from '@/lib/website/serverTokenSecret'
+import { websiteServerSigningKeyring } from '@/lib/website/serverTokenSecret'
 
-const TOKEN_VERSION = 'ea4'
+const TOKEN_VERSION = 'ea5'
 const MAX_TOKEN_TTL_MS = 30 * 60_000
 
 export type WebsiteEnergyAreaTokenPayload = {
@@ -21,9 +21,8 @@ export type WebsiteEnergyAreaTokenPayload = {
   location_fingerprint: string
 }
 
-function secret(): string | null {
-  return process.env.GRIDEX_WEBSITE_ENERGY_AREA_TOKEN_SECRET?.trim() ||
-    websiteServerSigningSecret('energy-area')
+function keys() {
+  return websiteServerSigningKeyring('energy-area')
 }
 
 function normalized(value: string): string {
@@ -46,7 +45,7 @@ function safeEqual(left: string, right: string): boolean {
 }
 
 export function energyAreaTokenConfigured(): boolean {
-  return Boolean(secret())
+  return Boolean(keys())
 }
 
 export function issueWebsiteEnergyAreaToken(input: {
@@ -54,7 +53,8 @@ export function issueWebsiteEnergyAreaToken(input: {
   location: { postalCode: string; city: string; address: string }
   now?: Date
 }): { token: string; payload: WebsiteEnergyAreaTokenPayload } | null {
-  const key = secret()
+  const keyring = keys()
+  const key = keyring?.active.key ?? null
   const resolutionId = input.resolution.resolution_id?.trim()
   const area = input.resolution.price_area_code
   const validUntil = input.resolution.valid_until?.trim()
@@ -88,8 +88,11 @@ export function issueWebsiteEnergyAreaToken(input: {
     location_fingerprint: fingerprint(input.location, key),
   }
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const unsigned = `${TOKEN_VERSION}.${encoded}`
-  return { token: `${unsigned}.${sign(unsigned, key)}`, payload }
+  const unsigned = `${TOKEN_VERSION}.${keyring!.active.kid}.${encoded}`
+  return {
+    token: `${unsigned}.${sign(unsigned, key)}`,
+    payload,
+  }
 }
 
 export function verifyWebsiteEnergyAreaToken(input: {
@@ -97,11 +100,15 @@ export function verifyWebsiteEnergyAreaToken(input: {
   location: { postalCode: string; city: string; address: string }
   now?: Date
 }): { ok: true; payload: WebsiteEnergyAreaTokenPayload } | { ok: false; reason: string } {
-  const key = secret()
-  if (!key) return { ok: false, reason: 'not_configured' }
-  const [version, encoded, signature, ...rest] = (input.token ?? '').split('.')
-  if (version !== TOKEN_VERSION || !encoded || !signature || rest.length) return { ok: false, reason: 'invalid' }
-  const unsigned = `${version}.${encoded}`
+  const keyring = keys()
+  if (!keyring) return { ok: false, reason: 'not_configured' }
+  const [version, kid, encoded, signature, ...rest] = (input.token ?? '').split('.')
+  if (version !== TOKEN_VERSION || !kid || !encoded || !signature || rest.length) {
+    return { ok: false, reason: 'invalid' }
+  }
+  const key = keyring.verification.find((candidate) => candidate.kid === kid)?.key
+  if (!key) return { ok: false, reason: 'invalid' }
+  const unsigned = `${version}.${kid}.${encoded}`
   if (!safeEqual(sign(unsigned, key), signature)) return { ok: false, reason: 'invalid' }
   try {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as WebsiteEnergyAreaTokenPayload

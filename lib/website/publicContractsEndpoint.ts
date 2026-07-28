@@ -40,7 +40,7 @@ export async function publicContractsResponse(request: Request) {
     })
     if (snapshot.etag) headers.set('ETag', snapshot.etag)
     if (snapshot.publication_revision) {
-      headers.set('X-Gridex-Publication-Revision', snapshot.publication_revision)
+      headers.set('X-Gridex-Publication-Revision', String(snapshot.publication_revision))
     }
     headers.set('X-Gridex-Data-Stale', snapshot.stale ? '1' : '0')
 

@@ -1,11 +1,9 @@
 'use server'
 
-import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { isTransientOpsError, submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
-import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
+import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 function pick(formData: FormData, key: string): string {
@@ -41,8 +39,34 @@ export async function updateCustomerProfileAction(formData: FormData) {
   const phone = pick(formData, 'phone')
   const languageCode = pick(formData, 'language_code') || 'sv'
 
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
+  const profilePayload = {
+    first_name: firstName || null,
+    last_name: lastName || null,
+    phone: phone || null,
+    language_code: languageCode,
+  }
+  const operationId = pick(formData, 'client_operation_id')
+  if (!/^[0-9a-zA-Z:_-]{8,240}$/.test(operationId)) {
+    throw new Error('Åtgärds-ID saknas. Ladda om sidan och försök igen.')
+  }
+  try {
+    const identity = await getOpsPortalIdentityForUser(supabase, user)
+    await submitOpsCustomerProfileUpdate({
+      identity,
+      idempotencyKey: operationId,
+      profile: profilePayload,
+      metadata: { source: 'customer_profile_action' },
+    })
+  } catch (syncError) {
+    console.error('[customer profile] canonical update failed', {
+      message: syncError instanceof Error ? syncError.message : 'unknown_error',
+    })
+    revalidatePath('/dashboard/profile')
+    revalidatePath('/dashboard')
+    redirect('/dashboard/profile?status=profile-sync-failed')
+  }
 
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
   const { error } = await supabase.from('customer_profiles').upsert(
     {
       user_id: user.id,
@@ -52,56 +76,19 @@ export async function updateCustomerProfileAction(formData: FormData) {
       full_name: fullName,
       phone: phone || null,
       language_code: languageCode,
+      source: 'ops',
+      synced_at: new Date().toISOString(),
+      projection_status: 'current',
     },
     { onConflict: 'user_id' }
   )
-
   if (error) {
-    throw new Error('Vi kunde inte spara ändringen just nu. Försök igen om en stund.')
-  }
-
-  const profilePayload = {
-    first_name: firstName || null,
-    last_name: lastName || null,
-    phone: phone || null,
-    language_code: languageCode,
-  }
-  const operationId = randomUUID()
-  let queued = false
-  try {
-    const identity = await getOpsPortalIdentityForUser(supabase, user)
-    try {
-      await submitOpsCustomerProfileUpdate({
-        identity,
-        idempotencyKey: operationId,
-        profile: profilePayload,
-        metadata: { source: 'customer_profile_action' },
-      })
-    } catch (syncError) {
-      if (!isTransientOpsError(syncError)) throw syncError
-      await enqueuePortalWrite({
-        userId: user.id,
-        operationType: 'profile_update',
-        idempotencyKey: `profile-update:${user.id}:${operationId}`,
-        identity,
-        payload: {
-          operation_id: operationId,
-          profile: profilePayload,
-          metadata: { source: 'customer_profile_action' },
-        },
-      })
-      queued = true
-    }
-  } catch (syncError) {
-    console.error('[customer profile] OPS sync failed permanently', syncError)
-    revalidatePath('/dashboard/profile')
-    revalidatePath('/dashboard')
-    redirect('/dashboard/profile?status=profile-local-only')
+    console.error('[customer profile] local projection update failed', { code: error.code })
   }
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
-  redirect(`/dashboard/profile?status=${queued ? 'profile-sync-queued' : 'profile-updated'}`)
+  redirect('/dashboard/profile?status=profile-updated')
 }
 
 export async function updateCustomerEmailAction(formData: FormData) {

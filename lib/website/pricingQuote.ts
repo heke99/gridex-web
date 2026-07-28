@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { websiteServerSigningSecret } from "@/lib/website/serverTokenSecret";
+import { websiteServerSigningKeyring } from "@/lib/website/serverTokenSecret";
 import type { OpsPublicContract } from "@/lib/ops/client";
 import type { PublicEnergyDirection, PublicProductionPricing } from "@/lib/website/publicContractContract";
 import type {
@@ -10,7 +10,7 @@ import type {
   WebsiteQuoteMarketReference,
 } from "@/lib/website/publicApi";
 
-const QUOTE_VERSION = "v3";
+const QUOTE_VERSION = "v4";
 const QUOTE_TTL_MS = 20 * 60 * 1000;
 
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
@@ -30,7 +30,7 @@ export type WebsitePricingQuote = {
   production_pricing: PublicProductionPricing | null;
   start_date: string;
   public_contract_etag: string | null;
-  publication_revision: string | null;
+  publication_revision: number | null;
   contract_payload_sha256: string | null;
   legal_bundle_version: string | null;
   legal_document_hashes: Record<string, string>;
@@ -66,8 +66,8 @@ export type PricingQuoteVerification =
   | { ok: true; quote: WebsitePricingQuote }
   | { ok: false; reason: "invalid" | "expired" | "not_configured" };
 
-function quoteSecret(): string | null { return websiteServerSigningSecret("pricing-quote"); }
-export function websitePricingQuoteConfigured(): boolean { return Boolean(quoteSecret()); }
+function quoteKeys() { return websiteServerSigningKeyring("pricing-quote"); }
+export function websitePricingQuoteConfigured(): boolean { return Boolean(quoteKeys()); }
 function base64url(value: string): string { return Buffer.from(value).toString("base64url"); }
 function fromBase64url(value: string): string | null {
   try { return Buffer.from(value, "base64url").toString("utf8"); } catch { return null; }
@@ -81,7 +81,8 @@ function normalized(value: string | null | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("sv-SE");
 }
 export function pricingLocationFingerprint(input: { postalCode: string; city: string; address: string }): string | null {
-  const secret = quoteSecret();
+  const keyring = quoteKeys();
+  const secret = keyring?.active.key ?? null;
   if (!secret) return null;
   return hmac(`location:${[normalized(input.postalCode).replace(/\s/g, ""), normalized(input.city), normalized(input.address)].join("|")}`, secret);
 }
@@ -93,11 +94,7 @@ function cloneRecord(value: unknown): Record<string, unknown> | undefined {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 function publicQuoteFees(value: unknown): QuoteFees | undefined {
-  const fees = cloneRecord(value)
-  if (!fees) return undefined
-  delete fees.invoiceFeeSek
-  delete fees.invoiceFeeIncludedInMonthlyEstimate
-  return fees as QuoteFees
+  return cloneRecord(value) as QuoteFees | undefined
 }
 function cloneBasis(value: unknown): QuoteBasis | undefined { return cloneRecord(value); }
 function validDate(value: unknown): value is string { return text(value) && Number.isFinite(Date.parse(value)); }
@@ -120,7 +117,8 @@ export function issueWebsitePricingQuote(input: {
   location: { postalCode: string; city: string; address: string };
   now?: Date;
 }): { token: string; quote: WebsitePricingQuote } | null {
-  const secret = quoteSecret();
+  const keyring = quoteKeys();
+  const secret = keyring?.active.key ?? null;
   const locationFingerprint = pricingLocationFingerprint(input.location);
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
@@ -177,15 +175,17 @@ export function issueWebsitePricingQuote(input: {
     specification: { basis: cloneBasis(input.preview.specification?.basis), fees: publicQuoteFees(input.preview.specification?.fees) },
   };
   const encoded = base64url(JSON.stringify(quote));
-  return { token: `${QUOTE_VERSION}.${encoded}.${hmac(`${QUOTE_VERSION}.${encoded}`, secret)}`, quote };
+  const unsigned = `${QUOTE_VERSION}.${keyring!.active.kid}.${encoded}`;
+  return { token: `${unsigned}.${hmac(unsigned, secret)}`, quote };
 }
 
 export function verifyWebsitePricingQuote(token: string | null | undefined, now = new Date()): PricingQuoteVerification {
-  const secret = quoteSecret();
-  if (!secret) return { ok: false, reason: "not_configured" };
+  const keyring = quoteKeys();
+  if (!keyring) return { ok: false, reason: "not_configured" };
   if (!token) return { ok: false, reason: "invalid" };
-  const [version, payload, signature, ...rest] = token.split(".");
-  if (version !== QUOTE_VERSION || !payload || !signature || rest.length || !equalSignature(hmac(`${version}.${payload}`, secret), signature)) return { ok: false, reason: "invalid" };
+  const [version, kid, payload, signature, ...rest] = token.split(".");
+  const secret = keyring.verification.find((candidate) => candidate.kid === kid)?.key;
+  if (version !== QUOTE_VERSION || !kid || !payload || !signature || rest.length || !secret || !equalSignature(hmac(`${version}.${kid}.${payload}`, secret), signature)) return { ok: false, reason: "invalid" };
   const raw = fromBase64url(payload);
   if (!raw) return { ok: false, reason: "invalid" };
   try {

@@ -595,7 +595,7 @@ export default function ElectricityCalculator({
       onQuoteContextChange?.(nextQuoteContext);
 
       if (persistCheckoutContext && preview.pricing_token) {
-        const contextResponse = await fetch("/api/v1/website/checkout-context", {
+        const contextResponse = await fetch("/api/checkout/context", {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({

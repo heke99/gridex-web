@@ -7,7 +7,7 @@ import {
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
-const CONTRACT_VERSION = '2026-07-27.1'
+const CONTRACT_VERSION = '2026-07-28.1'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 
@@ -121,7 +121,7 @@ const validationRequest = requests.find((request) => request.url.endsWith('/webs
 assert.ok(validationRequest)
 assert.equal(validationRequest.init.method, 'POST')
 assert.equal(validationRequest.init.headers.get('Authorization'), 'Bearer gridex_runtime_test_secret_value')
-assert.equal(validationRequest.init.headers.get('X-Gridex-Accept-Contract-Version'), CONTRACT_VERSION)
+assert.equal(validationRequest.init.headers.get('X-Gridex-Accept-Contract-Version'), null)
 assert.deepEqual(JSON.parse(validationRequest.init.body), {
   quote_reference: 'quote_runtime_test',
   offer_reference: 'offer_runtime_test',

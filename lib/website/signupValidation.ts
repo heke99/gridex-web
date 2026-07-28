@@ -54,16 +54,7 @@ export function normalizePhoneToE164(value: string): string | null {
 }
 
 export function stockholmToday(): string {
-  const parts = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Stockholm',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const year = parts.find((part) => part.type === 'year')?.value
-  const month = parts.find((part) => part.type === 'month')?.value
-  const day = parts.find((part) => part.type === 'day')?.value
-  return year && month && day ? `${year}-${month}-${day}` : new Date().toISOString().slice(0, 10)
+  return stockholmCalendarDate()
 }
 
 export function isValidRequestedStartDate(
@@ -71,7 +62,9 @@ export function isValidRequestedStartDate(
   value: string,
 ): boolean {
   if (mode === 'earliest_possible') return true
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  const [year, month, day] = value.split('-').map(Number)
-  return validCalendarDate(year, month, day) && value >= stockholmToday()
+  return isStrictCalendarDate(value) && value >= stockholmToday()
 }
+import {
+  isStrictCalendarDate,
+  stockholmCalendarDate,
+} from '@/lib/website/businessDate'

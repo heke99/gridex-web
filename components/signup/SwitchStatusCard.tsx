@@ -36,7 +36,7 @@ export default function SwitchStatusCard({
     let timer: ReturnType<typeof setTimeout> | null = null
     const load = async () => {
       try {
-        const response = await fetch(`/api/v1/website/switch-status?result_token=${encodeURIComponent(resultToken)}`, {
+        const response = await fetch(`/api/checkout/switch-status?result_token=${encodeURIComponent(resultToken)}`, {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
         })

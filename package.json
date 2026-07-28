@@ -23,11 +23,14 @@
     "api:sync": "node scripts/sync-openapi.mjs",
     "api:check": "node scripts/check-openapi-drift.mjs",
     "api:refresh": "npm run api:sync",
-    "api:check:local": "node scripts/check-openapi-drift.mjs --local-only"
+    "api:check:local": "node scripts/check-openapi-drift.mjs --local-only",
+    "api:preflight": "npm run api:check && npm run api:contract"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "dotenv": "^17.4.2",
     "next": "^16.2.7",
     "pdfkit": "^0.17.2",
