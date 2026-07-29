@@ -66,9 +66,12 @@ function schemaType(schema, depth = 0) {
       const optional = required.has(key) ? '' : '?'
       return `${quoteKey(key)}${optional}: ${schemaType(value, depth + 1)}`
     })
-    if (schema.additionalProperties === true) fields.push('[key: string]: unknown')
-    else if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+    if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
       fields.push(`[key: string]: ${schemaType(schema.additionalProperties, depth + 1)}`)
+    } else if (schema.additionalProperties !== false) {
+      // JSON Schema objects are open by default. Preserve that behavior in the
+      // generated TypeScript instead of incorrectly narrowing them to never.
+      fields.push('[key: string]: unknown')
     }
     return fields.length ? `{ ${fields.join('; ')} }` : 'Record<string, never>'
   }
@@ -83,11 +86,19 @@ function contentType(content) {
   return `{ ${entries.map(([mime, media]) => `${JSON.stringify(mime)}: ${schemaType(media?.schema ?? {})}`).join('; ')} }`
 }
 
-function parametersType(parameters) {
+function resolveParameter(parameter, document) {
+  if (!parameter || typeof parameter !== 'object') return null
+  if (!parameter.$ref) return parameter
+  const match = String(parameter.$ref).match(/^#\/components\/parameters\/([^/]+)$/)
+  return match ? document.components?.parameters?.[match[1]] ?? null : null
+}
+
+function parametersType(parameters, document) {
   if (!Array.isArray(parameters) || !parameters.length) return 'never'
   const groups = new Map()
-  for (const parameter of parameters) {
-    if (!parameter || typeof parameter !== 'object' || parameter.$ref) continue
+  for (const unresolved of parameters) {
+    const parameter = resolveParameter(unresolved, document)
+    if (!parameter || typeof parameter !== 'object') continue
     const location = parameter.in ?? 'query'
     const list = groups.get(location) ?? []
     list.push(parameter)
@@ -104,7 +115,7 @@ function parametersType(parameters) {
   return `{ ${rendered} }`
 }
 
-function operationType(operation, inheritedParameters = []) {
+function operationType(operation, inheritedParameters = [], document) {
   const parameters = [...inheritedParameters, ...(operation.parameters ?? [])]
   const requestBody = operation.requestBody
   const requestBodyType = requestBody?.content
@@ -114,16 +125,16 @@ function operationType(operation, inheritedParameters = []) {
     const type = response?.content ? `{ content: ${contentType(response.content)} }` : 'Record<string, never>'
     return `${quoteKey(status)}: ${type}`
   }).join('; ')
-  return `{ parameters: ${parametersType(parameters)}; requestBody: ${requestBodyType}; responses: { ${responses} } }`
+  return `{ parameters: ${parametersType(parameters, document)}; requestBody: ${requestBodyType}; responses: { ${responses} } }`
 }
 
-function pathsType(paths) {
+function pathsType(paths, document) {
   const methods = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'])
   return Object.entries(paths ?? {}).map(([path, item]) => {
     const inherited = Array.isArray(item.parameters) ? item.parameters : []
     const operations = [...methods].map((method) => {
       const operation = item[method]
-      return `${method}${operation ? '' : '?'}: ${operation ? operationType(operation, inherited) : 'never'}`
+      return `${method}${operation ? '' : '?'}: ${operation ? operationType(operation, inherited, document) : 'never'}`
     }).join('; ')
     return `  ${JSON.stringify(path)}: { ${operations} }`
   }).join('\n')
@@ -139,7 +150,7 @@ async function generate(inputPath, outputPath) {
     return `    ${JSON.stringify(name)}: ${schemaType(schema)}`
   }).join('\n')
   const version = document.info?.version ?? 'unknown'
-  const text = `/**\n * Generated from ${inputPath}.\n * Contract version: ${version}.\n * Source SHA-256: ${sourceHash}.\n * Run \`npm run api:refresh\` after the public OpenAPI documents change.\n */\n\nexport interface paths {\n${pathsType(document.paths)}\n}\n\nexport interface components {\n  schemas: {\n${schemas}\n  }\n}\n\nexport type operations = Record<string, never>\n`
+  const text = `/**\n * Generated from ${inputPath}.\n * Contract version: ${version}.\n * Source SHA-256: ${sourceHash}.\n * Run \`npm run api:refresh\` after the public OpenAPI documents change.\n */\n\nexport interface paths {\n${pathsType(document.paths, document)}\n}\n\nexport interface components {\n  schemas: {\n${schemas}\n  }\n}\n\nexport type operations = Record<string, never>\n`
   await writeFile(output, text)
   console.log(`generated ${outputPath} (${version})`)
 }

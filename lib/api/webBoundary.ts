@@ -13,10 +13,20 @@ export type WebApiErrorInput = {
   upstreamStatus?: number | null
 }
 
-const NO_STORE_HEADERS = {
+export const PRIVATE_NO_STORE_HEADERS = {
   'Cache-Control': 'private, no-store',
   'X-Content-Type-Options': 'nosniff',
 } as const
+
+export function privateJsonResponse<T>(body: T, init: ResponseInit = {}) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: {
+      ...PRIVATE_NO_STORE_HEADERS,
+      ...Object.fromEntries(new Headers(init.headers)),
+    },
+  })
+}
 
 export function webErrorResponse(input: WebApiErrorInput, status: number, headers?: HeadersInit) {
   const requestId = input.requestId || crypto.randomUUID()
@@ -38,7 +48,7 @@ export function webErrorResponse(input: WebApiErrorInput, status: number, header
     {
       status,
       headers: {
-        ...NO_STORE_HEADERS,
+        ...PRIVATE_NO_STORE_HEADERS,
         'X-Request-Id': requestId,
         ...Object.fromEntries(new Headers(headers)),
       },

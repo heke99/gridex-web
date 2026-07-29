@@ -7,7 +7,7 @@ import {
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
-const CONTRACT_VERSION = '2026-07-28.1'
+const CONTRACT_VERSION = '2026-07-28.2'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 

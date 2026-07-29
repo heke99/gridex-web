@@ -1,6 +1,11 @@
-# Gridex Web ↔ OPS
+# Gridex Web ↔ Gridex OPS
 
-Verifierad maskinläsbar kontraktsversion: `2026-07-28.1`.
+Canonical kontraktsversion: `2026-07-28.2`.
+
+`docs/openapi/verification-status.json` är den separata sanningskällan för om de
+incheckade snapshotsen verkligen har hämtats från live-API och regenererats.
+Den här leveransen lämnar flaggan `false`; kör `npm run api:sync` i en
+nätverksansluten miljö före release.
 
 ## Kontraktsgräns
 
@@ -10,113 +15,166 @@ OpenAPI-snapshots:
 docs/openapi/website-integration-v1.json
 docs/openapi/customer-portal-v1.json
 docs/openapi/manifest.json
+docs/openapi/verification-status.json
 ```
 
 `GRIDEX_API_CONTRACT_VERSION` i `lib/ops/contract.ts` är enda importerbara
-versionskällan. Klienten skickar inte
-`X-Gridex-Accept-Contract-Version`. Responseheadern
-`X-Gridex-Contract-Version` kontrolleras bara på operationer där OpenAPI
-deklarerar den; övriga operationer verifieras med strikt runtimevalidering av
-response body.
+versionskällan. `scripts/sync-openapi.mjs` hämtar först båda livefilerna,
+kräver samma version, skriver en semantisk diff, regenererar typer/manifest och
+sätter inte `live_sync_verified=true` förrän alla lokala kontroller passerat.
 
-Transporten blockerar redirects, begränsar retry till säkra eller idempotenta
-operationer och skickar aldrig API-nyckeln till en icke allowlistad origin.
+Alla utgående OPS-anrop går genom `lib/ops/transport.ts`. Transporten:
 
-## Checkout och juridik
+- skickar API-nyckeln endast server-side och endast till allowlistad HTTPS-origin,
+- inspekterar och avvisar redirects utan att följa dem,
+- använder timeout/abort,
+- retryar endast GET/HEAD eller skrivningar med `Idempotency-Key`,
+- returnerar strukturerade, kundsäkra fel,
+- validerar dokumenterade requests, queryparametrar och responses mot OpenAPI,
+- blockerar ett anrop om operationen inte finns i någon incheckad specifikation.
 
-Webb-BFF ligger under `/api/checkout/*`. Canonical OPS-paths används endast
-utgående server-side.
+## Checkout
 
-Legal bundle hämtas med obligatorisk, opak `offer_reference`. UI byggs från
-returnerade `required_types` och dokumentversioner. Servern hämtar bunten på
-nytt före submission och blockerar om bundle-versionen ändrats, om ett
-obligatoriskt dokument saknas eller om en required typ inte kan uttryckas av
-`CustomerApplicationRequest`.
+```text
+integration/context
+→ public-contracts
+→ energy-area/resolve
+→ quote
+→ legal-bundle
+→ quote/validate
+→ customer-applications
+→ customer application status
+→ website switch-status
+```
 
-Immutable ansökningsbevis innehåller bundle-version, requirement code,
-dokument-ID, dokumentversion, hash och acceptance state. `accepted_at` lagras
-på samma rad. Endast de fem fält som nuvarande OpenAPI tillåter serialiseras
-till `legal_acceptances`.
+`offer_reference`, `quote_reference`, `resolution_id`, juridikversioner och
+OPS-prissnapshot bevaras. Marknadspris är endast en separat referens och används
+inte för att lokalt bygga kundens avtalspris.
 
-Kundansökan skickar de canonicala optionalfälten för fakturering,
-`current_supplier_unknown` och full metering-point-modell. Det borttagna
-`current_supplier_id` och portalens auth-ID:n skickas inte eftersom de saknas i
-OpenAPI. `application_business_conflict` förblir konflikt; endast uttryckligt
-`duplicate_application` kan återuppta ett identiskt resultat.
+När användaren är autentiserad hämtas Supabase `session.user.id` server-side och
+förbereds som både `customer_portal_user_id` och `auth_user_id`. Nuvarande OPS
+OpenAPI saknar dock fälten och förbjuder extra properties. Submission stoppas
+därför fail-closed med
+`ops_customer_application_portal_identity_contract_unsupported`; en separat
+portal-sync används inte längre för att låtsas att nyteckningen var atomisk.
+Kundansökan skickar samtidigt den signerade fullmakten tillsammans med en full metering-point-modell när avtalet och anläggningsuppgifterna kräver det.
+
+## Juridik
+
+Legal bundle renderas dynamiskt och hämtas på nytt före submit. Webben bevarar
+requirement code, dokument-ID, version, hash, bundle-version och faktisk
+acceptanstid i sitt immutable bevis.
+
+Nuvarande OPS requestmodell kan endast uttrycka fem fasta booleanfält. Ett nytt
+obligatoriskt krav blockeras därför i stället för att ignoreras. OPS måste införa
+en dokumentbunden `legal_acceptances[]`-modell innan full kompatibilitet kan bli
+grön.
+
+## Market price och portfolio
+
+`fetchOpsCurrentMarketPrice()` validerar hela `CurrentMarketPriceRequest` och
+`CurrentMarketPriceResponse`. Inga lokala standardvärden skapas för
+`reference_type`, resolutioner, freshness eller include-flaggor.
+
+Portfoliohistorik läses endast från:
+
+```text
+data.method
+data.historical_final_prices
+data.final_billing_rule = locked_settlement_only
+request_id
+contract_schema_version
+```
+
+Historiken presenteras aldrig som aktuellt pris. OPS OpenAPI saknar fortfarande
+ett stängt maskinschema för detta svar, vilket är en upstreamblockerare.
 
 ## Kundportal
 
-Granulära webbroutes anropar exakt motsvarande OPS-route:
+Portaloperationer använder samma verifierade Supabase-ID i båda identitetsheaders:
 
 ```text
-/api/web/customer/invoices/:id
-→ GET /api/v1/customer/invoices/{id}
+x-gridex-customer-portal-user-id
+x-gridex-auth-user-id
 ```
 
-Invoice-ID är opakt. Ingen matchning görs mot fakturanummer, OCR,
-betalreferens eller lagringssökväg. Portal-bundle används en gång för en hel
-sidvy och får endast falla tillbaka till lokal read model vid transient fel.
-Fallback är tekniskt read-only och får inte driva writes.
+Övriga kundidentifierare skickas endast när de kommer från den canonicala
+profilkopplingen. Alla portalrequests/responses valideras endpoint för endpoint.
+Pagination/envelopemetadata bevaras.
 
-Alla writes kräver `client_operation_id` som skapas före första browseranropet.
-Servern skapar inte ett nytt UUID och returnerar inte lokal outbox-status som
-framgång när OPS är otillgängligt.
+Den odokumenterade `/api/v1/customer/switch-status` anropas inte. Checkout använder
+`/api/v1/website/switch-status`; den autentiserade portalen använder
+portal-bundle och events.
 
-## Webhook
+`POST /api/v1/customer-portal/sync` är fortfarande blockerad av OPS-specifikationen:
+requesten är öppen, identitetsheaders saknas och 200-responsen pekar på
+`CustomerInvoice[]`.
 
-Canonical endpoint:
+## Webhooks
+
+Canonical publik endpoint är fortsatt:
 
 ```text
 POST /webhooks/contracts.publication.changed
 ```
 
-Följande headers krävs utan aliases:
+Den kan ta emot de signerade eventtyper som OPS skickar till samma callback.
+Rå body, timestamp, HMAC-SHA256, event-ID, delivery-ID, tenant och payloadhash
+verifieras före affärsprojektion.
+
+Följande statusar skiljs åt i databasen:
 
 ```text
-x-gridex-event-id
-x-gridex-delivery-id
-x-gridex-timestamp
-x-gridex-signature
+received
+verified
+processed
+ignored
+retryable_failure
+permanent_failure
 ```
 
-HMAC-SHA256 verifieras constant-time över exakt
-`${timestamp}.${rawBody}` före JSON-parse. Därefter valideras OpenAPI-schema,
-root/data/integration-tenant, event-ID och revisionsdata.
+Aktiva domänevent projekteras med `apply_ops_domain_event`. Retry sker genom:
 
-Databasfunktionen `apply_ops_publication_event` serialiserar per
-tenant+kanal, deduplicerar event och delivery, jämför payloadhash, ignorerar
-äldre numeriska revisioner och tillämpar `revision_token`. Andra kanaler lagras
-och kvitteras med 2xx utan website-cacheinvalidering. Den gamla
-`/api/ops/webhooks` svarar `410 Gone`.
+```text
+GET|POST /api/internal/webhooks/retry
+Authorization: Bearer <WEBHOOK_RETRY_CRON_SECRET eller CRON_SECRET>
+```
 
-## Upstreammotsägelser
+Efter maxförsök sätts `permanent_failure` och `dead_letter_at`. Okända men korrekt
+signerade typer lagras som `ignored`, inte som affärsmässigt behandlade.
 
-### Legal scope
+## Readiness
 
-- Guide: `website_legal.read` eller `website_contracts.read`.
-- OpenAPI `2026-07-28.1`: endast `website_legal.read`.
-- Runtime: följer OpenAPI och readiness kräver `website_legal.read`.
-- Föreslagen OPS-ändring: uppdatera guiden, eller versionsbumpa OpenAPI med en
-  explicit alternativ scope-regel.
+Adminytan skiljer bland annat mellan:
 
-### Dynamisk juridik
+- konfiguration/autentisering/tenant,
+- kontraktsversion och live-OpenAPI-synk,
+- public contracts, resolver, quote och quote validation,
+- customer application och legal bundle,
+- market price och portfolio,
+- Customer Portal-kontrakt respektive runtime,
+- webhooktransport respektive projektion,
+- applicerade migrationer,
+- full API-kompatibilitet.
 
-- Guide: juridikmoduler kan vara dynamiska.
-- OpenAPI: application request har fem fasta booleanfält och
-  `additionalProperties: false`.
-- Runtime: okända required moduler blockeras fail-closed.
-- Föreslagen OPS-ändring: lägg till en versionerad
-  `legal_acceptances[]`-modell med requirement code, dokument-ID/version/hash,
-  bundle-version och accepted-at, eller begränsa legal-bundle till de fem
-  requestfälten.
+`GRIDEX_WEBHOOK_PROJECTIONS_READY=true` och
+`GRIDEX_DATABASE_MIGRATIONS_READY=true` är bevisflaggor och får endast sättas
+efter stagingverifiering. De kan inte ensamma göra full readiness grön.
 
-### Atomisk portalidentitet
+## Verifieringskommandon
 
-- Guide nämner `customer_portal_user_id`/`auth_user_id`.
-- OpenAPI saknar båda i `CustomerApplicationRequest`.
-- Runtime skickar dem inte och använder idempotent portal-sync som
-  reconciliation.
-- Föreslagen OPS-ändring: lägg explicit nullable portal identity i request och
-  definiera dess atomiska transaktionssemantik.
+```bash
+npm run api:sync
+npm run api:check
+npm run api:contract
+npm run db:migrations:check
+npm run api:compatibility
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-Webben implementerar inga odokumenterade workaroundfält för dessa tre fall.
+Kända upstreamblockerare finns i
+`docs/api-compatibility/upstream-contract-gaps.md` och endpointstatus i
+`docs/api-compatibility/endpoint-matrix.md`.

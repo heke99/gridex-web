@@ -5,7 +5,7 @@ autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
 Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
 kundportal.
 
-Aktuell verifierad API-kontraktsversion är `2026-07-28.1`.
+Canonical kontraktsversion är `2026-07-28.2`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
 
 ## Lokal start
 
@@ -55,6 +55,9 @@ GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET=
 GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_KID=
 GRIDEX_WEBHOOK_SIGNING_SECRET=
 GRIDEX_WEBHOOK_TOLERANCE_SECONDS=300
+WEBHOOK_RETRY_CRON_SECRET=
+GRIDEX_WEBHOOK_PROJECTIONS_READY=false
+GRIDEX_DATABASE_MIGRATIONS_READY=false
 
 CRON_SECRET=
 GRIDEX_INTEGRATION_API_KEY=
@@ -96,12 +99,15 @@ den markeras `authoritative=false`, `readOnly=true` och
 
 Snapshots och godkända hashvärden finns i `docs/openapi/`. `api:check` är
 read-only, jämför version och hash mot produktion och visar semantiska ändringar
-innan den blockerar. Ett nytt livekontrakt accepteras aldrig automatiskt.
+innan den blockerar. `verification-status.json` måste samtidigt visa
+`live_sync_verified=true`; en lokal versionsändring räknas aldrig som livebevis.
 
 ```bash
 npm run api:generate
 npm run api:check:local
 npm run api:check
+npm run db:migrations:check
+npm run api:compatibility:known-gaps
 npm run api:preflight
 ```
 
@@ -118,6 +124,7 @@ Kör migrationerna i `supabase/migrations` i ordning. De senaste migrationerna:
 - lagrar `revision_token` och deduplicerar event/delivery
 - bevarar immutable juridikbevis per ansökan
 - lägger tenant-, OPS-ID-, revision- och synkmetadata på portalprojektioner
+- projekterar signerade domänevent idempotent och kör retry/dead-letter via `/api/internal/webhooks/retry`
 
 ## Verifiering före deploy
 
@@ -128,6 +135,8 @@ npm run lint
 npm test
 npm run api:check
 npm run api:contract
+npm run db:migrations:check
+npm run api:compatibility
 npm run build
 ```
 

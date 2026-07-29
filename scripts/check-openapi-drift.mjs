@@ -4,6 +4,11 @@ import { assertOpenApiDocument, canonical, fetchJsonSpec, sha, SPECS } from './o
 const localOnly = process.argv.includes('--local-only')
 const manifest = JSON.parse(await readFile('docs/openapi/manifest.json', 'utf8'))
 
+const contractSource = await readFile('lib/ops/contract.ts', 'utf8')
+const contractMatch = contractSource.match(/GRIDEX_API_CONTRACT_VERSION = ['"]([^'"]+)['"]/)
+if (!contractMatch) throw new Error('GRIDEX_API_CONTRACT_VERSION is missing from lib/ops/contract.ts')
+const sourceContractVersion = contractMatch[1]
+
 function semanticDiff(previous, next) {
   const keys = (value) => new Set(Object.keys(value ?? {}))
   const changed = (before, after) => {
@@ -24,6 +29,9 @@ for (const [specName, typeName] of SPECS) {
   const localSpec = JSON.parse(await readFile(`docs/openapi/${specName}`, 'utf8'))
   const version = assertOpenApiDocument(localSpec, specName, 'local', sharedVersion)
   sharedVersion ??= version
+  if (sourceContractVersion !== version) {
+    throw new Error(`${specName} contract version ${version} does not match lib/ops/contract.ts ${sourceContractVersion}`)
+  }
   const localCanonical = canonical(localSpec)
   const localHash = sha(localCanonical)
   if (

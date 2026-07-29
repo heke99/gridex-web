@@ -300,10 +300,15 @@ assert.ok(
   !opsClient.includes("identity.externalCustomerId ?? identity.customerNumber"),
   "customer number must not be sent as external customer id",
 );
-assertNotIncludes(
+assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "customer_portal_user_id: linkedAuthUserId",
-  "strict customer application payload must not send undocumented portal identity fields",
+  "logged-in signup must forward the server-verified portal identity when the OPS contract supports it",
+);
+assertIncludes(
+  "lib/ops/client.ts",
+  "ops_customer_application_portal_identity_contract_unsupported",
+  "signup must fail closed while the OPS schema forbids the documented portal identity fields",
 );
 assertIncludes(
   "app/api/web/customer/portal-bundle/route.ts",

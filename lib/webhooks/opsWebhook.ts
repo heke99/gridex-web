@@ -18,6 +18,8 @@ export type OpsWebhookEvent = {
   title?: string | null
   message?: string | null
   link_href?: string | null
+  related_entity_type?: string | null
+  related_entity_id?: string | null
   metadata: Record<string, unknown>
   raw: Record<string, unknown>
 }
@@ -37,8 +39,17 @@ export const OPS_WEBHOOK_EVENT_TYPES = new Set([
   'facility_data.verified',
   'invoice.created',
   'invoice.sent',
+  'invoice.paid',
   'invoice.disputed',
+  'supply.started',
   'metering_values.updated',
+  'customer.opened_document',
+  'customer.downloaded_document',
+  // Forward-compatible projections requested by the website integration. These
+  // are not advertised as active until OPS publishes them in the live guide.
+  'supplier_switch.started',
+  'supplier_switch.completed',
+  'contract.activated',
 ])
 
 function text(value: unknown): string | null {
@@ -166,6 +177,13 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
     title: text(root.title) ?? text(data.title),
     message: text(root.message) ?? text(root.summary) ?? text(data.message) ?? text(data.summary),
     link_href: text(root.link_href) ?? text(data.link_href),
+    related_entity_type:
+      text(root.entity_type) ?? text(data.entity_type) ??
+      (eventType.startsWith('invoice.') ? 'invoice' : eventType.startsWith('supply.') ? 'supply' : null),
+    related_entity_id:
+      text(root.entity_id) ?? text(data.entity_id) ??
+      text(data.invoice_id) ?? text(data.invoice_number) ??
+      text(data.contract_id) ?? text(data.application_id) ?? text(data.facility_id),
     metadata: object(root.metadata ?? data.metadata ?? data),
     raw: root,
   }
@@ -257,12 +275,26 @@ export function customerNotificationForEvent(event: OpsWebhookEvent) {
         body: 'En ny faktura finns nu tillgänglig.',
         link_href: '/mina-sidor/fakturor',
       }
+    case 'invoice.paid':
+      return {
+        category: 'invoice',
+        title: 'Fakturan är betald',
+        body: 'Din betalning har registrerats.',
+        link_href: '/mina-sidor/fakturor',
+      }
     case 'invoice.disputed':
       return {
         category: 'invoice',
         title: 'Faktura markerad för granskning',
         body: 'En faktura har markerats för granskning.',
         link_href: '/mina-sidor/fakturor',
+      }
+    case 'supply.started':
+      return {
+        category: 'contract',
+        title: 'Ellevaransen har startat',
+        body: 'Din elleverans är nu aktiv på den bekräftade anläggningen.',
+        link_href: '/mina-sidor',
       }
     case 'metering_values.updated':
       return {

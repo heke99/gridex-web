@@ -21,7 +21,6 @@ import {
   isOpsError,
   isTransientOpsError,
   submitOpsCustomerApplication,
-  submitOpsCustomerPortalSync,
   type OpsCustomerApplicationInput,
   type OpsPublicContract,
   type OpsWebsitePowerOfAttorneyInput,
@@ -42,7 +41,6 @@ import {
   updateWebsiteSubmission,
 } from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
-import { enqueuePortalWrite } from "@/lib/customerPortal/outbox";
 import { contractSupportsCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
@@ -198,6 +196,8 @@ function errorText(code?: string) {
       return "En motsvarande teckning finns redan. Kontrollera e-post och Mina sidor eller kontakta kundservice innan du skickar en ny.";
     case "auth_email_mismatch":
       return "Bekräfta att teckningen ska använda en annan e-postadress än kontot du är inloggad på.";
+    case "portal_contract":
+      return "Mina sidor-kopplingen är tillfälligt blockerad av API-kontraktet. Kontakta kundservice så hjälper vi dig att slutföra teckningen.";
     case "ops_unavailable":
       return "Vi kunde inte teckna just nu. Försök igen om en stund eller kontakta kundservice.";
     case "live_disabled":
@@ -332,6 +332,8 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     details: (error as { details?: unknown }).details ?? null,
   });
 
+  if (/ops_customer_application_portal_identity_contract_unsupported/i.test(context.code))
+    return "portal_contract";
   if (error.status === 503) return "live_disabled";
   if (error.status === 401) return "ops_auth";
   if (error.status === 403) {
@@ -1019,7 +1021,8 @@ export default async function TecknaPage({
       console.error("[website signup] immutable submission preparation failed", error);
       const mismatch =
         error instanceof Error && /payload changed|idempotency/i.test(error.message);
-      return fail(mismatch ? "idempotency_mismatch" : "ops_unavailable", {
+      const publicCode = mismatch ? "idempotency_mismatch" : opsErrorCode(error);
+      return fail(publicCode, {
         step: 1,
         rotateSubmissionAttempt: mismatch,
       });
@@ -1139,6 +1142,12 @@ export default async function TecknaPage({
             ? verifiedQuote.value.quote.start_date
             : null,
       },
+      ...(linkedAuthUserId
+        ? {
+            customer_portal_user_id: linkedAuthUserId,
+            auth_user_id: linkedAuthUserId,
+          }
+        : {}),
       idempotency_key: idempotencyKey,
       consents: legalConsents,
       powerOfAttorney,
@@ -1156,7 +1165,8 @@ export default async function TecknaPage({
       console.error("[website signup] exact OPS payload lock failed", error);
       const mismatch =
         error instanceof Error && /payload changed|idempotency/i.test(error.message);
-      return fail(mismatch ? "idempotency_mismatch" : "ops_unavailable", {
+      const publicCode = mismatch ? "idempotency_mismatch" : opsErrorCode(error);
+      return fail(publicCode, {
         step: 1,
         rotateSubmissionAttempt: mismatch,
       });
@@ -1221,46 +1231,8 @@ export default async function TecknaPage({
       });
     }
 
-    if (linkedAuthUserId) {
-      const portalIdentity = {
-        userId: linkedAuthUserId,
-        email,
-        customerNumber: result.customer_number ?? null,
-        externalCustomerId: result.external_customer_id ?? externalCustomerId,
-      };
-      const portalSyncOperationId = `signup:${submissionAttemptId}`;
-      const portalSyncMetadata = { source: "gridex_web_successful_signup" };
-      try {
-        await submitOpsCustomerPortalSync({
-          identity: portalIdentity,
-          idempotencyKey: portalSyncOperationId,
-          customerNumber: portalIdentity.customerNumber,
-          externalCustomerId: portalIdentity.externalCustomerId,
-          email,
-          metadata: portalSyncMetadata,
-        });
-      } catch (error) {
-        if (isTransientOpsError(error)) {
-          await enqueuePortalWrite({
-            userId: linkedAuthUserId,
-            operationType: "customer_portal_sync",
-            idempotencyKey: `customer-portal-sync:${linkedAuthUserId}:${portalSyncOperationId}`,
-            identity: portalIdentity,
-            payload: {
-              operation_id: portalSyncOperationId,
-              customer_number: portalIdentity.customerNumber,
-              external_customer_id: portalIdentity.externalCustomerId,
-              email,
-              metadata: portalSyncMetadata,
-            },
-          }).catch((outboxError) => {
-            console.error("[website signup] portal sync outbox failed", outboxError);
-          });
-        } else {
-          console.error("[website signup] portal sync needs manual identity review", error);
-        }
-      }
-    }
+    // The authenticated portal identity is linked atomically in the customer application.
+    // /customer-portal/sync is reserved for explicit repair and legacy reconciliation flows.
 
     const portalOnboarding = await ensureCustomerPortalOnboarding({
       application: result,

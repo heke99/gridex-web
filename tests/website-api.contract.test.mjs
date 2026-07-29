@@ -23,7 +23,7 @@ const applicationSchema = websiteOpenApi.components.schemas.CustomerApplicationR
 const energySchema = websiteOpenApi.components.schemas.WebsiteEnergyAreaResolution
 const quoteSchema = websiteOpenApi.components.schemas.WebsiteQuoteRequest
 
-assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-07-28.1'"))
+assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-07-28.2'"))
 assert.ok(contract.includes("GRIDEX_API_BASE_URL = 'https://app.gridex.se/api/v1'"))
 assert.ok(ops.includes('ops_contract_version_mismatch'))
 assert.ok(!ops.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
@@ -66,11 +66,11 @@ assert.ok(signup.includes('resolution_id: verifiedQuote.value.area.resolutionId'
 assert.ok(signup.includes('price_area_code: verifiedQuote.value.area.priceAreaCode'))
 assert.ok(signup.includes('grid_area_code: verifiedQuote.value.area.gridAreaCode'))
 assert.ok(!signup.includes('source: "gridex_web"'))
-assert.ok(!signup.includes('customer_portal_user_id: linkedAuthUserId'))
-assert.ok(!signup.includes('auth_user_id: linkedAuthUserId'))
+assert.ok(signup.includes('customer_portal_user_id: linkedAuthUserId'))
+assert.ok(signup.includes('auth_user_id: linkedAuthUserId'))
 assert.ok(!signup.includes('current_supplier_id: currentSupplierId'))
 
-assert.equal(websiteOpenApi.info.version, '2026-07-28.1')
+assert.equal(websiteOpenApi.info.version, '2026-07-28.2')
 assert.deepEqual(websiteOpenApi.components.schemas.EnergyDirection.enum, ['consumption', 'production'])
 assert.deepEqual(websiteOpenApi.components.schemas.ProductionPricing.required, [
   'enabled', 'compensation_model', 'resolution', 'settlement_mode', 'billing_direction', 'metering_point_role',
@@ -91,7 +91,7 @@ assert.ok(!onboarding.includes('input.application.portal_identity_id'))
 assert.ok(!onboarding.includes('input.application.contract_price_snapshot_id'))
 assert.ok(onboarding.includes('quote_reference: input.application.quote_reference'))
 
-assert.equal(customerPortalOpenApi.info.version, '2026-07-28.1')
+assert.equal(customerPortalOpenApi.info.version, '2026-07-28.2')
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].get)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].post)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/notifications/read'].post)
@@ -209,4 +209,4 @@ assert.equal('offer_reference' in applicationPayload.contract, false)
 assert.equal('quote_reference' in applicationPayload.contract, false)
 assert.deepEqual(applicationPayload.legal_acceptances, { terms: true, privacy_policy: true, withdrawal: true })
 
-console.log('Website API contract tests passed (2026-07-28.1)')
+console.log('Website API contract tests passed (2026-07-28.2)')

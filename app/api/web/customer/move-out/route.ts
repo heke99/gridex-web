@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { submitOpsCustomerMoveOut } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
+import { privateJsonResponse, webErrorResponse } from '@/lib/api/webBoundary'
 import { clientOperationId, moveOutPayload, object } from '@/lib/customerPortal/writeValidation'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: { code: 'unauthorized', message: 'Du behöver logga in.' } }, { status: 401 })
+  if (!user) return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
 
   const body = object(await req.json().catch(() => null))
   if (!body) return validationError('Ogiltig request-body.')
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       moveOut,
       metadata: { source: 'gridex_web_move_out_route' },
     })
-    return NextResponse.json({ data: result, queued: false })
+    return privateJsonResponse({ data: result, queued: false })
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'move-out',

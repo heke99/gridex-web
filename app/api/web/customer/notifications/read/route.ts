@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { markCustomerNotificationsRead } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
+import { privateJsonResponse } from '@/lib/api/webBoundary'
 import { clientOperationId, object } from '@/lib/customerPortal/writeValidation'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!operationId) return validationError('client_operation_id krävs.', 'client_operation_id')
 
   try {
-    return NextResponse.json(await markCustomerNotificationsRead({
+    return privateJsonResponse(await markCustomerNotificationsRead({
       notificationIds: ids,
       operationId,
     }))

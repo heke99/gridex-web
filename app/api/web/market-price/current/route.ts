@@ -5,7 +5,7 @@ import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-type Payload = { resolution_id?: unknown; resolutionId?: unknown }
+type Payload = { resolution_id?: unknown }
 
 function text(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null) as Payload | null
-  const resolutionId = text(body?.resolution_id ?? body?.resolutionId)
+  const resolutionId = text(body?.resolution_id)
   if (!resolutionId) {
     return NextResponse.json(
       { error: { code: 'resolution_required', message: 'Adressen behöver kontrolleras innan priset kan hämtas.' } },
@@ -35,10 +35,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const data = await fetchOpsCurrentMarketPrice(resolutionId)
-    const { raw, ...publicData } = data
+    const result = await fetchOpsCurrentMarketPrice(resolutionId)
+    const { raw, request_id, contract_schema_version, ...data } = result
     void raw
-    return NextResponse.json({ data: publicData }, { headers: { 'Cache-Control': 'private, no-store' } })
+    return NextResponse.json(
+      { data, request_id, contract_schema_version },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    )
   } catch (error) {
     const code = isOpsError(error) ? error.code : null
     const status = isOpsError(error) && error.status < 500 ? error.status : 503

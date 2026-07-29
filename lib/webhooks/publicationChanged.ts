@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getVerifiedOpsIntegrationContext, invalidateOpsPublicContractsCache } from '@/lib/ops/client'
 import { assertWebsiteRequest } from '@/lib/ops/validators/openapi'
+import {
+  customerNotificationForEvent,
+  isSupportedOpsWebhookEventType,
+  parseOpsWebhookEnvelope,
+} from '@/lib/webhooks/opsWebhook'
 
 type PublicationChangedWebhook = {
   id: string
@@ -24,9 +29,18 @@ type PublicationChangedWebhook = {
 }
 
 type ApplyResult = {
-  result: 'applied' | 'duplicate' | 'stale' | 'ignored' | 'stored' | 'identifier_conflict'
+  result:
+    | 'applied'
+    | 'duplicate'
+    | 'stale'
+    | 'ignored'
+    | 'stored'
+    | 'identifier_conflict'
+    | 'retryable_failure'
+    | 'permanent_failure'
   cache_invalidated: boolean
   stored_revision: number | null
+  notification_created?: boolean
 }
 
 type GenericWebhookEnvelope = {
@@ -115,10 +129,11 @@ function parseGenericEnvelope(value: unknown): GenericWebhookEnvelope | null {
 
 export async function handlePublicationChangedWebhook(request: Request) {
   const eventId = requiredHeader(request.headers, 'x-gridex-event-id')
+  const eventType = requiredHeader(request.headers, 'x-gridex-event-type')
   const deliveryId = requiredHeader(request.headers, 'x-gridex-delivery-id')
   const timestamp = requiredHeader(request.headers, 'x-gridex-timestamp')
   const signature = requiredHeader(request.headers, 'x-gridex-signature')
-  if (!eventId || !deliveryId || !timestamp || !signature) {
+  if (!eventId || !eventType || !deliveryId || !timestamp || !signature) {
     return errorResponse('missing_webhook_headers', 'Canonical Gridex webhook headers are required.', 400)
   }
 
@@ -151,6 +166,7 @@ export async function handlePublicationChangedWebhook(request: Request) {
 
   if (
     envelope.id !== eventId ||
+    envelope.type !== eventType ||
     envelope.tenant_reference !== envelope.data.tenant_reference
   ) {
     return errorResponse('webhook_identity_mismatch', 'Signed webhook identifiers do not match.', 400)
@@ -168,44 +184,81 @@ export async function handlePublicationChangedWebhook(request: Request) {
   const payloadHash = createHash('sha256').update(rawBody).digest('hex')
   const supabase = serviceClient()
   if (envelope.type !== 'contracts.publication.changed') {
-    console.warn('[generic webhook] signed unknown event retained', {
-      event_type: envelope.type,
-      event_id: eventId,
-      delivery_id: deliveryId,
-    })
-    const { data, error } = await supabase.rpc('store_ops_generic_event', {
+    const event = parseOpsWebhookEnvelope(envelope)
+    if (!event || !isSupportedOpsWebhookEventType(event.event_type)) {
+      console.warn('[generic webhook] signed unknown event retained', {
+        event_type: envelope.type,
+        event_id: eventId,
+        delivery_id: deliveryId,
+      })
+      const { data, error } = await supabase.rpc('store_ops_generic_event', {
+        p_event_id: eventId,
+        p_delivery_id: deliveryId,
+        p_event_type: envelope.type,
+        p_tenant_reference: envelope.tenant_reference,
+        p_created_at: envelope.created_at,
+        p_payload_hash: payloadHash,
+        p_payload: envelope,
+      })
+      if (error) {
+        console.error('[generic webhook] durable store failed', { code: error.code, message: error.message })
+        return errorResponse('webhook_storage_failed', 'Webhook could not be durably stored.', 500)
+      }
+      const result = (Array.isArray(data) ? data[0] : data) as ApplyResult | null
+      if (!result) return errorResponse('webhook_storage_failed', 'Webhook store returned no durable result.', 500)
+      if (result.result === 'identifier_conflict') {
+        return errorResponse('webhook_identifier_conflict', 'Event and delivery identifiers were reused with different signed content.', 409)
+      }
+      return NextResponse.json({
+        ok: true,
+        result: result.result,
+        event_id: eventId,
+        delivery_id: deliveryId,
+        event_type: envelope.type,
+        cache_invalidated: false,
+      })
+    }
+
+    const notification = customerNotificationForEvent(event)
+    const { data, error } = await supabase.rpc('apply_ops_domain_event', {
       p_event_id: eventId,
       p_delivery_id: deliveryId,
-      p_event_type: envelope.type,
+      p_event_type: event.event_type,
       p_tenant_reference: envelope.tenant_reference,
       p_created_at: envelope.created_at,
       p_payload_hash: payloadHash,
       p_payload: envelope,
+      p_customer_id: event.customer_id,
+      p_customer_number: event.customer_number,
+      p_external_customer_id: event.external_customer_id,
+      p_customer_email: event.customer_email,
+      p_portal_user_id: event.portal_user_id,
+      p_related_entity_type: event.related_entity_type,
+      p_related_entity_id: event.related_entity_id,
+      p_notification_category: notification?.category ?? null,
+      p_notification_title: notification?.title ?? null,
+      p_notification_body: notification?.body ?? null,
+      p_notification_link_href: notification?.link_href ?? null,
     })
     if (error) {
-      console.error('[generic webhook] durable store failed', {
-        code: error.code,
-        message: error.message,
-      })
-      return errorResponse('webhook_storage_failed', 'Webhook could not be durably stored.', 500)
+      console.error('[domain webhook] durable projection failed', { code: error.code, message: error.message })
+      return errorResponse('webhook_projection_failed', 'Webhook projection failed and can be retried.', 500)
     }
     const result = (Array.isArray(data) ? data[0] : data) as ApplyResult | null
-    if (!result) {
-      return errorResponse('webhook_storage_failed', 'Webhook store returned no durable result.', 500)
-    }
+    if (!result) return errorResponse('webhook_projection_failed', 'Webhook projection returned no durable result.', 500)
     if (result.result === 'identifier_conflict') {
-      return errorResponse(
-        'webhook_identifier_conflict',
-        'Event and delivery identifiers were reused with different signed content.',
-        409,
-      )
+      return errorResponse('webhook_identifier_conflict', 'Event and delivery identifiers were reused with different signed content.', 409)
+    }
+    if (result.result === 'retryable_failure') {
+      return errorResponse('webhook_projection_retryable_failure', 'Webhook was retained but its projection must be retried.', 503)
     }
     return NextResponse.json({
       ok: true,
       result: result.result,
       event_id: eventId,
       delivery_id: deliveryId,
-      event_type: envelope.type,
+      event_type: event.event_type,
+      notification_created: result.notification_created === true,
       cache_invalidated: false,
     })
   }

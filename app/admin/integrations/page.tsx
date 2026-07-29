@@ -119,8 +119,11 @@ export default async function AdminIntegrationsPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[
             ['SUPABASE_SERVICE_ROLE_KEY', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)],
-            ['GRIDEX_INTEGRATION_API_KEY', Boolean(process.env.GRIDEX_INTEGRATION_API_KEY)],
+            ['GRIDEX_API_KEY', Boolean(process.env.GRIDEX_API_KEY)],
             ['CRON_SECRET', Boolean(process.env.CRON_SECRET)],
+            ['WEBHOOK_RETRY_CRON_SECRET', Boolean(process.env.WEBHOOK_RETRY_CRON_SECRET || process.env.CRON_SECRET)],
+            ['GRIDEX_WEBHOOK_PROJECTIONS_READY', process.env.GRIDEX_WEBHOOK_PROJECTIONS_READY === 'true'],
+            ['GRIDEX_DATABASE_MIGRATIONS_READY', process.env.GRIDEX_DATABASE_MIGRATIONS_READY === 'true'],
             ['CIS_API_BASE_URL', Boolean(process.env.CIS_API_BASE_URL)],
             ['CIS_API_KEY', Boolean(process.env.CIS_API_KEY)],
             ['CIS_SANDBOX_MODE', process.env.CIS_SANDBOX_MODE !== 'false'],
@@ -153,9 +156,34 @@ export default async function AdminIntegrationsPage() {
             <p className="mt-1 text-sm text-white/60">{opsReadiness.message}</p>
           </div>
           <span className={`w-fit rounded-full border px-3 py-1 text-xs ${opsReadiness.ready ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/30 bg-rose-500/10 text-rose-200'}`}>
-            {opsReadiness.code}
+            {opsReadiness.fullApiCompatibilityReady ? 'full_api_ready' : opsReadiness.ready ? 'checkout_ready_only' : opsReadiness.code}
           </span>
         </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {Object.entries(opsReadiness.checks).map(([name, item]) => (
+            <div
+              key={name}
+              className={`rounded-2xl border p-3 ${item.ready ? 'border-emerald-500/25 bg-emerald-500/10' : item.severity === 'warning' ? 'border-amber-500/25 bg-amber-500/10' : 'border-rose-500/25 bg-rose-500/10'}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <code className="text-[11px] text-white/75">{name}</code>
+                <span className={`text-[11px] ${item.ready ? 'text-emerald-300' : item.severity === 'warning' ? 'text-amber-300' : 'text-rose-300'}`}>
+                  {item.ready ? 'klar' : item.severity}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-white/60">{item.message}</p>
+              {!item.ready ? <code className="mt-2 block text-[10px] text-white/45">{item.code}</code> : null}
+            </div>
+          ))}
+        </div>
+        {opsReadiness.upstreamContractGaps.length > 0 ? (
+          <div className="mt-5 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-4">
+            <div className="text-sm font-semibold text-rose-200">Blockerande OPS-kontraktsluckor</div>
+            <ul className="mt-2 space-y-1 text-xs text-rose-100/80">
+              {opsReadiness.upstreamContractGaps.map((gap) => <li key={gap}><code>{gap}</code></li>)}
+            </ul>
+          </div>
+        ) : null}
         <div className="mt-5 grid gap-2 md:grid-cols-2">
           {opsReadiness.scopes.map((scope) => (
             <div key={scope.scope} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2">
@@ -186,10 +214,11 @@ export default async function AdminIntegrationsPage() {
               {opsReadiness.webhook.ready ? 'redo' : 'blockerad'}
             </span>
           </div>
-          <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+          <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
             <span>Aktiv: {opsReadiness.webhook.enabled ? 'ja' : 'nej'}</span>
             <span>Secret: {opsReadiness.webhook.signingSecretConfigured ? 'ja' : 'nej'}</span>
             <span>Konflikt: {opsReadiness.webhook.secretConflict ? 'ja' : 'nej'}</span>
+            <span>Retry-cron: {opsReadiness.webhook.retryWorkerConfigured ? 'ja' : 'nej'}</span>
           </div>
         </div>
       </section>

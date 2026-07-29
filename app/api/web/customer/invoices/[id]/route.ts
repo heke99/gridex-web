@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { webErrorResponse } from '@/lib/api/webBoundary'
 import { customerResourceResponse } from '@/lib/customerPortal/resourceRoute'
 
 export const dynamic = 'force-dynamic'
@@ -19,9 +19,9 @@ export async function GET(_request: Request, context: RouteContext) {
   const id = text(rawId)
 
   if (!id) {
-    return NextResponse.json(
-      { error: 'Faktura-id saknas.', code: 'missing_invoice_id' },
-      { status: 400 },
+    return webErrorResponse(
+      { code: 'missing_invoice_id', message: 'Faktura-id saknas.', retryable: false },
+      400,
     )
   }
 

@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-29T12:00:24.357Z",
+  "migration_count": 22,
+  "version_collisions": [],
+  "migrations": [
+    {
+      "file": "20260306_customer_portal_enterprise.sql",
+      "version": "20260306",
+      "sha256": "a70d2d7c648cad9f9de481e7f9b96b6c368f1f8bf9032cde867ab376fde850c2"
+    },
+    {
+      "file": "20260602010000_market_price_and_invoice_integrations.sql",
+      "version": "20260602010000",
+      "sha256": "12a3439bb5411db839fa33bfba6765c1c3ed9ec34b9e23f9d93d3d1717a2a17a"
+    },
+    {
+      "file": "20260602_full_commercial_signup_flow.sql",
+      "version": "20260602",
+      "sha256": "ca739a7b194b6e215e6432b61584a0cf7bebeea8135edd764194ceca09a02b04"
+    },
+    {
+      "file": "20260605_public_support_and_spot_api_fallback.sql",
+      "version": "20260605",
+      "sha256": "845d71476e1bc3953f227a767e9885f679d7df96b3767c3460e826b605e510d5"
+    },
+    {
+      "file": "20260612_website_ops_webhooks_notifications.sql",
+      "version": "20260612",
+      "sha256": "bd47f03b6774a6a60002b641889eedee052205947bc2395e4b35df7c9f5571f0"
+    },
+    {
+      "file": "20260613_website_pricing_price_area_cache.sql",
+      "version": "20260613",
+      "sha256": "b995eaaa7110ebcf20f4eb31cacfc0df09f94b608dc4d0b4547a17af6a560c35"
+    },
+    {
+      "file": "20260616_customer_portal_onboarding_links.sql",
+      "version": "20260616",
+      "sha256": "426775b26f9b65a8d56e1e2119726832fefd923517559d0f10eb2210cc00994c"
+    },
+    {
+      "file": "20260617_ops_api_webhook_contract_hardening.sql",
+      "version": "20260617",
+      "sha256": "30bacc881a66fa6951eb30369c24b497e021072cf8300a5aa4aa066b98354754"
+    },
+    {
+      "file": "20260710090000_customer_portal_api_hardening.sql",
+      "version": "20260710090000",
+      "sha256": "d1e194acc9528505357ec7cf7259af6ea044ae4c8e9789360a4fda0b00921f95"
+    },
+    {
+      "file": "20260713160000_customer_portal_api_contract_alignment.sql",
+      "version": "20260713160000",
+      "sha256": "418a9eb811bed1f9b0645b233290efeb8e9277681d222d0634d1c5bac2b529c5"
+    },
+    {
+      "file": "20260714160000_website_application_ops_result_evidence.sql",
+      "version": "20260714160000",
+      "sha256": "ba1efa0b8d5ae51abb8cf47fc3346e64d67aa7beab3f1101eb0a0f8bdabf5c23"
+    },
+    {
+      "file": "20260718160000_website_checkout_contexts.sql",
+      "version": "20260718160000",
+      "sha256": "142cf8fcd8b39d352c7bb1f8ca0ebeb57243cb6dac62b30ab1b102b65886fef7"
+    },
+    {
+      "file": "20260720143000_website_postal_cache_hardening.sql",
+      "version": "20260720143000",
+      "sha256": "c0e3ad32eb1f3436fe239274b8c4afc7ced54ef70b2d04d62e2a78c248fcc434"
+    },
+    {
+      "file": "20260722230000_ops_publication_state_20260722_1.sql",
+      "version": "20260722230000",
+      "sha256": "de5c276cf6102553012581947806206e6a90531f996acbc11d38d6dd9bd61f8d"
+    },
+    {
+      "file": "20260723113000_website_pricing_audit.sql",
+      "version": "20260723113000",
+      "sha256": "da76b22b0a985cfcc26a289eef8b6c73d551152cf6c0c75930ca79320a151bbf"
+    },
+    {
+      "file": "20260724120000_ops_website_contract_20260723_1.sql",
+      "version": "20260724120000",
+      "sha256": "607bbe1a4884326a12d1e29b19f8b7a004b0b42abf07941a09be594f136566e4"
+    },
+    {
+      "file": "20260724184500_ops_website_contract_20260724_2.sql",
+      "version": "20260724184500",
+      "sha256": "b2dce52fb9e5a2b158098320ef83bdcb5a350eab9e3d2cd34b3e0a24fe23a358"
+    },
+    {
+      "file": "20260724190000_ops_website_contract_20260724_2.sql",
+      "version": "20260724190000",
+      "sha256": "f80dddc26568afed28dfc1f6640ad09528d425c8ee74768c47434610cae0e2ec"
+    },
+    {
+      "file": "20260728130000_canonical_publication_webhook_20260728_1.sql",
+      "version": "20260728130000",
+      "sha256": "92d1be7b294bf9e5b1bc42e82caa602c02faecb70a25d6004f3b5af119f7b3fe"
+    },
+    {
+      "file": "20260728131000_immutable_legal_evidence.sql",
+      "version": "20260728131000",
+      "sha256": "aa21e8a5e3b8f9306387b94187b377072f93db2f1ab2bc524169a8680eba2bef"
+    },
+    {
+      "file": "20260728132000_portal_projection_metadata.sql",
+      "version": "20260728132000",
+      "sha256": "6d217a7990a94b4d01a85cb1bccfa3c1c27cd3638c8ed98a6d37f2021de8759f"
+    },
+    {
+      "file": "20260729131000_ops_webhook_domain_projections.sql",
+      "version": "20260729131000",
+      "sha256": "b3797f913a8b295361637dcce9c79ee13693cb1d58462f80c7404125b523f272"
+    }
+  ]
+}

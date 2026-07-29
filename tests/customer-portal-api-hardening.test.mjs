@@ -30,7 +30,6 @@ for (const resource of [
   'documents',
   'legal-acceptances',
   'powers-of-attorney',
-  'switch-status',
   'metering-values',
   'notifications',
 ]) {
@@ -38,6 +37,11 @@ for (const resource of [
   assert.ok(route.includes('customerResourceResponse'))
   assert.ok(!route.includes('getCustomerPortalOverview'))
 }
+
+const switchStatusRoute = read('app/api/web/customer/switch-status/route.ts')
+assert.ok(switchStatusRoute.includes('status: 501'))
+assert.ok(switchStatusRoute.includes('portal-bundle'))
+assert.ok(!switchStatusRoute.includes('customerResourceResponse'))
 
 const invoiceDetail = read('app/api/web/customer/invoices/[id]/route.ts')
 assert.ok(invoiceDetail.includes("customerResourceResponse('invoices', id)"))
@@ -73,6 +77,7 @@ for (const forbidden of [
 const webhook = read('lib/webhooks/publicationChanged.ts')
 for (const header of [
   'x-gridex-event-id',
+  'x-gridex-event-type',
   'x-gridex-delivery-id',
   'x-gridex-timestamp',
   'x-gridex-signature',

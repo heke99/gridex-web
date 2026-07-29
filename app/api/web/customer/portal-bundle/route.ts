@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse } from '@/lib/customerPortal/apiErrors'
+import { privateJsonResponse } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 async function handle() {
   try {
     const overview = await getCustomerPortalOverview()
-    return NextResponse.json({ data: overview })
+    return privateJsonResponse({ data: overview })
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'portal-bundle',

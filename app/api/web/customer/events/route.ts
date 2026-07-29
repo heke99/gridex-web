@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { isOpsCustomerEventType, sendOpsCustomerEvent } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
 import { customerResourceResponse } from '@/lib/customerPortal/resourceRoute'
 import { clientOperationId, object, text } from '@/lib/customerPortal/writeValidation'
-import { readWebJson } from '@/lib/api/webBoundary'
+import { privateJsonResponse, readWebJson, webErrorResponse } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -18,7 +17,7 @@ export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return NextResponse.json({ error: { code: 'unauthorized', message: 'Du behöver logga in.' } }, { status: 401 })
+    return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
   }
   const parsed = await readWebJson<Record<string, unknown>>(req)
   if (!parsed.ok) return parsed.response
@@ -43,7 +42,7 @@ export async function POST(req: Request) {
       idempotency_key: operationId,
       metadata,
     })
-    return NextResponse.json({ ok: true, queued: false })
+    return privateJsonResponse({ ok: true, queued: false })
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'customer-event',
