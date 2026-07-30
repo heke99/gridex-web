@@ -1,7 +1,14 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { assertOpenApiDocument, canonical, fetchJsonSpec, sha, SPECS } from './openapi-common.mjs'
+import {
+  assertOpenApiDocument,
+  canonical,
+  fetchManifestSpecification,
+  fetchReleaseManifest,
+  sha,
+  SPECS,
+} from './openapi-common.mjs'
 
 const outputDirectory = path.join('docs', 'openapi')
 await mkdir(outputDirectory, { recursive: true })
@@ -53,10 +60,20 @@ function run(command, args) {
 }
 
 let contractVersion = null
+const releaseManifest = await fetchReleaseManifest()
 const downloaded = []
 for (const [specName] of SPECS) {
-  const spec = await fetchJsonSpec(specName)
+  const manifestKey = specName.startsWith('website')
+    ? 'website'
+    : 'customer_portal'
+  const specification = releaseManifest.specifications[manifestKey]
+  const spec = await fetchManifestSpecification(specification)
   const version = assertOpenApiDocument(spec, specName, 'live', contractVersion)
+  if (version !== releaseManifest.release_version) {
+    throw new Error(
+      `${specName} version ${version} does not match release manifest ${releaseManifest.release_version}`,
+    )
+  }
   contractVersion ??= version
   let previous = null
   try {
@@ -75,6 +92,7 @@ const managedFiles = [
   ...SPECS.map(([, typeName]) => path.join('lib', 'ops', 'generated', typeName)),
   contractPath,
   path.join(outputDirectory, 'manifest.json'),
+  path.join(outputDirectory, 'release-manifest.json'),
   verificationPath,
   diffPath,
 ]
@@ -91,6 +109,10 @@ try {
     temporaryFiles.push({ target, temporary })
   }
   for (const { target, temporary } of temporaryFiles) await rename(temporary, target)
+  await writeFile(
+    path.join(outputDirectory, 'release-manifest.json'),
+    `${JSON.stringify(releaseManifest, null, 2)}\n`,
+  )
 
   const contractSource = await readFile(contractPath, 'utf8')
   const nextContractSource = contractSource.replace(
@@ -105,6 +127,7 @@ try {
   const report = {
     synced_at: new Date().toISOString(),
     contract_version: contractVersion,
+    release_manifest: releaseManifest,
     specifications: Object.fromEntries(downloaded.map(({ specName, spec, previous }) => [
       specName,
       {

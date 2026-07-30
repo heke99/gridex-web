@@ -37,12 +37,17 @@ export type OpsReadinessCheckName =
   | 'authentication_ready'
   | 'tenant_ready'
   | 'contract_version_ready'
+  | 'local_schema_ready'
+  | 'live_schema_ready'
+  | 'runtime_schema_ready'
   | 'openapi_sync_ready'
   | 'public_contracts_ready'
+  | 'diagnostics_ready'
   | 'energy_area_ready'
   | 'quote_ready'
   | 'quote_validation_ready'
   | 'customer_application_ready'
+  | 'portal_identity_ready'
   | 'legal_bundle_ready'
   | 'market_price_ready'
   | 'portfolio_ready'
@@ -51,7 +56,10 @@ export type OpsReadinessCheckName =
   | 'switch_status_ready'
   | 'webhook_transport_ready'
   | 'webhook_projection_ready'
+  | 'webhook_retry_ready'
   | 'database_migrations_ready'
+  | 'staging_flow_ready'
+  | 'tenant_isolation_ready'
   | 'full_api_compatibility_ready'
 
 export type OpsReadinessCheck = {
@@ -238,6 +246,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     process.env.GRIDEX_WEBHOOK_PROJECTIONS_READY === 'true' &&
     migrationsVerified &&
     webhookRetryWorkerConfigured
+  const stagingFlowVerified =
+    process.env.GRIDEX_STAGING_FLOW_VERIFIED === 'true'
+  const tenantIsolationVerified =
+    process.env.GRIDEX_TWO_TENANT_ISOLATION_VERIFIED === 'true'
   const webhook = {
     enabled: webhookEnabled,
     signingSecretConfigured: webhookSecretConfigured,
@@ -330,6 +342,37 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
         : 'OPS-kontraktsversionen är inte runtimeverifierad eller matchar inte klienten.',
       { expected: GRIDEX_API_CONTRACT_VERSION, received: resolvedContractVersion },
     ),
+    local_schema_ready: check(
+      upstreamContractGaps.length === 0,
+      upstreamContractGaps.length === 0
+        ? 'local_schema_verified'
+        : 'local_schema_gaps',
+      upstreamContractGaps.length === 0
+        ? 'Incheckade OpenAPI-kontrakt är slutna och kompatibilitetsverifierade.'
+        : 'Incheckade OpenAPI-kontrakt har blockerande schemagap.',
+      { gaps: upstreamContractGaps },
+    ),
+    live_schema_ready: check(
+      openApiVerification.live_sync_verified === true &&
+        openApiVerification.contract_version === GRIDEX_API_CONTRACT_VERSION,
+      openApiVerification.live_sync_verified === true
+        ? 'live_schema_verified'
+        : 'live_schema_unverified',
+      'Live-manifestets version och SHA-256 ska vara verifierade mot lokala snapshots.',
+      { verified_at: openApiVerification.verified_at },
+    ),
+    runtime_schema_ready: check(
+      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION &&
+        upstreamContractGaps.length === 0,
+      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION
+        ? 'runtime_schema_verified'
+        : 'runtime_schema_unverified',
+      'Runtimeversion och maskinkontrakt ska vara samma release.',
+      {
+        expected: GRIDEX_API_CONTRACT_VERSION,
+        received: resolvedContractVersion,
+      },
+    ),
     openapi_sync_ready: check(
       openApiVerification.live_sync_verified === true && openApiVerification.contract_version === GRIDEX_API_CONTRACT_VERSION,
       openApiVerification.live_sync_verified === true ? 'openapi_live_sync_verified' : 'openapi_live_sync_unverified',
@@ -339,6 +382,13 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       { verified_at: openApiVerification.verified_at, expected: GRIDEX_API_CONTRACT_VERSION },
     ),
     public_contracts_ready: check(probeReady('website_contracts.read'), 'public_contracts_probe', 'Publicerade avtal kan hämtas och valideras.'),
+    diagnostics_ready: check(
+      probeReady('website_contracts.diagnostics'),
+      'diagnostics_probe',
+      'Tenantens publiceringsgraf kan verifieras via diagnostics.',
+      undefined,
+      'warning',
+    ),
     energy_area_ready: check(probeReady('website_energy_area.resolve'), 'energy_area_probe', 'Elområdesresolverns behörighet är verifierad.'),
     quote_ready: check(probeReady('website_quotes.write'), 'quote_probe', 'Quote-endpointens behörighet är verifierad.'),
     quote_validation_ready: check(
@@ -349,6 +399,15 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
         : 'Quote validation-endpointens behörighet och maskinschema är verifierade.',
     ),
     customer_application_ready: check(probeReady('website_applications.write') && !portalIdentityGap, portalIdentityGap ? 'portal_identity_contract_missing' : 'customer_application_probe', portalIdentityGap ? 'Kundansökans OpenAPI saknar atomisk portalidentitet.' : 'Kundansökan kan skickas enligt kontraktet.'),
+    portal_identity_ready: check(
+      probeReady('website_applications.write') &&
+        !portalIdentityGap &&
+        contextReadiness?.customerPortalReady === true,
+      portalIdentityGap
+        ? 'portal_identity_contract_missing'
+        : 'portal_identity_runtime_unverified',
+      'Portalidentitet ska skrivas atomiskt av OPS och Customer Portal-capability ska vara aktiv.',
+    ),
     legal_bundle_ready: check(
       probeReady('website_legal.read') && !legalAcceptanceGap,
       legalAcceptanceGap ? 'legal_acceptance_contract_not_dynamic' : 'legal_bundle_probe',
@@ -379,7 +438,34 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       },
       'warning',
     ),
+    webhook_retry_ready: check(
+      webhookRetryWorkerConfigured,
+      webhookRetryWorkerConfigured
+        ? 'webhook_retry_ready'
+        : 'webhook_retry_unverified',
+      'Webhook retry/dead-letter worker kräver en verifierad cron-konfiguration.',
+      undefined,
+      'warning',
+    ),
     database_migrations_ready: check(migrationsVerified, migrationsVerified ? 'database_migrations_verified' : 'database_migrations_unverified', 'Nödvändiga databasmigrationer måste vara applicerade och verifierade.', undefined, 'warning'),
+    staging_flow_ready: check(
+      stagingFlowVerified,
+      stagingFlowVerified
+        ? 'staging_flow_verified'
+        : 'staging_flow_unverified',
+      'Canonical checkout, portal och webhookflöde ska verifieras i staging.',
+      undefined,
+      'warning',
+    ),
+    tenant_isolation_ready: check(
+      tenantIsolationVerified,
+      tenantIsolationVerified
+        ? 'tenant_isolation_verified'
+        : 'tenant_isolation_unverified',
+      'Två separata tenantnycklar ska bevisa läs-, skriv- och webhookisolering.',
+      undefined,
+      'warning',
+    ),
     full_api_compatibility_ready: check(false, 'pending_full_evaluation', 'Full kompatibilitet beräknas från samtliga obligatoriska kontroller.'),
   }
 
@@ -388,12 +474,17 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     'authentication_ready',
     'tenant_ready',
     'contract_version_ready',
+    'local_schema_ready',
+    'live_schema_ready',
+    'runtime_schema_ready',
     'openapi_sync_ready',
     'public_contracts_ready',
+    'diagnostics_ready',
     'energy_area_ready',
     'quote_ready',
     'quote_validation_ready',
     'customer_application_ready',
+    'portal_identity_ready',
     'legal_bundle_ready',
     'market_price_ready',
     'portfolio_ready',
@@ -402,7 +493,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     'switch_status_ready',
     'webhook_transport_ready',
     'webhook_projection_ready',
+    'webhook_retry_ready',
     'database_migrations_ready',
+    'staging_flow_ready',
+    'tenant_isolation_ready',
   ]
   const fullApiCompatibilityReady =
     upstreamContractGaps.length === 0 &&

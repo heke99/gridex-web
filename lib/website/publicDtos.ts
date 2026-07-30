@@ -113,21 +113,20 @@ export function toBrowserLegalBundle(bundle: OpsWebsiteLegalBundle) {
     bundle_version: bundle.bundle_version,
     complete: bundle.complete,
     missing_types: bundle.missing_types,
-    unsupported_required_types: bundle.unsupported_required_types,
     supported_by_application_contract:
-      bundle.complete && bundle.unsupported_required_types.length === 0,
-    requirements: bundle.required_types.map((requirementCode) => {
-      const document = bundle.texts.find((item) => item.type === requirementCode)
+      bundle.complete &&
+      bundle.requirements.length === bundle.required_types.length,
+    requirements: bundle.requirements.map((requirement) => {
       return {
-        requirement_code: requirementCode,
-        required: true,
-        label: document?.title ?? requirementCode,
-        document_id: document?.id ?? null,
-        document_version: document?.version ?? null,
-        document_hash: document?.content_sha256 ?? null,
-        legal_bundle_version_document_id:
-          document?.legal_bundle_version_id ?? null,
-        public_url: document?.url ?? null,
+        requirement_code: requirement.requirement_code,
+        required: requirement.required,
+        label: requirement.title,
+        description: requirement.description,
+        document_id: requirement.document_id,
+        document_version: requirement.document_version,
+        document_hash: requirement.document_hash,
+        legal_bundle_version_document_id: requirement.document_id,
+        public_url: requirement.document_url,
         bundle_version: bundle.bundle_version,
       }
     }),

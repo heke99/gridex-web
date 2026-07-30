@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       customerNumber: identity.customerNumber,
       externalCustomerId: identity.externalCustomerId,
       email: identity.email,
-      metadata: { source: 'gridex_web_customer_portal_sync_route' },
+      metadata: { source: 'tenant_website_customer_portal_sync_route' },
     })
     return NextResponse.json({ data: result, queued: false })
   } catch (error) {

@@ -568,7 +568,13 @@ export function gridexOpenApiContractGaps(): string[] {
   ))) {
     gaps.push('customer_portal_resource_schemas_not_strict')
   }
-  gaps.push('ops_domain_webhook_schema_not_published')
+  if (
+    !schemaIsClosedObject(
+      documents.website.components?.schemas?.OpsDomainWebhookEnvelope,
+    )
+  ) {
+    gaps.push('ops_domain_webhook_schema_not_published')
+  }
   return [...new Set(gaps)]
 }
 

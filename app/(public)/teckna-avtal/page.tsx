@@ -669,7 +669,7 @@ export default async function TecknaPage({
     }
     if (
       !legalBundle.complete ||
-      legalBundle.unsupported_required_types.length > 0 ||
+      legalBundle.requirements.length !== legalBundle.required_types.length ||
       !submittedLegalBundleVersion ||
       submittedLegalBundleVersion !== legalBundle.bundle_version
     ) {
@@ -679,21 +679,13 @@ export default async function TecknaPage({
         current_bundle_version: legalBundle.bundle_version,
         complete: legalBundle.complete,
         missing_types: legalBundle.missing_types,
-        unsupported_required_types: legalBundle.unsupported_required_types,
+        returned_requirements: legalBundle.requirements.map(
+          (requirement) => requirement.requirement_code,
+        ),
       });
       return fail("legal_config", { step: 1 });
     }
-    const legalRequirements = legalBundle.required_types.map((requirementCode) => {
-      const document = legalBundle.texts.find((item) => item.type === requirementCode);
-      return {
-        requirement_code: requirementCode,
-        required: true,
-        document_id: document?.id ?? null,
-        document_version: document?.version ?? null,
-        document_hash: document?.content_sha256 ?? null,
-        legal_bundle_version_id: document?.legal_bundle_version_id ?? null,
-      };
-    });
+    const legalRequirements = legalBundle.requirements;
     const legalConsents = Object.fromEntries(
       legalRequirements.map((requirement) => [
         requirement.requirement_code,
@@ -1149,7 +1141,15 @@ export default async function TecknaPage({
           }
         : {}),
       idempotency_key: idempotencyKey,
-      consents: legalConsents,
+      legal_bundle_version: legalBundle.bundle_version,
+      legal_acceptances: legalRequirements.map((requirement) => ({
+        requirement_code: requirement.requirement_code,
+        document_id: requirement.document_id,
+        document_version: requirement.document_version,
+        document_hash: requirement.document_hash,
+        accepted: true as const,
+        accepted_at: acceptedAt,
+      })),
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;
 

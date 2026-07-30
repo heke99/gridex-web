@@ -23,7 +23,7 @@ const applicationSchema = websiteOpenApi.components.schemas.CustomerApplicationR
 const energySchema = websiteOpenApi.components.schemas.WebsiteEnergyAreaResolution
 const quoteSchema = websiteOpenApi.components.schemas.WebsiteQuoteRequest
 
-assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-07-28.2'"))
+assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-07-30.1'"))
 assert.ok(contract.includes("GRIDEX_API_BASE_URL = 'https://app.gridex.se/api/v1'"))
 assert.ok(ops.includes('ops_contract_version_mismatch'))
 assert.ok(!ops.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
@@ -42,8 +42,8 @@ assert.ok(area.includes("code: 'resolution_pricing_not_ready'"))
 assert.ok(area.includes('resolution.blockers.pricing'))
 assert.ok(!area.includes('automation_allowed'))
 assert.ok(!ops.includes('automation_allowed'))
-assert.ok(ops.includes("pricing_ready: pickBoolean(capabilitiesRow"))
-assert.ok(ops.includes("quote_ready: pickBoolean(capabilitiesRow"))
+assert.ok(ops.includes("pricing_ready: row.capabilities.pricing_ready"))
+assert.ok(ops.includes("quote_ready: row.capabilities.quote_ready"))
 assert.ok(ops.includes('switch_dispatch_ready'))
 assert.ok(energyToken.includes("const TOKEN_VERSION = 'ea5'"))
 assert.ok(energyToken.includes('version: 2'))
@@ -70,7 +70,7 @@ assert.ok(signup.includes('customer_portal_user_id: linkedAuthUserId'))
 assert.ok(signup.includes('auth_user_id: linkedAuthUserId'))
 assert.ok(!signup.includes('current_supplier_id: currentSupplierId'))
 
-assert.equal(websiteOpenApi.info.version, '2026-07-28.2')
+assert.equal(websiteOpenApi.info.version, '2026-07-30.1')
 assert.deepEqual(websiteOpenApi.components.schemas.EnergyDirection.enum, ['consumption', 'production'])
 assert.deepEqual(websiteOpenApi.components.schemas.ProductionPricing.required, [
   'enabled', 'compensation_model', 'resolution', 'settlement_mode', 'billing_direction', 'metering_point_role',
@@ -91,7 +91,7 @@ assert.ok(!onboarding.includes('input.application.portal_identity_id'))
 assert.ok(!onboarding.includes('input.application.contract_price_snapshot_id'))
 assert.ok(onboarding.includes('quote_reference: input.application.quote_reference'))
 
-assert.equal(customerPortalOpenApi.info.version, '2026-07-28.2')
+assert.equal(customerPortalOpenApi.info.version, '2026-07-30.1')
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].get)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].post)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/notifications/read'].post)
@@ -130,16 +130,19 @@ assert.ok(applicationSchema.required.includes('resolution_id'))
 assert.equal(applicationSchema.additionalProperties, false)
 assert.ok('metering_point' in applicationSchema.properties)
 assert.ok(!('source' in applicationSchema.properties))
-assert.ok(!('customer_portal_user_id' in applicationSchema.properties))
-assert.ok(!('auth_user_id' in applicationSchema.properties))
+assert.ok('customer_portal_user_id' in applicationSchema.properties)
+assert.ok('auth_user_id' in applicationSchema.properties)
+assert.ok(applicationSchema.required.includes('legal_bundle_version'))
+assert.ok(applicationSchema.required.includes('legal_acceptances'))
+assert.equal(websiteOpenApi.components.schemas.LegalAcceptances.type, 'array')
 assert.ok(!('metering_point_id' in applicationSchema.properties.site.properties))
 assert.ok(!('current_supplier_id' in applicationSchema.properties.site.properties))
 
 assert.ok(ops.includes('customer_portal_ready'))
 assert.ok(ops.includes('complete_tenant_website_ready'))
 assert.ok(ops.includes('missing_recommended_scopes'))
-assert.ok(ops.includes('selected_resolution'))
-assert.ok(ops.includes('available_resolutions'))
+assert.ok(ops.includes('capabilities: {'))
+assert.ok(ops.includes('facility_lookup_ready: row.capabilities.facility_lookup_ready'))
 assert.ok(readiness.includes('website_quotes.write'))
 assert.ok(ops.includes('opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {'))
 assert.ok(ops.includes('method: "POST"'))
@@ -190,7 +193,15 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
     requested_start_date: '2026-09-01',
   },
   idempotency_key: 'idem_test',
-  consents: { terms: true, privacy_policy: true, withdrawal: true },
+  legal_bundle_version: 'f8249704-7ce8-4885-93cb-fbb9922ed77f',
+  legal_acceptances: [{
+    requirement_code: 'general_consumer_terms',
+    document_id: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
+    document_version: '1',
+    document_hash: 'a'.repeat(64),
+    accepted: true,
+    accepted_at: '2026-07-30T12:00:00.000Z',
+  }],
 })
 
 assert.equal(applicationPayload.offer_reference, 'offer_test')
@@ -207,6 +218,14 @@ assert.equal('metering_point_id' in applicationPayload.site, false)
 assert.equal('current_supplier_id' in applicationPayload.site, false)
 assert.equal('offer_reference' in applicationPayload.contract, false)
 assert.equal('quote_reference' in applicationPayload.contract, false)
-assert.deepEqual(applicationPayload.legal_acceptances, { terms: true, privacy_policy: true, withdrawal: true })
+assert.equal(applicationPayload.legal_bundle_version, 'f8249704-7ce8-4885-93cb-fbb9922ed77f')
+assert.deepEqual(applicationPayload.legal_acceptances, [{
+  requirement_code: 'general_consumer_terms',
+  document_id: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
+  document_version: '1',
+  document_hash: 'a'.repeat(64),
+  accepted: true,
+  accepted_at: '2026-07-30T12:00:00.000Z',
+}])
 
-console.log('Website API contract tests passed (2026-07-28.2)')
+console.log('Website API contract tests passed (2026-07-30.1)')

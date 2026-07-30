@@ -58,7 +58,13 @@ const permissivePortalSchema = Object.entries(portal.paths ?? {}).some(([path, i
   })
 })
 if (permissivePortalSchema) gaps.push('customer_portal_resource_schemas_not_strict')
-gaps.push('ops_domain_webhook_schema_not_published')
+const webhookEnvelope = website.components?.schemas?.OpsDomainWebhookEnvelope
+if (
+  webhookEnvelope?.type !== 'object' ||
+  webhookEnvelope?.additionalProperties !== false
+) {
+  gaps.push('ops_domain_webhook_schema_not_published')
+}
 
 const oldVersionMatches = []
 for (const file of [

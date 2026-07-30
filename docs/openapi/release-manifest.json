@@ -1,0 +1,18 @@
+{
+  "release_version": "2026-07-30.1",
+  "website_openapi_version": "2026-07-30.1",
+  "customer_portal_openapi_version": "2026-07-30.1",
+  "runtime_contract_version": "2026-07-30.1",
+  "guide_version": "2026-07-30.1",
+  "released_at": "2026-07-30T00:00:00.000Z",
+  "specifications": {
+    "website": {
+      "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
+      "sha256": "08e04d16a77d7154ba0323002ae6885fa8f22755ea1622f588d4b72f5b5d3243"
+    },
+    "customer_portal": {
+      "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
+      "sha256": "e3333b3c5c6e52abc2987e1e8d23fdddc806e083be6f6c654aba7d4d46a560cd"
+    }
+  }
+}

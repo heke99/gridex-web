@@ -30,7 +30,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-07-28.2')
+assert.equal(context.contract_version, '2026-07-30.1')
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -94,11 +94,12 @@ const applicationInput = {
     requested_start_mode: 'specific_date',
     requested_start_date: requiredText('start_date'),
   },
-  consents: fixture.legal_acceptances ?? fixture.consents,
+  legal_bundle_version: requiredText('legal_bundle_version'),
+  legal_acceptances: fixture.legal_acceptances,
   powerOfAttorney: fixture.powerOfAttorney ?? null,
   idempotency_key: idempotencyKey,
 }
-assert.ok(applicationInput.customer && applicationInput.consents)
+assert.ok(applicationInput.customer && Array.isArray(applicationInput.legal_acceptances))
 
 const first = await submitOpsCustomerApplication(applicationInput)
 const second = await submitOpsCustomerApplication(applicationInput)

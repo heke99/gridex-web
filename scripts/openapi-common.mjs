@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 export const BASE_URL = 'https://app.gridex.se/api/v1/openapi'
+export const RELEASE_MANIFEST_URL = `${BASE_URL}/release-manifest.json`
 export const SPECS = [
   ['website-integration-v1.json', 'website-api.d.ts'],
   ['customer-portal-v1.json', 'customer-portal-api.d.ts'],
@@ -45,4 +46,58 @@ export async function fetchJsonSpec(specName) {
     throw new Error(`${specName} returned unexpected content type: ${contentType || 'missing'}`)
   }
   return response.json()
+}
+
+export async function fetchReleaseManifest() {
+  const response = await fetch(RELEASE_MANIFEST_URL, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!response.ok) {
+    throw new Error(`OpenAPI release manifest fetch failed: ${response.status}`)
+  }
+  const manifest = await response.json()
+  const version = manifest?.release_version
+  const versions = [
+    manifest?.website_openapi_version,
+    manifest?.customer_portal_openapi_version,
+    manifest?.runtime_contract_version,
+    manifest?.guide_version,
+  ]
+  if (
+    typeof version !== 'string' ||
+    versions.some((candidate) => candidate !== version)
+  ) {
+    throw new Error('OpenAPI release manifest contains mixed contract versions')
+  }
+  for (const key of ['website', 'customer_portal']) {
+    const specification = manifest?.specifications?.[key]
+    if (
+      typeof specification?.url !== 'string' ||
+      !specification.url.startsWith(`${BASE_URL}/`) ||
+      !/^[a-f0-9]{64}$/.test(specification?.sha256 ?? '')
+    ) {
+      throw new Error(`OpenAPI release manifest contains an invalid ${key} specification`)
+    }
+  }
+  return manifest
+}
+
+export async function fetchManifestSpecification(specification) {
+  const response = await fetch(specification.url, {
+    headers: { Accept: 'application/json' },
+    redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!response.ok) {
+    throw new Error(`OpenAPI fetch failed for ${specification.url}: ${response.status}`)
+  }
+  const document = await response.json()
+  const digest = sha(canonical(document))
+  if (digest !== specification.sha256) {
+    throw new Error(
+      `OpenAPI SHA-256 mismatch for ${specification.url}: expected ${specification.sha256}, received ${digest}`,
+    )
+  }
+  return document
 }

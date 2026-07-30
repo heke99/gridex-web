@@ -7,7 +7,7 @@ import {
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
-const CONTRACT_VERSION = '2026-07-28.2'
+const CONTRACT_VERSION = '2026-07-30.1'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 
@@ -70,6 +70,60 @@ function quoteValidationInput() {
   }
 }
 
+function quoteValidationResponse(overrides = {}) {
+  return {
+    data: {
+      valid: true,
+      quote_reference: 'quote_runtime_test',
+      offer_reference: 'offer_runtime_test',
+      status: 'active',
+      valid_until: '2026-09-01T12:00:00Z',
+      resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
+      resolver_version: 'resolver-runtime-test',
+      geodata_version: 'geodata-runtime-test',
+      market_reference: {
+        provider: 'runtime-test',
+        price_area: 'SE3',
+        reference_type: 'preview',
+        reference_period: '2026-07',
+        price_sek_per_kwh: 0.95,
+        price_ore_per_kwh: 95,
+        price_ex_vat_sek_per_kwh: 0.76,
+        price_ex_vat_ore_per_kwh: 76,
+        requested_days: 30,
+        included_days: 30,
+        period_start: '2026-07-01T00:00:00Z',
+        period_end: '2026-07-30T23:59:59Z',
+        source_as_of: '2026-07-30T12:00:00Z',
+        generated_at: '2026-07-30T12:00:00Z',
+        stale_after: '2026-07-30T13:00:00Z',
+        effective_stale_at: '2026-07-30T13:00:00Z',
+        source_currency: 'SEK',
+        unit: 'sek_per_kwh',
+        includes_vat: true,
+        includes_supplier_fees: false,
+        includes_grid_fees: false,
+        is_indicative: false,
+        is_stale: false,
+        fallback_used: false,
+        fallback_reason: null,
+        source_checksum: null,
+      },
+      energy_direction: 'consumption',
+      selected_area_price: {
+        price_area: 'SE3',
+        energy_price_ore_per_kwh: 95,
+        unit: 'ore_per_kwh',
+        price_option_reference: null,
+        price_row_reference: null,
+      },
+      ...overrides,
+    },
+    request_id: '11111111-1111-4111-8111-111111111111',
+    contract_schema_version: CONTRACT_VERSION,
+  }
+}
+
 process.env.GRIDEX_API_KEY = 'gridex_runtime_test_secret_value'
 process.env.GRIDEX_API_BASE_URL = BASE_URL
 
@@ -78,24 +132,8 @@ const queuedResponses = [
   // GET integration context is safely retried once.
   jsonResponse({ error: { code: 'temporary_unavailable', message: 'temporary' } }, 503, { 'Retry-After': '0' }),
   jsonResponse({ data: validContext }),
-  jsonResponse({
-    data: {
-      valid: true,
-      quote_reference: 'quote_runtime_test',
-      offer_reference: 'offer_runtime_test',
-      status: 'active',
-      valid_until: '2026-09-01T12:00:00Z',
-    },
-    request_id: '11111111-1111-4111-8111-111111111111',
-  }),
-  jsonResponse({
-    data: {
-      valid: true,
-      quote_reference: 'quote_runtime_test',
-      offer_reference: 'offer_other',
-    },
-    request_id: '22222222-2222-4222-8222-222222222222',
-  }),
+  jsonResponse(quoteValidationResponse()),
+  jsonResponse(quoteValidationResponse({ offer_reference: 'offer_other' })),
   jsonResponse({
     data: {
       valid: true,
@@ -140,7 +178,7 @@ await assert.rejects(
 )
 await assert.rejects(
   () => validateOpsWebsiteQuote(quoteValidationInput()),
-  (error) => error instanceof OpsError && error.status === 502 && error.code === 'ops_quote_validation_contract_invalid',
+  (error) => error instanceof OpsError && error.status === 502 && error.code === 'canonical_response_schema_invalid',
 )
 
 const productionContract = normalizePublicContractApiPayload({

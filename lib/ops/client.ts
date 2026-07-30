@@ -4,7 +4,6 @@ import {
   calculationPricingComponentAmount,
   normalizePublicContractApiPayload,
   normalizeProductionPricing,
-  isPublicLegalAcceptanceCode,
   type PublicAreaPricing,
   type PublicPortfolioMonthlyPrice,
   type PublicLegalRequirement,
@@ -13,7 +12,6 @@ import {
 } from "@/lib/website/publicContractContract";
 import {
   GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-  GRIDEX_WEBSITE_API_VERSION_HEADER,
 } from '@/lib/ops/contract';
 import { OpsError, isOpsError } from '@/lib/ops/errors'
 import {
@@ -239,7 +237,8 @@ export type OpsCustomerApplicationInput = {
   site: OpsSiteInput;
   metering_point?: OpsMeteringPointInput | null;
   contract: OpsContractInput;
-  consents: OpsConsentInput;
+  legal_bundle_version: string;
+  legal_acceptances: OpsConsentInput;
   customer_portal_user_id?: string | null;
   auth_user_id?: string | null;
   powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
@@ -651,12 +650,6 @@ export type OpsPublicContractsSnapshot = {
 
 function opsBaseUrl(): string {
   return getOpsApiBaseUrl()
-}
-
-function opsRelativePath(path: string): string {
-  const [pathname, query = ""] = path.split("?", 2);
-  const relative = pathname.replace(/^\/api\/v1(?=\/|$)/, "") || "/";
-  return `${relative}${query ? `?${query}` : ""}`;
 }
 
 function opsTenantCacheKey(): string {
@@ -2074,29 +2067,6 @@ export function invalidateOpsPublicContractsCache(input?: {
   publicContractsCache.clear();
 }
 
-function mapResolutionBlocker(value: unknown): OpsResolutionBlocker | null {
-  const row = recordValue(value)
-  if (!row) return null
-  const code = pickString(row, ['code', 'blocker_code', 'blockerCode'])
-  if (!code) return null
-  return {
-    code,
-    message: pickString(row, ['message', 'customer_message', 'customerMessage']),
-    field: pickString(row, ['field', 'path']),
-    retryable: pickBoolean(row, ['retryable', 'is_retryable', 'isRetryable']),
-    details: recordValue(row.details) ?? null,
-  }
-}
-
-function mapResolutionBlockerList(container: Record<string, unknown>, keys: string[]): OpsResolutionBlocker[] {
-  for (const key of keys) {
-    const value = container[key]
-    if (!Array.isArray(value)) continue
-    return value.map(mapResolutionBlocker).filter((item): item is OpsResolutionBlocker => item !== null)
-  }
-  return []
-}
-
 function mapResolutionSource(value: unknown): OpsResolutionSource | null {
   if (typeof value === 'string' && value.trim()) {
     return { provider: value.trim(), raw: { provider: value.trim() } }
@@ -2691,18 +2661,19 @@ export type OpsWebsiteLegalBundle = {
   present_types: string[];
   complete: boolean;
   missing_types: string[];
-  unsupported_required_types: string[];
+  requirements: Array<{
+    requirement_code: string;
+    title: string;
+    description: string;
+    required: true;
+    document_id: string;
+    document_version: string;
+    document_hash: string;
+    document_url: string;
+  }>;
   texts: OpsLegalText[];
   raw: Record<string, unknown>;
 };
-
-const OPENAPI_LEGAL_ACCEPTANCE_CODES = new Set([
-  'terms',
-  'privacy_policy',
-  'withdrawal',
-  'power_of_attorney',
-  'price_terms',
-])
 
 export async function fetchOpsWebsiteLegalBundle(
   offerReference: string,
@@ -2739,6 +2710,41 @@ export async function fetchOpsWebsiteLegalBundle(
   const requiredTypes = Array.isArray(raw.required_types)
     ? raw.required_types.map(String)
     : []
+  const requirements = Array.isArray(raw.requirements)
+    ? raw.requirements.flatMap((value) => {
+        const requirement = recordValue(value)
+        const requirementCode = normalizeText(requirement?.requirement_code)
+        const title = normalizeText(requirement?.title)
+        const description = normalizeText(requirement?.description)
+        const documentId = normalizeText(requirement?.document_id)
+        const documentVersion = normalizeText(requirement?.document_version)
+        const documentHash = normalizeText(requirement?.document_hash)
+        const documentUrl = normalizeText(requirement?.document_url)
+        if (
+          !requirementCode ||
+          !title ||
+          !description ||
+          requirement?.required !== true ||
+          !documentId ||
+          !documentVersion ||
+          !documentHash ||
+          !/^[a-f0-9]{64}$/i.test(documentHash) ||
+          !documentUrl
+        ) {
+          return []
+        }
+        return [{
+          requirement_code: requirementCode,
+          title,
+          description,
+          required: true as const,
+          document_id: documentId,
+          document_version: documentVersion,
+          document_hash: documentHash,
+          document_url: documentUrl,
+        }]
+      })
+    : []
   const offer = normalizeText(raw.offer_reference)
   const bundleVersion = normalizeText(raw.bundle_version)
   if (offer !== normalized || !bundleVersion) {
@@ -2755,9 +2761,7 @@ export async function fetchOpsWebsiteLegalBundle(
     present_types: Array.isArray(raw.present_types) ? raw.present_types.map(String) : [],
     complete: raw.complete === true,
     missing_types: Array.isArray(raw.missing_types) ? raw.missing_types.map(String) : [],
-    unsupported_required_types: requiredTypes.filter(
-      (type) => !OPENAPI_LEGAL_ACCEPTANCE_CODES.has(type),
-    ),
+    requirements,
     texts: rows.map(mapLegalText).filter((item): item is OpsLegalText => item !== null),
     raw,
   };
@@ -2851,21 +2855,31 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     }
   }
 
-  const rawConsentKeys = Object.keys(input.consents as Record<string, unknown>)
-  const unsupportedConsentKeys = rawConsentKeys.filter((key) => !isPublicLegalAcceptanceCode(key))
-  if (unsupportedConsentKeys.length > 0) {
-    throw new OpsError('Juridiska godkännanden innehåller fält som OpenAPI inte tillåter.', 400, {
-      code: 'legal_acceptances_schema_mismatch',
-      unsupported_fields: unsupportedConsentKeys,
+  const legalBundleVersion = normalizeText(input.legal_bundle_version)
+  if (!legalBundleVersion || input.legal_acceptances.length === 0) {
+    throw new OpsError('Dokumentbundna juridikacceptanser saknas.', 400, {
+      code: 'legal_acceptances_required',
       field: 'legal_acceptances',
+      retryable: false,
     })
   }
-  const legalAcceptances: OpsLegalAcceptancesDto = {
-    ...(typeof input.consents.terms === 'boolean' ? { terms: input.consents.terms } : {}),
-    ...(typeof input.consents.privacy_policy === 'boolean' ? { privacy_policy: input.consents.privacy_policy } : {}),
-    ...(typeof input.consents.withdrawal === 'boolean' ? { withdrawal: input.consents.withdrawal } : {}),
-    ...(typeof input.consents.power_of_attorney === 'boolean' ? { power_of_attorney: input.consents.power_of_attorney } : {}),
-    ...(typeof input.consents.price_terms === 'boolean' ? { price_terms: input.consents.price_terms } : {}),
+  const legalAcceptances = input.legal_acceptances
+  if (
+    legalAcceptances.some(
+      (acceptance) =>
+        acceptance.accepted !== true ||
+        !normalizeText(acceptance.requirement_code) ||
+        !normalizeText(acceptance.document_id) ||
+        !normalizeText(acceptance.document_version) ||
+        !/^[a-f0-9]{64}$/i.test(acceptance.document_hash) ||
+        !normalizeText(acceptance.accepted_at),
+    )
+  ) {
+    throw new OpsError('En juridikacceptans saknar exakt dokumentbevis.', 400, {
+      code: 'legal_acceptance_document_invalid',
+      field: 'legal_acceptances',
+      retryable: false,
+    })
   }
   if (
     input.site.current_supplier_unknown === true &&
@@ -3042,6 +3056,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
           ? { requested_start_date: input.contract.requested_start_date }
           : {}),
     },
+    legal_bundle_version: legalBundleVersion,
     legal_acceptances: legalAcceptances,
     ...(input.powerOfAttorney
       ? {
@@ -3649,12 +3664,24 @@ export async function submitOpsCustomerPortalSync(
   },
 ): Promise<OpsCustomerSyncResult> {
   const headers = portalHeaders(input.identity);
+  const externalCustomerId =
+    normalizeText(input.externalCustomerId) ??
+    stableExternalCustomerId(input.identity)
+  if (!externalCustomerId) {
+    throw new OpsError('Portal recovery kräver external_customer_id.', 400, {
+      code: 'external_customer_id_required',
+      field: 'external_customer_id',
+      retryable: false,
+    })
+  }
   const body = {
     ...portalIdentityPayload(input.identity),
+    external_customer_id: externalCustomerId,
+    customer_portal_user_id: input.identity.userId,
+    auth_user_id: input.identity.userId,
     ...(input.customerNumber ? { customer_number: input.customerNumber } : {}),
-    ...(input.externalCustomerId ? { external_customer_id: input.externalCustomerId } : {}),
     ...(input.email ? { email: input.email } : {}),
-    metadata: input.metadata ?? { source: "gridex_web_customer_portal_sync" },
+    metadata: input.metadata ?? { source: "tenant_website_customer_portal_sync" },
   };
   headers.set(
     "Idempotency-Key",
@@ -3792,11 +3819,21 @@ export async function sendOpsCustomerEvent(
     method: "POST",
     headers,
     body: JSON.stringify({
-      ...event,
-      ...portalIdentityPayload(identity),
-      customer_email: identity.email ?? null,
-      portal_user_id: identity.userId,
-      auth_user_id: identity.userId,
+      event_type: event.event_type,
+      event_reference: operationId,
+      occurred_at: new Date().toISOString(),
+      customer: {
+        ...portalIdentityPayload(identity),
+        customer_portal_user_id: identity.userId,
+        auth_user_id: identity.userId,
+      },
+      subject: {
+        type: normalizeText(event.entity_type) ?? 'customer',
+        ...(normalizeText(event.entity_id)
+          ? { reference: normalizeText(event.entity_id)! }
+          : {}),
+      },
+      data: event.metadata ?? {},
     }),
   });
 }

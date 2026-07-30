@@ -1,0 +1,61 @@
+{
+  "name": "gridex-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:launch": "node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
+    "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "npm run test:launch",
+    "api:contract": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs",
+    "api:generate": "node scripts/generate-openapi-types.mjs",
+    "api:drift": "node scripts/check-openapi-drift.mjs",
+    "test:canonical-market-flow": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs",
+    "test:customer-application": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs",
+    "test:idempotency": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
+    "test:portal": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs",
+    "test:staging:ops": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/staging-canonical-ops-flow.mjs",
+    "api:sync": "node scripts/sync-openapi.mjs",
+    "api:check": "node scripts/check-openapi-drift.mjs",
+    "api:refresh": "npm run api:sync",
+    "api:check:local": "node scripts/check-openapi-drift.mjs --local-only",
+    "api:preflight": "npm run api:check && npm run api:contract && npm run db:migrations:check && npm run api:compatibility",
+    "api:runtime": "npm run api:contract",
+    "api:compatibility": "node scripts/check-api-compatibility.mjs",
+    "api:compatibility:known-gaps": "node scripts/check-api-compatibility.mjs --allow-upstream-gaps",
+    "db:migrations:manifest": "node scripts/write-migration-manifest.mjs",
+    "db:migrations:check": "node scripts/check-migration-manifest.mjs",
+    "test:api-hardening": "node tests/api-compatibility-hardening.test.mjs",
+    "verify:delivery": "npm run api:check:local && npm run db:migrations:check && npm run api:compatibility:known-gaps && npm run test:api-hardening"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^17.4.2",
+    "next": "^16.2.7",
+    "pdfkit": "^0.17.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pdfkit": "^0.17.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
+  }
+}

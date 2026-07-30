@@ -98,7 +98,7 @@ const issued = issueWebsitePricingQuote({
     valid_until: new Date(Date.now() + 10 * 60_000).toISOString(),
     pricing_interval: 'month',
     estimate_method: 'ops_canonical_quote',
-    pricing_snapshot_schema_version: '2026-07-28.2',
+    pricing_snapshot_schema_version: '2026-07-30.1',
     is_binding: true,
     public_contract_etag: '"visibility-etag"',
     publication_revision: 42,

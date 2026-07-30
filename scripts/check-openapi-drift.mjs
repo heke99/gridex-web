@@ -1,5 +1,12 @@
 import { readFile } from 'node:fs/promises'
-import { assertOpenApiDocument, canonical, fetchJsonSpec, sha, SPECS } from './openapi-common.mjs'
+import {
+  assertOpenApiDocument,
+  canonical,
+  fetchManifestSpecification,
+  fetchReleaseManifest,
+  sha,
+  SPECS,
+} from './openapi-common.mjs'
 
 const localOnly = process.argv.includes('--local-only')
 const manifest = JSON.parse(await readFile('docs/openapi/manifest.json', 'utf8'))
@@ -25,6 +32,7 @@ function semanticDiff(previous, next) {
 }
 
 let sharedVersion = null
+const liveManifest = localOnly ? null : await fetchReleaseManifest()
 for (const [specName, typeName] of SPECS) {
   const localSpec = JSON.parse(await readFile(`docs/openapi/${specName}`, 'utf8'))
   const version = assertOpenApiDocument(localSpec, specName, 'local', sharedVersion)
@@ -49,8 +57,21 @@ for (const [specName, typeName] of SPECS) {
     throw new Error(`${typeName} was not generated from the checked-in ${specName}; run npm run api:generate`)
   }
   if (!localOnly) {
-    const liveSpec = await fetchJsonSpec(specName)
+    const manifestKey = specName.startsWith('website')
+      ? 'website'
+      : 'customer_portal'
+    const liveSpec = await fetchManifestSpecification(
+      liveManifest.specifications[manifestKey],
+    )
     const liveVersion = assertOpenApiDocument(liveSpec, specName, 'live')
+    if (
+      liveVersion !== liveManifest.release_version ||
+      liveManifest.release_version !== sourceContractVersion
+    ) {
+      throw new Error(
+        `${specName} release mismatch: local=${sourceContractVersion} manifest=${liveManifest.release_version} live=${liveVersion}`,
+      )
+    }
     if (canonical(liveSpec) !== localCanonical) {
       throw new Error(
         `${specName} drift detected: old_version=${version} new_version=${liveVersion} ` +

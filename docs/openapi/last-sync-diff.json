@@ -1,37 +1,116 @@
 {
-  "synced_at": "2026-07-29T12:19:59.863Z",
-  "contract_version": "2026-07-28.2",
+  "prepared_at": "2026-07-30T00:00:00.000Z",
+  "source": "local_ops_patch_workspace",
+  "live_sync_verified": false,
+  "contract_version": "2026-07-30.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "e93bfd888268dc03c66bc66308e3c2ba4dbb89700455d16c056652edbc29fd8a",
+      "sha256": "08e04d16a77d7154ba0323002ae6885fa8f22755ea1622f588d4b72f5b5d3243",
       "semantic_diff": {
         "previous_version": "2026-07-28.2",
-        "next_version": "2026-07-28.2",
-        "added_paths": [],
+        "next_version": "2026-07-30.1",
+        "added_paths": [
+          "/api/v1/openapi/release-manifest.json"
+        ],
         "removed_paths": [],
         "changed_paths": [
-          "/api/v1/contracts"
+          "/api/v1/contracts",
+          "/api/v1/openapi/customer-portal-v1.json",
+          "/api/v1/openapi/release-manifest.json",
+          "/api/v1/openapi/website-integration-v1.json",
+          "/api/v1/website/customer-events",
+          "/api/v1/website/market-price/current",
+          "/api/v1/website/portfolio-prices",
+          "/api/v1/website/public-contracts",
+          "/api/v1/website/quote/validate"
         ],
         "added_schemas": [
-          "ApiPublicContract"
+          "ContractPriceOption",
+          "LegalAcceptance",
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification",
+          "OpsDomainWebhookEnvelope",
+          "PortfolioHistoricalFinalPrice",
+          "WebsiteCustomerEventData",
+          "WebsiteCustomerEventIdentity",
+          "WebsiteCustomerEventRequest",
+          "WebsiteLegalRequirement",
+          "WebsitePortfolioPriceData",
+          "WebsiteQuoteValidationData"
         ],
         "removed_schemas": [],
         "changed_schemas": [
-          "ApiPublicContract"
+          "ContractPriceOption",
+          "CurrentMarketPriceResponse",
+          "CustomerApplicationRequest",
+          "FixedAreaPrice",
+          "IntegrationContext",
+          "LegalAcceptance",
+          "LegalAcceptances",
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification",
+          "OpsDomainWebhookEnvelope",
+          "PortfolioHistoricalFinalPrice",
+          "PricingComponent",
+          "WebsiteCustomerEventData",
+          "WebsiteCustomerEventIdentity",
+          "WebsiteCustomerEventRequest",
+          "WebsiteLegalBundle",
+          "WebsiteLegalBundleResponse",
+          "WebsiteLegalRequirement",
+          "WebsitePortfolioPriceData",
+          "WebsiteQuoteData",
+          "WebsiteQuoteRequest",
+          "WebsiteQuoteValidationData"
         ]
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "a6f7c1c2214ac191c2e2f2de2d6374d1a3a7cfa30881c7f3f736f9e88f86e49c",
+      "sha256": "e3333b3c5c6e52abc2987e1e8d23fdddc806e083be6f6c654aba7d4d46a560cd",
       "semantic_diff": {
         "previous_version": "2026-07-28.2",
-        "next_version": "2026-07-28.2",
+        "next_version": "2026-07-30.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [],
-        "added_schemas": [],
+        "changed_paths": [
+          "/api/v1/customer-portal/sync",
+          "/api/v1/customer/contracts",
+          "/api/v1/customer/documents",
+          "/api/v1/customer/events",
+          "/api/v1/customer/invoices",
+          "/api/v1/customer/invoices/{id}",
+          "/api/v1/customer/legal-acceptances",
+          "/api/v1/customer/me",
+          "/api/v1/customer/metering-values",
+          "/api/v1/customer/move-out",
+          "/api/v1/customer/notifications",
+          "/api/v1/customer/notifications/read",
+          "/api/v1/customer/portal-bundle",
+          "/api/v1/customer/powers-of-attorney",
+          "/api/v1/customer/profile-update",
+          "/api/v1/customer/sites",
+          "/api/v1/customer/sync",
+          "/api/v1/events",
+          "/api/v1/openapi/customer-portal-v1.json"
+        ],
+        "added_schemas": [
+          "ClosedPortalMutationRequest",
+          "ClosedPortalResourceEnvelope",
+          "ErrorResponse",
+          "PortalSyncData",
+          "PortalSyncRequest",
+          "WebsiteVisibilityMode"
+        ],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "ClosedPortalMutationRequest",
+          "ClosedPortalResourceEnvelope",
+          "ErrorResponse",
+          "IntegrationContext",
+          "PortalSyncData",
+          "PortalSyncRequest",
+          "WebsiteVisibilityMode"
+        ]
       }
     }
   }

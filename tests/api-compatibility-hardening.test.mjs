@@ -13,16 +13,13 @@ const readiness = read('lib/ops/readiness.ts')
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 const marketRoute = read('app/api/web/market-price/current/route.ts')
 const portfolioRoute = read('app/api/web/portfolio-prices/route.ts')
-const webBoundary = read('lib/api/webBoundary.ts')
-const customerResourceRoute = read('lib/customerPortal/resourceRoute.ts')
-const portalBundleRoute = read('app/api/web/customer/portal-bundle/route.ts')
 const webhookParser = read('lib/webhooks/opsWebhook.ts')
 const webhookHandler = read('lib/webhooks/publicationChanged.ts')
 const webhookRetry = read('lib/webhooks/retry.ts')
 const webhookMigration = read('supabase/migrations/20260729131000_ops_webhook_domain_projections.sql')
 const verification = JSON.parse(read('docs/openapi/verification-status.json'))
 
-assert.match(contract, /GRIDEX_API_CONTRACT_VERSION\s*=\s*['"]2026-07-28\.2['"]/, 'canonical API version must be .2')
+assert.match(contract, /GRIDEX_API_CONTRACT_VERSION\s*=\s*['"]2026-07-30\.1['"]/, 'canonical API version must match the synchronized release')
 assert.ok(!contract.includes('2026-07-28.1'), 'old version must not remain in canonical contract')
 
 assert.match(client, /opsRequest as transportOpsRequest/, 'client must use canonical transport')
@@ -56,7 +53,7 @@ assert.ok(!portfolioRoute.includes("price_area_code')"), 'portfolio BFF must acc
 
 assert.match(signup, /customer_portal_user_id:\s*linkedAuthUserId/, 'authenticated signup must propagate verified portal identity')
 assert.match(signup, /auth_user_id:\s*linkedAuthUserId/, 'authenticated signup must propagate verified auth identity')
-assert.match(client, /ops_customer_application_portal_identity_contract_unsupported/, 'signup must fail closed until OPS schema supports identity fields')
+assert.match(client, /ops_customer_application_portal_identity_contract_unsupported/, 'signup must fail closed if a future OPS schema drops identity fields')
 assert.match(client, /customerPortalUserId\) !== Boolean\(authUserId\).*customerPortalUserId !== authUserId/s, 'identity fields must be equal')
 
 assert.match(validators, /assertWebsiteOperationRequest/, 'website operation requests must be validated')
@@ -74,12 +71,20 @@ assert.ok(!client.includes('\"switch-status\": \"/api/v1/customer/switch-status\
 
 for (const checkName of [
   'contract_version_ready',
+  'local_schema_ready',
+  'live_schema_ready',
+  'runtime_schema_ready',
   'openapi_sync_ready',
+  'diagnostics_ready',
   'customer_application_ready',
+  'portal_identity_ready',
   'portfolio_ready',
   'customer_portal_contract_ready',
   'webhook_projection_ready',
+  'webhook_retry_ready',
   'database_migrations_ready',
+  'staging_flow_ready',
+  'tenant_isolation_ready',
   'full_api_compatibility_ready',
 ]) {
   assert.ok(readiness.includes(checkName), `readiness must expose ${checkName}`)
