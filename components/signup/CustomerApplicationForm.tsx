@@ -10,6 +10,7 @@ import {
 } from "@/lib/website/publicContractDisplay";
 import type {
   PublicEnergyDirection,
+  PublicContractPriceOption,
   PublicLegalRequirement,
   PublicPricingComponent,
   PublicProductionPricing,
@@ -60,6 +61,7 @@ export type SignupContractOption = {
   portfolioShare?: number | null;
   pricingVisibility?: Record<string, boolean>;
   pricingComponents?: PublicPricingComponent[];
+  priceOptions?: PublicContractPriceOption[];
   validFrom?: string | null;
   validTo?: string | null;
   bindingPeriodMonths?: number | null;
@@ -177,6 +179,7 @@ function optionAsOpsContract(contract: SignupContractOption): OpsPublicContract 
     portfolio_share: contract.portfolioShare ?? null,
     pricing_visibility: contract.pricingVisibility ?? {},
     pricing_components: contract.pricingComponents ?? [],
+    price_options: contract.priceOptions ?? [],
     valid_from: contract.validFrom ?? null,
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,

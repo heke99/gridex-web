@@ -27,20 +27,6 @@ export type PublicAreaPricing = {
 }
 
 
-export const PUBLIC_LEGAL_ACCEPTANCE_CODES = [
-  'terms',
-  'privacy_policy',
-  'withdrawal',
-  'power_of_attorney',
-  'price_terms',
-] as const
-
-export type PublicLegalAcceptanceCode = typeof PUBLIC_LEGAL_ACCEPTANCE_CODES[number]
-
-export function isPublicLegalAcceptanceCode(value: unknown): value is PublicLegalAcceptanceCode {
-  return typeof value === 'string' && (PUBLIC_LEGAL_ACCEPTANCE_CODES as readonly string[]).includes(value)
-}
-
 export type PublicLegalRequirement = {
   requirement_code: string
   acceptance_type: string
@@ -51,6 +37,18 @@ export type PublicLegalRequirement = {
   document_version: string | null
   document_hash: string | null
   public_url: string | null
+}
+
+export type PublicContractPriceOption = {
+  price_option_reference: string
+  option_code: string
+  customer_name: string
+  contract_type: 'fixed' | 'variable_monthly' | 'variable_hourly' | 'variable_quarterly' | 'portfolio' | 'mixed'
+  binding_months: number
+  notice_months: number
+  auto_renew_enabled: boolean
+  renewal_term_months: number | null
+  area_prices: PublicAreaPricing[]
 }
 
 export type PublicContractApiShape = {
@@ -69,6 +67,7 @@ export type PublicContractApiShape = {
   calculation_components: PublicPricingComponent[]
   display_components: PublicPricingComponent[]
   summary_components: PublicPricingComponent[]
+  price_options: PublicContractPriceOption[]
   legal_requirements: PublicLegalRequirement[]
   portfolio_monthly_prices: PublicPortfolioMonthlyPrice[]
   monthly_fee_sek: number | null
@@ -108,6 +107,18 @@ export type PublicContractApiShape = {
 
 export type PublicPricingComponent = {
   component_code: string
+  component_reference: string | null
+  selection_policy: 'mandatory' | 'customer_optional' | 'admin_optional' | 'conditional' | null
+  lifecycle:
+    | 'recurring'
+    | 'per_invoice'
+    | 'per_site'
+    | 'once_per_contract'
+    | 'once_per_site'
+    | 'annual'
+    | 'consumption_based'
+    | 'event_only'
+    | null
   name: string
   amount: number
   currency: string | null
@@ -478,6 +489,28 @@ function pricingComponents(
       : 'included' as const
     return [{
       component_code: componentCode,
+      component_reference: text(row.component_reference ?? row.componentReference),
+      selection_policy: (
+        ['mandatory', 'customer_optional', 'admin_optional', 'conditional'].includes(
+          text(row.selection_policy ?? row.selectionPolicy) ?? '',
+        )
+          ? text(row.selection_policy ?? row.selectionPolicy)
+          : null
+      ) as PublicPricingComponent['selection_policy'],
+      lifecycle: (
+        [
+          'recurring',
+          'per_invoice',
+          'per_site',
+          'once_per_contract',
+          'once_per_site',
+          'annual',
+          'consumption_based',
+          'event_only',
+        ].includes(text(row.lifecycle) ?? '')
+          ? text(row.lifecycle)
+          : null
+      ) as PublicPricingComponent['lifecycle'],
       name: componentName,
       amount: componentAmount,
       currency: text(row.currency ?? amountRow?.currency),
@@ -490,6 +523,55 @@ function pricingComponents(
       vat_rate: number(row.vat_rate ?? row.vatRate ?? amountRow?.vat_rate ?? amountRow?.vatRate),
       billing_interval_months: number(row.billing_interval_months ?? row.billingIntervalMonths),
       invoices_per_year: number(row.invoices_per_year ?? row.invoicesPerYear),
+    }]
+  })
+}
+
+function priceOptions(value: unknown): PublicContractPriceOption[] {
+  if (!Array.isArray(value)) return []
+  const contractTypes = new Set([
+    'fixed',
+    'variable_monthly',
+    'variable_hourly',
+    'variable_quarterly',
+    'portfolio',
+    'mixed',
+  ])
+  return value.flatMap((item) => {
+    const row = record(item)
+    if (!row) return []
+    const reference = text(row.price_option_reference ?? row.priceOptionReference)
+    const optionCode = text(row.option_code ?? row.optionCode)
+    const customerName = text(row.customer_name ?? row.customerName ?? row.name)
+    const contractType = text(row.contract_type ?? row.contractType)
+    const bindingMonths = number(row.binding_months ?? row.bindingMonths)
+    const noticeMonths = number(row.notice_months ?? row.noticeMonths)
+    const autoRenew = boolean(row.auto_renew_enabled ?? row.autoRenewEnabled)
+    const renewalTermMonths = number(row.renewal_term_months ?? row.renewalTermMonths)
+    if (
+      !reference ||
+      !/^[a-z0-9][a-z0-9_-]{2,99}$/.test(reference) ||
+      !optionCode ||
+      !customerName ||
+      !contractType ||
+      !contractTypes.has(contractType) ||
+      bindingMonths === null ||
+      bindingMonths < 0 ||
+      noticeMonths === null ||
+      noticeMonths < 0 ||
+      autoRenew === null ||
+      (renewalTermMonths !== null && renewalTermMonths < 1)
+    ) return []
+    return [{
+      price_option_reference: reference,
+      option_code: optionCode,
+      customer_name: customerName,
+      contract_type: contractType as PublicContractPriceOption['contract_type'],
+      binding_months: bindingMonths,
+      notice_months: noticeMonths,
+      auto_renew_enabled: autoRenew,
+      renewal_term_months: renewalTermMonths,
+      area_prices: areaPricing(row.area_prices ?? row.areaPrices),
     }]
   })
 }
@@ -624,30 +706,7 @@ function legalRequirements(row: Record<string, unknown>, legal: Record<string, u
     })
   }
 
-  const make = (code: string, label: string, version: unknown, documentId: unknown, url: unknown, required = true): PublicLegalRequirement | null => {
-    const normalizedVersion = text(version)
-    const normalizedId = text(documentId)
-    const normalizedUrl = text(url)
-    if (!normalizedVersion && !normalizedId && !normalizedUrl) return null
-    return {
-      requirement_code: code,
-      acceptance_type: 'checkbox',
-      required,
-      label,
-      document_id: normalizedId,
-      legal_bundle_version_document_id: normalizedId,
-      document_version: normalizedVersion,
-      document_hash: null,
-      public_url: normalizedUrl,
-    }
-  }
-  return [
-    make('terms', 'Jag godkänner allmänna villkor.', legal.terms_version ?? row.terms_version, legal.terms_version_id ?? row.terms_version_id, legal.terms_url ?? row.terms_url),
-    make('price_terms', 'Jag godkänner prisvillkoren för valt avtal.', legal.price_terms_version ?? row.price_terms_version, legal.price_terms_version_id ?? row.price_terms_version_id, legal.price_terms_url ?? row.price_terms_url),
-    make('withdrawal', 'Jag har tagit del av informationen om ångerrätt.', legal.withdrawal_version ?? legal.cancellation_right_version ?? row.withdrawal_version, legal.withdrawal_version_id ?? legal.cancellation_right_version_id ?? row.withdrawal_version_id, legal.withdrawal_url ?? legal.cancellation_right_url ?? row.withdrawal_url),
-    make('privacy_policy', 'Jag har tagit del av integritetspolicyn.', legal.privacy_policy_version ?? row.privacy_policy_version, legal.privacy_policy_version_id ?? row.privacy_policy_version_id, legal.privacy_policy_url ?? row.privacy_policy_url),
-    make('power_of_attorney', 'Jag godkänner fullmakten för anläggningsuppslag och leverantörsbyte.', legal.power_of_attorney_version ?? row.power_of_attorney_version, legal.power_of_attorney_version_id ?? row.power_of_attorney_version_id, legal.power_of_attorney_url ?? row.power_of_attorney_url, boolean(legal.power_of_attorney_required ?? row.power_of_attorney_required) === true),
-  ].filter((item): item is PublicLegalRequirement => Boolean(item))
+  return []
 }
 
 /**
@@ -698,6 +757,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     calculation_components: calculationComponents,
     display_components: displayComponents,
     summary_components: summaryComponents,
+    price_options: priceOptions(pricing.price_options ?? pricing.priceOptions ?? row.price_options ?? row.priceOptions),
     legal_requirements: legalRequirements(row, legal),
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,

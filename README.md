@@ -5,7 +5,7 @@ autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
 Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
 kundportal.
 
-Canonical kontraktsversion är `2026-07-28.2`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
+Canonical kontraktsversion är `2026-07-30.1`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
 
 ## Lokal start
 
@@ -91,9 +91,9 @@ Browsern får signerad state, men OPS `quote_reference`, `resolution_id`,
 oförändrade. Svenska affärsdatum hanteras i `Europe/Stockholm`.
 
 Kundportalens granulara `/api/web/customer/*`-routes anropar exakt motsvarande
-OPS-endpoint. Sidans portal-bundle kan använda lokal fallback för visning, men
-den markeras `authoritative=false`, `readOnly=true` och
-`dataFreshness=local_fallback`; writes köas inte som lyckade.
+OPS-endpoint. Portalöversikten använder endast OPS-bundlen som affärskälla och
+stänger flödet om den auktoritativa profilen saknas; lokal portaldata visas inte
+som ersättning. Writes köas inte som lyckade.
 
 ## OpenAPI och deploy-preflight
 

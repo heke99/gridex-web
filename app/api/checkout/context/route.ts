@@ -112,6 +112,10 @@ export async function POST(req: Request) {
         estimated_monthly_kwh: estimatedMonthlyKwh,
         annual_consumption_kwh: annualConsumptionKwh,
         consumption_profile: consumptionProfile,
+        price_option_reference: verified.value.quote.price_option_reference,
+        invoice_delivery_method: verified.value.quote.invoice_delivery_method,
+        selected_component_references: verified.value.quote.selected_component_references,
+        site_count: verified.value.quote.site_count,
       },
     })
     return NextResponse.json({ checkout_token: token })

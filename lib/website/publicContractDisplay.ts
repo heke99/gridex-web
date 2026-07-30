@@ -1,8 +1,5 @@
 import type { OpsPublicContract } from '@/lib/ops/client'
 import {
-  isPublicLegalAcceptanceCode,
-} from '@/lib/website/publicContractContract'
-import {
   isFixedContractType,
   sanitizePricingComponentsBeforeAreaResolution,
 } from '@/lib/website/publicPricingVisibility'
@@ -388,9 +385,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   for (const requirement of legalRequirements) {
     if (!requirement.required) continue
     if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
-    else if (!isPublicLegalAcceptanceCode(requirement.requirement_code)) {
-      blockedReasons.push(`${requirement.requirement_code}: stöds inte av kundansökans OpenAPI-schema`)
-    }
     if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
     if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
     if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {

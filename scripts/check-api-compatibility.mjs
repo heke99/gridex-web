@@ -20,6 +20,14 @@ const legalSchema = website.components?.schemas?.LegalAcceptances
 if (legalSchema?.type === 'object' && legalSchema?.additionalProperties === false) {
   gaps.push('legal_acceptances_not_dynamic')
 }
+const publicContract = website.components?.schemas?.PublicContract
+const publicContractPricing = publicContract?.properties?.pricing
+if (
+  !publicContract?.properties?.price_options &&
+  !publicContractPricing?.properties?.price_options
+) {
+  gaps.push('public_contract_price_options_not_published')
+}
 const portfolioSchema = website.paths?.['/api/v1/website/portfolio-prices']?.get?.responses?.['200']?.content?.['application/json']?.schema
 if (portfolioSchema?.additionalProperties !== false || !portfolioSchema?.properties?.data) {
   gaps.push('portfolio_response_schema_not_strict')

@@ -1,15 +1,16 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { canonical, sha, SPECS } from './openapi-common.mjs'
+import { sha, SPECS } from './openapi-common.mjs'
 
 let contractVersion = null
 const specifications = {}
 for (const [specName] of SPECS) {
-  const document = JSON.parse(await readFile(`docs/openapi/${specName}`, 'utf8'))
+  const source = await readFile(`docs/openapi/${specName}`, 'utf8')
+  const document = JSON.parse(source)
   contractVersion ??= document.info?.version
   if (document.info?.version !== contractVersion) {
     throw new Error(`Cannot write manifest for mixed contract versions: ${contractVersion} and ${document.info?.version}`)
   }
-  specifications[specName] = { sha256: sha(canonical(document)) }
+  specifications[specName] = { sha256: sha(source) }
 }
 
 await writeFile(

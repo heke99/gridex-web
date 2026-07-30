@@ -70,10 +70,13 @@ export function moveOutPayload(value: unknown): Record<string, unknown> | null {
     ['facility_id', 120],
     ['reason', 500],
   ])
-  const moveOutDate = limitedString(source.move_out_date, 10)
+  const moveOutDate = limitedString(
+    source.requested_move_out_date ?? source.move_out_date,
+    10,
+  )
   if (moveOutDate !== undefined) {
-    if (moveOutDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(moveOutDate)) return null
-    result.move_out_date = moveOutDate
+    if (moveOutDate !== null && !isStrictCalendarDate(moveOutDate)) return null
+    result.requested_move_out_date = moveOutDate
   }
   const forwarding = object(source.forwarding_address)
   if (forwarding) {
@@ -184,3 +187,4 @@ export function clientOperationId(value: unknown): string | null {
   const parsed = text(value, 240)
   return parsed && /^[0-9a-zA-Z:_-]{8,240}$/.test(parsed) ? parsed : null
 }
+import { isStrictCalendarDate } from '@/lib/website/businessDate'

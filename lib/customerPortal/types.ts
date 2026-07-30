@@ -220,6 +220,6 @@ export type CustomerPortalOverview = {
   opsError: string | null
   authoritative: boolean
   readOnly: boolean
-  dataFreshness: 'live' | 'local_fallback'
+  dataFreshness: 'live'
   dataFreshnessMessage: string | null
 }

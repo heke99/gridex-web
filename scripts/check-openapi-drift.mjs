@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import {
   assertOpenApiDocument,
-  canonical,
   fetchManifestSpecification,
   fetchReleaseManifest,
   sha,
@@ -34,14 +33,14 @@ function semanticDiff(previous, next) {
 let sharedVersion = null
 const liveManifest = localOnly ? null : await fetchReleaseManifest()
 for (const [specName, typeName] of SPECS) {
-  const localSpec = JSON.parse(await readFile(`docs/openapi/${specName}`, 'utf8'))
+  const localRaw = await readFile(`docs/openapi/${specName}`, 'utf8')
+  const localSpec = JSON.parse(localRaw)
   const version = assertOpenApiDocument(localSpec, specName, 'local', sharedVersion)
   sharedVersion ??= version
   if (sourceContractVersion !== version) {
     throw new Error(`${specName} contract version ${version} does not match lib/ops/contract.ts ${sourceContractVersion}`)
   }
-  const localCanonical = canonical(localSpec)
-  const localHash = sha(localCanonical)
+  const localHash = sha(localRaw)
   if (
     manifest.contract_version !== version ||
     manifest.specifications?.[specName]?.sha256 !== localHash
@@ -60,9 +59,10 @@ for (const [specName, typeName] of SPECS) {
     const manifestKey = specName.startsWith('website')
       ? 'website'
       : 'customer_portal'
-    const liveSpec = await fetchManifestSpecification(
+    const live = await fetchManifestSpecification(
       liveManifest.specifications[manifestKey],
     )
+    const liveSpec = live.document
     const liveVersion = assertOpenApiDocument(liveSpec, specName, 'live')
     if (
       liveVersion !== liveManifest.release_version ||
@@ -72,10 +72,10 @@ for (const [specName, typeName] of SPECS) {
         `${specName} release mismatch: local=${sourceContractVersion} manifest=${liveManifest.release_version} live=${liveVersion}`,
       )
     }
-    if (canonical(liveSpec) !== localCanonical) {
+    if (live.rawText !== localRaw) {
       throw new Error(
         `${specName} drift detected: old_version=${version} new_version=${liveVersion} ` +
-        `old_hash=${localHash} new_hash=${sha(canonical(liveSpec))} ` +
+        `old_hash=${localHash} new_hash=${live.sha256} ` +
         `semantic_diff=${JSON.stringify(semanticDiff(localSpec, liveSpec))}`,
       )
     }

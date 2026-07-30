@@ -55,6 +55,7 @@ function optionAsOpsContract(contract: SignupContractOption): OpsPublicContract 
     portfolio_share: contract.portfolioShare ?? null,
     pricing_visibility: contract.pricingVisibility ?? {},
     pricing_components: contract.pricingComponents ?? [],
+    price_options: contract.priceOptions ?? [],
     valid_from: contract.validFrom ?? null,
     valid_to: contract.validTo ?? null,
     binding_period_months: contract.bindingPeriodMonths ?? null,

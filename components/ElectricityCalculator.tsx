@@ -27,6 +27,10 @@ import {
   contractSupportsCustomerType,
   type WebsiteCustomerType,
 } from "@/lib/website/customerType";
+import type {
+  PublicContractPriceOption,
+  PublicPricingComponent,
+} from "@/lib/website/publicContractContract";
 
 export type ContractOption = {
   name: string;
@@ -46,6 +50,8 @@ export type ContractOption = {
   spotShare?: number | null;
   portfolioShare?: number | null;
   customerTypes?: string[] | null;
+  priceOptions?: PublicContractPriceOption[];
+  pricingComponents?: PublicPricingComponent[];
 };
 
 type Props = {
@@ -225,6 +231,26 @@ export default function ElectricityCalculator({
   );
   const [internalSelectedValue, setInternalSelectedValue] = useState(initialValue);
   const [internalCustomerType, setInternalCustomerType] = useState<WebsiteCustomerType>("private");
+  const [priceOptionReference, setPriceOptionReference] = useState(
+    initialQuoteContext?.price_option_reference ??
+      initialPricingPreview?.price_option_reference ??
+      "",
+  );
+  const [invoiceDeliveryMethod, setInvoiceDeliveryMethod] = useState<
+    "email" | "e_invoice" | "paper" | "direct_debit"
+  >(
+    initialQuoteContext?.invoice_delivery_method ??
+      initialPricingPreview?.invoice_delivery_method ??
+      "email",
+  );
+  const [selectedComponentReferences, setSelectedComponentReferences] = useState<string[]>(
+    initialQuoteContext?.selected_component_references ??
+      initialPricingPreview?.selected_component_references ??
+      [],
+  );
+  const [siteCount, setSiteCount] = useState(
+    initialQuoteContext?.site_count ?? initialPricingPreview?.site_count ?? 1,
+  );
   const [resolution, setResolutionState] = useState<WebsiteEnergyResolution | null>(
     initialQuoteContext
       ? {
@@ -258,6 +284,16 @@ export default function ElectricityCalculator({
     () =>
       availableContracts.find((contract) => contract.value === selectedValue) ?? null,
     [availableContracts, selectedValue],
+  );
+  const selectableComponents = useMemo(
+    () =>
+      (selectedContract?.pricingComponents ?? []).filter(
+        (component) =>
+          component.component_reference &&
+          (component.selection_policy === "customer_optional" ||
+            component.selection_policy === "conditional"),
+      ),
+    [selectedContract],
   );
   const effectiveArea = resolution?.price_area_code ?? null;
   const hasContracts = availableContracts.length > 0;
@@ -409,14 +445,37 @@ export default function ElectricityCalculator({
 
   const setSelectedValue = useCallback(
     (value: string) => {
+      const nextContract = contracts.find((contract) => contract.value === value);
       setInternalSelectedValue(value);
       onSelectedValueChange?.(value);
+      setPriceOptionReference(nextContract?.priceOptions?.[0]?.price_option_reference ?? "");
+      setSelectedComponentReferences([]);
+      setSiteCount(1);
       setResultState(null);
       onPricingPreviewChange?.(null);
       onQuoteContextChange?.(null);
       setContinueHref(null);
-    }, [onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
+    }, [contracts, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
   );
+
+  useEffect(() => {
+    if (!selectedContract) return;
+    setPriceOptionReference((current) =>
+      selectedContract.priceOptions?.some(
+        (option) => option.price_option_reference === current,
+      )
+        ? current
+        : (selectedContract.priceOptions?.[0]?.price_option_reference ?? ""),
+    );
+    const allowed = new Set(
+      selectableComponents.flatMap((component) =>
+        component.component_reference ? [component.component_reference] : [],
+      ),
+    );
+    setSelectedComponentReferences((current) =>
+      current.filter((reference) => allowed.has(reference)),
+    );
+  }, [selectableComponents, selectedContract]);
 
   useEffect(() => {
     if (selectedContract || availableContracts.length === 0) return;
@@ -499,6 +558,15 @@ export default function ElectricityCalculator({
     clearQuote();
   }
 
+  function togglePricingComponent(reference: string) {
+    setSelectedComponentReferences((current) =>
+      current.includes(reference)
+        ? current.filter((item) => item !== reference)
+        : [...current, reference],
+    );
+    clearQuote();
+  }
+
   async function resolveArea(): Promise<WebsiteEnergyResolution> {
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
@@ -536,6 +604,9 @@ export default function ElectricityCalculator({
           ? "Ange företagets uppskattade årsförbrukning innan du räknar pris."
           : "Ange din årsförbrukning eller fyll i bostadsuppgifterna för att få en uppskattning.",
       );
+    if ((selectedContract.priceOptions?.length ?? 0) > 0 && !priceOptionReference) {
+      return setError("Välj ett prisalternativ innan du räknar pris.");
+    }
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
       !/^\d{5}$/.test(normalizedPostalCode) ||
@@ -565,6 +636,10 @@ export default function ElectricityCalculator({
         annual_consumption_kwh: consumptionProfile.annual_kwh,
         grid_area_code: resolved.grid_area_code ?? null,
         customer_type: customerType,
+        price_option_reference: priceOptionReference || null,
+        invoice_delivery_method: invoiceDeliveryMethod,
+        selected_component_references: selectedComponentReferences,
+        site_count: siteCount,
       });
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
         throw new Error("Prisberäkningen returnerade en annan förbrukning än den du godkände.");
@@ -591,6 +666,10 @@ export default function ElectricityCalculator({
         estimated_monthly_kwh: monthlyKwh,
         annual_consumption_kwh: consumptionProfile.annual_kwh,
         consumption_profile: consumptionProfile,
+        price_option_reference: preview.price_option_reference ?? null,
+        invoice_delivery_method: preview.invoice_delivery_method ?? invoiceDeliveryMethod,
+        selected_component_references: preview.selected_component_references ?? [],
+        site_count: preview.site_count ?? siteCount,
       } satisfies WebsitePricingQuoteContext;
       onQuoteContextChange?.(nextQuoteContext);
 
@@ -945,6 +1024,114 @@ export default function ElectricityCalculator({
             ))}
           </select>
         </div>
+
+        {selectedContract ? (
+          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Offertval</h3>
+              <p className="mt-1 text-sm text-gray-400">
+                Valen skickas till OPS och låses i den signerade offerten.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {(selectedContract.priceOptions?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  <label htmlFor="calculator-price-option" className="text-sm font-medium text-white/80">
+                    Prisalternativ
+                  </label>
+                  <select
+                    id="calculator-price-option"
+                    value={priceOptionReference}
+                    onChange={(event) => {
+                      setPriceOptionReference(event.target.value);
+                      clearQuote();
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
+                  >
+                    {selectedContract.priceOptions?.map((option) => (
+                      <option
+                        key={option.price_option_reference}
+                        value={option.price_option_reference}
+                      >
+                        {option.customer_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <label htmlFor="calculator-invoice-method" className="text-sm font-medium text-white/80">
+                  Fakturasätt
+                </label>
+                <select
+                  id="calculator-invoice-method"
+                  value={invoiceDeliveryMethod}
+                  onChange={(event) => {
+                    setInvoiceDeliveryMethod(
+                      event.target.value as typeof invoiceDeliveryMethod,
+                    );
+                    clearQuote();
+                  }}
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
+                >
+                  <option value="email">E-postfaktura</option>
+                  <option value="e_invoice">E-faktura</option>
+                  <option value="paper">Pappersfaktura</option>
+                  <option value="direct_debit">Autogiro</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="calculator-site-count" className="text-sm font-medium text-white/80">
+                  Antal anläggningar
+                </label>
+                <input
+                  id="calculator-site-count"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={siteCount}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setSiteCount(Number.isInteger(next) && next >= 1 ? Math.min(next, 1000) : 1);
+                    clearQuote();
+                  }}
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
+                />
+              </div>
+            </div>
+            {selectableComponents.length > 0 ? (
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-white/80">
+                  Valbara pristillägg
+                </legend>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {selectableComponents.map((component) => {
+                    const reference = component.component_reference as string;
+                    return (
+                      <label
+                        key={reference}
+                        className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-gray-300"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedComponentReferences.includes(reference)}
+                          onChange={() => togglePricingComponent(reference)}
+                          className="h-4 w-4 accent-cyan-400"
+                        />
+                        <span>
+                          <span className="font-medium text-white">{component.name}</span>
+                          <span className="ml-2 text-xs text-white/50">
+                            {component.amount.toLocaleString("sv-SE")} {component.unit}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+          </section>
+        ) : null}
 
         {resolution?.price_area_code ? (
           <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-100">

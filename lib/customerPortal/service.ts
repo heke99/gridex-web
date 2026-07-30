@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
   fetchOpsCustomerResource,
-  isTransientOpsError,
   markOpsCustomerNotificationsRead,
   type OpsCustomerReadResource,
   type OpsPortalIdentity,
@@ -35,12 +34,6 @@ type CustomerProfileFallbackRow = {
   last_name: string | null
   phone: string | null
 }
-
-type LocalPortalLinkRow = Record<string, unknown>
-type LocalDeliveryPointRow = Record<string, unknown>
-type LocalInvoiceRow = Record<string, unknown>
-type LocalDocumentRow = Record<string, unknown>
-type LocalLegalAcceptanceRow = Record<string, unknown>
 
 export class CustomerPortalAccessError extends Error {
   readonly status = 401
@@ -475,123 +468,6 @@ function mapOpsNotification(row: Record<string, unknown>): CustomerNotification 
   }
 }
 
-function mapLocalDocument(row: LocalDocumentRow): CustomerDocument {
-  const title =
-    pick(row, ['title', 'document_name', 'file_name']) ??
-    pick(row, ['document_type', 'type'])
-
-  return {
-    id: stableEntityId('document', row, ['id', 'document_id'], ['document_type', 'title', 'created_at', 'file_url']),
-    title,
-    document_type: pick(row, ['document_type', 'type']),
-    status: pick(row, ['status']) ?? 'available',
-    created_at: pickDate(row, ['created_at', 'issued_at', 'published_at']),
-    file_url: pick(row, ['file_url', 'url', 'pdf_url']),
-    download_url: pick(row, ['download_url']),
-    version: pick(row, ['version', 'legal_version']),
-  }
-}
-
-function mapLocalLegalAcceptance(row: LocalLegalAcceptanceRow): CustomerLegalAcceptance {
-  return mapOpsLegalAcceptance({ ...row, acceptance_type: row.acceptance_type ?? row.type })
-}
-
-function localPowersOfAttorneyFromAcceptances(
-  acceptances: CustomerLegalAcceptance[]
-): CustomerPowerOfAttorney[] {
-  return acceptances
-    .filter((item) => item.acceptance_type === 'power_of_attorney')
-    .map((item) => ({
-      id: `poa-${item.id}`,
-      status: item.status ?? 'accepted',
-      scopes: ['facility_data_request'],
-      accepted_at: item.accepted_at,
-      revoked_at: null,
-      valid_until: null,
-      title: item.title ?? 'Fullmakt för anläggningsuppgifter',
-      version: item.version,
-    }))
-}
-
-async function getLocalContracts(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerPortalContract[]> {
-  const { data, error } = await supabase
-    .from('customer_contract_portal_links')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (error) return []
-  return ((data ?? []) as LocalPortalLinkRow[]).map(mapOpsContract)
-}
-
-async function getLocalSites(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerSite[]> {
-  const { data, error } = await supabase
-    .from('customer_delivery_points')
-    .select('*')
-    .eq('user_id', userId)
-    .order('is_primary', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  if (error) return []
-  return ((data ?? []) as LocalDeliveryPointRow[]).map(mapOpsSite)
-}
-
-async function getLocalInvoices(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerInvoice[]> {
-  const { data, error } = await supabase
-    .from('customer_invoices')
-    .select('*')
-    .eq('user_id', userId)
-    .order('issued_at', { ascending: false })
-    .limit(50)
-
-  if (error) return []
-  return ((data ?? []) as LocalInvoiceRow[]).map(mapOpsInvoice)
-}
-
-async function getLocalDocuments(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<CustomerDocument[]> {
-  const { data, error } = await supabase
-    .from('customer_documents')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  if (error) return []
-  return ((data ?? []) as LocalDocumentRow[]).map(mapLocalDocument)
-}
-
-async function getLocalLegalAcceptances(
-  supabase: SupabaseClient,
-  contracts: CustomerPortalContract[]
-): Promise<CustomerLegalAcceptance[]> {
-  const agreementIds = contracts
-    .map((contract) => contract.agreement_id)
-    .filter((id): id is string => Boolean(id))
-
-  if (agreementIds.length === 0) return []
-
-  const { data, error } = await supabase
-    .from('legal_acceptances')
-    .select('*')
-    .in('agreement_id', agreementIds)
-    .order('accepted_at', { ascending: false })
-
-  if (error) return []
-  return ((data ?? []) as LocalLegalAcceptanceRow[]).map(mapLocalLegalAcceptance)
-}
-
 function deriveSwitchStatus(
   contracts: CustomerPortalContract[],
   sites: CustomerSite[]
@@ -786,56 +662,26 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, localProfile)
 
-  const [tickets, opsResult] = await Promise.all([
+  const [tickets, bundle] = await Promise.all([
     getCustomerTickets(supabase, user.id),
-    fetchOpsCustomerPortalBundle(identity)
-      .then((bundle) => ({ bundle, error: null as string | null }))
-      .catch((error) => {
-        if (!isTransientOpsError(error)) throw error
-        return {
-          bundle: null,
-          error: error instanceof Error
-            ? error.message
-            : 'Kunduppgifterna kunde inte hämtas just nu.',
-        }
-      }),
+    fetchOpsCustomerPortalBundle(identity),
   ])
 
-  const opsAvailable = Boolean(opsResult.bundle && !opsResult.error)
-  let localContracts: CustomerPortalContract[] = []
-  let localSites: CustomerSite[] = []
-  let localInvoices: CustomerInvoice[] = []
-  let localDocuments: CustomerDocument[] = []
-  let localLegalAcceptances: CustomerLegalAcceptance[] = []
-  let localNotifications: CustomerNotification[] = []
-
-  if (!opsAvailable) {
-    ;[localContracts, localSites, localInvoices, localDocuments] = await Promise.all([
-      getLocalContracts(supabase, user.id),
-      getLocalSites(supabase, user.id),
-      getLocalInvoices(supabase, user.id),
-      getLocalDocuments(supabase, user.id),
-    ])
-    localLegalAcceptances = await getLocalLegalAcceptances(supabase, localContracts)
-    localNotifications = await getCustomerNotifications(supabase, user.id, localProfile)
+  if (!bundle.profile) {
+    throw new Error('OPS portal-bundle saknar den auktoritativa kundprofilen.')
   }
 
-  const bundle = opsResult.bundle
-  const profile = mapOpsProfile(bundle?.profile ?? null, localProfile, user.id, user.email ?? null)
-  const contracts = opsAvailable ? (bundle?.contracts ?? []).map(mapOpsContract) : localContracts
-  const sites = opsAvailable ? (bundle?.sites ?? []).map(mapOpsSite) : localSites
-  const invoices = opsAvailable ? (bundle?.invoices ?? []).map(mapOpsInvoice) : localInvoices
-  const documents = opsAvailable ? (bundle?.documents ?? []).map(mapOpsDocument) : localDocuments
-  const legalAcceptances = opsAvailable
-    ? (bundle?.legalAcceptances ?? []).map(mapOpsLegalAcceptance)
-    : localLegalAcceptances
-  const powersOfAttorney = opsAvailable
-    ? (bundle?.powersOfAttorney ?? []).map(mapOpsPowerOfAttorney)
-    : localPowersOfAttorneyFromAcceptances(legalAcceptances)
-  const customerStatus = mapCustomerStatus(bundle?.customerStatus ?? null)
-  const dataQuality = mapDataQuality(bundle?.dataQuality ?? null)
+  const profile = mapOpsProfile(bundle.profile, localProfile, user.id, user.email ?? null)
+  const contracts = bundle.contracts.map(mapOpsContract)
+  const sites = bundle.sites.map(mapOpsSite)
+  const invoices = bundle.invoices.map(mapOpsInvoice)
+  const documents = bundle.documents.map(mapOpsDocument)
+  const legalAcceptances = bundle.legalAcceptances.map(mapOpsLegalAcceptance)
+  const powersOfAttorney = bundle.powersOfAttorney.map(mapOpsPowerOfAttorney)
+  const customerStatus = mapCustomerStatus(bundle.customerStatus)
+  const dataQuality = mapDataQuality(bundle.dataQuality)
   const switchStatus =
-    mapOpsSwitchStatus(bundle?.switchStatus ?? null) ??
+    mapOpsSwitchStatus(bundle.switchStatus) ??
     (customerStatus
       ? {
           status: customerStatus.code,
@@ -860,18 +706,16 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     customerStatus,
     dataQuality,
     switchStatus,
-    meteringValues: opsAvailable ? (bundle?.meteringValues ?? []).map(mapOpsMeteringValue) : [],
-    events: opsAvailable ? (bundle?.events ?? []).map(mapOpsEvent) : [],
+    meteringValues: bundle.meteringValues.map(mapOpsMeteringValue),
+    events: bundle.events.map(mapOpsEvent),
     tickets,
-    notifications: opsAvailable ? (bundle?.notifications ?? []).map(mapOpsNotification) : localNotifications,
-    opsAvailable,
-    opsError: opsResult.error,
-    authoritative: opsAvailable,
-    readOnly: !opsAvailable,
-    dataFreshness: opsAvailable ? 'live' : 'local_fallback',
-    dataFreshnessMessage: opsAvailable
-      ? null
-      : 'Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.',
+    notifications: bundle.notifications.map(mapOpsNotification),
+    opsAvailable: true,
+    opsError: null,
+    authoritative: true,
+    readOnly: false,
+    dataFreshness: 'live',
+    dataFreshnessMessage: null,
   }
 }
 

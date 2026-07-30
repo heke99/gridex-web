@@ -41,6 +41,8 @@ export default async function HomePage() {
       spotShare: item.spot_share ?? null,
       portfolioShare: item.portfolio_share ?? null,
       customerTypes: item.customer_types ?? null,
+      priceOptions: item.price_options ?? [],
+      pricingComponents: item.pricing_components ?? [],
     }));
   } catch (error) {
     logWebsitePublicContractFeedError("website home", error);

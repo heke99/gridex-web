@@ -3,47 +3,46 @@
 Datum: 2026-07-30  
 Canonical kontraktsversion: `2026-07-30.1`
 
-## Resultat
+## Genomfört
 
-Gridex Web använder OPS som enda affärskälla. Tenant väljs endast av
-`GRIDEX_API_KEY`; klienten skickar aldrig `company_id` eller en dold
-tenantfallback.
+- Release-manifest och OpenAPI-snapshots synkas atomiskt med SHA-256 över råa
+  bytes.
+- Website- och Customer Portal-typer är regenererade från livekontrakten.
+- Portalidentitet utelämnar saknade fält i stället för att skicka `null`.
+- Portalöversikten är OPS-only och har ingen lokal affärsdatafallback.
+- Move-out använder toppnivåfältet `requested_move_out_date` och strikt
+  kalenderkontroll.
+- Juridikkrav renderas från legal bundle utan lokal kodlista.
+- Offertens prisalternativ, fakturasätt, komponentval och antal anläggningar
+  verifieras och låses i den signerade snapshotsignaturen.
 
-Den här releasen:
+## Verifierat
 
-- hämtar OPS release-manifest före OpenAPI-filerna,
-- verifierar gemensam version och SHA-256 innan snapshots ersätts,
-- kontrollerar lokala `$ref`, snapshots, manifest och genererade typer,
-- använder dokumentbundna dynamiska juridikacceptanser,
-- skickar samma serververifierade auth-user i båda portal-ID-fälten,
-- skickar canonical customer events med event reference, subject och data,
-- validerar slutna Website- och Customer Portal-operationer,
-- har separata `api:check:local`, `api:check:live`, `api:contract`,
-  `api:runtime` och `api:compatibility`,
-- blockerar full readiness om live sync, migration, staging, två tenants eller
-  webhook retry inte har verifierats.
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:launch`
+- `npm run api:check:local`
+- `npm run db:migrations:check`
+- `npm run api:compatibility:known-gaps`
 
-## Verifierat lokalt
+Live-manifestet publicerar version `2026-07-30.1` med SHA-256:
 
-- TypeScript
-- OpenAPI snapshot/type/manifest parity
-- noll maskinella kontraktsgap
-- Website API contract- och runtimekontrakt
-- Customer Portal hardening
-- prissättning, signup och launch-readiness
+- Website: `9ad3fc518d9aadb687141af2df7d3068df8f7daca530cc01b525d4b94c816b7b`
+- Customer Portal: `a3e3f475f3822f30efab4e9a792d714585bacc98773d52790adf12072ed3251e`
 
-## Miljöblockerare
+## Kvarvarande blockerare
 
-- live-manifestet publicerar ännu inte `2026-07-30.1`,
-- staging/API-nycklar och databasanslutning saknas i leveransmiljön,
-- OPS historiska migration `20260728170000` har en känd checksumkonflikt,
-- stagingflöde, två-tenant-isolering och webhook transport/retry/dead-letter
-  kan därför inte få verifierad miljöevidens.
+OpenAPI innehåller `ContractPriceOption` och offertfältet
+`price_option_reference`, men `PublicContract` saknar en deklarerad
+`price_options`-egenskap. Klienten stödjer livefältet när det levereras, men
+maskinkontraktet är inte komplett. Gapkod:
+`public_contract_price_options_not_published`.
 
-`verification-status.json` är avsiktligt `live_sync_verified=false` tills
-`npm run api:sync` har hämtat och verifierat den officiella deployen.
+Den distribuerade `verification-status.json` lämnas dessutom med
+`live_sync_verified=false`, eftersom målmiljön måste skapa sitt eget livebevis.
 
 ## Releasebeslut
 
-Produktion är `NO-GO` tills miljöblockerarna ovan är lösta och
-`npm run api:preflight` passerar mot live/staging.
+`NO-GO` för full API-kompatibilitet tills OPS publicerar `price_options` på
+`PublicContract` och `npm run api:sync && npm run api:preflight` passerar i
+målmiljön. Denna status är en extern kontraktsblockerare, inte en lokal fallback.

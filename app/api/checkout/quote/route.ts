@@ -39,6 +39,10 @@ type PreviewPayload = {
   annual_consumption_kwh?: unknown
   start_date?: unknown
   customer_type?: unknown
+  price_option_reference?: unknown
+  invoice_delivery_method?: unknown
+  selected_component_references?: unknown
+  site_count?: unknown
 }
 
 function text(value: unknown, max = 180): string | null {
@@ -55,6 +59,27 @@ function requiredConsumption(value: unknown, max = 2_400_000): number | null {
 function requestedPriceArea(value: unknown): OpsWebsitePriceArea | null {
   const area = typeof value === 'string' ? value.toUpperCase() : ''
   return AREAS.has(area as OpsWebsitePriceArea) ? area as OpsWebsitePriceArea : null
+}
+
+function invoiceDeliveryMethod(value: unknown) {
+  return value === 'email' || value === 'e_invoice' || value === 'paper' || value === 'direct_debit'
+    ? value
+    : null
+}
+
+function componentReferences(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > 100) return null
+  const references = value.map((item) => text(item, 160))
+  if (
+    references.some((item) => !item || !/^[a-z0-9][a-z0-9_-]{2,159}$/i.test(item)) ||
+    new Set(references).size !== references.length
+  ) return null
+  return references as string[]
+}
+
+function siteCount(value: unknown): number | null {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1_000 ? parsed : null
 }
 
 export async function POST(req: Request) {
@@ -87,8 +112,19 @@ export async function POST(req: Request) {
   const customerType = parseWebsiteCustomerType(body?.customer_type)
   const areaToken = text(body?.resolution_token, 12_000)
   const claimedArea = requestedPriceArea(body?.price_area_code)
+  const requestedPriceOption = text(body?.price_option_reference, 100)
+  const requestedInvoiceMethod =
+    body?.invoice_delivery_method === undefined
+      ? 'email'
+      : invoiceDeliveryMethod(body.invoice_delivery_method)
+  const requestedComponents =
+    body?.selected_component_references === undefined
+      ? []
+      : componentReferences(body.selected_component_references)
+  const requestedSiteCount =
+    body?.site_count === undefined ? 1 : siteCount(body.site_count)
 
-  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !customerType || !areaToken || !isStrictCalendarDate(canonicalStartDate)) {
+  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !customerType || !areaToken || !isStrictCalendarDate(canonicalStartDate) || !requestedInvoiceMethod || !requestedComponents || !requestedSiteCount) {
     return NextResponse.json({ error: 'Adress, kundtyp, avtal, förbrukning och verifierat elområde krävs.' }, { status: 400 })
   }
 
@@ -117,6 +153,35 @@ export async function POST(req: Request) {
     if (!contract || !buildPublicContractDisplay(contract).ready) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
+    const availablePriceOptions = contract.price_options ?? []
+    if (
+      (availablePriceOptions.length > 0 &&
+        (!requestedPriceOption ||
+          !availablePriceOptions.some(
+            (option) => option.price_option_reference === requestedPriceOption,
+          ))) ||
+      (availablePriceOptions.length === 0 && requestedPriceOption)
+    ) {
+      return NextResponse.json(
+        { error: 'Valt prisalternativ kunde inte verifieras.', code: 'price_option_invalid' },
+        { status: 409 },
+      )
+    }
+    const selectableReferences = new Set(
+      (contract.pricing_components ?? []).flatMap((component) =>
+        component.component_reference &&
+        (component.selection_policy === 'customer_optional' ||
+          component.selection_policy === 'conditional')
+          ? [component.component_reference]
+          : [],
+      ),
+    )
+    if (requestedComponents.some((reference) => !selectableReferences.has(reference))) {
+      return NextResponse.json(
+        { error: 'Vald pristilläggskomponent kunde inte verifieras.', code: 'component_selection_invalid' },
+        { status: 409 },
+      )
+    }
 
     const opsQuote = await fetchOpsWebsiteQuote({
       resolution_id: verifiedArea.payload.resolution_id,
@@ -124,6 +189,10 @@ export async function POST(req: Request) {
       annual_consumption_kwh: annualKwh,
       start_date: canonicalStartDate,
       customer_type: customerType,
+      price_option_reference: requestedPriceOption,
+      invoice_delivery_method: requestedInvoiceMethod,
+      selected_component_references: requestedComponents,
+      site_count: requestedSiteCount,
     })
     if (
       opsQuote.contract.offer_reference !== offerReference ||

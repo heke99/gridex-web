@@ -501,6 +501,14 @@ export function gridexOpenApiContractGaps(): string[] {
   const legalAcceptances = documents.website.components?.schemas?.LegalAcceptances
   if (schemaIsClosedObject(legalAcceptances)) gaps.push('legal_acceptances_not_dynamic')
 
+  const publicContract = documents.website.components?.schemas?.PublicContract as JsonRecord | undefined
+  const publicContractProperties = publicContract?.properties as JsonRecord | undefined
+  const pricing = publicContractProperties?.pricing as JsonRecord | undefined
+  const pricingProperties = pricing?.properties as JsonRecord | undefined
+  if (!publicContractProperties?.price_options && !pricingProperties?.price_options) {
+    gaps.push('public_contract_price_options_not_published')
+  }
+
   const portfolio = operation('website', '/api/v1/website/portfolio-prices', 'get')
   if (!portfolio || !schemaIsClosedObject(responseSchema(portfolio, 200))) {
     gaps.push('portfolio_response_schema_not_strict')

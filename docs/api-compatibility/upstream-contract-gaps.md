@@ -5,8 +5,12 @@ Granskad kontraktsversion: `2026-07-30.1`
 
 ## Resultat
 
-`npm run api:compatibility:known-gaps` rapporterar inga lokala
-OpenAPI-kontraktsgap för den synkroniserade OPS-patchen.
+`npm run api:compatibility:known-gaps` rapporterar ett kvarvarande maskinellt
+kontraktsgap:
+
+| Kod | Blockerare |
+|---|---|
+| `public_contract_price_options_not_published` | `ContractPriceOption` och offertens valfält finns, men `PublicContract` deklarerar inte `price_options`. |
 
 Följande tidigare blockerare är korrigerade i release `2026-07-30.1`:
 

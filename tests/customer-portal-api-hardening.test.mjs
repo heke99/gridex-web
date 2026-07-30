@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
+import { moveOutPayload } from '../lib/customerPortal/writeValidation.ts'
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
@@ -11,11 +12,19 @@ assert.ok(!portalRoute.includes('customer_number: body'))
 assert.ok(!portalRoute.includes('external_customer_id: body'))
 
 const service = read('lib/customerPortal/service.ts')
-assert.ok(service.includes('authoritative: opsAvailable'))
-assert.ok(service.includes('readOnly: !opsAvailable'))
-assert.ok(service.includes("'local_fallback'"))
+assert.ok(service.includes('authoritative: true'))
+assert.ok(service.includes('readOnly: false'))
+assert.ok(service.includes("dataFreshness: 'live'"))
+assert.ok(!service.includes("dataFreshness: opsAvailable ? 'live' : 'local_fallback'"))
+assert.ok(!service.includes('isTransientOpsError'))
+assert.ok(service.includes('if (!bundle.profile)'))
 assert.ok(!service.includes('enqueuePortalWrite'))
 assert.ok(!service.includes('crypto.randomUUID()'))
+assert.equal(moveOutPayload({ move_out_date: '2026-02-30' }), null)
+assert.deepEqual(
+  moveOutPayload({ move_out_date: '2026-02-28', site_id: 'site_123' }),
+  { site_id: 'site_123', requested_move_out_date: '2026-02-28' },
+)
 
 const ops = read('lib/ops/client.ts')
 assert.ok(ops.includes('fetchOpsCustomerResource'))

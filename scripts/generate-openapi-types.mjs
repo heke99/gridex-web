@@ -145,7 +145,7 @@ async function generate(inputPath, outputPath) {
   const output = resolve(root, outputPath)
   const source = await readFile(input, 'utf8')
   const document = JSON.parse(source)
-  const sourceHash = createHash('sha256').update(`${JSON.stringify(document)}\n`).digest('hex')
+  const sourceHash = createHash('sha256').update(source).digest('hex')
   const schemas = Object.entries(document.components?.schemas ?? {}).map(([name, schema]) => {
     return `    ${JSON.stringify(name)}: ${schemaType(schema)}`
   }).join('\n')

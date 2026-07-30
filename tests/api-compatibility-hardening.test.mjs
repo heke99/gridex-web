@@ -91,6 +91,7 @@ for (const checkName of [
 }
 assert.match(readiness, /!portalIdentityGap/, 'checkout readiness must block unsupported portal identity')
 assert.match(readiness, /!legalAcceptanceGap/, 'checkout readiness must block non-dynamic legal contract')
+assert.match(readiness, /!priceOptionsGap/, 'checkout readiness must block unpublished price options')
 assert.equal(verification.live_sync_verified, false, 'bundled snapshots must not falsely claim live verification')
 
 for (const event of ['invoice.paid', 'invoice.disputed', 'supply.started', 'metering_values.updated', 'facility_data.verified']) {

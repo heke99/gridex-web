@@ -4,6 +4,7 @@ import type { PublicEnergyDirection, PublicProductionPricing } from '@/lib/websi
 export const WEBSITE_PRICE_AREAS = ["SE1", "SE2", "SE3", "SE4"] as const;
 
 export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
+export type WebsiteInvoiceDeliveryMethod = "email" | "e_invoice" | "paper" | "direct_debit";
 
 export type WebsiteEnergyResolution = {
   status: string;
@@ -63,6 +64,10 @@ export type WebsitePricingPreviewInput = {
   annual_consumption_kwh: number;
   start_date?: string | null;
   customer_type?: "private" | "business" | null;
+  price_option_reference?: string | null;
+  invoice_delivery_method?: WebsiteInvoiceDeliveryMethod | null;
+  selected_component_references?: string[] | null;
+  site_count?: number | null;
 };
 
 export type WebsitePricingQuoteContext = {
@@ -79,6 +84,10 @@ export type WebsitePricingQuoteContext = {
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
   consumption_profile?: WebsiteConsumptionProfile | null;
+  price_option_reference?: string | null;
+  invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  site_count: number;
 };
 
 export type WebsiteQuoteAssumption = {
@@ -176,6 +185,12 @@ export type WebsitePricingPreview = {
   market_reference?: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
+  price_option_reference?: string | null;
+  invoice_delivery_method?: WebsiteInvoiceDeliveryMethod | null;
+  selected_component_references?: string[];
+  mandatory_component_references?: string[];
+  conditional_component_references?: string[];
+  site_count?: number;
   pricing_token?: string;
   pricing_expires_at?: string;
   quote_source?: "website";

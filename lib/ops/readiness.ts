@@ -318,6 +318,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     .every((probe) => probe.ok)
   const portalIdentityGap = upstreamContractGaps.includes('customer_application_portal_identity_missing')
   const legalAcceptanceGap = upstreamContractGaps.includes('legal_acceptances_not_dynamic')
+  const priceOptionsGap = upstreamContractGaps.includes('public_contract_price_options_not_published')
   const portfolioGap = upstreamContractGaps.includes('portfolio_response_schema_not_strict')
   const quoteValidationSchemaGap = upstreamContractGaps.includes('website_quote_validation_response_not_strict')
   const webhookSchemaGap = upstreamContractGaps.includes('ops_domain_webhook_schema_not_published')
@@ -328,7 +329,8 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     checkoutProbesReady &&
     contextReadiness?.websiteCheckoutReady === true &&
     !portalIdentityGap &&
-    !legalAcceptanceGap
+    !legalAcceptanceGap &&
+    !priceOptionsGap
 
   const checks: Record<OpsReadinessCheckName, OpsReadinessCheck> = {
     configuration_ready: check(client.configured, client.configured ? 'configured' : 'not_configured', client.configured ? 'Gridex API är serverkonfigurerat.' : 'GRIDEX_API_KEY eller canonical API-bas saknas.'),

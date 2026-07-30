@@ -3,10 +3,8 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import {
   assertOpenApiDocument,
-  canonical,
   fetchManifestSpecification,
   fetchReleaseManifest,
-  sha,
   SPECS,
 } from './openapi-common.mjs'
 
@@ -67,7 +65,8 @@ for (const [specName] of SPECS) {
     ? 'website'
     : 'customer_portal'
   const specification = releaseManifest.specifications[manifestKey]
-  const spec = await fetchManifestSpecification(specification)
+  const downloadedSpec = await fetchManifestSpecification(specification)
+  const spec = downloadedSpec.document
   const version = assertOpenApiDocument(spec, specName, 'live', contractVersion)
   if (version !== releaseManifest.release_version) {
     throw new Error(
@@ -81,7 +80,14 @@ for (const [specName] of SPECS) {
   } catch {
     previous = null
   }
-  downloaded.push({ specName, spec, version, previous })
+  downloaded.push({
+    specName,
+    spec,
+    rawText: downloadedSpec.rawText,
+    sha256: downloadedSpec.sha256,
+    version,
+    previous,
+  })
 }
 
 const contractPath = path.join('lib', 'ops', 'contract.ts')
@@ -102,10 +108,10 @@ for (const file of managedFiles) backups.set(file, await maybeRead(file))
 const temporaryFiles = []
 try {
   // Stage both live specifications before replacing either checked-in file.
-  for (const { specName, spec } of downloaded) {
+  for (const { specName, rawText } of downloaded) {
     const target = path.join(outputDirectory, specName)
     const temporary = `${target}.${process.pid}.tmp`
-    await writeFile(temporary, `${JSON.stringify(spec, null, 2)}\n`, { flag: 'wx' })
+    await writeFile(temporary, rawText, { flag: 'wx' })
     temporaryFiles.push({ target, temporary })
   }
   for (const { target, temporary } of temporaryFiles) await rename(temporary, target)
@@ -128,10 +134,10 @@ try {
     synced_at: new Date().toISOString(),
     contract_version: contractVersion,
     release_manifest: releaseManifest,
-    specifications: Object.fromEntries(downloaded.map(({ specName, spec, previous }) => [
+    specifications: Object.fromEntries(downloaded.map(({ specName, sha256, previous, spec }) => [
       specName,
       {
-        sha256: sha(canonical(spec)),
+        sha256,
         semantic_diff: semanticDiff(previous, spec),
       },
     ])),
@@ -154,9 +160,9 @@ try {
     live_sync_verified: true,
     verified_at: report.synced_at,
     contract_version: contractVersion,
-    specifications: Object.fromEntries(downloaded.map(({ specName, spec }) => [
+    specifications: Object.fromEntries(downloaded.map(({ specName, sha256 }) => [
       specName,
-      { sha256: sha(canonical(spec)) },
+      { sha256 },
     ])),
   }, null, 2)}\n`)
   console.log(`Live OpenAPI sync verified (${contractVersion}).`)

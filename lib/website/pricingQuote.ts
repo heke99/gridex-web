@@ -3,6 +3,7 @@ import { websiteServerSigningKeyring } from "@/lib/website/serverTokenSecret";
 import type { OpsPublicContract } from "@/lib/ops/client";
 import type { PublicEnergyDirection, PublicProductionPricing } from "@/lib/website/publicContractContract";
 import type {
+  WebsiteInvoiceDeliveryMethod,
   WebsitePricingPreview,
   WebsitePriceArea,
   WebsiteQuoteAssumption,
@@ -10,7 +11,7 @@ import type {
   WebsiteQuoteMarketReference,
 } from "@/lib/website/publicApi";
 
-const QUOTE_VERSION = "v4";
+const QUOTE_VERSION = "v5";
 const QUOTE_TTL_MS = 20 * 60 * 1000;
 
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
@@ -18,7 +19,7 @@ type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
 /** Immutable browser signature around the exact OPS quote snapshot shown to the customer. */
 export type WebsitePricingQuote = {
-  version: 3;
+  version: 4;
   issued_at: string;
   expires_at: string;
   valid_until: string;
@@ -42,6 +43,12 @@ export type WebsitePricingQuote = {
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
+  price_option_reference: string | null;
+  invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  mandatory_component_references: string[];
+  conditional_component_references: string[];
+  site_count: number;
   price_per_kwh_ore: number;
   total_monthly_cost_sek: number;
   total_monthly_cost_incl_vat_sek: number;
@@ -98,14 +105,29 @@ function publicQuoteFees(value: unknown): QuoteFees | undefined {
 }
 function cloneBasis(value: unknown): QuoteBasis | undefined { return cloneRecord(value); }
 function validDate(value: unknown): value is string { return text(value) && Number.isFinite(Date.parse(value)); }
+function validInvoiceDeliveryMethod(value: unknown): value is WebsiteInvoiceDeliveryMethod {
+  return value === "email" || value === "e_invoice" || value === "paper" || value === "direct_debit";
+}
+function validReferences(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 100 &&
+    value.every((item) => typeof item === "string" && /^[a-z0-9][a-z0-9_-]{2,159}$/i.test(item)) &&
+    new Set(value).size === value.length;
+}
 
 function isQuote(value: unknown): value is WebsitePricingQuote {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
-  return q.version === 3 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
+  return q.version === 4 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
     text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) && (q.energy_direction === "consumption" || q.energy_direction === "production") && validDate(q.start_date) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
+    (q.price_option_reference === null || text(q.price_option_reference)) &&
+    validInvoiceDeliveryMethod(q.invoice_delivery_method) &&
+    validReferences(q.selected_component_references) &&
+    validReferences(q.mandatory_component_references) &&
+    validReferences(q.conditional_component_references) &&
+    typeof q.site_count === "number" && Number.isInteger(q.site_count) &&
+    q.site_count >= 1 && q.site_count <= 1_000 &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
     Array.isArray(q.assumptions) && Array.isArray(q.market_sources) && text(q.pricing_snapshot_schema_version);
@@ -138,7 +160,7 @@ export function issueWebsitePricingQuote(input: {
   const localExpiry = now.getTime() + QUOTE_TTL_MS;
   const opsExpiry = Date.parse(validUntil);
   const quote: WebsitePricingQuote = {
-    version: 3,
+    version: 4,
     issued_at: now.toISOString(),
     expires_at: new Date(Math.min(localExpiry, opsExpiry)).toISOString(),
     valid_until: validUntil,
@@ -158,6 +180,12 @@ export function issueWebsitePricingQuote(input: {
     price_area_code: area,
     estimated_monthly_kwh: input.preview.kwh,
     annual_consumption_kwh: input.preview.annual_consumption_kwh,
+    price_option_reference: input.preview.price_option_reference ?? null,
+    invoice_delivery_method: input.preview.invoice_delivery_method ?? "email",
+    selected_component_references: [...new Set(input.preview.selected_component_references ?? [])],
+    mandatory_component_references: [...new Set(input.preview.mandatory_component_references ?? [])],
+    conditional_component_references: [...new Set(input.preview.conditional_component_references ?? [])],
+    site_count: input.preview.site_count ?? 1,
     price_per_kwh_ore: input.preview.pricePerKwhOre,
     total_monthly_cost_sek: input.preview.totalMonthlyCostSek,
     total_monthly_cost_incl_vat_sek: input.preview.totalMonthlyCostInclVatSek,
@@ -207,6 +235,12 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     price_area_code: quote.price_area_code,
     kwh: quote.estimated_monthly_kwh,
     annual_consumption_kwh: quote.annual_consumption_kwh,
+    price_option_reference: quote.price_option_reference,
+    invoice_delivery_method: quote.invoice_delivery_method,
+    selected_component_references: quote.selected_component_references,
+    mandatory_component_references: quote.mandatory_component_references,
+    conditional_component_references: quote.conditional_component_references,
+    site_count: quote.site_count,
     pricePerKwhOre: quote.price_per_kwh_ore,
     totalMonthlyCostSek: quote.total_monthly_cost_sek,
     totalMonthlyCostInclVatSek: quote.total_monthly_cost_incl_vat_sek,

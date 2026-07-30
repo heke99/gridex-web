@@ -92,12 +92,28 @@ export async function fetchManifestSpecification(specification) {
   if (!response.ok) {
     throw new Error(`OpenAPI fetch failed for ${specification.url}: ${response.status}`)
   }
-  const document = await response.json()
-  const digest = sha(canonical(document))
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.toLowerCase().includes('json')) {
+    throw new Error(
+      `${specification.url} returned unexpected content type: ${contentType || 'missing'}`,
+    )
+  }
+  const rawText = await response.text()
+  const digest = sha(rawText)
   if (digest !== specification.sha256) {
     throw new Error(
       `OpenAPI SHA-256 mismatch for ${specification.url}: expected ${specification.sha256}, received ${digest}`,
     )
   }
-  return document
+  let document
+  try {
+    document = JSON.parse(rawText)
+  } catch (error) {
+    throw new Error(
+      `OpenAPI document from ${specification.url} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
+  return { document, rawText, sha256: digest }
 }

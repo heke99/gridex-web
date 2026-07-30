@@ -127,6 +127,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     pricingVisibility: item.pricing_visibility ?? {},
     pricingComponents: sanitizePricingComponentsBeforeAreaResolution(item.pricing_components, item.type)
       .filter((component) => component.website_card_visible),
+    priceOptions: item.price_options ?? [],
     validFrom: item.valid_from ?? null,
     validTo: item.valid_to ?? null,
     bindingPeriodMonths: item.binding_period_months ?? null,
@@ -669,7 +670,7 @@ export default async function TecknaPage({
     }
     if (
       !legalBundle.complete ||
-      legalBundle.requirements.length !== legalBundle.required_types.length ||
+      legalBundle.missing_types.length > 0 ||
       !submittedLegalBundleVersion ||
       submittedLegalBundleVersion !== legalBundle.bundle_version
     ) {
@@ -1142,14 +1143,16 @@ export default async function TecknaPage({
         : {}),
       idempotency_key: idempotencyKey,
       legal_bundle_version: legalBundle.bundle_version,
-      legal_acceptances: legalRequirements.map((requirement) => ({
-        requirement_code: requirement.requirement_code,
-        document_id: requirement.document_id,
-        document_version: requirement.document_version,
-        document_hash: requirement.document_hash,
-        accepted: true as const,
-        accepted_at: acceptedAt,
-      })),
+      legal_acceptances: legalRequirements
+        .filter((requirement) => legalConsents[requirement.requirement_code] === true)
+        .map((requirement) => ({
+          requirement_code: requirement.requirement_code,
+          document_id: requirement.document_id,
+          document_version: requirement.document_version,
+          document_hash: requirement.document_hash,
+          accepted: true as const,
+          accepted_at: acceptedAt,
+        })),
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;
 

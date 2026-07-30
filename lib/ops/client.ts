@@ -5,6 +5,7 @@ import {
   normalizePublicContractApiPayload,
   normalizeProductionPricing,
   type PublicAreaPricing,
+  type PublicContractPriceOption,
   type PublicPortfolioMonthlyPrice,
   type PublicLegalRequirement,
   type PublicPricingComponent,
@@ -112,6 +113,7 @@ export type OpsPublicContract = {
   calculation_components?: PublicPricingComponent[];
   display_components?: PublicPricingComponent[];
   summary_components?: PublicPricingComponent[];
+  price_options?: PublicContractPriceOption[];
   legal_requirements?: PublicLegalRequirement[];
   portfolio_monthly_prices?: PublicPortfolioMonthlyPrice[];
   terms_version?: string | null;
@@ -436,7 +438,13 @@ export type OpsWebsiteQuoteInput = {
   annual_consumption_kwh: number;
   customer_type: WebsiteCustomerType;
   start_date: string;
+  price_option_reference?: string | null;
+  invoice_delivery_method?: OpsInvoiceDeliveryMethod | null;
+  selected_component_references?: string[] | null;
+  site_count?: number | null;
 };
+
+export type OpsInvoiceDeliveryMethod = 'email' | 'e_invoice' | 'paper' | 'direct_debit';
 
 export type OpsWebsiteQuoteValidationInput = {
   quote_reference: string;
@@ -545,6 +553,12 @@ export type OpsWebsitePricingPreview = {
   market_reference?: OpsQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
+  price_option_reference?: string | null;
+  invoice_delivery_method?: OpsInvoiceDeliveryMethod | null;
+  selected_component_references?: string[];
+  mandatory_component_references?: string[];
+  conditional_component_references?: string[];
+  site_count?: number;
   pricing_token?: string;
   pricing_expires_at?: string;
   raw?: Record<string, unknown>;
@@ -1625,6 +1639,37 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     pickString(quoteInput, ['start_date', 'startDate']) ??
     pickString(row, ['start_date', 'startDate']) ??
     normalizeText(input.start_date);
+  const priceOptionReference =
+    pickString(row, ['price_option_reference', 'priceOptionReference']) ??
+    pickString(quoteInput, ['price_option_reference', 'priceOptionReference']) ??
+    normalizeText(input.price_option_reference);
+  const invoiceDeliveryMethod =
+    pickString(row, ['invoice_delivery_method', 'invoiceDeliveryMethod']) ??
+    pickString(quoteInput, ['invoice_delivery_method', 'invoiceDeliveryMethod']) ??
+    normalizeText(input.invoice_delivery_method);
+  const invoiceMethods = new Set<OpsInvoiceDeliveryMethod>([
+    'email',
+    'e_invoice',
+    'paper',
+    'direct_debit',
+  ]);
+  const normalizedInvoiceDeliveryMethod = invoiceMethods.has(
+    invoiceDeliveryMethod as OpsInvoiceDeliveryMethod,
+  )
+    ? invoiceDeliveryMethod as OpsInvoiceDeliveryMethod
+    : null;
+  const selectedComponentReferences =
+    pickStringArray(row, ['selected_component_references', 'selectedComponentReferences']) ??
+    pickStringArray(quoteInput, ['selected_component_references', 'selectedComponentReferences']) ??
+    [...new Set(input.selected_component_references ?? [])];
+  const mandatoryComponentReferences =
+    pickStringArray(row, ['mandatory_component_references', 'mandatoryComponentReferences']) ?? [];
+  const conditionalComponentReferences =
+    pickStringArray(row, ['conditional_component_references', 'conditionalComponentReferences']) ?? [];
+  const siteCount =
+    normalizeInteger(row.site_count ?? row.siteCount ?? quoteInput.site_count ?? quoteInput.siteCount) ??
+    input.site_count ??
+    1;
   if (!quoteReference || !offerReference || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !validUntil) {
     throw new OpsError('OPS returnerade en ofullständig canonical quote.', 502, {
       code: 'ops_quote_contract_invalid',
@@ -1633,6 +1678,30 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
       price_area_code: area,
       resolution_id: resolutionId,
       start_date: startDate,
+    });
+  }
+  if (
+    (input.price_option_reference && priceOptionReference !== input.price_option_reference) ||
+    (input.invoice_delivery_method && normalizedInvoiceDeliveryMethod !== input.invoice_delivery_method) ||
+    siteCount !== (input.site_count ?? 1) ||
+    JSON.stringify([...selectedComponentReferences].sort()) !==
+      JSON.stringify([...new Set(input.selected_component_references ?? [])].sort())
+  ) {
+    throw new OpsError('OPS-offerten matchar inte kundens val.', 409, {
+      code: 'ops_quote_selection_mismatch',
+      expected: {
+        price_option_reference: input.price_option_reference ?? null,
+        invoice_delivery_method: input.invoice_delivery_method ?? null,
+        selected_component_references: [...new Set(input.selected_component_references ?? [])].sort(),
+        site_count: input.site_count ?? 1,
+      },
+      received: {
+        price_option_reference: priceOptionReference,
+        invoice_delivery_method: normalizedInvoiceDeliveryMethod,
+        selected_component_references: [...selectedComponentReferences].sort(),
+        site_count: siteCount,
+      },
+      retryable: false,
     });
   }
   const rawHashes = recordValue(row.legal_document_hashes ?? row.document_hashes);
@@ -1684,6 +1753,12 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     market_reference: marketReference,
     pricing_snapshot_schema_version: pickString(row, ['pricing_snapshot_schema_version', 'schema_version', 'schemaVersion']) ?? GRIDEX_WEBSITE_API_CONTRACT_VERSION,
     valid_until: validUntil,
+    price_option_reference: priceOptionReference,
+    invoice_delivery_method: normalizedInvoiceDeliveryMethod,
+    selected_component_references: selectedComponentReferences,
+    mandatory_component_references: mandatoryComponentReferences,
+    conditional_component_references: conditionalComponentReferences,
+    site_count: siteCount,
     raw: row,
   };
 }
@@ -2193,6 +2268,16 @@ export async function fetchOpsWebsiteQuote(
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
     start_date: input.start_date,
+    ...(input.price_option_reference
+      ? { price_option_reference: input.price_option_reference }
+      : {}),
+    ...(input.invoice_delivery_method
+      ? { invoice_delivery_method: input.invoice_delivery_method }
+      : {}),
+    ...(input.selected_component_references
+      ? { selected_component_references: [...new Set(input.selected_component_references)] }
+      : {}),
+    ...(input.site_count ? { site_count: input.site_count } : {}),
   } satisfies OpsWebsiteQuoteRequestDto
   assertWebsiteRequest(
     'WebsiteQuoteRequest',
@@ -3438,11 +3523,14 @@ function portalHeaders(identity: OpsPortalIdentity): Headers {
   return headers;
 }
 
-function portalIdentityPayload(identity: OpsPortalIdentity): Record<string, string | null> {
+function portalIdentityPayload(identity: OpsPortalIdentity): Record<string, string> {
+  const email = normalizeText(identity.email)?.toLowerCase() ?? null;
+  const customerNumber = normalizeText(identity.customerNumber);
+  const externalCustomerId = stableExternalCustomerId(identity);
   return {
-    email: normalizeText(identity.email),
-    customer_number: normalizeText(identity.customerNumber),
-    external_customer_id: stableExternalCustomerId(identity),
+    ...(email ? { email } : {}),
+    ...(customerNumber ? { customer_number: customerNumber } : {}),
+    ...(externalCustomerId ? { external_customer_id: externalCustomerId } : {}),
   };
 }
 
@@ -3621,12 +3709,14 @@ export async function submitOpsCustomerSync(
   const headers = portalHeaders(input.identity);
   const body = {
     ...portalIdentityPayload(input.identity),
-    power_of_attorney: input.powerOfAttorney ?? null,
-    legal_acceptances: input.legalAcceptances ?? [],
-    documents: input.documents ?? [],
-    facility_data: input.facilityData ?? null,
-    profile: input.profile ?? null,
-    metadata: input.metadata ?? {},
+    ...(input.facilityData ? { facility_data: input.facilityData } : {}),
+    ...(input.profile ? { profile: input.profile } : {}),
+    data: {
+      ...(input.powerOfAttorney ? { power_of_attorney: input.powerOfAttorney } : {}),
+      ...(input.legalAcceptances?.length ? { legal_acceptances: input.legalAcceptances } : {}),
+      ...(input.documents?.length ? { documents: input.documents } : {}),
+    },
+    ...(input.metadata ? { metadata: input.metadata } : {}),
   };
 
   const operationId =
@@ -3749,10 +3839,31 @@ export async function submitOpsCustomerMoveOut(
   input: OpsCustomerMoveOutInput,
 ): Promise<OpsCustomerWriteResult> {
   const headers = portalHeaders(input.identity);
+  const requestedMoveOutDate = normalizeText(
+    input.moveOut.requested_move_out_date ?? input.moveOut.move_out_date,
+  );
+  if (!requestedMoveOutDate || !isStrictCalendarDate(requestedMoveOutDate)) {
+    throw new OpsError('Utflyttningsdatum är inte ett verkligt kalenderdatum.', 400, {
+      code: 'requested_move_out_date_invalid',
+      field: 'requested_move_out_date',
+      retryable: false,
+    });
+  }
+  const reason = normalizeText(input.moveOut.reason);
+  const moveOutData = Object.fromEntries(
+    Object.entries(input.moveOut).filter(
+      ([key, value]) =>
+        !['requested_move_out_date', 'move_out_date', 'reason'].includes(key) &&
+        value !== undefined &&
+        value !== null,
+    ),
+  );
   const body = {
     ...portalIdentityPayload(input.identity),
-    move_out: input.moveOut,
-    metadata: input.metadata ?? {},
+    requested_move_out_date: requestedMoveOutDate,
+    ...(reason ? { reason } : {}),
+    ...(Object.keys(moveOutData).length ? { data: moveOutData } : {}),
+    ...(input.metadata ? { metadata: input.metadata } : {}),
   };
 
   headers.set("Idempotency-Key", customerWriteIdempotencyKey("move-out", input, body));
