@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { getGridexWebsiteSigningConfiguration } from '@/lib/ops/config'
 
 type Purpose = 'pricing-quote' | 'energy-area'
 
@@ -30,18 +31,17 @@ export function websiteServerSigningKeyring(purpose: Purpose): {
   active: WebsiteSigningKey
   verification: WebsiteSigningKey[]
 } | null {
-  const activeSource = validSourceSecret(process.env.GRIDEX_WEBSITE_STATE_SIGNING_SECRET)
+  const configuration = getGridexWebsiteSigningConfiguration()
+  const activeSource = validSourceSecret(configuration.activeSecret)
   if (!activeSource) return null
   const active = {
-    kid: process.env.GRIDEX_WEBSITE_STATE_SIGNING_KID?.trim() || 'current',
+    kid: configuration.activeKid,
     key: derive(activeSource, purpose),
   }
-  const previousSource = validSourceSecret(
-    process.env.GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET,
-  )
+  const previousSource = validSourceSecret(configuration.previousSecret)
   const previous = previousSource
     ? {
-        kid: process.env.GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_KID?.trim() || 'previous',
+        kid: configuration.previousKid,
         key: derive(previousSource, purpose),
       }
     : null

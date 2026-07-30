@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:launch": "node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
+    "test:launch": "npm run test:gridex-runtime-hardening && node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs",
     "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "npm run test:launch",
@@ -32,7 +32,8 @@
     "db:migrations:manifest": "node scripts/write-migration-manifest.mjs",
     "db:migrations:check": "node scripts/check-migration-manifest.mjs",
     "test:api-hardening": "node tests/api-compatibility-hardening.test.mjs",
-    "verify:delivery": "npm run api:check:local && npm run db:migrations:check && npm run api:compatibility && npm run test:api-hardening"
+    "verify:delivery": "npm run api:check:local && npm run db:migrations:check && npm run api:compatibility && npm run test:api-hardening",
+    "test:gridex-runtime-hardening": "node --experimental-strip-types tests/gridex-runtime-hardening.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

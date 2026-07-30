@@ -1,4 +1,5 @@
 import type { OpsPublicContract } from '@/lib/ops/client'
+import { stockholmValidityStatus } from '@/lib/website/businessDate'
 import {
   isFixedContractType,
   sanitizePricingComponentsBeforeAreaResolution,
@@ -387,22 +388,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
     if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
     if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
-    if (!requirement.document_id && !requirement.legal_bundle_version_document_id) {
-      blockedReasons.push(`${requirement.requirement_code}: juridiskt dokument-ID saknas`)
+    if (!requirement.document_reference) {
+      blockedReasons.push(`${requirement.requirement_code}: juridisk dokumentreferens saknas`)
     }
     if (!legalUrlReady(requirement.public_url)) blockedReasons.push(`${requirement.requirement_code}: publicerad dokumentlänk saknas`)
   }
   validatePublicPricingForType(blockedReasons, contract)
 
-  const now = Date.now()
-  if (contract.valid_from) {
-    const from = Date.parse(contract.valid_from)
-    if (Number.isFinite(from) && from > now) blockedReasons.push('gäller från framtida datum')
-  }
-  if (contract.valid_to) {
-    const to = Date.parse(contract.valid_to)
-    if (Number.isFinite(to) && to < now) blockedReasons.push('avtalet har passerat slutdatum')
-  }
+  const validity = stockholmValidityStatus({
+    validFrom: contract.valid_from,
+    validTo: contract.valid_to,
+  })
+  if (validity === 'not_started') blockedReasons.push('gäller från framtida datum')
+  if (validity === 'expired') blockedReasons.push('avtalet har passerat slutdatum')
+  if (validity === 'invalid') blockedReasons.push('avtalets giltighetsperiod är ogiltig')
 
   const requiresPriceArea = isFixedContractType(contract.type)
   if (requiresPriceArea) {

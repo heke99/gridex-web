@@ -19,13 +19,18 @@ const energyToken = read('lib/website/energyAreaToken.ts')
 const onboarding = read('lib/customerPortal/onboarding.ts')
 const websiteOpenApi = JSON.parse(read('docs/openapi/website-integration-v1.json'))
 const customerPortalOpenApi = JSON.parse(read('docs/openapi/customer-portal-v1.json'))
+const releaseManifest = JSON.parse(read('docs/openapi/release-manifest.json'))
+const contractVersion = releaseManifest.release_version
 const applicationSchema = websiteOpenApi.components.schemas.CustomerApplicationRequest
 const energySchema = websiteOpenApi.components.schemas.WebsiteEnergyAreaResolution
 const quoteSchema = websiteOpenApi.components.schemas.WebsiteQuoteRequest
 
-assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-07-30.1'"))
+assert.equal(typeof contractVersion, 'string')
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${contractVersion}'`))
 assert.ok(contract.includes("GRIDEX_API_BASE_URL = 'https://app.gridex.se/api/v1'"))
-assert.ok(ops.includes('ops_contract_version_mismatch'))
+assert.ok(ops.includes('observeRuntimeSchemaValidation'))
+assert.ok(ops.includes('logContractVersionDrift'))
+assert.ok(!ops.includes("throw new OpsError('OPS returnerade fel kontraktsversion"))
 assert.ok(!ops.includes('GRIDEX_EXPECTED_TENANT_REFERENCE'))
 assert.ok(!ops.includes('GRIDEX_WEBSITE_API_KEY'))
 assert.ok(!ops.includes('GRIDEX_OPS_API_KEY'))
@@ -70,7 +75,7 @@ assert.ok(signup.includes('customer_portal_user_id: linkedAuthUserId'))
 assert.ok(signup.includes('auth_user_id: linkedAuthUserId'))
 assert.ok(!signup.includes('current_supplier_id: currentSupplierId'))
 
-assert.equal(websiteOpenApi.info.version, '2026-07-30.1')
+assert.equal(websiteOpenApi.info.version, contractVersion)
 assert.deepEqual(websiteOpenApi.components.schemas.EnergyDirection.enum, ['consumption', 'production'])
 assert.deepEqual(websiteOpenApi.components.schemas.ProductionPricing.required, [
   'enabled', 'compensation_model', 'resolution', 'settlement_mode', 'billing_direction', 'metering_point_role',
@@ -91,7 +96,7 @@ assert.ok(!onboarding.includes('input.application.portal_identity_id'))
 assert.ok(!onboarding.includes('input.application.contract_price_snapshot_id'))
 assert.ok(onboarding.includes('quote_reference: input.application.quote_reference'))
 
-assert.equal(customerPortalOpenApi.info.version, '2026-07-30.1')
+assert.equal(customerPortalOpenApi.info.version, contractVersion)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].get)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].post)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/notifications/read'].post)
@@ -196,7 +201,7 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
   legal_bundle_version: 'f8249704-7ce8-4885-93cb-fbb9922ed77f',
   legal_acceptances: [{
     requirement_code: 'general_consumer_terms',
-    document_id: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
+    document_reference: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
     document_version: '1',
     document_hash: 'a'.repeat(64),
     accepted: true,
@@ -221,11 +226,11 @@ assert.equal('quote_reference' in applicationPayload.contract, false)
 assert.equal(applicationPayload.legal_bundle_version, 'f8249704-7ce8-4885-93cb-fbb9922ed77f')
 assert.deepEqual(applicationPayload.legal_acceptances, [{
   requirement_code: 'general_consumer_terms',
-  document_id: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
+  document_reference: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
   document_version: '1',
   document_hash: 'a'.repeat(64),
   accepted: true,
   accepted_at: '2026-07-30T12:00:00.000Z',
 }])
 
-console.log('Website API contract tests passed (2026-07-30.1)')
+console.log(`Website API contract tests passed (${contractVersion})`)

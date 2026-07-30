@@ -15,6 +15,34 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     ? contract.display_components
     : contract.pricing_components
   const hidesHistoricalPortfolioPrice = contract.type === 'portfolio' || contract.type === 'portfolio_managed' || contract.type === 'mix' || contract.type === 'mixed'
+  const selectableComponents = (contract.pricing_components ?? [])
+    .filter((component) =>
+      component.selection_policy === 'customer_optional' &&
+      component.website_visibility !== 'hidden' &&
+      Boolean(component.component_reference),
+    )
+    .map((component) => ({
+      component_reference: component.component_reference as string,
+      component_code: component.component_code,
+      name: component.name,
+      amount: component.amount,
+      currency: component.currency,
+      unit: component.unit,
+      lifecycle: component.lifecycle,
+      vat_included: component.vat_included,
+      vat_rate: component.vat_rate,
+    }))
+  const priceOptions = (contract.price_options ?? []).map((option) => ({
+    price_option_reference: option.price_option_reference,
+    code: option.option_code,
+    label: option.customer_name,
+    contract_type: option.contract_type,
+    binding_months: option.binding_months,
+    notice_months: option.notice_months,
+    auto_renew_enabled: option.auto_renew_enabled,
+    renewal_term_months: option.renewal_term_months,
+    price_area_codes: option.area_prices.map((price) => price.price_area_code),
+  }))
   const components = sanitizePricingComponentsBeforeAreaResolution(
     displaySource,
     contract.type,
@@ -35,6 +63,8 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
     marketing_description: contract.marketing_description ?? null,
     badge_text: contract.badge_text ?? null,
     customer_types: contract.customer_types ?? null,
+    price_options: priceOptions,
+    selectable_components: selectableComponents,
     pricing: {
       monthly_fee: contract.monthly_fee_sek,
       invoice_fee: null,
@@ -81,8 +111,7 @@ export function toBrowserPublicContract(contract: OpsPublicContract) {
         acceptance_type: requirement.acceptance_type,
         required: requirement.required,
         label: requirement.label,
-        document_id: requirement.document_id,
-        legal_bundle_version_document_id: requirement.legal_bundle_version_document_id,
+        document_reference: requirement.document_reference,
         document_version: requirement.document_version,
         document_hash: requirement.document_hash,
         public_url: requirement.public_url,
@@ -122,10 +151,9 @@ export function toBrowserLegalBundle(bundle: OpsWebsiteLegalBundle) {
         required: requirement.required,
         label: requirement.title,
         description: requirement.description,
-        document_id: requirement.document_id,
+        document_reference: requirement.document_reference,
         document_version: requirement.document_version,
         document_hash: requirement.document_hash,
-        legal_bundle_version_document_id: requirement.document_id,
         public_url: requirement.document_url,
         bundle_version: bundle.bundle_version,
       }

@@ -31,3 +31,53 @@ export function requireStrictCalendarDate(
   return value
 }
 
+
+
+export type StockholmValidityResult =
+  | 'active'
+  | 'not_started'
+  | 'expired'
+  | 'invalid'
+
+function dateTimeBoundary(value: string): number | null {
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Date-only values use Europe/Stockholm calendar semantics: valid_from starts
+ * at the beginning of that local day and valid_to remains valid through the
+ * end of that local day. Timestamp values retain their explicit instant.
+ */
+export function stockholmValidityStatus(input: {
+  validFrom?: string | null
+  validTo?: string | null
+  now?: Date
+}): StockholmValidityResult {
+  const now = input.now ?? new Date()
+  const today = stockholmCalendarDate(now)
+
+  if (input.validFrom) {
+    if (DATE_PATTERN.test(input.validFrom) && !isStrictCalendarDate(input.validFrom)) return 'invalid'
+    if (isStrictCalendarDate(input.validFrom)) {
+      if (input.validFrom > today) return 'not_started'
+    } else {
+      const boundary = dateTimeBoundary(input.validFrom)
+      if (boundary === null) return 'invalid'
+      if (boundary > now.getTime()) return 'not_started'
+    }
+  }
+
+  if (input.validTo) {
+    if (DATE_PATTERN.test(input.validTo) && !isStrictCalendarDate(input.validTo)) return 'invalid'
+    if (isStrictCalendarDate(input.validTo)) {
+      if (input.validTo < today) return 'expired'
+    } else {
+      const boundary = dateTimeBoundary(input.validTo)
+      if (boundary === null) return 'invalid'
+      if (boundary < now.getTime()) return 'expired'
+    }
+  }
+
+  return 'active'
+}

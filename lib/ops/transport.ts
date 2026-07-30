@@ -4,6 +4,13 @@ import {
   GRIDEX_WEBSITE_API_VERSION_HEADER,
 } from '@/lib/ops/contract'
 import { OpsError } from '@/lib/ops/errors'
+import {
+  getGridexApiBaseUrl,
+  getGridexApiKey,
+  getGridexConfigurationStatus,
+  getGridexRuntimeSetting,
+} from '@/lib/ops/config'
+import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
 
 const DEFAULT_TIMEOUT_MS = 12_000
 const MIN_TIMEOUT_MS = 1_000
@@ -19,6 +26,7 @@ export type OpsHttpResponse = {
   status: number
   headers: Headers
   payload: unknown
+  contractVersion: string | null
 }
 
 export type OpsRequestOptions = {
@@ -28,106 +36,41 @@ export type OpsRequestOptions = {
 }
 
 export function env(name: string): string | undefined {
-  const value = process.env[name]?.trim()
-  return value || undefined
-}
-
-function normalizeApiBase(value: string): string {
-  const normalized = value.replace(/\/+$/, '')
-  return normalized.endsWith('/api/v1') ? normalized : `${normalized}/api/v1`
-}
-
-function allowedNonProductionOrigins(): Set<string> {
-  const configured = env('GRIDEX_OPS_STAGING_ALLOWED_ORIGINS')
-  return new Set(
-    (configured ?? '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((item) => new URL(item).origin),
-  )
-}
-
-function validateApiBase(value: string): string {
-  let url: URL
-  try {
-    url = new URL(normalizeApiBase(value))
-  } catch {
-    throw new OpsError('GRIDEX_API_BASE_URL är ogiltig.', 503, {
-      code: 'ops_api_base_url_invalid',
-      retryable: false,
-    })
-  }
-
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
-    throw new OpsError('GRIDEX_API_BASE_URL måste vara en ren HTTPS-adress.', 503, {
-      code: 'ops_api_base_url_invalid',
-      retryable: false,
-    })
-  }
-  if (url.pathname.replace(/\/+$/, '') !== '/api/v1') {
-    throw new OpsError('GRIDEX_API_BASE_URL måste sluta med /api/v1.', 503, {
-      code: 'ops_api_base_path_invalid',
-      retryable: false,
-    })
-  }
-
-  const canonicalOrigin = new URL(GRIDEX_API_BASE_URL).origin
-  if (process.env.NODE_ENV === 'production' && url.origin !== canonicalOrigin) {
-    throw new OpsError('Produktionsmiljön får endast skicka Gridex API-nyckeln till canonical OPS-origin.', 503, {
-      code: 'ops_api_origin_not_allowed',
-      expected_origin: canonicalOrigin,
-      received_origin: url.origin,
-      retryable: false,
-    })
-  }
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    url.origin !== canonicalOrigin &&
-    !allowedNonProductionOrigins().has(url.origin)
-  ) {
-    throw new OpsError('OPS-origin är inte uttryckligen godkänd för denna miljö.', 503, {
-      code: 'ops_api_origin_not_allowed',
-      received_origin: url.origin,
-      retryable: false,
-    })
-  }
-  return url.toString().replace(/\/+$/, '')
+  return getGridexRuntimeSetting(name)
 }
 
 export function getOpsApiBaseUrl(): string {
-  return validateApiBase(env('GRIDEX_API_BASE_URL') ?? GRIDEX_API_BASE_URL)
+  try {
+    return getGridexApiBaseUrl()
+  } catch (error) {
+    throw new OpsError(error instanceof Error ? error.message : 'GRIDEX_API_BASE_URL är ogiltig.', 503, {
+      code: 'ops_api_base_url_invalid',
+      retryable: false,
+    })
+  }
 }
 
 export function getOpsApiKey(): { value?: string; invalidReason?: string } {
-  const value = env('GRIDEX_API_KEY')
-  if (!value) return {}
-  if (/^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18) {
-    return { invalidReason: 'GRIDEX_API_KEY innehåller endast ett nyckelprefix.' }
-  }
-  return { value }
+  return getGridexApiKey()
 }
 
 export function getOpsTransportStatus(): {
   configured: boolean
   liveSignupEnabled: boolean
   missing: string[]
+  deprecatedVariablesInUse: string[]
 } {
+  const configuration = getGridexConfigurationStatus()
   const apiKey = getOpsApiKey()
-  let baseUrlValid = true
-  try {
-    getOpsApiBaseUrl()
-  } catch {
-    baseUrlValid = false
-  }
   const missing = [
     ...(!apiKey.value ? [apiKey.invalidReason ?? 'GRIDEX_API_KEY'] : []),
-    ...(!baseUrlValid ? ['GRIDEX_API_BASE_URL'] : []),
+    ...(!configuration.apiBaseUrlValid ? ['GRIDEX_API_BASE_URL'] : []),
   ]
   return {
     configured: missing.length === 0,
     liveSignupEnabled: env('GRIDEX_DISABLE_LIVE_SIGNUP') !== 'true',
     missing,
+    deprecatedVariablesInUse: configuration.deprecatedVariablesInUse,
   }
 }
 
@@ -233,20 +176,17 @@ async function waitBeforeRetry(response: Response | null, attempt: number) {
   await new Promise((resolve) => setTimeout(resolve, Math.min(wait + Math.random() * 125, 10_000)))
 }
 
-function validateVersionHeader(path: string, response: Response) {
-  if (!VERSIONED_RESPONSE_PATHS.has(pathOnly(path)) || response.status === 304) return
+function observeVersionHeader(path: string, response: Response): string | null {
+  if (!VERSIONED_RESPONSE_PATHS.has(pathOnly(path)) || response.status === 304) return null
   const received = response.headers.get(GRIDEX_WEBSITE_API_VERSION_HEADER)
-  if (received !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
-    throw new OpsError('OPS API-kontraktets versionsheader matchar inte den godkända endpointversionen.', 502, {
-      code: received ? 'ops_contract_version_mismatch' : 'ops_contract_version_header_missing',
-      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-      received,
-      endpoint: path,
-      request_id: response.headers.get('x-request-id'),
-      correlation_id: response.headers.get('x-correlation-id'),
-      retryable: false,
-    })
-  }
+  logContractVersionDrift({
+    endpoint: path,
+    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    receivedVersion: received,
+    requestId: response.headers.get('x-request-id'),
+    correlationId: response.headers.get('x-correlation-id'),
+  })
+  return received
 }
 
 export async function opsRequest(
@@ -271,7 +211,7 @@ export async function opsRequest(
 
   const requestUrl = `${baseUrl}${relativePath(path)}`
   const method = (init?.method ?? 'GET').toUpperCase()
-  const retryableRequest = method === 'GET' || method === 'HEAD' || headers.has('Idempotency-Key')
+  const retryableRequest = method === 'GET' || method === 'HEAD'
   const attempts = retryableRequest ? 3 : 1
   let response: Response | null = null
 
@@ -326,10 +266,10 @@ export async function opsRequest(
 
   if (!response) throw new OpsError('Gridex API gav inget svar.', 503)
   if (options.allowNotModified && response.status === 304) {
-    return { status: 304, headers: new Headers(response.headers), payload: null }
+    return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
   }
 
-  validateVersionHeader(path, response)
+  const contractVersion = observeVersionHeader(path, response)
   const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
   if (!contentType.includes('application/json')) {
     throw new OpsError('Gridex API returnerade ett oväntat innehållsformat.', 502, {
@@ -344,7 +284,7 @@ export async function opsRequest(
     const details = safeErrorDetails(payload, response, path)
     throw new OpsError(customerSafeMessage(details), response.status, details)
   }
-  return { status: response.status, headers: new Headers(response.headers), payload }
+  return { status: response.status, headers: new Headers(response.headers), payload, contractVersion }
 }
 
 export async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {

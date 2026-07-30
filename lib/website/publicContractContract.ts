@@ -32,8 +32,7 @@ export type PublicLegalRequirement = {
   acceptance_type: string
   required: boolean
   label: string
-  document_id: string | null
-  legal_bundle_version_document_id: string | null
+  document_reference: string | null
   document_version: string | null
   document_hash: string | null
   public_url: string | null
@@ -697,8 +696,14 @@ function legalRequirements(row: Record<string, unknown>, legal: Record<string, u
         acceptance_type: text(requirement.acceptance_type ?? requirement.acceptanceType) ?? 'checkbox',
         required: boolean(requirement.required) !== false,
         label,
-        document_id: text(requirement.document_id ?? requirement.documentId),
-        legal_bundle_version_document_id: text(requirement.legal_bundle_version_document_id ?? requirement.legalBundleVersionDocumentId),
+        document_reference: text(
+          requirement.document_reference ??
+          requirement.documentReference ??
+          requirement.document_id ??
+          requirement.documentId ??
+          requirement.legal_bundle_version_document_id ??
+          requirement.legalBundleVersionDocumentId,
+        ),
         document_version: text(requirement.document_version ?? requirement.documentVersion ?? requirement.version),
         document_hash: text(requirement.document_hash ?? requirement.documentHash ?? requirement.sha256),
         public_url: text(requirement.public_url ?? requirement.publicUrl ?? requirement.url),

@@ -4,6 +4,7 @@ import PortalOutboxReplayButton from '@/components/admin/PortalOutboxReplayButto
 import { checkOpsIntegrationReadiness } from '@/lib/ops/readiness'
 import { checkOpsCustomerPortalReadiness } from '@/lib/ops/portalReadiness'
 import { fetchOpsPublicContractDiagnostics } from '@/lib/ops/client'
+import { getGridexConfigurationStatus } from '@/lib/ops/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 export default async function AdminIntegrationsPage() {
+  const gridexConfiguration = getGridexConfigurationStatus()
   const ctx = await requireAdminPageAccess({
     anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
   })
@@ -119,7 +121,7 @@ export default async function AdminIntegrationsPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[
             ['SUPABASE_SERVICE_ROLE_KEY', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)],
-            ['GRIDEX_API_KEY', Boolean(process.env.GRIDEX_API_KEY)],
+            ['GRIDEX_API_KEY', gridexConfiguration.apiKeyConfigured],
             ['CRON_SECRET', Boolean(process.env.CRON_SECRET)],
             ['WEBHOOK_RETRY_CRON_SECRET', Boolean(process.env.WEBHOOK_RETRY_CRON_SECRET || process.env.CRON_SECRET)],
             ['GRIDEX_WEBHOOK_PROJECTIONS_READY', process.env.GRIDEX_WEBHOOK_PROJECTIONS_READY === 'true'],

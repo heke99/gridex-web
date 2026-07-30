@@ -393,7 +393,7 @@ export default function CustomerApplicationForm({
     legalBundle.supported &&
     legalRequirements.length > 0 &&
     legalRequirements.every((requirement) =>
-      !requirement.required || Boolean(requirement.label && requirement.public_url && (requirement.document_id || requirement.legal_bundle_version_document_id)),
+      !requirement.required || Boolean(requirement.label && requirement.public_url && requirement.document_reference),
     ),
   );
 
@@ -449,9 +449,8 @@ export default function CustomerApplicationForm({
             acceptance_type: "checkbox",
             required: row.required === true,
             label: row.label,
-            document_id: typeof row.document_id === "string" ? row.document_id : null,
-            legal_bundle_version_document_id:
-              typeof row.document_id === "string" ? row.document_id : null,
+            document_reference:
+              typeof row.document_reference === "string" ? row.document_reference : null,
             document_version:
               typeof row.document_version === "string" ? row.document_version : null,
             document_hash:

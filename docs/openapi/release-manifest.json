@@ -1,18 +1,24 @@
 {
-  "release_version": "2026-07-30.1",
-  "website_openapi_version": "2026-07-30.1",
-  "customer_portal_openapi_version": "2026-07-30.1",
-  "runtime_contract_version": "2026-07-30.1",
-  "guide_version": "2026-07-30.1",
-  "released_at": "2026-07-30T00:00:00.000Z",
+  "release_version": "2026-07-30.2",
+  "website_openapi_version": "2026-07-30.2",
+  "customer_portal_openapi_version": "2026-07-30.2",
+  "runtime_contract_version": "2026-07-30.2",
+  "guide_version": "2026-07-30.2",
+  "released_at": "2026-07-30T15:30:00.000Z",
   "specifications": {
     "website": {
+      "contract_name": "website-integration-v1",
+      "contract_version": "2026-07-30.2",
       "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-      "sha256": "9ad3fc518d9aadb687141af2df7d3068df8f7daca530cc01b525d4b94c816b7b"
+      "sha256": "920a774c10ee8cc32ea5db62a8d898119f7ca59aa50896041d9d14a734a5bcd1",
+      "compatibility": "breaking"
     },
     "customer_portal": {
+      "contract_name": "customer-portal-v1",
+      "contract_version": "2026-07-30.2",
       "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-      "sha256": "a3e3f475f3822f30efab4e9a792d714585bacc98773d52790adf12072ed3251e"
+      "sha256": "0371233929e6bafff463d7171e18a39712cb98577830aaff0669822f9184e315",
+      "compatibility": "breaking"
     }
   }
 }

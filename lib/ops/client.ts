@@ -39,6 +39,7 @@ import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/custo
 import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
 import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
+import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
 
 export { OpsError, isOpsError }
 export type OpsContractType =
@@ -651,13 +652,21 @@ export type OpsWebsiteApplicationStatus = {
   raw: Record<string, unknown>;
 };
 
+export type OpsBlockedPublicContract = {
+  offer_reference: string | null;
+  reasons: string[];
+};
+
 export type OpsPublicContractsSnapshot = {
   contracts: OpsPublicContract[];
+  blocked_contracts: OpsBlockedPublicContract[];
   etag: string | null;
   publication_revision: number | null;
   tenant_reference: string;
+  contract_version: string | null;
   not_modified: boolean;
   fetched_at: string;
+  source: 'live' | 'cache' | 'stale-cache';
   stale: boolean;
   stale_reason: string | null;
 };
@@ -1258,6 +1267,23 @@ function jsonRequestBody(init?: RequestInit): unknown {
   }
 }
 
+function observeRuntimeSchemaValidation(input: {
+  endpoint: string
+  schema: string
+  validate: () => void
+}): void {
+  try {
+    input.validate()
+  } catch (error) {
+    console.warn('[gridex-openapi] runtime response drift detected; endpoint parser remains authoritative', {
+      endpoint: input.endpoint,
+      schema: input.schema,
+      code: isOpsError(error) ? error.code : null,
+      status: isOpsError(error) ? error.status : null,
+    })
+  }
+}
+
 async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   const method = (init?.method ?? "GET").toLowerCase() as
     | "get" | "post" | "put" | "patch" | "delete" | "head" | "options";
@@ -1277,11 +1303,14 @@ async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   else assertCustomerPortalOperationRequest(path, method, body, headers)
 
   const response = await opsRequest(path, init)
-  if (websiteOperation) {
-    assertWebsiteOperationResponse(path, method, response.status, response.payload)
-  } else {
-    assertCustomerPortalOperationResponse(path, method, response.status, response.payload)
-  }
+  observeRuntimeSchemaValidation({
+    endpoint: path.split('?', 1)[0],
+    schema: websiteOperation ? 'website-operation-response' : 'customer-portal-operation-response',
+    validate: () => {
+      if (websiteOperation) assertWebsiteOperationResponse(path, method, response.status, response.payload)
+      else assertCustomerPortalOperationResponse(path, method, response.status, response.payload)
+    },
+  })
   return response.payload
 }
 
@@ -1862,11 +1891,13 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
   const root = recordValue(payload) ?? {}
   const data = recordValue(root.data)
   const context = recordValue(root.context) ?? recordValue(data?.context) ?? data ?? root
-  assertWebsiteResponse(
-    'IntegrationContext',
-    context,
-    '/api/v1/integration/context',
-  )
+  if (!context || typeof context !== 'object' || Array.isArray(context)) {
+    throw new OpsError('OPS integration context har ogiltigt format.', 502, {
+      code: 'ops_integration_context_invalid',
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
   const meta = recordValue(root.meta) ?? recordValue(data?.meta)
   const configuration =
     recordValue(context.configuration) ??
@@ -1970,35 +2001,21 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
     },
     raw: root,
   }
+  const integrationWarnings: Array<Record<string, unknown>> = []
   if (!contractVersion) {
-    throw new OpsError('OPS integration context saknar kontraktsversion.', 502, {
-      code: 'ops_contract_version_mismatch',
-      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-      received: null,
-      endpoint: '/api/v1/integration/context',
-      retryable: false,
-    })
+    integrationWarnings.push({ code: 'contract_version_missing' })
   }
   if (requiredEnvironmentVariables.length !== 1 || requiredEnvironmentVariables[0] !== 'GRIDEX_API_KEY') {
-    throw new OpsError('OPS integration context annonserar en ogiltig tenantkonfiguration.', 502, {
-      code: 'ops_integration_configuration_mismatch',
-      expected: ['GRIDEX_API_KEY'],
+    integrationWarnings.push({
+      code: 'required_environment_variables_drift',
       received: requiredEnvironmentVariables,
-      endpoint: '/api/v1/integration/context',
-      retryable: false,
     })
   }
   const expectedApiBaseUrl = opsBaseUrl()
   const expectedWebsiteOpenapiUrl = `${expectedApiBaseUrl}/openapi/website-integration-v1.json`
   const expectedCustomerPortalOpenapiUrl = `${expectedApiBaseUrl}/openapi/customer-portal-v1.json`
   if (value.configuration.api_base_url !== expectedApiBaseUrl) {
-    throw new OpsError('OPS integration context annonserar fel API-bas.', 502, {
-      code: 'ops_api_base_url_mismatch',
-      expected: expectedApiBaseUrl,
-      received: value.configuration.api_base_url || null,
-      endpoint: '/api/v1/integration/context',
-      retryable: false,
-    })
+    integrationWarnings.push({ code: 'api_base_url_drift', received: value.configuration.api_base_url || null })
   }
   if (!apiClientReference || authoritativeIdentityValue !== 'api_key') {
     throw new OpsError('OPS integration context saknar auktoritativ API-nyckelidentitet.', 502, {
@@ -2020,21 +2037,23 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
     })
   }
   if (tenantIdEnvironmentRequired !== false || companyIdEnvironmentRequired !== false) {
-    throw new OpsError('OPS integration context kräver otillåtna tenantvariabler.', 502, {
-      code: 'ops_tenant_environment_requirement_mismatch',
-      expected: { tenant_id_environment_required: false, company_id_environment_required: false },
-      received: { tenant_id_environment_required: tenantIdEnvironmentRequired, company_id_environment_required: companyIdEnvironmentRequired },
-      endpoint: '/api/v1/integration/context',
-      retryable: false,
+    integrationWarnings.push({
+      code: 'tenant_environment_requirement_drift',
+      tenant_id_environment_required: tenantIdEnvironmentRequired,
+      company_id_environment_required: companyIdEnvironmentRequired,
     })
   }
   if (websiteOpenapiUrl !== expectedWebsiteOpenapiUrl || customerPortalOpenapiUrl !== expectedCustomerPortalOpenapiUrl) {
-    throw new OpsError('OPS integration context annonserar fel OpenAPI-adresser.', 502, {
-      code: 'ops_openapi_url_mismatch',
-      expected: { website: expectedWebsiteOpenapiUrl, customer_portal: expectedCustomerPortalOpenapiUrl },
-      received: { website: websiteOpenapiUrl, customer_portal: customerPortalOpenapiUrl },
+    integrationWarnings.push({
+      code: 'openapi_url_drift',
+      website: websiteOpenapiUrl,
+      customer_portal: customerPortalOpenapiUrl,
+    })
+  }
+  if (integrationWarnings.length > 0) {
+    console.warn('[gridex-integration-context] compatible configuration drift detected', {
       endpoint: '/api/v1/integration/context',
-      retryable: false,
+      warnings: integrationWarnings,
     })
   }
   if (applicationReferenceLocation && applicationReferenceLocation !== 'top_level') {
@@ -2046,15 +2065,11 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
       retryable: false,
     })
   }
-  if (value.contract_version !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
-    throw new OpsError('OPS API-kontraktets version matchar inte Gridex Web.', 502, {
-      code: 'ops_contract_version_mismatch',
-      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-      received: value.contract_version,
-      endpoint: '/api/v1/integration/context',
-      retryable: false,
-    })
-  }
+  logContractVersionDrift({
+    endpoint: '/api/v1/integration/context',
+    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    receivedVersion: value.contract_version || null,
+  })
   return value
 }
 
@@ -2100,31 +2115,78 @@ function publicationRevisionFromPayload(payload: unknown): number | null {
   return normalizeInteger(value)
 }
 
+function contractVersionFromPayload(payload: unknown): string | null {
+  const root = recordValue(payload)
+  const data = recordValue(root?.data)
+  const meta = recordValue(root?.meta) ?? recordValue(data?.meta)
+  return pickFromRecords(
+    [meta, data, root],
+    ['contract_schema_version', 'contractSchemaVersion', 'contract_version', 'contractVersion'],
+  )
+}
+
 type PublicContractsCacheEntry = OpsPublicContractsSnapshot & { cache_key: string };
 const publicContractsCache = new Map<string, PublicContractsCacheEntry>();
 
 function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): string {
-  return `${opsTenantCacheKey()}|website|${customerType ? toOpsCustomerType(customerType) : "all"}`;
+  return `${opsTenantCacheKey()}|website|public-contracts|${GRIDEX_WEBSITE_API_CONTRACT_VERSION}|${customerType ? toOpsCustomerType(customerType) : "all"}`;
 }
 
-function sortedPublicContracts(payload: unknown): OpsPublicContract[] {
-  const rows = extractRows(payload)
-  for (const row of rows) {
-    assertWebsiteResponse(
-      'PublicContract',
-      row,
-      '/api/v1/website/public-contracts',
-    )
+function publicContractReference(value: unknown): string | null {
+  const row = recordValue(value)
+  return row ? pickString(row, ['offer_reference', 'offerReference']) : null
+}
+
+function publicContractParseReasons(value: unknown): string[] {
+  const row = recordValue(value)
+  if (!row) return ['invalid_contract_object']
+  const reasons: string[] = []
+  if (!pickString(row, ['offer_reference', 'offerReference'])) reasons.push('missing_offer_reference')
+  if (!pickString(row, ['name'])) reasons.push('missing_name')
+  const contractType = pickString(row, ['contract_type', 'contractType', 'type'])
+  if (!contractType) reasons.push('missing_contract_type')
+  else if (!['fixed', 'variable_monthly', 'variable_hourly', 'variable_quarterly', 'portfolio', 'mixed'].includes(contractType)) {
+    reasons.push('unsupported_contract_type')
   }
-  return rows
-    .map(mapPublicContract)
-    .filter((item): item is OpsPublicContract => item !== null)
-    .sort((a, b) => {
-      const sa = a.sort_order ?? 10_000;
-      const sb = b.sort_order ?? 10_000;
-      if (sa !== sb) return sa - sb;
-      return a.name.localeCompare(b.name, "sv");
-    });
+  const pricing = recordValue(row.pricing)
+  if (!pricing) reasons.push('pricing_incomplete')
+  const direction = pickString(row, ['energy_direction', 'energyDirection']) ?? pickString(pricing ?? {}, ['energy_direction', 'energyDirection'])
+  if (direction !== 'consumption' && direction !== 'production') reasons.push('invalid_energy_direction')
+  return reasons.length > 0 ? reasons : ['invalid_public_contract']
+}
+
+function sortedPublicContracts(payload: unknown): {
+  contracts: OpsPublicContract[]
+  blockedContracts: OpsBlockedPublicContract[]
+} {
+  const root = recordValue(payload)
+  const rows = extractRows(payload)
+  if (!root || !Array.isArray(root.data)) {
+    throw new OpsError('OPS public-contracts saknar en giltig data-array.', 502, {
+      code: 'ops_public_contracts_response_invalid',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+
+  const contracts: OpsPublicContract[] = []
+  const blockedContracts: OpsBlockedPublicContract[] = []
+  for (const row of rows) {
+    const mapped = mapPublicContract(row)
+    if (mapped) contracts.push(mapped)
+    else blockedContracts.push({
+      offer_reference: publicContractReference(row),
+      reasons: publicContractParseReasons(row),
+    })
+  }
+
+  contracts.sort((a, b) => {
+    const sa = a.sort_order ?? 10_000
+    const sb = b.sort_order ?? 10_000
+    if (sa !== sb) return sa - sb
+    return a.name.localeCompare(b.name, 'sv')
+  })
+  return { contracts, blockedContracts }
 }
 
 export function invalidateOpsPublicContractsCache(input?: {
@@ -2194,9 +2256,19 @@ export async function fetchOpsWebsiteEnergyArea(
     method: 'POST',
     body: JSON.stringify(requestBody),
   })
-  assertWebsiteResponse('WebsiteEnergyAreaResolveResponse', payload, endpoint)
+  observeRuntimeSchemaValidation({ endpoint, schema: 'WebsiteEnergyAreaResolveResponse', validate: () => assertWebsiteResponse('WebsiteEnergyAreaResolveResponse', payload, endpoint) })
   await verifiedTenantReference(payload, endpoint)
 
+  const responseRoot = recordValue(payload)
+  const responseData = recordValue(responseRoot?.data)
+  if (!responseRoot || !responseData || !recordValue(responseData.capabilities) || !recordValue(responseData.blockers) || !Array.isArray(responseData.warnings)) {
+    throw new OpsError('OPS returnerade ett ofullständigt elområdessvar.', 502, {
+      code: 'ops_energy_area_contract_invalid',
+      endpoint,
+      request_id: normalizeText(responseRoot?.request_id),
+      retryable: false,
+    })
+  }
   const response = payload as OpsWebsiteEnergyAreaResolveResponseDto
   const row: OpsWebsiteEnergyAreaResolutionDto = response.data
   const priceArea = row.price_area
@@ -2291,11 +2363,11 @@ export async function fetchOpsWebsiteQuote(
     },
     body: JSON.stringify(requestBody),
   })
-  assertWebsiteResponse(
-    'WebsiteQuoteResponse',
-    payload,
-    '/api/v1/website/quote',
-  )
+  observeRuntimeSchemaValidation({
+    endpoint: '/api/v1/website/quote',
+    schema: 'WebsiteQuoteResponse',
+    validate: () => assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote'),
+  })
   await verifiedTenantReference(payload, '/api/v1/website/quote')
   return mapOpsWebsiteQuote(payload, input)
 }
@@ -2387,8 +2459,17 @@ export async function fetchOpsCurrentMarketPrice(
     body: JSON.stringify(requestBody),
   })
   await verifiedTenantReference(payload, endpoint)
-  assertWebsiteResponse('CurrentMarketPriceResponse', payload, endpoint)
+  observeRuntimeSchemaValidation({ endpoint, schema: 'CurrentMarketPriceResponse', validate: () => assertWebsiteResponse('CurrentMarketPriceResponse', payload, endpoint) })
 
+  const marketRoot = recordValue(payload)
+  const marketData = recordValue(marketRoot?.data)
+  if (!marketRoot || !marketData) {
+    throw new OpsError('OPS returnerade ett ofullständigt marknadsprissvar.', 502, {
+      code: 'ops_market_price_contract_invalid',
+      endpoint,
+      retryable: false,
+    })
+  }
   const response = payload as OpsCurrentMarketPriceResponseDto
   if (response.data.resolution_id !== normalized) {
     throw new OpsError('OPS returnerade marknadspris för en annan resolution.', 502, {
@@ -2400,16 +2481,12 @@ export async function fetchOpsCurrentMarketPrice(
       retryable: false,
     })
   }
-  if (response.contract_schema_version !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
-    throw new OpsError('OPS returnerade fel kontraktsversion för marknadspriset.', 502, {
-      code: 'ops_contract_version_mismatch',
-      endpoint,
-      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-      received: response.contract_schema_version,
-      request_id: response.request_id,
-      retryable: false,
-    })
-  }
+  logContractVersionDrift({
+    endpoint,
+    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    receivedVersion: normalizeText(response.contract_schema_version),
+    requestId: response.request_id,
+  })
   if (response.data.is_stale) {
     throw new OpsError('OPS returnerade ett föråldrat aktuellt marknadspris.', 503, {
       code: 'market_price_stale',
@@ -2506,7 +2583,7 @@ export async function fetchOpsWebsiteSwitchStatus(
       retryable: false,
     })
   }
-  assertWebsiteResponse('SwitchStatus', row, '/api/v1/website/switch-status')
+  observeRuntimeSchemaValidation({ endpoint: '/api/v1/website/switch-status', schema: 'SwitchStatus', validate: () => assertWebsiteResponse('SwitchStatus', row, '/api/v1/website/switch-status') })
   const value = row as OpsSwitchStatusDto
   if (value.application_number !== normalized) {
     throw new OpsError('OPS returnerade bytesstatus för en annan ansökan.', 502, {
@@ -2551,8 +2628,7 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
     !(typeof method === 'string' || recordValue(method)) ||
     !Array.isArray(history) ||
     finalBillingRule !== 'locked_settlement_only' ||
-    !requestId ||
-    contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION
+    !requestId
   ) {
     throw new OpsError('OPS portfoliorespons följer inte det dokumenterade kontraktet.', 502, {
       code: 'ops_portfolio_contract_invalid',
@@ -2563,6 +2639,13 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
       retryable: false,
     })
   }
+
+  logContractVersionDrift({
+    endpoint: '/api/v1/website/portfolio-prices',
+    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    receivedVersion: contractVersion,
+    requestId,
+  })
 
   const rows = history.map((item, index) => {
     const row = recordValue(item)
@@ -2635,11 +2718,14 @@ export async function fetchOpsPublicContractsSnapshot(
     if (!options.forceFresh && cached && isTransientOpsError(error)) {
       return {
         contracts: cached.contracts,
+        blocked_contracts: cached.blocked_contracts,
         etag: cached.etag,
         publication_revision: cached.publication_revision,
         tenant_reference: cached.tenant_reference,
+        contract_version: cached.contract_version,
         not_modified: true,
         fetched_at: cached.fetched_at,
+        source: 'stale-cache',
         stale: true,
         stale_reason: isOpsError(error) ? error.code ?? `http_${error.status}` : "ops_transport_error",
       };
@@ -2655,34 +2741,62 @@ export async function fetchOpsPublicContractsSnapshot(
     }
     return {
       contracts: cached.contracts,
+      blocked_contracts: cached.blocked_contracts,
       etag: cached.etag,
       publication_revision: cached.publication_revision,
       tenant_reference: cached.tenant_reference,
+      contract_version: cached.contract_version,
       not_modified: true,
       fetched_at: cached.fetched_at,
+      source: 'cache',
       stale: false,
       stale_reason: null,
     };
   }
 
-  assertWebsiteOperationResponse(
-    publicContractsPath(customerType),
-    'get',
-    response.status,
-    response.payload,
-  )
   const tenantReference = await verifiedTenantReference(
     response.payload,
     "/api/v1/website/public-contracts",
   );
+  const parsed = sortedPublicContracts(response.payload)
+  const responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
+  const responseRevision = publicationRevisionFromPayload(response.payload)
+  if (
+    !options.forceFresh &&
+    cached &&
+    cached.contracts.length > 0 &&
+    parsed.contracts.length === 0 &&
+    (responseRevision === null || responseRevision === cached.publication_revision)
+  ) {
+    console.warn('[gridex-public-contracts] empty feed rejected because no newer publication revision was supplied', {
+      cached_publication_revision: cached.publication_revision,
+      response_publication_revision: responseRevision,
+    })
+    return {
+      contracts: cached.contracts,
+      blocked_contracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+      etag: cached.etag,
+      publication_revision: cached.publication_revision,
+      tenant_reference: cached.tenant_reference,
+      contract_version: responseContractVersion ?? cached.contract_version,
+      not_modified: true,
+      fetched_at: cached.fetched_at,
+      source: 'stale-cache',
+      stale: true,
+      stale_reason: 'empty_feed_without_new_publication_revision',
+    }
+  }
   const snapshot: PublicContractsCacheEntry = {
     cache_key: cacheKey,
-    contracts: sortedPublicContracts(response.payload),
-    etag: response.headers.get("etag"),
-    publication_revision: publicationRevisionFromPayload(response.payload),
+    contracts: parsed.contracts,
+    blocked_contracts: parsed.blockedContracts,
+    etag: response.headers.get('etag'),
+    publication_revision: responseRevision,
     tenant_reference: tenantReference,
+    contract_version: responseContractVersion,
     not_modified: false,
     fetched_at: new Date().toISOString(),
+    source: 'live',
     stale: false,
     stale_reason: null,
   };
@@ -2751,7 +2865,7 @@ export type OpsWebsiteLegalBundle = {
     title: string;
     description: string;
     required: true;
-    document_id: string;
+    document_reference: string;
     document_version: string;
     document_hash: string;
     document_url: string;
@@ -2772,7 +2886,7 @@ export async function fetchOpsWebsiteLegalBundle(
   }
   const endpoint = `/api/v1/website/legal-bundle?offer_reference=${encodeURIComponent(normalized)}`
   const payload = await opsFetch(endpoint)
-  assertWebsiteResponse('WebsiteLegalBundleResponse', payload, endpoint)
+  observeRuntimeSchemaValidation({ endpoint, schema: 'WebsiteLegalBundleResponse', validate: () => assertWebsiteResponse('WebsiteLegalBundleResponse', payload, endpoint) })
   await verifiedTenantReference(payload, '/api/v1/website/legal-bundle')
   const raw = extractObject(payload)
   const legal = recordValue(raw.legal) ?? {}
@@ -2801,7 +2915,9 @@ export async function fetchOpsWebsiteLegalBundle(
         const requirementCode = normalizeText(requirement?.requirement_code)
         const title = normalizeText(requirement?.title)
         const description = normalizeText(requirement?.description)
-        const documentId = normalizeText(requirement?.document_id)
+        const documentReference = normalizeText(
+          requirement?.document_reference ?? requirement?.document_id,
+        )
         const documentVersion = normalizeText(requirement?.document_version)
         const documentHash = normalizeText(requirement?.document_hash)
         const documentUrl = normalizeText(requirement?.document_url)
@@ -2810,7 +2926,7 @@ export async function fetchOpsWebsiteLegalBundle(
           !title ||
           !description ||
           requirement?.required !== true ||
-          !documentId ||
+          !documentReference ||
           !documentVersion ||
           !documentHash ||
           !/^[a-f0-9]{64}$/i.test(documentHash) ||
@@ -2823,7 +2939,7 @@ export async function fetchOpsWebsiteLegalBundle(
           title,
           description,
           required: true as const,
-          document_id: documentId,
+          document_reference: documentReference,
           document_version: documentVersion,
           document_hash: documentHash,
           document_url: documentUrl,
@@ -2954,7 +3070,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
       (acceptance) =>
         acceptance.accepted !== true ||
         !normalizeText(acceptance.requirement_code) ||
-        !normalizeText(acceptance.document_id) ||
+        !normalizeText(acceptance.document_reference) ||
         !normalizeText(acceptance.document_version) ||
         !/^[a-f0-9]{64}$/i.test(acceptance.document_hash) ||
         !normalizeText(acceptance.accepted_at),
@@ -3252,11 +3368,11 @@ export async function submitOpsCustomerApplication(
       headers: { "Idempotency-Key": input.idempotency_key },
       body: JSON.stringify(applicationPayload),
     });
-    assertWebsiteResponse(
-      'WebsiteCustomerApplicationResponse',
-      payload,
-      '/api/v1/website/customer-applications',
-    )
+    observeRuntimeSchemaValidation({
+      endpoint: '/api/v1/website/customer-applications',
+      schema: 'WebsiteCustomerApplicationResponse',
+      validate: () => assertWebsiteResponse('WebsiteCustomerApplicationResponse', payload, '/api/v1/website/customer-applications'),
+    })
     await verifiedTenantReference(payload, "/api/v1/website/customer-applications");
   } catch (error) {
     if (!isOpsError(error) || error.status !== 409) throw error;
@@ -3554,7 +3670,11 @@ async function opsCustomerFetch(
   }
   assertCustomerPortalOperationRequest(path, method, jsonRequestBody(requestInit), headers)
   const response = await opsRequest(path, requestInit)
-  assertCustomerPortalOperationResponse(path, method, response.status, response.payload)
+  observeRuntimeSchemaValidation({
+    endpoint: path.split('?', 1)[0],
+    schema: 'customer-portal-operation-response',
+    validate: () => assertCustomerPortalOperationResponse(path, method, response.status, response.payload),
+  })
   return response.payload
 }
 

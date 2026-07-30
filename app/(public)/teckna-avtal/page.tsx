@@ -709,9 +709,13 @@ export default async function TecknaPage({
     );
     const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
     const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
-    const powerOfAttorneyTextVersionId =
-      powerOfAttorneyRequirement?.document_id ??
-      offer.power_of_attorney_version_id ?? null;
+    const legalBundlePowerOfAttorneyVersionId =
+      legalBundle.texts.find((text) => text.type === "power_of_attorney")?.id ?? null;
+    const powerOfAttorneyTextVersionId = isUuid(legalBundlePowerOfAttorneyVersionId)
+      ? legalBundlePowerOfAttorneyVersionId
+      : isUuid(offer.power_of_attorney_version_id)
+        ? offer.power_of_attorney_version_id
+        : null;
 
     const hasIdentity =
       customerType === "business"
@@ -1147,7 +1151,7 @@ export default async function TecknaPage({
         .filter((requirement) => legalConsents[requirement.requirement_code] === true)
         .map((requirement) => ({
           requirement_code: requirement.requirement_code,
-          document_id: requirement.document_id,
+          document_reference: requirement.document_reference,
           document_version: requirement.document_version,
           document_hash: requirement.document_hash,
           accepted: true as const,
