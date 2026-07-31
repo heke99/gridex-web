@@ -1,3 +1,4 @@
+//docs
 # Gridex SEO: backlinks, local SEO and measurement
 
 This document is part of the public website SEO foundation. It keeps the link-building and measurement work explicit so the website does not rely on unsafe backlink shortcuts.
