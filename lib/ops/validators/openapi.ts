@@ -389,6 +389,23 @@ function assertWithValidator(
   })
 }
 
+
+export type OpenApiValidationIssue = {
+  instancePath: string
+  keyword: string
+  message: string | null
+}
+
+export function validateOpenApiSchema(
+  contract: ContractName,
+  schema: string,
+  value: unknown,
+): { valid: boolean; errors: OpenApiValidationIssue[] } {
+  const validate = namedValidator(contract, schema)
+  const valid = Boolean(validate(value))
+  return { valid, errors: valid ? [] : safeErrors(validate.errors) }
+}
+
 export function assertOpenApiSchema(
   contract: ContractName,
   schema: string,

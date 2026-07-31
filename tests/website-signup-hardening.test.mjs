@@ -15,7 +15,7 @@ const TEST_PRICE_OPTION = {
   contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
   auto_renew_enabled: false, renewal_term_months: null, default: true, selection_required: false,
   valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
-  area_prices: [{ price_area_code: 'SE3', fixed_price_ore_per_kwh: 100, vat_included: true, vat_rate: 25 }],
+  area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -58,7 +58,7 @@ assert.deepEqual(modern.portfolio_monthly_prices[0], {
 })
 
 const singularBoth = normalizePublicContractApiPayload({
-  offer_reference: 'offer-both', name: 'Båda', contract_type: 'variable_monthly', energy_direction: 'consumption', customer_type: 'both', pricing: {}, legal: {},
+  offer_reference: 'offer-both', name: 'Båda', contract_type: 'variable_monthly', energy_direction: 'consumption', customer_type: 'both', channel: 'website', price_options: [TEST_PRICE_OPTION], pricing: {}, legal: {},
 })
 assert.deepEqual(singularBoth?.customer_types, ['private', 'business'])
 

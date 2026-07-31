@@ -1,48 +1,39 @@
 # Gridex Web – API-kompatibilitetsgranskning
 
-Datum: 2026-07-30  
+Datum: 2026-07-31
 Canonical kontraktsversion: `2026-07-30.3`
 
-## Genomfört
+## Livekontrakt
 
-- Release-manifest och OpenAPI-snapshots synkas atomiskt med SHA-256 över råa
-  bytes.
-- Website- och Customer Portal-typer är regenererade från livekontrakten.
-- Portalidentitet utelämnar saknade fält i stället för att skicka `null`.
-- Portalöversikten är OPS-only och har ingen lokal affärsdatafallback.
-- Move-out använder toppnivåfältet `requested_move_out_date` och strikt
-  kalenderkontroll.
-- Juridikkrav renderas från legal bundle utan lokal kodlista.
-- Offertens prisalternativ, fakturasätt, komponentval och antal anläggningar
-  verifieras och låses i den signerade snapshotsignaturen.
+Release-manifestet publicerar version `2026-07-30.3` med SHA-256:
 
-## Verifierat
+- Website: `fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2`
+- Customer Portal: `93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9`
 
-- `npm run typecheck`
-- `npm run lint`
-- `npm run test:launch`
-- `npm run api:check:local`
-- `npm run db:migrations:check`
-- `npm run api:compatibility:known-gaps`
+`PublicContract.price_options` finns på toppnivå. Canonical områdespris använder
+`area_price_reference`, `price_area`, `energy_price_ore_per_kwh`,
+`unit`, `valid_from` och `valid_to`.
 
-Live-manifestet publicerar version `2026-07-30.3` med SHA-256:
+## Webbändringar
 
-- Website: `9ad3fc518d9aadb687141af2df7d3068df8f7daca530cc01b525d4b94c816b7b`
-- Customer Portal: `a3e3f475f3822f30efab4e9a792d714585bacc98773d52790adf12072ed3251e`
+- Canonicala områdesprisfält bevaras i den interna DTO:n.
+- Legacyalias läses endast efter canonicala fält och endast som avgränsad
+  kompatibilitet.
+- Referensformat, positiva ändliga priser, enhet, kalenderdatum, dubbletter och
+  överlappande giltighetsperioder valideras.
+- Prisalternativ och områdespris måste båda vara giltiga för kundens startdatum.
+- Checkout binder vald `area_price_reference` och kräver att OPS quote returnerar
+  samma rad.
+- Website-feed accepterar endast `channel=website`.
+- Ett felaktigt avtal isoleras med maskinell kod och JSON-sökväg; övriga avtal
+  fortsätter visas.
+- Envelope- och tenantfel förblir hårda fel.
+- OpenAPI-validering körs per avtalsrad utöver den operationstäckande
+  server-side-valideringen.
 
-## Kvarvarande blockerare
+## Ej verifierbart utan OPS-källkod och miljöåtkomst
 
-OpenAPI innehåller `ContractPriceOption` och offertfältet
-`price_option_reference`, men `PublicContract` saknar en deklarerad
-`price_options`-egenskap. Klienten stödjer livefältet när det levereras, men
-maskinkontraktet är inte komplett. Gapkod:
-`public_contract_price_options_not_published`.
-
-Den distribuerade `verification-status.json` lämnas dessutom med
-`live_sync_verified=false`, eftersom målmiljön måste skapa sitt eget livebevis.
-
-## Releasebeslut
-
-`NO-GO` för full API-kompatibilitet tills OPS publicerar `price_options` på
-`PublicContract` och `npm run api:sync && npm run api:preflight` passerar i
-målmiljön. Denna status är en extern kontraktsblockerare, inte en lokal fallback.
+Den uppladdade leveransen innehåller endast webbprojektet. OPS-serialisering,
+databasvyer, migrationer, bakåtfill, låsta kommersiella versioner,
+publication revision, ETag, outbox och faktisk apply kan därför inte ändras eller
+redovisas som körda från denna patch.

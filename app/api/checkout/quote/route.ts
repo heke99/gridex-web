@@ -175,6 +175,7 @@ export async function POST(req: Request) {
       )
     }
     const selectedPriceOptionReference = priceOptionSelection.option.price_option_reference
+    const selectedAreaPriceReference = priceOptionSelection.area_price.area_price_reference
     const selectableReferences = new Set(
       (contract.pricing_components ?? []).flatMap((component) =>
         component.component_reference &&
@@ -207,6 +208,7 @@ export async function POST(req: Request) {
       opsQuote.resolution_id !== verifiedArea.payload.resolution_id ||
       opsQuote.start_date !== canonicalStartDate ||
       opsQuote.priceArea !== verifiedArea.payload.price_area_code ||
+      opsQuote.area_price_reference !== selectedAreaPriceReference ||
       Math.abs((opsQuote.annual_consumption_kwh ?? 0) - annualKwh) > 0.001
     ) {
       return NextResponse.json(

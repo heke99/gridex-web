@@ -1,4 +1,5 @@
-import type { OpsPublicContract, OpsWebsitePricingPreview } from '@/lib/ops/client'
+import type { OpsPublicContract } from '@/lib/ops/client'
+import type { WebsitePricingPreview } from '@/lib/website/publicApi'
 
 export type SnapshotValidationResult = {
   ok: boolean
@@ -131,7 +132,7 @@ export function validateContractDisplaySnapshot(
 export function validatePricingPreviewSnapshot(params: {
   contract: OpsPublicContract
   snapshot: Record<string, unknown> | null
-  livePreview: OpsWebsitePricingPreview
+  livePreview: WebsitePricingPreview
   expectedPriceArea: string | null
   expectedMonthlyKwh: number | null
 }): SnapshotValidationResult {
@@ -168,6 +169,22 @@ export function validatePricingPreviewSnapshot(params: {
   const liveArea = livePreview.price_area_code ?? livePreview.priceArea
   if (liveArea !== expectedPriceArea) {
     reasons.push('live-preview returnerade annat elområde')
+  }
+
+  const snapshotPriceOptionReference = firstString(snapshot, [
+    ['price_option_reference'],
+    ['priceOptionReference'],
+  ])
+  if (!snapshotPriceOptionReference || snapshotPriceOptionReference !== livePreview.price_option_reference) {
+    reasons.push('prisalternativ i pricing_preview_snapshot matchar inte den signerade offerten')
+  }
+
+  const snapshotAreaPriceReference = firstString(snapshot, [
+    ['area_price_reference'],
+    ['areaPriceReference'],
+  ])
+  if (!snapshotAreaPriceReference || snapshotAreaPriceReference !== livePreview.area_price_reference) {
+    reasons.push('områdespris i pricing_preview_snapshot matchar inte den signerade offerten')
   }
 
   const snapshotOre = firstNumber(snapshot, [['pricePerKwhOre'], ['price_per_kwh_ore'], ['totalOrePerKwh'], ['total_ore_per_kwh'], ['energy_price_ore_per_kwh']])

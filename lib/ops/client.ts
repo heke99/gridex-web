@@ -4,6 +4,7 @@ import {
   calculationPricingComponentAmount,
   normalizePublicContractApiPayload,
   normalizeProductionPricing,
+  publicContractValidationIssues,
   type PublicAreaPricing,
   type PublicContractPriceOption,
   type PublicPortfolioMonthlyPrice,
@@ -34,6 +35,7 @@ import {
   hasCustomerPortalOperation,
   hasWebsiteOperation,
   websiteSchemaHasProperty,
+  validateOpenApiSchema,
 } from '@/lib/ops/validators/openapi'
 import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
 import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
@@ -77,6 +79,8 @@ type OpsSwitchStatusDto = WebsiteApiComponents['schemas']['SwitchStatus'];
 export type OpsPublicContract = {
   offer_reference: string;
   energy_direction: OpsEnergyDirection;
+  channel: 'website';
+  customer_type: 'private' | 'business' | 'both';
   production_pricing: PublicProductionPricing | null;
   product_code?: string | null;
   name: string;
@@ -571,6 +575,7 @@ export type OpsWebsitePricingPreview = {
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
   price_option_reference: string;
+  area_price_reference: string | null;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
   selected_component_references: string[];
   mandatory_component_references?: string[];
@@ -671,6 +676,7 @@ export type OpsWebsiteApplicationStatus = {
 export type OpsBlockedPublicContract = {
   offer_reference: string | null;
   reasons: string[];
+  issues?: Array<{ code: string; path: string }>;
 };
 
 export type OpsPublicContractsSnapshot = {
@@ -1217,12 +1223,7 @@ function mapPublicContract(row: unknown): OpsPublicContract | null {
     };
   }
 
-  throw new OpsError('OPS publicerade ett avtal som inte följer det aktuella publika kontraktet.', 502, {
-    code: 'ops_public_contract_invalid',
-    offer_reference: pickString(r, ['offer_reference', 'offerReference']),
-    contract_type: pickString(r, ['contract_type', 'contractType', 'type']),
-    energy_direction: pickString(r, ['energy_direction', 'energyDirection']),
-  });
+  return null;
 }
 
 function extractRows(payload: unknown): unknown[] {
@@ -1687,6 +1688,9 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   const priceOptionReference =
     pickString(row, ['price_option_reference']) ??
     pickString(quoteInput, ['price_option_reference']);
+  const areaPriceReference =
+    pickString(selectedAreaPrice, ['area_price_reference', 'areaPriceReference']) ??
+    pickString(row, ['area_price_reference', 'areaPriceReference']);
   const invoiceDeliveryMethod =
     pickString(row, ['invoice_delivery_method']) ??
     pickString(quoteInput, ['invoice_delivery_method']);
@@ -1793,6 +1797,7 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     pricing_snapshot_schema_version: pickString(row, ['pricing_snapshot_schema_version', 'schema_version', 'schemaVersion']) ?? GRIDEX_WEBSITE_API_CONTRACT_VERSION,
     valid_until: validUntil,
     price_option_reference: priceOptionReference,
+    area_price_reference: areaPriceReference,
     invoice_delivery_method: normalizedInvoiceDeliveryMethod,
     selected_component_references: selectedComponentReferences,
     mandatory_component_references: mandatoryComponentReferences,
@@ -2165,7 +2170,16 @@ function publicContractParseReasons(value: unknown): string[] {
   return reasons.length > 0 ? reasons : ['invalid_public_contract']
 }
 
-function sortedPublicContracts(payload: unknown): {
+function openApiInstancePath(basePath: string, instancePath: string): string {
+  if (!instancePath) return basePath
+  const tokens = instancePath
+    .split('/')
+    .slice(1)
+    .map((token) => token.replaceAll('~1', '/').replaceAll('~0', '~'))
+  return tokens.reduce((result, token) => (/^\d+$/.test(token) ? `${result}[${token}]` : `${result}.${token}`), basePath)
+}
+
+export function parseOpsPublicContractsPayload(payload: unknown): {
   contracts: OpsPublicContract[]
   blockedContracts: OpsBlockedPublicContract[]
 } {
@@ -2181,14 +2195,26 @@ function sortedPublicContracts(payload: unknown): {
 
   const contracts: OpsPublicContract[] = []
   const blockedContracts: OpsBlockedPublicContract[] = []
-  for (const row of rows) {
+  rows.forEach((row, index) => {
+    const basePath = `data[${index}]`
+    const openApi = validateOpenApiSchema('website', 'PublicContract', row)
+    const semanticIssues = publicContractValidationIssues(row, basePath)
+    const ajvIssues = openApi.errors.map((error) => ({
+      code: `openapi_${error.keyword}`,
+      path: openApiInstancePath(basePath, error.instancePath),
+    }))
+    const issues = [...semanticIssues, ...ajvIssues]
     const mapped = mapPublicContract(row)
-    if (mapped) contracts.push(mapped)
-    else blockedContracts.push({
+    if (mapped && issues.length === 0) {
+      contracts.push(mapped)
+      return
+    }
+    blockedContracts.push({
       offer_reference: publicContractReference(row),
-      reasons: publicContractParseReasons(row),
+      reasons: [...new Set((issues.length ? issues.map((issue) => issue.code) : publicContractParseReasons(row)))],
+      issues,
     })
-  }
+  })
 
   contracts.sort((a, b) => {
     const sa = a.sort_order ?? 10_000
@@ -2848,7 +2874,7 @@ export async function fetchOpsPublicContractsSnapshot(
     response.payload,
     "/api/v1/website/public-contracts",
   );
-  const parsed = sortedPublicContracts(response.payload)
+  const parsed = parseOpsPublicContractsPayload(response.payload)
   const responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
   const responseRevision = publicationRevisionFromPayload(response.payload)
   if (

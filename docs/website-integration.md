@@ -37,19 +37,18 @@ integration/context
 → customer-applications
 ```
 
-Kundens val av `price_option_reference`, `invoice_delivery_method`,
+Kundens val av `price_option_reference`, canonical
+`area_price_reference`, `invoice_delivery_method`,
 `selected_component_references` och `site_count` verifieras mot det publicerade
-avtalet, skickas till OPS och binds i webbens signerade offerttoken. Samma fyra
-fält skickas obligatoriskt igen till `quote/validate`, så OPS validerar exakt den
-prisoption, fakturametod, komponentmängd och anläggningsmängd som skapade
-offerten. Checkout återskapar valen från signaturen, inte från ändringsbara
+avtalet, skickas till OPS och binds i webbens signerade offerttoken. OPS quote
+måste returnera samma områdesprisreferens som valdes för kundens elområde och
+startdatum. Checkout återskapar valen från signaturen, inte från ändringsbara
 formulärfält.
 
-OPS OpenAPI `2026-07-30.3` definierar offertfälten och
-`ContractPriceOption`, men publicerar inte `price_options` på
-`PublicContract.pricing`. Detta rapporteras som
-`public_contract_price_options_not_published` och blockerar full readiness
-tills OPS-specifikationen är komplett.
+OPS OpenAPI `2026-07-30.3` publicerar `price_options` på toppnivå i
+`PublicContract`. Varje områdesrad använder `area_price_reference`, `price_area`,
+`energy_price_ore_per_kwh`, `unit`, `valid_from` och `valid_to`. Det tidigare
+gapet `public_contract_price_options_not_published` är stängt.
 
 Kundansökan binder även den signerade fullmakten och en full metering-point-modell
 när avtalet och anläggningen kräver det.

@@ -20,7 +20,7 @@ const TEST_PRICE_OPTION = {
   valid_to: null,
   earliest_start_date: null,
   latest_start_date: null,
-  area_prices: [{ price_area_code: 'SE3', fixed_price_ore_per_kwh: 100, vat_included: true, vat_rate: 25 }],
+  area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/public-contracts.documented.json', import.meta.url), 'utf8'))

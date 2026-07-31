@@ -7,7 +7,6 @@ import SignupFlowClient from "@/components/signup/SignupFlowClient";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import FaqList from "@/components/faq/FaqList";
 import {
-  type SignupContractOption,
   type SignupSubmissionState,
 } from "@/components/signup/CustomerApplicationForm";
 import {
@@ -26,6 +25,7 @@ import {
   type OpsWebsitePowerOfAttorneyInput,
 } from "@/lib/ops/client";
 import { checkRateLimit } from "@/lib/security/rateLimit";
+import type { SignupContractOption } from "@/lib/website/signupContractOption";
 
 import {
   validateContractDisplaySnapshot,
@@ -108,6 +108,8 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     name: item.name,
     value: item.offer_reference,
     offerReference: item.offer_reference,
+    channel: item.channel,
+    customerType: item.customer_type,
     productCode: item.product_code ?? null,
     type: item.type,
     energyDirection: item.energy_direction,

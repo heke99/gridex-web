@@ -87,6 +87,12 @@ export async function validateCanonicalWebsiteQuote(
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }
   }
+  if (opsValidation.price_option_reference !== local.quote.price_option_reference) {
+    return { ok: false, reason: 'price_option_reference_changed' }
+  }
+  if (opsValidation.area_price_reference !== local.quote.area_price_reference) {
+    return { ok: false, reason: 'area_price_reference_changed' }
+  }
   if (
     local.quote.publication_revision &&
     opsValidation.publication_revision &&

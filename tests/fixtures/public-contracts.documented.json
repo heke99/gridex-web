@@ -29,19 +29,95 @@
         "terms_version": "2026-06",
         "privacy_policy_version": "2026-06",
         "withdrawal_version": "2026-06",
-        "power_of_attorney_required": true,
         "power_of_attorney_version": "2026-06-poa",
         "price_terms_version": "2026-06",
-        "terms_version_id": "11111111-1111-4111-8111-111111111111",
-        "privacy_policy_version_id": "22222222-2222-4222-8222-222222222222",
-        "withdrawal_version_id": "33333333-3333-4333-8333-333333333333",
-        "power_of_attorney_version_id": "44444444-4444-4444-8444-444444444444",
-        "price_terms_version_id": "55555555-5555-4555-8555-555555555555",
+        "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "terms_url": "https://app.gridex.se/legal/gridex/terms/11111111-1111-4111-8111-111111111111",
         "privacy_policy_url": "https://app.gridex.se/legal/gridex/privacy/22222222-2222-4222-8222-222222222222",
         "withdrawal_url": "https://app.gridex.se/legal/gridex/withdrawal/33333333-3333-4333-8333-333333333333",
         "power_of_attorney_url": "https://app.gridex.se/legal/gridex/power-of-attorney/44444444-4444-4444-8444-444444444444",
-        "price_terms_url": "https://app.gridex.se/legal/gridex/price-terms/55555555-5555-4555-8555-555555555555"
+        "price_terms_url": "https://app.gridex.se/legal/gridex/price-terms/55555555-5555-4555-8555-555555555555",
+        "terms_required": true,
+        "privacy_policy_required": true,
+        "withdrawal_required": true,
+        "price_terms_required": true,
+        "power_of_attorney_required": true,
+        "immutable": true,
+        "required_modules": [
+          "terms",
+          "privacy_policy",
+          "withdrawal",
+          "power_of_attorney",
+          "price_terms"
+        ],
+        "module_versions": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "module_key": "terms",
+            "version": "2026-06",
+            "title": "Allmänna villkor",
+            "published_at": "2026-06-01T00:00:00Z",
+            "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "origin": "gridex",
+            "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "url": "https://app.gridex.se/legal/gridex/terms/11111111-1111-4111-8111-111111111111",
+            "document_reference": "document_terms_202606"
+          },
+          {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "module_key": "privacy_policy",
+            "version": "2026-06",
+            "title": "Integritetspolicy",
+            "published_at": "2026-06-01T00:00:00Z",
+            "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "origin": "gridex",
+            "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "url": "https://app.gridex.se/legal/gridex/privacy/22222222-2222-4222-8222-222222222222",
+            "document_reference": "document_privacy_policy_202606"
+          },
+          {
+            "id": "33333333-3333-4333-8333-333333333333",
+            "module_key": "withdrawal",
+            "version": "2026-06",
+            "title": "Ångerrätt",
+            "published_at": "2026-06-01T00:00:00Z",
+            "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "origin": "gridex",
+            "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "url": "https://app.gridex.se/legal/gridex/withdrawal/33333333-3333-4333-8333-333333333333",
+            "document_reference": "document_withdrawal_202606"
+          },
+          {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "module_key": "power_of_attorney",
+            "version": "2026-06-poa",
+            "title": "Fullmakt",
+            "published_at": "2026-06-01T00:00:00Z",
+            "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "origin": "gridex",
+            "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "url": "https://app.gridex.se/legal/gridex/power-of-attorney/44444444-4444-4444-8444-444444444444",
+            "document_reference": "document_power_of_attorney_202606"
+          },
+          {
+            "id": "55555555-5555-4555-8555-555555555555",
+            "module_key": "price_terms",
+            "version": "2026-06",
+            "title": "Prisvillkor",
+            "published_at": "2026-06-01T00:00:00Z",
+            "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "origin": "gridex",
+            "legal_bundle_version_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "url": "https://app.gridex.se/legal/gridex/price-terms/55555555-5555-4555-8555-555555555555",
+            "document_reference": "document_price_terms_202606"
+          }
+        ],
+        "terms_document_reference": "document_terms_202606",
+        "privacy_policy_document_reference": "document_privacy_policy_202606",
+        "withdrawal_document_reference": "document_withdrawal_202606",
+        "power_of_attorney_document_reference": "document_power_of_attorney_202606",
+        "price_terms_document_reference": "document_price_terms_202606",
+        "legal_bundle_reference": "legal_bundle_gridex_202606"
       },
       "valid_from": "2026-06-01T00:00:00Z",
       "valid_to": null,
@@ -66,14 +142,17 @@
           "latest_start_date": null,
           "area_prices": [
             {
-              "price_area_code": "SE3",
-              "fixed_price_ore_per_kwh": 100,
-              "vat_included": true,
-              "vat_rate": 25
+              "area_price_reference": "area_price_documented_se3",
+              "price_area": "SE3",
+              "energy_price_ore_per_kwh": 100,
+              "unit": "ore_per_kwh",
+              "valid_from": null,
+              "valid_to": null
             }
           ]
         }
-      ]
+      ],
+      "channel": "website"
     }
   ]
 }

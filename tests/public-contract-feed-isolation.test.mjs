@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict'
+import { parseOpsPublicContractsPayload } from '../lib/ops/client.ts'
+
+const validContract = (suffix) => ({
+  offer_reference: `offer_${suffix}`,
+  name: `Avtal ${suffix}`,
+  contract_type: 'fixed',
+  energy_direction: 'consumption',
+  customer_type: 'private',
+  channel: 'website',
+  price_options: [{
+    price_option_reference: `price_option_${suffix}`,
+    option_code: 'standard',
+    customer_name: 'Standard',
+    contract_type: 'fixed',
+    customer_type: 'private',
+    binding_months: 12,
+    notice_months: 1,
+    auto_renew_enabled: false,
+    renewal_term_months: null,
+    default: true,
+    selection_required: false,
+    valid_from: null,
+    valid_to: null,
+    earliest_start_date: null,
+    latest_start_date: null,
+    area_prices: [{
+      area_price_reference: `area_price_${suffix}_se3`,
+      price_area: 'SE3',
+      energy_price_ore_per_kwh: 100,
+      unit: 'ore_per_kwh',
+      valid_from: null,
+      valid_to: null,
+    }],
+  }],
+  pricing: {
+    visibility: {},
+    calculation_components: [],
+    display_components: [],
+    summary_components: [],
+    calculation_contract: {},
+  },
+  legal: {
+    required_modules: [],
+    module_versions: [],
+    immutable: true,
+    legal_bundle_reference: `legal_bundle_${suffix}`,
+    legal_bundle_version_id: `legal_bundle_version_${suffix}`,
+  },
+})
+
+const broken = validContract('broken')
+delete broken.price_options[0].area_prices[0].area_price_reference
+const result = parseOpsPublicContractsPayload({
+  data: [validContract('one'), broken, validContract('two')],
+})
+assert.equal(result.contracts.length, 2)
+assert.equal(result.blockedContracts.length, 1)
+assert.equal(result.blockedContracts[0].offer_reference, 'offer_broken')
+assert.ok(result.blockedContracts[0].reasons.includes('area_price_reference_missing'))
+assert.ok(result.blockedContracts[0].issues.some((issue) => issue.path === 'data[1].price_options[0].area_prices[0].area_price_reference'))
+
+const apiOnly = parseOpsPublicContractsPayload({ data: [{ ...validContract('api_only'), channel: 'api' }] })
+assert.equal(apiOnly.contracts.length, 0)
+assert.ok(apiOnly.blockedContracts[0].reasons.includes('channel_not_website'))
+
+console.log('public-contract feed isolation tests passed')

@@ -28,6 +28,10 @@ for (const selection of [
 }
 assert.ok(route.includes('price_option_invalid'))
 assert.ok(route.includes('component_selection_invalid'))
+assert.ok(route.includes('selectedAreaPriceReference'))
+assert.ok(route.includes('opsQuote.area_price_reference !== selectedAreaPriceReference'))
+assert.ok(quote.includes('area_price_reference: input.preview.area_price_reference'))
+assert.ok(quote.includes('area_price_reference: quote.area_price_reference'))
 assert.ok(quote.includes('const QUOTE_VERSION = "v5"'))
 assert.ok(!signup.includes('server price verification failed'))
 console.log('Signup quote binding regression checks passed')

@@ -100,6 +100,7 @@ const issued = issueWebsitePricingQuote({
     estimate_method: 'ops_canonical_quote',
     pricing_snapshot_schema_version: '2026-07-30.3',
     price_option_reference: 'price_option_visibility',
+    area_price_reference: 'area_price_visibility_se3',
     invoice_delivery_method: 'email',
     selected_component_references: [],
     mandatory_component_references: [],
@@ -119,6 +120,7 @@ assert.ok(issued, 'a signed website quote must be issued')
 const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[2], 'base64url').toString('utf8'))
 assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, 19, 'canonical signed audit state must retain hidden fees')
 assert.equal(tokenPayload.total_monthly_cost_sek, 208, 'the browser total must still include the hidden invoice fee')
+assert.equal(tokenPayload.area_price_reference, 'area_price_visibility_se3', 'signed quote must retain canonical area price reference')
 
 const resultCard = read('components/PriceResultCard.tsx')
 assert.equal(resultCard.includes('OPS-offert'), false)
