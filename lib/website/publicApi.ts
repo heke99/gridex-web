@@ -62,8 +62,11 @@ export type WebsitePricingPreviewInput = {
   metering_point_id?: string | null;
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
+  requested_start_mode: "earliest_possible" | "specific_date";
+  requested_start_date?: string | null;
   start_date?: string | null;
-  customer_type?: "private" | "business" | null;
+  quote_attempt_id: string;
+  customer_type: "private" | "business";
   price_option_reference?: string | null;
   invoice_delivery_method?: WebsiteInvoiceDeliveryMethod | null;
   selected_component_references?: string[] | null;
@@ -88,6 +91,9 @@ export type WebsitePricingQuoteContext = {
   invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
   selected_component_references: string[];
   site_count: number;
+  requested_start_mode: "earliest_possible" | "specific_date";
+  requested_start_date: string | null;
+  quote_attempt_id: string;
 };
 
 export type WebsiteQuoteAssumption = {
@@ -137,9 +143,13 @@ export type WebsitePricingPreview = {
   energy_direction: PublicEnergyDirection;
   production_pricing: PublicProductionPricing | null;
   start_date: string;
+  requested_start_mode: "earliest_possible" | "specific_date";
+  customer_type: "private" | "business";
   contract: {
     slug: string;
     offer_reference?: string | null;
+    contract_reference?: string | null;
+    product_code?: string | null;
     name: string;
     contractType:
       "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
@@ -184,7 +194,7 @@ export type WebsitePricingPreview = {
   market_sources?: WebsiteQuoteMarketSource[];
   market_reference?: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
-  valid_until?: string;
+  valid_until?: string | null;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
@@ -193,7 +203,7 @@ export type WebsitePricingPreview = {
   conditional_component_references?: string[];
   site_count: number;
   pricing_token?: string;
-  pricing_expires_at?: string;
+  pricing_expires_at?: string | null;
   quote_source?: "website";
   token_issuer?: "website";
   raw?: Record<string, unknown>;
@@ -292,6 +302,9 @@ export async function verifyWebsitePricingSnapshot(input: {
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
+  customer_type: "private" | "business";
+  requested_start_mode: "earliest_possible" | "specific_date";
+  requested_start_date: string | null;
   postal_code: string;
   city: string;
   address: string;

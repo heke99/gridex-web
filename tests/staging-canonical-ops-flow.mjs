@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import {
   fetchOpsCurrentMarketPrice,
@@ -56,20 +57,37 @@ assert.equal(marketPrice.resolution_id, resolution.resolution_id)
 assert.equal(marketPrice.price_area, resolution.price_area_code)
 assert.equal(marketPrice.is_stale, false)
 
-const quote = await fetchOpsWebsiteQuote({
+const quoteAttemptId = fixture.quote_attempt_id ?? randomUUID()
+const requestedStartMode = fixture.requested_start_mode ?? 'specific_date'
+const quoteInput = {
   resolution_id: resolution.resolution_id,
   offer_reference: offerReference,
   annual_consumption_kwh: annualConsumptionKwh,
   customer_type: fixture.customer_type ?? 'private',
   start_date: requiredText('start_date'),
+  quote_attempt_id: quoteAttemptId,
+  requested_start_mode: requestedStartMode,
   price_option_reference: priceOptionReference,
   invoice_delivery_method: fixture.invoice_delivery_method ?? 'email',
   selected_component_references: fixture.selected_component_references ?? [],
   site_count: fixture.site_count ?? 1,
-})
+}
+const quote = await fetchOpsWebsiteQuote(quoteInput)
+const quoteRetry = await fetchOpsWebsiteQuote(quoteInput)
 assert.ok(quote.ops_quote_reference, 'OPS quote måste returnera quote_reference.')
+assert.equal(quoteRetry.ops_quote_reference, quote.ops_quote_reference, 'Samma tekniska quote_attempt_id måste vara idempotent.')
 assert.equal(quote.resolution_id, resolution.resolution_id)
 assert.equal(quote.contract.offer_reference, offerReference)
+
+const recalculatedQuote = await fetchOpsWebsiteQuote({
+  ...quoteInput,
+  quote_attempt_id: randomUUID(),
+})
+assert.notEqual(
+  recalculatedQuote.ops_quote_reference,
+  quote.ops_quote_reference,
+  'Ett nytt aktivt offertförsök måste få en ny quote_reference.',
+)
 
 const validation = await validateOpsWebsiteQuote({
   quote_reference: quote.ops_quote_reference,

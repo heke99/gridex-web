@@ -45,6 +45,37 @@ måste returnera samma områdesprisreferens som valdes för kundens elområde oc
 startdatum. Checkout återskapar valen från signaturen, inte från ändringsbara
 formulärfält.
 
+## Quote-giltighet, startdatum och idempotency
+
+**Gridex quotes are not time-limited.** `valid_until` är ett deprecated,
+nullable kompatibilitetsfält. Webben parsar äldre värden men jämför dem aldrig
+med klockan, visar ingen nedräkning och startar ingen omräkning på grund av
+quote-ålder.
+
+Giltighet är separat från cache och bygger på:
+
+- signerad `quote_reference` och immutable snapshot,
+- `offer_reference`, `contract_reference`, `price_option_reference`,
+  `area_price_reference` och `resolution_id`,
+- exakt `customer_type` och canonicalt `start_date`,
+- OPS-verifierad integritet, teckningsbarhet och uttrycklig revocation,
+- att quoten inte redan konsumerats av en annan committed kundansökan.
+
+Kunden väljer `earliest_possible` eller `specific_date` före prisberäkningen.
+Ogiltiga eller saknade värden får aldrig normaliseras tyst. Den returnerade
+quotens `start_date` låses i checkout och kundansökan. Ändrad kundtyp,
+resolution, avtal, prisalternativ, förbrukning eller startuppgift rensar den
+aktuella quoten och nästa aktiva klick skapar ett nytt `quote_attempt_id`.
+
+Quote-idempotency använder `quote_attempt_id` tillsammans med hash över den
+canonicala requesten. Samma tekniska retry återanvänder nyckeln; ett nytt
+användarförsök får en ny nyckel. Kundansökan har en separat idempotency-nyckel
+bunden till hela den normaliserade ansökningspayloaden.
+
+Checkout-contextens 24-timmarsretention är endast en teknisk handoff-TTL. Den
+är inte en offertregel och OPS måste kunna verifiera en quote via
+`quote_reference` efter att webbens cache eller handoffpost har rensats.
+
 OPS OpenAPI `2026-07-30.3` publicerar `price_options` på toppnivå i
 `PublicContract`. Varje områdesrad använder `area_price_reference`, `price_area`,
 `energy_price_ore_per_kwh`, `unit`, `valid_from` och `valid_to`. Det tidigare

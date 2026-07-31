@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 import { toBrowserPublicContract } from '../lib/website/publicDtos.ts'
 import { sanitizePricingComponentsBeforeAreaResolution } from '../lib/website/publicPricingVisibility.ts'
-import { issueWebsitePricingQuote } from '../lib/website/pricingQuote.ts'
+import { issueWebsitePricingQuote, verifyWebsitePricingQuote } from '../lib/website/pricingQuote.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8')
@@ -91,11 +91,15 @@ process.env.GRIDEX_WEBSITE_STATE_SIGNING_KID = 'test-state-key'
 const issued = issueWebsitePricingQuote({
   preview: {
     ...preview,
+    customer_type: 'private',
+    requested_start_mode: 'specific_date',
+    energy_direction: 'consumption',
+    production_pricing: null,
     pricing_snapshot_reference: 'wps_visibility_test',
     ops_quote_reference: 'quote_visibility_test',
     resolution_id: 'resolution_visibility_test',
     start_date: '2026-09-01',
-    valid_until: new Date(Date.now() + 10 * 60_000).toISOString(),
+    valid_until: '2020-01-01T00:00:00.000Z',
     pricing_interval: 'month',
     estimate_method: 'ops_canonical_quote',
     pricing_snapshot_schema_version: '2026-07-30.3',
@@ -114,9 +118,13 @@ const issued = issueWebsitePricingQuote({
     legal_document_hashes: {},
   },
   contract: fixedContract,
+  customerType: 'private',
+  requestedStartMode: 'specific_date',
+  quoteAttemptId: '11111111-1111-4111-8111-111111111111',
   location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
 })
 assert.ok(issued, 'a signed website quote must be issued')
+assert.equal(verifyWebsitePricingQuote(issued.token).ok, true, 'legacy valid_until in the past must not invalidate a quote')
 const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[2], 'base64url').toString('utf8'))
 assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, 19, 'canonical signed audit state must retain hidden fees')
 assert.equal(tokenPayload.total_monthly_cost_sek, 208, 'the browser total must still include the hidden invoice fee')

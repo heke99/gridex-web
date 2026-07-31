@@ -14,6 +14,7 @@ import {
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import { parseWebsiteCustomerType } from '@/lib/website/customerType'
+import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
 import { CUSTOMER_NETWORK_FEE_NOTICE } from '@/lib/website/customerFacingCopy'
 import { persistWebsitePricingSnapshot } from '@/lib/website/pricingSnapshotStore'
 import { verifyWebsiteEnergyAreaToken } from '@/lib/website/energyAreaToken'
@@ -38,7 +39,9 @@ type PreviewPayload = {
   address?: unknown
   estimated_monthly_kwh?: unknown
   annual_consumption_kwh?: unknown
-  start_date?: unknown
+  requested_start_mode?: unknown
+  requested_start_date?: unknown
+  quote_attempt_id?: unknown
   customer_type?: unknown
   price_option_reference?: unknown
   invoice_delivery_method?: unknown
@@ -108,8 +111,14 @@ export async function POST(req: Request) {
   const city = text(body?.city)
   const address = text(body?.address)
   const offerReference = text(body?.offer_reference)
-  const requestedStartDate = text(body?.start_date, 10)
-  const canonicalStartDate = requestedStartDate ?? stockholmCalendarDate()
+  const requestedStart = parseRequestedStartSelection({
+    mode: body?.requested_start_mode,
+    requestedDate: body?.requested_start_date,
+  })
+  const quoteAttemptId = text(body?.quote_attempt_id, 80)
+  const canonicalStartDate = requestedStart.ok && requestedStart.value.mode === 'specific_date'
+    ? requestedStart.value.requestedDate
+    : stockholmCalendarDate()
   const customerType = parseWebsiteCustomerType(body?.customer_type)
   const areaToken = text(body?.resolution_token, 12_000)
   const claimedArea = requestedPriceArea(body?.price_area_code)
@@ -125,8 +134,17 @@ export async function POST(req: Request) {
   const requestedSiteCount =
     body?.site_count === undefined ? 1 : siteCount(body.site_count)
 
-  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !customerType || !areaToken || !isStrictCalendarDate(canonicalStartDate) || !requestedInvoiceMethod || !requestedComponents || !requestedSiteCount) {
-    return NextResponse.json({ error: 'Adress, kundtyp, avtal, förbrukning och verifierat elområde krävs.' }, { status: 400 })
+  if (!customerType) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'customer_type', message: 'customer_type måste vara private eller business.' } }, { status: 400 })
+  }
+  if (!requestedStart.ok) {
+    return NextResponse.json({ error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code } }, { status: 400 })
+  }
+  if (!quoteAttemptId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quoteAttemptId)) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'quote_attempt_id', message: 'quote_attempt_id måste vara ett giltigt UUID.' } }, { status: 400 })
+  }
+  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !areaToken || !isStrictCalendarDate(canonicalStartDate) || !requestedInvoiceMethod || !requestedComponents || !requestedSiteCount) {
+    return NextResponse.json({ error: 'Adress, avtal, förbrukning och verifierat elområde krävs.' }, { status: 400 })
   }
 
   const verifiedArea = verifyWebsiteEnergyAreaToken({
@@ -197,6 +215,8 @@ export async function POST(req: Request) {
       offer_reference: offerReference,
       annual_consumption_kwh: annualKwh,
       start_date: canonicalStartDate,
+      quote_attempt_id: quoteAttemptId,
+      requested_start_mode: requestedStart.value.mode,
       customer_type: customerType,
       price_option_reference: selectedPriceOptionReference,
       invoice_delivery_method: requestedInvoiceMethod,
@@ -231,6 +251,9 @@ export async function POST(req: Request) {
     const websiteQuote = issueWebsitePricingQuote({
       preview: lockedPreview,
       contract,
+      customerType,
+      requestedStartMode: requestedStart.value.mode,
+      quoteAttemptId,
       location: { postalCode, city, address },
     })
     if (!websiteQuote) throw new Error('OPS quote could not be locked for checkout.')

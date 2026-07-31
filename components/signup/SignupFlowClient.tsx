@@ -145,7 +145,7 @@ export default function SignupFlowClient({
             <p className="mt-3 text-gray-400">Fyll i kunduppgifterna, granska de publicerade dokumenten och teckna.</p>
           </div>
           <CustomerApplicationForm
-            key={`${customerType}:${selectedValue}`}
+            key={`${customerType}:${selectedValue}:${(quoteContext ?? lastQuoteContext).quote_attempt_id}`}
             contracts={contracts}
             selectedValue={selectedValue}
             customerType={customerType}

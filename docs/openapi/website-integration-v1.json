@@ -355,7 +355,7 @@
           "Website pricing"
         ],
         "summary": "Create a tenant-bound canonical quote for one published offer and one SE area",
-        "description": "Scope: website_quotes.write. Freezes the exact published product/version, selected SE-area price, fees, VAT, assumptions, consumption and requested start date. One quote is consumed by at most one canonical customer application.",
+        "description": "Scope: website_quotes.write. Freezes an immutable, non-time-limited snapshot of the exact published product/version, selected SE-area price, fees, VAT, assumptions, consumption, customer type and requested start mode/date. Idempotency prevents duplicate technical retries; one successful customer application may consume the quote atomically.",
         "x-required-scopes": [
           "website_quotes.write"
         ],
@@ -381,7 +381,7 @@
                   "data": {
                     "quote_reference": "quote_example",
                     "offer_reference": "offer_example",
-                    "valid_until": "2026-07-24T17:00:00Z",
+                    "valid_until": null,
                     "input": {
                       "resolution_id": "f8249704-7ce8-4885-93cb-fbb9922ed77d",
                       "price_area": "SE3"
@@ -426,7 +426,10 @@
                     "selected_component_references": [],
                     "mandatory_component_references": [],
                     "conditional_component_references": [],
-                    "site_count": 1
+                    "site_count": 1,
+                    "created_at": "2026-07-31T12:00:00Z",
+                    "requested_start_mode": "specific_date",
+                    "customer_type": "private"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
                   "contract_schema_version": "2026-07-30.3"
@@ -465,7 +468,7 @@
             }
           },
           "409": {
-            "description": "Published version conflict",
+            "description": "Canonical publication, orderability, reference or selection conflict. A quote must not be rejected solely because of age or valid_until.",
             "content": {
               "application/json": {
                 "schema": {
@@ -513,7 +516,7 @@
           "Website pricing"
         ],
         "summary": "Validate a canonical quote before customer application",
-        "description": "Scope: website_quotes.validate. Verifies tenant, offer, customer type, SE area, grid area, postal code, annual consumption and requested start date. A quote already consumed by another application is rejected.",
+        "description": "Scope: website_quotes.validate. Verifies canonical quote integrity, tenant, offer, customer type, resolution, SE area, grid area, postal code, annual consumption, immutable start date, reference binding, revocation/orderability and consumption. valid_until is ignored as a commercial rule.",
         "x-required-scopes": [
           "website_quotes.validate"
         ],
@@ -593,7 +596,7 @@
             }
           },
           "409": {
-            "description": "Quote already consumed or binding mismatch",
+            "description": "Quote already consumed, explicitly revoked/unavailable, or canonical binding mismatch. Wall-clock age alone is not a conflict.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1711,7 +1714,7 @@
             }
           }
         },
-        "description": "Canonical error envelope. Expected business conflicts use 409/422; provider readiness uses 503. Codes include contract_version_not_publishable, contract_not_ready, contract_closed, contract_archived, contract_delete_blocked, quote_expired, quote_revoked, quote_consumed, quote_mismatch, offer_reference_mismatch, resolution_not_ready, price_area_not_supported and legal_bundle_not_ready."
+        "description": "Canonical error envelope. Expected business conflicts use 409/422; provider readiness uses 503. Codes include contract_version_not_publishable, contract_not_ready, contract_closed, contract_archived, contract_delete_blocked, quote_expired (legacy compatibility only), quote_revoked, quote_consumed, quote_mismatch, offer_reference_mismatch, resolution_not_ready, price_area_not_supported and legal_bundle_not_ready."
       },
       "TenantMeta": {
         "type": "object",
@@ -2300,7 +2303,6 @@
         "required": [
           "quote_reference",
           "offer_reference",
-          "valid_until",
           "input"
         ],
         "properties": {
@@ -2311,8 +2313,13 @@
             "type": "string"
           },
           "valid_until": {
-            "type": "string",
-            "format": "date-time"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "deprecated": true,
+            "description": "Legacy compatibility field. Gridex quotes are not time-limited and consumers must not use this field to determine commercial validity."
           },
           "status": {
             "type": "string"
@@ -2347,7 +2354,8 @@
             "additionalProperties": true
           }
         },
-        "additionalProperties": true
+        "additionalProperties": true,
+        "description": "Gridex quotes are immutable canonical snapshots and are not time-limited. Commercial validity is determined by canonical references, integrity, orderability, revocation and consumption—not wall-clock age."
       },
       "QuoteValidationRequest": {
         "type": "object",
@@ -4024,6 +4032,7 @@
           "customer_type",
           "resolution_id",
           "annual_consumption_kwh",
+          "requested_start_mode",
           "start_date",
           "invoice_delivery_method",
           "selected_component_references",
@@ -4037,10 +4046,9 @@
             "type": "string",
             "enum": [
               "private",
-              "business",
-              "company"
+              "business"
             ],
-            "description": "company is a deprecated alias for business."
+            "description": "Canonical customer type. Legacy aliases are normalized only at the website compatibility boundary and are never sent to OPS quote creation."
           },
           "annual_consumption_kwh": {
             "type": "number",
@@ -4048,7 +4056,8 @@
           },
           "start_date": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "description": "Canonical date input. For specific_date it must equal the customer-selected date. For earliest_possible the website supplies its current compatibility date until OPS exposes canonical earliest-date resolution directly in the quote request."
           },
           "resolution_id": {
             "type": "string",
@@ -4078,6 +4087,14 @@
           "site_count": {
             "type": "integer",
             "minimum": 1
+          },
+          "requested_start_mode": {
+            "type": "string",
+            "enum": [
+              "earliest_possible",
+              "specific_date"
+            ],
+            "description": "Canonical start selection. The returned quote start_date is immutable and must be reused by checkout and customer application."
           }
         },
         "additionalProperties": false
@@ -4087,7 +4104,6 @@
         "required": [
           "quote_reference",
           "offer_reference",
-          "valid_until",
           "input",
           "price_option_reference",
           "area_price_reference",
@@ -4105,8 +4121,13 @@
             "type": "string"
           },
           "valid_until": {
-            "type": "string",
-            "format": "date-time"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "deprecated": true,
+            "description": "Legacy compatibility field. Gridex quotes are not time-limited and consumers must not use this field to determine commercial validity."
           },
           "status": {
             "type": "string"
@@ -4243,9 +4264,65 @@
           "pricing_snapshot_schema_version": {},
           "snapshot_schema": {},
           "site_count": {},
-          "pricing_snapshot": {}
+          "pricing_snapshot": {},
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Audit timestamp for immutable quote creation. Not an expiration timestamp."
+          },
+          "requested_start_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "earliest_possible",
+              "specific_date",
+              null
+            ]
+          },
+          "customer_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "private",
+              "business",
+              null
+            ]
+          },
+          "contract_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publication_revision": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ]
+          },
+          "legal_bundle_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Gridex quotes are immutable canonical snapshots and are not time-limited. Commercial validity is determined by canonical references, integrity, orderability, revocation and consumption—not wall-clock age."
       },
       "WebsiteQuoteResponse": {
         "type": "object",
@@ -5849,7 +5926,6 @@
           "valid",
           "quote_reference",
           "offer_reference",
-          "valid_until",
           "status",
           "resolution_id",
           "resolver_version",
@@ -5876,8 +5952,13 @@
             "type": "string"
           },
           "valid_until": {
-            "type": "string",
-            "format": "date-time"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "deprecated": true,
+            "description": "Legacy compatibility field. Gridex quotes are not time-limited and consumers must not use this field to determine commercial validity."
           },
           "status": {
             "type": "string"
@@ -5998,7 +6079,8 @@
               "area_price_reference"
             ]
           }
-        }
+        },
+        "description": "Gridex quotes are immutable canonical snapshots and are not time-limited. Commercial validity is determined by canonical references, integrity, orderability, revocation and consumption—not wall-clock age."
       },
       "WebsiteCustomerEventIdentity": {
         "type": "object",

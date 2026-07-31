@@ -32,6 +32,11 @@ import {
   type PublicContractPriceOption,
   type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
+import {
+  isStrictCalendarDate,
+  stockholmCalendarDate,
+} from "@/lib/website/businessDate";
+import type { RequestedStartMode } from "@/lib/website/requestedStart";
 
 export type ContractOption = {
   name: string;
@@ -248,6 +253,13 @@ export default function ElectricityCalculator({
   );
   const [internalSelectedValue, setInternalSelectedValue] = useState(initialValue);
   const [internalCustomerType, setInternalCustomerType] = useState<WebsiteCustomerType>("private");
+  const [requestedStartMode, setRequestedStartMode] = useState<RequestedStartMode>(
+    initialQuoteContext?.requested_start_mode ?? initialPricingPreview?.requested_start_mode ?? "earliest_possible",
+  );
+  const [requestedStartDate, setRequestedStartDate] = useState(
+    initialQuoteContext?.requested_start_date ??
+      (initialPricingPreview?.requested_start_mode === "specific_date" ? initialPricingPreview.start_date : ""),
+  );
   const [priceOptionReference, setPriceOptionReference] = useState(
     initialQuoteContext?.price_option_reference ??
       initialPricingPreview?.price_option_reference ??
@@ -470,7 +482,7 @@ export default function ElectricityCalculator({
           nextContract,
           customerType,
           resolution?.price_area_code ?? null,
-          new Date().toISOString().slice(0, 10),
+          requestedStartMode === "specific_date" ? requestedStartDate : stockholmCalendarDate(),
         ),
       );
       setSelectedComponentReferences([]);
@@ -479,14 +491,16 @@ export default function ElectricityCalculator({
       onPricingPreviewChange?.(null);
       onQuoteContextChange?.(null);
       setContinueHref(null);
-    }, [contracts, customerType, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange, resolution?.price_area_code],
+    }, [contracts, customerType, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange, requestedStartDate, requestedStartMode, resolution?.price_area_code],
   );
 
   useEffect(() => {
     if (!selectedContract) return;
     setPriceOptionReference((current) => {
       const priceArea = resolution?.price_area_code ?? null;
-      const startDate = new Date().toISOString().slice(0, 10);
+      const startDate = requestedStartMode === "specific_date"
+        ? requestedStartDate
+        : stockholmCalendarDate();
       if (priceArea && current) {
         const currentSelection = selectPublicContractPriceOption({
           options: selectedContract.priceOptions ?? [],
@@ -507,35 +521,12 @@ export default function ElectricityCalculator({
     setSelectedComponentReferences((current) =>
       current.filter((reference) => allowed.has(reference)),
     );
-  }, [customerType, resolution?.price_area_code, selectableComponents, selectedContract]);
+  }, [customerType, requestedStartDate, requestedStartMode, resolution?.price_area_code, selectableComponents, selectedContract]);
 
   useEffect(() => {
     if (selectedContract || availableContracts.length === 0) return;
     setSelectedValue(availableContracts[0].value);
   }, [availableContracts, selectedContract, setSelectedValue]);
-
-  useEffect(() => {
-    if (!result?.pricing_expires_at) return;
-    const expiresAt = Date.parse(result.pricing_expires_at);
-    if (!Number.isFinite(expiresAt)) return;
-    const invalidate = () => {
-      setResultState(null);
-      onPricingPreviewChange?.(null);
-      onQuoteContextChange?.(null);
-      setContinueHref(null);
-      setError("Uppgifterna behöver verifieras igen innan du fortsätter.");
-    };
-    const delay = expiresAt - Date.now();
-    if (delay <= 0) {
-      invalidate();
-      return;
-    }
-    const timeout = window.setTimeout(
-      invalidate,
-      Math.min(delay, 2_147_000_000),
-    );
-    return () => window.clearTimeout(timeout);
-  }, [onPricingPreviewChange, onQuoteContextChange, result?.pricing_expires_at]);
 
   useEffect(() => {
     if (resetSignal <= 0) return;
@@ -616,6 +607,8 @@ export default function ElectricityCalculator({
       city: city.trim(),
       address: address.trim(),
       street: address.trim(),
+      requested_start_mode: requestedStartMode,
+      requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
     });
     setResolution(resolved);
     if (!resolved.price_area_code) {
@@ -630,6 +623,8 @@ export default function ElectricityCalculator({
   async function calculate() {
     if (!selectedContract)
       return setError("Välj ett avtal för att räkna pris.");
+    if (requestedStartMode === "specific_date" && !isStrictCalendarDate(requestedStartDate))
+      return setError("Välj ett giltigt startdatum innan du räknar pris.");
     if (!consumptionProfile || !monthlyKwh)
       return setError(
         customerType === "business"
@@ -654,6 +649,7 @@ export default function ElectricityCalculator({
     setError(null);
     setResult(null);
     try {
+      const quoteAttemptId = crypto.randomUUID();
       const resolved = await resolveArea();
       const resolvedArea = resolved.price_area_code;
       if (!resolvedArea) throw new Error("Elområdet kunde inte verifieras.");
@@ -668,6 +664,9 @@ export default function ElectricityCalculator({
         annual_consumption_kwh: consumptionProfile.annual_kwh,
         grid_area_code: resolved.grid_area_code ?? null,
         customer_type: customerType,
+        requested_start_mode: requestedStartMode,
+        requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
+        quote_attempt_id: quoteAttemptId,
         price_option_reference: priceOptionReference || null,
         invoice_delivery_method: invoiceDeliveryMethod,
         selected_component_references: selectedComponentReferences,
@@ -678,6 +677,8 @@ export default function ElectricityCalculator({
       }
       const verifiedPreview = {
         ...preview,
+        customer_type: customerType,
+        requested_start_mode: requestedStartMode,
         contract: {
           ...preview.contract,
           contractType: normalizeContractType(preview.contract.contractType),
@@ -702,8 +703,10 @@ export default function ElectricityCalculator({
         invoice_delivery_method: preview.invoice_delivery_method ?? invoiceDeliveryMethod,
         selected_component_references: preview.selected_component_references ?? [],
         site_count: preview.site_count ?? siteCount,
+        requested_start_mode: requestedStartMode,
+        requested_start_date: requestedStartMode === "specific_date" ? preview.start_date : null,
+        quote_attempt_id: quoteAttemptId,
       } satisfies WebsitePricingQuoteContext;
-      onQuoteContextChange?.(nextQuoteContext);
 
       if (persistCheckoutContext && preview.pricing_token) {
         const contextResponse = await fetch("/api/checkout/context", {
@@ -731,8 +734,13 @@ export default function ElectricityCalculator({
           `/teckna-avtal?checkout=${encodeURIComponent(contextData.checkout_token)}`,
         );
       }
+      // Publish the quote and its bound context together only after the technical
+      // handoff succeeds. This prevents a failed handoff from mixing a new quote
+      // context with a previously rendered pricing snapshot.
       setResult(verifiedPreview);
+      onQuoteContextChange?.(nextQuoteContext);
     } catch (err) {
+      onQuoteContextChange?.(null);
       setError(customerSafeError(err));
     } finally {
       setLoading(false);
@@ -1062,9 +1070,49 @@ export default function ElectricityCalculator({
             <div>
               <h3 className="text-lg font-semibold text-white">Offertval</h3>
               <p className="mt-1 text-sm text-gray-400">
-                Valen skickas till OPS och låses i den signerade offerten.
+                Valen verifieras av Gridex och låses i den signerade offerten.
               </p>
             </div>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-white/80">Önskad avtalsstart</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ["earliest_possible", "Så snart som möjligt"],
+                  ["specific_date", "Välj ett specifikt datum"],
+                ] as const).map(([value, label]) => (
+                  <label key={value} className={`cursor-pointer rounded-2xl border p-4 text-sm font-semibold transition ${requestedStartMode === value ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-100" : "border-white/10 bg-black/20 text-gray-300"}`}>
+                    <input
+                      type="radio"
+                      name="calculator_requested_start_mode"
+                      className="sr-only"
+                      checked={requestedStartMode === value}
+                      onChange={() => {
+                        setRequestedStartMode(value);
+                        if (value === "earliest_possible") setRequestedStartDate("");
+                        clearQuote();
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {requestedStartMode === "specific_date" ? (
+                <div className="max-w-sm space-y-2">
+                  <label htmlFor="calculator-requested-start-date" className="text-sm font-medium text-white/80">Startdatum</label>
+                  <input
+                    id="calculator-requested-start-date"
+                    type="date"
+                    value={requestedStartDate}
+                    onChange={(event) => {
+                      setRequestedStartDate(event.target.value);
+                      clearQuote();
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
+                  />
+                </div>
+              ) : null}
+              <p className="text-xs leading-5 text-white/45">Startvalet verifieras när priset skapas och låses därefter i den signerade offerten.</p>
+            </fieldset>
             <div className="grid gap-4 md:grid-cols-3">
               {(selectedContract.priceOptions?.length ?? 0) > 0 ? (
                 <div className="space-y-2">

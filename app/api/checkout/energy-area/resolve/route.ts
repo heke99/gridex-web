@@ -4,6 +4,7 @@ import { issueWebsiteEnergyAreaToken, energyAreaTokenConfigured } from '@/lib/we
 import { persistOpsEnergyAreaResolution } from '@/lib/website/energyAreaStore'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { readWebJson } from '@/lib/api/webBoundary'
+import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -75,8 +76,16 @@ export async function POST(req: Request) {
   const gridAreaCode = text(body?.grid_area_code, 80)
   const facilityId = text(body?.facility_id, 120)
   const meteringPointId = text(body?.metering_point_id, 120)
-  const requestedStartMode = text(body?.requested_start_mode, 40)
-  const requestedStartDate = text(body?.requested_start_date, 10)
+  const requestedStart = parseRequestedStartSelection({
+    mode: body?.requested_start_mode,
+    requestedDate: body?.requested_start_date,
+  })
+  if (!requestedStart.ok) {
+    return NextResponse.json(
+      { error: { code: 'validation_error', field: requestedStart.code === 'requested_start_mode_invalid' ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code } },
+      { status: 400 },
+    )
+  }
 
   const hasStrongIdentifier = Boolean(gridAreaCode || facilityId || meteringPointId)
   if (!hasStrongIdentifier && (!postalCode || !/^\d{5}$/.test(postalCode) || !city || !address)) {
@@ -97,11 +106,8 @@ export async function POST(req: Request) {
       grid_area_code: gridAreaCode,
       facility_id: facilityId,
       metering_point_id: meteringPointId,
-      requested_start_mode:
-        requestedStartMode === 'specific_date' || requestedStartMode === 'earliest_possible'
-          ? requestedStartMode
-          : null,
-      requested_start_date: requestedStartDate,
+      requested_start_mode: requestedStart.value.mode,
+      requested_start_date: requestedStart.value.requestedDate,
     })
 
     const structurallyResolved = Boolean(

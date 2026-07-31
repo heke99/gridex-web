@@ -41,7 +41,7 @@ import {
   updateWebsiteSubmission,
 } from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
-import { contractSupportsCustomerType } from "@/lib/website/customerType";
+import { contractSupportsCustomerType, parseWebsiteCustomerType } from "@/lib/website/customerType";
 import { createWebsiteApplicationResult } from "@/lib/website/applicationResultStore";
 import { readWebsiteCheckoutContext } from "@/lib/website/checkoutContextStore";
 import { isPublicContractReady } from "@/lib/website/publicContractDisplay";
@@ -50,12 +50,12 @@ import { sanitizePricingComponentsBeforeAreaResolution } from "@/lib/website/pub
 import { validateCanonicalWebsiteQuote } from "@/lib/website/canonicalQuoteValidation";
 import {
   digitsOnly,
-  isValidRequestedStartDate,
   isValidSwedishOrganizationNumber,
   isValidSwedishPersonalNumber,
   normalizePhoneToE164,
 } from "@/lib/website/signupValidation";
 import { isStrictCalendarDate } from "@/lib/website/businessDate";
+import { parseRequestedStartSelection } from "@/lib/website/requestedStart";
 import { checkoutFaqItems } from "@/lib/content/faq";
 import {
   consumptionProfileMatchesMonthlyKwh,
@@ -218,7 +218,7 @@ function errorText(code?: string) {
     case "resolution_expired":
       return "Adressen behöver kontrolleras igen innan avtalet kan tecknas.";
     case "quote_expired":
-      return "Prisberäkningen har löpt ut. Hämta ett nytt pris.";
+      return "Offerten kunde inte verifieras på grund av ett äldre kompatibilitetsfel. Den avvisas inte av webbplatsen enbart på grund av ålder.";
     case "market_price_stale":
       return "Ett aktuellt marknadspris kan inte hämtas just nu.";
     case "missing_scope":
@@ -348,13 +348,16 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     if (/idempotency_conflict/i.test(context.code)) return "idempotency_conflict";
     if (/idempotency_key_payload_mismatch|idempotency.*mismatch/i.test(context.code)) return "idempotency_mismatch";
     if (/idempotency_in_progress|application_business_in_progress/i.test(context.code)) return "idempotency_in_progress";
+    if (/quote_already_consumed|quote_consumed/i.test(context.code)) return "duplicate_application";
+    if (/quote_revoked|offer_unavailable|contract_not_orderable|publication_withdrawn/i.test(context.code)) return "offer";
+    if (/quote_reference_invalid|quote_validation_failed|price_reference_invalid|resolution_mismatch|quote_start_date_mismatch|quote_customer_type_mismatch/i.test(context.code)) return "price_changed";
     if (/duplicate|business_conflict/i.test(context.code)) return "duplicate_application";
     if (context.code === "idempotent_failed") return "idempotency_retry_failed";
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
     return "ops_unavailable";
   }
   if (/resolution_expired/i.test(context.code)) return "resolution_expired";
-  if (/quote_expired/i.test(context.code)) return "quote_expired";
+  if (/quote_expired/i.test(context.code)) return "ops_unavailable";
   if (/market_price_stale/i.test(context.code)) return "market_price_stale";
   if (error.status === 422) {
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
@@ -537,7 +540,7 @@ export default async function TecknaPage({
   const pageError =
     errorText(params.error) ??
     (params.checkout && !checkoutContext
-      ? "Prisberäkningen har gått ut eller kunde inte återställas. Räkna priset igen."
+      ? "Checkout-länken kunde inte återställas. Din offert är inte tidsbegränsad; öppna prissteget igen för att återuppta teckningen."
       : null) ??
     (checkoutContext && !restoredCheckoutContract ? errorText("price_changed") : null) ??
     (requestedOffer && !requestedOfferExists ? errorText("offer") : null);
@@ -593,8 +596,13 @@ export default async function TecknaPage({
 
     if (!offer) return fail("offer");
 
-    const customerTypeRaw = normalizeText(formData.get("customer_type"));
-    const customerType = customerTypeRaw === "business" || customerTypeRaw === "company" ? "business" : "private";
+    const customerType = parseWebsiteCustomerType(normalizeText(formData.get("customer_type")));
+    if (!customerType) {
+      return fail("validation", {
+        step: 0,
+        fieldErrors: { customer_type: "customer_type måste vara private eller business." },
+      });
+    }
     if (!contractSupportsCustomerType(offer.customer_types, customerType)) {
       return fail("customer_type");
     }
@@ -647,14 +655,21 @@ export default async function TecknaPage({
     const currentSupplierEdielId = normalizeText(formData.get("current_supplier_ediel_id"));
     const currentSupplierUnknown =
       String(formData.get("current_supplier_unknown") || "") === "on";
-    const requestedStartModeRaw = normalizeText(
-      formData.get("requested_start_mode"),
-    );
-    const requestedStartMode =
-      requestedStartModeRaw === "specific_date" ? "specific_date" : "earliest_possible";
-    const requestedStartDate = normalizeText(
-      formData.get("requested_start_date"),
-    );
+    const requestedStart = parseRequestedStartSelection({
+      mode: normalizeText(formData.get("requested_start_mode")),
+      requestedDate: normalizeText(formData.get("requested_start_date")),
+    });
+    if (!requestedStart.ok) {
+      return fail("validation", {
+        step: 0,
+        fieldErrors: {
+          [requestedStart.code === "requested_start_mode_invalid" ? "requested_start_mode" : "requested_start_date"]:
+            requestedStart.code,
+        },
+      });
+    }
+    const requestedStartMode = requestedStart.value.mode;
+    const requestedStartDate = requestedStart.value.requestedDate ?? "";
 
     const submittedLegalBundleVersion = normalizeText(
       formData.get("legal_bundle_version"),
@@ -755,8 +770,7 @@ export default async function TecknaPage({
       !hasIdentity ||
       (customerType === "business" &&
         !isValidSwedishOrganizationNumber(organizationNumber)) ||
-      !isValidSwedishPersonalNumber(personalNumber) ||
-      !isValidRequestedStartDate(requestedStartMode, requestedStartDate);
+      !isValidSwedishPersonalNumber(personalNumber);
 
     if (invalidBaseFields) {
       return fail("validation", {

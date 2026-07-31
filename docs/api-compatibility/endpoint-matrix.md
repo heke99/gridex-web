@@ -7,10 +7,10 @@ Kontraktsversion: `2026-07-30.3`
 | Endpoint | Web-användning | Status |
 |---|---|---|
 | `GET /api/v1/integration/context` | tenant, scopes och readiness | kompatibel |
-| `GET /api/v1/website/public-contracts` | publicerade avtal och kundval | blockerad av saknad `price_options`-property i OpenAPI |
+| `GET /api/v1/website/public-contracts` | publicerade avtal och kundval | kompatibel |
 | `POST /api/v1/website/energy-area/resolve` | verifierat elområde | kompatibel |
-| `POST /api/v1/website/quote` | canonical offert inklusive kundval | kompatibel |
-| `POST /api/v1/website/quote/validate` | serverbindning före ansökan | kompatibel |
+| `POST /api/v1/website/quote` | immutable, icke tidsbegränsad canonical quote; strikt kundtyp/startläge och separat quote-attempt-idempotency | lokalt kontrakt uppdaterat; staging måste verifiera OPS-runtime |
+| `POST /api/v1/website/quote/validate` | referens-, integritets-, teckningsbarhets- och konsumtionskontroll utan tidsbaserad expiry | lokalt kontrakt uppdaterat; staging måste verifiera OPS-runtime |
 | `GET /api/v1/website/legal-bundle` | dynamiska dokumentkrav | kompatibel |
 | `POST /api/v1/website/customer-applications` | atomisk ansökan | kompatibel |
 | `GET /api/v1/website/customer-applications/{application_id}` | ansökningsstatus | kompatibel |

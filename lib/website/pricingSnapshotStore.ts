@@ -30,9 +30,9 @@ export async function persistWebsitePricingSnapshot(input: {
   customerType: WebsiteCustomerType
 }): Promise<string> {
   const issuedAt = new Date().toISOString()
-  const validUntil = input.preview.valid_until ?? input.preview.pricing_expires_at
-  if (!validUntil || !Number.isFinite(Date.parse(validUntil))) {
-    throw new Error('Website pricing snapshot has no valid expiry.')
+  const legacyValidUntil = input.preview.valid_until ?? input.preview.pricing_expires_at ?? null
+  if (legacyValidUntil && !Number.isFinite(Date.parse(legacyValidUntil))) {
+    throw new Error('Website pricing snapshot has invalid legacy expiry metadata.')
   }
 
   const reference = input.preview.pricing_snapshot_reference ?? `wps_${randomUUID().replaceAll('-', '')}`
@@ -83,7 +83,7 @@ export async function persistWebsitePricingSnapshot(input: {
     total_inc_vat: totalIncVat,
     calculation_version: input.preview.pricing_snapshot_schema_version ?? 'website-pricing-v3',
     issued_at: issuedAt,
-    valid_until: validUntil,
+    valid_until: legacyValidUntil,
     snapshot_sha256: hash,
     status: 'issued',
   })

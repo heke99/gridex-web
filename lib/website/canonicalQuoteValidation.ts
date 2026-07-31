@@ -51,6 +51,7 @@ export async function validateCanonicalWebsiteQuote(
     token: input.pricingToken,
     pricingSnapshotReference: input.pricingSnapshotReference,
     contract: input.contract,
+    customerType: input.customerType,
     priceAreaCode: area.payload.price_area_code,
     estimatedMonthlyKwh: input.estimatedMonthlyKwh,
     annualConsumptionKwh: input.annualConsumptionKwh,
@@ -61,10 +62,12 @@ export async function validateCanonicalWebsiteQuote(
   if (local.quote.resolution_id !== area.payload.resolution_id) {
     return { ok: false, reason: 'quote_resolution_mismatch' }
   }
-  const requestedStartDate =
-    input.requestedStartMode === 'specific_date'
-      ? input.requestedStartDate ?? null
-      : local.quote.start_date
+  if (local.quote.requested_start_mode !== input.requestedStartMode) {
+    return { ok: false, reason: 'quote_start_mode_mismatch' }
+  }
+  const requestedStartDate = input.requestedStartMode === 'specific_date'
+    ? input.requestedStartDate ?? null
+    : local.quote.start_date
   if (!requestedStartDate || local.quote.start_date !== requestedStartDate) {
     return { ok: false, reason: 'quote_start_date_mismatch' }
   }
@@ -93,16 +96,9 @@ export async function validateCanonicalWebsiteQuote(
   if (opsValidation.area_price_reference !== local.quote.area_price_reference) {
     return { ok: false, reason: 'area_price_reference_changed' }
   }
-  if (
-    local.quote.publication_revision &&
-    opsValidation.publication_revision &&
-    local.quote.publication_revision !== opsValidation.publication_revision
-  ) return { ok: false, reason: 'publication_revision_changed' }
-  if (
-    local.quote.legal_bundle_version &&
-    opsValidation.legal_bundle_version &&
-    local.quote.legal_bundle_version !== opsValidation.legal_bundle_version
-  ) return { ok: false, reason: 'legal_bundle_changed' }
+  // A later publication or legal revision does not invalidate an immutable quote.
+  // OPS remains authoritative for explicit revocation/orderability failures.
+
 
   await markWebsitePricingSnapshotValidated({
     pricingSnapshotReference: local.quote.pricing_snapshot_reference,

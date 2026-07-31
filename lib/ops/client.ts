@@ -447,6 +447,8 @@ export type OpsWebsiteQuoteInput = {
   annual_consumption_kwh: number;
   customer_type: WebsiteCustomerType;
   start_date: string;
+  quote_attempt_id: string;
+  requested_start_mode: 'earliest_possible' | 'specific_date';
   price_option_reference: string;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
   selected_component_references: string[];
@@ -479,7 +481,7 @@ export type OpsWebsiteQuoteValidation = {
   quote_reference: string;
   offer_reference: string;
   resolution_id: string;
-  valid_until: string;
+  valid_until?: string | null;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
@@ -539,9 +541,13 @@ export type OpsWebsitePricingPreview = {
   energy_direction: OpsEnergyDirection;
   production_pricing: PublicProductionPricing | null;
   start_date: string;
+  requested_start_mode: 'earliest_possible' | 'specific_date';
+  customer_type: WebsiteCustomerType;
   contract: {
     slug: string;
     offer_reference?: string | null;
+    contract_reference?: string | null;
+    product_code?: string | null;
     name: string;
     contractType: "spot_monthly" | "spot_hourly" | "spot_quarterly" | "portfolio_managed" | "fixed" | "mix" | "monthly_fixed";
   };
@@ -573,7 +579,7 @@ export type OpsWebsitePricingPreview = {
   market_sources?: OpsQuoteMarketSource[];
   market_reference?: OpsQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
-  valid_until?: string;
+  valid_until?: string | null;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
@@ -582,7 +588,7 @@ export type OpsWebsitePricingPreview = {
   conditional_component_references?: string[];
   site_count: number;
   pricing_token?: string;
-  pricing_expires_at?: string;
+  pricing_expires_at?: string | null;
   raw?: Record<string, unknown>;
 };
 
@@ -1713,7 +1719,7 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   const conditionalComponentReferences =
     pickStringArray(row, ['conditional_component_references', 'conditionalComponentReferences']) ?? [];
   const siteCount = normalizeInteger(row.site_count ?? quoteInput.site_count);
-  if (!quoteReference || !offerReference || !priceOptionReference || !normalizedInvoiceDeliveryMethod || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !validUntil || !selectedComponentReferences || siteCount === null || !Number.isInteger(siteCount) || siteCount < 1) {
+  if (!quoteReference || !offerReference || !priceOptionReference || !normalizedInvoiceDeliveryMethod || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !selectedComponentReferences || siteCount === null || !Number.isInteger(siteCount) || siteCount < 1) {
     throw new OpsError('OPS returnerade en ofullständig canonical quote.', 502, {
       code: 'ops_quote_contract_invalid',
       quote_reference: quoteReference,
@@ -1763,9 +1769,13 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     energy_direction: energyDirection,
     production_pricing: productionPricing,
     start_date: startDate,
+    requested_start_mode: input.requested_start_mode,
+    customer_type: input.customer_type,
     contract: {
       slug: offerReference,
       offer_reference: offerReference,
+      contract_reference: pickString(row, ['contract_reference', 'contractReference']) ?? pickString(contract, ['contract_reference', 'contractReference']),
+      product_code: pickString(row, ['product_code', 'productCode']) ?? pickString(contract, ['product_code', 'productCode']),
       name,
       contractType: normalizePreviewContractType(contract.contract_type ?? contract.type ?? row.contract_type),
     },
@@ -1795,7 +1805,7 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     market_sources: marketSources,
     market_reference: marketReference,
     pricing_snapshot_schema_version: pickString(row, ['pricing_snapshot_schema_version', 'schema_version', 'schemaVersion']) ?? GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-    valid_until: validUntil,
+    valid_until: validUntil ?? null,
     price_option_reference: priceOptionReference,
     area_price_reference: areaPriceReference,
     invoice_delivery_method: normalizedInvoiceDeliveryMethod,
@@ -2375,6 +2385,7 @@ export async function fetchOpsWebsiteQuote(
     offer_reference: input.offer_reference,
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
+    requested_start_mode: input.requested_start_mode,
     start_date: input.start_date,
     price_option_reference: input.price_option_reference,
     invoice_delivery_method: input.invoice_delivery_method,
@@ -2389,7 +2400,7 @@ export async function fetchOpsWebsiteQuote(
   const payload = await opsFetch('/api/v1/website/quote', {
     method: 'POST',
     headers: {
-      'Idempotency-Key': `website-quote:${canonicalSha256(requestBody)}`,
+      'Idempotency-Key': ['website-quote', input.quote_attempt_id, canonicalSha256(requestBody)].join(':'),
     },
     body: JSON.stringify(requestBody),
   })
@@ -2468,7 +2479,6 @@ export async function validateOpsWebsiteQuote(
     !quoteReference ||
     !offerReference ||
     !resolutionId ||
-    !validUntil ||
     !priceOptionReference ||
     !normalizedInvoiceDeliveryMethod ||
     !responseSelectedComponents ||

@@ -148,11 +148,13 @@ process.env.GRIDEX_API_KEY = 'gridex_runtime_test_secret_value'
 process.env.GRIDEX_OPS_API_URL = BASE_URL
 
 const requests = []
+const quoteValidationWithoutLegacyExpiry = quoteValidationResponse()
+delete quoteValidationWithoutLegacyExpiry.data.valid_until
 const queuedResponses = [
   // GET integration context is safely retried once.
   jsonResponse({ error: { code: 'temporary_unavailable', message: 'temporary' } }, 503, { 'Retry-After': '0' }),
   jsonResponse({ data: validContext }),
-  jsonResponse(quoteValidationResponse()),
+  jsonResponse(quoteValidationWithoutLegacyExpiry),
   jsonResponse(quoteValidationResponse({ offer_reference: 'offer_other' })),
   jsonResponse(quoteValidationResponse({ price_option_reference: 'price_option_other' })),
   jsonResponse({
@@ -180,6 +182,7 @@ assert.equal(validated.price_option_reference, 'price_option_runtime')
 assert.equal(validated.invoice_delivery_method, 'email')
 assert.deepEqual(validated.selected_component_references, ['component_runtime'])
 assert.equal(validated.site_count, 1)
+assert.equal(validated.valid_until, null)
 assert.equal(requests.filter((request) => request.url.endsWith('/integration/context')).length, 2)
 const validationRequest = requests.find((request) => request.url.endsWith('/website/quote/validate'))
 assert.ok(validationRequest)

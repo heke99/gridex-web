@@ -14,6 +14,7 @@ export type WebsiteCheckoutContext = {
 }
 
 type StoredRow = { public_context: WebsiteCheckoutContext; expires_at: string }
+const CHECKOUT_HANDOFF_TTL_MS = 24 * 60 * 60_000
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
@@ -32,21 +33,16 @@ export async function createWebsiteCheckoutContext(
   const client = serviceClient()
   const token = randomBytes(32).toString('base64url')
   const now = Date.now()
-  const quoteExpiresAt = Date.parse(context.pricingPreview.pricing_expires_at ?? '')
-  const expiresAt = new Date(
-    Math.min(
-      now + 30 * 60_000,
-      Number.isFinite(quoteExpiresAt) ? quoteExpiresAt : now + 30 * 60_000,
-    ),
-  ).toISOString()
+  // This is only a technical handoff-token retention window. It is deliberately
+  // independent from quote validity; the canonical quote remains verifiable in OPS.
+  const expiresAt = new Date(now + CHECKOUT_HANDOFF_TTL_MS).toISOString()
 
-  // Keep the short-lived handoff table bounded without requiring a scheduler.
   await client
     .from('website_checkout_contexts')
     .delete()
     .lt('expires_at', new Date(now).toISOString())
     .then(({ error }) => {
-      if (error) console.warn('[website checkout context] expired-row cleanup failed', error.message)
+      if (error) console.warn('[website checkout context] stale-row cleanup failed', error.message)
     })
 
   const { error } = await client.from('website_checkout_contexts').insert({

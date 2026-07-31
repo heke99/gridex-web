@@ -21,11 +21,9 @@ import type {
   WebsitePricingQuoteContext,
 } from "@/lib/website/publicApi";
 import {
-  isValidRequestedStartDate,
   isValidSwedishOrganizationNumber,
   isValidSwedishPersonalNumber,
   normalizePhoneToE164,
-  stockholmToday,
 } from "@/lib/website/signupValidation";
 
 export type { SignupContractOption } from "@/lib/website/signupContractOption";
@@ -248,8 +246,8 @@ export default function CustomerApplicationForm({
     current_supplier_name: "",
     current_supplier_org_number: "",
     current_supplier_ediel_id: "",
-    requested_start_mode: "earliest_possible",
-    requested_start_date: "",
+    requested_start_mode: quoteContext.requested_start_mode,
+    requested_start_date: quoteContext.requested_start_date ?? "",
   });
   const [consents, setConsents] = useState<Consents>({});
   const [legalBundle, setLegalBundle] = useState<LegalBundleState>({
@@ -430,7 +428,6 @@ export default function CustomerApplicationForm({
     if (!isValidEmail(form.email)) next.email = "Ange en giltig e-postadress.";
     if (!normalizePhoneToE164(form.phone)) next.phone = "Ange ett giltigt telefonnummer.";
     if (authenticatedEmailMismatch && !differentEmailConfirmed) next.different_email_confirmed = "Bekräfta att teckningen ska göras med en annan e-post än kontot du är inloggad på.";
-    if (!isValidRequestedStartDate(form.requested_start_mode, form.requested_start_date)) next.requested_start_date = "Välj dagens datum eller ett framtida datum.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -580,18 +577,14 @@ export default function CustomerApplicationForm({
             </div>
           ) : null}
 
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label htmlFor="requested_start_mode" className="text-sm font-medium text-white/80">Önskad start</label>
-              <select id="requested_start_mode" value={form.requested_start_mode} onChange={(event) => updateField('requested_start_mode', event.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white">
-                <option value="earliest_possible">Så snart som möjligt</option>
-                <option value="specific_date">Jag vill välja datum</option>
-              </select>
-              <p className="mt-2 text-xs leading-5 text-white/45">Starten bekräftas när anläggningsuppgifterna och marknadsreglerna är kontrollerade.</p>
-            </div>
-            {form.requested_start_mode === 'specific_date' ? (
-              <Field id="requested_start_date" label="Önskat startdatum" name="requested_start_date" value={form.requested_start_date} onChange={updateField} type="date" min={stockholmToday()} required error={errors.requested_start_date} />
-            ) : null}
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+            <div className="text-sm font-semibold text-cyan-100">Startdatum låst i offerten</div>
+            <p className="mt-2 text-sm text-cyan-50/80">
+              {quoteContext.requested_start_mode === 'specific_date'
+                ? `Valt startdatum: ${quoteContext.requested_start_date}`
+                : `Så snart som möjligt (bekräftat startdatum: ${pricingPreview?.start_date ?? 'verifieras av Gridex'})`}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-cyan-50/60">Ändra startvalet i prissteget för att skapa en ny signerad offert.</p>
           </div>
 
           <details className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -686,7 +679,6 @@ export default function CustomerApplicationForm({
                   {pricingPreview?.is_binding != null ? <ReviewRow label="Prisstatus" value={pricingPreview.is_binding ? 'Bindande offert' : 'Indikativ prisuppgift'} /> : null}
                   {pricingPreview?.source_period ? <ReviewRow label="Prisperiod" value={pricingPreview.source_period} /> : null}
                   {pricingPreview?.market_data_timestamp ? <ReviewRow label="Marknadsdata uppdaterad" value={new Date(pricingPreview.market_data_timestamp).toLocaleString('sv-SE')} /> : null}
-                  {pricingPreview?.valid_until ? <ReviewRow label="Offert giltig till" value={new Date(pricingPreview.valid_until).toLocaleString('sv-SE')} /> : null}
                 </dl>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-gray-300">
@@ -698,7 +690,7 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="E-post" value={form.email} />
                   <ReviewRow label="Telefon" value={normalizePhoneToE164(form.phone) ?? form.phone} />
                   <ReviewRow label="Adress" value={`${quoteContext.address}, ${quoteContext.postal_code} ${quoteContext.city}`} />
-                  <ReviewRow label="Start" value={form.requested_start_mode === 'specific_date' ? form.requested_start_date : 'Så snart som möjligt'} />
+                  <ReviewRow label="Start" value={quoteContext.requested_start_mode === 'specific_date' ? quoteContext.requested_start_date ?? pricingPreview?.start_date ?? '' : `Så snart som möjligt (${pricingPreview?.start_date ?? 'Gridex verifierar datum'})`} />
                 </dl>
               </div>
             </div>

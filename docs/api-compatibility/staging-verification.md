@@ -65,27 +65,42 @@ Kommentar:
 ## 5. Quote
 
 - Skapa quote från canonical offer och resolution.
-- Kontrollera top-level `quote_reference`, `offer_reference`, resolution och `valid_until`.
-- Samma idempotency key + samma payload ska inte skapa en ny quote.
+- Kontrollera top-level `quote_reference`, `offer_reference`, resolution,
+  `customer_type`, `requested_start_mode`, canonicalt `start_date` och
+  prisreferenser.
+- Verifiera att svar helt utan `valid_until` accepteras.
+- Verifiera att ett legacy-`valid_until` i dåtid inte ensamt avvisar quoten.
+- Samma `quote_attempt_id` + samma payload ska ge samma idempotenta resultat.
+- Samma payload + nytt `quote_attempt_id` ska tillåta ett nytt quote-försök.
+- Kontrollera att UI saknar nedräkning, expiry-text och timerbaserad reset.
 
 ## 6. Quote validation
 
 - Validera quote precis före ansökan.
-- Kontrollera offer-bindning, publication revision och legal bundle version.
+- Kontrollera offer-, resolution-, kundtyp-, startdatum-, prisalternativ- och
+  områdesprisbindning.
+- Publicera en senare prisrevision och verifiera att den äldre immutable quoten
+  inte avvisas enbart på grund av revisionens ålder.
+- Verifiera canonicala fel för explicit revocation/orderability och konsumtion.
 - Samma key + ändrad payload ska ge konflikt.
-- Full strict proof är blockerad tills OPS stänger responsemodellen.
+- Rensa webbens checkout/cachepost och verifiera quoten direkt via OPS-referens.
 
 ## 7. Legal bundle
 
 - Hämta bundle för valt offer.
 - Spara endast version, hash och opaque dokumentreferens som evidens.
-- Ändra bundle mellan visning och submit och verifiera att submit stoppas.
+- Verifiera att den immutable quotens dokumentreferenser, versioner och
+  SHA-256 bevaras. En uttryckligt återkallad juridikversion ska stoppas av OPS;
+  enbart publicering av en senare revision får inte tyst skriva om quoten.
 
 ## 8. Kundansökan som gäst
 
 - Skapa ansökan utan auth-ID.
 - Kontrollera customer/application/contract references och inga dubbletter vid retry.
 - Verifiera att fel tenant/offer/quote/resolution stoppas.
+- Verifiera atomiskt att första committed ansökan konsumerar quoten, samma
+  application-idempotency returnerar samma ansökan och en ny idempotency-nyckel
+  med samma quote ger `quote_already_consumed`.
 
 ## 9. Kundansökan som inloggad kund
 

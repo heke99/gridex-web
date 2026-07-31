@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-29T12:00:24.357Z",
-  "migration_count": 22,
+  "generated_at": "2026-07-31T17:10:54.303Z",
+  "migration_count": 23,
   "version_collisions": [],
   "migrations": [
     {
@@ -113,6 +113,11 @@
       "file": "20260729131000_ops_webhook_domain_projections.sql",
       "version": "20260729131000",
       "sha256": "b3797f913a8b295361637dcce9c79ee13693cb1d58462f80c7404125b523f272"
+    },
+    {
+      "file": "20260731184500_non_expiring_canonical_quotes.sql",
+      "version": "20260731184500",
+      "sha256": "b797a71e23e9f983a6dff4506d7c63ec2e7f8602b4ea6a09df75b47f430d77ef"
     }
   ]
 }

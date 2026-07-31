@@ -89,6 +89,20 @@ Browsern får signerad state, men OPS `quote_reference`, `resolution_id`,
 `offer_reference`, juridikversioner och kommersiell snapshot bevaras
 oförändrade. Svenska affärsdatum hanteras i `Europe/Stockholm`.
 
+### Canonical quotes utan tidsbegränsning
+
+**Gridex quotes are not time-limited.** En quote är en immutable, signerad och
+revisionsbunden snapshot. `created_at` är auditmetadata; ett eventuellt
+`valid_until`/`expires_at` från äldre OPS-svar är nullable, deprecated metadata
+och får aldrig användas för kommersiell giltighet, timer eller automatisk
+omräkning.
+
+Giltighet avgörs server-side genom OPS-verifiering av canonicala referenser,
+integritet, teckningsbarhet, uttrycklig återkallelse och atomisk konsumtion.
+Teknisk cache och checkout-handoff får ha TTL, men en rensad cachepost gör inte
+quoten ogiltig. Kundtyp och startläge valideras strikt; valt startdatum binds
+innan quote skapas och kan endast ändras genom ett nytt quote-försök.
+
 Kundportalens granulara `/api/web/customer/*`-routes anropar exakt motsvarande
 OPS-endpoint. Portalöversikten använder endast OPS-bundlen som affärskälla och
 stänger flödet om den auktoritativa profilen saknas; lokal portaldata visas inte
@@ -124,6 +138,8 @@ Kör migrationerna i `supabase/migrations` i ordning. De senaste migrationerna:
 - bevarar immutable juridikbevis per ansökan
 - lägger tenant-, OPS-ID-, revision- och synkmetadata på portalprojektioner
 - projekterar signerade domänevent idempotent och kör retry/dead-letter via `/api/internal/webhooks/retry`
+- gör quote-`valid_until` nullable och tillhandahåller auditerad dry-run/backfill
+  för historiska rader som endast markerats `expired` på grund av klocktid
 
 ## Verifiering före deploy
 

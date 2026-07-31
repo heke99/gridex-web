@@ -104,7 +104,9 @@ assert.ok(!publicDto.includes('company_id'))
 
 const checkoutStore = read('lib/website/checkoutContextStore.ts')
 assert.ok(checkoutStore.includes('tokenHash(token)'))
-assert.ok(checkoutStore.includes('pricing_expires_at'))
+assert.ok(checkoutStore.includes('CHECKOUT_HANDOFF_TTL_MS'))
+assert.ok(checkoutStore.includes('technical handoff'))
+assert.ok(!checkoutStore.includes('pricing_expires_at'))
 assert.ok(checkoutStore.includes(".lt('expires_at'"))
 
 const calculator = read('components/ElectricityCalculator.tsx')
