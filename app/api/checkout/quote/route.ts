@@ -22,6 +22,7 @@ import {
   stockholmCalendarDate,
 } from '@/lib/website/businessDate'
 import { readWebJson } from '@/lib/api/webBoundary'
+import { selectPublicContractPriceOption } from '@/lib/website/publicContractContract'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -153,20 +154,27 @@ export async function POST(req: Request) {
     if (!contract || !buildPublicContractDisplay(contract).ready) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
-    const availablePriceOptions = contract.price_options ?? []
-    if (
-      (availablePriceOptions.length > 0 &&
-        (!requestedPriceOption ||
-          !availablePriceOptions.some(
-            (option) => option.price_option_reference === requestedPriceOption,
-          ))) ||
-      (availablePriceOptions.length === 0 && requestedPriceOption)
-    ) {
+    const priceOptionSelection = selectPublicContractPriceOption({
+      options: contract.price_options ?? [],
+      customer_type: customerType,
+      price_area_code: verifiedArea.payload.price_area_code,
+      start_date: canonicalStartDate,
+      selected_reference: requestedPriceOption,
+    })
+    if (priceOptionSelection.status !== 'selected') {
       return NextResponse.json(
-        { error: 'Valt prisalternativ kunde inte verifieras.', code: 'price_option_invalid' },
+        {
+          error: priceOptionSelection.status === 'selection_required'
+            ? 'Välj ett giltigt prisalternativ innan priset hämtas.'
+            : 'Inget giltigt prisalternativ finns för kundtyp, elområde och startdatum.',
+          code: priceOptionSelection.status === 'selection_required'
+            ? 'price_option_selection_required'
+            : 'price_option_invalid',
+        },
         { status: 409 },
       )
     }
+    const selectedPriceOptionReference = priceOptionSelection.option.price_option_reference
     const selectableReferences = new Set(
       (contract.pricing_components ?? []).flatMap((component) =>
         component.component_reference &&
@@ -189,7 +197,7 @@ export async function POST(req: Request) {
       annual_consumption_kwh: annualKwh,
       start_date: canonicalStartDate,
       customer_type: customerType,
-      price_option_reference: requestedPriceOption,
+      price_option_reference: selectedPriceOptionReference,
       invoice_delivery_method: requestedInvoiceMethod,
       selected_component_references: requestedComponents,
       site_count: requestedSiteCount,

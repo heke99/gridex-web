@@ -84,7 +84,7 @@ export type WebsitePricingQuoteContext = {
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
   consumption_profile?: WebsiteConsumptionProfile | null;
-  price_option_reference?: string | null;
+  price_option_reference: string;
   invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
   selected_component_references: string[];
   site_count: number;
@@ -185,12 +185,12 @@ export type WebsitePricingPreview = {
   market_reference?: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
-  price_option_reference?: string | null;
-  invoice_delivery_method?: WebsiteInvoiceDeliveryMethod | null;
-  selected_component_references?: string[];
+  price_option_reference: string;
+  invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
+  selected_component_references: string[];
   mandatory_component_references?: string[];
   conditional_component_references?: string[];
-  site_count?: number;
+  site_count: number;
   pricing_token?: string;
   pricing_expires_at?: string;
   quote_source?: "website";

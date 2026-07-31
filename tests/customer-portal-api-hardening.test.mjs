@@ -18,6 +18,12 @@ assert.ok(service.includes("dataFreshness: 'live'"))
 assert.ok(!service.includes("dataFreshness: opsAvailable ? 'live' : 'local_fallback'"))
 assert.ok(!service.includes('isTransientOpsError'))
 assert.ok(service.includes('if (!bundle.profile)'))
+assert.ok(service.includes('normalizeCanonicalCustomerResource'))
+assert.ok(!service.includes('data: unwrapOpsData(payload)'))
+assert.ok(service.includes("requiredCanonicalReference(row, 'contract_reference'"))
+assert.ok(service.includes("requiredCanonicalReference(row, 'invoice_reference'"))
+assert.ok(!service.includes("metadata: { source: 'ops_customer_api', raw: row }"))
+assert.ok(!service.includes("createHash('sha256')"))
 assert.ok(!service.includes('enqueuePortalWrite'))
 assert.ok(!service.includes('crypto.randomUUID()'))
 assert.equal(moveOutPayload({ move_out_date: '2026-02-30' }), null)
@@ -73,9 +79,10 @@ for (const routePath of [
 }
 
 const signingSecret = read('lib/website/serverTokenSecret.ts')
-assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_SECRET'))
-assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_KID'))
-assert.ok(signingSecret.includes('GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET'))
+const gridexConfig = read('lib/ops/config.ts')
+assert.ok(gridexConfig.includes('GRIDEX_WEBSITE_STATE_SIGNING_SECRET'))
+assert.ok(gridexConfig.includes('GRIDEX_WEBSITE_STATE_SIGNING_KID'))
+assert.ok(gridexConfig.includes('GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET'))
 for (const forbidden of [
   'GRIDEX_WEBSITE_HASH_PEPPER',
   'PII_HASH_PEPPER',

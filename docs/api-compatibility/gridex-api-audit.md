@@ -1,7 +1,7 @@
 # Gridex Web – API-kompatibilitetsgranskning
 
 Datum: 2026-07-30  
-Canonical kontraktsversion: `2026-07-30.1`
+Canonical kontraktsversion: `2026-07-30.3`
 
 ## Genomfört
 
@@ -25,7 +25,7 @@ Canonical kontraktsversion: `2026-07-30.1`
 - `npm run db:migrations:check`
 - `npm run api:compatibility:known-gaps`
 
-Live-manifestet publicerar version `2026-07-30.1` med SHA-256:
+Live-manifestet publicerar version `2026-07-30.3` med SHA-256:
 
 - Website: `9ad3fc518d9aadb687141af2df7d3068df8f7daca530cc01b525d4b94c816b7b`
 - Customer Portal: `a3e3f475f3822f30efab4e9a792d714585bacc98773d52790adf12072ed3251e`

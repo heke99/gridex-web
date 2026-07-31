@@ -1,7 +1,6 @@
-import { GRIDEX_API_BASE_URL } from '@/lib/ops/contract'
+import { GRIDEX_CANONICAL_OPS_API_URL } from '@/lib/ops/contract'
 
 const MIN_SIGNING_SECRET_BYTES = 32
-let deprecatedWebsiteKeyWarningEmitted = false
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim()
@@ -30,44 +29,26 @@ function allowedNonProductionOrigins(): Set<string> {
 
 function apiKeyConfiguration(): {
   value?: string
-  source: 'GRIDEX_API_KEY' | 'GRIDEX_WEBSITE_API_KEY' | null
+  source: 'GRIDEX_API_KEY' | null
   invalidReason?: string
   deprecatedVariablesInUse: string[]
 } {
-  const canonical = readEnv('GRIDEX_API_KEY')
-  const deprecatedWebsiteKey = readEnv('GRIDEX_WEBSITE_API_KEY')
-  const value = canonical ?? deprecatedWebsiteKey
-  const source = canonical
-    ? 'GRIDEX_API_KEY'
-    : deprecatedWebsiteKey
-      ? 'GRIDEX_WEBSITE_API_KEY'
-      : null
-
-  if (source === 'GRIDEX_WEBSITE_API_KEY' && !deprecatedWebsiteKeyWarningEmitted) {
-    deprecatedWebsiteKeyWarningEmitted = true
-    console.warn('[gridex-config] GRIDEX_WEBSITE_API_KEY används som deprecated fallback. Byt till GRIDEX_API_KEY.')
-  }
+  const value = readEnv('GRIDEX_API_KEY')
+  const source = value ? 'GRIDEX_API_KEY' as const : null
 
   if (!value) {
-    return {
-      source,
-      deprecatedVariablesInUse: source === 'GRIDEX_WEBSITE_API_KEY' ? ['GRIDEX_WEBSITE_API_KEY'] : [],
-    }
+    return { source, deprecatedVariablesInUse: [] }
   }
 
   if (/^gdxp_[a-z0-9]+$/i.test(value) && value.length <= 18) {
     return {
       source,
       invalidReason: 'GRIDEX_API_KEY innehåller endast ett synligt nyckelprefix.',
-      deprecatedVariablesInUse: source === 'GRIDEX_WEBSITE_API_KEY' ? ['GRIDEX_WEBSITE_API_KEY'] : [],
+      deprecatedVariablesInUse: [],
     }
   }
 
-  return {
-    value,
-    source,
-    deprecatedVariablesInUse: source === 'GRIDEX_WEBSITE_API_KEY' ? ['GRIDEX_WEBSITE_API_KEY'] : [],
-  }
+  return { value, source, deprecatedVariablesInUse: [] }
 }
 
 function validateApiBase(value: string): { value?: string; reason?: string } {
@@ -75,17 +56,17 @@ function validateApiBase(value: string): { value?: string; reason?: string } {
   try {
     url = new URL(normalizeApiBase(value))
   } catch {
-    return { reason: 'GRIDEX_API_BASE_URL är ogiltig.' }
+    return { reason: 'GRIDEX_OPS_API_URL är ogiltig.' }
   }
 
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
-    return { reason: 'GRIDEX_API_BASE_URL måste vara en ren HTTPS-adress.' }
+    return { reason: 'GRIDEX_OPS_API_URL måste vara en ren HTTPS-adress.' }
   }
   if (url.pathname.replace(/\/+$/, '') !== '/api/v1') {
-    return { reason: 'GRIDEX_API_BASE_URL måste sluta med /api/v1.' }
+    return { reason: 'GRIDEX_OPS_API_URL måste sluta med /api/v1.' }
   }
 
-  const canonicalOrigin = new URL(GRIDEX_API_BASE_URL).origin
+  const canonicalOrigin = new URL(GRIDEX_CANONICAL_OPS_API_URL).origin
   const deploymentEnvironment = readEnv('VERCEL_ENV') ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development')
   if (deploymentEnvironment === 'production' && url.origin !== canonicalOrigin) {
     return { reason: 'Produktionsmiljön får endast använda canonical OPS-origin.' }
@@ -119,22 +100,22 @@ export function getGridexApiKey(): { value?: string; invalidReason?: string } {
 }
 
 export function getGridexApiBaseUrl(): string {
-  const configured = readEnv('GRIDEX_API_BASE_URL') ?? GRIDEX_API_BASE_URL
+  const configured = readEnv('GRIDEX_OPS_API_URL') ?? GRIDEX_CANONICAL_OPS_API_URL
   const result = validateApiBase(configured)
-  if (!result.value) throw new Error(result.reason ?? 'GRIDEX_API_BASE_URL är ogiltig.')
+  if (!result.value) throw new Error(result.reason ?? 'GRIDEX_OPS_API_URL är ogiltig.')
   return result.value
 }
 
 export function getGridexConfigurationStatus(): GridexConfigurationStatus {
   const apiKey = apiKeyConfiguration()
-  const base = validateApiBase(readEnv('GRIDEX_API_BASE_URL') ?? GRIDEX_API_BASE_URL)
+  const base = validateApiBase(readEnv('GRIDEX_OPS_API_URL') ?? GRIDEX_CANONICAL_OPS_API_URL)
   const signingSecret = readEnv('GRIDEX_WEBSITE_STATE_SIGNING_SECRET')
   const signingSecretConfigured = Boolean(
     signingSecret && Buffer.byteLength(signingSecret, 'utf8') >= MIN_SIGNING_SECRET_BYTES,
   )
   const missingVariables = [
     ...(!apiKey.value ? ['GRIDEX_API_KEY'] : []),
-    ...(!base.value ? ['GRIDEX_API_BASE_URL'] : []),
+    ...(!base.value ? ['GRIDEX_OPS_API_URL'] : []),
     ...(!signingSecretConfigured ? ['GRIDEX_WEBSITE_STATE_SIGNING_SECRET'] : []),
   ]
 
@@ -178,6 +159,6 @@ export function getGridexDeploymentMetadata(): {
   return {
     commitSha: readEnv('VERCEL_GIT_COMMIT_SHA') ?? readEnv('GIT_COMMIT_SHA') ?? null,
     deploymentId: readEnv('VERCEL_DEPLOYMENT_ID') ?? readEnv('VERCEL_URL') ?? null,
-    buildTimestamp: readEnv('GRIDEX_BUILD_TIMESTAMP') ?? null,
+    buildTimestamp: readEnv('VERCEL_GIT_COMMIT_SHA') ?? readEnv('SOURCE_VERSION') ?? new Date().toISOString(),
   }
 }

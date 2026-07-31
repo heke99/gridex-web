@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-07-30.1`.
+Canonical kontraktsversion: `2026-07-30.3`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -42,7 +42,7 @@ Kundens val av `price_option_reference`, `invoice_delivery_method`,
 avtalet, skickas till OPS och binds i webbens signerade offerttoken. Checkout
 återskapar valen från signaturen, inte från ändringsbara formulärfält.
 
-OPS OpenAPI `2026-07-30.1` definierar offertfälten och
+OPS OpenAPI `2026-07-30.3` definierar offertfälten och
 `ContractPriceOption`, men publicerar inte `price_options` på
 `PublicContract.pricing`. Detta rapporteras som
 `public_contract_price_options_not_published` och blockerar full readiness

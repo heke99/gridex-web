@@ -7,7 +7,15 @@ import {
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
-const CONTRACT_VERSION = '2026-07-30.1'
+
+const TEST_PRICE_OPTION = {
+  price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
+  contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
+  auto_renew_enabled: false, renewal_term_months: null, default: true, selection_required: false,
+  valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
+  area_prices: [{ price_area_code: 'SE3', fixed_price_ore_per_kwh: 100, vat_included: true, vat_rate: 25 }],
+}
+const CONTRACT_VERSION = '2026-07-30.3'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 
@@ -110,6 +118,7 @@ function quoteValidationResponse(overrides = {}) {
         source_checksum: null,
       },
       energy_direction: 'consumption',
+    price_options: [TEST_PRICE_OPTION],
       selected_area_price: {
         price_area: 'SE3',
         energy_price_ore_per_kwh: 95,
@@ -125,7 +134,7 @@ function quoteValidationResponse(overrides = {}) {
 }
 
 process.env.GRIDEX_API_KEY = 'gridex_runtime_test_secret_value'
-process.env.GRIDEX_API_BASE_URL = BASE_URL
+process.env.GRIDEX_OPS_API_URL = BASE_URL
 
 const requests = []
 const queuedResponses = [
@@ -186,6 +195,7 @@ const productionContract = normalizePublicContractApiPayload({
   name: 'Produktionsersättning',
   contract_type: 'variable_quarterly',
   energy_direction: 'production',
+    price_options: [TEST_PRICE_OPTION],
   customer_type: 'both',
   pricing: {
     visibility: {},
@@ -221,6 +231,7 @@ assert.equal(normalizePublicContractApiPayload({
   name: 'Saknar produktionspris',
   contract_type: 'variable_hourly',
   energy_direction: 'production',
+    price_options: [TEST_PRICE_OPTION],
   customer_type: 'both',
   pricing: {},
 }), null)
@@ -229,6 +240,7 @@ assert.equal(normalizePublicContractApiPayload({
   name: 'Okänd kontraktstyp',
   contract_type: 'future_type',
   energy_direction: 'consumption',
+    price_options: [TEST_PRICE_OPTION],
   customer_type: 'private',
   pricing: {},
 }), null)
@@ -246,6 +258,7 @@ const mappedApplication = mapOpsCustomerApplicationResult({
     quote_reference: 'quote_runtime_test',
     quote_bound: true,
     energy_direction: 'production',
+    price_options: [TEST_PRICE_OPTION],
     missing_fields: [],
     blocking_reasons: [],
     grid_owner_verification_issues: [],

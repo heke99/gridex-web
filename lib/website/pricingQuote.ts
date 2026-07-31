@@ -43,7 +43,7 @@ export type WebsitePricingQuote = {
   price_area_code: WebsitePriceArea;
   estimated_monthly_kwh: number;
   annual_consumption_kwh: number;
-  price_option_reference: string | null;
+  price_option_reference: string;
   invoice_delivery_method: WebsiteInvoiceDeliveryMethod;
   selected_component_references: string[];
   mandatory_component_references: string[];
@@ -121,7 +121,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   return q.version === 4 && validDate(q.issued_at) && validDate(q.expires_at) && validDate(q.valid_until) &&
     text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) && (q.energy_direction === "consumption" || q.energy_direction === "production") && validDate(q.start_date) && Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
     validArea(q.price_area_code) && finite(q.estimated_monthly_kwh) && finite(q.annual_consumption_kwh) &&
-    (q.price_option_reference === null || text(q.price_option_reference)) &&
+    text(q.price_option_reference) &&
     validInvoiceDeliveryMethod(q.invoice_delivery_method) &&
     validReferences(q.selected_component_references) &&
     validReferences(q.mandatory_component_references) &&
@@ -145,7 +145,7 @@ export function issueWebsitePricingQuote(input: {
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
   const opsValidUntil = input.preview.valid_until;
-  const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date && input.preview.pricing_interval && input.preview.estimate_method &&
+  const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date && input.preview.price_option_reference && input.preview.invoice_delivery_method && Number.isInteger(input.preview.site_count) && input.preview.pricing_interval && input.preview.estimate_method &&
     input.preview.pricing_snapshot_schema_version && validDate(opsValidUntil) && typeof input.preview.is_binding === "boolean";
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
@@ -180,12 +180,12 @@ export function issueWebsitePricingQuote(input: {
     price_area_code: area,
     estimated_monthly_kwh: input.preview.kwh,
     annual_consumption_kwh: input.preview.annual_consumption_kwh,
-    price_option_reference: input.preview.price_option_reference ?? null,
-    invoice_delivery_method: input.preview.invoice_delivery_method ?? "email",
+    price_option_reference: input.preview.price_option_reference,
+    invoice_delivery_method: input.preview.invoice_delivery_method,
     selected_component_references: [...new Set(input.preview.selected_component_references ?? [])],
     mandatory_component_references: [...new Set(input.preview.mandatory_component_references ?? [])],
     conditional_component_references: [...new Set(input.preview.conditional_component_references ?? [])],
-    site_count: input.preview.site_count ?? 1,
+    site_count: input.preview.site_count,
     price_per_kwh_ore: input.preview.pricePerKwhOre,
     total_monthly_cost_sek: input.preview.totalMonthlyCostSek,
     total_monthly_cost_incl_vat_sek: input.preview.totalMonthlyCostInclVatSek,

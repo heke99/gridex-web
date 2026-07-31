@@ -3,6 +3,26 @@ import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
+
+const TEST_PRICE_OPTION = {
+  price_option_reference: 'price_option_test',
+  option_code: 'standard',
+  customer_name: 'Standard',
+  contract_type: 'variable_monthly',
+  customer_type: 'both',
+  binding_months: 0,
+  notice_months: 1,
+  auto_renew_enabled: false,
+  renewal_term_months: null,
+  default: true,
+  selection_required: false,
+  valid_from: null,
+  valid_to: null,
+  earliest_start_date: null,
+  latest_start_date: null,
+  area_prices: [{ price_area_code: 'SE3', fixed_price_ore_per_kwh: 100, vat_included: true, vat_rate: 25 }],
+}
+
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/public-contracts.documented.json', import.meta.url), 'utf8'))
 const contract = normalizePublicContractApiPayload(fixture.data[0])
 
@@ -11,6 +31,7 @@ const emptyLegalRequirementsContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_empty_legal_requirements',
   name: 'Publicerat avtal utan checkboxkrav',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   legal: { requirements: [] },
 })
@@ -25,6 +46,7 @@ const malformedRequiredLegalContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_malformed_required_legal',
   name: 'Avtal med trasigt obligatoriskt krav',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   legal: {
     requirements: [{
@@ -69,6 +91,7 @@ const camelCaseContract = normalizePublicContractApiPayload({
   code: 'RORLIGT-POA',
   name: 'Rörligt med fullmakt',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   legal: {
     termsVersion: '2026-06',
@@ -96,6 +119,7 @@ const componentOnlyContract = normalizePublicContractApiPayload({
   code: 'MANAD-API',
   name: 'Månadspris från komponenter',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   pricing: {
     invoice_fee: null,
@@ -116,6 +140,7 @@ const aliasComponentContract = normalizePublicContractApiPayload({
   code: 'ALIAS-API',
   name: 'Prisdelar med OPS-aliaser',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   pricing: {
     price_components: [
@@ -141,6 +166,7 @@ const unitOnlyContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_unit_only',
   name: 'Prisdelar med enhetsstyrning',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   pricing_components: [
     { key: 'admin_a', title: 'Administrationsavgift', amount: 29, unit: 'kr/faktura', show_on_website: true },
@@ -157,6 +183,7 @@ const canonicalLifecycleContract = normalizePublicContractApiPayload({
   code: 'RORLIGT-CANONICAL',
   name: 'Rörligt canonical',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
   customer_type: 'both',
   binding_months: 0,
@@ -189,6 +216,7 @@ const canonicalAreaContract = normalizePublicContractApiPayload({
   product_code: 'FAST-AREA',
   name: 'Fastpris per område',
   energy_direction: 'consumption',
+  price_options: [TEST_PRICE_OPTION],
   contract_type: 'fixed',
   customer_types: ['private', 'business'],
   price_areas: ['SE1', 'SE2', 'SE3', 'SE4'],

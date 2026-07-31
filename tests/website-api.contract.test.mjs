@@ -27,7 +27,7 @@ const quoteSchema = websiteOpenApi.components.schemas.WebsiteQuoteRequest
 
 assert.equal(typeof contractVersion, 'string')
 assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${contractVersion}'`))
-assert.ok(contract.includes("GRIDEX_API_BASE_URL = 'https://app.gridex.se/api/v1'"))
+assert.ok(contract.includes("GRIDEX_CANONICAL_OPS_API_URL = 'https://app.gridex.se/api/v1'"))
 assert.ok(ops.includes('observeRuntimeSchemaValidation'))
 assert.ok(ops.includes('logContractVersionDrift'))
 assert.ok(!ops.includes("throw new OpsError('OPS returnerade fel kontraktsversion"))
@@ -128,10 +128,12 @@ assert.ok(energySchema.required.includes('blockers'))
 assert.ok(energySchema.required.includes('retryable'))
 assert.ok(!('automation_allowed' in energySchema.properties))
 assert.ok(quoteSchema.required.includes('resolution_id'))
+for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(quoteSchema.required.includes(field), `quote field must be required: ${field}`)
 assert.equal(quoteSchema.additionalProperties, false)
 assert.ok(applicationSchema.required.includes('offer_reference'))
 assert.ok(applicationSchema.required.includes('quote_reference'))
 assert.ok(applicationSchema.required.includes('resolution_id'))
+for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(applicationSchema.required.includes(field), `customer application field must be required: ${field}`)
 assert.equal(applicationSchema.additionalProperties, false)
 assert.ok('metering_point' in applicationSchema.properties)
 assert.ok(!('source' in applicationSchema.properties))
@@ -170,6 +172,10 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
   external_customer_id: 'tenant-customer-123',
   offer_reference: 'offer_test',
   quote_reference: 'quote_test',
+  price_option_reference: 'price_option_test',
+  invoice_delivery_method: 'email',
+  selected_component_references: ['component_test'],
+  site_count: 1,
   resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
   annual_consumption_kwh: 5000,
   start_date: '2026-09-01',
@@ -211,6 +217,10 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
 
 assert.equal(applicationPayload.offer_reference, 'offer_test')
 assert.equal(applicationPayload.quote_reference, 'quote_test')
+assert.equal(applicationPayload.price_option_reference, 'price_option_test')
+assert.equal(applicationPayload.invoice_delivery_method, 'email')
+assert.deepEqual(applicationPayload.selected_component_references, ['component_test'])
+assert.equal(applicationPayload.site_count, 1)
 assert.equal(applicationPayload.resolution_id, 'f8249704-7ce8-4885-93cb-fbb9922ed77d')
 assert.equal(applicationPayload.site.postal_code, '58200')
 assert.equal(applicationPayload.site.price_area_code, 'SE3')

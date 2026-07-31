@@ -9,6 +9,14 @@ import {
   stockholmToday,
 } from '../lib/website/signupValidation.ts'
 
+
+const TEST_PRICE_OPTION = {
+  price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
+  contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
+  auto_renew_enabled: false, renewal_term_months: null, default: true, selection_required: false,
+  valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
+  area_prices: [{ price_area_code: 'SE3', fixed_price_ore_per_kwh: 100, vat_included: true, vat_rate: 25 }],
+}
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
 const modern = normalizePublicContractApiPayload({
@@ -16,6 +24,7 @@ const modern = normalizePublicContractApiPayload({
   code: 'MODERN',
   name: 'Modern mix',
   contract_type: 'mixed', energy_direction: 'consumption',
+    price_options: [TEST_PRICE_OPTION],
   customer_type: 'both',
   customer_types: ['private', 'business'],
   pricing: {

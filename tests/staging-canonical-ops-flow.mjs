@@ -30,7 +30,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-07-30.1')
+assert.equal(context.contract_version, '2026-07-30.3')
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -38,6 +38,9 @@ assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
 const contracts = await fetchOpsPublicContractsFresh(fixture.customer_type ?? 'private')
 assert.ok(contracts.length > 0, 'OPS måste returnera minst ett website-publicerat avtal.')
 const offerReference = fixture.offer_reference ?? contracts[0]?.offer_reference
+const selectedContract = contracts.find((item) => item.offer_reference === offerReference)
+const priceOptionReference = fixture.price_option_reference ?? selectedContract?.price_options?.find((option) => option.default)?.price_option_reference ?? selectedContract?.price_options?.[0]?.price_option_reference
+assert.ok(priceOptionReference, 'PublicContract måste returnera ett canonical price_option_reference.')
 assert.ok(contracts.some((item) => item.offer_reference === offerReference), 'Fixturens offer_reference är inte publicerad.')
 
 const resolution = await fetchOpsWebsiteEnergyArea({
@@ -59,6 +62,10 @@ const quote = await fetchOpsWebsiteQuote({
   annual_consumption_kwh: annualConsumptionKwh,
   customer_type: fixture.customer_type ?? 'private',
   start_date: requiredText('start_date'),
+  price_option_reference: priceOptionReference,
+  invoice_delivery_method: fixture.invoice_delivery_method ?? 'email',
+  selected_component_references: fixture.selected_component_references ?? [],
+  site_count: fixture.site_count ?? 1,
 })
 assert.ok(quote.ops_quote_reference, 'OPS quote måste returnera quote_reference.')
 assert.equal(quote.resolution_id, resolution.resolution_id)
@@ -80,6 +87,10 @@ const applicationInput = {
   external_customer_id: requiredText('external_customer_id'),
   offer_reference: offerReference,
   quote_reference: quote.ops_quote_reference,
+  price_option_reference: quote.price_option_reference,
+  invoice_delivery_method: quote.invoice_delivery_method,
+  selected_component_references: quote.selected_component_references,
+  site_count: quote.site_count,
   resolution_id: resolution.resolution_id,
   annual_consumption_kwh: annualConsumptionKwh,
   start_date: requiredText('start_date'),

@@ -1,7 +1,7 @@
 # Gridex OPS – kontraktsgap
 
 Datum: 2026-07-30  
-Granskad kontraktsversion: `2026-07-30.1`
+Granskad kontraktsversion: `2026-07-30.3`
 
 ## Resultat
 
@@ -12,7 +12,7 @@ kontraktsgap:
 |---|---|
 | `public_contract_price_options_not_published` | `ContractPriceOption` och offertens valfält finns, men `PublicContract` deklarerar inte `price_options`. |
 
-Följande tidigare blockerare är korrigerade i release `2026-07-30.1`:
+Följande tidigare blockerare är korrigerade i release `2026-07-30.3`:
 
 | Kod | Korrigering |
 |---|---|

@@ -1,13 +1,3 @@
 {
-  "live_sync_verified": true,
-  "verified_at": "2026-07-30T18:35:42.887Z",
-  "contract_version": "2026-07-30.2",
-  "specifications": {
-    "website-integration-v1.json": {
-      "sha256": "920a774c10ee8cc32ea5db62a8d898119f7ca59aa50896041d9d14a734a5bcd1"
-    },
-    "customer-portal-v1.json": {
-      "sha256": "0371233929e6bafff463d7171e18a39712cb98577830aaff0669822f9184e315"
-    }
-  }
+  "live_sync_verified": false
 }

@@ -18,8 +18,9 @@ const webhookHandler = read('lib/webhooks/publicationChanged.ts')
 const webhookRetry = read('lib/webhooks/retry.ts')
 const webhookMigration = read('supabase/migrations/20260729131000_ops_webhook_domain_projections.sql')
 const verification = JSON.parse(read('docs/openapi/verification-status.json'))
+const releaseManifest = JSON.parse(read('docs/openapi/release-manifest.json'))
 
-assert.match(contract, /GRIDEX_API_CONTRACT_VERSION\s*=\s*['"]2026-07-30\.1['"]/, 'canonical API version must match the synchronized release')
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.release_version}'`), 'canonical API version must match the synchronized release')
 assert.ok(!contract.includes('2026-07-28.1'), 'old version must not remain in canonical contract')
 
 assert.match(client, /opsRequest as transportOpsRequest/, 'client must use canonical transport')

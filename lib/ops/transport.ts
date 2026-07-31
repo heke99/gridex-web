@@ -1,5 +1,5 @@
 import {
-  GRIDEX_API_BASE_URL,
+  GRIDEX_CANONICAL_OPS_API_URL,
   GRIDEX_WEBSITE_API_CONTRACT_VERSION,
   GRIDEX_WEBSITE_API_VERSION_HEADER,
 } from '@/lib/ops/contract'
@@ -43,7 +43,7 @@ export function getOpsApiBaseUrl(): string {
   try {
     return getGridexApiBaseUrl()
   } catch (error) {
-    throw new OpsError(error instanceof Error ? error.message : 'GRIDEX_API_BASE_URL är ogiltig.', 503, {
+    throw new OpsError(error instanceof Error ? error.message : 'GRIDEX_OPS_API_URL är ogiltig.', 503, {
       code: 'ops_api_base_url_invalid',
       retryable: false,
     })
@@ -64,7 +64,7 @@ export function getOpsTransportStatus(): {
   const apiKey = getOpsApiKey()
   const missing = [
     ...(!apiKey.value ? [apiKey.invalidReason ?? 'GRIDEX_API_KEY'] : []),
-    ...(!configuration.apiBaseUrlValid ? ['GRIDEX_API_BASE_URL'] : []),
+    ...(!configuration.apiBaseUrlValid ? ['GRIDEX_OPS_API_URL'] : []),
   ]
   return {
     configured: missing.length === 0,

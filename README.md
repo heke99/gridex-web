@@ -5,7 +5,7 @@ autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
 Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
 kundportal.
 
-Canonical kontraktsversion är `2026-07-30.1`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
+Canonical kontraktsversion är `2026-07-30.3`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
 
 ## Lokal start
 
@@ -47,7 +47,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-GRIDEX_API_BASE_URL=https://app.gridex.se/api/v1
+GRIDEX_OPS_API_URL=https://app.gridex.se/api/v1
 GRIDEX_OPS_STAGING_ALLOWED_ORIGINS=
 GRIDEX_WEBSITE_STATE_SIGNING_SECRET=
 GRIDEX_WEBSITE_STATE_SIGNING_KID=
@@ -60,14 +60,13 @@ GRIDEX_WEBHOOK_PROJECTIONS_READY=false
 GRIDEX_DATABASE_MIGRATIONS_READY=false
 
 CRON_SECRET=
-GRIDEX_INTEGRATION_API_KEY=
 PII_HASH_PEPPER=
 PII_ENCRYPTION_KEY=
 ```
 
 `GRIDEX_WEBSITE_STATE_SIGNING_SECRET` och webhookhemligheten ska vara separata,
 slumpmässiga värden om minst 32 byte. State-nyckeln stödjer aktiv och föregående
-`kid` under rotation. I produktion får `GRIDEX_API_BASE_URL` endast vara
+`kid` under rotation. I produktion får `GRIDEX_OPS_API_URL` endast vara
 `https://app.gridex.se/api/v1`; andra HTTPS-origins måste uttryckligen
 allowlistas för staging.
 

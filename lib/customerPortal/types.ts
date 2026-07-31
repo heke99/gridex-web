@@ -21,6 +21,7 @@ export type CustomerProfile = {
 
 export type CustomerPortalContract = {
   id: string
+  contract_reference: string
   agreement_id: string | null
   contract_slug: string | null
   contract_name: string | null
@@ -47,6 +48,7 @@ export type CustomerPortalContract = {
 
 export type CustomerSite = {
   id: string
+  site_reference: string
   address: string | null
   postal_code: string | null
   city: string | null
@@ -63,6 +65,7 @@ export type CustomerSite = {
 
 export type CustomerInvoice = {
   id: string
+  invoice_reference: string
   invoice_number: string | null
   provider_key: string | null
   external_invoice_ref: string | null
@@ -133,6 +136,7 @@ export type CustomerSupportMessage = {
 
 export type CustomerNotification = {
   id: string
+  notification_reference: string
   category: string
   title: string
   body: string
@@ -148,6 +152,8 @@ export type CustomerNotification = {
 
 export type CustomerDocument = {
   id: string
+  document_reference: string
+  contract_reference: string | null
   title: string | null
   document_type: string | null
   status: string | null

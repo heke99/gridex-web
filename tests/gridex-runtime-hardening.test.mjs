@@ -7,11 +7,11 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
-const drift = compareContractVersions('2026-07-30.1', '2026-07-30.2')
+const drift = compareContractVersions('2026-07-30.2', '2026-07-30.3')
 assert.equal(drift.exactMatch, false)
 assert.equal(drift.parseable, true)
 assert.equal(drift.newerThanLocal, true)
-assert.equal(compareContractVersions('2026-07-30.1', null).headerPresent, false)
+assert.equal(compareContractVersions('2026-07-30.3', null).headerPresent, false)
 
 const duringLastStockholmDay = new Date('2026-07-30T22:00:01.000Z')
 assert.equal(
@@ -55,8 +55,9 @@ assert.match(dto, /selectable_components: selectableComponents/)
 assert.doesNotMatch(dto, /\.\.\.contract/)
 
 const config = read('lib/ops/config.ts')
-assert.match(config, /GRIDEX_WEBSITE_API_KEY/)
-assert.match(config, /deprecated fallback/)
+assert.match(config, /GRIDEX_API_KEY/)
+assert.doesNotMatch(config, /GRIDEX_WEBSITE_API_KEY|deprecated fallback/)
+assert.match(config, /GRIDEX_OPS_API_URL/)
 assert.match(config, /canonical OPS-origin/)
 
 const health = read('app/api/internal/integrations/gridex/health/route.ts')

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal and Website API",
-    "version": "2026-07-30.2",
+    "version": "2026-07-30.3",
     "description": "Canonical V1 contract for the authenticated customer portal and customer self-service APIs. Website checkout, public contracts, energy-area resolution, current market price and quote are documented exclusively in website-integration-v1.json."
   },
   "servers": [
@@ -148,7 +148,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-07-30.2"
+                      "const": "2026-07-30.3"
                     }
                   }
                 }
@@ -944,7 +944,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-07-30.2"
+                      "const": "2026-07-30.3"
                     }
                   }
                 }
@@ -978,7 +978,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-07-30.2"
+                      "const": "2026-07-30.3"
                     }
                   }
                 }
@@ -1257,7 +1257,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClosedPortalResourceEnvelope"
+                  "$ref": "#/components/schemas/PortalBundleEnvelope"
                 }
               }
             }
@@ -1365,7 +1365,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClosedPortalResourceEnvelope"
+                  "$ref": "#/components/schemas/PortalBundleEnvelope"
                 }
               }
             }
@@ -1743,7 +1743,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-07-30.2"
+                      "const": "2026-07-30.3"
                     }
                   }
                 }
@@ -1946,7 +1946,7 @@
               },
               "X-Gridex-Contract-Version": {
                 "schema": {
-                  "const": "2026-07-30.2"
+                  "const": "2026-07-30.3"
                 }
               }
             },
@@ -2646,7 +2646,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-07-30.2"
+            "const": "2026-07-30.3"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -3183,7 +3183,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-07-30.2"
+            "const": "2026-07-30.3"
           },
           "configuration": {
             "type": "object",
@@ -3431,7 +3431,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-07-30.2"
+            "const": "2026-07-30.3"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -3601,7 +3601,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-07-30.2"
+            "const": "2026-07-30.3"
           }
         }
       },
@@ -4037,10 +4037,324 @@
             "type": "boolean"
           }
         }
+      },
+      "CustomerProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "customer_number",
+          "display_name",
+          "email"
+        ],
+        "properties": {
+          "customer_number": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CustomerStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "can_start_switch": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "CustomerSite": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "site_reference"
+        ],
+        "properties": {
+          "site_reference": {
+            "type": "string"
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postal_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "facility_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metering_point_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grid_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_area": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CustomerDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_reference"
+        ],
+        "properties": {
+          "document_reference": {
+            "type": "string"
+          },
+          "contract_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "document_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "download_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          }
+        }
+      },
+      "CustomerNotification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "notification_reference",
+          "title",
+          "body"
+        ],
+        "properties": {
+          "notification_reference": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PortalBundleData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "customer_status",
+          "contracts",
+          "sites",
+          "invoices",
+          "documents",
+          "notifications"
+        ],
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/CustomerProfile"
+          },
+          "customer_status": {
+            "$ref": "#/components/schemas/CustomerStatus"
+          },
+          "contracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerContract"
+            }
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerSite"
+            }
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerInvoice"
+            }
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerDocument"
+            }
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerNotification"
+            }
+          },
+          "legal_acceptances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "powers_of_attorney": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "switch_status": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "metering_values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "PortalBundleEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PortalBundleData"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-07-30.3"
+          }
+        }
       }
     }
   },
-  "x-contract-schema-version": "2026-07-30.2",
+  "x-contract-schema-version": "2026-07-30.3",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

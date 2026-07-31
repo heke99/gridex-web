@@ -114,7 +114,7 @@ export type OpsPublicContract = {
   calculation_components?: PublicPricingComponent[];
   display_components?: PublicPricingComponent[];
   summary_components?: PublicPricingComponent[];
-  price_options?: PublicContractPriceOption[];
+  price_options: PublicContractPriceOption[];
   legal_requirements?: PublicLegalRequirement[];
   portfolio_monthly_prices?: PublicPortfolioMonthlyPrice[];
   terms_version?: string | null;
@@ -233,6 +233,10 @@ export type OpsCustomerApplicationInput = {
   external_customer_id: string;
   offer_reference: string;
   quote_reference: string;
+  price_option_reference: string;
+  invoice_delivery_method: OpsInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  site_count: number;
   resolution_id: string;
   annual_consumption_kwh: number;
   start_date: string;
@@ -439,10 +443,10 @@ export type OpsWebsiteQuoteInput = {
   annual_consumption_kwh: number;
   customer_type: WebsiteCustomerType;
   start_date: string;
-  price_option_reference?: string | null;
-  invoice_delivery_method?: OpsInvoiceDeliveryMethod | null;
-  selected_component_references?: string[] | null;
-  site_count?: number | null;
+  price_option_reference: string;
+  invoice_delivery_method: OpsInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  site_count: number;
 };
 
 export type OpsInvoiceDeliveryMethod = 'email' | 'e_invoice' | 'paper' | 'direct_debit';
@@ -554,12 +558,12 @@ export type OpsWebsitePricingPreview = {
   market_reference?: OpsQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
   valid_until?: string;
-  price_option_reference?: string | null;
-  invoice_delivery_method?: OpsInvoiceDeliveryMethod | null;
-  selected_component_references?: string[];
+  price_option_reference: string;
+  invoice_delivery_method: OpsInvoiceDeliveryMethod;
+  selected_component_references: string[];
   mandatory_component_references?: string[];
   conditional_component_references?: string[];
-  site_count?: number;
+  site_count: number;
   pricing_token?: string;
   pricing_expires_at?: string;
   raw?: Record<string, unknown>;
@@ -1669,13 +1673,11 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     pickString(row, ['start_date', 'startDate']) ??
     normalizeText(input.start_date);
   const priceOptionReference =
-    pickString(row, ['price_option_reference', 'priceOptionReference']) ??
-    pickString(quoteInput, ['price_option_reference', 'priceOptionReference']) ??
-    normalizeText(input.price_option_reference);
+    pickString(row, ['price_option_reference']) ??
+    pickString(quoteInput, ['price_option_reference']);
   const invoiceDeliveryMethod =
-    pickString(row, ['invoice_delivery_method', 'invoiceDeliveryMethod']) ??
-    pickString(quoteInput, ['invoice_delivery_method', 'invoiceDeliveryMethod']) ??
-    normalizeText(input.invoice_delivery_method);
+    pickString(row, ['invoice_delivery_method']) ??
+    pickString(quoteInput, ['invoice_delivery_method']);
   const invoiceMethods = new Set<OpsInvoiceDeliveryMethod>([
     'email',
     'e_invoice',
@@ -1688,18 +1690,14 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     ? invoiceDeliveryMethod as OpsInvoiceDeliveryMethod
     : null;
   const selectedComponentReferences =
-    pickStringArray(row, ['selected_component_references', 'selectedComponentReferences']) ??
-    pickStringArray(quoteInput, ['selected_component_references', 'selectedComponentReferences']) ??
-    [...new Set(input.selected_component_references ?? [])];
+    pickStringArray(row, ['selected_component_references']) ??
+    pickStringArray(quoteInput, ['selected_component_references']);
   const mandatoryComponentReferences =
     pickStringArray(row, ['mandatory_component_references', 'mandatoryComponentReferences']) ?? [];
   const conditionalComponentReferences =
     pickStringArray(row, ['conditional_component_references', 'conditionalComponentReferences']) ?? [];
-  const siteCount =
-    normalizeInteger(row.site_count ?? row.siteCount ?? quoteInput.site_count ?? quoteInput.siteCount) ??
-    input.site_count ??
-    1;
-  if (!quoteReference || !offerReference || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !validUntil) {
+  const siteCount = normalizeInteger(row.site_count ?? quoteInput.site_count);
+  if (!quoteReference || !offerReference || !priceOptionReference || !normalizedInvoiceDeliveryMethod || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !validUntil || !selectedComponentReferences || siteCount === null || !Number.isInteger(siteCount) || siteCount < 1) {
     throw new OpsError('OPS returnerade en ofullständig canonical quote.', 502, {
       code: 'ops_quote_contract_invalid',
       quote_reference: quoteReference,
@@ -1710,19 +1708,19 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     });
   }
   if (
-    (input.price_option_reference && priceOptionReference !== input.price_option_reference) ||
-    (input.invoice_delivery_method && normalizedInvoiceDeliveryMethod !== input.invoice_delivery_method) ||
-    siteCount !== (input.site_count ?? 1) ||
+    priceOptionReference !== input.price_option_reference ||
+    normalizedInvoiceDeliveryMethod !== input.invoice_delivery_method ||
+    siteCount !== input.site_count ||
     JSON.stringify([...selectedComponentReferences].sort()) !==
-      JSON.stringify([...new Set(input.selected_component_references ?? [])].sort())
+      JSON.stringify([...new Set(input.selected_component_references)].sort())
   ) {
     throw new OpsError('OPS-offerten matchar inte kundens val.', 409, {
       code: 'ops_quote_selection_mismatch',
       expected: {
-        price_option_reference: input.price_option_reference ?? null,
-        invoice_delivery_method: input.invoice_delivery_method ?? null,
-        selected_component_references: [...new Set(input.selected_component_references ?? [])].sort(),
-        site_count: input.site_count ?? 1,
+        price_option_reference: input.price_option_reference,
+        invoice_delivery_method: input.invoice_delivery_method,
+        selected_component_references: [...new Set(input.selected_component_references)].sort(),
+        site_count: input.site_count,
       },
       received: {
         price_option_reference: priceOptionReference,
@@ -2340,16 +2338,10 @@ export async function fetchOpsWebsiteQuote(
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
     start_date: input.start_date,
-    ...(input.price_option_reference
-      ? { price_option_reference: input.price_option_reference }
-      : {}),
-    ...(input.invoice_delivery_method
-      ? { invoice_delivery_method: input.invoice_delivery_method }
-      : {}),
-    ...(input.selected_component_references
-      ? { selected_component_references: [...new Set(input.selected_component_references)] }
-      : {}),
-    ...(input.site_count ? { site_count: input.site_count } : {}),
+    price_option_reference: input.price_option_reference,
+    invoice_delivery_method: input.invoice_delivery_method,
+    selected_component_references: [...new Set(input.selected_component_references)],
+    site_count: input.site_count,
   } satisfies OpsWebsiteQuoteRequestDto
   assertWebsiteRequest(
     'WebsiteQuoteRequest',
@@ -2973,6 +2965,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   const offerReference = normalizeText(input.offer_reference)
   const quoteReference = normalizeText(input.quote_reference)
   const resolutionId = normalizeText(input.resolution_id)
+  const priceOptionReference = normalizeText(input.price_option_reference)
   const startDate = normalizeText(input.start_date)
   if (!externalCustomerId) {
     throw new OpsError('Ett stabilt externt kund-ID krävs.', 400, {
@@ -2983,6 +2976,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   const required: Array<[string, string | null]> = [
     ['offer_reference', offerReference],
     ['quote_reference', quoteReference],
+    ['price_option_reference', priceOptionReference],
     ['resolution_id', resolutionId],
     ['start_date', startDate],
   ]
@@ -2993,6 +2987,35 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
         field,
       })
     }
+  }
+  const validInvoiceDeliveryMethods: OpsInvoiceDeliveryMethod[] = ['email', 'e_invoice', 'paper', 'direct_debit']
+  if (!validInvoiceDeliveryMethods.includes(input.invoice_delivery_method)) {
+    throw new OpsError('Fakturaleveransmetoden är ogiltig.', 400, {
+      code: 'invoice_delivery_method_invalid',
+      field: 'invoice_delivery_method',
+    })
+  }
+  if (!Number.isInteger(input.site_count) || input.site_count < 1 || input.site_count > 1_000) {
+    throw new OpsError('Antalet anläggningar är ogiltigt.', 400, {
+      code: 'site_count_invalid',
+      field: 'site_count',
+    })
+  }
+  if (input.site_count !== 1) {
+    throw new OpsError('Kundansökan innehåller en anläggning men site_count matchar inte.', 400, {
+      code: 'site_count_mismatch',
+      field: 'site_count',
+    })
+  }
+  if (
+    !Array.isArray(input.selected_component_references) ||
+    input.selected_component_references.some((reference) => !/^[a-z0-9][a-z0-9_-]{2,159}$/i.test(reference)) ||
+    new Set(input.selected_component_references).size !== input.selected_component_references.length
+  ) {
+    throw new OpsError('Valda komponentreferenser är ogiltiga.', 400, {
+      code: 'selected_component_references_invalid',
+      field: 'selected_component_references',
+    })
   }
   if (!Number.isFinite(input.annual_consumption_kwh) || input.annual_consumption_kwh <= 0) {
     throw new OpsError('Årsförbrukningen är ogiltig.', 400, {
@@ -3158,6 +3181,10 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     external_customer_id: externalCustomerId,
     offer_reference: offerReference!,
     quote_reference: quoteReference!,
+    price_option_reference: priceOptionReference!,
+    invoice_delivery_method: input.invoice_delivery_method,
+    selected_component_references: [...input.selected_component_references],
+    site_count: input.site_count,
     resolution_id: resolutionId!,
     annual_consumption_kwh: input.annual_consumption_kwh,
     start_date: startDate!,
@@ -3751,10 +3778,10 @@ function nestedArray(row: Record<string, unknown>, keys: string[]): Record<strin
 function normalizePortalBundle(payload: unknown): OpsPortalBundle {
   const root = extractObject(payload);
   const data = recordValue(root.data) ?? root;
-  const customer = recordValue(data.customer);
+  const profile = recordValue(data.profile);
 
   return {
-    profile: customer,
+    profile,
     customerStatus:
       recordValue(data.customer_status),
     dataQuality:

@@ -38,15 +38,24 @@ export type PublicLegalRequirement = {
   public_url: string | null
 }
 
+export type PublicContractPriceOptionCustomerType = 'private' | 'business' | 'both'
+
 export type PublicContractPriceOption = {
   price_option_reference: string
   option_code: string
   customer_name: string
   contract_type: 'fixed' | 'variable_monthly' | 'variable_hourly' | 'variable_quarterly' | 'portfolio' | 'mixed'
+  customer_type: PublicContractPriceOptionCustomerType
   binding_months: number
   notice_months: number
   auto_renew_enabled: boolean
   renewal_term_months: number | null
+  default: boolean
+  selection_required: boolean
+  valid_from: string | null
+  valid_to: string | null
+  earliest_start_date: string | null
+  latest_start_date: string | null
   area_prices: PublicAreaPricing[]
 }
 
@@ -526,8 +535,19 @@ function pricingComponents(
   })
 }
 
-function priceOptions(value: unknown): PublicContractPriceOption[] {
-  if (!Array.isArray(value)) return []
+function strictCalendarDate(value: unknown): string | null | undefined {
+  if (value === null || value === undefined) return null
+  const normalized = text(value)
+  if (!normalized || !/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return undefined
+  const [year, month, day] = normalized.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? normalized
+    : undefined
+}
+
+function priceOptions(value: unknown): PublicContractPriceOption[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null
   const contractTypes = new Set([
     'fixed',
     'variable_monthly',
@@ -536,43 +556,126 @@ function priceOptions(value: unknown): PublicContractPriceOption[] {
     'portfolio',
     'mixed',
   ])
-  return value.flatMap((item) => {
+  const customerTypes = new Set<PublicContractPriceOptionCustomerType>(['private', 'business', 'both'])
+  const references = new Set<string>()
+  const defaultsByCustomerType = new Map<PublicContractPriceOptionCustomerType, number>()
+  const options: PublicContractPriceOption[] = []
+
+  for (const item of value) {
     const row = record(item)
-    if (!row) return []
-    const reference = text(row.price_option_reference ?? row.priceOptionReference)
-    const optionCode = text(row.option_code ?? row.optionCode)
-    const customerName = text(row.customer_name ?? row.customerName ?? row.name)
-    const contractType = text(row.contract_type ?? row.contractType)
-    const bindingMonths = number(row.binding_months ?? row.bindingMonths)
-    const noticeMonths = number(row.notice_months ?? row.noticeMonths)
-    const autoRenew = boolean(row.auto_renew_enabled ?? row.autoRenewEnabled)
-    const renewalTermMonths = number(row.renewal_term_months ?? row.renewalTermMonths)
+    if (!row) return null
+    const reference = text(row.price_option_reference)
+    const optionCode = text(row.option_code)
+    const customerName = text(row.customer_name)
+    const contractType = text(row.contract_type)
+    const customerType = text(row.customer_type) as PublicContractPriceOptionCustomerType | null
+    const bindingMonths = number(row.binding_months)
+    const noticeMonths = number(row.notice_months)
+    const autoRenew = boolean(row.auto_renew_enabled)
+    const renewalTermMonths = number(row.renewal_term_months)
+    const isDefault = boolean(row.default)
+    const selectionRequired = boolean(row.selection_required)
+    const validFrom = strictCalendarDate(row.valid_from)
+    const validTo = strictCalendarDate(row.valid_to)
+    const earliestStartDate = strictCalendarDate(row.earliest_start_date)
+    const latestStartDate = strictCalendarDate(row.latest_start_date)
+    const areaPrices = areaPricing(row.area_prices)
+
     if (
       !reference ||
-      !/^[a-z0-9][a-z0-9_-]{2,99}$/.test(reference) ||
+      !/^[a-z0-9][a-z0-9_-]{2,99}$/i.test(reference) ||
+      references.has(reference) ||
       !optionCode ||
       !customerName ||
       !contractType ||
       !contractTypes.has(contractType) ||
+      !customerType ||
+      !customerTypes.has(customerType) ||
       bindingMonths === null ||
+      !Number.isInteger(bindingMonths) ||
       bindingMonths < 0 ||
       noticeMonths === null ||
+      !Number.isInteger(noticeMonths) ||
       noticeMonths < 0 ||
       autoRenew === null ||
-      (renewalTermMonths !== null && renewalTermMonths < 1)
-    ) return []
-    return [{
+      (renewalTermMonths !== null && (!Number.isInteger(renewalTermMonths) || renewalTermMonths < 1)) ||
+      isDefault === null ||
+      selectionRequired === null ||
+      validFrom === undefined ||
+      validTo === undefined ||
+      earliestStartDate === undefined ||
+      latestStartDate === undefined ||
+      (validFrom && validTo && validFrom > validTo) ||
+      (earliestStartDate && latestStartDate && earliestStartDate > latestStartDate) ||
+      areaPrices.length === 0
+    ) return null
+
+    references.add(reference)
+    if (isDefault) {
+      const count = (defaultsByCustomerType.get(customerType) ?? 0) + 1
+      if (count > 1) return null
+      defaultsByCustomerType.set(customerType, count)
+    }
+    options.push({
       price_option_reference: reference,
       option_code: optionCode,
       customer_name: customerName,
       contract_type: contractType as PublicContractPriceOption['contract_type'],
+      customer_type: customerType,
       binding_months: bindingMonths,
       notice_months: noticeMonths,
       auto_renew_enabled: autoRenew,
       renewal_term_months: renewalTermMonths,
-      area_prices: areaPricing(row.area_prices ?? row.areaPrices),
-    }]
+      default: isDefault,
+      selection_required: selectionRequired,
+      valid_from: validFrom,
+      valid_to: validTo,
+      earliest_start_date: earliestStartDate,
+      latest_start_date: latestStartDate,
+      area_prices: areaPrices,
+    })
+  }
+  return options
+}
+
+export type PublicPriceOptionSelection =
+  | { status: 'selected'; option: PublicContractPriceOption; options: PublicContractPriceOption[] }
+  | { status: 'selection_required'; option: null; options: PublicContractPriceOption[] }
+  | { status: 'unavailable'; option: null; options: [] }
+
+export function selectPublicContractPriceOption(input: {
+  options: readonly PublicContractPriceOption[]
+  customer_type: 'private' | 'business'
+  price_area_code: 'SE1' | 'SE2' | 'SE3' | 'SE4'
+  start_date: string
+  selected_reference?: string | null
+  current_date?: string
+}): PublicPriceOptionSelection {
+  const currentDate = input.current_date ?? new Date().toISOString().slice(0, 10)
+  const options = input.options.filter((option) => {
+    const customerMatches = option.customer_type === 'both' || option.customer_type === input.customer_type
+    const publicationValid = (!option.valid_from || option.valid_from <= currentDate) &&
+      (!option.valid_to || option.valid_to >= currentDate)
+    const startValid = (!option.earliest_start_date || option.earliest_start_date <= input.start_date) &&
+      (!option.latest_start_date || option.latest_start_date >= input.start_date)
+    const supportsArea = option.area_prices.some((price) => price.price_area_code === input.price_area_code)
+    return customerMatches && publicationValid && startValid && supportsArea
   })
+
+  if (input.selected_reference) {
+    const selected = options.find((option) => option.price_option_reference === input.selected_reference)
+    return selected
+      ? { status: 'selected', option: selected, options }
+      : { status: 'unavailable', option: null, options: [] }
+  }
+  if (options.length === 0) return { status: 'unavailable', option: null, options: [] }
+  if (options.some((option) => option.selection_required)) {
+    return { status: 'selection_required', option: null, options }
+  }
+  if (options.length === 1) return { status: 'selected', option: options[0], options }
+  const defaults = options.filter((option) => option.default)
+  if (defaults.length === 1) return { status: 'selected', option: defaults[0], options }
+  return { status: 'selection_required', option: null, options }
 }
 
 function pricingComponentSource(
@@ -737,6 +840,9 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
   )
   if (energyDirection === 'production' && !canonicalProductionPricing) return null
 
+  const canonicalPriceOptions = priceOptions(row.price_options)
+  if (!canonicalPriceOptions) return null
+
   const canonicalCalculation = pricingComponents(pricing.calculation_components ?? pricing.calculationComponents, 'hidden')
   const legacyComponents = pricingComponents(pricingComponentSource(row, pricing), 'hidden')
   const calculationComponents = canonicalCalculation.length ? canonicalCalculation : legacyComponents
@@ -762,7 +868,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     calculation_components: calculationComponents,
     display_components: displayComponents,
     summary_components: summaryComponents,
-    price_options: priceOptions(pricing.price_options ?? pricing.priceOptions ?? row.price_options ?? row.priceOptions),
+    price_options: canonicalPriceOptions,
     legal_requirements: legalRequirements(row, legal),
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,

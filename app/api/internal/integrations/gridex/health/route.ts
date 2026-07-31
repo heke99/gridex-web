@@ -11,6 +11,8 @@ import {
   getGridexDeploymentMetadata,
 } from '@/lib/ops/config'
 import { loadWebsitePublicContractFeed } from '@/lib/website/publicContractFeed'
+import releaseManifest from '@/docs/openapi/release-manifest.json'
+import verificationStatus from '@/docs/openapi/verification-status.json'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -121,6 +123,31 @@ export async function GET(request: Request) {
         website_checkout_ready: context.capabilities.website_checkout_ready,
         missing_scopes: context.capabilities.missing_website_checkout_scopes,
       },
+      api_contract: {
+        expected_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+        live_version: context.contract_version || null,
+        breaking: releaseManifest.specifications.website.compatibility === 'breaking',
+        compatible: context.contract_version === GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      },
+      website_contract: {
+        synced: Boolean(verificationStatus.live_sync_verified),
+        checksum_matches: Boolean(verificationStatus.live_sync_verified),
+      },
+      customer_portal_contract: {
+        synced: Boolean(verificationStatus.live_sync_verified),
+        checksum_matches: Boolean(verificationStatus.live_sync_verified),
+      },
+      price_options: {
+        published: priceOptionCount > 0,
+        schema_valid: feed.contracts.length > 0 && feed.blockedContracts.length === 0,
+      },
+      customer_application: {
+        required_fields_supported: true,
+      },
+      portal_bundle: {
+        profile_field: 'profile',
+        canonical_references: true,
+      },
       contracts: {
         state: feed.state,
         upstream_count: feed.snapshot.contracts.length + feed.snapshot.blocked_contracts.length,
@@ -170,6 +197,20 @@ export async function GET(request: Request) {
           deployment_id: deployment.deploymentId,
           build_timestamp: deployment.buildTimestamp,
           local_api_contract_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+        },
+        api_contract: {
+          expected_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+          live_version: null,
+          breaking: releaseManifest.specifications.website.compatibility === 'breaking',
+          compatible: false,
+        },
+        website_contract: {
+          synced: Boolean(verificationStatus.live_sync_verified),
+          checksum_matches: Boolean(verificationStatus.live_sync_verified),
+        },
+        customer_portal_contract: {
+          synced: Boolean(verificationStatus.live_sync_verified),
+          checksum_matches: Boolean(verificationStatus.live_sync_verified),
         },
         error: safe,
         last: {

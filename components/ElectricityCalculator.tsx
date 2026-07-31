@@ -27,9 +27,10 @@ import {
   contractSupportsCustomerType,
   type WebsiteCustomerType,
 } from "@/lib/website/customerType";
-import type {
-  PublicContractPriceOption,
-  PublicPricingComponent,
+import {
+  selectPublicContractPriceOption,
+  type PublicContractPriceOption,
+  type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
 
 export type ContractOption = {
@@ -161,6 +162,22 @@ function restoredProfile(
     );
   }
   return null;
+}
+
+function initialPriceOptionReference(
+  contract: ContractOption | null | undefined,
+  customerType: WebsiteCustomerType,
+  priceArea: WebsitePriceArea | null,
+  startDate: string,
+): string {
+  if (!contract || !priceArea || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return ''
+  const selection = selectPublicContractPriceOption({
+    options: contract.priceOptions ?? [],
+    customer_type: customerType,
+    price_area_code: priceArea,
+    start_date: startDate,
+  })
+  return selection.status === 'selected' ? selection.option.price_option_reference : ''
 }
 
 export default function ElectricityCalculator({
@@ -448,25 +465,40 @@ export default function ElectricityCalculator({
       const nextContract = contracts.find((contract) => contract.value === value);
       setInternalSelectedValue(value);
       onSelectedValueChange?.(value);
-      setPriceOptionReference(nextContract?.priceOptions?.[0]?.price_option_reference ?? "");
+      setPriceOptionReference(
+        initialPriceOptionReference(
+          nextContract,
+          customerType,
+          resolution?.price_area_code ?? null,
+          new Date().toISOString().slice(0, 10),
+        ),
+      );
       setSelectedComponentReferences([]);
       setSiteCount(1);
       setResultState(null);
       onPricingPreviewChange?.(null);
       onQuoteContextChange?.(null);
       setContinueHref(null);
-    }, [contracts, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
+    }, [contracts, customerType, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange, resolution?.price_area_code],
   );
 
   useEffect(() => {
     if (!selectedContract) return;
-    setPriceOptionReference((current) =>
-      selectedContract.priceOptions?.some(
-        (option) => option.price_option_reference === current,
-      )
-        ? current
-        : (selectedContract.priceOptions?.[0]?.price_option_reference ?? ""),
-    );
+    setPriceOptionReference((current) => {
+      const priceArea = resolution?.price_area_code ?? null;
+      const startDate = new Date().toISOString().slice(0, 10);
+      if (priceArea && current) {
+        const currentSelection = selectPublicContractPriceOption({
+          options: selectedContract.priceOptions ?? [],
+          customer_type: customerType,
+          price_area_code: priceArea,
+          start_date: startDate,
+          selected_reference: current,
+        });
+        if (currentSelection.status === 'selected') return current;
+      }
+      return initialPriceOptionReference(selectedContract, customerType, priceArea, startDate);
+    });
     const allowed = new Set(
       selectableComponents.flatMap((component) =>
         component.component_reference ? [component.component_reference] : [],
@@ -475,7 +507,7 @@ export default function ElectricityCalculator({
     setSelectedComponentReferences((current) =>
       current.filter((reference) => allowed.has(reference)),
     );
-  }, [selectableComponents, selectedContract]);
+  }, [customerType, resolution?.price_area_code, selectableComponents, selectedContract]);
 
   useEffect(() => {
     if (selectedContract || availableContracts.length === 0) return;

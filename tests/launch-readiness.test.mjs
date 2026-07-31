@@ -224,6 +224,7 @@ assertIncludes(
 const envExample = read("env.example");
 for (const variable of [
   "GRIDEX_API_KEY",
+  "GRIDEX_OPS_API_URL",
   "GRIDEX_DISABLE_LIVE_SIGNUP",
   "GRIDEX_ENABLE_PORTAL_ONBOARDING",
   "GRIDEX_WEBHOOK_SIGNING_SECRET",
@@ -241,6 +242,7 @@ for (const variable of [
 
 for (const removedVariable of [
   "GRIDEX_WEBSITE_API_KEY=",
+  "GRIDEX_API_BASE_URL=",
   "GRIDEX_OPS_API_KEY=",
   "GRIDEX_WEBSITE_API_SCOPES",
   "GRIDEX_CUSTOMER_PORTAL_API_SCOPES",
@@ -262,13 +264,13 @@ assertIncludes(
   "customer portal calls must send the explicit OPS auth-link header",
 );
 assertIncludes(
-  "lib/ops/transport.ts",
-  "env('GRIDEX_API_KEY')",
+  "lib/ops/config.ts",
+  "readEnv('GRIDEX_API_KEY')",
   "OPS client must use GRIDEX_API_KEY as the only tenant API key",
 );
 assertIncludes(
-  "lib/ops/transport.ts",
-  "GRIDEX_API_KEY innehåller endast ett nyckelprefix",
+  "lib/ops/config.ts",
+  "GRIDEX_API_KEY innehåller endast ett synligt nyckelprefix",
   "OPS client must reject key_prefix-only API tokens",
 );
 assertNotIncludes(

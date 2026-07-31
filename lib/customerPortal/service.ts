@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -154,25 +153,38 @@ function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
   return pick(row, keys)
 }
 
+function requiredCanonicalReference(
+  row: Record<string, unknown>,
+  field: 'contract_reference' | 'invoice_reference' | 'site_reference' | 'document_reference' | 'notification_reference',
+  code:
+    | 'PORTAL_CONTRACT_REFERENCE_MISSING'
+    | 'PORTAL_INVOICE_REFERENCE_MISSING'
+    | 'PORTAL_SITE_REFERENCE_MISSING'
+    | 'PORTAL_DOCUMENT_REFERENCE_MISSING'
+    | 'PORTAL_NOTIFICATION_REFERENCE_MISSING',
+): string {
+  const reference = pick(row, [field])
+  if (!reference) {
+    const error = new Error(`OPS returnerade en resurs utan ${field}.`) as Error & { code: string; status: number }
+    error.code = code
+    error.status = 502
+    throw error
+  }
+  return reference
+}
+
 function stableEntityId(
   entity: string,
   row: Record<string, unknown>,
   idKeys: string[],
-  fallbackKeys: string[],
+  _fallbackKeys: string[],
 ): string {
   const direct = pick(row, idKeys)
   if (direct) return direct
-  const basis = fallbackKeys.map((key) => {
-    const value = row[key]
-    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
-      ? String(value).trim().toLowerCase()
-      : ''
-  }).join('|')
-  const digest = createHash('sha256')
-    .update(`${entity}|${basis || JSON.stringify(row)}`)
-    .digest('hex')
-    .slice(0, 32)
-  return `${entity}-${digest}`
+  const error = new Error(`OPS returnerade ${entity} utan canonical referens.`) as Error & { code: string; status: number }
+  error.code = `PORTAL_${entity.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_REFERENCE_MISSING`
+  error.status = 502
+  throw error
 }
 
 function stringArray(value: unknown): string[] {
@@ -194,17 +206,17 @@ function mapOpsProfile(
   const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
   const fullName =
-    pick(row, ['full_name', 'fullName', 'name']) ??
+    pick(row, ['display_name']) ??
     fallback?.full_name ??
     computedFullName
 
   return {
     user_id: userId,
-    email: pick(row, ['email', 'customer_email']) ?? fallback?.email ?? userEmail ?? null,
+    email: pick(row, ['email']) ?? fallback?.email ?? userEmail ?? null,
     first_name: firstName,
     last_name: lastName,
     full_name: fullName,
-    phone: pick(row, ['phone', 'customer_phone']) ?? fallback?.phone ?? null,
+    phone: pick(row, ['phone']) ?? fallback?.phone ?? null,
     language_code: fallback?.language_code ?? 'sv',
     timezone: fallback?.timezone ?? 'Europe/Stockholm',
     email_verified_at: fallback?.email_verified_at ?? null,
@@ -220,7 +232,7 @@ function mapOpsProfile(
       pick(row, ['customer_number', 'contract_customer_ref']) ??
       fallback?.contract_customer_ref ??
       null,
-    customer_number: pick(row, ['customer_number', 'customerNumber']) ?? fallback?.customer_number ?? null,
+    customer_number: pick(row, ['customer_number']) ?? fallback?.customer_number ?? null,
     external_customer_id:
       pick(row, ['external_customer_id', 'externalCustomerId']) ??
       fallback?.external_customer_id ??
@@ -229,115 +241,112 @@ function mapOpsProfile(
       pick(row, ['portal_identity_id', 'portalIdentityId']) ??
       fallback?.portal_identity_id ??
       null,
-    metadata: { source: 'ops_customer_api', raw: row },
+    metadata: {},
     customer_type: pick(row, ['customer_type', 'customerType']) ?? fallback?.customer_type ?? null,
     company_name: pick(row, ['company_name', 'companyName']) ?? fallback?.company_name ?? null,
   }
 }
 
 function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
-  const id = stableEntityId('contract', row, ['id', 'contract_id', 'contractId'], ['contract_number', 'application_id', 'created_at'])
-  const name = pick(row, ['contract_name', 'name', 'product_name', 'productCode'])
-  const contractNumber = pick(row, ['contract_number', 'contractNumber'])
+  const id = requiredCanonicalReference(row, 'contract_reference', 'PORTAL_CONTRACT_REFERENCE_MISSING')
   return {
     id,
-    agreement_id: pick(row, ['agreement_id', 'application_id', 'contract_application_id']),
-    contract_slug: pick(row, ['product_code', 'slug', 'type']),
-    contract_name: name,
-    contract_number: contractNumber,
-    status: pick(row, ['status', 'contract_status']) ?? 'unknown',
-    customer_status_label: pick(row, ['customer_status_label', 'status_label']),
-    signed_at: pickDate(row, ['signed_at', 'accepted_at', 'created_at']),
-    starts_at: pickDate(row, [
-      'actual_start_date',
-      'confirmed_start_date',
-      'requested_start_date',
-      'starts_at',
-      'start_date',
-    ]),
-    ends_at: pickDate(row, ['ends_at', 'end_date']),
-    requested_start_date: pickDate(row, ['requested_start_date', 'requestedStartDate']),
-    confirmed_start_date: pickDate(row, ['confirmed_start_date', 'confirmedStartDate']),
-    actual_start_date: pickDate(row, ['actual_start_date', 'actualStartDate']),
-    billing_provider_key: pick(row, ['billing_provider_key', 'billing_provider']),
-    contract_provider_key: pick(row, ['contract_provider_key', 'provider']),
-    contract_external_ref: contractNumber ?? pick(row, ['external_ref', 'contract_external_ref']),
-    billing_contract_ref: pick(row, ['billing_contract_ref', 'billing_ref']),
-    price_plan_id: pick(row, ['price_plan_id', 'pricePlanId']),
-    price_plan_version_id: pick(row, ['price_plan_version_id', 'pricePlanVersionId']),
-    contract_price_snapshot_id: pick(row, [
-      'contract_price_snapshot_id',
-      'contractPriceSnapshotId',
-    ]),
-    pricing_snapshot: asRecord(row.pricing_snapshot ?? row.price_snapshot),
-    metadata: { source: 'ops_customer_api', raw: row },
-    created_at: pickDate(row, ['created_at', 'createdAt']) ?? new Date().toISOString(),
+    contract_reference: id,
+    agreement_id: null,
+    contract_slug: pick(row, ['offer_reference']),
+    contract_name: pick(row, ['contract_name']),
+    contract_number: pick(row, ['contract_number']),
+    status: pick(row, ['status']) ?? 'unknown',
+    customer_status_label: null,
+    signed_at: pickDate(row, ['signed_at']),
+    starts_at: pickDate(row, ['start_date']),
+    ends_at: pickDate(row, ['end_date']),
+    requested_start_date: null,
+    confirmed_start_date: null,
+    actual_start_date: null,
+    billing_provider_key: null,
+    contract_provider_key: null,
+    contract_external_ref: pick(row, ['contract_number']),
+    billing_contract_ref: null,
+    price_plan_id: null,
+    price_plan_version_id: null,
+    contract_price_snapshot_id: null,
+    pricing_snapshot: {},
+    metadata: {},
+    created_at: pickDate(row, ['created_at']) ?? new Date().toISOString(),
   }
 }
 
 function mapOpsSite(row: Record<string, unknown>): CustomerSite {
+  const id = requiredCanonicalReference(row, 'site_reference', 'PORTAL_SITE_REFERENCE_MISSING')
   return {
-    id: stableEntityId('site', row, ['id', 'customer_site_id', 'site_id'], ['facility_id', 'metering_point_id', 'address', 'postal_code']),
-    address: pick(row, ['address', 'street', 'street_address', 'facility_address', 'site_address']),
-    postal_code: pick(row, ['postal_code', 'postalCode', 'zip', 'postcode']),
-    city: pick(row, ['city', 'postal_city', 'postalCity']),
-    facility_id: pick(row, ['facility_id', 'facilityId', 'site_facility_id']),
-    metering_point_id: pick(row, ['metering_point_id', 'meteringPointId', 'mpan', 'external_metering_ref']),
-    grid_area_code: pick(row, ['grid_area_code', 'network_area_code', 'network_area_ref']),
-    price_area: pick(row, ['price_area', 'price_area_code', 'electricity_area', 'area_code']),
-    grid_owner_name: pick(row, ['grid_owner_name', 'grid_owner', 'dso_name']),
-    verification_status: pick(row, ['verification_status', 'facility_verification_status']),
-    onboarding_status: pick(row, ['onboarding_status', 'site_status']),
-    data_quality_status: pick(row, ['data_quality_status']),
-    resolution_status: pick(row, ['resolution_status', 'energy_resolution_status']),
+    id,
+    site_reference: id,
+    address: pick(row, ['address']),
+    postal_code: pick(row, ['postal_code']),
+    city: pick(row, ['city']),
+    facility_id: pick(row, ['facility_id']),
+    metering_point_id: pick(row, ['metering_point_id']),
+    grid_area_code: pick(row, ['grid_area_code']),
+    price_area: pick(row, ['price_area']),
+    grid_owner_name: null,
+    verification_status: null,
+    onboarding_status: null,
+    data_quality_status: null,
+    resolution_status: null,
   }
 }
 
 function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
+  const invoiceReference = requiredCanonicalReference(row, 'invoice_reference', 'PORTAL_INVOICE_REFERENCE_MISSING')
   return {
-    id: stableEntityId('invoice', row, ['id', 'invoice_id'], ['invoice_number', 'external_invoice_ref', 'issued_at']),
-    invoice_number: pick(row, ['invoice_number', 'invoiceNumber']),
-    provider_key: pick(row, ['provider_key', 'provider']) ?? 'billing_partner',
-    external_invoice_ref: pick(row, ['external_invoice_ref', 'provider_invoice_id']),
-    currency_code: pick(row, ['currency_code', 'currency']) ?? 'SEK',
-    invoice_period_start: pickDate(row, ['invoice_period_start', 'period_start']),
-    invoice_period_end: pickDate(row, ['invoice_period_end', 'period_end']),
-    issued_at: pickDate(row, ['issued_at', 'invoice_date', 'created_at']),
-    due_at: pickDate(row, ['due_at', 'due_date']),
-    paid_at: pickDate(row, ['paid_at', 'payment_date']),
-    status: pick(row, ['status', 'payment_status']) ?? 'unknown',
-    total_amount: asNumber(row.total_amount ?? row.amount_inc_vat ?? row.amount) ?? 0,
+    id: invoiceReference,
+    invoice_reference: invoiceReference,
+    invoice_number: pick(row, ['invoice_number']),
+    provider_key: null,
+    external_invoice_ref: null,
+    currency_code: pick(row, ['currency']) ?? 'SEK',
+    invoice_period_start: pickDate(row, ['period_start']),
+    invoice_period_end: pickDate(row, ['period_end']),
+    issued_at: pickDate(row, ['issued_at']),
+    due_at: pickDate(row, ['due_date']),
+    paid_at: pickDate(row, ['paid_at']),
+    status: pick(row, ['status']) ?? 'unknown',
+    total_amount: asNumber(row.amount_inc_vat) ?? 0,
     vat_amount: asNumber(row.vat_amount) ?? 0,
-    ocr_number: pick(row, ['ocr_number', 'ocr']),
-    payment_reference: pick(row, ['payment_reference', 'reference']),
-    pdf_url: pick(row, ['pdf_url', 'download_url']),
-    pdf_storage_path: pick(row, ['pdf_storage_path']),
-    line_items: Array.isArray(row.line_items) ? row.line_items : [],
+    ocr_number: null,
+    payment_reference: null,
+    pdf_url: null,
+    pdf_storage_path: null,
+    line_items: [],
   }
 }
 
 function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
   return {
-    id: stableEntityId('event', row, ['id', 'event_id'], ['event_type', 'created_at', 'occurred_at']),
+    id: stableEntityId('event', row, ['event_reference', 'id', 'event_id'], ['event_type', 'created_at', 'occurred_at']),
     event_type: pick(row, ['event_type', 'type']) ?? 'customer.event',
     title: pick(row, ['title', 'customer_label']),
     summary: pick(row, ['summary', 'message', 'body']),
     status: pick(row, ['status']),
     created_at: pickDate(row, ['created_at', 'occurred_at']) ?? new Date().toISOString(),
-    metadata: asRecord(row.metadata ?? row.payload),
+    metadata: {},
   }
 }
 
 function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
+  const id = requiredCanonicalReference(row, 'document_reference', 'PORTAL_DOCUMENT_REFERENCE_MISSING')
   return {
-    id: stableEntityId('document', row, ['id', 'document_id'], ['document_type', 'title', 'created_at', 'file_url']),
-    title: pick(row, ['title', 'name', 'document_name']),
-    document_type: pick(row, ['document_type', 'type']),
-    status: pick(row, ['status']) ?? 'available',
-    created_at: pickDate(row, ['created_at', 'issued_at', 'published_at']),
-    file_url: pick(row, ['file_url', 'url', 'pdf_url']),
+    id,
+    document_reference: id,
+    contract_reference: pick(row, ['contract_reference']),
+    title: pick(row, ['title']),
+    document_type: pick(row, ['document_type']),
+    status: pick(row, ['status']),
+    created_at: pickDate(row, ['created_at']),
+    file_url: null,
     download_url: pick(row, ['download_url']),
-    version: pick(row, ['version', 'legal_version']),
+    version: null,
   }
 }
 
@@ -364,7 +373,7 @@ function acceptanceTitle(type: string) {
 function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAcceptance {
   const type = pick(row, ['acceptance_type', 'type', 'legal_type']) ?? 'acceptance'
   return {
-    id: stableEntityId('acceptance', row, ['id', 'acceptance_id'], ['acceptance_type', 'version', 'accepted_at']),
+    id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id'], ['acceptance_type', 'version', 'accepted_at']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
     version: pick(row, ['version', 'legal_version', 'version_key']),
@@ -393,7 +402,7 @@ function poaScopeLabel(scopes: string[]) {
 function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAttorney {
   const scopes = stringArray(row.scope ?? row.scopes ?? row.poa_scope)
   return {
-    id: stableEntityId('poa', row, ['id', 'power_of_attorney_id'], ['status', 'accepted_at', 'version']),
+    id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id'], ['status', 'accepted_at', 'version']),
     status: pick(row, ['status']) ?? 'active',
     scopes,
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
@@ -441,7 +450,7 @@ function mapOpsSwitchStatus(row: Record<string, unknown> | null): CustomerSwitch
 
 function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValue {
   return {
-    id: stableEntityId('metering', row, ['id', 'metering_value_id'], ['metering_point_id', 'period_start', 'period_end']),
+    id: stableEntityId('metering', row, ['metering_value_reference', 'id', 'metering_value_id'], ['metering_point_id', 'period_start', 'period_end']),
     metering_point_id: pick(row, ['metering_point_id', 'mpan']),
     facility_id: pick(row, ['facility_id']),
     period_start: pickDate(row, ['period_start', 'from_at', 'start_time']),
@@ -453,18 +462,20 @@ function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValu
 }
 
 function mapOpsNotification(row: Record<string, unknown>): CustomerNotification {
+  const id = requiredCanonicalReference(row, 'notification_reference', 'PORTAL_NOTIFICATION_REFERENCE_MISSING')
   return {
-    id: stableEntityId('notification', row, ['id', 'notification_id'], ['ops_event_id', 'title', 'created_at']),
-    category: pick(row, ['category', 'type']) ?? 'portal',
-    title: pick(row, ['title', 'subject']) ?? 'Meddelande från Gridex',
-    body: pick(row, ['body', 'message', 'summary']) ?? '',
-    is_read: Boolean(row.is_read ?? row.read_at),
-    read_at: pickDate(row, ['read_at', 'readAt']),
-    created_at: pickDate(row, ['created_at', 'createdAt']) ?? new Date().toISOString(),
-    related_entity_type: pick(row, ['related_entity_type', 'relatedEntityType']),
-    related_entity_id: pick(row, ['related_entity_id', 'relatedEntityId']),
-    link_href: pick(row, ['link_href', 'linkHref', 'url']),
-    priority: pick(row, ['priority']),
+    id,
+    notification_reference: id,
+    category: pick(row, ['category']) ?? 'portal',
+    title: pick(row, ['title']) ?? 'Meddelande från Gridex',
+    body: pick(row, ['body']) ?? '',
+    is_read: Boolean(row.is_read),
+    read_at: null,
+    created_at: pickDate(row, ['created_at']) ?? new Date().toISOString(),
+    related_entity_type: null,
+    related_entity_id: null,
+    link_href: null,
+    priority: null,
   }
 }
 
@@ -636,6 +647,52 @@ function unwrapOpsData(payload: unknown): unknown {
   return Object.prototype.hasOwnProperty.call(row, 'data') ? row.data : payload
 }
 
+function canonicalResourceRows(value: unknown, key: string): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.map(asRecord).filter((row) => Object.keys(row).length > 0)
+  const row = asRecord(value)
+  const nested = row[key] ?? row.items
+  if (Array.isArray(nested)) return nested.map(asRecord).filter((item) => Object.keys(item).length > 0)
+  return Object.keys(row).length > 0 ? [row] : []
+}
+
+function normalizeCanonicalCustomerResource(
+  resource: OpsCustomerReadResource,
+  value: unknown,
+  input: { localProfile: CustomerProfile | null; user: User; detail: boolean },
+): unknown {
+  if (resource === 'me') {
+    const row = canonicalResourceRows(value, 'profile')[0] ?? null
+    return mapOpsProfile(row, input.localProfile, input.user.id, input.user.email ?? null)
+  }
+
+  const keyByResource: Record<Exclude<OpsCustomerReadResource, 'me'>, string> = {
+    contracts: 'contracts',
+    sites: 'sites',
+    invoices: 'invoices',
+    documents: 'documents',
+    'legal-acceptances': 'legal_acceptances',
+    'powers-of-attorney': 'powers_of_attorney',
+    events: 'events',
+    'metering-values': 'metering_values',
+    notifications: 'notifications',
+  }
+  const rows = canonicalResourceRows(value, keyByResource[resource])
+  const mapped = rows.map((row) => {
+    switch (resource) {
+      case 'contracts': return mapOpsContract(row)
+      case 'sites': return mapOpsSite(row)
+      case 'invoices': return mapOpsInvoice(row)
+      case 'documents': return mapOpsDocument(row)
+      case 'legal-acceptances': return mapOpsLegalAcceptance(row)
+      case 'powers-of-attorney': return mapOpsPowerOfAttorney(row)
+      case 'events': return mapOpsEvent(row)
+      case 'metering-values': return mapOpsMeteringValue(row)
+      case 'notifications': return mapOpsNotification(row)
+    }
+  })
+  return input.detail ? (mapped[0] ?? null) : mapped
+}
+
 export async function getCanonicalCustomerResource(
   resource: OpsCustomerReadResource,
   opaqueId?: string | null,
@@ -649,8 +706,13 @@ export async function getCanonicalCustomerResource(
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
   const payload = await fetchOpsCustomerResource(identity, resource, opaqueId)
+  const canonicalData = normalizeCanonicalCustomerResource(resource, unwrapOpsData(payload), {
+    localProfile: profile,
+    user,
+    detail: Boolean(opaqueId),
+  })
   return {
-    data: unwrapOpsData(payload),
+    data: canonicalData,
     authoritative: true,
     read_only: false,
     data_freshness: 'live',
