@@ -19,6 +19,33 @@ import {
 import { gridexOpenApiContractGaps } from '@/lib/ops/validators/openapi'
 import openApiVerification from '@/docs/openapi/verification-status.json'
 
+type OpenApiVerificationStatus = {
+  liveSyncVerified: boolean
+  contractVersion: string | null
+  verifiedAt: string | null
+}
+
+function normalizeOpenApiVerificationStatus(value: unknown): OpenApiVerificationStatus {
+  const row = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+
+  const contractVersion = typeof row.contract_version === 'string' && row.contract_version.trim()
+    ? row.contract_version.trim()
+    : null
+  const verifiedAt = typeof row.verified_at === 'string' && row.verified_at.trim()
+    ? row.verified_at.trim()
+    : null
+
+  return {
+    liveSyncVerified: row.live_sync_verified === true,
+    contractVersion,
+    verifiedAt,
+  }
+}
+
+const openApiVerificationStatus = normalizeOpenApiVerificationStatus(openApiVerification)
+
 export const REQUIRED_WEBSITE_SCOPES = GRIDEX_WEBSITE_CHECKOUT_SCOPES
 export const ALTERNATIVE_WEBSITE_SCOPE_GROUPS = [] as const
 
@@ -331,6 +358,9 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     !portalIdentityGap &&
     !legalAcceptanceGap &&
     !priceOptionsGap
+  const liveOpenApiVerified =
+    openApiVerificationStatus.liveSyncVerified &&
+    openApiVerificationStatus.contractVersion === GRIDEX_API_CONTRACT_VERSION
 
   const checks: Record<OpsReadinessCheckName, OpsReadinessCheck> = {
     configuration_ready: check(client.configured, client.configured ? 'configured' : 'not_configured', client.configured ? 'Gridex API är serverkonfigurerat.' : 'GRIDEX_API_KEY eller canonical API-bas saknas.'),
@@ -355,13 +385,18 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       { gaps: upstreamContractGaps },
     ),
     live_schema_ready: check(
-      openApiVerification.live_sync_verified === true &&
-        openApiVerification.contract_version === GRIDEX_API_CONTRACT_VERSION,
-      openApiVerification.live_sync_verified === true
+      liveOpenApiVerified,
+      liveOpenApiVerified
         ? 'live_schema_verified'
-        : 'live_schema_unverified',
+        : openApiVerificationStatus.liveSyncVerified
+          ? 'live_schema_version_mismatch'
+          : 'live_schema_unverified',
       'Live-manifestets version och SHA-256 ska vara verifierade mot lokala snapshots.',
-      { verified_at: openApiVerification.verified_at },
+      {
+        verified_at: openApiVerificationStatus.verifiedAt,
+        expected: GRIDEX_API_CONTRACT_VERSION,
+        received: openApiVerificationStatus.contractVersion,
+      },
     ),
     runtime_schema_ready: check(
       resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION &&
@@ -376,12 +411,20 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       },
     ),
     openapi_sync_ready: check(
-      openApiVerification.live_sync_verified === true && openApiVerification.contract_version === GRIDEX_API_CONTRACT_VERSION,
-      openApiVerification.live_sync_verified === true ? 'openapi_live_sync_verified' : 'openapi_live_sync_unverified',
-      openApiVerification.live_sync_verified === true
+      liveOpenApiVerified,
+      liveOpenApiVerified
+        ? 'openapi_live_sync_verified'
+        : openApiVerificationStatus.liveSyncVerified
+          ? 'openapi_live_sync_version_mismatch'
+          : 'openapi_live_sync_unverified',
+      liveOpenApiVerified
         ? 'Incheckade OpenAPI-snapshots är hämtade från live-API och genererad kod är synkroniserad.'
         : 'OpenAPI-snapshots måste hämtas och godkännas med npm run api:sync i en nätverksansluten miljö.',
-      { verified_at: openApiVerification.verified_at, expected: GRIDEX_API_CONTRACT_VERSION },
+      {
+        verified_at: openApiVerificationStatus.verifiedAt,
+        expected: GRIDEX_API_CONTRACT_VERSION,
+        received: openApiVerificationStatus.contractVersion,
+      },
     ),
     public_contracts_ready: check(probeReady('website_contracts.read'), 'public_contracts_probe', 'Publicerade avtal kan hämtas och valideras.'),
     diagnostics_ready: check(

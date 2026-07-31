@@ -72,6 +72,10 @@ function quoteValidationInput() {
     resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
     annual_consumption_kwh: 5000,
     start_date: '2026-09-01',
+    price_option_reference: 'price_option_runtime',
+    invoice_delivery_method: 'email',
+    selected_component_references: ['component_runtime'],
+    site_count: 1,
     price_area: 'SE3',
     grid_area_code: 'GRID-SE3',
     postal_code: '582 22',
@@ -118,13 +122,20 @@ function quoteValidationResponse(overrides = {}) {
         source_checksum: null,
       },
       energy_direction: 'consumption',
-    price_options: [TEST_PRICE_OPTION],
+      price_option_reference: 'price_option_runtime',
+      area_price_reference: null,
+      invoice_delivery_method: 'email',
+      selected_component_references: ['component_runtime'],
+      mandatory_component_references: [],
+      conditional_component_references: [],
+      site_count: 1,
+      price_options: [TEST_PRICE_OPTION],
       selected_area_price: {
         price_area: 'SE3',
         energy_price_ore_per_kwh: 95,
         unit: 'ore_per_kwh',
-        price_option_reference: null,
-        price_row_reference: null,
+        price_option_reference: 'price_option_runtime',
+        area_price_reference: null,
       },
       ...overrides,
     },
@@ -143,6 +154,7 @@ const queuedResponses = [
   jsonResponse({ data: validContext }),
   jsonResponse(quoteValidationResponse()),
   jsonResponse(quoteValidationResponse({ offer_reference: 'offer_other' })),
+  jsonResponse(quoteValidationResponse({ price_option_reference: 'price_option_other' })),
   jsonResponse({
     data: {
       valid: true,
@@ -163,6 +175,11 @@ const validated = await validateOpsWebsiteQuote(quoteValidationInput())
 assert.equal(validated.valid, true)
 assert.equal(validated.quote_reference, 'quote_runtime_test')
 assert.equal(validated.offer_reference, 'offer_runtime_test')
+assert.equal(validated.resolution_id, 'f8249704-7ce8-4885-93cb-fbb9922ed77d')
+assert.equal(validated.price_option_reference, 'price_option_runtime')
+assert.equal(validated.invoice_delivery_method, 'email')
+assert.deepEqual(validated.selected_component_references, ['component_runtime'])
+assert.equal(validated.site_count, 1)
 assert.equal(requests.filter((request) => request.url.endsWith('/integration/context')).length, 2)
 const validationRequest = requests.find((request) => request.url.endsWith('/website/quote/validate'))
 assert.ok(validationRequest)
@@ -176,6 +193,10 @@ assert.deepEqual(JSON.parse(validationRequest.init.body), {
   resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
   annual_consumption_kwh: 5000,
   start_date: '2026-09-01',
+  price_option_reference: 'price_option_runtime',
+  invoice_delivery_method: 'email',
+  selected_component_references: ['component_runtime'],
+  site_count: 1,
   price_area: 'SE3',
   grid_area_code: 'GRID-SE3',
   postal_code: '58222',
@@ -187,7 +208,11 @@ await assert.rejects(
 )
 await assert.rejects(
   () => validateOpsWebsiteQuote(quoteValidationInput()),
-  (error) => error instanceof OpsError && error.status === 502 && error.code === 'canonical_response_schema_invalid',
+  (error) => error instanceof OpsError && error.status === 409 && error.code === 'ops_quote_validation_selection_mismatch',
+)
+await assert.rejects(
+  () => validateOpsWebsiteQuote(quoteValidationInput()),
+  (error) => error instanceof OpsError && error.status === 502 && error.code === 'ops_quote_validation_contract_invalid',
 )
 
 const productionContract = normalizePublicContractApiPayload({

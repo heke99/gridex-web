@@ -2,10 +2,10 @@
   "contract_version": "2026-07-30.3",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "55d881491f66b81dc8fd91f93c58c5e127b9ce0e303600436971c7d33a23b21e"
+      "sha256": "fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2"
     },
     "customer-portal-v1.json": {
-      "sha256": "70c1b3be9c2de6c4feab912cc5ac4372a9cd36fcf9375b56e13c0a2781e45b6b"
+      "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9"
     }
   }
 }

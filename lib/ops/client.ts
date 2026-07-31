@@ -458,6 +458,10 @@ export type OpsWebsiteQuoteValidationInput = {
   customer_type: WebsiteCustomerType;
   annual_consumption_kwh: number;
   start_date: string;
+  price_option_reference: string;
+  invoice_delivery_method: OpsInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  site_count: number;
   price_area?: OpsWebsitePriceArea | null;
   grid_area_code?: string | null;
   postal_code?: string | null;
@@ -466,11 +470,19 @@ export type OpsWebsiteQuoteValidationInput = {
 
 export type OpsWebsiteQuoteValidation = {
   valid: boolean;
-  status: string | null;
+  status: string;
   code: string | null;
   quote_reference: string;
   offer_reference: string;
-  valid_until?: string | null;
+  resolution_id: string;
+  valid_until: string;
+  price_option_reference: string;
+  area_price_reference: string | null;
+  invoice_delivery_method: OpsInvoiceDeliveryMethod;
+  selected_component_references: string[];
+  mandatory_component_references: string[];
+  conditional_component_references: string[];
+  site_count: number;
   publication_revision?: number | null;
   legal_bundle_version?: string | null;
   raw: Record<string, unknown>;
@@ -2368,6 +2380,7 @@ export async function validateOpsWebsiteQuote(
   input: OpsWebsiteQuoteValidationInput,
 ): Promise<OpsWebsiteQuoteValidation> {
   await getVerifiedOpsIntegrationContext()
+  const selectedComponentReferences = [...new Set(input.selected_component_references)]
   const requestBody = {
     quote_reference: input.quote_reference,
     offer_reference: input.offer_reference,
@@ -2375,6 +2388,10 @@ export async function validateOpsWebsiteQuote(
     resolution_id: input.resolution_id,
     annual_consumption_kwh: input.annual_consumption_kwh,
     start_date: input.start_date,
+    price_option_reference: input.price_option_reference,
+    invoice_delivery_method: input.invoice_delivery_method,
+    selected_component_references: selectedComponentReferences,
+    site_count: input.site_count,
     ...(input.price_area ? { price_area: input.price_area } : {}),
     ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
     ...(input.postal_code ? { postal_code: input.postal_code.replace(/\s+/g, '') } : {}),
@@ -2396,7 +2413,45 @@ export async function validateOpsWebsiteQuote(
   const explicitValid = row?.valid
   const quoteReference = normalizeText(row?.quote_reference)
   const offerReference = normalizeText(row?.offer_reference)
-  if (!root || !row || explicitValid !== true || !quoteReference || !offerReference) {
+  const resolutionId = normalizeText(row?.resolution_id)
+  const validUntil = normalizeText(row?.valid_until)
+  const priceOptionReference = normalizeText(row?.price_option_reference)
+  const areaPriceReference = normalizeText(row?.area_price_reference)
+  const invoiceDeliveryMethod = normalizeText(row?.invoice_delivery_method)
+  const responseSelectedComponents = pickStringArray(row ?? {}, ['selected_component_references'])
+  const mandatoryComponentReferences = pickStringArray(row ?? {}, ['mandatory_component_references'])
+  const conditionalComponentReferences = pickStringArray(row ?? {}, ['conditional_component_references'])
+  const siteCount = normalizeInteger(row?.site_count)
+  const validInvoiceDeliveryMethods = new Set<OpsInvoiceDeliveryMethod>([
+    'email',
+    'e_invoice',
+    'paper',
+    'direct_debit',
+  ])
+  const normalizedInvoiceDeliveryMethod = validInvoiceDeliveryMethods.has(
+    invoiceDeliveryMethod as OpsInvoiceDeliveryMethod,
+  )
+    ? invoiceDeliveryMethod as OpsInvoiceDeliveryMethod
+    : null
+
+  if (
+    !root ||
+    !row ||
+    explicitValid !== true ||
+    !status ||
+    !quoteReference ||
+    !offerReference ||
+    !resolutionId ||
+    !validUntil ||
+    !priceOptionReference ||
+    !normalizedInvoiceDeliveryMethod ||
+    !responseSelectedComponents ||
+    !mandatoryComponentReferences ||
+    !conditionalComponentReferences ||
+    siteCount === null ||
+    !Number.isInteger(siteCount) ||
+    siteCount < 1
+  ) {
     throw new OpsError('OPS returnerade ett ofullständigt offertvalideringssvar.', 502, {
       code: 'ops_quote_validation_contract_invalid',
       endpoint: '/api/v1/website/quote/validate',
@@ -2404,16 +2459,51 @@ export async function validateOpsWebsiteQuote(
       valid: explicitValid,
       quote_reference: quoteReference,
       offer_reference: offerReference,
+      resolution_id: resolutionId,
+      price_option_reference: priceOptionReference,
+      invoice_delivery_method: invoiceDeliveryMethod,
+      site_count: siteCount,
       retryable: false,
     })
   }
-  if (quoteReference !== input.quote_reference || offerReference !== input.offer_reference) {
-    throw new OpsError('Offerten är inte bunden till valt avtal.', 409, {
+  if (
+    quoteReference !== input.quote_reference ||
+    offerReference !== input.offer_reference ||
+    resolutionId !== input.resolution_id
+  ) {
+    throw new OpsError('Offerten är inte bunden till valt avtal och vald elområdesresolution.', 409, {
       code: 'ops_quote_binding_mismatch',
       expected_quote_reference: input.quote_reference,
       received_quote_reference: quoteReference,
       expected_offer_reference: input.offer_reference,
       received_offer_reference: offerReference,
+      expected_resolution_id: input.resolution_id,
+      received_resolution_id: resolutionId,
+      retryable: false,
+    })
+  }
+  if (
+    priceOptionReference !== input.price_option_reference ||
+    normalizedInvoiceDeliveryMethod !== input.invoice_delivery_method ||
+    siteCount !== input.site_count ||
+    JSON.stringify([...responseSelectedComponents].sort()) !==
+      JSON.stringify([...selectedComponentReferences].sort())
+  ) {
+    throw new OpsError('Offertvalideringen matchar inte kundens signerade val.', 409, {
+      code: 'ops_quote_validation_selection_mismatch',
+      expected: {
+        price_option_reference: input.price_option_reference,
+        invoice_delivery_method: input.invoice_delivery_method,
+        selected_component_references: [...selectedComponentReferences].sort(),
+        site_count: input.site_count,
+      },
+      received: {
+        price_option_reference: priceOptionReference,
+        invoice_delivery_method: normalizedInvoiceDeliveryMethod,
+        selected_component_references: [...responseSelectedComponents].sort(),
+        site_count: siteCount,
+      },
+      retryable: false,
     })
   }
   return {
@@ -2422,7 +2512,15 @@ export async function validateOpsWebsiteQuote(
     code: normalizeText(row.code),
     quote_reference: quoteReference,
     offer_reference: offerReference,
-    valid_until: normalizeText(row.valid_until),
+    resolution_id: resolutionId,
+    valid_until: validUntil,
+    price_option_reference: priceOptionReference,
+    area_price_reference: areaPriceReference,
+    invoice_delivery_method: normalizedInvoiceDeliveryMethod,
+    selected_component_references: responseSelectedComponents,
+    mandatory_component_references: mandatoryComponentReferences,
+    conditional_component_references: conditionalComponentReferences,
+    site_count: siteCount,
     publication_revision: normalizeInteger(row.publication_revision),
     legal_bundle_version: normalizeText(row.legal_bundle_version),
     raw: row,

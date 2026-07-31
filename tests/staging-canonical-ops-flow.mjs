@@ -78,6 +78,10 @@ const validation = await validateOpsWebsiteQuote({
   annual_consumption_kwh: annualConsumptionKwh,
   customer_type: fixture.customer_type ?? 'private',
   start_date: requiredText('start_date'),
+  price_option_reference: quote.price_option_reference,
+  invoice_delivery_method: quote.invoice_delivery_method,
+  selected_component_references: quote.selected_component_references,
+  site_count: quote.site_count,
 })
 assert.equal(validation.valid, true)
 assert.equal(validation.quote_reference, quote.ops_quote_reference)

@@ -1,96 +1,55 @@
 {
-  "synced_at": "2026-07-30T18:35:42.887Z",
-  "contract_version": "2026-07-30.2",
+  "synced_at": "2026-07-31T12:18:59.169Z",
+  "contract_version": "2026-07-30.3",
   "release_manifest": {
-    "release_version": "2026-07-30.2",
-    "website_openapi_version": "2026-07-30.2",
-    "customer_portal_openapi_version": "2026-07-30.2",
-    "runtime_contract_version": "2026-07-30.2",
-    "guide_version": "2026-07-30.2",
+    "release_version": "2026-07-30.3",
+    "website_openapi_version": "2026-07-30.3",
+    "customer_portal_openapi_version": "2026-07-30.3",
+    "runtime_contract_version": "2026-07-30.3",
+    "guide_version": "2026-07-30.3",
     "released_at": "2026-07-30T15:30:00.000Z",
     "specifications": {
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-07-30.2",
+        "contract_version": "2026-07-30.3",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "sha256": "920a774c10ee8cc32ea5db62a8d898119f7ca59aa50896041d9d14a734a5bcd1",
+        "sha256": "fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2",
         "compatibility": "breaking"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-07-30.2",
+        "contract_version": "2026-07-30.3",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "sha256": "0371233929e6bafff463d7171e18a39712cb98577830aaff0669822f9184e315",
+        "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9",
         "compatibility": "breaking"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "920a774c10ee8cc32ea5db62a8d898119f7ca59aa50896041d9d14a734a5bcd1",
+      "sha256": "fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2",
       "semantic_diff": {
-        "previous_version": "2026-07-30.1",
-        "next_version": "2026-07-30.2",
+        "previous_version": "2026-07-30.3",
+        "next_version": "2026-07-30.3",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/website/public-contracts",
-          "/api/v1/contracts",
-          "/api/v1/website/quote/validate",
-          "/api/v1/openapi/website-integration-v1.json",
-          "/api/v1/openapi/customer-portal-v1.json",
-          "/api/v1/website/market-price/current",
-          "/api/v1/website/portfolio-prices",
-          "/api/v1/website/customer-events"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "IntegrationContext",
-          "CustomerApplicationRequest",
-          "PublicationChangedWebhook",
-          "CurrentMarketPriceResponse",
-          "ApiError",
-          "WebsiteLegalBundleResponse",
-          "LegalAcceptance",
-          "OpenApiReleaseManifest",
-          "OpenApiReleaseSpecification",
-          "WebsiteLegalRequirement"
-        ]
+        "changed_schemas": []
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "0371233929e6bafff463d7171e18a39712cb98577830aaff0669822f9184e315",
+      "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9",
       "semantic_diff": {
-        "previous_version": "2026-07-30.1",
-        "next_version": "2026-07-30.2",
+        "previous_version": "2026-07-30.3",
+        "next_version": "2026-07-30.3",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/customer-portal/sync",
-          "/api/v1/customer/move-out",
-          "/api/v1/customer/sync",
-          "/api/v1/openapi/customer-portal-v1.json"
-        ],
-        "added_schemas": [
-          "CustomerSyncRequest",
-          "CustomerMoveOutRequest",
-          "CustomerSyncData",
-          "CustomerMoveOutData"
-        ],
+        "changed_paths": [],
+        "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "ApiError",
-          "CustomerContract",
-          "CustomerInvoice",
-          "IntegrationContext",
-          "ErrorResponse",
-          "ClosedPortalResourceEnvelope",
-          "CustomerSyncRequest",
-          "CustomerMoveOutRequest",
-          "CustomerSyncData",
-          "CustomerMoveOutData"
-        ]
+        "changed_schemas": []
       }
     }
   }

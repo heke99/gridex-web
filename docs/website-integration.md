@@ -39,8 +39,11 @@ integration/context
 
 Kundens val av `price_option_reference`, `invoice_delivery_method`,
 `selected_component_references` och `site_count` verifieras mot det publicerade
-avtalet, skickas till OPS och binds i webbens signerade offerttoken. Checkout
-återskapar valen från signaturen, inte från ändringsbara formulärfält.
+avtalet, skickas till OPS och binds i webbens signerade offerttoken. Samma fyra
+fält skickas obligatoriskt igen till `quote/validate`, så OPS validerar exakt den
+prisoption, fakturametod, komponentmängd och anläggningsmängd som skapade
+offerten. Checkout återskapar valen från signaturen, inte från ändringsbara
+formulärfält.
 
 OPS OpenAPI `2026-07-30.3` definierar offertfälten och
 `ContractPriceOption`, men publicerar inte `price_options` på

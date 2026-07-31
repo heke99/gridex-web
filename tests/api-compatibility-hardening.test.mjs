@@ -19,6 +19,9 @@ const webhookRetry = read('lib/webhooks/retry.ts')
 const webhookMigration = read('supabase/migrations/20260729131000_ops_webhook_domain_projections.sql')
 const verification = JSON.parse(read('docs/openapi/verification-status.json'))
 const releaseManifest = JSON.parse(read('docs/openapi/release-manifest.json'))
+const websiteOpenApi = JSON.parse(read('docs/openapi/website-integration-v1.json'))
+const canonicalQuoteValidation = read('lib/website/canonicalQuoteValidation.ts')
+const stagingFlow = read('tests/staging-canonical-ops-flow.mjs')
 
 assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.release_version}'`), 'canonical API version must match the synchronized release')
 assert.ok(!contract.includes('2026-07-28.1'), 'old version must not remain in canonical contract')
@@ -68,6 +71,23 @@ assert.match(validators, /customer_portal_resource_schemas_not_strict/, 'permiss
 assert.match(validators, /ops_domain_webhook_schema_not_published/, 'unpublished domain webhook schemas must block full compatibility')
 assert.match(client, /OPS-anropet saknar ett incheckat OpenAPI-kontrakt/, 'unknown OPS operations must fail closed')
 assert.match(client, /return error\.retryable &&/, 'non-retryable schema and tenant errors must never trigger local portal fallback')
+
+const quoteValidationSchema = websiteOpenApi.components.schemas.QuoteValidationRequest
+for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) {
+  assert.ok(quoteValidationSchema.required.includes(field), `quote validation contract must require ${field}`)
+}
+const quoteValidationStart = client.indexOf('export async function validateOpsWebsiteQuote')
+const quoteValidationEnd = client.indexOf('\nexport async function fetchOpsCurrentMarketPrice', quoteValidationStart)
+const quoteValidationFunction = client.slice(quoteValidationStart, quoteValidationEnd)
+for (const field of ['price_option_reference', 'invoice_delivery_method', 'site_count']) {
+  assert.match(quoteValidationFunction, new RegExp(`${field}:\\s*input\.${field}`), `quote validation request must send ${field}`)
+}
+assert.match(quoteValidationFunction, /selected_component_references:\s*selectedComponentReferences/, 'quote validation request must send deduplicated selected_component_references')
+assert.match(quoteValidationFunction, /ops_quote_validation_selection_mismatch/, 'quote validation must reject a changed canonical selection')
+for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) {
+  assert.ok(canonicalQuoteValidation.includes(`${field}: local.quote.${field}`), `signed quote validation must forward ${field}`)
+  assert.ok(stagingFlow.includes(`${field}: quote.${field}`), `staging flow must validate ${field}`)
+}
 assert.ok(!client.includes('\"switch-status\": \"/api/v1/customer/switch-status\"'), 'undocumented portal switch-status endpoint must not be called')
 
 for (const checkName of [
@@ -93,7 +113,15 @@ for (const checkName of [
 assert.match(readiness, /!portalIdentityGap/, 'checkout readiness must block unsupported portal identity')
 assert.match(readiness, /!legalAcceptanceGap/, 'checkout readiness must block non-dynamic legal contract')
 assert.match(readiness, /!priceOptionsGap/, 'checkout readiness must block unpublished price options')
-assert.equal(verification.live_sync_verified, false, 'bundled snapshots must not falsely claim live verification')
+assert.equal(typeof verification.live_sync_verified, 'boolean', 'verification status must expose a boolean live_sync_verified flag')
+assert.equal(verification.contract_version, releaseManifest.release_version, 'verification status must retain the checked-in contract version')
+assert.ok(Object.hasOwn(verification, 'verified_at'), 'verification status must always expose verified_at')
+if (verification.live_sync_verified) {
+  assert.equal(typeof verification.verified_at, 'string', 'verified live sync must include verified_at')
+  assert.ok(verification.verified_at.length > 0, 'verified_at must not be empty for verified live sync')
+}
+assert.match(readiness, /normalizeOpenApiVerificationStatus\(value: unknown\)/, 'readiness must tolerate incomplete verification status JSON')
+assert.match(readiness, /liveOpenApiVerified/, 'live readiness must require both sync evidence and the exact contract version')
 
 for (const event of ['invoice.paid', 'invoice.disputed', 'supply.started', 'metering_values.updated', 'facility_data.verified']) {
   assert.ok(webhookParser.includes(`'${event}'`), `webhook parser must support ${event}`)
