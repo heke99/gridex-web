@@ -5,7 +5,7 @@ autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
 Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
 kundportal.
 
-Canonical kontraktsversion är `2026-07-30.3`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
+Canonical kontraktsversion är `2026-08-01.1`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
 
 ## Lokal start
 
@@ -131,8 +131,11 @@ manuellt och schemalagt.
 
 ## Databas
 
-Kör migrationerna i `supabase/migrations` i ordning. De senaste migrationerna:
+Kör migrationerna i `supabase/migrations` i ordning. Public-contract-feeden har en tenantbunden last-known-good-snapshot i `website_public_contract_snapshots`. OPS hämtas alltid med `no-store`; en tom eller helt blockerad kandidat får inte ersätta ett tidigare synligt snapshot utan en signerad, durabel webhookrevision vars orsak uttryckligen anger att hela webbfeeden har tömts (`all_contracts_unpublished`, `no_public_contracts`, `publication_cleared`, `website_publication_cleared`, `public_feed_cleared`, `alla_avtal_avpublicerade` eller `inga_publicerade_avtal`). Webhooken invaliderar dessutom feedens cachetagg och alla publika avtalsytor.
 
+De senaste migrationerna:
+
+- lagrar tenantbunden last-known-good public-contract-snapshot och skyddar den atomiskt mot falska tomma/all-blockerade svar
 - gör publication revision numerisk och tillämpar webhookevent transaktionellt
 - lagrar `revision_token` och deduplicerar event/delivery
 - bevarar immutable juridikbevis per ansökan

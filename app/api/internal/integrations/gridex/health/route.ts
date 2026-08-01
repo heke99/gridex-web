@@ -11,6 +11,7 @@ import {
   getGridexDeploymentMetadata,
 } from '@/lib/ops/config'
 import { loadWebsitePublicContractFeed } from '@/lib/website/publicContractFeed'
+import { inspectWebsitePublicContractSnapshotStore } from '@/lib/website/publicContractSnapshotStore'
 import releaseManifest from '@/docs/openapi/release-manifest.json'
 import verificationStatus from '@/docs/openapi/verification-status.json'
 
@@ -81,6 +82,12 @@ export async function GET(request: Request) {
         .catch((error) => ({ ok: false as const, error: safeOpsError(error) })),
     ])
 
+    const durableSnapshotStore = await inspectWebsitePublicContractSnapshotStore(context.tenant_reference)
+      .catch((error) => ({
+        available: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      }))
+
     const priceOptionCount = feed.contracts.reduce(
       (sum, contract) => sum + (contract.price_options?.length ?? 0),
       0,
@@ -104,7 +111,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      ok: feed.contracts.length > 0 && context.capabilities.website_checkout_ready,
+      ok: feed.contracts.length > 0 && context.capabilities.website_checkout_ready && durableSnapshotStore.available,
       checked_at: checkedAt,
       force_refresh: forceFresh,
       configuration,
@@ -148,6 +155,18 @@ export async function GET(request: Request) {
         profile_field: 'profile',
         canonical_references: true,
       },
+      durable_public_contract_cache: durableSnapshotStore.available
+        ? {
+            available: true,
+            snapshot_count: durableSnapshotStore.snapshotCount,
+            latest_publication_revision: durableSnapshotStore.latestPublicationRevision,
+            latest_accepted_count: durableSnapshotStore.latestAcceptedCount,
+            latest_updated_at: durableSnapshotStore.latestUpdatedAt,
+          }
+        : {
+            available: false,
+            error: durableSnapshotStore.error,
+          },
       contracts: {
         state: feed.state,
         upstream_count: feed.snapshot.contracts.length + feed.snapshot.blocked_contracts.length,

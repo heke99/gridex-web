@@ -1,7 +1,9 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getVerifiedOpsIntegrationContext, invalidateOpsPublicContractsCache } from '@/lib/ops/client'
+import { WEBSITE_PUBLIC_CONTRACT_PATHS, WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 import { assertWebsiteRequest } from '@/lib/ops/validators/openapi'
 import {
   customerNotificationForEvent,
@@ -102,6 +104,30 @@ function verifySignature(args: {
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ ok: false, error: { code, message } }, { status })
+}
+
+function invalidateWebsiteContractSurfaces(args: {
+  tenantReference: string
+  publicationRevision: number
+}): boolean {
+  invalidateOpsPublicContractsCache({
+    tenantReference: args.tenantReference,
+    channel: 'website',
+    publicationRevision: args.publicationRevision,
+  })
+
+  try {
+    revalidateTag(WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG, 'max')
+    for (const path of WEBSITE_PUBLIC_CONTRACT_PATHS) revalidatePath(path)
+    return true
+  } catch (error) {
+    console.error('[publication webhook] cache revalidation failed after durable apply', {
+      tenant_reference: args.tenantReference,
+      publication_revision: args.publicationRevision,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return false
+  }
 }
 
 function parseGenericEnvelope(value: unknown): GenericWebhookEnvelope | null {
@@ -308,13 +334,15 @@ export async function handlePublicationChangedWebhook(request: Request) {
       409,
     )
   }
-  if (result.cache_invalidated && payload.data.channel === 'website') {
-    invalidateOpsPublicContractsCache({
-      tenantReference: payload.tenant_reference,
-      channel: payload.data.channel,
-      publicationRevision: payload.data.publication_revision,
-    })
-  }
+  const shouldRevalidateWebsite = payload.data.channel === 'website' && (
+    result.cache_invalidated || result.result === 'duplicate'
+  )
+  const cacheRevalidated = shouldRevalidateWebsite
+    ? invalidateWebsiteContractSurfaces({
+        tenantReference: payload.tenant_reference,
+        publicationRevision: payload.data.publication_revision,
+      })
+    : false
 
   return NextResponse.json({
     ok: true,
@@ -323,5 +351,6 @@ export async function handlePublicationChangedWebhook(request: Request) {
     delivery_id: deliveryId,
     publication_revision: result.stored_revision,
     cache_invalidated: result.cache_invalidated,
+    cache_revalidated: cacheRevalidated,
   })
 }

@@ -103,7 +103,7 @@ export async function publicContractsResponse(request: Request) {
     })
     const { snapshot } = feed
     const headers = new Headers({
-      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400',
+      'Cache-Control': 'no-store, max-age=0',
       'Vary': 'Accept-Encoding',
     })
     if (snapshot.etag) headers.set('ETag', snapshot.etag)

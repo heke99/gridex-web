@@ -51,6 +51,11 @@ import {
   type ContractValidationIssue,
 } from '@/lib/website/publicContractPolicy'
 import openApiManifest from '@/docs/openapi/manifest.json'
+import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
+import {
+  readWebsitePublicContractSnapshot,
+  storeWebsitePublicContractSnapshot,
+} from '@/lib/website/publicContractSnapshotStore'
 
 export { OpsError, isOpsError }
 export type OpsContractType =
@@ -2186,8 +2191,6 @@ function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): str
     'website',
     'public-contracts',
     GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-    CONTRACT_PARSER_VERSION,
-    WEBSITE_OPENAPI_SCHEMA_SHA256,
     customerType ? toOpsCustomerType(customerType) : 'all',
   ].join('|');
 }
@@ -2929,113 +2932,178 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
   }
 }
 
+function publicContractsCustomerTypeKey(customerType?: WebsiteCustomerType | null): 'all' | 'private' | 'business' {
+  return customerType ? toOpsCustomerType(customerType) : 'all'
+}
+
+function snapshotFromCacheEntry(
+  cached: PublicContractsCacheEntry,
+  input: {
+    source: 'cache' | 'stale-cache'
+    stale: boolean
+    staleReason: string | null
+    upstreamStatus?: number
+    upstreamRequestId?: string | null
+    upstreamCorrelationId?: string | null
+    blockedContracts?: OpsBlockedPublicContract[]
+    warnings?: OpsPublicContractIssue[]
+    compatibilityIssues?: OpsPublicContractIssue[]
+  },
+): OpsPublicContractsSnapshot {
+  return {
+    contracts: cached.contracts,
+    blocked_contracts: input.blockedContracts ?? cached.blocked_contracts,
+    warnings: input.warnings ?? cached.warnings,
+    compatibility_issues: input.compatibilityIssues ?? cached.compatibility_issues,
+    parser_version: cached.parser_version,
+    schema_sha256: cached.schema_sha256,
+    etag: cached.etag,
+    publication_revision: cached.publication_revision,
+    tenant_reference: cached.tenant_reference,
+    contract_version: cached.contract_version,
+    not_modified: true,
+    fetched_at: cached.fetched_at,
+    source: input.source,
+    stale: input.stale,
+    stale_reason: input.staleReason,
+    upstream_status: input.upstreamStatus ?? cached.upstream_status,
+    upstream_request_id: input.upstreamRequestId ?? cached.upstream_request_id,
+    upstream_correlation_id: input.upstreamCorrelationId ?? cached.upstream_correlation_id,
+  }
+}
+
+function publicContractsFallbackEligible(error: unknown): boolean {
+  if (!isOpsError(error)) return true
+  if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
+  if ([401, 403, 410, 423].includes(error.status)) return false
+  return isTransientOpsError(error) || [
+    'ops_public_contracts_response_invalid',
+    'ops_public_contracts_contract_version_missing',
+    'ops_public_contracts_contract_version_mismatch',
+    'ops_public_contracts_publication_revision_missing',
+    'ops_response_content_type_invalid',
+  ].includes(error.code ?? '')
+}
+
+async function persistentPublicContractsCacheEntry(
+  cacheKey: string,
+): Promise<PublicContractsCacheEntry | null> {
+  try {
+    const snapshot = await readWebsitePublicContractSnapshot(cacheKey)
+    if (!snapshot) return null
+    const entry: PublicContractsCacheEntry = { ...snapshot, cache_key: cacheKey }
+    publicContractsCache.set(cacheKey, entry)
+    return entry
+  } catch (error) {
+    console.error('[gridex-public-contracts] persistent snapshot read failed', {
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
 export async function fetchOpsPublicContractsSnapshot(
   customerType?: WebsiteCustomerType | null,
   options: { forceFresh?: boolean } = {},
 ): Promise<OpsPublicContractsSnapshot> {
-  const cacheKey = publicContractsCacheKey(customerType);
-  const cached = publicContractsCache.get(cacheKey);
-  const headers = new Headers();
-  if (!options.forceFresh && cached?.etag) headers.set("If-None-Match", cached.etag);
+  const cacheKey = publicContractsCacheKey(customerType)
+  let cached = options.forceFresh ? undefined : publicContractsCache.get(cacheKey)
+  if (!options.forceFresh && !cached) {
+    cached = (await persistentPublicContractsCacheEntry(cacheKey)) ?? undefined
+  }
 
-  let response: OpsHttpResponse;
+  const headers = new Headers()
+  if (!options.forceFresh && cached?.etag) headers.set('If-None-Match', cached.etag)
+
+  let response: OpsHttpResponse
   try {
     response = await opsRequest(
       publicContractsPath(customerType),
-      { method: "GET", headers },
+      { method: 'GET', headers },
       {
         allowNotModified: true,
-        // The public product feed is safe to cache server-side. Next's data
-        // cache survives serverless instance rotation and keys the response by
-        // URL + request headers, including the tenant API key.
-        cache: options.forceFresh ? "no-store" : "force-cache",
-        revalidateSeconds: options.forceFresh ? undefined : 60,
+        // Contract publication is consistency-sensitive. Never let Next's data
+        // cache persist a transient empty or schema-invalid OPS response.
+        cache: 'no-store',
+        tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
       },
-    );
+    )
   } catch (error) {
-    if (!options.forceFresh && cached && isTransientOpsError(error)) {
-      return {
-        contracts: cached.contracts,
-        blocked_contracts: cached.blocked_contracts,
-        warnings: cached.warnings,
-        compatibility_issues: cached.compatibility_issues,
-        parser_version: cached.parser_version,
-        schema_sha256: cached.schema_sha256,
-        etag: cached.etag,
-        publication_revision: cached.publication_revision,
-        tenant_reference: cached.tenant_reference,
-        contract_version: cached.contract_version,
-        not_modified: true,
-        fetched_at: cached.fetched_at,
+    if (!options.forceFresh && cached && publicContractsFallbackEligible(error)) {
+      return snapshotFromCacheEntry(cached, {
         source: 'stale-cache',
         stale: true,
-        stale_reason: isOpsError(error) ? error.code ?? `http_${error.status}` : "ops_transport_error",
-        upstream_status: cached.upstream_status,
-        upstream_request_id: cached.upstream_request_id,
-        upstream_correlation_id: cached.upstream_correlation_id,
-      };
+        staleReason: isOpsError(error) ? error.code ?? `http_${error.status}` : 'ops_transport_error',
+      })
     }
-    throw error;
+    throw error
   }
 
   if (response.status === 304) {
     if (!cached) {
-      throw new OpsError("OPS svarade 304 utan en lokal avtalsrevision.", 502, {
-        code: "ops_public_contracts_304_without_cache",
-      });
+      throw new OpsError('OPS svarade 304 utan en lokal eller persistent avtalsrevision.', 502, {
+        code: 'ops_public_contracts_304_without_cache',
+      })
     }
-    return {
-      contracts: cached.contracts,
-      blocked_contracts: cached.blocked_contracts,
-      warnings: cached.warnings,
-      compatibility_issues: cached.compatibility_issues,
-      parser_version: cached.parser_version,
-      schema_sha256: cached.schema_sha256,
-      etag: cached.etag,
-      publication_revision: cached.publication_revision,
-      tenant_reference: cached.tenant_reference,
-      contract_version: cached.contract_version,
-      not_modified: true,
-      fetched_at: cached.fetched_at,
+    return snapshotFromCacheEntry(cached, {
       source: 'cache',
       stale: false,
-      stale_reason: null,
-      upstream_status: response.status,
-      upstream_request_id: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-      upstream_correlation_id: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-    };
+      staleReason: null,
+      upstreamStatus: response.status,
+      upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+    })
   }
 
-  const tenantReference = await verifiedTenantReference(
-    response.payload,
-    "/api/v1/website/public-contracts",
-  );
-  const parsed = parseOpsPublicContractsPayload(response.payload)
-  const responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
-  const responseRevision = publicationRevisionFromPayload(response.payload)
-  if (!responseContractVersion) {
-    throw new OpsError('OPS public-contracts saknar kontraktsversion.', 502, {
-      code: 'ops_public_contracts_contract_version_missing',
-      endpoint: '/api/v1/website/public-contracts',
-      retryable: false,
-    })
+  let tenantReference: string
+  let parsed: ReturnType<typeof parseOpsPublicContractsPayload>
+  let responseContractVersion: string | null
+  let responseRevision: number | null
+  try {
+    tenantReference = await verifiedTenantReference(
+      response.payload,
+      '/api/v1/website/public-contracts',
+    )
+    parsed = parseOpsPublicContractsPayload(response.payload)
+    responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
+    responseRevision = publicationRevisionFromPayload(response.payload)
+    if (!responseContractVersion) {
+      throw new OpsError('OPS public-contracts saknar kontraktsversion.', 502, {
+        code: 'ops_public_contracts_contract_version_missing',
+        endpoint: '/api/v1/website/public-contracts',
+        retryable: false,
+      })
+    }
+    if (responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+      throw new OpsError('OPS public-contracts använder en annan kontraktsversion än Gridex Web.', 502, {
+        code: 'ops_public_contracts_contract_version_mismatch',
+        endpoint: '/api/v1/website/public-contracts',
+        expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+        received: responseContractVersion,
+        retryable: false,
+      })
+    }
+    if (responseRevision === null) {
+      throw new OpsError('OPS public-contracts saknar publiceringsrevision.', 502, {
+        code: 'ops_public_contracts_publication_revision_missing',
+        endpoint: '/api/v1/website/public-contracts',
+        retryable: false,
+      })
+    }
+  } catch (error) {
+    if (!options.forceFresh && cached && publicContractsFallbackEligible(error)) {
+      return snapshotFromCacheEntry(cached, {
+        source: 'stale-cache',
+        stale: true,
+        staleReason: isOpsError(error) ? error.code ?? 'ops_public_contracts_invalid' : 'ops_public_contracts_invalid',
+        upstreamStatus: response.status,
+        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+      })
+    }
+    throw error
   }
-  if (responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
-    throw new OpsError('OPS public-contracts använder en annan kontraktsversion än Gridex Web.', 502, {
-      code: 'ops_public_contracts_contract_version_mismatch',
-      endpoint: '/api/v1/website/public-contracts',
-      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-      received: responseContractVersion,
-      retryable: false,
-    })
-  }
-  if (responseRevision === null) {
-    throw new OpsError('OPS public-contracts saknar publiceringsrevision.', 502, {
-      code: 'ops_public_contracts_publication_revision_missing',
-      endpoint: '/api/v1/website/public-contracts',
-      retryable: false,
-    })
-  }
+
   if (
     !options.forceFresh &&
     cached &&
@@ -3047,27 +3115,19 @@ export async function fetchOpsPublicContractsSnapshot(
       cached_publication_revision: cached.publication_revision,
       response_publication_revision: responseRevision,
     })
-    return {
-      contracts: cached.contracts,
-      blocked_contracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
-      warnings: [...cached.warnings, ...parsed.warnings],
-      compatibility_issues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
-      parser_version: CONTRACT_PARSER_VERSION,
-      schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
-      etag: cached.etag,
-      publication_revision: cached.publication_revision,
-      tenant_reference: cached.tenant_reference,
-      contract_version: responseContractVersion ?? cached.contract_version,
-      not_modified: true,
-      fetched_at: cached.fetched_at,
+    return snapshotFromCacheEntry(cached, {
       source: 'stale-cache',
       stale: true,
-      stale_reason: 'empty_feed_without_new_publication_revision',
-      upstream_status: response.status,
-      upstream_request_id: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-      upstream_correlation_id: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-    }
+      staleReason: 'empty_feed_without_new_publication_revision',
+      upstreamStatus: response.status,
+      upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+      blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+      warnings: [...cached.warnings, ...parsed.warnings],
+      compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+    })
   }
+
   const snapshot: PublicContractsCacheEntry = {
     cache_key: cacheKey,
     contracts: parsed.contracts,
@@ -3088,9 +3148,73 @@ export async function fetchOpsPublicContractsSnapshot(
     upstream_status: response.status,
     upstream_request_id: response.headers.get('x-request-id'),
     upstream_correlation_id: response.headers.get('x-correlation-id'),
-  };
+  }
+
+  let persistenceResult: Awaited<ReturnType<typeof storeWebsitePublicContractSnapshot>> | null = null
+  let persistenceFailed = false
+  try {
+    persistenceResult = await storeWebsitePublicContractSnapshot({
+      cacheKey,
+      customerType: publicContractsCustomerTypeKey(customerType),
+      snapshot,
+    })
+  } catch (error) {
+    persistenceFailed = true
+    console.error('[gridex-public-contracts] persistent snapshot write failed', {
+      publication_revision: responseRevision,
+      accepted_count: parsed.contracts.length,
+      blocked_count: parsed.blockedContracts.length,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  if (!options.forceFresh && cached?.contracts.length && parsed.contracts.length === 0) {
+    if (persistenceFailed || persistenceResult?.stored !== true) {
+      const reason = persistenceFailed
+        ? 'persistent_snapshot_write_failed_for_empty_feed'
+        : persistenceResult?.result ?? 'empty_feed_not_persisted'
+      console.warn('[gridex-public-contracts] retained last-known-good snapshot', {
+        cached_publication_revision: cached.publication_revision,
+        response_publication_revision: responseRevision,
+        reason,
+      })
+      return snapshotFromCacheEntry(cached, {
+        source: 'stale-cache',
+        stale: true,
+        staleReason: reason,
+        upstreamStatus: response.status,
+        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+        blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+        warnings: [...cached.warnings, ...parsed.warnings],
+        compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+      })
+    }
+  }
+
+  if (!options.forceFresh && persistenceResult && !persistenceResult.stored) {
+    const latest = await persistentPublicContractsCacheEntry(cacheKey)
+    if (latest) {
+      return snapshotFromCacheEntry(latest, {
+        source: 'stale-cache',
+        stale: true,
+        staleReason: persistenceResult.result,
+        upstreamStatus: response.status,
+        upstreamRequestId: response.headers.get('x-request-id') ?? latest.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? latest.upstream_correlation_id,
+      })
+    }
+    throw new OpsError('OPS public-contracts var äldre än den verifierade publiceringsrevisionen.', 503, {
+      code: 'ops_public_contracts_stale_revision',
+      response_publication_revision: responseRevision,
+      stored_publication_revision: persistenceResult.stored_revision,
+      retryable: true,
+    })
+  }
+
   const parserResultIsCacheable = parsed.contracts.length > 0 || parsed.blockedContracts.length === 0
-  if (parserResultIsCacheable) {
+  const mayCacheInMemory = persistenceResult?.stored === true || (persistenceFailed && parserResultIsCacheable)
+  if (mayCacheInMemory) {
     publicContractsCache.set(cacheKey, snapshot)
   } else {
     console.warn('[gridex-public-contracts] all-blocked parser result was not cached', {
@@ -3100,7 +3224,7 @@ export async function fetchOpsPublicContractsSnapshot(
       publication_revision: responseRevision,
     })
   }
-  return snapshot;
+  return snapshot
 }
 
 export async function fetchOpsPublicContracts(

@@ -33,6 +33,7 @@ export type OpsRequestOptions = {
   allowNotModified?: boolean
   cache?: RequestCache
   revalidateSeconds?: number
+  tags?: string[]
 }
 
 export function env(name: string): string | undefined {
@@ -213,6 +214,9 @@ export async function opsRequest(
   const method = (init?.method ?? 'GET').toUpperCase()
   const retryableRequest = method === 'GET' || method === 'HEAD'
   const attempts = retryableRequest ? 3 : 1
+  const nextOptions: { revalidate?: number; tags?: string[] } = {}
+  if (options.revalidateSeconds !== undefined) nextOptions.revalidate = options.revalidateSeconds
+  if (options.tags?.length) nextOptions.tags = [...new Set(options.tags)]
   let response: Response | null = null
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -224,9 +228,7 @@ export async function opsRequest(
         signal: timeout.signal,
         redirect: 'manual',
         cache: options.cache ?? 'no-store',
-        ...(options.revalidateSeconds === undefined
-          ? {}
-          : { next: { revalidate: options.revalidateSeconds } }),
+        ...(Object.keys(nextOptions).length === 0 ? {} : { next: nextOptions }),
       })
     } catch (error) {
       const abortedByCaller = init?.signal?.aborted === true

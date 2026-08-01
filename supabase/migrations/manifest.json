@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-31T17:10:54.303Z",
-  "migration_count": 23,
+  "generated_at": "2026-08-01T12:00:08.839Z",
+  "migration_count": 24,
   "version_collisions": [],
   "migrations": [
     {
@@ -118,6 +118,11 @@
       "file": "20260731184500_non_expiring_canonical_quotes.sql",
       "version": "20260731184500",
       "sha256": "b797a71e23e9f983a6dff4506d7c63ec2e7f8602b4ea6a09df75b47f430d77ef"
+    },
+    {
+      "file": "20260801133000_public_contract_last_known_good.sql",
+      "version": "20260801133000",
+      "sha256": "589004be5e39d1eea0f781033cae82c150e7459bdb23feafe9a51a16cad9611c"
     }
   ]
 }
