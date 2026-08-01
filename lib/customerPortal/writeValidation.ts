@@ -1,3 +1,5 @@
+import { isStrictCalendarDate } from '@/lib/website/businessDate'
+
 export function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -35,6 +37,12 @@ function validIsoDate(value: unknown): string | null | undefined {
   return Number.isFinite(Date.parse(parsed)) ? parsed : undefined
 }
 
+function validCalendarDate(value: unknown): string | null | undefined {
+  const parsed = limitedString(value, 10)
+  if (parsed === undefined || parsed === null) return parsed
+  return isStrictCalendarDate(parsed) ? parsed : undefined
+}
+
 function safeMetadata(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
@@ -44,147 +52,256 @@ function safeMetadata(value: unknown): Record<string, unknown> | null {
   return entries.length ? Object.fromEntries(entries) : null
 }
 
+function safeFreeformObject(value: unknown, maxEntries = 40): Record<string, unknown> | null {
+  const source = object(value)
+  if (!source) return null
+  const entries = Object.entries(source)
+    .filter(([key, item]) => /^[a-zA-Z0-9_.-]{1,80}$/.test(key) && item !== undefined)
+    .slice(0, maxEntries)
+  return entries.length ? Object.fromEntries(entries) : null
+}
+
+function validUri(value: unknown): string | null {
+  const candidate = text(value, 2_000)
+  if (!candidate) return null
+  try {
+    const parsed = new URL(candidate)
+    return parsed.protocol === 'https:' ? candidate : null
+  } catch {
+    return null
+  }
+}
+
 export function profilePayload(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
   const result = allowedStrings(source, [
     ['first_name', 120],
     ['last_name', 120],
-    ['email', 254],
+    ['full_name', 240],
+    ['company_name', 240],
     ['phone', 40],
-    ['preferred_language', 12],
+    ['invoice_email', 320],
     ['language_code', 12],
+    ['timezone', 80],
   ])
-  if (typeof result.email === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) {
+  if (
+    typeof result.invoice_email === 'string' &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.invoice_email)
+  ) {
     return null
   }
+  return Object.keys(result).length ? result : null
+}
+
+function canonicalAddress(value: unknown): Record<string, unknown> | null {
+  const source = object(value)
+  if (!source) return null
+  const result = allowedStrings(source, [
+    ['street', 180],
+    ['postal_code', 20],
+    ['city', 120],
+    ['country', 80],
+    ['care_of', 120],
+    ['apartment_number', 40],
+  ])
+  const legacyCountry = limitedString(source.country_code, 2)
+  if (!result.country && legacyCountry) result.country = legacyCountry
   return Object.keys(result).length ? result : null
 }
 
 export function moveOutPayload(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
-  const result = allowedStrings(source, [
-    ['site_id', 120],
-    ['customer_site_id', 120],
-    ['facility_id', 120],
-    ['reason', 500],
-  ])
-  const moveOutDate = limitedString(
-    source.requested_move_out_date ?? source.move_out_date,
-    10,
+
+  const facilityReference = text(
+    source.facility_reference ??
+      source.customer_site_id ??
+      source.site_id ??
+      source.facility_id,
+    200,
   )
-  if (moveOutDate !== undefined) {
-    if (moveOutDate !== null && !isStrictCalendarDate(moveOutDate)) return null
-    result.requested_move_out_date = moveOutDate
+  const requestedMoveOutDate = validCalendarDate(
+    source.requested_move_out_date ?? source.move_out_date,
+  )
+  if (!facilityReference || !requestedMoveOutDate) return null
+
+  const result: Record<string, unknown> = {
+    facility_reference: facilityReference,
+    requested_move_out_date: requestedMoveOutDate,
   }
-  const forwarding = object(source.forwarding_address)
-  if (forwarding) {
-    const safe = allowedStrings(forwarding, [
-      ['street', 180],
-      ['postal_code', 20],
-      ['city', 120],
-      ['country_code', 2],
-    ])
-    if (Object.keys(safe).length) result.forwarding_address = safe
-  }
-  return Object.keys(result).length ? result : null
+  const customerContractReference = text(source.customer_contract_reference, 200)
+  const reason = text(source.reason, 1_000)
+  if (customerContractReference) result.customer_contract_reference = customerContractReference
+  if (reason) result.reason = reason
+
+  const newAddress = canonicalAddress(source.new_address ?? source.forwarding_address)
+  if (newAddress) result.new_address = newAddress
+  const contactDetails = safeFreeformObject(source.contact_details)
+  if (contactDetails) result.contact_details = contactDetails
+  const metadata = safeMetadata(source.metadata)
+  if (metadata) result.metadata = metadata
+  return result
 }
 
 export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
-  const result = allowedStrings(source, [
-    ['status', 40],
-    ['legal_text_version', 120],
-    ['legal_text_version_id', 120],
-    ['reference', 160],
-    ['method', 80],
-  ])
-  const signedAt = validIsoDate(source.signed_at ?? source.accepted_at)
-  if (signedAt !== undefined) result.signed_at = signedAt
+
+  const document = object(source.document)
+  const documentReference = text(
+    source.document_reference ??
+      document?.document_reference ??
+      document?.external_document_id ??
+      source.reference,
+    200,
+  )
+  const acceptedAt = validIsoDate(source.accepted_at ?? source.signed_at)
   const rawScope = source.scope ?? source.scopes
-  if (typeof rawScope === 'string' && rawScope.trim()) {
-    result.scope = rawScope.trim().slice(0, 120)
-  } else if (Array.isArray(rawScope)) {
-    result.scope = rawScope
-      .filter((item): item is string => typeof item === 'string')
-      .map((item) => item.trim().slice(0, 120))
-      .filter(Boolean)
-      .slice(0, 20)
+  const scope = (Array.isArray(rawScope) ? rawScope : typeof rawScope === 'string' ? [rawScope] : [])
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim().slice(0, 160))
+    .filter(Boolean)
+    .slice(0, 20)
+
+  if (!documentReference || !acceptedAt || scope.length === 0) return null
+  if (source.accepted === false) return null
+
+  const result: Record<string, unknown> = {
+    document_reference: documentReference,
+    scope,
+    accepted: true,
+    accepted_at: acceptedAt,
   }
-  const document = syncDocument(source.document)
-  if (document) result.document = document
-  return Object.keys(result).length ? result : null
+  const reference = text(source.power_of_attorney_reference ?? source.reference, 200)
+  if (reference) result.power_of_attorney_reference = reference
+  const validFrom = validCalendarDate(source.valid_from)
+  const validTo = validCalendarDate(source.valid_to)
+  if (validFrom) result.valid_from = validFrom
+  if (validTo) result.valid_to = validTo
+  const metadata = safeMetadata(source.metadata)
+  if (metadata) result.metadata = metadata
+  return result
 }
 
 export function syncLegalAcceptances(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return []
   return value.slice(0, 100).flatMap((item) => {
     const source = object(item)
-    if (!source) return []
-    const result = allowedStrings(source, [
-      ['acceptance_type', 80],
-      ['legal_text_version', 120],
-      ['legal_text_version_id', 120],
-      ['method', 80],
-      ['reference', 160],
-    ])
+    if (!source || source.accepted === false) return []
+
+    const documentReference = text(source.document_reference ?? source.reference, 200)
+    const documentCode = text(source.document_code ?? source.acceptance_type, 120)
+    const documentVersion = text(
+      source.document_version ?? source.legal_text_version_id ?? source.legal_text_version,
+      200,
+    )
+    const documentHash = text(source.document_hash ?? source.content_hash, 64)
     const acceptedAt = validIsoDate(source.accepted_at)
-    if (acceptedAt !== undefined) result.accepted_at = acceptedAt
-    return result.acceptance_type && (result.legal_text_version || result.legal_text_version_id)
-      ? [result]
-      : []
+    if (
+      !documentReference ||
+      !documentCode ||
+      !documentVersion ||
+      !documentHash ||
+      !/^[a-fA-F0-9]{64}$/.test(documentHash) ||
+      !acceptedAt
+    ) {
+      return []
+    }
+
+    const result: Record<string, unknown> = {
+      document_reference: documentReference,
+      document_code: documentCode,
+      document_version: documentVersion,
+      document_hash: documentHash,
+      accepted: true,
+      accepted_at: acceptedAt,
+    }
+    const metadata = safeMetadata(source.metadata)
+    if (metadata) result.metadata = metadata
+    return [result]
   })
 }
 
 export function syncDocument(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
-  const result = allowedStrings(source, [
-    ['external_document_id', 160],
-    ['document_type', 80],
+
+  const documentReference = text(source.document_reference ?? source.external_document_id, 200)
+  const documentType = text(source.document_type, 120)
+  if (!documentReference || !documentType) return null
+
+  const result: Record<string, unknown> = {
+    document_reference: documentReference,
+    document_type: documentType,
+  }
+  for (const [field, max] of [
     ['title', 240],
-    ['file_url', 2_000],
-    ['status', 40],
-    ['content_hash', 160],
-  ])
-  const createdAt = validIsoDate(source.created_at)
-  if (createdAt !== undefined) result.created_at = createdAt
+    ['status', 80],
+    ['file_name', 240],
+    ['mime_type', 160],
+  ] as Array<[string, number]>) {
+    const parsed = text(source[field], max)
+    if (parsed) result[field] = parsed
+  }
+  const secureUrl = validUri(source.secure_url ?? source.file_url)
+  if (secureUrl) result.secure_url = secureUrl
+  if (Number.isInteger(source.file_size_bytes) && Number(source.file_size_bytes) >= 0) {
+    result.file_size_bytes = Number(source.file_size_bytes)
+  }
   const metadata = safeMetadata(source.metadata)
   if (metadata) result.metadata = metadata
-  return result.external_document_id && result.document_type ? result : null
+  return result
 }
 
 export function syncDocuments(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return []
-  return value.slice(0, 100).map(syncDocument).filter((item): item is Record<string, unknown> => Boolean(item))
+  return value
+    .slice(0, 100)
+    .map(syncDocument)
+    .filter((item): item is Record<string, unknown> => Boolean(item))
 }
 
-export function syncFacilityData(value: unknown): Record<string, unknown> | null {
+function syncFacilityItem(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null
   const result = allowedStrings(source, [
-    ['site_id', 120],
-    ['customer_site_id', 120],
-    ['facility_id', 120],
-    ['metering_point_id', 120],
-    ['grid_owner_id', 120],
-    ['grid_area_code', 40],
-    ['price_area_code', 10],
-    ['street', 180],
-    ['address', 180],
-    ['postal_code', 20],
-    ['city', 120],
-    ['source', 80],
+    ['facility_reference', 200],
+    ['facility_id', 200],
+    ['metering_point_id', 200],
   ])
-  const verifiedAt = validIsoDate(source.verified_at)
-  if (verifiedAt !== undefined) result.verified_at = verifiedAt
+
+  const legacyFacilityReference = text(
+    source.customer_site_id ?? source.site_id,
+    200,
+  )
+  if (!result.facility_reference && legacyFacilityReference) {
+    result.facility_reference = legacyFacilityReference
+  }
+  const moveInDate = validCalendarDate(source.move_in_date)
+  const requestedStartDate = validCalendarDate(source.requested_start_date)
+  if (moveInDate) result.move_in_date = moveInDate
+  if (requestedStartDate) result.requested_start_date = requestedStartDate
+
+  const nestedAddress = canonicalAddress(source.address)
+  const flatAddress = canonicalAddress(source)
+  const address = nestedAddress ?? flatAddress
+  if (address) result.address = address
+
+  const metadata = safeMetadata(source.metadata)
+  if (metadata) result.metadata = metadata
   return Object.keys(result).length ? result : null
+}
+
+export function syncFacilityData(value: unknown): Record<string, unknown>[] {
+  const rows = Array.isArray(value) ? value : value ? [value] : []
+  return rows
+    .slice(0, 20)
+    .map(syncFacilityItem)
+    .filter((item): item is Record<string, unknown> => Boolean(item))
 }
 
 export function clientOperationId(value: unknown): string | null {
   const parsed = text(value, 240)
   return parsed && /^[0-9a-zA-Z:_-]{8,240}$/.test(parsed) ? parsed : null
 }
-import { isStrictCalendarDate } from '@/lib/website/businessDate'

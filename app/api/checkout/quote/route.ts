@@ -169,7 +169,7 @@ export async function POST(req: Request) {
 
     const contractsSnapshot = await fetchOpsPublicContractsSnapshot(customerType)
     const contract = contractsSnapshot.contracts.find((item) => item.offer_reference === offerReference)
-    if (!contract || !buildPublicContractDisplay(contract).ready) {
+    if (!contract || !buildPublicContractDisplay(contract).onlineReady) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
     const priceOptionSelection = selectPublicContractPriceOption({

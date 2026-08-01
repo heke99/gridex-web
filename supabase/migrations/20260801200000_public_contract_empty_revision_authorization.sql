@@ -1,41 +1,8 @@
 begin;
 
-create table if not exists public.website_public_contract_snapshots (
-  cache_key text primary key,
-  tenant_reference text not null,
-  channel text not null default 'website' check (channel = 'website'),
-  customer_type text not null check (customer_type in ('all', 'private', 'business')),
-  publication_revision bigint,
-  contract_version text,
-  parser_version text not null,
-  schema_sha256 text not null,
-  etag text,
-  snapshot jsonb not null,
-  accepted_count integer not null check (accepted_count >= 0),
-  blocked_count integer not null check (blocked_count >= 0),
-  upstream_count integer not null check (upstream_count >= 0),
-  fetched_at timestamptz not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint website_public_contract_snapshots_count_check
-    check (upstream_count = accepted_count + blocked_count)
-);
-
-create index if not exists website_public_contract_snapshots_tenant_lookup_idx
-  on public.website_public_contract_snapshots (
-    tenant_reference,
-    channel,
-    customer_type,
-    publication_revision desc nulls last
-  );
-
-alter table public.website_public_contract_snapshots enable row level security;
-revoke all on public.website_public_contract_snapshots from public, anon, authenticated;
-grant select, insert, update on public.website_public_contract_snapshots to service_role;
-
-comment on table public.website_public_contract_snapshots is
-  'Tenant-bound last-known-good canonical OPS public-contract feed. Empty/all-blocked candidates cannot replace a visible snapshot unless the matching publication revision is durably recorded as an explicit unpublish event.';
-
+-- Empty publication feeds are authorized by the durably recorded tenant/channel
+-- publication revision. The free-text reason is deliberately not interpreted as
+-- an enum because the public webhook contract defines it as an extensible string.
 create or replace function public.store_website_public_contract_snapshot(
   p_cache_key text,
   p_tenant_reference text,

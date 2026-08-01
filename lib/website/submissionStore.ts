@@ -192,7 +192,11 @@ export async function updateWebsiteSubmission(input: {
   opsWorkflowState?: string | null
   opsStatus?: string | null
   opsSupplierSwitchStatus?: string | null
+  opsRequestId?: string | null
   opsCorrelationId?: string | null
+  opsTraceId?: string | null
+  opsContractSchemaVersion?: string | null
+  apiContractVersionUsed?: string | null
   lastStatusSyncedAt?: string | null
   opsResultSnapshot?: Record<string, unknown> | null
   contractStatus?: string | null
@@ -222,7 +226,11 @@ export async function updateWebsiteSubmission(input: {
       ops_workflow_state: input.opsWorkflowState ?? null,
       ops_status: input.opsStatus ?? null,
       ops_supplier_switch_status: input.opsSupplierSwitchStatus ?? null,
+      ops_request_id: input.opsRequestId ?? null,
       ops_correlation_id: input.opsCorrelationId ?? null,
+      ops_trace_id: input.opsTraceId ?? null,
+      ops_contract_schema_version: input.opsContractSchemaVersion ?? null,
+      api_contract_version_used: input.apiContractVersionUsed ?? null,
       last_status_synced_at: input.lastStatusSyncedAt ?? null,
       ops_result_snapshot: input.opsResultSnapshot ?? null,
       contract_status: input.contractStatus ?? null,

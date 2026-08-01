@@ -11,11 +11,11 @@ import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay
 const TEST_PRICE_OPTION = {
   price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
   contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
-  auto_renew_enabled: false, renewal_term_months: null, default: true, selection_required: false,
+  auto_renew_enabled: false, renewal_term_months: null, is_default: true, default: true, selection_required: false,
   valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
   area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
-const CONTRACT_VERSION = '2026-07-30.3'
+const CONTRACT_VERSION = '2026-08-01.1'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 

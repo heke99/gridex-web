@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const documents = syncDocuments(body.documents)
   const facilityData = syncFacilityData(body.facility_data)
   const profile = profilePayload(body.profile)
-  if (!powerOfAttorney && legalAcceptances.length === 0 && documents.length === 0 && !facilityData && !profile) {
+  if (!powerOfAttorney && legalAcceptances.length === 0 && documents.length === 0 && facilityData.length === 0 && !profile) {
     return validationError('Inga synkbara kunduppgifter angavs.')
   }
   const operationId = clientOperationId(body.client_operation_id)

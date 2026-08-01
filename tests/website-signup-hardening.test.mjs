@@ -12,8 +12,8 @@ import {
 
 const TEST_PRICE_OPTION = {
   price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
-  contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
-  auto_renew_enabled: false, renewal_term_months: null, default: true, selection_required: false,
+  contract_type: 'variable_monthly', price_type: 'variable_monthly', customer_type: 'both', resolution: 'monthly', currency: 'SEK', unit: 'ore_per_kwh', fixed_price: null, markup: 4, monthly_fee: 49, binding_months: 0, notice_months: 1,
+  auto_renew_enabled: false, renewal_term_months: null, is_default: true, default: true, selection_required: false,
   valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
   area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
@@ -39,7 +39,7 @@ const modern = normalizePublicContractApiPayload({
       { year: 2026, month: 6, price_area_code: 'se3', amount: 88.4, unit: 'ore_per_kwh' },
     ],
   },
-  legal: {},
+  legal: { legal_bundle_reference: null, legal_bundle_version_id: null, immutable: true, required_modules: [], module_versions: [], requirements: [] },
 })
 
 assert.ok(modern)
@@ -58,7 +58,7 @@ assert.deepEqual(modern.portfolio_monthly_prices[0], {
 })
 
 const singularBoth = normalizePublicContractApiPayload({
-  offer_reference: 'offer-both', name: 'Båda', contract_type: 'variable_monthly', energy_direction: 'consumption', customer_type: 'both', channel: 'website', price_options: [TEST_PRICE_OPTION], pricing: {}, legal: {},
+  offer_reference: 'offer-both', name: 'Båda', contract_type: 'variable_monthly', energy_direction: 'consumption', customer_type: 'both', channel: 'website', price_options: [TEST_PRICE_OPTION], pricing: {}, legal: { legal_bundle_reference: null, legal_bundle_version_id: null, immutable: true, required_modules: [], module_versions: [], requirements: [] },
 })
 assert.deepEqual(singularBoth?.customer_types, ['private', 'business'])
 
@@ -92,7 +92,7 @@ assert.ok(!signup.includes('fetchOpsPublicContractsFresh().catch(() => [])'))
 assert.ok(signup.includes('idempotency_key_payload_mismatch'))
 assert.ok(signup.includes('application_business_in_progress'))
 assert.ok(signup.includes('duplicate_application'))
-assert.ok(signup.includes('fetchOpsWebsiteLegalBundle'))
+assert.ok(!signup.includes('fetchOpsWebsiteLegalBundle'))
 
 const publicDto = read('lib/website/publicDtos.ts')
 assert.ok(publicDto.includes('Never spread an OPS object'))
@@ -145,8 +145,8 @@ assert.ok(opsClient.includes('"/api/v1/website/public-contracts/diagnostics"'))
 assert.ok(opsClient.includes('If-None-Match'))
 assert.ok(opsClient.includes('response.status === 304'))
 assert.ok(opsClient.includes('stale_reason'))
-assert.ok(opsClient.includes('revalidateSeconds'))
-assert.ok(opsClient.includes('cache: options.forceFresh ? "no-store" : "force-cache"'))
+assert.ok(!opsClient.includes('revalidateSeconds: 60'))
+assert.ok(opsClient.includes("cache: 'no-store'"))
 assert.ok(opsClient.includes('isTransientOpsError(error)'))
 
 const publicContractFeed = read('lib/website/publicContractFeed.ts')
@@ -154,7 +154,7 @@ assert.ok(publicContractFeed.includes('fetchOpsPublicContractDiagnostics'))
 assert.ok(publicContractFeed.includes('serving cached public contracts'))
 assert.ok(read('app/(public)/page.tsx').includes('loadWebsitePublicContractFeed'))
 assert.ok(read('app/(public)/elavtal/page.tsx').includes('loadWebsitePublicContractFeed'))
-assert.ok(read('lib/website/publicContractsEndpoint.ts').includes('stale-if-error=86400'))
+assert.ok(read('lib/website/publicContractsEndpoint.ts').includes("'Cache-Control': 'no-store, max-age=0'"))
 
 const contractDisplay = read('lib/website/publicContractDisplay.ts')
 assert.ok(contractDisplay.includes("case 'variable_monthly':"))

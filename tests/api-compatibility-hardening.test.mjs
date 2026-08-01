@@ -126,8 +126,9 @@ assert.match(readiness, /liveOpenApiVerified/, 'live readiness must require both
 for (const event of ['invoice.paid', 'invoice.disputed', 'supply.started', 'metering_values.updated', 'facility_data.verified']) {
   assert.ok(webhookParser.includes(`'${event}'`), `webhook parser must support ${event}`)
 }
-assert.match(webhookHandler, /apply_ops_domain_event/, 'supported events must use durable domain projection')
-assert.match(webhookHandler, /x-gridex-event-type/, 'signed event type header must be verified')
+assert.match(webhookHandler, /apply_ops_publication_event/, 'publication changes must use the durable publication projection')
+assert.match(webhookHandler, /assertWebsiteRequest/, 'publication route must validate the canonical body schema')
+assert.doesNotMatch(webhookHandler, /!eventId \|\| !eventTypeHeader/, 'x-gridex-event-type must not be a required route header')
 assert.match(webhookRetry, /processOpsWebhookRetries/, 'retry worker must exist')
 assert.match(webhookMigration, /retryable_failure/, 'migration must persist retryable state')
 assert.match(webhookMigration, /permanent_failure/, 'migration must persist permanent failure state')

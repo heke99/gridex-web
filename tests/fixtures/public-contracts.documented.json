@@ -149,7 +149,15 @@
               "valid_from": null,
               "valid_to": null
             }
-          ]
+          ],
+          "price_type": "variable_monthly",
+          "resolution": "monthly",
+          "currency": "SEK",
+          "unit": "ore_per_kwh",
+          "fixed_price": null,
+          "markup": 4,
+          "monthly_fee": 68,
+          "is_default": true
         }
       ],
       "channel": "website"

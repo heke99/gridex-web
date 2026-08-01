@@ -16,7 +16,7 @@ import {
 import {
   GRIDEX_WEBSITE_API_CONTRACT_VERSION,
 } from '@/lib/ops/contract';
-import { OpsError, isOpsError } from '@/lib/ops/errors'
+import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import {
   env,
   getOpsApiBaseUrl,
@@ -330,7 +330,10 @@ export type OpsCustomerApplicationResult = {
   power_of_attorney?: OpsPowerOfAttorneyState | null;
   nextAction?: Record<string, unknown> | null;
   communication?: OpsCustomerApplicationCommunication | null;
+  request_id?: string | null;
   correlation_id?: string | null;
+  trace_id?: string | null;
+  contract_schema_version?: string | null;
   missing_fields: string[];
   blocking_reasons: string[];
   warnings: string[];
@@ -442,7 +445,6 @@ export type OpsWebsiteEnergyResolution = {
   price_area_code: OpsWebsitePriceArea | null;
   grid_area_code?: string | null;
   grid_area_name?: string | null;
-  grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
   contract_version: string;
@@ -496,7 +498,12 @@ export type OpsWebsiteQuoteValidation = {
   quote_reference: string;
   offer_reference: string;
   resolution_id: string;
-  valid_until?: string | null;
+  valid_until: string;
+  resolver_version: string | null;
+  geodata_version: string | null;
+  market_reference: OpsQuoteMarketReference;
+  energy_direction: OpsEnergyDirection;
+  selected_area_price: Record<string, unknown> | null;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
@@ -669,7 +676,7 @@ export type OpsWebsitePortfolioPrices = {
   historical_final_prices: Record<string, unknown>[];
   final_billing_rule: 'locked_settlement_only';
   request_id: string;
-  contract_schema_version: typeof GRIDEX_WEBSITE_API_CONTRACT_VERSION;
+  contract_schema_version: string;
   raw: Record<string, unknown>;
 };
 
@@ -1321,6 +1328,16 @@ function jsonRequestBody(init?: RequestInit): unknown {
   }
 }
 
+function additiveResponsePropertiesOnly(error: unknown): boolean {
+  if (!(error instanceof OpsSchemaError)) return false
+  const details = recordValue(error.details)
+  const errors = Array.isArray(details?.errors) ? details.errors : []
+  return errors.length > 0 && errors.every((item) => {
+    const row = recordValue(item)
+    return row?.keyword === 'additionalProperties'
+  })
+}
+
 function observeRuntimeSchemaValidation(input: {
   endpoint: string
   schema: string
@@ -1329,12 +1346,15 @@ function observeRuntimeSchemaValidation(input: {
   try {
     input.validate()
   } catch (error) {
-    console.warn('[gridex-openapi] runtime response drift detected; endpoint parser remains authoritative', {
-      endpoint: input.endpoint,
-      schema: input.schema,
-      code: isOpsError(error) ? error.code : null,
-      status: isOpsError(error) ? error.status : null,
-    })
+    if (additiveResponsePropertiesOnly(error)) {
+      console.warn('[gridex-openapi] compatible additive response fields detected', {
+        endpoint: input.endpoint,
+        schema: input.schema,
+        code: isOpsError(error) ? error.code : null,
+      })
+      return
+    }
+    throw error
   }
 }
 
@@ -1666,7 +1686,7 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   const quoteInput = recordValue(row.input) ?? recordValue(row.request) ?? {};
   const marketReferenceRow = recordValue(row.market_reference ?? row.marketReference) ?? {};
   const quoteReference = pickString(row, ['quote_reference', 'quoteReference', 'reference']);
-  const offerReference = pickString(contract, ['offer_reference', 'offerReference']) ?? pickString(row, ['offer_reference', 'offerReference']);
+  const offerReference = pickString(row, ['offer_reference']);
   const name = pickString(contract, ['name', 'title']) ?? pickString(row, ['contract_name', 'name']) ?? 'Elavtal';
   const rawEnergyDirection = pickString(row, ['energy_direction', 'energyDirection']);
   const energyDirection = rawEnergyDirection === 'consumption' || rawEnergyDirection === 'production'
@@ -1686,8 +1706,8 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     pickString(marketReferenceRow, ['price_area', 'priceArea', 'price_area_code', 'priceAreaCode']) ??
     pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])
   )?.toUpperCase();
-  const annualKwh = quoteNumber(row, [['annual_consumption_kwh'], ['annual_kwh'], ['consumption', 'annual_consumption_kwh']]) ?? input.annual_consumption_kwh;
-  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']]) ?? annualKwh / 12;
+  const annualKwh = quoteNumber(quoteInput, [['annual_consumption_kwh']]);
+  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']]) ?? (annualKwh !== null ? annualKwh / 12 : null);
   const pricePerKwh = quoteNumber(row, [
     ['price_per_kwh_ore'],
     ['energy_price_ore_per_kwh'],
@@ -1714,23 +1734,11 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     totals.yearly_inc_vat ?? totals.yearly_cost ?? row.total_yearly_cost_sek,
   );
   const validUntil = pickString(row, ['valid_until', 'validUntil', 'expires_at', 'expiresAt']);
-  const resolutionId =
-    pickString(quoteInput, ['resolution_id', 'resolutionId']) ??
-    pickString(row, ['resolution_id', 'resolutionId']) ??
-    input.resolution_id;
-  const startDate =
-    pickString(quoteInput, ['start_date', 'startDate']) ??
-    pickString(row, ['start_date', 'startDate']) ??
-    normalizeText(input.start_date);
-  const priceOptionReference =
-    pickString(row, ['price_option_reference']) ??
-    pickString(quoteInput, ['price_option_reference']);
-  const areaPriceReference =
-    pickString(selectedAreaPrice, ['area_price_reference', 'areaPriceReference']) ??
-    pickString(row, ['area_price_reference', 'areaPriceReference']);
-  const invoiceDeliveryMethod =
-    pickString(row, ['invoice_delivery_method']) ??
-    pickString(quoteInput, ['invoice_delivery_method']);
+  const resolutionId = pickString(quoteInput, ['resolution_id']);
+  const startDate = pickString(quoteInput, ['start_date']);
+  const priceOptionReference = pickString(row, ['price_option_reference']);
+  const areaPriceReference = pickString(row, ['area_price_reference']);
+  const invoiceDeliveryMethod = pickString(row, ['invoice_delivery_method']);
   const invoiceMethods = new Set<OpsInvoiceDeliveryMethod>([
     'email',
     'e_invoice',
@@ -1742,15 +1750,30 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
   )
     ? invoiceDeliveryMethod as OpsInvoiceDeliveryMethod
     : null;
-  const selectedComponentReferences =
-    pickStringArray(row, ['selected_component_references']) ??
-    pickStringArray(quoteInput, ['selected_component_references']);
-  const mandatoryComponentReferences =
-    pickStringArray(row, ['mandatory_component_references', 'mandatoryComponentReferences']) ?? [];
-  const conditionalComponentReferences =
-    pickStringArray(row, ['conditional_component_references', 'conditionalComponentReferences']) ?? [];
-  const siteCount = normalizeInteger(row.site_count ?? quoteInput.site_count);
-  if (!quoteReference || !offerReference || !priceOptionReference || !normalizedInvoiceDeliveryMethod || !resolutionId || !startDate || !isOpsWebsitePriceArea(area) || monthlyKwh === null || annualKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null || !selectedComponentReferences || siteCount === null || !Number.isInteger(siteCount) || siteCount < 1) {
+  const selectedComponentReferences = pickStringArray(row, ['selected_component_references']);
+  const mandatoryComponentReferences = pickStringArray(row, ['mandatory_component_references']);
+  const conditionalComponentReferences = pickStringArray(row, ['conditional_component_references']);
+  const siteCount = normalizeInteger(row.site_count);
+  const validUntilTimestamp = validUntil ? Date.parse(validUntil) : Number.NaN
+  if (
+    !quoteReference ||
+    !offerReference ||
+    !validUntil ||
+    !Number.isFinite(validUntilTimestamp) ||
+    !Object.hasOwn(row, 'price_option_reference') ||
+    !Object.hasOwn(row, 'area_price_reference') ||
+    !normalizedInvoiceDeliveryMethod ||
+    !resolutionId ||
+    !startDate ||
+    !isOpsWebsitePriceArea(area) ||
+    annualKwh === null ||
+    !selectedComponentReferences ||
+    !mandatoryComponentReferences ||
+    !conditionalComponentReferences ||
+    siteCount === null ||
+    !Number.isInteger(siteCount) ||
+    siteCount < 1
+  ) {
     throw new OpsError('OPS returnerade en ofullständig canonical quote.', 502, {
       code: 'ops_quote_contract_invalid',
       quote_reference: quoteReference,
@@ -1760,7 +1783,23 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
       start_date: startDate,
     });
   }
+  if (monthlyKwh === null || pricePerKwh === null || monthlyExVat === null || monthlyIncVat === null) {
+    throw new OpsError('OPS-offerten saknar presenterbar prisberäkning.', 502, {
+      code: 'ops_quote_presentation_incomplete',
+      quote_reference: quoteReference,
+      missing: {
+        estimated_monthly_kwh: monthlyKwh === null,
+        price_per_kwh_ore: pricePerKwh === null,
+        monthly_ex_vat: monthlyExVat === null,
+        monthly_inc_vat: monthlyIncVat === null,
+      },
+    })
+  }
   if (
+    offerReference !== input.offer_reference ||
+    resolutionId !== input.resolution_id ||
+    startDate !== input.start_date ||
+    annualKwh !== input.annual_consumption_kwh ||
     priceOptionReference !== input.price_option_reference ||
     normalizedInvoiceDeliveryMethod !== input.invoice_delivery_method ||
     siteCount !== input.site_count ||
@@ -2059,7 +2098,20 @@ function integrationContextFromPayload(payload: unknown): OpsIntegrationContext 
   }
   const integrationWarnings: Array<Record<string, unknown>> = []
   if (!contractVersion) {
-    integrationWarnings.push({ code: 'contract_version_missing' })
+    throw new OpsError('OPS integration context saknar canonical kontraktsversion.', 502, {
+      code: 'ops_integration_contract_version_missing',
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
+  }
+  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    throw new OpsError('OPS integration context använder en annan kontraktsversion än Gridex Web.', 502, {
+      code: 'ops_integration_contract_version_mismatch',
+      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      received: contractVersion,
+      endpoint: '/api/v1/integration/context',
+      retryable: false,
+    })
   }
   if (requiredEnvironmentVariables.length !== 1 || requiredEnvironmentVariables[0] !== 'GRIDEX_API_KEY') {
     integrationWarnings.push({
@@ -2220,61 +2272,11 @@ function publicContractParseReasons(value: unknown): string[] {
 
 function normalizePublicContractCompatibility(
   value: unknown,
-  basePath: string,
+  _basePath: string,
 ): { value: unknown; issues: ContractValidationIssue[] } {
-  const row = recordValue(value)
-  if (!row) return { value, issues: [] }
-  const issues: ContractValidationIssue[] = []
-  const priceOptions = Array.isArray(row.price_options)
-    ? row.price_options.map((item, index) => {
-      const option = recordValue(item)
-      if (!option) return item
-      const normalized = { ...option }
-      const optionPath = `${basePath}.price_options[${index}]`
-      if (typeof normalized.is_default === 'boolean' && typeof normalized.default !== 'boolean') {
-        normalized.default = normalized.is_default
-        issues.push(contractIssue({
-          code: 'compatibility_default_alias_added',
-          path: `${optionPath}.default`,
-          severity: 'compatibility',
-          source: 'normalization',
-          detail: 'default',
-        }))
-      }
-      if (typeof normalized.default === 'boolean' && typeof normalized.is_default !== 'boolean') {
-        normalized.is_default = normalized.default
-        issues.push(contractIssue({
-          code: 'deprecated_default_alias_used',
-          path: `${optionPath}.default`,
-          severity: 'compatibility',
-          source: 'normalization',
-          detail: 'is_default',
-        }))
-      }
-      if (typeof normalized.contract_type !== 'string' && typeof normalized.price_type === 'string') {
-        normalized.contract_type = normalized.price_type
-        issues.push(contractIssue({
-          code: 'compatibility_contract_type_alias_added',
-          path: `${optionPath}.contract_type`,
-          severity: 'compatibility',
-          source: 'normalization',
-          detail: 'price_type',
-        }))
-      }
-      if (typeof normalized.price_type !== 'string' && typeof normalized.contract_type === 'string') {
-        normalized.price_type = normalized.contract_type
-        issues.push(contractIssue({
-          code: 'compatibility_price_type_alias_added',
-          path: `${optionPath}.price_type`,
-          severity: 'compatibility',
-          source: 'normalization',
-          detail: 'contract_type',
-        }))
-      }
-      return normalized
-    })
-    : row.price_options
-  return { value: { ...row, price_options: priceOptions }, issues }
+  // Preserve the upstream contract exactly. Canonical required fields must never
+  // be manufactured from aliases before structural and semantic validation.
+  return { value, issues: [] }
 }
 
 export function parseOpsPublicContractsPayload(payload: unknown): {
@@ -2567,6 +2569,21 @@ export async function validateOpsWebsiteQuote(
   const offerReference = normalizeText(row?.offer_reference)
   const resolutionId = normalizeText(row?.resolution_id)
   const validUntil = normalizeText(row?.valid_until)
+  const resolverVersion = row && Object.hasOwn(row, 'resolver_version')
+    ? normalizeText(row.resolver_version)
+    : undefined
+  const geodataVersion = row && Object.hasOwn(row, 'geodata_version')
+    ? normalizeText(row.geodata_version)
+    : undefined
+  const marketReference = normalizeQuoteMarketReference(row?.market_reference)
+  const rawEnergyDirection = normalizeText(row?.energy_direction)
+  const energyDirection = rawEnergyDirection === 'consumption' || rawEnergyDirection === 'production'
+    ? rawEnergyDirection
+    : null
+  const selectedAreaPricePresent = Boolean(row && Object.hasOwn(row, 'selected_area_price'))
+  const selectedAreaPrice = row?.selected_area_price === null
+    ? null
+    : recordValue(row?.selected_area_price)
   const priceOptionReference = normalizeText(row?.price_option_reference)
   const areaPriceReference = normalizeText(row?.area_price_reference)
   const invoiceDeliveryMethod = normalizeText(row?.invoice_delivery_method)
@@ -2594,6 +2611,14 @@ export async function validateOpsWebsiteQuote(
     !quoteReference ||
     !offerReference ||
     !resolutionId ||
+    !validUntil ||
+    !Number.isFinite(Date.parse(validUntil)) ||
+    resolverVersion === undefined ||
+    geodataVersion === undefined ||
+    !marketReference ||
+    !energyDirection ||
+    !selectedAreaPricePresent ||
+    (row?.selected_area_price !== null && !selectedAreaPrice) ||
     !priceOptionReference ||
     !normalizedInvoiceDeliveryMethod ||
     !responseSelectedComponents ||
@@ -2665,6 +2690,11 @@ export async function validateOpsWebsiteQuote(
     offer_reference: offerReference,
     resolution_id: resolutionId,
     valid_until: validUntil,
+    resolver_version: resolverVersion,
+    geodata_version: geodataVersion,
+    market_reference: marketReference,
+    energy_direction: energyDirection,
+    selected_area_price: selectedAreaPrice,
     price_option_reference: priceOptionReference,
     area_price_reference: areaPriceReference,
     invoice_delivery_method: normalizedInvoiceDeliveryMethod,
@@ -2722,12 +2752,16 @@ export async function fetchOpsCurrentMarketPrice(
       retryable: false,
     })
   }
-  logContractVersionDrift({
-    endpoint,
-    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-    receivedVersion: normalizeText(response.contract_schema_version),
-    requestId: response.request_id,
-  })
+  if (normalizeText(response.contract_schema_version) !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    throw new OpsError('OPS marknadspris använder en annan kontraktsversion än Gridex Web.', 502, {
+      code: 'ops_market_price_contract_version_mismatch',
+      endpoint,
+      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      received: normalizeText(response.contract_schema_version),
+      request_id: response.request_id,
+      retryable: false,
+    })
+  }
   if (response.data.is_stale) {
     throw new OpsError('OPS returnerade ett föråldrat aktuellt marknadspris.', 503, {
       code: 'market_price_stale',
@@ -2881,12 +2915,16 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
     })
   }
 
-  logContractVersionDrift({
-    endpoint: '/api/v1/website/portfolio-prices',
-    localVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-    receivedVersion: contractVersion,
-    requestId,
-  })
+  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    throw new OpsError('OPS portfoliorespons använder en annan kontraktsversion än Gridex Web.', 502, {
+      code: 'ops_portfolio_contract_version_mismatch',
+      endpoint: '/api/v1/website/portfolio-prices',
+      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      received: contractVersion,
+      request_id: requestId,
+      retryable: false,
+    })
+  }
 
   const rows = history.map((item, index) => {
     const row = recordValue(item)
@@ -2927,7 +2965,7 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
     historical_final_prices: rows,
     final_billing_rule: 'locked_settlement_only',
     request_id: requestId,
-    contract_schema_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    contract_schema_version: contractVersion,
     raw: root,
   }
 }
@@ -2973,23 +3011,23 @@ function snapshotFromCacheEntry(
 }
 
 function publicContractsFallbackEligible(error: unknown): boolean {
-  if (!isOpsError(error)) return true
+  if (!isOpsError(error)) return false
   if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
   if ([401, 403, 410, 423].includes(error.status)) return false
-  return isTransientOpsError(error) || [
-    'ops_public_contracts_response_invalid',
-    'ops_public_contracts_contract_version_missing',
-    'ops_public_contracts_contract_version_mismatch',
-    'ops_public_contracts_publication_revision_missing',
-    'ops_response_content_type_invalid',
-  ].includes(error.code ?? '')
+  return isTransientOpsError(error)
 }
 
 async function persistentPublicContractsCacheEntry(
   cacheKey: string,
 ): Promise<PublicContractsCacheEntry | null> {
   try {
-    const snapshot = await readWebsitePublicContractSnapshot(cacheKey)
+    const integration = await getVerifiedOpsIntegrationContext()
+    const snapshot = await readWebsitePublicContractSnapshot(cacheKey, {
+      tenantReference: integration.tenant_reference,
+      contractVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      parserVersion: CONTRACT_PARSER_VERSION,
+      schemaSha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
+    })
     if (!snapshot) return null
     const entry: PublicContractsCacheEntry = { ...snapshot, cache_key: cacheKey }
     publicContractsCache.set(cacheKey, entry)
@@ -4042,7 +4080,10 @@ export function mapOpsCustomerApplicationResult(
     power_of_attorney: mapApplicationPowerOfAttorney(row.power_of_attorney),
     nextAction: recordValue(row.next_action),
     communication: mapCustomerApplicationCommunication(row.communication),
-    correlation_id: pickFromRecords([root], ['correlation_id', 'request_id']),
+    request_id: pickString(root, ['request_id']),
+    correlation_id: pickString(root, ['correlation_id']),
+    trace_id: pickString(root, ['trace_id']),
+    contract_schema_version: pickString(root, ['contract_schema_version']),
     missing_fields: stringArray('missing_fields'),
     blocking_reasons: stringArray('blocking_reasons'),
     warnings: stringArray('warnings'),
@@ -4065,7 +4106,7 @@ export type OpsCustomerSyncInput = {
   powerOfAttorney?: Record<string, unknown> | null;
   legalAcceptances?: Record<string, unknown>[] | null;
   documents?: Record<string, unknown>[] | null;
-  facilityData?: Record<string, unknown> | null;
+  facilityData?: Record<string, unknown>[] | null;
   profile?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
 };
@@ -4075,6 +4116,9 @@ export type OpsCustomerSyncResult = {
   status?: string | null;
   synced?: Record<string, unknown> | null;
   warnings: string[];
+  requestId?: string | null;
+  correlationId?: string | null;
+  contractSchemaVersion?: string | null;
   raw?: Record<string, unknown>;
 };
 
@@ -4097,12 +4141,27 @@ export type OpsCustomerWriteResult = {
   status?: string | null;
   data?: Record<string, unknown> | null;
   warnings: string[];
+  requestId?: string | null;
+  correlationId?: string | null;
+  contractSchemaVersion?: string | null;
   raw?: Record<string, unknown>;
 };
 
 export type OpsCustomerEventType =
   | "customer.opened_document"
   | "customer.downloaded_document";
+
+export type OpsCustomerEventResult = {
+  eventId: string | null;
+  customerEventId: string | null;
+  eventReference: string;
+  eventType: string;
+  customerReference: string | null;
+  status: 'accepted';
+  requestId: string;
+  correlationId: string | null;
+  contractSchemaVersion: string;
+};
 
 export const OPS_CUSTOMER_EVENT_TYPES = new Set<string>([
   "customer.opened_document",
@@ -4159,6 +4218,13 @@ function portalIdentityPayload(identity: OpsPortalIdentity): Record<string, stri
     ...(customerNumber ? { customer_number: customerNumber } : {}),
     ...(externalCustomerId ? { external_customer_id: externalCustomerId } : {}),
   };
+}
+
+function customerSyncIdentityPayload(identity: OpsPortalIdentity): Record<string, string> {
+  return {
+    ...portalIdentityPayload(identity),
+    authenticated_user_reference: identity.userId,
+  }
 }
 
 async function opsCustomerFetch(
@@ -4339,14 +4405,12 @@ export async function submitOpsCustomerSync(
 ): Promise<OpsCustomerSyncResult> {
   const headers = portalHeaders(input.identity);
   const body = {
-    ...portalIdentityPayload(input.identity),
-    ...(input.facilityData ? { facility_data: input.facilityData } : {}),
+    ...customerSyncIdentityPayload(input.identity),
+    ...(input.facilityData?.length ? { facility_data: input.facilityData } : {}),
     ...(input.profile ? { profile: input.profile } : {}),
-    data: {
-      ...(input.powerOfAttorney ? { power_of_attorney: input.powerOfAttorney } : {}),
-      ...(input.legalAcceptances?.length ? { legal_acceptances: input.legalAcceptances } : {}),
-      ...(input.documents?.length ? { documents: input.documents } : {}),
-    },
+    ...(input.powerOfAttorney ? { power_of_attorney: input.powerOfAttorney } : {}),
+    ...(input.legalAcceptances?.length ? { legal_acceptances: input.legalAcceptances } : {}),
+    ...(input.documents?.length ? { documents: input.documents } : {}),
     ...(input.metadata ? { metadata: input.metadata } : {}),
   };
 
@@ -4365,11 +4429,15 @@ export async function submitOpsCustomerSync(
   });
 
   const row = responseObject(payload);
+  const data = recordValue(row.data);
   return {
-    ok: row.ok === false ? false : true,
-    status: pickString(row, ["status"]),
-    synced: recordValue(row.synced) ?? recordValue(row.data),
-    warnings: normalizeWarnings(row),
+    ok: data?.status === 'synced',
+    status: data ? pickString(data, ['status']) : null,
+    synced: data,
+    warnings: data ? normalizeWarnings(data) : [],
+    requestId: pickString(row, ['request_id']),
+    correlationId: pickString(row, ['correlation_id']),
+    contractSchemaVersion: pickString(row, ['contract_schema_version']),
     raw: row,
   };
 }
@@ -4414,11 +4482,16 @@ export async function submitOpsCustomerPortalSync(
     body: JSON.stringify(body),
   });
   const row = responseObject(payload);
+  const data = recordValue(row.data);
+  const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: row.ok === false ? false : true,
-    status: pickString(row, ["status"]),
-    synced: recordValue(row.synced) ?? recordValue(row.data),
-    warnings: normalizeWarnings(row),
+    ok: status === 'linked' || (status === 'pending_review' && data?.access_granted === true),
+    status,
+    synced: data,
+    warnings: data ? normalizeWarnings(data) : [],
+    requestId: pickString(row, ['request_id']),
+    correlationId: pickString(row, ['correlation_id']),
+    contractSchemaVersion: pickString(row, ['contract_schema_version']),
     raw: row,
   };
 }
@@ -4436,11 +4509,16 @@ function customerWriteIdempotencyKey(
 
 function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult {
   const row = responseObject(payload);
+  const data = recordValue(row.data);
+  const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: row.ok === false ? false : true,
-    status: pickString(row, ["status"]),
-    data: recordValue(row.data) ?? row,
-    warnings: normalizeWarnings(row),
+    ok: Boolean(data),
+    status,
+    data,
+    warnings: data ? normalizeWarnings(data) : [],
+    requestId: pickString(row, ['request_id']),
+    correlationId: pickString(row, ['correlation_id']),
+    contractSchemaVersion: pickString(row, ['contract_schema_version']),
     raw: row,
   };
 }
@@ -4481,19 +4559,31 @@ export async function submitOpsCustomerMoveOut(
     });
   }
   const reason = normalizeText(input.moveOut.reason);
+  const allowedMoveOutFields = new Set([
+    'customer_contract_reference',
+    'facility_reference',
+    'new_address',
+    'contact_details',
+  ]);
   const moveOutData = Object.fromEntries(
     Object.entries(input.moveOut).filter(
-      ([key, value]) =>
-        !['requested_move_out_date', 'move_out_date', 'reason'].includes(key) &&
-        value !== undefined &&
-        value !== null,
+      ([key, value]) => allowedMoveOutFields.has(key) && value !== undefined && value !== null,
     ),
   );
+  const facilityReference = normalizeText(moveOutData.facility_reference);
+  if (!facilityReference) {
+    throw new OpsError('Anläggningsreferens saknas för utflyttningen.', 400, {
+      code: 'facility_reference_required',
+      field: 'facility_reference',
+      retryable: false,
+    });
+  }
   const body = {
-    ...portalIdentityPayload(input.identity),
+    ...customerSyncIdentityPayload(input.identity),
+    ...moveOutData,
+    facility_reference: facilityReference,
     requested_move_out_date: requestedMoveOutDate,
     ...(reason ? { reason } : {}),
-    ...(Object.keys(moveOutData).length ? { data: moveOutData } : {}),
     ...(input.metadata ? { metadata: input.metadata } : {}),
   };
 
@@ -4541,7 +4631,7 @@ export async function sendOpsCustomerEvent(
     idempotency_key?: string | null;
     metadata?: Record<string, unknown>;
   },
-): Promise<void> {
+): Promise<OpsCustomerEventResult> {
   if (!isOpsCustomerEventType(event.event_type)) {
     throw new OpsError("Kundhändelsen stöds inte av OPS-kontraktet.", 400, {
       event_type: event.event_type,
@@ -4557,7 +4647,7 @@ export async function sendOpsCustomerEvent(
     `customer-event:${identity.userId}:${operationId}`,
   );
 
-  await opsFetch("/api/v1/website/customer-events", {
+  const payload = await opsFetch("/api/v1/website/customer-events", {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -4578,6 +4668,45 @@ export async function sendOpsCustomerEvent(
       data: event.metadata ?? {},
     }),
   });
+  const root = responseObject(payload)
+  const data = recordValue(root.data)
+  const status = normalizeText(data?.status)
+  const eventReference = normalizeText(data?.event_reference)
+  const eventType = normalizeText(data?.event_type)
+  const requestId = normalizeText(root.request_id)
+  const contractSchemaVersion = normalizeText(root.contract_schema_version)
+  if (
+    !data ||
+    status !== 'accepted' ||
+    !eventReference ||
+    eventReference !== operationId ||
+    !eventType ||
+    eventType !== event.event_type ||
+    !requestId ||
+    contractSchemaVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION
+  ) {
+    throw new OpsError('OPS returnerade ett ogiltigt kundhändelsesvar.', 502, {
+      code: 'ops_customer_event_response_invalid',
+      endpoint: '/api/v1/website/customer-events',
+      request_id: requestId,
+      expected_event_reference: operationId,
+      received_event_reference: eventReference,
+      expected_event_type: event.event_type,
+      received_event_type: eventType,
+      retryable: false,
+    })
+  }
+  return {
+    eventId: normalizeText(data.event_id),
+    customerEventId: normalizeText(data.customer_event_id),
+    eventReference,
+    eventType,
+    customerReference: normalizeText(data.customer_reference),
+    status: 'accepted',
+    requestId,
+    correlationId: normalizeText(root.correlation_id),
+    contractSchemaVersion,
+  }
 }
 
 export async function fetchOpsTenantEvents(): Promise<Record<string, unknown>[]> {

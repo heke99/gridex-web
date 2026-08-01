@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-07-30.3`.
+Canonical kontraktsversion: `2026-08-01.1`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -17,22 +17,29 @@ docs/openapi/release-manifest.json
 docs/openapi/verification-status.json
 ```
 
+Aktuell lokal release:
+
+```text
+Website SHA-256:       3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821
+Customer Portal SHA:   ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3
+```
+
 `npm run api:sync` hämtar release-manifestet först och verifierar SHA-256 över
 specifikationernas exakta råa bytes. Båda specifikationerna måste ha samma
 version och matcha manifestets hash innan de ersätter lokala filer atomiskt.
-Typer, manifest, semantisk diff och lokala kontroller genereras därefter.
+Typer, validatorer, manifest, semantisk diff och lokala kontroller genereras
+därefter.
 
 En distribuerad snapshot har avsiktligt `live_sync_verified=false`. Mottagande
 miljö måste köra `npm run api:sync` för ett nytt livebevis.
 
-## Checkout
+## Checkout och canonical sanningskällor
 
 ```text
 integration/context
-→ public-contracts
+→ public-contracts (inklusive immutable legal snapshot)
 → energy-area/resolve
 → quote
-→ legal-bundle
 → quote/validate
 → customer-applications
 ```
@@ -41,67 +48,121 @@ Kundens val av `price_option_reference`, canonical
 `area_price_reference`, `invoice_delivery_method`,
 `selected_component_references` och `site_count` verifieras mot det publicerade
 avtalet, skickas till OPS och binds i webbens signerade offerttoken. OPS quote
-måste returnera samma områdesprisreferens som valdes för kundens elområde och
-startdatum. Checkout återskapar valen från signaturen, inte från ändringsbara
-formulärfält.
+måste returnera samma canonical referenser och samma echoed input som kunden
+valde. Checkout återskapar valen från den signerade serverkontexten, inte från
+ändringsbara formulärfält.
+
+Webbens resolver använder `resolution_id`, `price_area`, `grid_area_code` och
+`grid_owner_name` från OPS. Resolverkontraktet publicerar inte ett internt
+`grid_owner_id`; webben får därför inte skapa eller förvänta sig ett sådant ID.
+OPS löser intern nätägare från canonical `grid_area_code` när ansökan behandlas.
 
 ## Quote-giltighet, startdatum och idempotency
 
-**Gridex quotes are not time-limited.** `valid_until` är ett deprecated,
-nullable kompatibilitetsfält. Webben parsar äldre värden men jämför dem aldrig
-med klockan, visar ingen nedräkning och startar ingen omräkning på grund av
-quote-ålder.
+`valid_until` är ett obligatoriskt canonical response-fält i API-version
+`2026-08-01.1`. Webben kräver ett giltigt date-time-värde i quote- och
+quote-validation-svaret och bevarar det i snapshoten. Kundgränssnittet använder
+inte en egen lokal nedräkning som ensam affärsregel; OPS quote-validation,
+teckningsbarhet, revocation och konsumtionsstatus är auktoritativa vid submit.
 
-Giltighet är separat från cache och bygger på:
+Giltighetskontrollen binder minst:
 
-- signerad `quote_reference` och immutable snapshot,
-- `offer_reference`, `contract_reference`, `price_option_reference`,
-  `area_price_reference` och `resolution_id`,
-- exakt `customer_type` och canonicalt `start_date`,
-- OPS-verifierad integritet, teckningsbarhet och uttrycklig revocation,
-- att quoten inte redan konsumerats av en annan committed kundansökan.
+- `quote_reference`, `offer_reference`, `resolution_id` och `valid_until`,
+- echoed quote-input och startdatum,
+- `price_option_reference`, `area_price_reference` och vald områdesprisrad,
+- fakturametod, valda/obligatoriska/villkorade komponentreferenser och `site_count`,
+- `resolver_version`, `geodata_version`, `market_reference` och `energy_direction`,
+- OPS-verifierad integritet, teckningsbarhet och uttrycklig revocation.
 
 Kunden väljer `earliest_possible` eller `specific_date` före prisberäkningen.
-Ogiltiga eller saknade värden får aldrig normaliseras tyst. Den returnerade
-quotens `start_date` låses i checkout och kundansökan. Ändrad kundtyp,
-resolution, avtal, prisalternativ, förbrukning eller startuppgift rensar den
-aktuella quoten och nästa aktiva klick skapar ett nytt `quote_attempt_id`.
+Ogiltiga eller saknade canonical värden får aldrig normaliseras tyst. Ändrad
+kundtyp, resolution, avtal, prisalternativ, förbrukning eller startuppgift rensar
+den aktuella quoten och nästa aktiva klick skapar ett nytt `quote_attempt_id`.
 
 Quote-idempotency använder `quote_attempt_id` tillsammans med hash över den
 canonicala requesten. Samma tekniska retry återanvänder nyckeln; ett nytt
 användarförsök får en ny nyckel. Kundansökan har en separat idempotency-nyckel
 bunden till hela den normaliserade ansökningspayloaden.
 
-Checkout-contextens 24-timmarsretention är endast en teknisk handoff-TTL. Den
-är inte en offertregel och OPS måste kunna verifiera en quote via
-`quote_reference` efter att webbens cache eller handoffpost har rensats.
+Checkout-contextens retention är endast en teknisk handoff-TTL. OPS måste kunna
+verifiera en quote via `quote_reference` efter att webbens handoffpost har
+rensats.
 
-OPS OpenAPI `2026-07-30.3` publicerar `price_options` på toppnivå i
-`PublicContract`. Varje områdesrad använder `area_price_reference`, `price_area`,
-`energy_price_ore_per_kwh`, `unit`, `valid_from` och `valid_to`. Det tidigare
-gapet `public_contract_price_options_not_published` är stängt.
+## Avtal, prisalternativ och juridik
 
-Kundansökan binder även den signerade fullmakten och en full metering-point-modell
-när avtalet och anläggningen kräver det.
+`PublicContract.price_options` är canonical på toppnivå. Varje prisalternativ
+måste ha samtliga required-fält och exakt ett alternativ ska ha
+`is_default=true`. `default` läses endast som deprecated kompatibilitetsalias och
+får inte ersätta ett saknat canonical `is_default`.
 
-## Juridik
+Ett fel i en avtalsrad isolerar den raden; envelope-, tenant-, versions- och
+publiceringsfel blockerar hela operationen. Nullable juridik-URL eller explicit
+`legal_bundle_reference: null` gör inte i sig att ett publicerat avtal försvinner.
+Visningsbarhet och online-teckningsbarhet rapporteras separat.
 
-Legal bundle hämtas dynamiskt för valt `offer_reference` och hämtas på nytt före
-submit. Kravkoder, dokument-ID, version, SHA-256, bundle-version och faktisk
-acceptanstid bevaras i det immutabla beviset. Webben har ingen lokal fallbacklista
-med juridikkoder och skickar endast acceptanser som kunden faktiskt har lämnat.
+Kundansökan binder en separat signerad fullmakt och en full metering-point-modell när avtalet eller anläggningen kräver det.
+
+Det immutable `PublicContract.legal` som följde med vald publiceringsrevision är
+enda juridiska sanningskälla genom hela checkouten. Webben gör ingen separat
+`legal-bundle`-hämtning efter avtalsvalet. Kravkoder, dokumentreferenser,
+versioner, SHA-256, bundle-version och faktisk acceptanstid bevaras i det
+immutabla beviset.
+
+## Publiceringswebhook och cache
+
+`/webhooks/contracts.publication.changed` använder den route-specifika
+`PublicationChangedWebhook`-modellen. Obligatoriska headers är:
+
+```text
+x-gridex-event-id
+x-gridex-delivery-id
+x-gridex-timestamp
+x-gridex-signature
+```
+
+`event_type` läses från body. En frivillig `x-gridex-event-type` får jämföras men
+är inte ett routekrav. `revision_token` lagras som `text`, publication revision
+appliceras monotont och cache/revalidation sker först efter durable apply.
+
+Persistent avtalscache får endast användas när tenant, kontraktsversion,
+parser-version, OpenAPI-checksumma och maximal snapshotålder matchar. Stale
+fallback är endast tillåten vid kortvariga transport-/5xx-fel, aldrig vid
+schema-, version-, tenant-, juridik- eller publiceringsfel. Ett stale snapshot
+får inte svara `304 Not Modified`.
+
+Full avpublicering verifieras med tenant, kanal, ny publication revision och
+revision token. Beslutet bygger inte på en hårdkodad lista med fritextvärden i
+`reason`.
 
 ## Kundportal
 
-Portalidentitet kommer från den verifierade Supabase-sessionen. Tomma
-identifierare skickas inte som `null`. Alla affärsdata i portalöversikten kommer
-från OPS `portal-bundle`; saknad OPS-profil eller transportfel stänger flödet i
-stället för att visa lokal data som om den vore aktuell.
+Portalidentitet kommer från den verifierade Supabase-sessionen. Sync kan använda
+`authenticated_user_reference` när övriga kundidentifierare ännu saknas.
 
-Move-out skickar `requested_move_out_date` på requestens toppnivå och validerar
-ett verkligt kalenderdatum. Övrig utflyttningsdata ligger under `data`.
-`customer/sync` och övriga writes är idempotenta och följer den publicerade
-requestmodellen.
+`CustomerSyncRequest` är en stängd toppnivåmodell:
+
+- `facility_data` är en array,
+- `power_of_attorney`, `legal_acceptances` och `documents` ligger på toppnivå,
+- inget generiskt `data`-objekt skickas.
+
+Move-out skickar både `facility_reference` och `requested_move_out_date` på
+requestens toppnivå. Response-envelope mappas från `data`, och `request_id`,
+`correlation_id`, `trace_id` samt kontraktsversion bevaras separat för support
+och revision.
+
+## Runtime-validering
+
+Okända additiva properties kan rapporteras som kompatibilitetsvarning. Följande
+är blockerande:
+
+- saknat required-fält,
+- fel typ, enum, format eller const,
+- fel eller saknad kontraktsversion,
+- tenant-mismatch,
+- ogiltigt response-envelope.
+
+Avtalslokala semantiska fel blockerar endast den berörda avtalsraden. Operationens
+envelope- och identitetsfel blockerar hela operationen.
 
 ## Verifiering
 

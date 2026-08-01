@@ -250,13 +250,6 @@ export default function CustomerApplicationForm({
     requested_start_date: quoteContext.requested_start_date ?? "",
   });
   const [consents, setConsents] = useState<Consents>({});
-  const [legalBundle, setLegalBundle] = useState<LegalBundleState>({
-    status: "loading",
-    bundleVersion: null,
-    supported: false,
-    requirements: [],
-    message: null,
-  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submissionState, formAction] = useActionState(action, { errorMessage: null });
 
@@ -279,108 +272,59 @@ export default function CustomerApplicationForm({
     [selectedContract],
   );
   const activeDisplay = contractDisplay ?? fallbackDisplay;
+  const legalBundle = useMemo<LegalBundleState>(() => {
+    if (!selectedContract) {
+      return {
+        status: "error",
+        bundleVersion: null,
+        supported: false,
+        requirements: [],
+        message: "Valt avtal saknar juridiskt snapshot.",
+      };
+    }
+    const bundleVersion =
+      selectedContract.legal.legal_bundle_version_id ??
+      selectedContract.legal.legal_bundle_reference;
+    const requirements = selectedContract.legalRequirements ?? [];
+    const unsupported = requirements.some((requirement) =>
+      requirement.acceptance_type !== "checkbox" ||
+      (requirement.required && !(
+        requirement.label &&
+        requirement.document_reference &&
+        requirement.document_version &&
+        requirement.document_hash &&
+        requirement.public_url
+      )),
+    );
+    const supported = Boolean(selectedContract.legal.immutable && bundleVersion && !unsupported);
+    return {
+      status: supported ? "ready" : "error",
+      bundleVersion,
+      supported,
+      requirements,
+      message: supported
+        ? null
+        : "Det publicerade avtalets låsta juridikunderlag är inte komplett för digital teckning.",
+    };
+  }, [selectedContract]);
   const legalRequirements = legalBundle.requirements;
   const legalReady = Boolean(
-    activeDisplay?.ready &&
+    activeDisplay?.onlineReady &&
     legalBundle.status === "ready" &&
     legalBundle.supported &&
-    legalRequirements.length > 0 &&
     legalRequirements.every((requirement) =>
-      !requirement.required || Boolean(requirement.label && requirement.public_url && requirement.document_reference),
+      !requirement.required || Boolean(
+        requirement.label &&
+        requirement.public_url &&
+        requirement.document_reference &&
+        requirement.document_version &&
+        requirement.document_hash
+      ),
     ),
   );
 
   useEffect(() => {
-    const offerReference = selectedContract?.offerReference;
-    if (!offerReference) {
-      return;
-    }
-    const controller = new AbortController();
-    const loadingTimer = window.setTimeout(() => {
-      setConsents({});
-      setLegalBundle({
-        status: "loading",
-        bundleVersion: null,
-        supported: false,
-        requirements: [],
-        message: null,
-      });
-    }, 0);
-    void fetch(
-      `/api/checkout/legal-bundle?offer_reference=${encodeURIComponent(offerReference)}`,
-      { headers: { Accept: "application/json" }, signal: controller.signal, cache: "no-store" },
-    )
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null) as {
-          data?: {
-            bundle_version?: unknown;
-            supported_by_application_contract?: unknown;
-            unsupported_required_types?: unknown;
-            requirements?: unknown;
-          };
-          error?: { message?: unknown };
-        } | null;
-        if (!response.ok || !payload?.data) {
-          throw new Error(
-            typeof payload?.error?.message === "string"
-              ? payload.error.message
-              : "Juridikpaketet kunde inte hämtas.",
-          );
-        }
-        const rows = Array.isArray(payload.data.requirements)
-          ? payload.data.requirements
-          : [];
-        const requirements: PublicLegalRequirement[] = rows.flatMap((value) => {
-          if (!value || typeof value !== "object" || Array.isArray(value)) return [];
-          const row = value as Record<string, unknown>;
-          if (
-            typeof row.requirement_code !== "string" ||
-            typeof row.label !== "string"
-          ) return [];
-          return [{
-            requirement_code: row.requirement_code,
-            acceptance_type: "checkbox",
-            required: row.required === true,
-            label: row.label,
-            document_reference:
-              typeof row.document_reference === "string" ? row.document_reference : null,
-            document_version:
-              typeof row.document_version === "string" ? row.document_version : null,
-            document_hash:
-              typeof row.document_hash === "string" ? row.document_hash : null,
-            public_url: typeof row.public_url === "string" ? row.public_url : null,
-          }];
-        });
-        const supported = payload.data.supported_by_application_contract === true;
-        setLegalBundle({
-          status: "ready",
-          bundleVersion:
-            typeof payload.data.bundle_version === "string"
-              ? payload.data.bundle_version
-              : null,
-          supported,
-          requirements,
-          message: supported
-            ? null
-            : "Avtalet innehåller obligatoriska villkor som ännu inte kan godkännas digitalt.",
-        });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setLegalBundle({
-          status: "error",
-          bundleVersion: null,
-          supported: false,
-          requirements: [],
-          message: error instanceof Error
-            ? error.message
-            : "Juridikpaketet kunde inte hämtas.",
-        });
-      });
-    return () => {
-      window.clearTimeout(loadingTimer);
-      controller.abort();
-    };
+    setConsents({});
   }, [selectedContract?.offerReference]);
   const authenticatedEmailMismatch = Boolean(
     authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
@@ -697,9 +641,7 @@ export default function CustomerApplicationForm({
 
             {!legalReady ? (
               <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                {legalBundle.status === "loading"
-                  ? "Hämtar erbjudandets juridikpaket…"
-                  : legalBundle.message ?? "Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad."}
+                {legalBundle.message ?? "Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad."}
               </div>
             ) : (
               <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">

@@ -110,20 +110,6 @@ export async function loadWebsitePublicContractFeed(input: {
     })
   }
 
-  if (snapshot.contracts.length > 0 && contracts.length === 0) {
-    throw new OpsError('OPS-feeden innehåller avtal men inget avtal kan renderas säkert på hemsidan.', 502, {
-      code: 'ops_public_contracts_no_renderable_contracts',
-      endpoint: '/api/v1/website/public-contracts',
-      publication_revision: snapshot.publication_revision,
-      upstream_request_id: snapshot.upstream_request_id,
-      upstream_correlation_id: snapshot.upstream_correlation_id,
-      accepted_count: snapshot.contracts.length,
-      blocked_count: blockedContracts.length,
-      blockers: blockedContracts,
-      retryable: false,
-    })
-  }
-
   if (snapshot.stale) {
     console.warn(`[${input.context}] serving cached public contracts after transient OPS failure`, {
       publication_revision: snapshot.publication_revision,

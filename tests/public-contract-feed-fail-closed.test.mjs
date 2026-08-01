@@ -6,12 +6,13 @@ function read(path) {
 }
 
 const feed = read('lib/website/publicContractFeed.ts')
-assert.match(feed, /snapshot\.contracts\.length > 0 && contracts\.length === 0/)
-assert.match(feed, /ops_public_contracts_no_renderable_contracts/)
-assert.match(feed, /blockers: blockedContracts/)
+assert.doesNotMatch(feed, /ops_public_contracts_no_renderable_contracts/)
+assert.match(feed, /feed_loaded_with_blocked_contracts/)
+assert.match(feed, /source: 'website_readiness'/)
+assert.match(feed, /return \{ contracts, blockedContracts, state, snapshot \}/)
 
 const endpoint = read('lib/website/publicContractsEndpoint.ts')
-assert.match(endpoint, /ops_public_contracts_no_renderable_contracts/)
+assert.doesNotMatch(endpoint, /ops_public_contracts_no_renderable_contracts/)
 assert.match(endpoint, /UPSTREAM_CONTRACT_SCHEMA_INCOMPATIBLE/)
 
-console.log('public-contract feed fail-closed tests passed')
+console.log('public-contract feed contract-isolation tests passed')

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-01T12:00:08.839Z",
-  "migration_count": 24,
+  "generated_at": "2026-08-01T19:58:57.846Z",
+  "migration_count": 27,
   "version_collisions": [],
   "migrations": [
     {
@@ -97,7 +97,7 @@
     {
       "file": "20260728130000_canonical_publication_webhook_20260728_1.sql",
       "version": "20260728130000",
-      "sha256": "92d1be7b294bf9e5b1bc42e82caa602c02faecb70a25d6004f3b5af119f7b3fe"
+      "sha256": "f7d60074e20fc4aa3e56a7542e9423c35cea88b8180467401844957943ae40a6"
     },
     {
       "file": "20260728131000_immutable_legal_evidence.sql",
@@ -122,7 +122,22 @@
     {
       "file": "20260801133000_public_contract_last_known_good.sql",
       "version": "20260801133000",
-      "sha256": "589004be5e39d1eea0f781033cae82c150e7459bdb23feafe9a51a16cad9611c"
+      "sha256": "55a61e9204f8b8f426a90c02d0cc44cdc7e1000292b3943bdd55453e7bc3c7c0"
+    },
+    {
+      "file": "20260801192000_publication_revision_token_text.sql",
+      "version": "20260801192000",
+      "sha256": "48906e1d35d4cc19f8a2e4f2e61cab6422026a18f8f8ece1c02096dea03aff85"
+    },
+    {
+      "file": "20260801200000_public_contract_empty_revision_authorization.sql",
+      "version": "20260801200000",
+      "sha256": "b3da49d4ddb376a8926da79c05ec38c2445f73e3b385e9096c9bc44d900fb601"
+    },
+    {
+      "file": "20260801203000_website_submission_traceability.sql",
+      "version": "20260801203000",
+      "sha256": "fcbae5e7670fad3d2115ceb4f0dd82b6357790a383a2045e442dd9f173b34581"
     }
   ]
 }

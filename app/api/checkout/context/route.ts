@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (
       !contract ||
-      !buildPublicContractDisplay(contract).ready ||
+      !buildPublicContractDisplay(contract).onlineReady ||
       !contractSupportsCustomerType(contract.customer_types, customerType)
     ) {
       return NextResponse.json({ error: 'Det valda avtalet är inte tillgängligt för kundtypen.' }, { status: 409 })
@@ -128,7 +128,6 @@ export async function POST(req: Request) {
         resolution_id: verified.value.area.resolutionId,
         price_area_code: verified.value.area.priceAreaCode,
         grid_area_code: verified.value.area.gridAreaCode,
-        grid_owner_id: verified.value.area.gridOwnerId,
         grid_owner_name: verified.value.area.gridOwnerName,
         estimated_monthly_kwh: estimatedMonthlyKwh,
         annual_consumption_kwh: annualConsumptionKwh,

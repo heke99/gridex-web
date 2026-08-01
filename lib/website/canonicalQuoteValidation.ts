@@ -32,7 +32,6 @@ export type CanonicalQuoteValidationSuccess = {
     priceAreaCode: OpsWebsitePriceArea
     resolutionId: string
     gridAreaCode: string | null
-    gridOwnerId: string | null
     gridOwnerName: string | null
     confidence: number | null
   }
@@ -115,7 +114,6 @@ export async function validateCanonicalWebsiteQuote(
         priceAreaCode: area.payload.price_area_code,
         resolutionId: area.payload.resolution_id,
         gridAreaCode: area.payload.grid_area_code,
-        gridOwnerId: area.payload.grid_owner_id,
         gridOwnerName: area.payload.grid_owner_name,
         confidence: area.payload.confidence,
       },

@@ -13,7 +13,6 @@ export type WebsiteEnergyResolution = {
   valid_until?: string | null;
   price_area_code: WebsitePriceArea | null;
   grid_area_code?: string | null;
-  grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
   capabilities?: {
@@ -81,7 +80,6 @@ export type WebsitePricingQuoteContext = {
   address: string;
   price_area_code: WebsitePriceArea;
   grid_area_code?: string | null;
-  grid_owner_id?: string | null;
   grid_owner_name?: string | null;
   metering_point_id?: string | null;
   estimated_monthly_kwh: number;
