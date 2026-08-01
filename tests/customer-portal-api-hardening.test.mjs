@@ -29,7 +29,7 @@ assert.ok(!service.includes('crypto.randomUUID()'))
 assert.equal(moveOutPayload({ move_out_date: '2026-02-30' }), null)
 assert.deepEqual(
   moveOutPayload({ move_out_date: '2026-02-28', site_id: 'site_123' }),
-  { site_id: 'site_123', requested_move_out_date: '2026-02-28' },
+  { facility_reference: 'site_123', requested_move_out_date: '2026-02-28' },
 )
 
 const ops = read('lib/ops/client.ts')
@@ -93,18 +93,20 @@ for (const forbidden of [
 const webhook = read('lib/webhooks/publicationChanged.ts')
 for (const header of [
   'x-gridex-event-id',
-  'x-gridex-event-type',
   'x-gridex-delivery-id',
   'x-gridex-timestamp',
   'x-gridex-signature',
 ]) assert.ok(webhook.includes(header))
 assert.ok(webhook.includes('assertWebsiteRequest'))
+assert.ok(webhook.includes("eventTypeHeader !== null"), 'event-type header may only be compared when voluntarily supplied')
+assert.ok(!webhook.includes("!eventId || !eventTypeHeader"), 'route must not require x-gridex-event-type')
 assert.ok(webhook.includes('apply_ops_publication_event'))
 assert.ok(existsSync(new URL('../app/webhooks/contracts.publication.changed/route.ts', import.meta.url)))
 
 const webhookMigration = read('supabase/migrations/20260728130000_canonical_publication_webhook_20260728_1.sql')
 assert.ok(webhookMigration.includes('publication_revision type bigint'))
-assert.ok(webhookMigration.includes('revision_token uuid'))
+assert.ok(webhookMigration.includes('revision_token text'))
+assert.ok(!webhookMigration.includes('revision_token uuid'))
 assert.ok(webhookMigration.includes("'identifier_conflict'"))
 assert.ok(webhookMigration.includes("p_channel <> 'website'"))
 

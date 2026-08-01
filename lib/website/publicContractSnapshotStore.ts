@@ -31,7 +31,25 @@ function nullableString(value: unknown): string | null {
   return typeof value === 'string' ? value : value === null ? null : null
 }
 
-function parseStoredSnapshot(value: unknown): OpsPublicContractsSnapshot | null {
+type SnapshotReadExpectations = {
+  tenantReference: string
+  contractVersion: string
+  parserVersion: string
+  schemaSha256: string
+  maxAgeMs?: number
+}
+
+function maxSnapshotAgeMs(input?: number): number {
+  if (typeof input === 'number' && Number.isFinite(input)) return Math.max(1_000, input)
+  const configured = Number(process.env.GRIDEX_PUBLIC_CONTRACT_MAX_STALE_SECONDS ?? '900')
+  const seconds = Number.isFinite(configured) ? Math.max(30, Math.min(86_400, configured)) : 900
+  return seconds * 1_000
+}
+
+function parseStoredSnapshot(
+  value: unknown,
+  expected: SnapshotReadExpectations,
+): OpsPublicContractsSnapshot | null {
   const row = recordValue(value)
   if (
     !row ||
@@ -53,6 +71,11 @@ function parseStoredSnapshot(value: unknown): OpsPublicContractsSnapshot | null 
     ? null
     : finiteInteger(row.publication_revision)
   if (row.publication_revision !== null && publicationRevision === null) return null
+  if (row.tenant_reference !== expected.tenantReference) return null
+  if (row.contract_version !== expected.contractVersion) return null
+  if (row.parser_version !== expected.parserVersion) return null
+  if (row.schema_sha256 !== expected.schemaSha256) return null
+  if (Date.now() - Date.parse(row.fetched_at) > maxSnapshotAgeMs(expected.maxAgeMs)) return null
 
   return {
     contracts: row.contracts as OpsPublicContractsSnapshot['contracts'],
@@ -78,6 +101,7 @@ function parseStoredSnapshot(value: unknown): OpsPublicContractsSnapshot | null 
 
 export async function readWebsitePublicContractSnapshot(
   cacheKey: string,
+  expected: SnapshotReadExpectations,
 ): Promise<OpsPublicContractsSnapshot | null> {
   const { data, error } = await supabaseService
     .from('website_public_contract_snapshots')
@@ -89,7 +113,7 @@ export async function readWebsitePublicContractSnapshot(
     throw new Error(`Website public-contract snapshot read failed: ${error.message}`)
   }
   if (!data) return null
-  return parseStoredSnapshot(data.snapshot)
+  return parseStoredSnapshot(data.snapshot, expected)
 }
 
 export async function storeWebsitePublicContractSnapshot(input: {

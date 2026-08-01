@@ -6,11 +6,19 @@ const base = (reference, overrides = {}) => ({
   option_code: reference,
   customer_name: reference,
   contract_type: 'variable_monthly',
+  price_type: 'variable_monthly',
   customer_type: 'private',
+  resolution: 'monthly',
+  currency: 'SEK',
+  unit: 'ore_per_kwh',
+  fixed_price: null,
+  markup: 1,
+  monthly_fee: 49,
   binding_months: 0,
   notice_months: 1,
   auto_renew_enabled: false,
   renewal_term_months: null,
+  is_default: false,
   default: false,
   selection_required: false,
   valid_from: null,
@@ -21,7 +29,7 @@ const base = (reference, overrides = {}) => ({
   ...overrides,
 })
 
-const options = [base('option_a', { default: true }), base('option_b')]
+const options = [base('option_a', { is_default: true, default: true }), base('option_b')]
 assert.equal(selectPublicContractPriceOption({ options, customer_type: 'private', price_area_code: 'SE3', start_date: '2026-09-01', current_date: '2026-07-31' }).option?.price_option_reference, 'option_a')
 assert.equal(selectPublicContractPriceOption({ options: [base('option_a'), base('option_b')], customer_type: 'private', price_area_code: 'SE3', start_date: '2026-09-01', current_date: '2026-07-31' }).status, 'selection_required')
 assert.equal(selectPublicContractPriceOption({ options: [base('option_a', { selection_required: true })], customer_type: 'private', price_area_code: 'SE3', start_date: '2026-09-01', current_date: '2026-07-31' }).status, 'selection_required')

@@ -14,8 +14,12 @@ export type PublicContractDisplayRow = {
 }
 
 export type PublicContractDisplay = {
+  /** Safe to list publicly. */
   ready: boolean
   blockedReasons: string[]
+  /** Safe to continue into digital quote/checkout. */
+  onlineReady: boolean
+  onlineBlockedReasons: string[]
   offerReference: string
   ctaHref: string
   typeLabel: string
@@ -135,15 +139,6 @@ function addNumberRow(
                 : String(value)
 
   rows.push({ key, label, value, formatted, unit })
-}
-
-function legalUrlReady(value: string | null | undefined): boolean {
-  if (!value) return false
-  try {
-    return new URL(value).protocol === 'https:'
-  } catch {
-    return false
-  }
 }
 
 function componentUnit(unit: string): PublicContractDisplayRow['unit'] | null {
@@ -391,7 +386,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     if (!requirement.document_reference) {
       blockedReasons.push(`${requirement.requirement_code}: juridisk dokumentreferens saknas`)
     }
-    if (!legalUrlReady(requirement.public_url)) blockedReasons.push(`${requirement.requirement_code}: publicerad dokumentlänk saknas`)
   }
   validatePublicPricingForType(blockedReasons, contract)
 
@@ -513,6 +507,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     price_terms_url: contract.price_terms_url ?? null,
   }
 
+  const onlineBlockedReasons = [...blockedReasons]
+  if (contract.legal?.immutable !== true) {
+    onlineBlockedReasons.push('juridiksnapshot är inte immutable')
+  }
+  const legalBundleVersion = contract.legal?.legal_bundle_version_id ?? contract.legal?.legal_bundle_reference
+  if (!legalBundleVersion) {
+    onlineBlockedReasons.push('juridikpaketets version saknas för digital teckning')
+  }
+  for (const requirement of legalRequirements) {
+    if (requirement.required && !requirement.public_url) {
+      onlineBlockedReasons.push(`${requirement.requirement_code}: dokumentlänk saknas för digital teckning`)
+    }
+  }
+
   const snapshot = {
     offer_reference: contract.offer_reference,
     code: contract.product_code ?? null,
@@ -543,6 +551,8 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   return {
     ready: blockedReasons.length === 0,
     blockedReasons,
+    onlineReady: onlineBlockedReasons.length === 0,
+    onlineBlockedReasons,
     offerReference: contract.offer_reference,
     ctaHref: `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}`,
     typeLabel,
@@ -575,4 +585,8 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
 
 export function isPublicContractReady(contract: OpsPublicContract): boolean {
   return buildPublicContractDisplay(contract).ready
+}
+
+export function isPublicContractOnlineReady(contract: OpsPublicContract): boolean {
+  return buildPublicContractDisplay(contract).onlineReady
 }

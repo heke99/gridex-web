@@ -58,7 +58,6 @@ function publicError(error: unknown): { status: number; code: string; state: str
     'ops_public_contracts_contract_version_mismatch',
     'ops_public_contracts_publication_revision_missing',
     'ops_public_contracts_all_blocked',
-    'ops_public_contracts_no_renderable_contracts',
   ].includes(error.code ?? '')) {
     return { status: 502, code: 'UPSTREAM_CONTRACT_SCHEMA_INCOMPATIBLE', state: 'upstream_schema_incompatible', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
   }
@@ -132,7 +131,7 @@ export async function publicContractsResponse(request: Request) {
     headers.set('X-Gridex-Schema-SHA256', snapshot.schema_sha256)
     headers.set('X-Request-ID', requestId)
 
-    if (etagMatches(request, snapshot.etag)) {
+    if (!snapshot.stale && etagMatches(request, snapshot.etag)) {
       return new NextResponse(null, { status: 304, headers })
     }
 

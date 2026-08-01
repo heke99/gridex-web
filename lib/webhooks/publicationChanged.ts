@@ -5,29 +5,25 @@ import { createClient } from '@supabase/supabase-js'
 import { getVerifiedOpsIntegrationContext, invalidateOpsPublicContractsCache } from '@/lib/ops/client'
 import { WEBSITE_PUBLIC_CONTRACT_PATHS, WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 import { assertWebsiteRequest } from '@/lib/ops/validators/openapi'
-import {
-  customerNotificationForEvent,
-  isSupportedOpsWebhookEventType,
-  parseOpsWebhookEnvelope,
-} from '@/lib/webhooks/opsWebhook'
 
 type PublicationChangedWebhook = {
-  id: string
-  type: 'contracts.publication.changed'
+  event_id: string
+  delivery_id: string
+  event_type: 'contracts.publication.changed'
   created_at: string
   tenant_reference: string
   aggregate: {
     type: 'contract_publication'
-    id: string
+    reference: string
   }
   data: {
-    tenant_reference: string
     channel: 'website' | 'api' | 'internal' | 'phone' | 'partner'
     publication_revision: number
     revision_token: string
     reason: string
     timestamp: string
   }
+  contract_schema_version: string
 }
 
 type ApplyResult = {
@@ -43,18 +39,6 @@ type ApplyResult = {
   cache_invalidated: boolean
   stored_revision: number | null
   notification_created?: boolean
-}
-
-type GenericWebhookEnvelope = {
-  id: string
-  type: string
-  created_at: string
-  tenant_reference: string
-  data: {
-    tenant_reference: string
-    [key: string]: unknown
-  }
-  [key: string]: unknown
 }
 
 function env(name: string): string | null {
@@ -130,36 +114,13 @@ function invalidateWebsiteContractSurfaces(args: {
   }
 }
 
-function parseGenericEnvelope(value: unknown): GenericWebhookEnvelope | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-  const payload = value as Record<string, unknown>
-  const data = payload.data
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
-  const dataRecord = data as Record<string, unknown>
-  if (
-    typeof payload.id !== 'string' ||
-    payload.id.trim().length === 0 ||
-    typeof payload.type !== 'string' ||
-    payload.type.trim().length === 0 ||
-    typeof payload.created_at !== 'string' ||
-    !Number.isFinite(Date.parse(payload.created_at)) ||
-    typeof payload.tenant_reference !== 'string' ||
-    payload.tenant_reference.trim().length === 0 ||
-    typeof dataRecord.tenant_reference !== 'string' ||
-    dataRecord.tenant_reference.trim().length === 0
-  ) {
-    return null
-  }
-  return payload as GenericWebhookEnvelope
-}
-
 export async function handlePublicationChangedWebhook(request: Request) {
   const eventId = requiredHeader(request.headers, 'x-gridex-event-id')
-  const eventType = requiredHeader(request.headers, 'x-gridex-event-type')
+  const eventTypeHeader = request.headers.get('x-gridex-event-type')?.trim() || null
   const deliveryId = requiredHeader(request.headers, 'x-gridex-delivery-id')
   const timestamp = requiredHeader(request.headers, 'x-gridex-timestamp')
   const signature = requiredHeader(request.headers, 'x-gridex-signature')
-  if (!eventId || !eventType || !deliveryId || !timestamp || !signature) {
+  if (!eventId || !deliveryId || !timestamp || !signature) {
     return errorResponse('missing_webhook_headers', 'Canonical Gridex webhook headers are required.', 400)
   }
 
@@ -185,22 +146,31 @@ export async function handlePublicationChangedWebhook(request: Request) {
     return errorResponse('invalid_webhook_payload', 'Webhook payload is not valid JSON.', 400)
   }
 
-  const envelope = parseGenericEnvelope(parsed)
-  if (!envelope) {
-    return errorResponse('invalid_webhook_payload', 'Webhook envelope is invalid.', 400)
+  let publicationPayload: PublicationChangedWebhook
+  try {
+    assertWebsiteRequest(
+      'PublicationChangedWebhook',
+      parsed,
+      '/webhooks/contracts.publication.changed',
+    )
+    publicationPayload = parsed as PublicationChangedWebhook
+  } catch {
+    return errorResponse('invalid_webhook_payload', 'Webhook payload does not match the canonical schema.', 400)
   }
 
   if (
-    envelope.id !== eventId ||
-    envelope.type !== eventType ||
-    envelope.tenant_reference !== envelope.data.tenant_reference
+    publicationPayload.event_id !== eventId ||
+    publicationPayload.delivery_id !== deliveryId ||
+    (eventTypeHeader !== null && publicationPayload.event_type !== eventTypeHeader)
   ) {
     return errorResponse('webhook_identity_mismatch', 'Signed webhook identifiers do not match.', 400)
   }
 
+  const tenantReference = publicationPayload.tenant_reference
+
   try {
     const integration = await getVerifiedOpsIntegrationContext()
-    if (envelope.tenant_reference !== integration.tenant_reference) {
+    if (tenantReference !== integration.tenant_reference) {
       return errorResponse('webhook_tenant_mismatch', 'Webhook tenant does not match this deployment.', 403)
     }
   } catch {
@@ -209,97 +179,8 @@ export async function handlePublicationChangedWebhook(request: Request) {
 
   const payloadHash = createHash('sha256').update(rawBody).digest('hex')
   const supabase = serviceClient()
-  if (envelope.type !== 'contracts.publication.changed') {
-    const event = parseOpsWebhookEnvelope(envelope)
-    if (!event || !isSupportedOpsWebhookEventType(event.event_type)) {
-      console.warn('[generic webhook] signed unknown event retained', {
-        event_type: envelope.type,
-        event_id: eventId,
-        delivery_id: deliveryId,
-      })
-      const { data, error } = await supabase.rpc('store_ops_generic_event', {
-        p_event_id: eventId,
-        p_delivery_id: deliveryId,
-        p_event_type: envelope.type,
-        p_tenant_reference: envelope.tenant_reference,
-        p_created_at: envelope.created_at,
-        p_payload_hash: payloadHash,
-        p_payload: envelope,
-      })
-      if (error) {
-        console.error('[generic webhook] durable store failed', { code: error.code, message: error.message })
-        return errorResponse('webhook_storage_failed', 'Webhook could not be durably stored.', 500)
-      }
-      const result = (Array.isArray(data) ? data[0] : data) as ApplyResult | null
-      if (!result) return errorResponse('webhook_storage_failed', 'Webhook store returned no durable result.', 500)
-      if (result.result === 'identifier_conflict') {
-        return errorResponse('webhook_identifier_conflict', 'Event and delivery identifiers were reused with different signed content.', 409)
-      }
-      return NextResponse.json({
-        ok: true,
-        result: result.result,
-        event_id: eventId,
-        delivery_id: deliveryId,
-        event_type: envelope.type,
-        cache_invalidated: false,
-      })
-    }
 
-    const notification = customerNotificationForEvent(event)
-    const { data, error } = await supabase.rpc('apply_ops_domain_event', {
-      p_event_id: eventId,
-      p_delivery_id: deliveryId,
-      p_event_type: event.event_type,
-      p_tenant_reference: envelope.tenant_reference,
-      p_created_at: envelope.created_at,
-      p_payload_hash: payloadHash,
-      p_payload: envelope,
-      p_customer_id: event.customer_id,
-      p_customer_number: event.customer_number,
-      p_external_customer_id: event.external_customer_id,
-      p_customer_email: event.customer_email,
-      p_portal_user_id: event.portal_user_id,
-      p_related_entity_type: event.related_entity_type,
-      p_related_entity_id: event.related_entity_id,
-      p_notification_category: notification?.category ?? null,
-      p_notification_title: notification?.title ?? null,
-      p_notification_body: notification?.body ?? null,
-      p_notification_link_href: notification?.link_href ?? null,
-    })
-    if (error) {
-      console.error('[domain webhook] durable projection failed', { code: error.code, message: error.message })
-      return errorResponse('webhook_projection_failed', 'Webhook projection failed and can be retried.', 500)
-    }
-    const result = (Array.isArray(data) ? data[0] : data) as ApplyResult | null
-    if (!result) return errorResponse('webhook_projection_failed', 'Webhook projection returned no durable result.', 500)
-    if (result.result === 'identifier_conflict') {
-      return errorResponse('webhook_identifier_conflict', 'Event and delivery identifiers were reused with different signed content.', 409)
-    }
-    if (result.result === 'retryable_failure') {
-      return errorResponse('webhook_projection_retryable_failure', 'Webhook was retained but its projection must be retried.', 503)
-    }
-    return NextResponse.json({
-      ok: true,
-      result: result.result,
-      event_id: eventId,
-      delivery_id: deliveryId,
-      event_type: event.event_type,
-      notification_created: result.notification_created === true,
-      cache_invalidated: false,
-    })
-  }
-
-  let payload: PublicationChangedWebhook
-  try {
-    assertWebsiteRequest(
-      'PublicationChangedWebhook',
-      envelope,
-      '/webhooks/contracts.publication.changed',
-    )
-    payload = envelope as PublicationChangedWebhook
-  } catch {
-    return errorResponse('invalid_webhook_payload', 'Webhook payload does not match the canonical schema.', 400)
-  }
+  const payload = publicationPayload
 
   const { data, error } = await supabase.rpc('apply_ops_publication_event', {
     p_event_id: eventId,
@@ -311,7 +192,7 @@ export async function handlePublicationChangedWebhook(request: Request) {
     p_publication_reason: payload.data.reason,
     p_event_timestamp: payload.data.timestamp,
     p_created_at: payload.created_at,
-    p_aggregate_id: payload.aggregate.id,
+    p_aggregate_id: payload.aggregate.reference,
     p_payload_hash: payloadHash,
     p_payload: payload,
   })

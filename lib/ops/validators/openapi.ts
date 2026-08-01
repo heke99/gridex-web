@@ -72,9 +72,10 @@ function namedValidator(contract: ContractName, schema: string): ValidateFunctio
 
 function normalizedPath(path: string): string {
   const raw = path.split('?', 1)[0].replace(/\/+$/, '') || '/'
-  return raw.startsWith('/api/v1/') || raw === '/api/v1'
-    ? raw
-    : `/api/v1${raw.startsWith('/') ? raw : `/${raw}`}`
+  if (raw.startsWith('/api/v1/') || raw === '/api/v1' || raw.startsWith('/webhooks/')) {
+    return raw
+  }
+  return `/api/v1${raw.startsWith('/') ? raw : `/${raw}`}`
 }
 
 function matchOperationPath(contract: ContractName, path: string): string | null {
@@ -253,7 +254,7 @@ function assertOperationPathParameters(contract: ContractName, path: string, met
 function assertOperationQuery(contract: ContractName, path: string, method: string): void {
   const queryParameters = operationParameters(contract, path, method)
     .filter((parameter) => parameter.in === 'query' && typeof parameter.name === 'string')
-  const rawPath = path.startsWith('/api/v1/') || path.startsWith('/api/v1?') || path === '/api/v1'
+  const rawPath = path.startsWith('/api/v1/') || path.startsWith('/api/v1?') || path === '/api/v1' || path.startsWith('/webhooks/')
     ? path
     : `/api/v1${path.startsWith('/') ? path : `/${path}`}`
   const parsed = new URL(rawPath, 'https://gridex.invalid')

@@ -16,9 +16,8 @@ export async function POST(req: Request) {
   const body = object(await req.json().catch(() => null))
   if (!body) return validationError('Ogiltig request-body.')
   const moveOut = moveOutPayload(body.move_out)
-  if (!moveOut?.move_out_date) return validationError('Flyttuppgifter saknas eller är ogiltiga.', 'move_out')
-  if (!moveOut.site_id && !moveOut.customer_site_id && !moveOut.facility_id) {
-    return validationError('Ange vilken anläggning flytten gäller.', 'move_out.site_id')
+  if (!moveOut?.requested_move_out_date || !moveOut.facility_reference) {
+    return validationError('Flyttuppgifter saknas eller är ogiltiga.', 'move_out')
   }
   const operationId = clientOperationId(body.client_operation_id)
   if (!operationId) return validationError('client_operation_id krävs.', 'client_operation_id')

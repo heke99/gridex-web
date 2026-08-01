@@ -1,19 +1,52 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
+import { normalizePublicContractApiPayload as normalizeCanonicalPublicContract } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
+
+const BASE_LEGAL = {
+  legal_bundle_reference: null,
+  legal_bundle_version_id: null,
+  immutable: true,
+  required_modules: [],
+  module_versions: [],
+  requirements: [],
+}
+
+function normalizePublicContractApiPayload(value) {
+  return normalizeCanonicalPublicContract({
+    customer_type: 'both',
+    channel: 'website',
+    pricing: {
+      visibility: {},
+      calculation_components: [],
+      display_components: [],
+      summary_components: [],
+      calculation_contract: {},
+    },
+    legal: BASE_LEGAL,
+    ...value,
+  })
+}
 
 const TEST_PRICE_OPTION = {
   price_option_reference: 'price_option_test',
   option_code: 'standard',
   customer_name: 'Standard',
   contract_type: 'variable_monthly',
+  price_type: 'variable_monthly',
   customer_type: 'both',
+  resolution: 'monthly',
+  currency: 'SEK',
+  unit: 'ore_per_kwh',
+  fixed_price: null,
+  markup: 4,
+  monthly_fee: 49,
   binding_months: 0,
   notice_months: 1,
   auto_renew_enabled: false,
   renewal_term_months: null,
+  is_default: true,
   default: true,
   selection_required: false,
   valid_from: null,
@@ -33,14 +66,41 @@ const emptyLegalRequirementsContract = normalizePublicContractApiPayload({
   energy_direction: 'consumption',
   price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
-  legal: { requirements: [] },
+  legal: BASE_LEGAL,
 })
 assert.ok(emptyLegalRequirementsContract)
+const emptyLegalDisplay = buildPublicContractDisplay(emptyLegalRequirementsContract)
 assert.equal(
-  buildPublicContractDisplay(emptyLegalRequirementsContract).ready,
+  emptyLegalDisplay.ready,
   true,
   'OPS legal.requirements=[] must remain a valid published contract',
 )
+assert.equal(
+  emptyLegalDisplay.onlineReady,
+  false,
+  'a displayable contract without an immutable bundle version must not enter digital checkout',
+)
+
+const missingLegalUrlContract = {
+  ...emptyLegalRequirementsContract,
+  legal: {
+    ...emptyLegalRequirementsContract.legal,
+    legal_bundle_version_id: '11111111-1111-4111-8111-111111111111',
+  },
+  legal_requirements: [{
+    requirement_code: 'terms',
+    acceptance_type: 'checkbox',
+    required: true,
+    label: 'Jag godkänner villkoren',
+    document_reference: 'terms_doc_1',
+    document_version: 'v1',
+    document_hash: 'a'.repeat(64),
+    public_url: null,
+  }],
+}
+const missingLegalUrlDisplay = buildPublicContractDisplay(missingLegalUrlContract)
+assert.equal(missingLegalUrlDisplay.ready, true, 'nullable legal URL must not hide a published contract')
+assert.equal(missingLegalUrlDisplay.onlineReady, false, 'required legal URL must block digital checkout only')
 
 const malformedRequiredLegalContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_malformed_required_legal',
@@ -107,7 +167,7 @@ const camelCaseContract = normalizePublicContractApiPayload({
   },
 })
 
-assert.ok(camelCaseContract, 'camelCase public-contract legal payload must normalize')
+assert.ok(camelCaseContract, 'legacy camelCase legal aliases remain available only in the direct compatibility mapper')
 assert.equal(camelCaseContract.power_of_attorney_version, '2026-06-poa-camel')
 assert.equal(camelCaseContract.power_of_attorney_version_id, '66666666-6666-4666-8666-666666666666')
 assert.equal(camelCaseContract.price_terms_version_id, '77777777-7777-4777-8777-777777777777')
@@ -185,7 +245,14 @@ const canonicalLifecycleContract = normalizePublicContractApiPayload({
   energy_direction: 'consumption',
   price_options: [TEST_PRICE_OPTION],
   contract_type: 'variable_monthly',
+  price_type: 'variable_monthly',
   customer_type: 'both',
+  resolution: 'monthly',
+  currency: 'SEK',
+  unit: 'ore_per_kwh',
+  fixed_price: null,
+  markup: 4,
+  monthly_fee: 49,
   binding_months: 0,
   notice_months: 1,
   automatic_renewal: true,

@@ -102,7 +102,7 @@ const issued = issueWebsitePricingQuote({
     valid_until: '2020-01-01T00:00:00.000Z',
     pricing_interval: 'month',
     estimate_method: 'ops_canonical_quote',
-    pricing_snapshot_schema_version: '2026-07-30.3',
+    pricing_snapshot_schema_version: '2026-08-01.1',
     price_option_reference: 'price_option_visibility',
     area_price_reference: 'area_price_visibility_se3',
     invoice_delivery_method: 'email',

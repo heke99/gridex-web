@@ -126,13 +126,13 @@ function compatibilityAliasSatisfied(root: unknown, issue: OpenApiIssue): boolea
   const missingProperty = typeof issue.params?.missingProperty === 'string'
     ? issue.params.missingProperty
     : null
-  if (missingProperty !== 'default' && missingProperty !== 'is_default') return false
+  // `is_default` is canonical and may never be reconstructed from the
+  // deprecated alias. Only a missing legacy `default` field is compatible.
+  if (missingProperty !== 'default') return false
   const object = valueAtPointer(root, issue.instancePath)
   if (!object || typeof object !== 'object' || Array.isArray(object)) return false
   const row = object as Record<string, unknown>
-  return missingProperty === 'default'
-    ? typeof row.is_default === 'boolean'
-    : typeof row.default === 'boolean'
+  return typeof row.is_default === 'boolean'
 }
 
 export function classifyOpenApiIssue(input: {

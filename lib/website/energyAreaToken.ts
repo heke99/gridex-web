@@ -12,7 +12,6 @@ export type WebsiteEnergyAreaTokenPayload = {
   resolution_id: string
   price_area_code: OpsWebsitePriceArea
   grid_area_code: string | null
-  grid_owner_id: string | null
   grid_owner_name: string | null
   confidence: number | null
   pricing_ready: true
@@ -79,7 +78,6 @@ export function issueWebsiteEnergyAreaToken(input: {
     resolution_id: resolutionId,
     price_area_code: area,
     grid_area_code: input.resolution.grid_area_code ?? null,
-    grid_owner_id: input.resolution.grid_owner_id ?? null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
     confidence: input.resolution.confidence ?? null,
     pricing_ready: true,

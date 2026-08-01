@@ -31,7 +31,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-07-30.3')
+assert.equal(context.contract_version, '2026-08-01.1')
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -40,7 +40,8 @@ const contracts = await fetchOpsPublicContractsFresh(fixture.customer_type ?? 'p
 assert.ok(contracts.length > 0, 'OPS måste returnera minst ett website-publicerat avtal.')
 const offerReference = fixture.offer_reference ?? contracts[0]?.offer_reference
 const selectedContract = contracts.find((item) => item.offer_reference === offerReference)
-const priceOptionReference = fixture.price_option_reference ?? selectedContract?.price_options?.find((option) => option.default)?.price_option_reference ?? selectedContract?.price_options?.[0]?.price_option_reference
+const priceOptionReference = fixture.price_option_reference ?? selectedContract?.price_options?.find((option) => option.is_default)?.price_option_reference ?? selectedContract?.price_options?.[0]?.price_option_reference
+for (const option of selectedContract?.price_options ?? []) assert.equal(option.default, option.is_default, 'deprecated default alias must equal canonical is_default')
 assert.ok(priceOptionReference, 'PublicContract måste returnera ett canonical price_option_reference.')
 assert.ok(contracts.some((item) => item.offer_reference === offerReference), 'Fixturens offer_reference är inte publicerad.')
 

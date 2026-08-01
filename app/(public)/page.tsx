@@ -1,10 +1,12 @@
 //app/(public)/page.tsx
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import type { Metadata } from "next";
 import ElectricityCalculator from "@/components/ElectricityCalculator";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import type { ContractOption } from "@/components/ElectricityCalculator";
 import { faqByIds } from "@/lib/content/faq";
+import { isOpsError } from "@/lib/ops/client";
 import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +25,17 @@ export default async function HomePage() {
   let contractsLoadError: string | null = null;
 
   try {
-    const { contracts } = await loadWebsitePublicContractFeed({ context: "website home" });
-    options = contracts.map((item) => ({
+    const feed = await loadWebsitePublicContractFeed({ context: "website home" });
+    if (feed.state === "feed_loaded_with_blocked_contracts" && feed.contracts.length === 0) {
+      const reference =
+        feed.snapshot.upstream_request_id ??
+        feed.snapshot.upstream_correlation_id ??
+        (feed.snapshot.publication_revision !== null
+          ? `PUB-${feed.snapshot.publication_revision}`
+          : randomUUID().slice(0, 8).toUpperCase());
+      contractsLoadError = `Publicerade elavtal kan inte visas just nu. Supportreferens: ${reference}.`;
+    }
+    options = feed.contracts.map((item) => ({
       name: item.name,
       value: item.offer_reference,
       offerReference: item.offer_reference,
@@ -48,7 +59,10 @@ export default async function HomePage() {
   } catch (error) {
     logWebsitePublicContractFeedError("website home", error);
     options = [];
-    contractsLoadError = "Elavtalen kunde inte hämtas just nu. Försök igen om en stund.";
+    const reference = isOpsError(error)
+      ? error.requestId ?? error.correlationId ?? randomUUID().slice(0, 8).toUpperCase()
+      : randomUUID().slice(0, 8).toUpperCase();
+    contractsLoadError = `Elavtalen kunde inte hämtas just nu. Supportreferens: ${reference}.`;
   }
 
   const faqItems = faqByIds(['elomrade', 'vad-ingar', 'avtalsskillnad', 'behover']);

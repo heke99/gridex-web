@@ -14,7 +14,6 @@ import {
   createExternalApplicationId,
   createExternalCustomerId,
   fetchOpsPublicContractsFresh,
-  fetchOpsWebsiteLegalBundle,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -24,6 +23,7 @@ import {
   type OpsPublicContract,
   type OpsWebsitePowerOfAttorneyInput,
 } from "@/lib/ops/client";
+import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from "@/lib/ops/contract";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import type { SignupContractOption } from "@/lib/website/signupContractOption";
 
@@ -333,7 +333,6 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     previous_error_code: context.previousErrorCode || null,
     request_id: context.requestId || null,
     application_id: context.applicationId || null,
-    details: (error as { details?: unknown }).details ?? null,
   });
 
   if (/ops_customer_application_portal_identity_contract_unsupported/i.test(context.code))
@@ -675,36 +674,37 @@ export default async function TecknaPage({
     const submittedLegalBundleVersion = normalizeText(
       formData.get("legal_bundle_version"),
     );
-    let legalBundle: Awaited<ReturnType<typeof fetchOpsWebsiteLegalBundle>>;
-    try {
-      legalBundle = await fetchOpsWebsiteLegalBundle(offer.offer_reference);
-    } catch (error) {
-      console.error("[website signup] legal bundle fetch failed", {
-        offer_reference: offer.offer_reference,
-        code: isOpsError(error) ? error.code : null,
-        request_id: isOpsError(error) ? error.requestId : null,
-      });
-      return fail("legal_config", { step: 1 });
-    }
+    const legalBundleVersion =
+      offer.legal.legal_bundle_version_id ?? offer.legal.legal_bundle_reference;
+    const legalRequirements = offer.legal_requirements ?? [];
+    const unsupportedLegalRequirements = legalRequirements.filter((requirement) =>
+      requirement.acceptance_type !== "checkbox" ||
+      (requirement.required && !(
+        requirement.label &&
+        requirement.document_reference &&
+        requirement.document_version &&
+        requirement.document_hash &&
+        requirement.public_url
+      )),
+    );
     if (
-      !legalBundle.complete ||
-      legalBundle.missing_types.length > 0 ||
+      offer.legal.immutable !== true ||
+      !legalBundleVersion ||
       !submittedLegalBundleVersion ||
-      submittedLegalBundleVersion !== legalBundle.bundle_version
+      submittedLegalBundleVersion !== legalBundleVersion ||
+      unsupportedLegalRequirements.length > 0
     ) {
-      console.error("[website signup] legal bundle is unsupported or changed", {
+      console.error("[website signup] immutable contract legal snapshot is unsupported or changed", {
         offer_reference: offer.offer_reference,
         submitted_bundle_version: submittedLegalBundleVersion || null,
-        current_bundle_version: legalBundle.bundle_version,
-        complete: legalBundle.complete,
-        missing_types: legalBundle.missing_types,
-        returned_requirements: legalBundle.requirements.map(
+        contract_bundle_version: legalBundleVersion,
+        immutable: offer.legal.immutable,
+        unsupported_requirements: unsupportedLegalRequirements.map(
           (requirement) => requirement.requirement_code,
         ),
       });
       return fail("legal_config", { step: 1 });
     }
-    const legalRequirements = legalBundle.requirements;
     const legalConsents = Object.fromEntries(
       legalRequirements.map((requirement) => [
         requirement.requirement_code,
@@ -715,8 +715,8 @@ export default async function TecknaPage({
       (requirement) => requirement.required && legalConsents[requirement.requirement_code] !== true,
     );
     const legalEvidenceSnapshot = {
-      offer_reference: legalBundle.offer_reference,
-      bundle_version: legalBundle.bundle_version,
+      offer_reference: offer.offer_reference,
+      bundle_version: legalBundleVersion,
       requirements: legalRequirements.map((requirement) => ({
         ...requirement,
         accepted: legalConsents[requirement.requirement_code] === true,
@@ -727,10 +727,10 @@ export default async function TecknaPage({
     );
     const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
     const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
-    const legalBundlePowerOfAttorneyVersionId =
-      legalBundle.texts.find((text) => text.type === "power_of_attorney")?.id ?? null;
-    const powerOfAttorneyTextVersionId = isUuid(legalBundlePowerOfAttorneyVersionId)
-      ? legalBundlePowerOfAttorneyVersionId
+    const legalModulePowerOfAttorneyVersionId =
+      offer.legal.module_versions.find((module) => module.module_key === "power_of_attorney")?.id ?? null;
+    const powerOfAttorneyTextVersionId = isUuid(legalModulePowerOfAttorneyVersionId)
+      ? legalModulePowerOfAttorneyVersionId
       : isUuid(offer.power_of_attorney_version_id)
         ? offer.power_of_attorney_version_id
         : null;
@@ -896,7 +896,7 @@ export default async function TecknaPage({
     }
     if (
       verifiedQuote.value.quote.legal_bundle_version &&
-      verifiedQuote.value.quote.legal_bundle_version !== legalBundle.bundle_version
+      verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersion
     ) {
       return fail("price_changed", {
         step: 0,
@@ -991,7 +991,6 @@ export default async function TecknaPage({
       requestedStartDate,
       serverPriceAreaCode,
       gridAreaCode: serverResolution.gridAreaCode,
-      gridOwnerId: serverResolution.gridOwnerId,
       gridOwnerName: serverResolution.gridOwnerName,
       energyResolutionStatus: "resolved",
       energyResolutionConfidence: serverResolution.confidence,
@@ -1133,7 +1132,8 @@ export default async function TecknaPage({
         country: "SE",
         price_area_code: verifiedQuote.value.area.priceAreaCode,
         grid_area_code: verifiedQuote.value.area.gridAreaCode,
-        grid_owner_id: verifiedQuote.value.area.gridOwnerId,
+        // OPS resolves the internal grid owner from the canonical grid-area code.
+        // The website resolver intentionally does not expose an internal UUID.
         grid_owner_name: verifiedQuote.value.area.gridOwnerName,
       },
       metering_point:
@@ -1148,7 +1148,6 @@ export default async function TecknaPage({
               measurement_type: measurementType || null,
               price_area_code: verifiedQuote.value.area.priceAreaCode,
               grid_area_code: verifiedQuote.value.area.gridAreaCode,
-              grid_owner_id: verifiedQuote.value.area.gridOwnerId,
               start_date: verifiedQuote.value.quote.start_date,
               installation_date: installationDate || null,
             }
@@ -1167,17 +1166,25 @@ export default async function TecknaPage({
           }
         : {}),
       idempotency_key: idempotencyKey,
-      legal_bundle_version: legalBundle.bundle_version,
-      legal_acceptances: legalRequirements
-        .filter((requirement) => legalConsents[requirement.requirement_code] === true)
-        .map((requirement) => ({
+      legal_bundle_version: legalBundleVersion,
+      legal_acceptances: legalRequirements.flatMap((requirement) => {
+        if (
+          legalConsents[requirement.requirement_code] !== true ||
+          !requirement.document_reference ||
+          !requirement.document_version ||
+          !requirement.document_hash
+        ) {
+          return [];
+        }
+        return [{
           requirement_code: requirement.requirement_code,
           document_reference: requirement.document_reference,
           document_version: requirement.document_version,
           document_hash: requirement.document_hash,
           accepted: true as const,
           accepted_at: acceptedAt,
-        })),
+        }];
+      }),
       powerOfAttorney,
     } satisfies OpsCustomerApplicationInput;
 
@@ -1223,7 +1230,11 @@ export default async function TecknaPage({
         opsWorkflowState: result.workflow_state ?? null,
         opsStatus: result.status,
         opsSupplierSwitchStatus: result.supplier_switch.status,
+        opsRequestId: result.request_id ?? null,
         opsCorrelationId: result.correlation_id ?? null,
+        opsTraceId: result.trace_id ?? null,
+        opsContractSchemaVersion: result.contract_schema_version ?? null,
+        apiContractVersionUsed: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
         lastStatusSyncedAt: new Date().toISOString(),
         opsResultSnapshot: result.raw ?? null,
         contractStatus: result.contract_status ?? null,

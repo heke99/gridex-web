@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import type { Metadata } from "next";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import {
   getOpsClientStatus,
+  isOpsError,
   type OpsPublicContract,
 } from "@/lib/ops/client";
 import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
@@ -61,7 +63,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           ))}
         </dl>
 
-        {display.ready ? (
+        {display.onlineReady ? (
           <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
             Din uppskattade månadskostnad beräknas först när du har angett
             adress, elområde och förbrukning.
@@ -85,7 +87,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
       </div>
 
       <div className="mt-6 grid gap-3">
-        {display.ready ? (
+        {display.onlineReady ? (
           <Link
             href={display.ctaHref}
             className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
@@ -112,16 +114,32 @@ export default async function AvtalPage() {
   const status = getOpsClientStatus();
   let contracts: OpsPublicContract[] = [];
   let loadError: string | null = null;
+  let blockedFeed = false;
+  let supportReference: string | null = null;
 
   if (status.configured) {
     try {
-      contracts = (await loadWebsitePublicContractFeed({ context: "website contracts" })).contracts;
+      const feed = await loadWebsitePublicContractFeed({ context: "website contracts" });
+      contracts = feed.contracts;
+      blockedFeed = feed.state === "feed_loaded_with_blocked_contracts" && feed.contracts.length === 0;
+      if (blockedFeed) {
+        supportReference =
+          feed.snapshot.upstream_request_id ??
+          feed.snapshot.upstream_correlation_id ??
+          (feed.snapshot.publication_revision !== null
+            ? `PUB-${feed.snapshot.publication_revision}`
+            : randomUUID().slice(0, 8).toUpperCase());
+      }
     } catch (error) {
       logWebsitePublicContractFeedError("website contracts", error);
       loadError = "Kunde inte hämta aktuella elavtal.";
+      supportReference = isOpsError(error)
+        ? error.requestId ?? error.correlationId ?? randomUUID().slice(0, 8).toUpperCase()
+        : randomUUID().slice(0, 8).toUpperCase();
     }
   } else {
     loadError = "Aktuella elavtal kan inte hämtas just nu.";
+    supportReference = "INTEGRATION";
   }
 
   const faqItems = faqByIds(['avtalsskillnad', 'vad-ingar', 'prisbegrepp']);
@@ -248,10 +266,29 @@ export default async function AvtalPage() {
             <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
               {loadError} Teckning är därför tillfälligt pausad.
             </p>
+            {supportReference ? (
+              <p className="mt-3 text-xs text-amber-100/70">
+                Supportreferens: {supportReference}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
-        {!loadError && contracts.length === 0 ? (
+        {!loadError && blockedFeed ? (
+          <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-8">
+            <div className="text-lg font-semibold text-amber-100">
+              Publicerade avtal kan inte visas just nu
+            </div>
+            <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
+              Ett eller flera avtal stoppades av en teknisk kontraktskontroll. Teckning är tillfälligt pausad.
+            </p>
+            {supportReference ? (
+              <p className="mt-3 text-xs text-amber-100/70">Supportreferens: {supportReference}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!loadError && !blockedFeed && contracts.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8">
             <div className="text-lg font-semibold text-white">
               Inga elavtal finns att visa just nu

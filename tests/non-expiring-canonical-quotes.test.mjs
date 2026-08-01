@@ -73,7 +73,7 @@ const basePreview = {
   assumptions: [],
   market_sources: [],
   market_reference: null,
-  pricing_snapshot_schema_version: '2026-07-30.3',
+  pricing_snapshot_schema_version: '2026-08-01.1',
   price_option_reference: 'price_option_non_expiring_test',
   area_price_reference: 'area_price_non_expiring_test',
   invoice_delivery_method: 'email',

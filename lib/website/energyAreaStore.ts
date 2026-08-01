@@ -37,7 +37,9 @@ export async function persistOpsEnergyAreaResolution(input: {
     postal_code: input.location.postalCode.replace(/\s+/g, ''),
     price_area_code: input.resolution.price_area_code,
     grid_area_code: input.resolution.grid_area_code ?? null,
-    grid_owner_id: input.resolution.grid_owner_id ?? null,
+    // The public resolver contract exposes a canonical grid-area code and owner name,
+    // not an internal grid-owner UUID. Never infer or persist an identifier here.
+    grid_owner_id: null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
     confidence: input.resolution.confidence ?? null,
     assurance_level: assuranceLevel,

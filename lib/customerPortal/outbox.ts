@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { syncFacilityData } from '@/lib/customerPortal/writeValidation'
 import {
   isOpsError,
   markOpsCustomerNotificationsRead,
@@ -165,7 +166,7 @@ async function dispatch(row: OutboxRow): Promise<void> {
       powerOfAttorney: recordPayload(row.payload.power_of_attorney),
       legalAcceptances: recordArrayPayload(row.payload.legal_acceptances),
       documents: recordArrayPayload(row.payload.documents),
-      facilityData: recordPayload(row.payload.facility_data),
+      facilityData: syncFacilityData(row.payload.facility_data),
       profile: recordPayload(row.payload.profile),
       metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_customer_sync_outbox' },
     })
