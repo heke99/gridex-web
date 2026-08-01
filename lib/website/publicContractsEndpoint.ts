@@ -52,8 +52,22 @@ function publicError(error: unknown): { status: number; code: string; state: str
   if (error.code === 'ops_tenant_mismatch') {
     return { status: 503, code: 'tenant_mismatch', state: 'tenant_not_operational', message: 'Aktuella elavtal kan inte hämtas just nu.' }
   }
-  if (['ops_public_contracts_response_invalid', 'ops_public_contracts_contract_version_missing', 'ops_public_contracts_contract_version_mismatch', 'ops_public_contracts_publication_revision_missing'].includes(error.code ?? '')) {
+  if ([
+    'ops_public_contracts_response_invalid',
+    'ops_public_contracts_contract_version_missing',
+    'ops_public_contracts_contract_version_mismatch',
+    'ops_public_contracts_publication_revision_missing',
+    'ops_public_contracts_all_blocked',
+    'ops_public_contracts_no_renderable_contracts',
+  ].includes(error.code ?? '')) {
     return { status: 502, code: 'UPSTREAM_CONTRACT_SCHEMA_INCOMPATIBLE', state: 'upstream_schema_incompatible', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
+  }
+  if ([
+    'ops_public_contracts_empty_unverified',
+    'ops_public_contracts_empty_verification_unavailable',
+    'ops_public_contracts_stale_revision',
+  ].includes(error.code ?? '')) {
+    return { status: 503, code: 'PUBLIC_CONTRACT_PUBLICATION_UNVERIFIED', state: 'feed_failed', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
   }
   return {
     status: error.status >= 500 ? 502 : 503,

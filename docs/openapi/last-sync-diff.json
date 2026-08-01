@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-08-01T11:00:10.356Z",
+  "synced_at": "2026-08-01T13:34:48.840Z",
   "contract_version": "2026-08-01.1",
   "release_manifest": {
     "release_version": "2026-08-01.1",
@@ -13,91 +13,53 @@
         "contract_name": "website-integration-v1",
         "contract_version": "2026-08-01.1",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f",
+        "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821",
         "compatibility": "additive"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
         "contract_version": "2026-08-01.1",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628",
+        "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3",
         "compatibility": "additive"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f",
-      "semantic_diff": {
-        "previous_version": "2026-08-01.1",
-        "next_version": "2026-08-01.1",
-        "added_paths": [
-          "/api/v1/public-contracts",
-          "/api/v1/public-contracts/diagnostics"
-        ],
-        "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/website/public-contracts",
-          "/api/v1/website/public-contracts/diagnostics",
-          "/api/v1/contracts",
-          "/api/v1/website/quote",
-          "/api/v1/website/quote/validate",
-          "/api/v1/openapi/website-integration-v1.json",
-          "/api/v1/openapi/customer-portal-v1.json",
-          "/api/v1/website/market-price/current",
-          "/api/v1/website/portfolio-prices",
-          "/api/v1/website/customer-events",
-          "/api/v1/public-contracts",
-          "/api/v1/public-contracts/diagnostics"
-        ],
-        "added_schemas": [
-          "LegacyLegalVersion"
-        ],
-        "removed_schemas": [],
-        "changed_schemas": [
-          "ErrorEnvelope",
-          "IntegrationContext",
-          "ApiPublicContract",
-          "PublicContract",
-          "Quote",
-          "WebsiteCustomerApplicationData",
-          "PublicationChangedWebhook",
-          "WebsiteQuoteRequest",
-          "WebsiteQuoteData",
-          "WebsiteQuoteResponse",
-          "CurrentMarketPriceResponse",
-          "LegalBundleDocument",
-          "WebsiteLegalBlock",
-          "WebsiteQuoteValidationData",
-          "WebsiteCustomerEventData",
-          "OpsDomainWebhookEnvelope",
-          "LegacyLegalVersion"
-        ]
-      }
-    },
-    "customer-portal-v1.json": {
-      "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628",
+      "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821",
       "semantic_diff": {
         "previous_version": "2026-08-01.1",
         "next_version": "2026-08-01.1",
         "added_paths": [],
         "removed_paths": [],
         "changed_paths": [
-          "/api/v1/customer-portal/sync",
-          "/api/v1/customer/move-out",
-          "/api/v1/customer/sync",
+          "/api/v1/openapi/website-integration-v1.json",
+          "/api/v1/openapi/customer-portal-v1.json",
+          "/api/v1/website/market-price/current"
+        ],
+        "added_schemas": [],
+        "removed_schemas": [],
+        "changed_schemas": [
+          "IntegrationContext",
+          "CurrentMarketPriceResponse"
+        ]
+      }
+    },
+    "customer-portal-v1.json": {
+      "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3",
+      "semantic_diff": {
+        "previous_version": "2026-08-01.1",
+        "next_version": "2026-08-01.1",
+        "added_paths": [],
+        "removed_paths": [],
+        "changed_paths": [
           "/api/v1/openapi/customer-portal-v1.json"
         ],
         "added_schemas": [],
         "removed_schemas": [],
         "changed_schemas": [
-          "CustomerContract",
-          "CustomerInvoice",
-          "IntegrationContext",
-          "PortalSyncData",
-          "ClosedPortalResourceEnvelope",
-          "CustomerSyncData",
-          "CustomerMoveOutData"
+          "IntegrationContext"
         ]
       }
     }

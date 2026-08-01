@@ -10,6 +10,11 @@ assert.match(client, /cache:\s*'no-store'/)
 assert.match(client, /readWebsitePublicContractSnapshot/)
 assert.match(client, /storeWebsitePublicContractSnapshot/)
 assert.match(client, /rejected_empty_without_verified_unpublish|retained last-known-good snapshot/)
+assert.match(client, /ops_public_contracts_all_blocked/)
+assert.match(client, /ops_public_contracts_empty_unverified/)
+assert.match(client, /ops_public_contracts_empty_verification_unavailable/)
+assert.match(client, /if \(persistenceResult && !persistenceResult\.stored\)/)
+assert.match(client, /if \(parsed\.contracts\.length === 0 && parsed\.blockedContracts\.length > 0\)/)
 assert.doesNotMatch(
   client.slice(client.indexOf('export async function fetchOpsPublicContractsSnapshot'), client.indexOf('export async function fetchOpsPublicContracts(')),
   /force-cache|revalidateSeconds:\s*60/,

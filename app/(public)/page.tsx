@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   let options: ContractOption[] = [];
+  let contractsLoadError: string | null = null;
 
   try {
     const { contracts } = await loadWebsitePublicContractFeed({ context: "website home" });
@@ -47,6 +48,7 @@ export default async function HomePage() {
   } catch (error) {
     logWebsitePublicContractFeedError("website home", error);
     options = [];
+    contractsLoadError = "Elavtalen kunde inte hämtas just nu. Försök igen om en stund.";
   }
 
   const faqItems = faqByIds(['elomrade', 'vad-ingar', 'avtalsskillnad', 'behover']);
@@ -57,7 +59,12 @@ export default async function HomePage() {
 
       <HeroBlock />
       <TrustBar />
-      <ElectricityCalculator contracts={options} showCustomerTypeSelector persistCheckoutContext />
+      <ElectricityCalculator
+        contracts={options}
+        contractsLoadError={contractsLoadError}
+        showCustomerTypeSelector
+        persistCheckoutContext
+      />
       <HowItWorks />
       <ValueBlocks />
       <ArticleColumns />

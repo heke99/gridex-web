@@ -3192,22 +3192,82 @@ export async function fetchOpsPublicContractsSnapshot(
     }
   }
 
-  if (!options.forceFresh && persistenceResult && !persistenceResult.stored) {
-    const latest = await persistentPublicContractsCacheEntry(cacheKey)
-    if (latest) {
-      return snapshotFromCacheEntry(latest, {
-        source: 'stale-cache',
-        stale: true,
-        staleReason: persistenceResult.result,
-        upstreamStatus: response.status,
-        upstreamRequestId: response.headers.get('x-request-id') ?? latest.upstream_request_id,
-        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? latest.upstream_correlation_id,
-      })
+  if (persistenceResult && !persistenceResult.stored) {
+    if (!options.forceFresh) {
+      const latest = await persistentPublicContractsCacheEntry(cacheKey)
+      if (latest) {
+        return snapshotFromCacheEntry(latest, {
+          source: 'stale-cache',
+          stale: true,
+          staleReason: persistenceResult.result,
+          upstreamStatus: response.status,
+          upstreamRequestId: response.headers.get('x-request-id') ?? latest.upstream_request_id,
+          upstreamCorrelationId: response.headers.get('x-correlation-id') ?? latest.upstream_correlation_id,
+          blockedContracts: [...latest.blocked_contracts, ...parsed.blockedContracts],
+          warnings: [...latest.warnings, ...parsed.warnings],
+          compatibilityIssues: [...latest.compatibility_issues, ...parsed.compatibilityIssues],
+        })
+      }
     }
-    throw new OpsError('OPS public-contracts var äldre än den verifierade publiceringsrevisionen.', 503, {
-      code: 'ops_public_contracts_stale_revision',
+
+    const allBlocked = parsed.contracts.length === 0 && parsed.blockedContracts.length > 0
+    const unverifiedEmpty = parsed.contracts.length === 0
+    throw new OpsError(
+      allBlocked
+        ? 'Alla avtal i OPS public-contracts blockerades av canonical validering.'
+        : unverifiedEmpty
+          ? 'OPS returnerade en tom avtalsfeed som inte kunde verifieras som en avpublicering.'
+          : 'OPS public-contracts var äldre än den verifierade publiceringsrevisionen.',
+      allBlocked ? 502 : 503,
+      {
+        code: allBlocked
+          ? 'ops_public_contracts_all_blocked'
+          : unverifiedEmpty
+            ? 'ops_public_contracts_empty_unverified'
+            : 'ops_public_contracts_stale_revision',
+        persistence_result: persistenceResult.result,
+        response_publication_revision: responseRevision,
+        stored_publication_revision: persistenceResult.stored_revision,
+        accepted_count: parsed.contracts.length,
+        blocked_count: parsed.blockedContracts.length,
+        blockers: parsed.blockedContracts,
+        request_id: response.headers.get('x-request-id'),
+        correlation_id: response.headers.get('x-correlation-id'),
+        endpoint: '/api/v1/website/public-contracts',
+        retryable: !allBlocked,
+      },
+    )
+  }
+
+  if (parsed.contracts.length === 0 && parsed.blockedContracts.length > 0) {
+    // Defensive invariant: an all-blocked response must never become a valid
+    // empty customer feed, even if a future database function accidentally
+    // accepts it. Surface the canonical blockers instead.
+    throw new OpsError('Alla avtal i OPS public-contracts blockerades av canonical validering.', 502, {
+      code: 'ops_public_contracts_all_blocked',
       response_publication_revision: responseRevision,
-      stored_publication_revision: persistenceResult.stored_revision,
+      accepted_count: 0,
+      blocked_count: parsed.blockedContracts.length,
+      blockers: parsed.blockedContracts,
+      request_id: response.headers.get('x-request-id'),
+      correlation_id: response.headers.get('x-correlation-id'),
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+
+  if (persistenceFailed && parsed.contracts.length === 0) {
+    // Without the durable publication guard, data: [] is ambiguous. It may be
+    // a legitimate full unpublish or a transient OPS/database failure. Never
+    // turn that ambiguity into a customer-visible empty feed.
+    throw new OpsError('En tom OPS-avtalsfeed kunde inte verifieras mot den durabla publiceringsrevisionen.', 503, {
+      code: 'ops_public_contracts_empty_verification_unavailable',
+      response_publication_revision: responseRevision,
+      accepted_count: 0,
+      blocked_count: 0,
+      request_id: response.headers.get('x-request-id'),
+      correlation_id: response.headers.get('x-correlation-id'),
+      endpoint: '/api/v1/website/public-contracts',
       retryable: true,
     })
   }
@@ -3216,13 +3276,6 @@ export async function fetchOpsPublicContractsSnapshot(
   const mayCacheInMemory = persistenceResult?.stored === true || (persistenceFailed && parserResultIsCacheable)
   if (mayCacheInMemory) {
     publicContractsCache.set(cacheKey, snapshot)
-  } else {
-    console.warn('[gridex-public-contracts] all-blocked parser result was not cached', {
-      parser_version: CONTRACT_PARSER_VERSION,
-      schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
-      blocked_count: parsed.blockedContracts.length,
-      publication_revision: responseRevision,
-    })
   }
   return snapshot
 }

@@ -10,14 +10,14 @@
       "contract_name": "website-integration-v1",
       "contract_version": "2026-08-01.1",
       "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-      "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f",
+      "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821",
       "compatibility": "additive"
     },
     "customer_portal": {
       "contract_name": "customer-portal-v1",
       "contract_version": "2026-08-01.1",
       "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-      "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628",
+      "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3",
       "compatibility": "additive"
     }
   }

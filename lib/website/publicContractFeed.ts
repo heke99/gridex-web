@@ -1,4 +1,5 @@
 import {
+  OpsError,
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsSnapshot,
   isOpsError,
@@ -106,6 +107,20 @@ export async function loadWebsitePublicContractFeed(input: {
       offer_reference: contract.offer_reference || null,
       source: 'website_readiness',
       reasons: [...new Set(display.blockedReasons.map(readinessReasonCode))],
+    })
+  }
+
+  if (snapshot.contracts.length > 0 && contracts.length === 0) {
+    throw new OpsError('OPS-feeden innehåller avtal men inget avtal kan renderas säkert på hemsidan.', 502, {
+      code: 'ops_public_contracts_no_renderable_contracts',
+      endpoint: '/api/v1/website/public-contracts',
+      publication_revision: snapshot.publication_revision,
+      upstream_request_id: snapshot.upstream_request_id,
+      upstream_correlation_id: snapshot.upstream_correlation_id,
+      accepted_count: snapshot.contracts.length,
+      blocked_count: blockedContracts.length,
+      blockers: blockedContracts,
+      retryable: false,
     })
   }
 

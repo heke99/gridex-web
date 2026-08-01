@@ -62,6 +62,7 @@ export type ContractOption = {
 
 type Props = {
   contracts?: ContractOption[];
+  contractsLoadError?: string | null;
   initialSelectedValue?: string;
   selectedValue?: string;
   onSelectedValueChange?: (value: string) => void;
@@ -187,6 +188,7 @@ function initialPriceOptionReference(
 
 export default function ElectricityCalculator({
   contracts = [],
+  contractsLoadError = null,
   initialSelectedValue = "",
   selectedValue: controlledSelectedValue,
   onSelectedValueChange,
@@ -782,7 +784,7 @@ export default function ElectricityCalculator({
 
         {!hasContracts ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            Det finns inga aktuella elavtal att räkna på just nu.
+            {contractsLoadError ?? "Det finns inga aktuella elavtal att räkna på just nu."}
           </div>
         ) : null}
 
