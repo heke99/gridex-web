@@ -9,11 +9,21 @@ import {
 } from '@/lib/ops/client'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
+import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
 
 export type WebsitePublicContractFeedState =
   | 'feed_loaded_with_contracts'
   | 'feed_loaded_empty'
-  | 'feed_partially_loaded'
+  | 'feed_loaded_with_blocked_contracts'
+
+export function classifyWebsitePublicContractFeedState(
+  visibleCount: number,
+  blockedCount: number,
+): WebsitePublicContractFeedState {
+  if (visibleCount > 0) return 'feed_loaded_with_contracts'
+  if (blockedCount > 0) return 'feed_loaded_with_blocked_contracts'
+  return 'feed_loaded_empty'
+}
 
 export type WebsiteBlockedPublicContract = OpsBlockedPublicContract & {
   source: 'upstream_parse' | 'website_readiness'
@@ -117,11 +127,37 @@ export async function loadWebsitePublicContractFeed(input: {
     await diagnoseEmptyFeed(input.context, input.customerType)
   }
 
-  const state: WebsitePublicContractFeedState = contracts.length === 0
-    ? 'feed_loaded_empty'
-    : blockedContracts.length > 0
-      ? 'feed_partially_loaded'
-      : 'feed_loaded_with_contracts'
+  const state = classifyWebsitePublicContractFeedState(contracts.length, blockedContracts.length)
+
+  emitPublicContractMetrics({
+    context: input.context,
+    upstreamCount: snapshot.contracts.length + snapshot.blocked_contracts.length,
+    visibleCount: contracts.length,
+    blockedCount: blockedContracts.length,
+    warningCount: snapshot.warnings.length,
+    compatibilityIssueCount: snapshot.compatibility_issues.length,
+    feedEmpty: contracts.length === 0,
+    contractVersion: snapshot.contract_version,
+    parserVersion: snapshot.parser_version,
+    publicationRevision: snapshot.publication_revision,
+  })
+
+  console.info(`[${input.context}] public contracts feed classified`, {
+    parser_version: snapshot.parser_version,
+    schema_sha256: snapshot.schema_sha256,
+    contract_version: snapshot.contract_version,
+    publication_revision: snapshot.publication_revision,
+    upstream_count: snapshot.contracts.length + snapshot.blocked_contracts.length,
+    accepted_count: contracts.length,
+    blocked_count: blockedContracts.length,
+    warning_count: snapshot.warnings.length,
+    compatibility_issue_count: snapshot.compatibility_issues.length,
+    state,
+    upstream_status: snapshot.upstream_status,
+    upstream_etag: snapshot.etag,
+    upstream_request_id: snapshot.upstream_request_id,
+    upstream_correlation_id: snapshot.upstream_correlation_id,
+  })
 
   return { contracts, blockedContracts, state, snapshot }
 }

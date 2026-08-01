@@ -4,7 +4,7 @@ import { isOpsError, getOpsClientStatus } from '@/lib/ops/client'
 import { GRIDEX_WEBSITE_API_VERSION_HEADER } from '@/lib/ops/contract'
 import { parseWebsiteCustomerType, type WebsiteCustomerType } from '@/lib/website/customerType'
 import { loadWebsitePublicContractFeed } from '@/lib/website/publicContractFeed'
-import { toBrowserPublicContract } from '@/lib/website/publicDtos'
+import { buildPublicContractsPayload } from '@/lib/website/publicContractsPayload'
 
 function customerType(request: Request): { value: WebsiteCustomerType | null; valid: boolean } {
   const raw = new URL(request.url).searchParams.get('customer_type')
@@ -35,19 +35,25 @@ function publicError(error: unknown): { status: number; code: string; state: str
       message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.',
     }
   }
-  if (error.status === 401) return { status: 503, code: 'invalid_api_key', state: 'integration_not_authorized', message: 'Aktuella elavtal kan inte hämtas just nu.' }
-  if (error.status === 403) return { status: 503, code: 'scope_missing', state: 'integration_not_authorized', message: 'Aktuella elavtal kan inte hämtas just nu.' }
+  if (error.status === 401) return { status: 503, code: 'TENANT_API_AUTHENTICATION_FAILED', state: 'integration_not_authorized', message: 'Aktuella elavtal kan inte hämtas just nu.' }
+  if (error.status === 403) return { status: 503, code: 'TENANT_API_SCOPE_MISSING', state: 'integration_not_authorized', message: 'Aktuella elavtal kan inte hämtas just nu.' }
   if (error.status === 410) return { status: 503, code: 'tenant_closed', state: 'tenant_not_operational', message: 'Inga elavtal är tillgängliga för teckning just nu.' }
   if (error.status === 423) return { status: 503, code: 'tenant_paused', state: 'tenant_not_operational', message: 'Inga elavtal är tillgängliga för teckning just nu.' }
   if (error.status === 429) return { status: 503, code: 'rate_limited', state: 'feed_failed', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
-  if (error.code === 'ops_not_configured' || error.code === 'ops_api_base_url_invalid') {
-    return { status: 503, code: 'configuration_missing', state: 'integration_not_configured', message: 'Aktuella elavtal kan inte hämtas just nu.' }
+  if (error.code === 'ops_not_configured') {
+    return { status: 503, code: 'TENANT_API_KEY_MISSING', state: 'integration_not_configured', message: 'Aktuella elavtal kan inte hämtas just nu.' }
+  }
+  if (error.code === 'ops_api_base_url_invalid') {
+    return { status: 503, code: 'TENANT_API_CONFIGURATION_INVALID', state: 'integration_not_configured', message: 'Aktuella elavtal kan inte hämtas just nu.' }
   }
   if (error.code === 'ops_request_timeout') {
     return { status: 504, code: 'upstream_timeout', state: 'feed_failed', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
   }
   if (error.code === 'ops_tenant_mismatch') {
     return { status: 503, code: 'tenant_mismatch', state: 'tenant_not_operational', message: 'Aktuella elavtal kan inte hämtas just nu.' }
+  }
+  if (['ops_public_contracts_response_invalid', 'ops_public_contracts_contract_version_missing', 'ops_public_contracts_contract_version_mismatch', 'ops_public_contracts_publication_revision_missing'].includes(error.code ?? '')) {
+    return { status: 502, code: 'UPSTREAM_CONTRACT_SCHEMA_INCOMPATIBLE', state: 'upstream_schema_incompatible', message: 'Avtalen kan inte laddas tillfälligt. Försök igen om en stund.' }
   }
   return {
     status: error.status >= 500 ? 502 : 503,
@@ -58,6 +64,8 @@ function publicError(error: unknown): { status: number; code: string; state: str
 }
 
 export async function publicContractsResponse(request: Request) {
+  const requestId = request.headers.get('x-request-id')?.trim() || randomUUID()
+  const correlationId = request.headers.get('x-correlation-id')?.trim() || requestId
   const filter = customerType(request)
   if (!filter.valid) {
     return NextResponse.json(
@@ -68,10 +76,18 @@ export async function publicContractsResponse(request: Request) {
 
   const status = getOpsClientStatus()
   if (!status.configured) {
+    const apiKeyMissing = status.missing.some((item) => item.includes('GRIDEX_API_KEY'))
+    const code = apiKeyMissing ? 'TENANT_API_KEY_MISSING' : 'TENANT_API_CONFIGURATION_INVALID'
+    console.error('[website public-contracts] integration configuration missing', {
+      code,
+      missing_environment_variables: status.missing,
+      request_id: requestId,
+      correlation_id: correlationId,
+    })
     return NextResponse.json(
       {
         error: {
-          code: 'configuration_missing',
+          code,
           state: 'integration_not_configured',
           message: 'Aktuella elavtal kan inte hämtas just nu.',
         },
@@ -98,25 +114,16 @@ export async function publicContractsResponse(request: Request) {
       headers.set(GRIDEX_WEBSITE_API_VERSION_HEADER, snapshot.contract_version)
     }
     headers.set('X-Gridex-Data-Stale', snapshot.stale ? '1' : '0')
+    headers.set('X-Gridex-Parser-Version', snapshot.parser_version)
+    headers.set('X-Gridex-Schema-SHA256', snapshot.schema_sha256)
+    headers.set('X-Request-ID', requestId)
 
     if (etagMatches(request, snapshot.etag)) {
       return new NextResponse(null, { status: 304, headers })
     }
 
     return NextResponse.json(
-      {
-        data: feed.contracts.map(toBrowserPublicContract),
-        blocked_contracts: feed.blockedContracts,
-        meta: {
-          channel: 'website',
-          state: feed.state,
-          contract_version: snapshot.contract_version,
-          publication_revision: snapshot.publication_revision,
-          fetched_at: snapshot.fetched_at,
-          source: snapshot.source,
-          stale: snapshot.stale,
-        },
-      },
+      buildPublicContractsPayload({ feed, requestId, correlationId }),
       { headers },
     )
   } catch (error) {
@@ -125,9 +132,11 @@ export async function publicContractsResponse(request: Request) {
     console.error('[website public-contracts] OPS request failed', {
       code: isOpsError(error) ? error.code : null,
       status: isOpsError(error) ? error.status : null,
-      request_id: isOpsError(error) ? error.requestId : null,
-      correlation_id: isOpsError(error) ? error.correlationId : null,
+      upstream_request_id: isOpsError(error) ? error.requestId : null,
+      upstream_correlation_id: isOpsError(error) ? error.correlationId : null,
       reference,
+      request_id: requestId,
+      correlation_id: correlationId,
     })
     return NextResponse.json(
       { error: { code: mapped.code, state: mapped.state, message: mapped.message, reference } },

@@ -1,0 +1,86 @@
+{
+  "data": [
+    {
+      "offer_reference": "offer_example",
+      "product_code": "gridex_variable_monthly",
+      "name": "Gridex Rörligt månadspris",
+      "contract_type": "variable_monthly",
+      "energy_direction": "consumption",
+      "customer_type": "both",
+      "channel": "website",
+      "price_options": [
+        {
+          "price_option_reference": "canonical_example",
+          "option_code": "canonical_example",
+          "customer_name": "Standard",
+          "price_type": "variable_monthly",
+          "contract_type": "variable_monthly",
+          "customer_type": "both",
+          "resolution": "monthly",
+          "currency": "SEK",
+          "unit": "ore_per_kwh",
+          "fixed_price": null,
+          "markup": 1,
+          "monthly_fee": 49,
+          "binding_months": 0,
+          "notice_months": 1,
+          "auto_renew_enabled": false,
+          "renewal_term_months": null,
+          "is_default": true,
+          "default": true,
+          "selection_required": false,
+          "valid_from": null,
+          "valid_to": null,
+          "earliest_start_date": null,
+          "latest_start_date": null,
+          "area_prices": []
+        }
+      ],
+      "pricing": {
+        "visibility": {},
+        "calculation_components": [],
+        "display_components": [],
+        "calculation_contract": {
+          "includes_all_applicable_components": true,
+          "hidden_components_must_be_calculated": true,
+          "market_price_supplied_by_ops": true
+        },
+        "summary_components": []
+      },
+      "legal": {
+        "legal_bundle_reference": "legal_bundle_example",
+        "legal_bundle_version_id": "00000000-0000-4000-8000-000000000001",
+        "immutable": true,
+        "required_modules": [
+          "general_consumer_terms"
+        ],
+        "module_versions": [
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "legal_bundle_version_id": "00000000-0000-4000-8000-000000000001",
+            "document_reference": "legal_document_example",
+            "module_key": "general_consumer_terms",
+            "version": "2",
+            "title": "Allmänna konsumentvillkor",
+            "published_at": null,
+            "content_sha256": null,
+            "origin": "canonical_bundle_document",
+            "url": null
+          }
+        ]
+      },
+      "valid_from": null,
+      "valid_to": null
+    }
+  ],
+  "meta": {
+    "tenant_reference": "tenant_0123456789abcdef0123456789abcdef0123",
+    "api_version": "v1",
+    "channel": "website",
+    "count": 1,
+    "publication_revision": 56,
+    "publication_updated_at": "2026-08-01T00:00:00.000Z",
+    "contract_schema_version": "2026-08-01.1"
+  },
+  "request_id": "00000000-0000-4000-8000-000000000099"
+}

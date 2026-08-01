@@ -1,5 +1,6 @@
 import type { OpsContractType, OpsPublicContract } from "@/lib/ops/client";
 import type {
+  PublicContractLegal,
   PublicContractPriceOption,
   PublicEnergyDirection,
   PublicLegalRequirement,
@@ -59,6 +60,7 @@ export type SignupContractOption = {
   priceTermsVersionId?: string | null;
   priceTermsUrl?: string | null;
   legalRequirements?: PublicLegalRequirement[];
+  legal: PublicContractLegal;
 };
 
 /**
@@ -120,5 +122,6 @@ export function signupContractOptionAsOpsContract(
     price_terms_version_id: contract.priceTermsVersionId ?? null,
     price_terms_url: contract.priceTermsUrl ?? null,
     legal_requirements: contract.legalRequirements ?? [],
+    legal: contract.legal,
   };
 }

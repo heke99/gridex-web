@@ -1,4 +1,5 @@
-import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv'
+import type { ErrorObject, ValidateFunction } from 'ajv'
+import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import websiteOpenApi from '@/docs/openapi/website-integration-v1.json'
 import customerPortalOpenApi from '@/docs/openapi/customer-portal-v1.json'
@@ -28,7 +29,7 @@ const roots: Record<ContractName, string> = {
 }
 
 function createAjv() {
-  const ajv = new Ajv({
+  const ajv = new Ajv2020({
     allErrors: true,
     strict: false,
     allowUnionTypes: true,
@@ -43,7 +44,7 @@ const customerPortalAjv = createAjv()
 websiteAjv.addSchema(websiteOpenApi, roots.website)
 customerPortalAjv.addSchema(customerPortalOpenApi, roots['customer-portal'])
 
-const ajvs: Record<ContractName, Ajv> = {
+const ajvs: Record<ContractName, ReturnType<typeof createAjv>> = {
   website: websiteAjv,
   'customer-portal': customerPortalAjv,
 }
@@ -55,6 +56,7 @@ function safeErrors(errors: ErrorObject[] | null | undefined) {
     instancePath: error.instancePath,
     keyword: error.keyword,
     message: error.message ?? null,
+    params: error.params as Record<string, unknown>,
   }))
 }
 
@@ -303,7 +305,8 @@ function assertOperationQuery(contract: ContractName, path: string, method: stri
   }
 }
 
-type AjvCompileSchema = Parameters<Ajv['compile']>[0]
+type AjvInstance = ReturnType<typeof createAjv>
+type AjvCompileSchema = Parameters<AjvInstance['compile']>[0]
 
 function qualifyRefValues(value: unknown, root: string): unknown {
   if (Array.isArray(value)) return value.map((item) => qualifyRefValues(item, root))
@@ -394,6 +397,7 @@ export type OpenApiValidationIssue = {
   instancePath: string
   keyword: string
   message: string | null
+  params: Record<string, unknown>
 }
 
 export function validateOpenApiSchema(

@@ -41,6 +41,12 @@ const option = {
       ],
     },
   ],
+  legal: {
+    legal_bundle_reference: 'legal_bundle_signup_adapter',
+    legal_bundle_version_id: '00000000-0000-4000-8000-000000000001',
+    immutable: true,
+    module_versions: [],
+  },
   legalRequirements: [
     {
       requirement_code: 'terms',
@@ -58,5 +64,6 @@ assert.equal(restored.customer_type, 'both')
 assert.equal(restored.portfolio_price_ore_per_kwh, 91.25)
 assert.equal(restored.price_options[0]?.price_option_reference, 'price_option_signup_adapter')
 assert.equal(restored.legal_requirements?.[0]?.requirement_code, 'terms')
+assert.equal(restored.legal.legal_bundle_reference, 'legal_bundle_signup_adapter')
 
 console.log('signup contract option canonical adapter tests passed')

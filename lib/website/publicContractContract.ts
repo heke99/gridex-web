@@ -1,3 +1,12 @@
+import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api'
+import {
+  contractIssue,
+  isBlockingContractIssue,
+  requiresPublishedAreaPrices,
+  type ContractIssueSeverity,
+  type ContractValidationIssue,
+} from '@/lib/website/publicContractPolicy'
+
 export type WebsiteVisibility = 'visible' | 'summary_only' | 'hidden'
 
 export type PublicEnergyDirection = 'consumption' | 'production'
@@ -49,17 +58,64 @@ export type PublicLegalRequirement = {
 }
 
 export type PublicContractPriceOptionCustomerType = 'private' | 'business' | 'both'
+export type PublicContractPriceOptionType =
+  | 'fixed'
+  | 'variable_monthly'
+  | 'variable_hourly'
+  | 'variable_quarterly'
+  | 'portfolio'
+  | 'mixed'
 
-export type PublicContractPriceOption = {
+type GeneratedContractPriceOption = WebsiteApiComponents['schemas']['ContractPriceOption']
+
+/**
+ * Runtime-normalized price option. It is derived from the generated OpenAPI
+ * DTO while keeping the documented default/is_default transition compatible.
+ */
+export type PublicContractPriceOption = Omit<
+  GeneratedContractPriceOption,
+  | 'option_code'
+  | 'customer_name'
+  | 'price_type'
+  | 'contract_type'
+  | 'customer_type'
+  | 'resolution'
+  | 'currency'
+  | 'unit'
+  | 'fixed_price'
+  | 'markup'
+  | 'monthly_fee'
+  | 'is_default'
+  | 'binding_months'
+  | 'notice_months'
+  | 'auto_renew_enabled'
+  | 'renewal_term_months'
+  | 'default'
+  | 'selection_required'
+  | 'valid_from'
+  | 'valid_to'
+  | 'earliest_start_date'
+  | 'latest_start_date'
+  | 'area_prices'
+> & {
   price_option_reference: string
-  option_code: string
-  customer_name: string
-  contract_type: 'fixed' | 'variable_monthly' | 'variable_hourly' | 'variable_quarterly' | 'portfolio' | 'mixed'
+  option_code: string | null
+  customer_name: string | null
+  price_type: PublicContractPriceOptionType
+  contract_type: PublicContractPriceOptionType
   customer_type: PublicContractPriceOptionCustomerType
-  binding_months: number
-  notice_months: number
-  auto_renew_enabled: boolean
+  resolution: 'monthly' | 'hourly' | 'quarterly' | null
+  currency: string | null
+  unit: string | null
+  fixed_price: number | null
+  markup: number | null
+  monthly_fee: number | null
+  binding_months: number | null
+  notice_months: number | null
+  auto_renew_enabled: boolean | null
   renewal_term_months: number | null
+  is_default: boolean
+  /** @deprecated Compatibility alias. Use is_default internally. */
   default: boolean
   selection_required: boolean
   valid_from: string | null
@@ -67,6 +123,26 @@ export type PublicContractPriceOption = {
   earliest_start_date: string | null
   latest_start_date: string | null
   area_prices: PublicContractAreaPrice[]
+}
+
+export type PublicContractLegalModuleVersion = {
+  id: string
+  legal_bundle_version_id: string | null
+  document_reference: string
+  module_key: string
+  version: string
+  title: string
+  published_at: string | null
+  content_sha256: string | null
+  origin: string | null
+  url: string | null
+}
+
+export type PublicContractLegal = {
+  legal_bundle_reference: string | null
+  legal_bundle_version_id: string | null
+  immutable: boolean
+  module_versions: PublicContractLegalModuleVersion[]
 }
 
 export type PublicContractApiShape = {
@@ -89,6 +165,7 @@ export type PublicContractApiShape = {
   summary_components: PublicPricingComponent[]
   price_options: PublicContractPriceOption[]
   legal_requirements: PublicLegalRequirement[]
+  legal: PublicContractLegal
   portfolio_monthly_prices: PublicPortfolioMonthlyPrice[]
   monthly_fee_sek: number | null
   invoice_fee_sek: number | null
@@ -558,10 +635,7 @@ function strictCalendarDate(value: unknown): string | null | undefined {
     : undefined
 }
 
-export type PublicContractValidationIssue = {
-  code: string
-  path: string
-}
+export type PublicContractValidationIssue = ContractValidationIssue
 
 type ValidationResult<T> = {
   value: T | null
@@ -571,8 +645,16 @@ type ValidationResult<T> = {
 const publicReferencePattern = /^[a-z0-9][a-z0-9_-]{2,99}$/i
 const publicPriceAreas = new Set(['SE1', 'SE2', 'SE3', 'SE4'])
 
-function validationIssue(code: string, path: string): PublicContractValidationIssue {
-  return { code, path }
+function validationIssue(
+  code: string,
+  path: string,
+  severity: ContractIssueSeverity = 'blocking',
+): PublicContractValidationIssue {
+  return contractIssue({ code, path, severity, source: 'semantic' })
+}
+
+function hasBlockingIssues(issues: readonly PublicContractValidationIssue[]): boolean {
+  return issues.some(isBlockingContractIssue)
 }
 
 function intervalsOverlap(
@@ -587,9 +669,10 @@ function intervalsOverlap(
 }
 
 function canonicalAreaPrices(value: unknown, path: string): ValidationResult<PublicContractAreaPrice[]> {
-  if (!Array.isArray(value) || value.length === 0) {
-    return { value: null, issues: [validationIssue('area_prices_missing', path)] }
+  if (!Array.isArray(value)) {
+    return { value: null, issues: [validationIssue('area_prices_invalid', path)] }
   }
+  if (value.length === 0) return { value: [], issues: [] }
 
   const issues: PublicContractValidationIssue[] = []
   const rows: PublicContractAreaPrice[] = []
@@ -669,14 +752,14 @@ function canonicalAreaPrices(value: unknown, path: string): ValidationResult<Pub
     }
   }
 
-  return { value: issues.length === 0 ? rows : null, issues }
+  return { value: hasBlockingIssues(issues) ? null : rows, issues }
 }
 
 function parsePriceOptions(value: unknown, path = 'price_options'): ValidationResult<PublicContractPriceOption[]> {
   if (!Array.isArray(value) || value.length === 0) {
     return { value: null, issues: [validationIssue('price_options_missing', path)] }
   }
-  const contractTypes = new Set([
+  const contractTypes = new Set<PublicContractPriceOptionType>([
     'fixed',
     'variable_monthly',
     'variable_hourly',
@@ -686,7 +769,6 @@ function parsePriceOptions(value: unknown, path = 'price_options'): ValidationRe
   ])
   const customerTypes = new Set<PublicContractPriceOptionCustomerType>(['private', 'business', 'both'])
   const references = new Set<string>()
-  const defaultsByCustomerType = new Map<PublicContractPriceOptionCustomerType, number>()
   const options: PublicContractPriceOption[] = []
   const issues: PublicContractValidationIssue[] = []
 
@@ -697,101 +779,201 @@ function parsePriceOptions(value: unknown, path = 'price_options'): ValidationRe
       issues.push(validationIssue('price_option_invalid', rowPath))
       return
     }
+
+    const rowIssues: PublicContractValidationIssue[] = []
     const reference = text(row.price_option_reference)
     const optionCode = text(row.option_code)
     const customerName = text(row.customer_name)
-    const contractType = text(row.contract_type)
+    const contractType = text(row.contract_type ?? row.price_type) as PublicContractPriceOptionType | null
+    const priceType = text(row.price_type ?? row.contract_type) as PublicContractPriceOptionType | null
     const customerType = text(row.customer_type) as PublicContractPriceOptionCustomerType | null
     const bindingMonths = number(row.binding_months)
     const noticeMonths = number(row.notice_months)
     const autoRenew = boolean(row.auto_renew_enabled)
     const renewalTermMonths = number(row.renewal_term_months)
-    const isDefault = boolean(row.default)
+    const canonicalDefault = boolean(row.is_default)
+    const deprecatedDefault = boolean(row.default)
     const selectionRequired = boolean(row.selection_required)
     const validFrom = strictCalendarDate(row.valid_from)
     const validTo = strictCalendarDate(row.valid_to)
     const earliestStartDate = strictCalendarDate(row.earliest_start_date)
     const latestStartDate = strictCalendarDate(row.latest_start_date)
+    const resolutionValue = text(row.resolution)
+    const resolution = resolutionValue && ['monthly', 'hourly', 'quarterly'].includes(resolutionValue)
+      ? resolutionValue as PublicContractPriceOption['resolution']
+      : null
     const areaResult = canonicalAreaPrices(row.area_prices, `${rowPath}.area_prices`)
-    issues.push(...areaResult.issues)
+    rowIssues.push(...areaResult.issues)
 
-    if (!reference) issues.push(validationIssue('price_option_reference_missing', `${rowPath}.price_option_reference`))
-    else if (!publicReferencePattern.test(reference)) issues.push(validationIssue('price_option_reference_invalid', `${rowPath}.price_option_reference`))
-    else if (references.has(reference)) issues.push(validationIssue('duplicate_price_option_reference', `${rowPath}.price_option_reference`))
-    if (!optionCode) issues.push(validationIssue('option_code_missing', `${rowPath}.option_code`))
-    if (!customerName) issues.push(validationIssue('customer_name_missing', `${rowPath}.customer_name`))
-    if (!contractType || !contractTypes.has(contractType)) issues.push(validationIssue('price_option_contract_type_invalid', `${rowPath}.contract_type`))
-    if (!customerType || !customerTypes.has(customerType)) issues.push(validationIssue('price_option_customer_type_invalid', `${rowPath}.customer_type`))
-    if (bindingMonths === null || !Number.isInteger(bindingMonths) || bindingMonths < 0) issues.push(validationIssue('binding_months_invalid', `${rowPath}.binding_months`))
-    if (noticeMonths === null || !Number.isInteger(noticeMonths) || noticeMonths < 0) issues.push(validationIssue('notice_months_invalid', `${rowPath}.notice_months`))
-    if (autoRenew === null) issues.push(validationIssue('auto_renew_enabled_invalid', `${rowPath}.auto_renew_enabled`))
-    if (renewalTermMonths !== null && (!Number.isInteger(renewalTermMonths) || renewalTermMonths < 1)) issues.push(validationIssue('renewal_term_months_invalid', `${rowPath}.renewal_term_months`))
-    if (isDefault === null) issues.push(validationIssue('default_invalid', `${rowPath}.default`))
-    if (selectionRequired === null) issues.push(validationIssue('selection_required_invalid', `${rowPath}.selection_required`))
-    if (validFrom === undefined || validTo === undefined || (validFrom && validTo && validFrom > validTo)) issues.push(validationIssue('price_option_validity_invalid', `${rowPath}.valid_from`))
-    if (earliestStartDate === undefined || latestStartDate === undefined || (earliestStartDate && latestStartDate && earliestStartDate > latestStartDate)) issues.push(validationIssue('price_option_start_window_invalid', `${rowPath}.earliest_start_date`))
+    if (!reference) rowIssues.push(validationIssue('price_option_reference_missing', `${rowPath}.price_option_reference`))
+    else if (!publicReferencePattern.test(reference)) rowIssues.push(validationIssue('price_option_reference_invalid', `${rowPath}.price_option_reference`))
+    else if (references.has(reference)) rowIssues.push(validationIssue('duplicate_price_option_reference', `${rowPath}.price_option_reference`))
+
+    if (!optionCode) rowIssues.push(validationIssue('option_code_missing', `${rowPath}.option_code`, 'warning'))
+    if (!customerName) rowIssues.push(validationIssue('customer_name_missing', `${rowPath}.customer_name`, 'warning'))
+    if (!contractType || !contractTypes.has(contractType)) rowIssues.push(validationIssue('price_option_contract_type_invalid', `${rowPath}.contract_type`))
+    if (!priceType || !contractTypes.has(priceType)) rowIssues.push(validationIssue('price_option_price_type_invalid', `${rowPath}.price_type`))
+    if (!customerType || !customerTypes.has(customerType)) rowIssues.push(validationIssue('price_option_customer_type_invalid', `${rowPath}.customer_type`))
+
+    if (Object.hasOwn(row, 'binding_months') && (bindingMonths === null || !Number.isInteger(bindingMonths) || bindingMonths < 0)) {
+      rowIssues.push(validationIssue('binding_months_invalid', `${rowPath}.binding_months`))
+    }
+    if (Object.hasOwn(row, 'notice_months') && (noticeMonths === null || !Number.isInteger(noticeMonths) || noticeMonths < 0)) {
+      rowIssues.push(validationIssue('notice_months_invalid', `${rowPath}.notice_months`))
+    }
+    if (Object.hasOwn(row, 'auto_renew_enabled') && autoRenew === null) {
+      rowIssues.push(validationIssue('auto_renew_enabled_invalid', `${rowPath}.auto_renew_enabled`))
+    }
+    if (renewalTermMonths !== null && (!Number.isInteger(renewalTermMonths) || renewalTermMonths < 1)) {
+      rowIssues.push(validationIssue('renewal_term_months_invalid', `${rowPath}.renewal_term_months`))
+    }
+
+    let isDefault: boolean | null = canonicalDefault ?? deprecatedDefault
+    if (canonicalDefault !== null && deprecatedDefault !== null && canonicalDefault !== deprecatedDefault) {
+      rowIssues.push(validationIssue('price_option_default_conflict', `${rowPath}.is_default`))
+      isDefault = null
+    } else if (canonicalDefault === null && deprecatedDefault !== null) {
+      rowIssues.push(validationIssue('deprecated_default_alias_used', `${rowPath}.default`, 'compatibility'))
+    }
+    if (isDefault === null) rowIssues.push(validationIssue('price_option_default_missing', `${rowPath}.is_default`))
+    if (selectionRequired === null) rowIssues.push(validationIssue('selection_required_invalid', `${rowPath}.selection_required`))
+
+    if (validFrom === undefined || validTo === undefined || (validFrom && validTo && validFrom > validTo)) {
+      rowIssues.push(validationIssue('price_option_validity_invalid', `${rowPath}.valid_from`))
+    }
+    if (earliestStartDate === undefined || latestStartDate === undefined || (earliestStartDate && latestStartDate && earliestStartDate > latestStartDate)) {
+      rowIssues.push(validationIssue('price_option_start_window_invalid', `${rowPath}.earliest_start_date`))
+    }
+    if (resolutionValue && resolution === null) {
+      rowIssues.push(validationIssue('price_option_resolution_invalid', `${rowPath}.resolution`))
+    }
 
     const areaPrices = areaResult.value
-    const rowValid = (
-      reference && publicReferencePattern.test(reference) && !references.has(reference) &&
-      optionCode && customerName && contractType && contractTypes.has(contractType) &&
-      customerType && customerTypes.has(customerType) &&
-      bindingMonths !== null && Number.isInteger(bindingMonths) && bindingMonths >= 0 &&
-      noticeMonths !== null && Number.isInteger(noticeMonths) && noticeMonths >= 0 &&
-      autoRenew !== null &&
-      (renewalTermMonths === null || (Number.isInteger(renewalTermMonths) && renewalTermMonths >= 1)) &&
-      isDefault !== null && selectionRequired !== null &&
-      validFrom !== undefined && validTo !== undefined && (!validFrom || !validTo || validFrom <= validTo) &&
-      earliestStartDate !== undefined && latestStartDate !== undefined && (!earliestStartDate || !latestStartDate || earliestStartDate <= latestStartDate) &&
-      areaPrices !== null
-    )
-    if (!rowValid || areaPrices === null) return
+    if (
+      contractType && priceType &&
+      requiresPublishedAreaPrices({ contract_type: contractType, price_type: priceType }) &&
+      areaPrices !== null && areaPrices.length === 0
+    ) {
+      rowIssues.push(validationIssue('area_prices_missing', `${rowPath}.area_prices`))
+    }
+
+    issues.push(...rowIssues)
+    if (hasBlockingIssues(rowIssues) || areaPrices === null || !reference || !contractType || !priceType || !customerType || isDefault === null || selectionRequired === null) {
+      return
+    }
 
     references.add(reference)
-    if (isDefault) {
-      const count = (defaultsByCustomerType.get(customerType) ?? 0) + 1
-      if (count > 1) {
-        issues.push(validationIssue('multiple_default_price_options', `${rowPath}.default`))
-        return
-      }
-      defaultsByCustomerType.set(customerType, count)
-    }
     options.push({
       price_option_reference: reference,
       option_code: optionCode,
       customer_name: customerName,
-      contract_type: contractType as PublicContractPriceOption['contract_type'],
+      price_type: priceType,
+      contract_type: contractType,
       customer_type: customerType,
+      resolution,
+      currency: text(row.currency),
+      unit: text(row.unit),
+      fixed_price: number(row.fixed_price),
+      markup: number(row.markup),
+      monthly_fee: number(row.monthly_fee),
       binding_months: bindingMonths,
       notice_months: noticeMonths,
       auto_renew_enabled: autoRenew,
       renewal_term_months: renewalTermMonths,
+      is_default: isDefault,
       default: isDefault,
       selection_required: selectionRequired,
-      valid_from: validFrom,
-      valid_to: validTo,
-      earliest_start_date: earliestStartDate,
-      latest_start_date: latestStartDate,
+      valid_from: validFrom ?? null,
+      valid_to: validTo ?? null,
+      earliest_start_date: earliestStartDate ?? null,
+      latest_start_date: latestStartDate ?? null,
       area_prices: areaPrices,
     })
   })
 
-  return { value: issues.length === 0 && options.length > 0 ? options : null, issues }
+  for (const customerType of ['private', 'business'] as const) {
+    const candidates = options.filter((option) => option.customer_type === 'both' || option.customer_type === customerType)
+    if (candidates.length === 0 || candidates.some((option) => option.selection_required)) continue
+    const defaults = candidates.filter((option) => option.is_default)
+    if (defaults.length === 0) {
+      issues.push(validationIssue('default_price_option_missing', path))
+    } else if (defaults.length > 1) {
+      issues.push(validationIssue('multiple_default_price_options', path))
+    }
+  }
+
+  return { value: !hasBlockingIssues(issues) && options.length > 0 ? options : null, issues }
 }
 
 function priceOptions(value: unknown): PublicContractPriceOption[] | null {
   return parsePriceOptions(value).value
 }
 
+function legalValidationIssues(value: unknown, path: string): PublicContractValidationIssue[] {
+  const legal = record(value)
+  if (!legal) return [validationIssue('legal_missing', path)]
+
+  const issues: PublicContractValidationIssue[] = []
+  const bundleReference = text(legal.legal_bundle_reference)
+  const bundleVersionId = text(legal.legal_bundle_version_id)
+  if (!bundleReference) issues.push(validationIssue('legal_bundle_reference_missing', `${path}.legal_bundle_reference`))
+  if (!Object.hasOwn(legal, 'legal_bundle_version_id')) {
+    issues.push(validationIssue('legal_bundle_version_id_missing', `${path}.legal_bundle_version_id`))
+  } else if (legal.legal_bundle_version_id !== null && !bundleVersionId) {
+    issues.push(validationIssue('legal_bundle_version_id_invalid', `${path}.legal_bundle_version_id`))
+  } else if (legal.legal_bundle_version_id === null) {
+    issues.push(validationIssue('legal_bundle_version_id_historical_null', `${path}.legal_bundle_version_id`, 'warning'))
+  }
+  if (boolean(legal.immutable) !== true) issues.push(validationIssue('legal_bundle_not_immutable', `${path}.immutable`))
+
+  const requiredModules = Array.isArray(legal.required_modules)
+    ? legal.required_modules.flatMap((item) => text(item) ?? [])
+    : []
+  const modules = Array.isArray(legal.module_versions) ? legal.module_versions : []
+  if (requiredModules.length === 0) issues.push(validationIssue('legal_required_modules_missing', `${path}.required_modules`))
+  if (modules.length === 0) issues.push(validationIssue('legal_module_versions_missing', `${path}.module_versions`))
+
+  const publishedModuleKeys = new Set<string>()
+  modules.forEach((item, index) => {
+    const modulePath = `${path}.module_versions[${index}]`
+    const legalModule = record(item)
+    if (!legalModule) {
+      issues.push(validationIssue('legal_module_invalid', modulePath))
+      return
+    }
+    for (const key of ['id', 'document_reference', 'module_key', 'version', 'title'] as const) {
+      if (!text(legalModule[key])) issues.push(validationIssue(`legal_module_${key}_missing`, `${modulePath}.${key}`))
+    }
+    const moduleKey = text(legalModule.module_key)
+    if (moduleKey) publishedModuleKeys.add(moduleKey)
+    if (!Object.hasOwn(legalModule, 'legal_bundle_version_id')) {
+      issues.push(validationIssue('legal_module_bundle_version_id_missing', `${modulePath}.legal_bundle_version_id`))
+    } else {
+      const moduleBundleVersionId = text(legalModule.legal_bundle_version_id)
+      if (legalModule.legal_bundle_version_id !== null && !moduleBundleVersionId) {
+        issues.push(validationIssue('legal_module_bundle_version_id_invalid', `${modulePath}.legal_bundle_version_id`))
+      } else if (bundleVersionId && moduleBundleVersionId && moduleBundleVersionId !== bundleVersionId) {
+        issues.push(validationIssue('legal_module_bundle_version_mismatch', `${modulePath}.legal_bundle_version_id`))
+      }
+    }
+  })
+  for (const requiredModule of requiredModules) {
+    if (!publishedModuleKeys.has(requiredModule)) {
+      issues.push(validationIssue('legal_required_module_missing', `${path}.module_versions.${requiredModule}`))
+    }
+  }
+  return issues
+}
+
 export function publicContractValidationIssues(value: unknown, path = ''): PublicContractValidationIssue[] {
   const row = record(value)
   const prefix = path ? `${path}.` : ''
-  if (!row) return [validationIssue('invalid_contract_object', path || '$')]
+  if (!row) return [validationIssue('invalid_contract_object', path || '$', 'fatal')]
 
   const issues: PublicContractValidationIssue[] = []
   const offerReference = text(row.offer_reference)
-  if (!offerReference) issues.push(validationIssue('missing_offer_reference', `${prefix}offer_reference`))
-  else if (!publicReferencePattern.test(offerReference)) issues.push(validationIssue('offer_reference_invalid', `${prefix}offer_reference`))
+  if (!offerReference) issues.push(validationIssue('missing_offer_reference', `${prefix}offer_reference`, 'fatal'))
+  else if (!publicReferencePattern.test(offerReference)) issues.push(validationIssue('offer_reference_invalid', `${prefix}offer_reference`, 'fatal'))
 
   if (!text(row.name)) issues.push(validationIssue('missing_name', `${prefix}name`))
 
@@ -812,16 +994,31 @@ export function publicContractValidationIssues(value: unknown, path = ''): Publi
   }
 
   const channel = text(row.channel)
-  if (channel !== 'website') issues.push(validationIssue('channel_not_website', `${prefix}channel`))
+  if (channel !== 'website') issues.push(validationIssue('channel_not_website', `${prefix}channel`, 'fatal'))
   if (!record(row.pricing)) issues.push(validationIssue('pricing_missing', `${prefix}pricing`))
-  if (!record(row.legal)) issues.push(validationIssue('legal_missing', `${prefix}legal`))
+  issues.push(...legalValidationIssues(row.legal, `${prefix}legal`))
 
-  issues.push(...parsePriceOptions(row.price_options, `${prefix}price_options`).issues)
+  const parsedOptions = parsePriceOptions(row.price_options, `${prefix}price_options`)
+  issues.push(...parsedOptions.issues)
+
+  const advertisedAreas = normalizedPriceAreas(row.price_areas ?? row.priceAreas)
+  for (const [index, option] of (parsedOptions.value ?? []).entries()) {
+    if (!requiresPublishedAreaPrices(option)) continue
+    const optionPath = `${prefix}price_options[${index}].area_prices`
+    const covered = new Set(option.area_prices.map((areaPrice) => areaPrice.price_area))
+    const requiredAreas = advertisedAreas.length > 0 ? advertisedAreas : [...covered]
+    for (const area of requiredAreas) {
+      if (!covered.has(area)) {
+        issues.push(validationIssue('fixed_area_price_missing', `${optionPath}.${area}`))
+      }
+    }
+  }
+
   return issues
 }
 
 export type PublicPriceOptionSelection =
-  | { status: 'selected'; option: PublicContractPriceOption; area_price: PublicContractAreaPrice; options: PublicContractPriceOption[] }
+  | { status: 'selected'; option: PublicContractPriceOption; area_price: PublicContractAreaPrice | null; options: PublicContractPriceOption[] }
   | { status: 'selection_required'; option: null; area_price: null; options: PublicContractPriceOption[] }
   | { status: 'unavailable'; option: null; area_price: null; options: [] }
 
@@ -843,8 +1040,9 @@ export function selectPublicContractPriceOption(input: {
       price.price_area === input.price_area_code &&
       (!price.valid_from || price.valid_from <= input.start_date) &&
       (!price.valid_to || price.valid_to >= input.start_date)
-    ))
-    return customerMatches && optionValidForStart && startValid && areaPrice
+    )) ?? null
+    const areaReady = !requiresPublishedAreaPrices(option) || areaPrice !== null
+    return customerMatches && optionValidForStart && startValid && areaReady
       ? [{ option, areaPrice }]
       : []
   })
@@ -864,7 +1062,7 @@ export function selectPublicContractPriceOption(input: {
     const selected = candidates[0]
     return { status: 'selected', option: selected.option, area_price: selected.areaPrice, options }
   }
-  const defaults = candidates.filter(({ option }) => option.default)
+  const defaults = candidates.filter(({ option }) => option.is_default ?? option.default ?? false)
   if (defaults.length === 1) {
     const selected = defaults[0]
     return { status: 'selected', option: selected.option, area_price: selected.areaPrice, options }
@@ -982,8 +1180,31 @@ function areaPricing(value: unknown): PublicAreaPricing[] {
 function legalModuleVersions(legal: Record<string, unknown>): Record<string, unknown>[] {
   if (!Array.isArray(legal.module_versions)) return []
   return legal.module_versions.flatMap((item) => {
-    const module = record(item)
-    return module ? [module] : []
+    const legalModule = record(item)
+    return legalModule ? [legalModule] : []
+  })
+}
+
+function normalizedLegalModuleVersions(legal: Record<string, unknown>): PublicContractLegalModuleVersion[] {
+  return legalModuleVersions(legal).flatMap((module) => {
+    const id = text(module.id)
+    const documentReference = text(module.document_reference)
+    const moduleKey = text(module.module_key)
+    const version = text(module.version)
+    const title = text(module.title)
+    if (!id || !documentReference || !moduleKey || !version || !title) return []
+    return [{
+      id,
+      legal_bundle_version_id: text(module.legal_bundle_version_id),
+      document_reference: documentReference,
+      module_key: moduleKey,
+      version,
+      title,
+      published_at: text(module.published_at),
+      content_sha256: text(module.content_sha256),
+      origin: text(module.origin),
+      url: text(module.url),
+    }]
   })
 }
 
@@ -1098,6 +1319,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
   const withdrawalDocument = legalModule(legal, ['withdrawal', 'cancellation_right'])
   const powerOfAttorneyDocument = legalModule(legal, ['power_of_attorney', 'poa'])
   const priceTermsDocument = legalModule(legal, ['price_terms'])
+  const normalizedLegalModules = normalizedLegalModuleVersions(legal)
 
   const canonicalCalculation = pricingComponents(pricing.calculation_components ?? pricing.calculationComponents, 'hidden')
   const legacyComponents = pricingComponents(pricingComponentSource(row, pricing), 'hidden')
@@ -1132,6 +1354,12 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     summary_components: summaryComponents,
     price_options: canonicalPriceOptions,
     legal_requirements: legalRequirements(row, legal),
+    legal: {
+      legal_bundle_reference: text(legal.legal_bundle_reference),
+      legal_bundle_version_id: text(legal.legal_bundle_version_id),
+      immutable: boolean(legal.immutable) === true,
+      module_versions: normalizedLegalModules,
+    },
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,
     ),

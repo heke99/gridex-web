@@ -1,55 +1,104 @@
 {
-  "synced_at": "2026-07-31T14:55:17.128Z",
-  "contract_version": "2026-07-30.3",
+  "synced_at": "2026-08-01T11:00:10.356Z",
+  "contract_version": "2026-08-01.1",
   "release_manifest": {
-    "release_version": "2026-07-30.3",
-    "website_openapi_version": "2026-07-30.3",
-    "customer_portal_openapi_version": "2026-07-30.3",
-    "runtime_contract_version": "2026-07-30.3",
-    "guide_version": "2026-07-30.3",
-    "released_at": "2026-07-30T15:30:00.000Z",
+    "release_version": "2026-08-01.1",
+    "website_openapi_version": "2026-08-01.1",
+    "customer_portal_openapi_version": "2026-08-01.1",
+    "runtime_contract_version": "2026-08-01.1",
+    "guide_version": "2026-08-01.1",
+    "released_at": "2026-07-31T22:31:00.000Z",
     "specifications": {
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-07-30.3",
+        "contract_version": "2026-08-01.1",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "sha256": "fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2",
-        "compatibility": "breaking"
+        "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f",
+        "compatibility": "additive"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-07-30.3",
+        "contract_version": "2026-08-01.1",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9",
-        "compatibility": "breaking"
+        "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628",
+        "compatibility": "additive"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "fdabd8196ae94482cd22928bf624b69ffe6a246e47b0781d698ec1701c80d6b2",
+      "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f",
       "semantic_diff": {
-        "previous_version": "2026-07-30.3",
-        "next_version": "2026-07-30.3",
-        "added_paths": [],
+        "previous_version": "2026-08-01.1",
+        "next_version": "2026-08-01.1",
+        "added_paths": [
+          "/api/v1/public-contracts",
+          "/api/v1/public-contracts/diagnostics"
+        ],
         "removed_paths": [],
-        "changed_paths": [],
-        "added_schemas": [],
+        "changed_paths": [
+          "/api/v1/website/public-contracts",
+          "/api/v1/website/public-contracts/diagnostics",
+          "/api/v1/contracts",
+          "/api/v1/website/quote",
+          "/api/v1/website/quote/validate",
+          "/api/v1/openapi/website-integration-v1.json",
+          "/api/v1/openapi/customer-portal-v1.json",
+          "/api/v1/website/market-price/current",
+          "/api/v1/website/portfolio-prices",
+          "/api/v1/website/customer-events",
+          "/api/v1/public-contracts",
+          "/api/v1/public-contracts/diagnostics"
+        ],
+        "added_schemas": [
+          "LegacyLegalVersion"
+        ],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "ErrorEnvelope",
+          "IntegrationContext",
+          "ApiPublicContract",
+          "PublicContract",
+          "Quote",
+          "WebsiteCustomerApplicationData",
+          "PublicationChangedWebhook",
+          "WebsiteQuoteRequest",
+          "WebsiteQuoteData",
+          "WebsiteQuoteResponse",
+          "CurrentMarketPriceResponse",
+          "LegalBundleDocument",
+          "WebsiteLegalBlock",
+          "WebsiteQuoteValidationData",
+          "WebsiteCustomerEventData",
+          "OpsDomainWebhookEnvelope",
+          "LegacyLegalVersion"
+        ]
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9",
+      "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628",
       "semantic_diff": {
-        "previous_version": "2026-07-30.3",
-        "next_version": "2026-07-30.3",
+        "previous_version": "2026-08-01.1",
+        "next_version": "2026-08-01.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [],
+        "changed_paths": [
+          "/api/v1/customer-portal/sync",
+          "/api/v1/customer/move-out",
+          "/api/v1/customer/sync",
+          "/api/v1/openapi/customer-portal-v1.json"
+        ],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "CustomerContract",
+          "CustomerInvoice",
+          "IntegrationContext",
+          "PortalSyncData",
+          "ClosedPortalResourceEnvelope",
+          "CustomerSyncData",
+          "CustomerMoveOutData"
+        ]
       }
     }
   }

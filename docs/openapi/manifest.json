@@ -1,11 +1,11 @@
 {
-  "contract_version": "2026-07-30.3",
+  "contract_version": "2026-08-01.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "135000e425d0dddcd3b79545bc58c9633ef32da8251b832f5ef9f28f6eff270f"
+      "sha256": "e15a170a38b0cecadb2b815c1387c2336f02da7a69c96af418acca3999952f5f"
     },
     "customer-portal-v1.json": {
-      "sha256": "93d4cb523515948dae2f168b8cab629e1ef1d8238ddb8322b8ca75aa8a46d1f9"
+      "sha256": "72fe14799c971f34e172782972ae510c9817cc6e4b981fb5ec8a71326f49e628"
     }
   }
 }

@@ -6,6 +6,7 @@ import {
   normalizeProductionPricing,
   publicContractValidationIssues,
   type PublicAreaPricing,
+  type PublicContractLegal,
   type PublicContractPriceOption,
   type PublicPortfolioMonthlyPrice,
   type PublicLegalRequirement,
@@ -42,6 +43,14 @@ import type { components as WebsiteApiComponents } from '@/lib/ops/generated/web
 import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
 import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
+import {
+  CONTRACT_PARSER_VERSION,
+  classifyOpenApiIssue,
+  contractIssue,
+  isBlockingContractIssue,
+  type ContractValidationIssue,
+} from '@/lib/website/publicContractPolicy'
+import openApiManifest from '@/docs/openapi/manifest.json'
 
 export { OpsError, isOpsError }
 export type OpsContractType =
@@ -120,6 +129,7 @@ export type OpsPublicContract = {
   summary_components?: PublicPricingComponent[];
   price_options: PublicContractPriceOption[];
   legal_requirements?: PublicLegalRequirement[];
+  legal: PublicContractLegal;
   portfolio_monthly_prices?: PublicPortfolioMonthlyPrice[];
   terms_version?: string | null;
   terms_version_id?: string | null;
@@ -640,7 +650,12 @@ export type OpsIntegrationContext = {
 
 export type OpsCurrentMarketPrice = OpsCurrentMarketPriceDto & {
   request_id: string;
-  contract_schema_version: typeof GRIDEX_WEBSITE_API_CONTRACT_VERSION;
+  /**
+   * The published OPS OpenAPI currently versions this endpoint independently
+   * from the website contract release. Preserve the received value and rely on
+   * logContractVersionDrift instead of pretending it equals the feed version.
+   */
+  contract_schema_version: string;
   raw: Record<string, unknown>;
 };
 
@@ -679,15 +694,23 @@ export type OpsWebsiteApplicationStatus = {
   raw: Record<string, unknown>;
 };
 
+export type OpsPublicContractIssue = ContractValidationIssue & {
+  offer_reference: string | null;
+};
+
 export type OpsBlockedPublicContract = {
   offer_reference: string | null;
   reasons: string[];
-  issues?: Array<{ code: string; path: string }>;
+  issues?: ContractValidationIssue[];
 };
 
 export type OpsPublicContractsSnapshot = {
   contracts: OpsPublicContract[];
   blocked_contracts: OpsBlockedPublicContract[];
+  warnings: OpsPublicContractIssue[];
+  compatibility_issues: OpsPublicContractIssue[];
+  parser_version: string;
+  schema_sha256: string;
   etag: string | null;
   publication_revision: number | null;
   tenant_reference: string;
@@ -697,6 +720,9 @@ export type OpsPublicContractsSnapshot = {
   source: 'live' | 'cache' | 'stale-cache';
   stale: boolean;
   stale_reason: string | null;
+  upstream_status: number;
+  upstream_request_id: string | null;
+  upstream_correlation_id: string | null;
 };
 
 function opsBaseUrl(): string {
@@ -2152,9 +2178,18 @@ function contractVersionFromPayload(payload: unknown): string | null {
 
 type PublicContractsCacheEntry = OpsPublicContractsSnapshot & { cache_key: string };
 const publicContractsCache = new Map<string, PublicContractsCacheEntry>();
+const WEBSITE_OPENAPI_SCHEMA_SHA256 = openApiManifest.specifications['website-integration-v1.json'].sha256
 
 function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): string {
-  return `${opsTenantCacheKey()}|website|public-contracts|${GRIDEX_WEBSITE_API_CONTRACT_VERSION}|${customerType ? toOpsCustomerType(customerType) : "all"}`;
+  return [
+    opsTenantCacheKey(),
+    'website',
+    'public-contracts',
+    GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+    CONTRACT_PARSER_VERSION,
+    WEBSITE_OPENAPI_SCHEMA_SHA256,
+    customerType ? toOpsCustomerType(customerType) : 'all',
+  ].join('|');
 }
 
 function publicContractReference(value: unknown): string | null {
@@ -2180,18 +2215,70 @@ function publicContractParseReasons(value: unknown): string[] {
   return reasons.length > 0 ? reasons : ['invalid_public_contract']
 }
 
-function openApiInstancePath(basePath: string, instancePath: string): string {
-  if (!instancePath) return basePath
-  const tokens = instancePath
-    .split('/')
-    .slice(1)
-    .map((token) => token.replaceAll('~1', '/').replaceAll('~0', '~'))
-  return tokens.reduce((result, token) => (/^\d+$/.test(token) ? `${result}[${token}]` : `${result}.${token}`), basePath)
+function normalizePublicContractCompatibility(
+  value: unknown,
+  basePath: string,
+): { value: unknown; issues: ContractValidationIssue[] } {
+  const row = recordValue(value)
+  if (!row) return { value, issues: [] }
+  const issues: ContractValidationIssue[] = []
+  const priceOptions = Array.isArray(row.price_options)
+    ? row.price_options.map((item, index) => {
+      const option = recordValue(item)
+      if (!option) return item
+      const normalized = { ...option }
+      const optionPath = `${basePath}.price_options[${index}]`
+      if (typeof normalized.is_default === 'boolean' && typeof normalized.default !== 'boolean') {
+        normalized.default = normalized.is_default
+        issues.push(contractIssue({
+          code: 'compatibility_default_alias_added',
+          path: `${optionPath}.default`,
+          severity: 'compatibility',
+          source: 'normalization',
+          detail: 'default',
+        }))
+      }
+      if (typeof normalized.default === 'boolean' && typeof normalized.is_default !== 'boolean') {
+        normalized.is_default = normalized.default
+        issues.push(contractIssue({
+          code: 'deprecated_default_alias_used',
+          path: `${optionPath}.default`,
+          severity: 'compatibility',
+          source: 'normalization',
+          detail: 'is_default',
+        }))
+      }
+      if (typeof normalized.contract_type !== 'string' && typeof normalized.price_type === 'string') {
+        normalized.contract_type = normalized.price_type
+        issues.push(contractIssue({
+          code: 'compatibility_contract_type_alias_added',
+          path: `${optionPath}.contract_type`,
+          severity: 'compatibility',
+          source: 'normalization',
+          detail: 'price_type',
+        }))
+      }
+      if (typeof normalized.price_type !== 'string' && typeof normalized.contract_type === 'string') {
+        normalized.price_type = normalized.contract_type
+        issues.push(contractIssue({
+          code: 'compatibility_price_type_alias_added',
+          path: `${optionPath}.price_type`,
+          severity: 'compatibility',
+          source: 'normalization',
+          detail: 'contract_type',
+        }))
+      }
+      return normalized
+    })
+    : row.price_options
+  return { value: { ...row, price_options: priceOptions }, issues }
 }
 
 export function parseOpsPublicContractsPayload(payload: unknown): {
   contracts: OpsPublicContract[]
   blockedContracts: OpsBlockedPublicContract[]
+  warnings: OpsPublicContractIssue[]
+  compatibilityIssues: OpsPublicContractIssue[]
 } {
   const root = recordValue(payload)
   const rows = extractRows(payload)
@@ -2205,23 +2292,49 @@ export function parseOpsPublicContractsPayload(payload: unknown): {
 
   const contracts: OpsPublicContract[] = []
   const blockedContracts: OpsBlockedPublicContract[] = []
-  rows.forEach((row, index) => {
+  const warnings: OpsPublicContractIssue[] = []
+  const compatibilityIssues: OpsPublicContractIssue[] = []
+
+  rows.forEach((rawRow, index) => {
     const basePath = `data[${index}]`
+    const normalized = normalizePublicContractCompatibility(rawRow, basePath)
+    const row = normalized.value
+    const offerReference = publicContractReference(row)
     const openApi = validateOpenApiSchema('website', 'PublicContract', row)
     const semanticIssues = publicContractValidationIssues(row, basePath)
-    const ajvIssues = openApi.errors.map((error) => ({
-      code: `openapi_${error.keyword}`,
-      path: openApiInstancePath(basePath, error.instancePath),
+    const structuralIssues = openApi.errors.map((issue) => classifyOpenApiIssue({
+      issue,
+      root: row,
+      basePath,
     }))
-    const issues = [...semanticIssues, ...ajvIssues]
+    const issues = [...normalized.issues, ...semanticIssues, ...structuralIssues]
     const mapped = mapPublicContract(row)
-    if (mapped && issues.length === 0) {
+    if (!mapped) {
+      issues.push(contractIssue({
+        code: 'public_contract_normalization_failed',
+        path: basePath,
+        severity: 'blocking',
+        source: 'normalization',
+      }))
+    }
+
+    for (const issue of issues) {
+      const withOffer = { ...issue, offer_reference: offerReference }
+      if (issue.severity === 'compatibility') compatibilityIssues.push(withOffer)
+      else if (issue.severity === 'warning') warnings.push(withOffer)
+    }
+
+    const blockingIssues = issues.filter(isBlockingContractIssue)
+    if (mapped && blockingIssues.length === 0) {
       contracts.push(mapped)
       return
     }
+
     blockedContracts.push({
-      offer_reference: publicContractReference(row),
-      reasons: [...new Set((issues.length ? issues.map((issue) => issue.code) : publicContractParseReasons(row)))],
+      offer_reference: offerReference,
+      reasons: [...new Set((blockingIssues.length
+        ? blockingIssues.map((issue) => issue.code)
+        : publicContractParseReasons(row)))],
       issues,
     })
   })
@@ -2232,7 +2345,7 @@ export function parseOpsPublicContractsPayload(payload: unknown): {
     if (sa !== sb) return sa - sb
     return a.name.localeCompare(b.name, 'sv')
   })
-  return { contracts, blockedContracts }
+  return { contracts, blockedContracts, warnings, compatibilityIssues }
 }
 
 export function invalidateOpsPublicContractsCache(input?: {
@@ -2385,7 +2498,6 @@ export async function fetchOpsWebsiteQuote(
     offer_reference: input.offer_reference,
     annual_consumption_kwh: input.annual_consumption_kwh,
     customer_type: toOpsCustomerType(input.customer_type),
-    requested_start_mode: input.requested_start_mode,
     start_date: input.start_date,
     price_option_reference: input.price_option_reference,
     invoice_delivery_method: input.invoice_delivery_method,
@@ -2845,6 +2957,10 @@ export async function fetchOpsPublicContractsSnapshot(
       return {
         contracts: cached.contracts,
         blocked_contracts: cached.blocked_contracts,
+        warnings: cached.warnings,
+        compatibility_issues: cached.compatibility_issues,
+        parser_version: cached.parser_version,
+        schema_sha256: cached.schema_sha256,
         etag: cached.etag,
         publication_revision: cached.publication_revision,
         tenant_reference: cached.tenant_reference,
@@ -2854,6 +2970,9 @@ export async function fetchOpsPublicContractsSnapshot(
         source: 'stale-cache',
         stale: true,
         stale_reason: isOpsError(error) ? error.code ?? `http_${error.status}` : "ops_transport_error",
+        upstream_status: cached.upstream_status,
+        upstream_request_id: cached.upstream_request_id,
+        upstream_correlation_id: cached.upstream_correlation_id,
       };
     }
     throw error;
@@ -2868,6 +2987,10 @@ export async function fetchOpsPublicContractsSnapshot(
     return {
       contracts: cached.contracts,
       blocked_contracts: cached.blocked_contracts,
+      warnings: cached.warnings,
+      compatibility_issues: cached.compatibility_issues,
+      parser_version: cached.parser_version,
+      schema_sha256: cached.schema_sha256,
       etag: cached.etag,
       publication_revision: cached.publication_revision,
       tenant_reference: cached.tenant_reference,
@@ -2877,6 +3000,9 @@ export async function fetchOpsPublicContractsSnapshot(
       source: 'cache',
       stale: false,
       stale_reason: null,
+      upstream_status: response.status,
+      upstream_request_id: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+      upstream_correlation_id: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
     };
   }
 
@@ -2887,12 +3013,35 @@ export async function fetchOpsPublicContractsSnapshot(
   const parsed = parseOpsPublicContractsPayload(response.payload)
   const responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
   const responseRevision = publicationRevisionFromPayload(response.payload)
+  if (!responseContractVersion) {
+    throw new OpsError('OPS public-contracts saknar kontraktsversion.', 502, {
+      code: 'ops_public_contracts_contract_version_missing',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+  if (responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    throw new OpsError('OPS public-contracts använder en annan kontraktsversion än Gridex Web.', 502, {
+      code: 'ops_public_contracts_contract_version_mismatch',
+      endpoint: '/api/v1/website/public-contracts',
+      expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      received: responseContractVersion,
+      retryable: false,
+    })
+  }
+  if (responseRevision === null) {
+    throw new OpsError('OPS public-contracts saknar publiceringsrevision.', 502, {
+      code: 'ops_public_contracts_publication_revision_missing',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
   if (
     !options.forceFresh &&
     cached &&
     cached.contracts.length > 0 &&
     parsed.contracts.length === 0 &&
-    (responseRevision === null || responseRevision === cached.publication_revision)
+    responseRevision === cached.publication_revision
   ) {
     console.warn('[gridex-public-contracts] empty feed rejected because no newer publication revision was supplied', {
       cached_publication_revision: cached.publication_revision,
@@ -2901,6 +3050,10 @@ export async function fetchOpsPublicContractsSnapshot(
     return {
       contracts: cached.contracts,
       blocked_contracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+      warnings: [...cached.warnings, ...parsed.warnings],
+      compatibility_issues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+      parser_version: CONTRACT_PARSER_VERSION,
+      schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
       etag: cached.etag,
       publication_revision: cached.publication_revision,
       tenant_reference: cached.tenant_reference,
@@ -2910,12 +3063,19 @@ export async function fetchOpsPublicContractsSnapshot(
       source: 'stale-cache',
       stale: true,
       stale_reason: 'empty_feed_without_new_publication_revision',
+      upstream_status: response.status,
+      upstream_request_id: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+      upstream_correlation_id: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
     }
   }
   const snapshot: PublicContractsCacheEntry = {
     cache_key: cacheKey,
     contracts: parsed.contracts,
     blocked_contracts: parsed.blockedContracts,
+    warnings: parsed.warnings,
+    compatibility_issues: parsed.compatibilityIssues,
+    parser_version: CONTRACT_PARSER_VERSION,
+    schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
     etag: response.headers.get('etag'),
     publication_revision: responseRevision,
     tenant_reference: tenantReference,
@@ -2925,8 +3085,21 @@ export async function fetchOpsPublicContractsSnapshot(
     source: 'live',
     stale: false,
     stale_reason: null,
+    upstream_status: response.status,
+    upstream_request_id: response.headers.get('x-request-id'),
+    upstream_correlation_id: response.headers.get('x-correlation-id'),
   };
-  publicContractsCache.set(cacheKey, snapshot);
+  const parserResultIsCacheable = parsed.contracts.length > 0 || parsed.blockedContracts.length === 0
+  if (parserResultIsCacheable) {
+    publicContractsCache.set(cacheKey, snapshot)
+  } else {
+    console.warn('[gridex-public-contracts] all-blocked parser result was not cached', {
+      parser_version: CONTRACT_PARSER_VERSION,
+      schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
+      blocked_count: parsed.blockedContracts.length,
+      publication_revision: responseRevision,
+    })
+  }
   return snapshot;
 }
 

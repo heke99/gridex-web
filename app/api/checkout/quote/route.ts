@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       )
     }
     const selectedPriceOptionReference = priceOptionSelection.option.price_option_reference
-    const selectedAreaPriceReference = priceOptionSelection.area_price.area_price_reference
+    const selectedAreaPriceReference = priceOptionSelection.area_price?.area_price_reference ?? null
     const selectableReferences = new Set(
       (contract.pricing_components ?? []).flatMap((component) =>
         component.component_reference &&

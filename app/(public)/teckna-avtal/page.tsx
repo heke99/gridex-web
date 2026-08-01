@@ -157,6 +157,7 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     priceTermsVersionId: item.price_terms_version_id ?? null,
     priceTermsUrl: item.price_terms_url ?? null,
     legalRequirements: item.legal_requirements ?? [],
+    legal: item.legal,
   };
 }
 
