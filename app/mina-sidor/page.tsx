@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 import { statusLabel, nextStepDescription } from '@/lib/customerPortal/statusHelper'
+import { hasPendingPortalOnboardingForUser } from '@/lib/customerPortal/onboarding'
+import { hasPendingAuthProfileSync } from '@/lib/customerPortal/authProfileSync'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +50,12 @@ export default async function MinaSidorPage() {
 
   if (!user) redirect(buildLoginRedirect())
 
-  const overview = await getCustomerPortalOverview()
+  const [overview, pendingPortalOnboarding, pendingProfileSync] = await Promise.all([
+    getCustomerPortalOverview(),
+    hasPendingPortalOnboardingForUser(user.id),
+    hasPendingAuthProfileSync(user.id),
+  ])
+  const portalLinkPending = pendingPortalOnboarding || pendingProfileSync
   const profile = overview.profile
   const latestContract = overview.contracts[0] ?? null
   const latestSite = overview.sites[0] ?? null
@@ -93,6 +100,12 @@ export default async function MinaSidorPage() {
           </div>
         ) : null}
 
+
+        {portalLinkPending ? (
+          <div className="mt-6 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
+            Din kundprofil är verifierad, men kopplingen till alla uppgifter på Mina sidor slutförs fortfarande. Du behöver inte teckna avtalet igen. Systemet försöker automatiskt igen och kundservice kan följa köstatusen.
+          </div>
+        ) : null}
 
         {overview.customerStatus ? (
           <div className={`mt-6 rounded-3xl border p-5 ${overview.customerStatus.can_start_switch === false ? 'border-amber-500/30 bg-amber-500/10 text-amber-50/90' : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-50/90'}`}>

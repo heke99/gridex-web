@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { syncConfirmedUserProfileDurably } from '@/lib/customerPortal/authProfileSync'
+import { resumePortalOnboardingForConfirmedUser } from '@/lib/customerPortal/onboarding'
 
 const ALLOWED_TYPES = new Set<EmailOtpType>([
   'email',
@@ -31,45 +33,6 @@ function fallbackForType(type: EmailOtpType): string {
     case 'email':
     default:
       return '/login?status=verified'
-  }
-}
-
-async function syncConfirmedUserProfile(params: {
-  userId: string
-  email: string | null
-  type: EmailOtpType
-}) {
-  try {
-    const { supabaseService } = await import('@/lib/supabase/service')
-    const { userId, email, type } = params
-    const now = new Date().toISOString()
-
-    const customerProfilePatch: Record<string, unknown> = {
-      user_id: userId,
-      email,
-      email_verified_at: now,
-    }
-
-    if (type === 'email' || type === 'invite') {
-      customerProfilePatch.onboarding_state = 'verified'
-    }
-
-    await Promise.allSettled([
-      supabaseService.from('customer_profiles').upsert(customerProfilePatch, {
-        onConflict: 'user_id',
-      }),
-
-      supabaseService.from('user_profiles').upsert(
-        {
-          id: userId,
-          user_id: userId,
-          email,
-        },
-        { onConflict: 'id' }
-      ),
-    ])
-  } catch (error) {
-    console.warn('[auth confirm] profile sync skipped', error)
   }
 }
 
@@ -107,13 +70,29 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  let portalLinkPending = false
   if (user?.id) {
-    await syncConfirmedUserProfile({
+    const email = user.email?.trim().toLowerCase() ?? null
+    const profileSync = await syncConfirmedUserProfileDurably({
       userId: user.id,
-      email: user.email?.trim().toLowerCase() ?? null,
+      email,
       type,
     })
+    if (!profileSync.completed) {
+      portalLinkPending = true
+      console.warn('[auth confirm] durable profile sync queued', profileSync.error)
+    }
+
+    try {
+      const resumed = await resumePortalOnboardingForConfirmedUser({ userId: user.id, email })
+      if (resumed.processed > resumed.completed) portalLinkPending = true
+    } catch (error) {
+      portalLinkPending = true
+      console.warn('[auth confirm] portal onboarding resume queued', error)
+    }
   }
 
-  return NextResponse.redirect(new URL(next, origin))
+  const target = new URL(next, origin)
+  if (portalLinkPending) target.searchParams.set('portal_link', 'pending')
+  return NextResponse.redirect(target)
 }

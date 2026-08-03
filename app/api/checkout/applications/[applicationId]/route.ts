@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteApplicationStatus, isOpsError } from '@/lib/ops/client'
-import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
+import { isWebsiteApplicationResultTokenShape, readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
 import { syncWebsiteSubmissionStatus } from '@/lib/website/submissionStore'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 
@@ -17,7 +17,7 @@ export async function GET(
   if (!applicationNumber || !/^[A-Za-z0-9_-]{3,200}$/.test(applicationNumber)) {
     return NextResponse.json({ error: { code: 'application_number_required' } }, { status: 400 })
   }
-  if (!/^[A-Za-z0-9_-]{32,160}$/.test(resultToken)) {
+  if (!isWebsiteApplicationResultTokenShape(resultToken)) {
     return NextResponse.json({ error: { code: 'result_token_required' } }, { status: 400 })
   }
 

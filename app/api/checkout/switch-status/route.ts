@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteSwitchStatus, isOpsError } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
-import { readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
+import { isWebsiteApplicationResultTokenShape, readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -43,7 +43,7 @@ function publicSwitchStatus(value: Record<string, unknown> | null): PublicSwitch
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const resultToken = url.searchParams.get('result_token')?.trim() ?? ''
-  if (!/^[A-Za-z0-9_-]{32,160}$/.test(resultToken)) {
+  if (!isWebsiteApplicationResultTokenShape(resultToken)) {
     return NextResponse.json({ error: { code: 'result_token_required' } }, { status: 400 })
   }
   const rate = await checkRateLimit(

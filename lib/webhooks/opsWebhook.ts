@@ -129,13 +129,16 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
   const root = object(payload)
   const data = object(root.data)
   const meta = object(root.meta)
+  const customer = object(root.customer ?? data.customer)
+  const aggregate = object(root.aggregate ?? data.aggregate)
+  const entity = object(root.entity ?? data.entity)
   const eventType = text(root.event_type) ?? text(root.type)
   const eventId = text(root.event_id) ?? text(root.id) ?? text(data.event_id)
 
   if (!eventId || !eventType) return null
 
-  const occurredAt =
-    text(root.occurred_at) ?? text(root.created_at) ?? new Date().toISOString()
+  const occurredAt = text(root.occurred_at) ?? text(root.created_at)
+  if (!occurredAt || Number.isNaN(Date.parse(occurredAt))) return null
 
   return {
     event_id: eventId,
@@ -155,33 +158,44 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
       text(data.publication_reason) ?? text(data.publicationReason) ??
       text(meta.publication_reason) ?? text(meta.publicationReason),
     delivery_id: text(root.delivery_id) ?? text(root.deliveryId),
-    company_id: text(root.company_id) ?? text(data.company_id),
-    customer_id: text(root.customer_id) ?? text(data.customer_id),
-    customer_number: text(root.customer_number) ?? text(data.customer_number),
+    company_id: text(root.company_id) ?? text(data.company_id) ?? text(customer.company_id),
+    customer_id:
+      text(root.customer_id) ?? text(data.customer_id) ??
+      text(customer.customer_id) ?? text(customer.customer_reference) ?? text(customer.id),
+    customer_number:
+      text(root.customer_number) ?? text(data.customer_number) ??
+      text(customer.customer_number) ?? text(customer.number),
     external_customer_id:
       text(root.external_customer_id) ??
       text(root.externalCustomerId) ??
       text(data.external_customer_id) ??
-      text(data.externalCustomerId),
+      text(data.externalCustomerId) ??
+      text(customer.external_customer_id) ??
+      text(customer.externalCustomerId),
     customer_email:
       text(root.customer_email) ??
       text(root.email) ??
       text(data.customer_email) ??
-      text(data.email),
+      text(data.email) ??
+      text(customer.customer_email) ??
+      text(customer.email),
     portal_user_id:
       text(root.portal_user_id) ??
       text(root.customer_portal_user_id) ??
       text(data.portal_user_id) ??
       text(data.customer_portal_user_id) ??
-      text(data.user_id),
+      text(data.user_id) ??
+      text(customer.portal_user_id) ??
+      text(customer.customer_portal_user_id) ??
+      text(customer.user_id),
     title: text(root.title) ?? text(data.title),
     message: text(root.message) ?? text(root.summary) ?? text(data.message) ?? text(data.summary),
     link_href: text(root.link_href) ?? text(data.link_href),
     related_entity_type:
-      text(root.entity_type) ?? text(data.entity_type) ??
+      text(root.entity_type) ?? text(data.entity_type) ?? text(entity.type) ?? text(aggregate.type) ??
       (eventType.startsWith('invoice.') ? 'invoice' : eventType.startsWith('supply.') ? 'supply' : null),
     related_entity_id:
-      text(root.entity_id) ?? text(data.entity_id) ??
+      text(root.entity_id) ?? text(data.entity_id) ?? text(entity.id) ?? text(aggregate.reference) ??
       text(data.invoice_id) ?? text(data.invoice_number) ??
       text(data.contract_id) ?? text(data.application_id) ?? text(data.facility_id),
     metadata: object(root.metadata ?? data.metadata ?? data),

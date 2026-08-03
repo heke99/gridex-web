@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-03T12:58:14.183Z",
-  "migration_count": 31,
+  "generated_at": "2026-08-03T16:15:35.786Z",
+  "migration_count": 32,
   "version_collisions": [],
   "migrations": [
     {
@@ -158,6 +158,11 @@
       "file": "20260803102100_public_contract_snapshot_portable_rpc.sql",
       "version": "20260803102100",
       "sha256": "0342f32c31fc1ddc73717130dd3d9b03d7b29723023f60d2cf40bdfe2a486634"
+    },
+    {
+      "file": "20260803173000_checkout_post_commit_reconciliation.sql",
+      "version": "20260803173000",
+      "sha256": "2564796a69733f16184ae59fcb06853d565b2c676b8ce8df5fdd1d1d96969bb9"
     }
   ]
 }

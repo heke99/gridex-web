@@ -53,9 +53,11 @@ GRIDEX_WEBSITE_STATE_SIGNING_SECRET=
 GRIDEX_WEBSITE_STATE_SIGNING_KID=
 GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_SECRET=
 GRIDEX_WEBSITE_STATE_SIGNING_PREVIOUS_KID=
+WEBSITE_RESULT_TOKEN_SECRET=
 GRIDEX_WEBHOOK_SIGNING_SECRET=
 GRIDEX_WEBHOOK_TOLERANCE_SECONDS=300
 WEBHOOK_RETRY_CRON_SECRET=
+CUSTOMER_PORTAL_ONBOARDING_CRON_SECRET=
 GRIDEX_WEBHOOK_PROJECTIONS_READY=false
 GRIDEX_DATABASE_MIGRATIONS_READY=false
 
@@ -64,7 +66,7 @@ PII_HASH_PEPPER=
 PII_ENCRYPTION_KEY=
 ```
 
-`GRIDEX_WEBSITE_STATE_SIGNING_SECRET` och webhookhemligheten ska vara separata,
+`GRIDEX_WEBSITE_STATE_SIGNING_SECRET`, `WEBSITE_RESULT_TOKEN_SECRET` och webhookhemligheten ska vara separata,
 slumpmässiga värden om minst 32 byte. State-nyckeln stödjer aktiv och föregående
 `kid` under rotation. I produktion får `GRIDEX_OPS_API_URL` endast vara
 `https://app.gridex.se/api/v1`; andra HTTPS-origins måste uttryckligen
@@ -161,3 +163,18 @@ npm run test:staging:ops
 
 Mer integrationsdetaljer och kända upstreammotsägelser finns i
 `docs/website-integration.md`.
+
+## Checkout post-commit durability
+
+After OPS returns an accepted and signed customer application, local Supabase writes are projections only. A failed local write must therefore be reconciled without changing the customer's accepted business result.
+
+Required production steps:
+
+1. Apply all migrations through `20260803173000_checkout_post_commit_reconciliation.sql` to the Supabase project used by Gridex Web.
+2. Configure a dedicated `WEBSITE_RESULT_TOKEN_SECRET` of at least 32 random characters.
+3. Configure `GRIDEX_WEBHOOK_SIGNING_SECRET` and register `POST /webhooks/gridex` in OPS.
+4. Configure `CRON_SECRET` or `CUSTOMER_PORTAL_ONBOARDING_CRON_SECRET`; the hourly worker processes submission reconciliation, auth profile sync and portal owner linking.
+5. Run `scripts/verify-gridex-web-database.sql` against the exact database referenced by the deployed Vercel environment.
+6. Run `npm run test:post-commit-durability`, `npm run api:check:local`, `npm run db:migrations:check` and `npm run typecheck` before deployment.
+
+The verified success page requires an encrypted result token. A missing, invalid or expired token never produces a success statement. The token can also restore its database projection after a temporary result-table outage.

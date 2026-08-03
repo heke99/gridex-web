@@ -271,7 +271,14 @@ export type OpsCustomerApplicationInput = {
   idempotency_key: string;
 };
 
-export type OpsWebsiteSupplierSwitchState = WebsiteApiComponents['schemas']['WebsiteSupplierSwitchState'];
+export type OpsWebsiteSupplierSwitchState = {
+  request_reference: string | null
+  status: 'not_created' | 'created'
+  can_create_request: boolean
+  can_dispatch: boolean
+  blockers: string[]
+  next_action: string
+};
 export type OpsPowerOfAttorneyState = { status: 'signed' | 'missing' };
 export type OpsCustomerApplicationCommunicationItem = WebsiteApiComponents['schemas']['WebsiteApplicationCommunicationItem'];
 
@@ -288,6 +295,11 @@ export type OpsCustomerApplicationCommunication = {
 export type OpsCustomerApplicationResult = {
   status: string;
   application_number?: string | null;
+  customer_reference?: string | null;
+  application_reference?: string | null;
+  facility_reference?: string | null;
+  metering_point_reference?: string | null;
+  contract_reference?: string | null;
   customer_id?: string | null;
   customer_number?: string | null;
   external_customer_id?: string | null;
@@ -340,6 +352,18 @@ export type OpsCustomerApplicationResult = {
   message?: string | null;
   raw?: Record<string, unknown>;
 };
+
+
+export type AcceptedOpsCustomerApplicationResult = OpsCustomerApplicationResult & {
+  status: 'accepted'
+  application_number: string
+  customer_number: string
+  contract_status: 'signed'
+  signed_at: string
+  signature_snapshot_sha256: string
+  workflow_state: 'canonical_data_committed'
+  communication: OpsCustomerApplicationCommunication
+}
 
 export type OpsAuthorizationProbeResult = {
   ok: boolean;
@@ -2426,11 +2450,37 @@ function publicContractParseReasons(value: unknown): string[] {
 
 function normalizePublicContractCompatibility(
   value: unknown,
-  _basePath: string,
+  basePath: string,
 ): { value: unknown; issues: ContractValidationIssue[] } {
-  // Preserve the upstream contract exactly. Canonical required fields must never
-  // be manufactured from aliases before structural and semantic validation.
-  return { value, issues: [] }
+  const row = recordValue(value)
+  if (!row || !Array.isArray(row.price_options)) return { value, issues: [] }
+
+  const issues: ContractValidationIssue[] = []
+  let changed = false
+  const priceOptions = row.price_options.map((option, index) => {
+    const optionRow = recordValue(option)
+    if (!optionRow) return option
+
+    const canonicalDefault = optionRow.is_default
+    const deprecatedDefault = optionRow.default
+    if (typeof canonicalDefault !== 'boolean' && typeof deprecatedDefault === 'boolean') {
+      changed = true
+      issues.push(contractIssue({
+        code: 'deprecated_default_alias_used',
+        path: `${basePath}.price_options[${index}].is_default`,
+        severity: 'compatibility',
+        source: 'normalization',
+        detail: 'Canonical is_default was restored from the documented deprecated default alias.',
+      }))
+      return { ...optionRow, is_default: deprecatedDefault }
+    }
+
+    return option
+  })
+
+  return changed
+    ? { value: { ...row, price_options: priceOptions }, issues }
+    : { value, issues }
 }
 
 export function parseOpsPublicContractsPayload(payload: unknown): {
@@ -4120,7 +4170,7 @@ function mapCustomerApplicationCommunication(
 
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
-): Promise<OpsCustomerApplicationResult> {
+): Promise<AcceptedOpsCustomerApplicationResult> {
   if (!getOpsClientStatus().liveSignupEnabled) {
     throw new OpsError("Live-teckning är avstängd för hemsidan.", 503);
   }
@@ -4151,7 +4201,9 @@ export async function submitOpsCustomerApplication(
     payload = recovered;
   }
 
-  return mapOpsCustomerApplicationResult(payload);
+  const result = mapOpsCustomerApplicationResult(payload);
+  assertAcceptedApplication(result);
+  return result;
 }
 
 function recoverCustomerApplicationConflict(value: unknown): unknown | null {
@@ -4204,7 +4256,7 @@ function mapWebsiteSupplierSwitchState(value: unknown): OpsWebsiteSupplierSwitch
     })
   }
   return {
-    request_id: pickString(row, ['request_id']),
+    request_reference: pickString(row, ['request_reference', 'request_id']),
     status,
     can_create_request: canCreateRequest,
     can_dispatch: canDispatch,
@@ -4254,11 +4306,25 @@ export function mapOpsCustomerApplicationResult(
     })
   }
 
+  const status = pickString(row, ['status'])
+  if (!status) {
+    throw new OpsError('OPS kundansökan saknar obligatorisk status.', 502, {
+      code: 'ops_application_status_missing',
+      field: 'status',
+      retryable: false,
+    })
+  }
+
   return {
-    status: pickString(row, ['status']) ?? 'application_received',
+    status,
     customer_id: pickString(row, ['customer_id']),
     customer_number: pickString(row, ['customer_number']),
     application_number: pickString(row, ['application_number']),
+    customer_reference: pickString(row, ['customer_reference']),
+    application_reference: pickString(row, ['application_reference']),
+    facility_reference: pickString(row, ['facility_reference']),
+    metering_point_reference: pickString(row, ['metering_point_reference']),
+    contract_reference: pickString(row, ['contract_reference']),
     external_customer_id: pickString(row, ['external_customer_id']),
     external_customer_reference: pickString(row, ['external_customer_reference']),
     customer_site_id: pickString(row, ['customer_site_id']),
@@ -4308,6 +4374,42 @@ export function mapOpsCustomerApplicationResult(
     next_step: pickString(row, ['next_step']),
     message: pickString(row, ['message']),
     raw: row,
+  }
+}
+
+export function assertAcceptedApplication(
+  result: OpsCustomerApplicationResult,
+): asserts result is AcceptedOpsCustomerApplicationResult {
+  const fail = (code: string, field: string, received?: unknown): never => {
+    throw new OpsError('OPS accepterade inte kundansökan enligt det canonicala kontraktet.', 502, {
+      code,
+      field,
+      received: received ?? null,
+      application_number: result.application_number ?? null,
+      request_id: result.request_id ?? null,
+      retryable: false,
+    })
+  }
+
+  if (result.status !== 'accepted') fail('ops_application_not_accepted', 'status', result.status)
+  if (!result.application_number?.trim()) fail('ops_application_number_missing', 'application_number')
+  if (!result.customer_number?.trim()) fail('ops_customer_number_missing', 'customer_number')
+  if (result.contract_status !== 'signed') fail('ops_contract_not_signed', 'contract_status', result.contract_status)
+  if (!result.signed_at || Number.isNaN(Date.parse(result.signed_at))) {
+    fail('ops_signed_at_missing', 'signed_at', result.signed_at)
+  }
+  if (!/^[a-f0-9]{64}$/i.test(result.signature_snapshot_sha256 ?? '')) {
+    fail('ops_signature_evidence_invalid', 'signature_snapshot_sha256', result.signature_snapshot_sha256)
+  }
+  if (result.workflow_state !== 'canonical_data_committed') {
+    fail('ops_workflow_not_committed', 'workflow_state', result.workflow_state)
+  }
+  // The current immutable Website OpenAPI does not expose a continuation_job_id.
+  // Its documented accepted status is therefore the public proof that the
+  // idempotent signature/workflow/continuation stages completed. Do not invent
+  // a non-contractual required field here.
+  if (!result.communication || result.communication.source_of_truth !== 'communication_logs') {
+    fail('ops_communication_contract_invalid', 'communication', result.communication)
   }
 }
 

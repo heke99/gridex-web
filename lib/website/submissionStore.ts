@@ -177,12 +177,17 @@ export async function lockWebsiteSubmissionOpsPayload(input: {
   }
 }
 
-export async function updateWebsiteSubmission(input: {
+export type WebsiteSubmissionUpdateInput = {
   submissionAttemptId: string
   status: 'submitting' | 'accepted' | 'failed'
   opsCustomerId?: string | null
+  opsCustomerReference?: string | null
   opsApplicationNumber?: string | null
+  opsApplicationReference?: string | null
   opsContractId?: string | null
+  opsContractReference?: string | null
+  opsFacilityReference?: string | null
+  opsMeteringPointReference?: string | null
   opsCustomerNumber?: string | null
   opsSiteId?: string | null
   opsMeteringPointId?: string | null
@@ -207,15 +212,22 @@ export async function updateWebsiteSubmission(input: {
   communication?: Record<string, unknown> | null
   errorCode?: string | null
   errorMessage?: string | null
-}): Promise<void> {
+}
+
+export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInput): Promise<void> {
   const supabase = serviceClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('website_application_submissions')
     .update({
       status: input.status,
       ops_customer_id: input.opsCustomerId ?? null,
+      ops_customer_reference: input.opsCustomerReference ?? null,
       ops_application_number: input.opsApplicationNumber ?? null,
+      ops_application_reference: input.opsApplicationReference ?? null,
       ops_contract_id: input.opsContractId ?? null,
+      ops_contract_reference: input.opsContractReference ?? null,
+      ops_facility_reference: input.opsFacilityReference ?? null,
+      ops_metering_point_reference: input.opsMeteringPointReference ?? null,
       ops_customer_number: input.opsCustomerNumber ?? null,
       ops_site_id: input.opsSiteId ?? null,
       ops_metering_point_id: input.opsMeteringPointId ?? null,
@@ -243,7 +255,10 @@ export async function updateWebsiteSubmission(input: {
       updated_at: new Date().toISOString(),
     })
     .eq('submission_attempt_id', input.submissionAttemptId)
+    .select('submission_attempt_id')
+    .maybeSingle<{ submission_attempt_id: string }>()
   if (error) throw new Error(`Submission storage update failed: ${error.message}`)
+  if (!data) throw new Error('Submission storage update failed: submission row not found.')
 }
 
 export async function syncWebsiteSubmissionStatus(input: {
@@ -259,7 +274,7 @@ export async function syncWebsiteSubmissionStatus(input: {
   if (!applicationNumber) throw new Error('OPS application number is required for status sync.')
   const now = new Date().toISOString()
   const supabase = serviceClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('website_application_submissions')
     .update({
       ops_status: input.opsStatus,
@@ -272,5 +287,174 @@ export async function syncWebsiteSubmissionStatus(input: {
       updated_at: now,
     })
     .eq('ops_application_number', applicationNumber)
+    .select('submission_attempt_id')
+    .maybeSingle<{ submission_attempt_id: string }>()
   if (error) throw new Error(`Submission status sync failed: ${error.message}`)
+  if (!data) throw new Error('Submission status sync failed: submission row not found.')
+}
+
+export async function recordWebsiteSubmissionFailure(input: {
+  flow: string
+  reason: string
+  submissionAttemptId?: string | null
+  email?: string | null
+  metadata?: Record<string, unknown> | null
+}): Promise<void> {
+  const normalizedEmail = input.email?.trim().toLowerCase() || null
+  const { error } = await serviceClient().from('website_submission_failures').insert({
+    flow: input.flow,
+    email_hash: normalizedEmail
+      ? createHash('sha256').update(normalizedEmail).digest('hex')
+      : null,
+    reason: input.reason.slice(0, 1000),
+    metadata: {
+      submission_attempt_id: input.submissionAttemptId ?? null,
+      ...(input.metadata ?? {}),
+    },
+  })
+  if (error) throw new Error(`Submission failure audit insert failed: ${error.message}`)
+}
+
+
+type WebsiteSubmissionReconciliationJob = {
+  id: string
+  submission_attempt_id: string
+  status: 'pending' | 'processing' | 'completed' | 'retryable_failure' | 'manual_review'
+  payload: WebsiteSubmissionUpdateInput
+  attempt_count: number
+  max_attempts: number
+}
+
+async function recoverStaleWebsiteSubmissionReconciliationJobs(): Promise<void> {
+  const cutoff = new Date(Date.now() - 15 * 60_000).toISOString()
+  const { error } = await serviceClient()
+    .from('website_submission_reconciliation_jobs')
+    .update({
+      status: 'retryable_failure',
+      next_attempt_at: new Date().toISOString(),
+      last_error: 'Recovered stale processing lock after worker interruption.',
+      locked_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('status', 'processing')
+    .lt('locked_at', cutoff)
+  if (error) throw new Error(`Submission reconciliation stale-lock recovery failed: ${error.message}`)
+}
+
+export async function queueWebsiteSubmissionReconciliation(
+  input: WebsiteSubmissionUpdateInput,
+  reason: string,
+): Promise<void> {
+  const supabase = serviceClient()
+  const { data: existing, error: readError } = await supabase
+    .from('website_submission_reconciliation_jobs')
+    .select('id,status,attempt_count,max_attempts')
+    .eq('submission_attempt_id', input.submissionAttemptId)
+    .maybeSingle<Pick<WebsiteSubmissionReconciliationJob, 'id' | 'status' | 'attempt_count' | 'max_attempts'>>()
+  if (readError) throw new Error(`Submission reconciliation queue read failed: ${readError.message}`)
+  if (existing?.status === 'processing' || existing?.status === 'completed') return
+
+  const { error } = await supabase.from('website_submission_reconciliation_jobs').upsert(
+    [{
+      submission_attempt_id: input.submissionAttemptId,
+      status: 'pending',
+      payload: input,
+      attempt_count: existing?.attempt_count ?? 0,
+      max_attempts: existing?.max_attempts ?? 10,
+      last_error: reason.slice(0, 2000),
+      next_attempt_at: new Date().toISOString(),
+      locked_at: null,
+      updated_at: new Date().toISOString(),
+    }],
+    { onConflict: 'submission_attempt_id', defaultToNull: false },
+  )
+  if (error) throw new Error(`Submission reconciliation queue failed: ${error.message}`)
+}
+
+async function claimWebsiteSubmissionReconciliationJob(
+  job: WebsiteSubmissionReconciliationJob,
+): Promise<number | null> {
+  const attempt = job.attempt_count + 1
+  const { data, error } = await serviceClient()
+    .from('website_submission_reconciliation_jobs')
+    .update({
+      status: 'processing',
+      attempt_count: attempt,
+      locked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', job.id)
+    .eq('attempt_count', job.attempt_count)
+    .in('status', ['pending', 'retryable_failure'])
+    .select('id')
+    .maybeSingle<{ id: string }>()
+  if (error) throw new Error(`Submission reconciliation claim failed: ${error.message}`)
+  return data ? attempt : null
+}
+
+export async function processWebsiteSubmissionReconciliationJobs(limit = 25): Promise<{
+  processed: number
+  completed: number
+  failed: number
+}> {
+  const supabase = serviceClient()
+  await recoverStaleWebsiteSubmissionReconciliationJobs()
+  const { data, error } = await supabase
+    .from('website_submission_reconciliation_jobs')
+    .select('id,submission_attempt_id,status,payload,attempt_count,max_attempts')
+    .in('status', ['pending', 'retryable_failure'])
+    .lte('next_attempt_at', new Date().toISOString())
+    .order('next_attempt_at', { ascending: true })
+    .limit(Math.max(1, Math.min(limit, 100)))
+    .returns<WebsiteSubmissionReconciliationJob[]>()
+  if (error) throw new Error(`Submission reconciliation load failed: ${error.message}`)
+
+  let completed = 0
+  let failed = 0
+  for (const job of data ?? []) {
+    const attempt = await claimWebsiteSubmissionReconciliationJob(job)
+    if (attempt === null) continue
+    try {
+      await updateWebsiteSubmission(job.payload)
+      const { data: completedJob, error: completeError } = await supabase
+        .from('website_submission_reconciliation_jobs')
+        .update({
+          status: 'completed',
+          last_error: null,
+          next_attempt_at: null,
+          locked_at: null,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+        .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+        .select('id')
+        .maybeSingle<{ id: string }>()
+      if (completeError) throw new Error(completeError.message)
+      if (!completedJob) throw new Error('Submission reconciliation completion lost its processing claim.')
+      completed += 1
+    } catch (jobError) {
+      const message = jobError instanceof Error ? jobError.message : String(jobError)
+      const exhausted = attempt >= job.max_attempts
+      const delayMinutes = Math.min(12 * 60, Math.max(5, 2 ** Math.min(attempt, 8)))
+      const { error: retryError } = await supabase
+        .from('website_submission_reconciliation_jobs')
+        .update({
+          status: exhausted ? 'manual_review' : 'retryable_failure',
+          last_error: message.slice(0, 2000),
+          next_attempt_at: exhausted
+            ? null
+            : new Date(Date.now() + delayMinutes * 60_000).toISOString(),
+          locked_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+        .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+      if (retryError) console.error('[submission reconciliation] failed to persist retry state', retryError)
+      failed += 1
+    }
+  }
+  return { processed: (data ?? []).length, completed, failed }
 }

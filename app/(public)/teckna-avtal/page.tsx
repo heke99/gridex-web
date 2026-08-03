@@ -39,6 +39,9 @@ import {
   prepareWebsiteSubmission,
   submissionPayloadHash,
   updateWebsiteSubmission,
+  recordWebsiteSubmissionFailure,
+  queueWebsiteSubmissionReconciliation,
+  type WebsiteSubmissionUpdateInput,
 } from "@/lib/website/submissionStore";
 import { ensureCustomerPortalOnboarding } from "@/lib/customerPortal/onboarding";
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from "@/lib/website/customerType";
@@ -198,6 +201,8 @@ function errorText(code?: string) {
       return "Samma teckning behandlas redan. Vänta en kort stund och kontrollera din e-post innan du försöker igen.";
     case "duplicate_application":
       return "En motsvarande teckning finns redan. Kontrollera e-post och Mina sidor eller kontakta kundservice innan du skickar en ny.";
+    case "application_business_conflict":
+      return "En befintlig ansökan krockar med den här teckningen. Vi behandlar den inte som en ny lyckad teckning. Kontrollera e-post eller kontakta kundservice med dina uppgifter.";
     case "auth_email_mismatch":
       return "Bekräfta att teckningen ska använda en annan e-postadress än kontot du är inloggad på.";
     case "portal_contract":
@@ -351,7 +356,8 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     if (/quote_already_consumed|quote_consumed/i.test(context.code)) return "duplicate_application";
     if (/quote_revoked|offer_unavailable|contract_not_orderable|publication_withdrawn/i.test(context.code)) return "offer";
     if (/quote_reference_invalid|quote_validation_failed|price_reference_invalid|resolution_mismatch|quote_start_date_mismatch|quote_customer_type_mismatch/i.test(context.code)) return "price_changed";
-    if (/duplicate|business_conflict/i.test(context.code)) return "duplicate_application";
+    if (/application_business_conflict|business_conflict/i.test(context.code)) return "application_business_conflict";
+    if (/duplicate/i.test(context.code)) return "duplicate_application";
     if (context.code === "idempotent_failed") return "idempotency_retry_failed";
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
     return "ops_unavailable";
@@ -1215,35 +1221,6 @@ export default async function TecknaPage({
       if (result.energy_direction && result.energy_direction !== offer.energy_direction) {
         throw new Error("OPS returned an application with a different energy direction than the selected offer.");
       }
-      await updateWebsiteSubmission({
-        submissionAttemptId,
-        status: "accepted",
-        opsCustomerId: result.customer_id ?? null,
-        opsApplicationNumber: result.application_number ?? null,
-        opsContractId: result.contract_id ?? null,
-        opsCustomerNumber: result.customer_number ?? null,
-        opsSiteId: result.site_id ?? null,
-        opsMeteringPointId: result.metering_point_id ?? null,
-        opsWorkflowId: result.workflow_id ?? null,
-        opsContinuationJobId: result.continuation_job_id ?? null,
-        opsWorkflowState: result.workflow_state ?? null,
-        opsStatus: result.status,
-        opsSupplierSwitchStatus: result.supplier_switch.status,
-        opsRequestId: result.request_id ?? null,
-        opsCorrelationId: result.correlation_id ?? null,
-        opsTraceId: result.trace_id ?? null,
-        opsContractSchemaVersion: result.contract_schema_version ?? null,
-        apiContractVersionUsed: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-        lastStatusSyncedAt: new Date().toISOString(),
-        opsResultSnapshot: result.raw ?? null,
-        contractStatus: result.contract_status ?? null,
-        signedAt: result.signed_at ?? null,
-        withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
-        signatureSnapshotSha256: result.signature_snapshot_sha256 ?? null,
-        canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
-        canStartSwitch: result.supplier_switch.can_create_request,
-        communication: result.communication?.raw ?? null,
-      });
     } catch (error) {
       const context = opsErrorContext(error);
       await updateWebsiteSubmission({
@@ -1269,11 +1246,74 @@ export default async function TecknaPage({
       });
     }
 
+    // OPS has committed and signed the canonical business transaction. Local
+    // persistence below is reconciliation evidence only and may never turn the
+    // accepted customer journey into a failed application.
+    const acceptedSubmissionUpdate = {
+      submissionAttemptId,
+      status: "accepted",
+      opsCustomerId: result.customer_id ?? null,
+      opsCustomerReference: result.customer_reference ?? null,
+      opsApplicationNumber: result.application_number,
+      opsApplicationReference: result.application_reference ?? null,
+      opsContractId: result.contract_id ?? null,
+      opsContractReference: result.contract_reference ?? null,
+      opsFacilityReference: result.facility_reference ?? null,
+      opsMeteringPointReference: result.metering_point_reference ?? null,
+      opsCustomerNumber: result.customer_number,
+      opsSiteId: result.site_id ?? null,
+      opsMeteringPointId: result.metering_point_id ?? null,
+      opsWorkflowId: result.workflow_id ?? null,
+      opsContinuationJobId: result.continuation_job_id ?? null,
+      opsWorkflowState: result.workflow_state,
+      opsStatus: result.status,
+      opsSupplierSwitchStatus: result.supplier_switch.status,
+      opsRequestId: result.request_id ?? null,
+      opsCorrelationId: result.correlation_id ?? null,
+      opsTraceId: result.trace_id ?? null,
+      opsContractSchemaVersion: result.contract_schema_version ?? null,
+      apiContractVersionUsed: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      lastStatusSyncedAt: new Date().toISOString(),
+      opsResultSnapshot: result.raw ?? null,
+      contractStatus: result.contract_status,
+      signedAt: result.signed_at,
+      withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
+      signatureSnapshotSha256: result.signature_snapshot_sha256,
+      canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
+      canStartSwitch: result.supplier_switch.can_create_request,
+      communication: result.communication.raw ?? null,
+    } satisfies WebsiteSubmissionUpdateInput;
+
+    try {
+      await updateWebsiteSubmission(acceptedSubmissionUpdate);
+    } catch (error) {
+      console.error("[website signup] accepted OPS application requires local reconciliation", error);
+      const reason = error instanceof Error ? error.message : String(error);
+      await queueWebsiteSubmissionReconciliation(acceptedSubmissionUpdate, reason).catch((queueError) => {
+        console.error("[website signup] durable reconciliation queue failed", queueError);
+      });
+      await recordWebsiteSubmissionFailure({
+        flow: "accepted_submission_reconciliation",
+        submissionAttemptId,
+        email,
+        reason,
+        metadata: {
+          application_number: result.application_number,
+          customer_number: result.customer_number,
+          continuation_job_id: result.continuation_job_id,
+          ops_request_id: result.request_id ?? null,
+        },
+      }).catch((auditError) => {
+        console.error("[website signup] reconciliation audit insert failed", auditError);
+      });
+    }
+
     // The authenticated portal identity is linked atomically in the customer application.
     // /customer-portal/sync is reserved for explicit repair and legacy reconciliation flows.
 
     const portalOnboarding = await ensureCustomerPortalOnboarding({
       application: result,
+      submissionAttemptId,
       email,
       firstName: firstName || null,
       lastName: lastName || null,
@@ -1297,28 +1337,30 @@ export default async function TecknaPage({
       return { status: "failed" as const, message: "portal_onboarding_failed" };
     });
 
-    let successRedirect = "/teckna-avtal/tack";
+    let resultToken: string
     try {
-      const resultToken = await createWebsiteApplicationResult({
+      resultToken = await createWebsiteApplicationResult({
         submissionAttemptId,
         userId: linkedAuthUserId,
         result: {
           workflowId: result.workflow_id ?? null,
-          workflowState: result.workflow_state ?? null,
+          workflowState: result.workflow_state,
+          continuationJobId: result.continuation_job_id ?? null,
+          signatureSnapshotSha256: result.signature_snapshot_sha256,
           status: result.status,
           energyDirection: result.energy_direction ?? offer.energy_direction,
           portalStatus: safePortalStatus(portalOnboarding.status),
           portalMessage: portalOnboarding.message?.slice(0, 500) ?? null,
-          customerNumber: result.customer_number ?? null,
+          customerNumber: result.customer_number,
           contractNumber: result.contract_number ?? null,
-          applicationNumber: result.application_number ?? null,
+          applicationNumber: result.application_number,
           nextStep: result.next_step ?? null,
           nextActionMessage: publicApplicationMessage(result.nextAction),
-          caseReference: result.supplier_switch.request_id ?? null,
+          caseReference: result.supplier_switch.request_reference ?? null,
           powerOfAttorneySigned: result.power_of_attorney?.status === 'signed',
           missingFields: result.missing_fields,
-          contractStatus: result.contract_status ?? null,
-          signedAt: result.signed_at ?? null,
+          contractStatus: result.contract_status,
+          signedAt: result.signed_at,
           withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
           canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
           canStartSwitch: result.supplier_switch.can_create_request,
@@ -1327,17 +1369,27 @@ export default async function TecknaPage({
           supplierSwitchStatus: result.supplier_switch.status,
           blockingReasons: result.blocking_reasons,
           warnings: result.warnings,
-          communicationQueued: result.communication?.queued ?? [],
-          communicationSent: result.communication?.sent ?? [],
-          communicationFailed: result.communication?.failed ?? [],
+          communicationQueued: result.communication.queued,
+          communicationSent: result.communication.sent,
+          communicationFailed: result.communication.failed,
         },
       });
-      successRedirect = `/teckna-avtal/tack?result=${encodeURIComponent(resultToken)}`;
     } catch (error) {
-      console.error("[website signup] result token storage failed after successful application", error);
+      console.error("[website signup] verified result token creation failed after accepted OPS application", error);
+      await recordWebsiteSubmissionFailure({
+        flow: "accepted_result_token_reconciliation",
+        submissionAttemptId,
+        email,
+        reason: error instanceof Error ? error.message : String(error),
+        metadata: {
+          application_number: result.application_number,
+          customer_number: result.customer_number,
+        },
+      }).catch(() => null);
+      return redirect('/teckna-avtal/tack');
     }
 
-    return redirect(successRedirect);
+    return redirect(`/teckna-avtal/tack?result=${encodeURIComponent(resultToken)}`);
   }
 
   return (
