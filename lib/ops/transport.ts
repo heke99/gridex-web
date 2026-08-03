@@ -251,11 +251,25 @@ export async function opsRequest(
     }
     timeout.cleanup()
 
+    // 304 Not Modified is a conditional-cache response, not a redirect.
+    // Handle it before the generic 3xx redirect guard so a valid ETag hit can
+    // reuse the already verified local/persistent public-contract snapshot.
+    if (response.status === 304) {
+      if (options.allowNotModified) break
+      throw new OpsError('Gridex API returnerade 304 för ett anrop som inte tillåter cacheåteranvändning.', 502, {
+        code: 'ops_not_modified_unexpected',
+        endpoint: path,
+        status: response.status,
+        retryable: false,
+      })
+    }
+
     if (response.status >= 300 && response.status < 400) {
       throw new OpsError('Gridex API returnerade en otillåten redirect.', 502, {
         code: 'ops_redirect_blocked',
         endpoint: path,
         status: response.status,
+        location: response.headers.get('location'),
         retryable: false,
       })
     }

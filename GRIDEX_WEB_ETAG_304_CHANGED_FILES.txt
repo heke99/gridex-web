@@ -1,0 +1,8 @@
+GRIDEX_WEB_ETAG_304_FIX_2026-08-03.md
+GRIDEX_WEB_ETAG_304_CHANGED_FILES.txt
+lib/ops/transport.ts
+package.json
+supabase/migrations/manifest.json
+tests/api-compatibility-hardening.test.mjs
+tests/ops-transport-not-modified.test.mjs
+tests/public-contract-cache-durability.test.mjs

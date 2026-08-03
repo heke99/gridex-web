@@ -31,6 +31,12 @@ assert.match(client, /return transportOpsRequest\(path, init, options\)/, 'all c
 assert.equal((client.match(/async function opsRequest\(/g) ?? []).length, 1, 'client may only expose one thin transport wrapper')
 assert.match(transport, /redirect:\s*['"]manual['"]/, 'transport must inspect redirects without forwarding credentials')
 assert.match(transport, /response\.status >= 300 && response\.status < 400/, 'transport must reject redirect responses')
+assert.match(transport, /response\.status === 304[\s\S]*options\.allowNotModified/, 'transport must handle an allowed 304 before the generic redirect guard')
+assert.ok(
+  transport.indexOf('response.status === 304') < transport.indexOf('response.status >= 300 && response.status < 400'),
+  '304 Not Modified must be handled before the 3xx redirect guard',
+)
+assert.match(transport, /ops_not_modified_unexpected/, 'unexpected 304 responses must fail with a dedicated transport code')
 assert.match(transport, /AbortSignal|AbortController/, 'transport must enforce request cancellation/timeout')
 
 const marketStart = client.indexOf('export async function fetchOpsCurrentMarketPrice')
