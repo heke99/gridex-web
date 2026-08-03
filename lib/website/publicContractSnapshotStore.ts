@@ -82,7 +82,7 @@ function parseEmptyFeedAuthorization(
 }
 
 type SnapshotReadExpectations = {
-  tenantReference: string
+  tenantReference?: string | null
   contractVersion: string
   parserVersion: string
   schemaSha256: string
@@ -133,7 +133,7 @@ function parseStoredSnapshot(
   } else if (row.contracts.length === 0 || row.empty_feed_authorization !== null) {
     return null
   }
-  if (row.tenant_reference !== expected.tenantReference) return null
+  if (expected.tenantReference && row.tenant_reference !== expected.tenantReference) return null
   if (row.contract_version !== expected.contractVersion) return null
   if (row.parser_version !== expected.parserVersion) return null
   if (row.schema_sha256 !== expected.schemaSha256) return null

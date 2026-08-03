@@ -141,7 +141,13 @@ assert.ok(energySchema.required.includes('blockers'))
 assert.ok(energySchema.required.includes('retryable'))
 assert.ok(!('automation_allowed' in energySchema.properties))
 assert.ok(quoteSchema.required.includes('resolution_id'))
-for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(quoteSchema.required.includes(field), `quote field must be required: ${field}`)
+// The live quote-create contract allows OPS to resolve the canonical default price option.
+// The field is published and validated when supplied, but it is not required until
+// quote validation and the final customer application.
+assert.ok(!quoteSchema.required.includes('price_option_reference'))
+assert.equal(quoteSchema.properties.price_option_reference.type, 'string')
+assert.equal(quoteSchema.properties.price_option_reference.pattern, '^[a-z0-9][a-z0-9_-]{2,99}$')
+for (const field of ['invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(quoteSchema.required.includes(field), `quote field must be required: ${field}`)
 assert.equal(quoteSchema.additionalProperties, false)
 const quoteValidationSchema = websiteOpenApi.components.schemas.QuoteValidationRequest
 for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(quoteValidationSchema.required.includes(field), `quote validation field must be required: ${field}`)

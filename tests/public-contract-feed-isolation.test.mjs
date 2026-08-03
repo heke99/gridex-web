@@ -46,7 +46,11 @@ const validContract = (suffix) => ({
     calculation_components: [],
     display_components: [],
     summary_components: [],
-    calculation_contract: {},
+    calculation_contract: {
+      includes_all_applicable_components: true,
+      hidden_components_must_be_calculated: true,
+      market_price_supplied_by_ops: true,
+    },
   },
   legal: {
     required_modules: ['general_consumer_terms'],
@@ -65,6 +69,7 @@ const validContract = (suffix) => ({
     immutable: true,
     legal_bundle_reference: `legal_bundle_${suffix}`,
     legal_bundle_version_id: '00000000-0000-4000-8000-000000000001',
+    power_of_attorney_version_id: null,
   },
 })
 

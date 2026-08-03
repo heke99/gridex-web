@@ -67,7 +67,8 @@
             "origin": "canonical_bundle_document",
             "url": null
           }
-        ]
+        ],
+        "power_of_attorney_version_id": null
       },
       "valid_from": null,
       "valid_to": null
@@ -80,7 +81,7 @@
     "count": 1,
     "publication_revision": 56,
     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-    "contract_schema_version": "2026-08-01.1"
+    "contract_schema_version": "2026-08-02.1"
   },
   "request_id": "00000000-0000-4000-8000-000000000099"
 }

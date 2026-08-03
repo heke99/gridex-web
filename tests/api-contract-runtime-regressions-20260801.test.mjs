@@ -5,8 +5,8 @@ import {
 } from '../lib/ops/validators/openapi.ts'
 
 const webhookBody = {
-  event_id: 'evt_publication_301',
-  delivery_id: 'delivery_publication_301',
+  event_id: `event_${'a'.repeat(32)}`,
+  delivery_id: `delivery_${'b'.repeat(32)}`,
   event_type: 'contracts.publication.changed',
   created_at: '2026-08-01T18:00:00.000Z',
   tenant_reference: 'tenant_gridex',
@@ -35,6 +35,23 @@ assert.doesNotThrow(() => assertWebsiteOperationRequest(
   webhookBody,
   webhookHeaders,
 ))
+const legacyWebhookBody = {
+  ...webhookBody,
+  event_id: 'evt_publication_301',
+  delivery_id: 'delivery_publication_301',
+}
+const legacyWebhookHeaders = new Headers({
+  'x-gridex-event-id': legacyWebhookBody.event_id,
+  'x-gridex-delivery-id': legacyWebhookBody.delivery_id,
+  'x-gridex-timestamp': '1785607200',
+  'x-gridex-signature': `sha256=${'a'.repeat(64)}`,
+})
+assert.throws(() => assertWebsiteOperationRequest(
+  '/webhooks/contracts.publication.changed',
+  'post',
+  legacyWebhookBody,
+  legacyWebhookHeaders,
+))
 assert.throws(() => assertWebsiteOperationRequest(
   '/webhooks/contracts.publication.changed',
   'post',
@@ -45,6 +62,7 @@ assert.throws(() => assertWebsiteOperationRequest(
 const portalHeaders = new Headers({
   'x-gridex-customer-portal-user-id': '11111111-1111-4111-8111-111111111111',
   'x-gridex-auth-user-id': '22222222-2222-4222-8222-222222222222',
+  'Idempotency-Key': 'runtime-contract-regression-20260803',
 })
 const syncBody = {
   authenticated_user_reference: '22222222-2222-4222-8222-222222222222',

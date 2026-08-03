@@ -3170,6 +3170,12 @@ function publicContractsFallbackEligible(error: unknown): boolean {
   if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
   if ([401, 403, 410, 423].includes(error.status)) return false
 
+  // Schema-readiness outages are deployment failures, not evidence that the
+  // previously verified tenant-bound feed is invalid. The cache key is bound
+  // to API base URL + API key, while the stored snapshot is still checked
+  // against contract version, parser version and the exact OpenAPI checksum.
+  if (error.code === 'platform_schema_not_ready' && error.status === 503) return true
+
   // Invalid/partial public-contract payloads must never replace the durable
   // last-known-good snapshot. A schema or canonical metadata failure is safe
   // to serve from LKG even though retryable=false correctly prevents blind
@@ -3178,13 +3184,38 @@ function publicContractsFallbackEligible(error: unknown): boolean {
   return isTransientOpsError(error)
 }
 
+function integrationContextSnapshotFallbackEligible(error: unknown): boolean {
+  if (!isOpsError(error)) return false
+  if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
+  if ([401, 403, 410, 423].includes(error.status)) return false
+  return error.status >= 500
+}
+
 async function persistentPublicContractsCacheEntry(
   cacheKey: string,
 ): Promise<PublicContractsCacheEntry | null> {
+  let tenantReference: string | null = null
   try {
-    const integration = await getVerifiedOpsIntegrationContext()
+    tenantReference = (await getVerifiedOpsIntegrationContext()).tenant_reference
+  } catch (error) {
+    if (!integrationContextSnapshotFallbackEligible(error)) {
+      console.error('[gridex-public-contracts] integration context verification failed before snapshot read', {
+        status: isOpsError(error) ? error.status : null,
+        code: isOpsError(error) ? error.code : null,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      return null
+    }
+    console.warn('[gridex-public-contracts] integration context unavailable; trying API-key-bound snapshot', {
+      status: isOpsError(error) ? error.status : null,
+      code: isOpsError(error) ? error.code : null,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  try {
     const snapshot = await readWebsitePublicContractSnapshot(cacheKey, {
-      tenantReference: integration.tenant_reference,
+      tenantReference,
       contractVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       parserVersion: CONTRACT_PARSER_VERSION,
       schemaSha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
@@ -3194,7 +3225,7 @@ async function persistentPublicContractsCacheEntry(
     publicContractsCache.set(cacheKey, entry)
     return entry
   } catch (error) {
-    console.error('[gridex-public-contracts] persistent snapshot read failed', {
+    console.error('[gridex-public-contracts] persistent snapshot database read failed', {
       message: error instanceof Error ? error.message : String(error),
     })
     return null

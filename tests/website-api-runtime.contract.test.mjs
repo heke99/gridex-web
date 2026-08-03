@@ -10,11 +10,23 @@ import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay
 
 const TEST_PRICE_OPTION = {
   price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
-  contract_type: 'variable_monthly', customer_type: 'both', binding_months: 0, notice_months: 1,
-  auto_renew_enabled: false, renewal_term_months: null, is_default: true, default: true, selection_required: false,
+  contract_type: 'variable_monthly', price_type: 'variable_monthly', customer_type: 'both', resolution: 'monthly',
+  currency: 'SEK', unit: 'ore_per_kwh', fixed_price: null, markup: 0, monthly_fee: 0,
+  binding_months: 0, notice_months: 1, auto_renew_enabled: false, renewal_term_months: null,
+  is_default: true, default: true, selection_required: false,
   valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
   area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
+const PRODUCTION_PRICE_OPTION = {
+  ...TEST_PRICE_OPTION,
+  price_option_reference: 'price_option_production_runtime',
+  option_code: 'production_quarterly',
+  customer_name: 'Produktionsersättning',
+  contract_type: 'variable_quarterly',
+  price_type: 'variable_quarterly',
+  resolution: 'quarterly',
+}
+
 const CONTRACT_VERSION = '2026-08-02.1'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
@@ -221,7 +233,7 @@ await assert.rejects(
 )
 await assert.rejects(
   () => validateOpsWebsiteQuote(quoteValidationInput()),
-  (error) => error instanceof OpsError && error.status === 502 && error.code === 'ops_quote_validation_contract_invalid',
+  (error) => error instanceof OpsError && error.status === 502 && error.code === 'canonical_response_schema_invalid',
 )
 
 const productionContract = normalizePublicContractApiPayload({
@@ -229,7 +241,7 @@ const productionContract = normalizePublicContractApiPayload({
   name: 'Produktionsersättning',
   contract_type: 'variable_quarterly',
   energy_direction: 'production',
-    price_options: [TEST_PRICE_OPTION],
+    price_options: [PRODUCTION_PRICE_OPTION],
   customer_type: 'both',
   pricing: {
     visibility: {},
@@ -265,7 +277,7 @@ assert.equal(normalizePublicContractApiPayload({
   name: 'Saknar produktionspris',
   contract_type: 'variable_hourly',
   energy_direction: 'production',
-    price_options: [TEST_PRICE_OPTION],
+    price_options: [PRODUCTION_PRICE_OPTION],
   customer_type: 'both',
   pricing: {},
 }), null)
