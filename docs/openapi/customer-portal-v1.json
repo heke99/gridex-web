@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal and Website API",
-    "version": "2026-08-02.1",
+    "version": "2026-08-03.1",
     "description": "Canonical V1 contract for the authenticated customer portal and customer self-service APIs. Website checkout, public contracts, energy-area resolution, current market price and quote are documented exclusively in website-integration-v1.json."
   },
   "servers": [
@@ -20,6 +20,9 @@
             "bearerAuth": [
               "customer_sync.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -148,7 +151,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -376,6 +379,9 @@
             "bearerAuth": [
               "customer_contracts.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -658,6 +664,9 @@
             "bearerAuth": [
               "customer_documents.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -928,6 +937,9 @@
             "bearerAuth": [
               "customer_events.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -1198,6 +1210,9 @@
             "bearerAuth": [
               "customer_invoices.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -1468,6 +1483,9 @@
             "bearerAuth": [
               "customer_invoices.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -1747,6 +1765,9 @@
             "bearerAuth": [
               "customer_legal.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -2017,6 +2038,9 @@
             "bearerAuth": [
               "customer_profile.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -2287,6 +2311,9 @@
             "bearerAuth": [
               "customer_metering.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -2557,6 +2584,9 @@
             "bearerAuth": [
               "customer_facility_data.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -2636,7 +2666,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -2687,7 +2717,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -2915,6 +2945,9 @@
             "bearerAuth": [
               "customer_notifications.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -3185,6 +3218,9 @@
             "bearerAuth": [
               "customer_notifications.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -3264,7 +3300,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -3501,6 +3537,9 @@
               "customer_notifications.read",
               "customer_power_of_attorney.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -3787,6 +3826,9 @@
               "customer_notifications.read",
               "customer_power_of_attorney.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -4076,6 +4118,9 @@
             "bearerAuth": [
               "customer_power_of_attorney.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -4351,6 +4396,9 @@
             "bearerAuth": [
               "customer_facility_data.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -4431,7 +4479,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -4670,6 +4718,9 @@
             "bearerAuth": [
               "customer_sites.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -4940,6 +4991,9 @@
             "bearerAuth": [
               "customer_sync.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -5019,7 +5073,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -5247,6 +5301,9 @@
             "bearerAuth": [
               "events.read"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -5330,7 +5387,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -5556,6 +5613,9 @@
             "bearerAuth": [
               "website_events.write"
             ]
+          },
+          {
+            "legacyApiKeyAuth": []
           }
         ],
         "x-required-scopes": [
@@ -5608,7 +5668,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-02.1"
+                      "const": "2026-08-03.1"
                     }
                   }
                 }
@@ -5936,25 +5996,26 @@
           "200": {
             "description": "Versionerad OpenAPI JSON",
             "headers": {
-              "ETag": {
-                "schema": {
-                  "type": "string"
-                }
-              },
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
               },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
               },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
               }
             },
             "content": {
@@ -5967,7 +6028,7 @@
             }
           },
           "304": {
-            "description": "Oförändrad ETag",
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -5975,18 +6036,165 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
               },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
               },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
               }
             }
           }
-        }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
       }
     }
   },
@@ -5996,6 +6204,13 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "Gridex API token"
+      },
+      "legacyApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "deprecated": true,
+        "description": "Deprecated compatibility header. New integrations MUST use Authorization: Bearer <GRIDEX_API_KEY>. Sunset: 2026-10-31T23:59:59.000Z."
       }
     },
     "parameters": {
@@ -6760,28 +6975,7 @@
             ],
             "properties": {
               "code": {
-                "type": "string",
-                "enum": [
-                  "missing_api_token",
-                  "invalid_api_token",
-                  "api_token_expired",
-                  "api_client_inactive",
-                  "api_scope_missing",
-                  "api_ip_not_allowed",
-                  "api_origin_not_allowed",
-                  "rate_limited",
-                  "api_rate_limit_invalid",
-                  "api_rate_limiter_unavailable",
-                  "api_auth_unavailable",
-                  "tenant_not_operationally_ready",
-                  "tenant_paused",
-                  "tenant_closed",
-                  "platform_schema_not_ready",
-                  "PUBLIC_CONTRACT_FEED_INCONSISTENT",
-                  "PUBLICATION_GRAPH_INCONSISTENT",
-                  "PUBLIC_CONTRACT_SCHEMA_INVALID"
-                ],
-                "description": "Canonical runtime error code. The registry is release-versioned."
+                "type": "string"
               },
               "message": {
                 "type": "string"
@@ -6827,7 +7021,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -7370,7 +7564,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           },
           "configuration": {
             "type": "object",
@@ -7578,28 +7772,7 @@
             ],
             "properties": {
               "code": {
-                "type": "string",
-                "enum": [
-                  "missing_api_token",
-                  "invalid_api_token",
-                  "api_token_expired",
-                  "api_client_inactive",
-                  "api_scope_missing",
-                  "api_ip_not_allowed",
-                  "api_origin_not_allowed",
-                  "rate_limited",
-                  "api_rate_limit_invalid",
-                  "api_rate_limiter_unavailable",
-                  "api_auth_unavailable",
-                  "tenant_not_operationally_ready",
-                  "tenant_paused",
-                  "tenant_closed",
-                  "platform_schema_not_ready",
-                  "PUBLIC_CONTRACT_FEED_INCONSISTENT",
-                  "PUBLICATION_GRAPH_INCONSISTENT",
-                  "PUBLIC_CONTRACT_SCHEMA_INVALID"
-                ],
-                "description": "Canonical runtime error code. The registry is release-versioned."
+                "type": "string"
               },
               "message": {
                 "type": "string"
@@ -7645,7 +7818,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -7815,7 +7988,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         }
       },
@@ -8274,28 +8447,7 @@
             ],
             "properties": {
               "code": {
-                "type": "string",
-                "enum": [
-                  "missing_api_token",
-                  "invalid_api_token",
-                  "api_token_expired",
-                  "api_client_inactive",
-                  "api_scope_missing",
-                  "api_ip_not_allowed",
-                  "api_origin_not_allowed",
-                  "rate_limited",
-                  "api_rate_limit_invalid",
-                  "api_rate_limiter_unavailable",
-                  "api_auth_unavailable",
-                  "tenant_not_operationally_ready",
-                  "tenant_paused",
-                  "tenant_closed",
-                  "platform_schema_not_ready",
-                  "PUBLIC_CONTRACT_FEED_INCONSISTENT",
-                  "PUBLICATION_GRAPH_INCONSISTENT",
-                  "PUBLIC_CONTRACT_SCHEMA_INVALID"
-                ],
-                "description": "Canonical runtime error code. The registry is release-versioned."
+                "type": "string"
               },
               "message": {
                 "type": "string"
@@ -8341,7 +8493,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8414,7 +8566,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8840,7 +8992,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-02.1"
+            "const": "2026-08-03.1"
           }
         }
       },
@@ -8856,7 +9008,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-02.1"
+          "const": "2026-08-03.1"
         }
       },
       "RequestId": {
@@ -8888,10 +9040,40 @@
           "type": "integer",
           "minimum": 1
         }
+      },
+      "ETag": {
+        "description": "Strong entity tag for conditional retrieval.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CacheControl": {
+        "description": "Caching policy for this document.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ContentType": {
+        "description": "Response media type.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ContentDisposition": {
+        "description": "Suggested inline filename.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Vary": {
+        "description": "Request headers that affect cache validation.",
+        "schema": {
+          "type": "string"
+        }
       }
     }
   },
-  "x-contract-schema-version": "2026-08-02.1",
+  "x-contract-schema-version": "2026-08-03.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -8911,7 +9093,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-02.1",
+  "x-gridex-release-version": "2026-08-03.1",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",
@@ -8937,5 +9119,35 @@
     "PUBLIC_CONTRACT_SCHEMA_OUTDATED",
     "PUBLIC_CONTRACTS_TEMPORARILY_UNAVAILABLE",
     "offer_reference_mismatch"
-  ]
+  ],
+  "x-scope-aliases": {
+    "customer_portal.read": {
+      "status": "deprecated_legacy_alias",
+      "expands_to": [
+        "customer_profile.read",
+        "customer_sites.read",
+        "customer_contracts.read",
+        "customer_invoices.read",
+        "customer_metering.read",
+        "customer_legal.read",
+        "customer_events.read",
+        "customer_documents.read",
+        "customer_notifications.read",
+        "customer_power_of_attorney.read"
+      ],
+      "replacement": "Grant the granular read scopes required by the routes used."
+    },
+    "customer_portal.write": {
+      "status": "deprecated_legacy_alias",
+      "expands_to": [
+        "customer_sync.write",
+        "customer_contact.write",
+        "customer_facility_data.write",
+        "customer_power_of_attorney.write",
+        "customer_notifications.write",
+        "customer_documents.write"
+      ],
+      "replacement": "Grant the granular write scopes required by the routes used."
+    }
+  }
 }
