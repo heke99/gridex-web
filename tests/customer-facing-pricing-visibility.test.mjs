@@ -99,10 +99,10 @@ const issued = issueWebsitePricingQuote({
     ops_quote_reference: 'quote_visibility_test',
     resolution_id: 'resolution_visibility_test',
     start_date: '2026-09-01',
-    valid_until: '2020-01-01T00:00:00.000Z',
+    valid_until: '2030-01-01T00:00:00.000Z',
     pricing_interval: 'month',
     estimate_method: 'ops_canonical_quote',
-    pricing_snapshot_schema_version: '2026-08-01.1',
+    pricing_snapshot_schema_version: '2026-08-02.1',
     price_option_reference: 'price_option_visibility',
     area_price_reference: 'area_price_visibility_se3',
     invoice_delivery_method: 'email',
@@ -124,7 +124,8 @@ const issued = issueWebsitePricingQuote({
   location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
 })
 assert.ok(issued, 'a signed website quote must be issued')
-assert.equal(verifyWebsitePricingQuote(issued.token).ok, true, 'legacy valid_until in the past must not invalidate a quote')
+assert.equal(verifyWebsitePricingQuote(issued.token, new Date('2029-12-31T23:59:59.000Z')).ok, true, 'canonical quote must be valid before valid_until')
+assert.deepEqual(verifyWebsitePricingQuote(issued.token, new Date('2030-01-01T00:00:00.000Z')), { ok: false, reason: 'expired' })
 const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[2], 'base64url').toString('utf8'))
 assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, 19, 'canonical signed audit state must retain hidden fees')
 assert.equal(tokenPayload.total_monthly_cost_sek, 208, 'the browser total must still include the hidden invoice fee')

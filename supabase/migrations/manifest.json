@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-01T19:58:57.846Z",
-  "migration_count": 27,
+  "generated_at": "2026-08-02T21:33:09.148Z",
+  "migration_count": 29,
   "version_collisions": [],
   "migrations": [
     {
@@ -138,6 +138,16 @@
       "file": "20260801203000_website_submission_traceability.sql",
       "version": "20260801203000",
       "sha256": "fcbae5e7670fad3d2115ceb4f0dd82b6357790a383a2045e442dd9f173b34581"
+    },
+    {
+      "file": "20260802223000_public_contract_canonical_empty_proof.sql",
+      "version": "20260802223000",
+      "sha256": "2246f00fb2f8917326011bf054f06bf3916693a621e829d17fdf37b579231e65"
+    },
+    {
+      "file": "20260802224500_restore_canonical_quote_expiry.sql",
+      "version": "20260802224500",
+      "sha256": "b6c29bcef8d7881d991e67bf8cf5e900730fb04527cf883c1b952de4f0acbaed"
     }
   ]
 }

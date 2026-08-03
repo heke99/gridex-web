@@ -1,66 +1,68 @@
 {
-  "synced_at": "2026-08-01T13:34:48.840Z",
-  "contract_version": "2026-08-01.1",
+  "synced_at": "2026-08-03T06:40:48.709Z",
+  "contract_version": "2026-08-02.1",
   "release_manifest": {
-    "release_version": "2026-08-01.1",
-    "website_openapi_version": "2026-08-01.1",
-    "customer_portal_openapi_version": "2026-08-01.1",
-    "runtime_contract_version": "2026-08-01.1",
-    "guide_version": "2026-08-01.1",
-    "released_at": "2026-07-31T22:31:00.000Z",
+    "release_version": "2026-08-02.1",
+    "website_openapi_version": "2026-08-02.1",
+    "customer_portal_openapi_version": "2026-08-02.1",
+    "runtime_contract_version": "2026-08-02.1",
+    "guide_version": "2026-08-02.1",
+    "released_at": "2026-08-02T20:16:00.000Z",
+    "generated_at": "2026-08-02T20:16:00.000Z",
+    "build_commit": "7ddd50a5419b5527039fdbc1197cf39b50875e6b",
+    "compatibility_classification": "additive-with-cache-correctness-fix",
+    "deprecated_features": [
+      {
+        "feature": "diagnostics=true on public-contracts",
+        "replacement": "/api/v1/website/public-contracts/diagnostics",
+        "sunset_at": "2026-10-31T23:59:59.000Z"
+      }
+    ],
+    "minimum_tenant_integration_version": "2026-08-02.1",
     "specifications": {
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-08-01.1",
+        "contract_version": "2026-08-02.1",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-02.1/website-integration-v1.json",
+        "sha256": "971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a",
         "compatibility": "additive"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-08-01.1",
+        "contract_version": "2026-08-02.1",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-02.1/customer-portal-v1.json",
+        "sha256": "921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779",
         "compatibility": "additive"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821",
+      "sha256": "971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a",
       "semantic_diff": {
-        "previous_version": "2026-08-01.1",
-        "next_version": "2026-08-01.1",
+        "previous_version": "2026-08-02.1",
+        "next_version": "2026-08-02.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/openapi/website-integration-v1.json",
-          "/api/v1/openapi/customer-portal-v1.json",
-          "/api/v1/website/market-price/current"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "IntegrationContext",
-          "CurrentMarketPriceResponse"
-        ]
+        "changed_schemas": []
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3",
+      "sha256": "921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779",
       "semantic_diff": {
-        "previous_version": "2026-08-01.1",
-        "next_version": "2026-08-01.1",
+        "previous_version": "2026-08-02.1",
+        "next_version": "2026-08-02.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/openapi/customer-portal-v1.json"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "IntegrationContext"
-        ]
+        "changed_schemas": []
       }
     }
   }

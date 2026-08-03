@@ -219,7 +219,7 @@ function errorText(code?: string) {
     case "resolution_expired":
       return "Adressen behöver kontrolleras igen innan avtalet kan tecknas.";
     case "quote_expired":
-      return "Offerten kunde inte verifieras på grund av ett äldre kompatibilitetsfel. Den avvisas inte av webbplatsen enbart på grund av ålder.";
+      return "Offerten har löpt ut. Hämta ett nytt pris och granska uppgifterna igen.";
     case "market_price_stale":
       return "Ett aktuellt marknadspris kan inte hämtas just nu.";
     case "missing_scope":
@@ -244,7 +244,7 @@ type OpsErrorContext = {
   previousErrorCode: string;
   previousErrorMessage: string;
   requestId: string;
-  applicationId: string;
+  applicationNumber: string;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -276,7 +276,7 @@ function opsErrorContext(error: unknown): OpsErrorContext {
       previousErrorCode: "",
       previousErrorMessage: "",
       requestId: "",
-      applicationId: "",
+      applicationNumber: "",
     };
   }
 
@@ -313,9 +313,9 @@ function opsErrorContext(error: unknown): OpsErrorContext {
     requestId:
       stringFromRecord(details, ["request_id", "requestId"]) ||
       stringFromRecord(nestedError, ["request_id", "requestId"]),
-    applicationId: stringFromRecord(nestedDetails, [
-      "application_id",
-      "applicationId",
+    applicationNumber: stringFromRecord(nestedDetails, [
+      "application_number",
+      "applicationNumber",
     ]),
   };
 }
@@ -332,7 +332,7 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     previous_error_stage: context.previousErrorStage || null,
     previous_error_code: context.previousErrorCode || null,
     request_id: context.requestId || null,
-    application_id: context.applicationId || null,
+    application_number: context.applicationNumber || null,
   });
 
   if (/ops_customer_application_portal_identity_contract_unsupported/i.test(context.code))
@@ -357,7 +357,7 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     return "ops_unavailable";
   }
   if (/resolution_expired/i.test(context.code)) return "resolution_expired";
-  if (/quote_expired/i.test(context.code)) return "ops_unavailable";
+  if (/quote_expired/i.test(context.code)) return "quote_expired";
   if (/market_price_stale/i.test(context.code)) return "market_price_stale";
   if (error.status === 422) {
     if (/public_contract|offer|contract/i.test(context.code)) return "offer";
@@ -1218,7 +1218,6 @@ export default async function TecknaPage({
       await updateWebsiteSubmission({
         submissionAttemptId,
         status: "accepted",
-        opsApplicationId: result.application_id ?? null,
         opsCustomerId: result.customer_id ?? null,
         opsApplicationNumber: result.application_number ?? null,
         opsContractId: result.contract_id ?? null,
@@ -1304,7 +1303,6 @@ export default async function TecknaPage({
         submissionAttemptId,
         userId: linkedAuthUserId,
         result: {
-          applicationId: result.application_id ?? null,
           workflowId: result.workflow_id ?? null,
           workflowState: result.workflow_state ?? null,
           status: result.status,

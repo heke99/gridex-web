@@ -31,6 +31,56 @@ function nullableString(value: unknown): string | null {
   return typeof value === 'string' ? value : value === null ? null : null
 }
 
+const EMPTY_FEED_REASONS = new Set([
+  'no_canonical_publications',
+  'canonical_unpublished_or_archived',
+  'publication_validity_ended',
+  'canonical_no_visible_contracts',
+])
+const EMPTY_FEED_AUTHORIZATION_KEYS = new Set([
+  'authorized',
+  'reason',
+  'publication_revision',
+  'canonical_source',
+  'affected_offer_references',
+  'blockers',
+])
+
+function stringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return null
+  return [...value] as string[]
+}
+
+function parseEmptyFeedAuthorization(
+  value: unknown,
+  publicationRevision: number,
+): NonNullable<OpsPublicContractsSnapshot['empty_feed_authorization']> | null {
+  const authorization = recordValue(value)
+  if (!authorization) return null
+  const reason = typeof authorization.reason === 'string' ? authorization.reason : null
+  const authorizationRevision = finiteInteger(authorization.publication_revision)
+  const affected = stringArray(authorization.affected_offer_references)
+  const blockers = stringArray(authorization.blockers)
+  if (
+    authorization.authorized !== true ||
+    !reason ||
+    !EMPTY_FEED_REASONS.has(reason) ||
+    authorizationRevision !== publicationRevision ||
+    authorization.canonical_source !== 'canonical_public_contract_delivery_readiness_v' ||
+    affected === null ||
+    blockers === null ||
+    Object.keys(authorization).some((key) => !EMPTY_FEED_AUTHORIZATION_KEYS.has(key))
+  ) return null
+  return {
+    authorized: true,
+    reason: reason as NonNullable<OpsPublicContractsSnapshot['empty_feed_authorization']>['reason'],
+    publication_revision: authorizationRevision,
+    canonical_source: 'canonical_public_contract_delivery_readiness_v',
+    affected_offer_references: affected,
+    blockers,
+  }
+}
+
 type SnapshotReadExpectations = {
   tenantReference: string
   contractVersion: string
@@ -55,6 +105,7 @@ function parseStoredSnapshot(
     !row ||
     !Array.isArray(row.contracts) ||
     !Array.isArray(row.blocked_contracts) ||
+    (row.feed_state !== 'contracts_present' && row.feed_state !== 'canonical_empty') ||
     !Array.isArray(row.warnings) ||
     !Array.isArray(row.compatibility_issues) ||
     typeof row.parser_version !== 'string' ||
@@ -67,10 +118,21 @@ function parseStoredSnapshot(
     return null
   }
 
-  const publicationRevision = row.publication_revision === null
-    ? null
-    : finiteInteger(row.publication_revision)
-  if (row.publication_revision !== null && publicationRevision === null) return null
+  const publicationRevision = finiteInteger(row.publication_revision)
+  if (publicationRevision === null || publicationRevision < 0) return null
+  const feedState = row.feed_state as OpsPublicContractsSnapshot['feed_state']
+  const emptyAuthorization = feedState === 'canonical_empty'
+    ? parseEmptyFeedAuthorization(row.empty_feed_authorization, publicationRevision)
+    : null
+  if (feedState === 'canonical_empty') {
+    if (
+      row.contracts.length !== 0 ||
+      row.blocked_contracts.length !== 0 ||
+      !emptyAuthorization
+    ) return null
+  } else if (row.contracts.length === 0 || row.empty_feed_authorization !== null) {
+    return null
+  }
   if (row.tenant_reference !== expected.tenantReference) return null
   if (row.contract_version !== expected.contractVersion) return null
   if (row.parser_version !== expected.parserVersion) return null
@@ -80,6 +142,8 @@ function parseStoredSnapshot(
   return {
     contracts: row.contracts as OpsPublicContractsSnapshot['contracts'],
     blocked_contracts: row.blocked_contracts as OpsPublicContractsSnapshot['blocked_contracts'],
+    feed_state: feedState,
+    empty_feed_authorization: emptyAuthorization,
     warnings: row.warnings as OpsPublicContractsSnapshot['warnings'],
     compatibility_issues: row.compatibility_issues as OpsPublicContractsSnapshot['compatibility_issues'],
     parser_version: row.parser_version,
@@ -137,6 +201,8 @@ export async function storeWebsitePublicContractSnapshot(input: {
     p_accepted_count: acceptedCount,
     p_blocked_count: blockedCount,
     p_upstream_count: upstreamCount,
+    p_feed_state: input.snapshot.feed_state,
+    p_empty_feed_authorization: input.snapshot.empty_feed_authorization,
     p_fetched_at: input.snapshot.fetched_at,
   })
 

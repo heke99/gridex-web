@@ -1,6 +1,6 @@
 # Endpointmatris – Gridex Web mot Gridex OPS
 
-Kontraktsversion: `2026-08-01.1`
+Kontraktsversion: `2026-08-02.1`
 
 ## Website Integration
 

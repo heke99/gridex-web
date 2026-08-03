@@ -68,8 +68,8 @@ Kommentar:
 - Kontrollera top-level `quote_reference`, `offer_reference`, resolution,
   `customer_type`, `requested_start_mode`, canonicalt `start_date` och
   prisreferenser.
-- Verifiera att svar helt utan `valid_until` accepteras.
-- Verifiera att ett legacy-`valid_until` i dåtid inte ensamt avvisar quoten.
+- Verifiera att quote och quote-validation utan `valid_until` avvisas fail-closed.
+- Verifiera att ett `valid_until` i dåtid avvisas och tvingar fram ny quote.
 - Samma `quote_attempt_id` + samma payload ska ge samma idempotenta resultat.
 - Samma payload + nytt `quote_attempt_id` ska tillåta ett nytt quote-försök.
 - Kontrollera att UI saknar nedräkning, expiry-text och timerbaserad reset.

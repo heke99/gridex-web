@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       pricing_snapshot_reference: result.value.quote.pricing_snapshot_reference,
       resolution_id: result.value.area.resolutionId,
       created_at: result.value.quote.created_at,
-      legacy_valid_until: result.value.opsValidation.valid_until ?? result.value.quote.valid_until ?? null,
+      valid_until: result.value.opsValidation.valid_until,
     })
   } catch (error) {
     const status = isOpsError(error) && error.status >= 400 && error.status < 500 ? error.status : 503

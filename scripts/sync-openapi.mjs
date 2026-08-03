@@ -121,13 +121,33 @@ try {
   )
 
   const contractSource = await readFile(contractPath, 'utf8')
-  const nextContractSource = contractSource.replace(
-    /export const GRIDEX_API_CONTRACT_VERSION = ['"][^'"]+['"] as const/,
-    `export const GRIDEX_API_CONTRACT_VERSION = '${contractVersion}' as const`,
-  )
-  if (nextContractSource === contractSource && !contractSource.includes(`'${contractVersion}'`)) {
-    throw new Error('Could not update GRIDEX_API_CONTRACT_VERSION in lib/ops/contract.ts')
+  const websiteSpecification = downloaded.find(({ specName }) => specName === 'website-integration-v1.json')
+  const portalSpecification = downloaded.find(({ specName }) => specName === 'customer-portal-v1.json')
+  if (!websiteSpecification || !portalSpecification) {
+    throw new Error('Both canonical OpenAPI specifications are required before updating contract constants')
   }
+
+  const replaceContractConstant = (source, name, value) => {
+    const pattern = new RegExp(`export const ${name} = ['"][^'"]+['"] as const`)
+    if (!pattern.test(source)) throw new Error(`Could not locate ${name} in lib/ops/contract.ts`)
+    return source.replace(pattern, `export const ${name} = '${value}' as const`)
+  }
+
+  let nextContractSource = replaceContractConstant(
+    contractSource,
+    'GRIDEX_API_CONTRACT_VERSION',
+    contractVersion,
+  )
+  nextContractSource = replaceContractConstant(
+    nextContractSource,
+    'GRIDEX_WEBSITE_OPENAPI_SHA256',
+    websiteSpecification.sha256,
+  )
+  nextContractSource = replaceContractConstant(
+    nextContractSource,
+    'GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256',
+    portalSpecification.sha256,
+  )
   await writeFile(contractPath, nextContractSource)
 
   const report = {

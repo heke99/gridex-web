@@ -65,11 +65,19 @@ assert.ok(quote.includes("code: 'resolution_quote_not_ready'"))
 assert.ok(validation.includes('price_area: area.payload.price_area_code'))
 assert.ok(validation.includes('grid_area_code: area.payload.grid_area_code'))
 assert.ok(validation.includes('postal_code: input.location.postalCode'))
-assert.ok(quoteSchema.required.includes('requested_start_mode'))
-assert.deepEqual(quoteSchema.properties.requested_start_mode.enum, ['earliest_possible', 'specific_date'])
-assert.ok(!websiteOpenApi.components.schemas.WebsiteQuoteData.required.includes('valid_until'))
-assert.equal(websiteOpenApi.components.schemas.WebsiteQuoteData.properties.valid_until.deprecated, true)
+assert.ok(!quoteSchema.required.includes('requested_start_mode'))
+assert.equal(quoteSchema.properties.requested_start_mode, undefined)
+assert.deepEqual(
+  applicationSchema.properties.contract.properties.requested_start_mode.enum,
+  ['earliest_possible', 'specific_date'],
+)
+assert.ok(websiteOpenApi.components.schemas.WebsiteQuoteData.required.includes('valid_until'))
+assert.equal(websiteOpenApi.components.schemas.WebsiteQuoteData.properties.valid_until.format, 'date-time')
+assert.ok(validation.includes("reason: 'quote_valid_until_changed'"))
+assert.ok(validation.includes("reason: 'quote_expired'"))
 assert.ok(ops.includes('requested_start_mode: input.requested_start_mode'))
+assert.ok(ops.includes('value.application_number !== normalized'))
+assert.ok(!ops.includes('value.application_id !== normalized'))
 
 assert.ok(signup.includes('quote_reference: verifiedQuote.value.quote.ops_quote_reference'))
 assert.ok(signup.includes('resolution_id: verifiedQuote.value.area.resolutionId'))

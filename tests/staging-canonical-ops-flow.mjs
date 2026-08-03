@@ -31,7 +31,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-08-01.1')
+assert.equal(context.contract_version, '2026-08-02.1')
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -137,14 +137,14 @@ assert.ok(applicationInput.customer && Array.isArray(applicationInput.legal_acce
 
 const first = await submitOpsCustomerApplication(applicationInput)
 const second = await submitOpsCustomerApplication(applicationInput)
-assert.ok(first.application_id, 'OPS application måste returnera application_id.')
-assert.equal(second.application_id, first.application_id)
+assert.ok(first.application_number, 'OPS application måste returnera application_number.')
+assert.equal(second.application_number, first.application_number)
 assert.equal(second.customer_id, first.customer_id)
 assert.equal(second.contract_id, first.contract_id)
 assert.equal(second.workflow_id, first.workflow_id)
 
-const status = await fetchOpsWebsiteApplicationStatus(first.application_id)
-assert.equal(status.application_id, first.application_id)
+const status = await fetchOpsWebsiteApplicationStatus(first.application_number)
+assert.equal(status.application_number, first.application_number)
 
 let portal = null
 if (fixture.portal_user_id) {
@@ -162,7 +162,6 @@ console.log(JSON.stringify({
   offer_reference: offerReference,
   resolution_id: resolution.resolution_id,
   quote_reference: quote.ops_quote_reference,
-  application_id: first.application_id,
   application_number: first.application_number ?? null,
   customer_id: first.customer_id ?? null,
   customer_number: first.customer_number ?? null,

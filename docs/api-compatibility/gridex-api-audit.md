@@ -1,15 +1,18 @@
 # Gridex Web – API-kompatibilitetsgranskning
 
-Datum: 2026-08-01
-Canonical kontraktsversion: `2026-08-01.1`
+Datum: 2026-08-02
+Canonical kontraktsversion: `2026-08-02.1`
 
-## Lokalt kontraktsbevis
+## Kontraktsbevis
 
-De incheckade specifikationerna och release-manifestet använder samma version.
-Verifierade lokala SHA-256:
+Officiell release `2026-08-02.1` publicerades med följande förväntade rå-byte-hashar:
 
-- Website: `3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821`
-- Customer Portal: `ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3`
+- Website: `971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a`
+- Customer Portal: `921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779`
+
+Leveransmiljön kunde verifiera release-metadata och semantik men inte lagra de
+exakta live-bytesen. Därför är `live_sync_verified=false` tills mottagaren kör
+`npm run api:sync`; deploy ska blockeras dessförinnan.
 
 ## Rättade kontraktsavvikelser
 
@@ -18,15 +21,16 @@ Verifierade lokala SHA-256:
 - `revision_token` lagras och skickas till RPC som `text`.
 - `customer/sync` och `customer/move-out` följer stängda requestmodeller.
 - Response-schemafel är blockerande utom okända additiva properties.
-- Kontrakts-/schema-/tenant-/publiceringsfel kan inte döljas med stale avtal.
-- Persistent snapshot verifierar tenant, kontraktsversion, parser, schemahash och
-  maximal ålder; stale svar ger inte 304.
+- Schemafelaktiga eller partiella feeds ersätter aldrig last-known-good; tenant-/authfel får aldrig döljas med fallback.
+- Persistent snapshot verifierar tenant, kontraktsversion, parser, schemahash, maximal ålder och canonical-empty-bevis; stale svar ger inte 304.
 - `PublicContract.legal` är ensam immutable juridisk sanningskälla i checkout.
 - Required price-option- och quote-fält fabriceras inte från legacyalias eller
   requestdata före validering.
 - `is_default` är canonical; `default` är endast ett verifierat deprecated alias.
 - Resolverkedjan förväntar inte ett `grid_owner_id` som OpenAPI inte publicerar.
 - OPS request-, correlation- och trace-ID sparas separat.
+- Quote och quote-validation kräver ett framtida `valid_until`; exakt värde binds i token och utgångna offerter kräver omprisning.
+- Portalens två identitetshuvuden och två sync-ID:n binds till samma verifierade auth-UUID medan kundnummer hålls separat.
 
 ## Felisolering
 

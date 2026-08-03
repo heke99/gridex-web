@@ -15,7 +15,7 @@ const TEST_PRICE_OPTION = {
   valid_from: null, valid_to: null, earliest_start_date: null, latest_start_date: null,
   area_prices: [{ area_price_reference: 'area_price_test_se3', price_area: 'SE3', energy_price_ore_per_kwh: 100, unit: 'ore_per_kwh', valid_from: null, valid_to: null }],
 }
-const CONTRACT_VERSION = '2026-08-01.1'
+const CONTRACT_VERSION = '2026-08-02.1'
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 
@@ -155,6 +155,7 @@ const queuedResponses = [
   jsonResponse({ error: { code: 'temporary_unavailable', message: 'temporary' } }, 503, { 'Retry-After': '0' }),
   jsonResponse({ data: validContext }),
   jsonResponse(quoteValidationWithoutLegacyExpiry),
+  jsonResponse(quoteValidationResponse()),
   jsonResponse(quoteValidationResponse({ offer_reference: 'offer_other' })),
   jsonResponse(quoteValidationResponse({ price_option_reference: 'price_option_other' })),
   jsonResponse({
@@ -173,6 +174,11 @@ globalThis.fetch = async (url, init = {}) => {
   return response
 }
 
+await assert.rejects(
+  () => validateOpsWebsiteQuote(quoteValidationInput()),
+  (error) => error instanceof OpsError && error.status === 502,
+)
+
 const validated = await validateOpsWebsiteQuote(quoteValidationInput())
 assert.equal(validated.valid, true)
 assert.equal(validated.quote_reference, 'quote_runtime_test')
@@ -182,7 +188,7 @@ assert.equal(validated.price_option_reference, 'price_option_runtime')
 assert.equal(validated.invoice_delivery_method, 'email')
 assert.deepEqual(validated.selected_component_references, ['component_runtime'])
 assert.equal(validated.site_count, 1)
-assert.equal(validated.valid_until, null)
+assert.equal(validated.valid_until, '2026-09-01T12:00:00Z')
 assert.equal(requests.filter((request) => request.url.endsWith('/integration/context')).length, 2)
 const validationRequest = requests.find((request) => request.url.endsWith('/website/quote/validate'))
 assert.ok(validationRequest)
@@ -276,7 +282,6 @@ assert.equal(normalizePublicContractApiPayload({
 const mappedApplication = mapOpsCustomerApplicationResult({
   data: {
     status: 'accepted',
-    application_id: 'app_runtime_1',
     application_number: 'APP-1001',
     customer_id: 'customer_runtime_1',
     customer_number: 'DX-1001',

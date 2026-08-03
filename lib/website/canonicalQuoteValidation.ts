@@ -95,6 +95,12 @@ export async function validateCanonicalWebsiteQuote(
   if (opsValidation.area_price_reference !== local.quote.area_price_reference) {
     return { ok: false, reason: 'area_price_reference_changed' }
   }
+  if (opsValidation.valid_until !== local.quote.valid_until) {
+    return { ok: false, reason: 'quote_valid_until_changed' }
+  }
+  if (Date.parse(opsValidation.valid_until) <= Date.now()) {
+    return { ok: false, reason: 'quote_expired' }
+  }
   // A later publication or legal revision does not invalidate an immutable quote.
   // OPS remains authoritative for explicit revocation/orderability failures.
 

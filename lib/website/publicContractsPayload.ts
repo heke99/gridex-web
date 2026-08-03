@@ -40,6 +40,8 @@ export function buildPublicContractsPayload(input: {
     meta: {
       channel: 'website' as const,
       state: feed.state,
+      feed_state: snapshot.feed_state,
+      empty_feed_authorization: snapshot.empty_feed_authorization,
       contract_version: snapshot.contract_version,
       publication_revision: snapshot.publication_revision,
       fetched_at: snapshot.fetched_at,

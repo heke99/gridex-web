@@ -1,4 +1,6 @@
 # Canonical quotes utan tidsbegränsning
+> **Historisk och ersatt:** Denna design gällde före API-kontrakt `2026-08-02.1`. Aktuell OpenAPI kräver `valid_until`; runtime och nya databasrader följer nu canonical quote-expiry.
+
 
 Datum: 2026-07-31
 

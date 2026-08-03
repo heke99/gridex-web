@@ -1,0 +1,58 @@
+Gridex API compliance delivery 2026-08-02
+Canonical contract: 2026-08-02.1
+
+CHANGED FILES (44)
+README.md
+app/(public)/teckna-avtal/page.tsx
+app/api/checkout/quote/validate/route.ts
+docs/api-compatibility/endpoint-matrix.md
+docs/api-compatibility/gridex-api-audit.md
+docs/api-compatibility/staging-verification.md
+docs/api-compatibility/upstream-contract-gaps.md
+docs/architecture/non-expiring-canonical-quotes.md
+docs/openapi/customer-portal-v1.json
+docs/openapi/last-sync-diff.json
+docs/openapi/manifest.json
+docs/openapi/release-manifest.json
+docs/openapi/verification-status.json
+docs/openapi/website-integration-v1.json
+docs/releases/2026-07-31-non-expiring-canonical-quotes.md
+docs/website-integration.md
+lib/ops/client.ts
+lib/ops/contract.ts
+lib/ops/generated/customer-portal-api.d.ts
+lib/ops/generated/website-api.d.ts
+lib/ops/readiness.ts
+lib/website/canonicalQuoteValidation.ts
+lib/website/pricingQuote.ts
+lib/website/pricingSnapshotStore.ts
+lib/website/publicApi.ts
+lib/website/publicContractContract.ts
+lib/website/publicContractFeed.ts
+lib/website/publicContractPolicy.ts
+lib/website/publicContractSnapshotStore.ts
+lib/website/publicContractsPayload.ts
+package.json
+scripts/sync-openapi.mjs
+supabase/migrations/manifest.json
+tests/api-compatibility-hardening.test.mjs
+tests/api-contract-runtime-regressions-20260801.test.mjs
+tests/customer-facing-pricing-visibility.test.mjs
+tests/non-expiring-canonical-quotes.test.mjs
+tests/openapi-sync-contract.test.mjs
+tests/public-contract-cache-durability.test.mjs
+tests/public-contract-runtime-compatibility.test.mjs
+tests/signup-pricing-regression.test.mjs
+tests/staging-canonical-ops-flow.mjs
+tests/website-api-runtime.contract.test.mjs
+tests/website-api.contract.test.mjs
+
+ADDED FILES (5)
+GRIDEX_API_CHANGED_FILES.txt
+GRIDEX_API_DELIVERY_2026-08-02.md
+supabase/migrations/20260802223000_public_contract_canonical_empty_proof.sql
+supabase/migrations/20260802224500_restore_canonical_quote_expiry.sql
+tests/api-contract-regressions-20260802.test.mjs
+
+DELETED FILES (0)
+None

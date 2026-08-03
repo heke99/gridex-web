@@ -141,6 +141,7 @@ export type PublicContractLegalModuleVersion = {
 export type PublicContractLegal = {
   legal_bundle_reference: string | null
   legal_bundle_version_id: string | null
+  power_of_attorney_version_id: string | null
   immutable: boolean
   module_versions: PublicContractLegalModuleVersion[]
 }
@@ -643,6 +644,7 @@ type ValidationResult<T> = {
 }
 
 const publicReferencePattern = /^[a-z0-9][a-z0-9_-]{2,99}$/i
+const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const publicPriceAreas = new Set(['SE1', 'SE2', 'SE3', 'SE4'])
 
 function validationIssue(
@@ -939,6 +941,14 @@ function legalValidationIssues(value: unknown, path: string): PublicContractVali
     issues.push(validationIssue('legal_bundle_version_id_invalid', `${path}.legal_bundle_version_id`))
   } else if (legal.legal_bundle_version_id === null) {
     issues.push(validationIssue('legal_bundle_version_id_historical_null', `${path}.legal_bundle_version_id`, 'warning'))
+  }
+  if (!Object.hasOwn(legal, 'power_of_attorney_version_id')) {
+    issues.push(validationIssue('power_of_attorney_version_id_missing', `${path}.power_of_attorney_version_id`))
+  } else if (
+    legal.power_of_attorney_version_id !== null &&
+    (!text(legal.power_of_attorney_version_id) || !canonicalUuidPattern.test(String(legal.power_of_attorney_version_id)))
+  ) {
+    issues.push(validationIssue('power_of_attorney_version_id_invalid', `${path}.power_of_attorney_version_id`))
   }
   if (boolean(legal.immutable) !== true) issues.push(validationIssue('legal_bundle_not_immutable', `${path}.immutable`))
 
@@ -1377,6 +1387,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     legal: {
       legal_bundle_reference: text(legal.legal_bundle_reference),
       legal_bundle_version_id: text(legal.legal_bundle_version_id),
+      power_of_attorney_version_id: text(legal.power_of_attorney_version_id),
       immutable: boolean(legal.immutable) === true,
       module_versions: normalizedLegalModules,
     },

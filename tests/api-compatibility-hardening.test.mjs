@@ -122,6 +122,8 @@ if (verification.live_sync_verified) {
 }
 assert.match(readiness, /normalizeOpenApiVerificationStatus\(value: unknown\)/, 'readiness must tolerate incomplete verification status JSON')
 assert.match(readiness, /liveOpenApiVerified/, 'live readiness must require both sync evidence and the exact contract version')
+assert.match(readiness, /const checkoutReady =[\s\S]*liveOpenApiVerified/, 'website sales must remain blocked until exact live OpenAPI sync is verified')
+assert.match(readiness, /customerPortal: liveOpenApiVerified &&/, 'customer portal capability must remain blocked until exact live OpenAPI sync is verified')
 
 for (const event of ['invoice.paid', 'invoice.disputed', 'supply.started', 'metering_values.updated', 'facility_data.verified']) {
   assert.ok(webhookParser.includes(`'${event}'`), `webhook parser must support ${event}`)

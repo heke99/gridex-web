@@ -1,13 +1,13 @@
 {
   "live_sync_verified": true,
-  "verified_at": "2026-08-01T13:34:48.840Z",
-  "contract_version": "2026-08-01.1",
+  "verified_at": "2026-08-03T06:40:48.709Z",
+  "contract_version": "2026-08-02.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821"
+      "sha256": "971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a"
     },
     "customer-portal-v1.json": {
-      "sha256": "ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3"
+      "sha256": "921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779"
     }
   }
 }

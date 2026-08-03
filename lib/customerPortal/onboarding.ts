@@ -122,7 +122,6 @@ function profilePayload(
   const metadata = {
     source: 'ops_application_onboarding',
     customer_id: app.customer_id ?? null,
-    application_id: app.application_id ?? null,
     application_number: app.application_number ?? null,
     contract_id: app.contract_id ?? null,
     contract_number: app.contract_number ?? null,
@@ -187,7 +186,6 @@ async function upsertLocalPortalRows(
           },
           metadata: {
             source: 'ops_application_onboarding',
-            application_id: input.application.application_id ?? null,
             application_number: input.application.application_number ?? null,
             customer_number: input.application.customer_number ?? null,
           },

@@ -350,17 +350,18 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const quoteValidationSchemaGap = upstreamContractGaps.includes('website_quote_validation_response_not_strict')
   const webhookSchemaGap = upstreamContractGaps.includes('ops_domain_webhook_schema_not_published')
   const portalContractGaps = upstreamContractGaps.filter((gap) => gap.startsWith('customer_portal_'))
+  const liveOpenApiVerified =
+    openApiVerificationStatus.liveSyncVerified &&
+    openApiVerificationStatus.contractVersion === GRIDEX_API_CONTRACT_VERSION
   const checkoutReady =
     client.configured &&
     code === 'ready' &&
+    liveOpenApiVerified &&
     checkoutProbesReady &&
     contextReadiness?.websiteCheckoutReady === true &&
     !portalIdentityGap &&
     !legalAcceptanceGap &&
     !priceOptionsGap
-  const liveOpenApiVerified =
-    openApiVerificationStatus.liveSyncVerified &&
-    openApiVerificationStatus.contractVersion === GRIDEX_API_CONTRACT_VERSION
 
   const checks: Record<OpsReadinessCheckName, OpsReadinessCheck> = {
     configuration_ready: check(client.configured, client.configured ? 'configured' : 'not_configured', client.configured ? 'Gridex API är serverkonfigurerat.' : 'GRIDEX_API_KEY eller canonical API-bas saknas.'),
@@ -560,9 +561,9 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
 
   const featureCapabilities = {
     websiteSales: checkoutReady,
-    websiteMarketPrices: checks.market_price_ready.ready,
-    websiteDiagnostics: probeReady('website_contracts.diagnostics'),
-    customerPortal: checks.customer_portal_contract_ready.ready && checks.customer_portal_runtime_ready.ready,
+    websiteMarketPrices: liveOpenApiVerified && checks.market_price_ready.ready,
+    websiteDiagnostics: liveOpenApiVerified && probeReady('website_contracts.diagnostics'),
+    customerPortal: liveOpenApiVerified && checks.customer_portal_contract_ready.ready && checks.customer_portal_runtime_ready.ready,
     supplierSwitchStatus: checks.switch_status_ready.ready,
     productionContracts: checkoutReady,
     fullApiCompatibility: fullApiCompatibilityReady,

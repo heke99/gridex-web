@@ -1,14 +1,15 @@
 # Gridex OPS – kvarvarande runtime- och miljögrindar
 
-Datum: 2026-08-01
-Granskad kontraktsversion: `2026-08-01.1`
+Datum: 2026-08-02
+Granskad kontraktsversion: `2026-08-02.1`
 
 ## Stängda webbgap
 
 Webbklienten följer nu de lokalt incheckade Website- och Customer Portal-
 specifikationerna för publication webhook, public contracts, quote,
-quote-validation, customer sync och move-out. Stale cache får inte maskera
-kontraktsfel och immutable avtalsjuridik används genom hela checkouten.
+quote-validation, customer sync och move-out. Felaktiga kandidater får inte
+ersätta last-known-good, tenant-/authfel maskeras aldrig och immutable
+avtalsjuridik används genom hela checkouten.
 
 ## Måste verifieras i OPS/staging
 
@@ -19,7 +20,7 @@ Följande kan inte bevisas av webb-repot ensamt:
   price-option-fält och konsekventa immutable legal snapshots.
 - Publication outbox skickar route-specifik body, monotona revisioner och
   godtyckliga textbaserade revision tokens.
-- Full avpublicering ger en ny auktoritativ publication revision och tom feed.
+- Full avpublicering ger `feed_state=canonical_empty` med komplett och revisionsbundet `empty_feed_authorization`.
 - Quote och quote-validation returnerar required `valid_until`, echoed input,
   samtliga komponentreferenser, resolver-/geodataversion, market reference,
   energy direction och selected area price.

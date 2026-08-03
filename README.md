@@ -5,7 +5,7 @@ autentisering, RLS-skyddade lokala read models och immutable checkout-bevis.
 Gridex OPS är source of truth för tenant, avtal, quote, juridik, ansökan och
 kundportal.
 
-Canonical kontraktsversion är `2026-08-01.1`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
+Canonical kontraktsversion är `2026-08-02.1`. Den incheckade leveransen markerar live-synk som **overifierad** tills `npm run api:sync` har hämtat båda officiella specifikationerna och regenererat alla artefakter.
 
 ## Lokal start
 
@@ -76,10 +76,9 @@ Checkout:
 
 ```text
 integration/context
-→ public-contracts (fresh före CTA)
+→ public-contracts (fresh före CTA, inklusive immutable legal snapshot)
 → energy-area/resolve
 → quote
-→ offer-specifikt legal-bundle
 → quote/validate
 → customer-applications
 → application status
@@ -89,24 +88,17 @@ Browsern får signerad state, men OPS `quote_reference`, `resolution_id`,
 `offer_reference`, juridikversioner och kommersiell snapshot bevaras
 oförändrade. Svenska affärsdatum hanteras i `Europe/Stockholm`.
 
-### Canonical quotes utan tidsbegränsning
+### Canonical offertgiltighet
 
-**Gridex quotes are not time-limited.** En quote är en immutable, signerad och
-revisionsbunden snapshot. `created_at` är auditmetadata; ett eventuellt
-`valid_until`/`expires_at` från äldre OPS-svar är nullable, deprecated metadata
-och får aldrig användas för kommersiell giltighet, timer eller automatisk
-omräkning.
+`valid_until` är obligatoriskt i OPS quote och quote-validation för kontrakt
+`2026-08-02.1`. Webben signerar exakt samma värde i offerttoken, vägrar skapa
+en token utan ett framtida giltighetsdatum och kräver en ny offert när tiden har
+passerat. OPS quote-validation är dessutom auktoritativ för revocation,
+teckningsbarhet, konsumtion och övriga bindningar.
 
-Giltighet avgörs server-side genom OPS-verifiering av canonicala referenser,
-integritet, teckningsbarhet, uttrycklig återkallelse och atomisk konsumtion.
-Teknisk cache och checkout-handoff får ha TTL, men en rensad cachepost gör inte
-quoten ogiltig. Kundtyp och startläge valideras strikt; valt startdatum binds
-innan quote skapas och kan endast ändras genom ett nytt quote-försök.
-
-Kundportalens granulara `/api/web/customer/*`-routes anropar exakt motsvarande
-OPS-endpoint. Portalöversikten använder endast OPS-bundlen som affärskälla och
-stänger flödet om den auktoritativa profilen saknas; lokal portaldata visas inte
-som ersättning. Writes köas inte som lyckade.
+Teknisk cache och checkout-handoff får ha kortare TTL, men de får aldrig förlänga
+OPS-offertens giltighet. Kundtyp, startläge, startdatum, resolution, prisalternativ,
+områdespris, fakturametod, komponentval och site count binds innan quote skapas.
 
 ## OpenAPI och deploy-preflight
 
@@ -131,7 +123,7 @@ manuellt och schemalagt.
 
 ## Databas
 
-Kör migrationerna i `supabase/migrations` i ordning. Public-contract-feeden har en tenantbunden last-known-good-snapshot i `website_public_contract_snapshots`. OPS hämtas alltid med `no-store`; en tom eller helt blockerad kandidat får inte ersätta ett tidigare synligt snapshot utan en signerad, durabel webhookrevision vars orsak uttryckligen anger att hela webbfeeden har tömts (`all_contracts_unpublished`, `no_public_contracts`, `publication_cleared`, `website_publication_cleared`, `public_feed_cleared`, `alla_avtal_avpublicerade` eller `inga_publicerade_avtal`). Webhooken invaliderar dessutom feedens cachetagg och alla publika avtalsytor.
+Kör migrationerna i `supabase/migrations` i ordning. Public-contract-feeden har en tenantbunden last-known-good-snapshot i `website_public_contract_snapshots`. OPS hämtas alltid med `no-store`; en tom kandidat får endast ersätta senast verifierade snapshot när svaret uttryckligen har `feed_state=canonical_empty` och ett komplett `empty_feed_authorization` vars revision matchar feedens publication revision, canonical source är `canonical_public_contract_delivery_readiness_v` och alla required bevisfält är giltiga. Partiella, schemafelaktiga eller tillfälligt tomma svar får aldrig skriva över last-known-good. Webhooken invaliderar dessutom feedens cachetagg och alla publika avtalsytor.
 
 De senaste migrationerna:
 
@@ -141,21 +133,22 @@ De senaste migrationerna:
 - bevarar immutable juridikbevis per ansökan
 - lägger tenant-, OPS-ID-, revision- och synkmetadata på portalprojektioner
 - projekterar signerade domänevent idempotent och kör retry/dead-letter via `/api/internal/webhooks/retry`
-- gör quote-`valid_until` nullable och tillhandahåller auditerad dry-run/backfill
-  för historiska rader som endast markerats `expired` på grund av klocktid
+- återställer canonical quote-expiry: nya snapshots kräver OPS `valid_until`,
+  utgångna offerter kan inte återaktiveras och den gamla non-expiring-backfillen tas bort
 
 ## Verifiering före deploy
 
 ```bash
 npm ci
+npm run api:sync
+npm run api:check:live
+npm run db:migrations:check
 npm run typecheck
 npm run lint
-npm test
-npm run api:check
-npm run api:contract
-npm run db:migrations:check
+npm run test:launch
 npm run api:compatibility
 npm run build
+npm run api:preflight
 ```
 
 Staging-E2E kräver en godkänd testnyckel och en git-ignorerad fixture:

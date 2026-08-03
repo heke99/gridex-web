@@ -12,10 +12,10 @@ export async function GET(
   context: { params: Promise<{ applicationId: string }> },
 ) {
   const { applicationId } = await context.params
-  const normalizedId = applicationId.trim()
+  const applicationNumber = applicationId.trim()
   const resultToken = new URL(request.url).searchParams.get('result_token')?.trim() ?? ''
-  if (!normalizedId || !/^[A-Za-z0-9_-]{8,200}$/.test(normalizedId)) {
-    return NextResponse.json({ error: { code: 'application_id_required' } }, { status: 400 })
+  if (!applicationNumber || !/^[A-Za-z0-9_-]{3,200}$/.test(applicationNumber)) {
+    return NextResponse.json({ error: { code: 'application_number_required' } }, { status: 400 })
   }
   if (!/^[A-Za-z0-9_-]{32,160}$/.test(resultToken)) {
     return NextResponse.json({ error: { code: 'result_token_required' } }, { status: 400 })
@@ -33,14 +33,14 @@ export async function GET(
   }
 
   const stored = await readWebsiteApplicationResult(resultToken).catch(() => null)
-  if (!stored?.applicationId || stored.applicationId !== normalizedId) {
+  if (!stored?.applicationNumber || stored.applicationNumber !== applicationNumber) {
     return NextResponse.json({ error: { code: 'application_not_found' } }, { status: 404 })
   }
 
   try {
-    const data = await fetchOpsWebsiteApplicationStatus(normalizedId)
+    const data = await fetchOpsWebsiteApplicationStatus(applicationNumber)
     await syncWebsiteSubmissionStatus({
-      opsApplicationId: data.application_id,
+      opsApplicationNumber: data.application_number,
       opsStatus: data.status,
       opsWorkflowState: data.stage,
       opsCustomerNumber: data.customer_number,
@@ -49,7 +49,7 @@ export async function GET(
       snapshot: data.raw,
     }).catch((syncError) => {
       console.error('website_application_status_audit_sync_failed', {
-        applicationId: normalizedId,
+        applicationNumber,
         message: syncError instanceof Error ? syncError.message : 'unknown_error',
       })
     })

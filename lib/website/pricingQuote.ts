@@ -14,21 +14,21 @@ import type {
   WebsiteQuoteMarketReference,
 } from "@/lib/website/publicApi";
 
-const CURRENT_TOKEN_VERSION = "v6";
-const ACCEPTED_TOKEN_VERSIONS = new Set([CURRENT_TOKEN_VERSION, "v5"]);
+const CURRENT_TOKEN_VERSION = "v7";
+const ACCEPTED_TOKEN_VERSIONS = new Set([CURRENT_TOKEN_VERSION]);
 
 type QuoteFees = NonNullable<WebsitePricingPreview["specification"]>["fees"];
 type QuoteBasis = NonNullable<WebsitePricingPreview["specification"]>["basis"];
 
 /** Immutable browser signature around the exact OPS quote snapshot shown to the customer. */
 export type WebsitePricingQuote = {
-  version: 4 | 5;
+  version: 6;
   created_at: string;
   issued_at: string;
-  // Gridex quotes are not time-limited. These legacy fields may exist in old
-  // OPS/browser snapshots but must never be used as a commercial validity rule.
+  // OPS is authoritative for quote lifetime. The exact canonical valid_until
+  // value is signed into the browser token and enforced both locally and by OPS.
   expires_at?: string | null;
-  valid_until?: string | null;
+  valid_until: string;
   customer_type: WebsiteCustomerType;
   requested_start_mode: RequestedStartMode;
   quote_attempt_id: string | null;
@@ -83,7 +83,7 @@ export type WebsitePricingQuote = {
 
 export type PricingQuoteVerification =
   | { ok: true; quote: WebsitePricingQuote }
-  | { ok: false; reason: "invalid" | "not_configured" };
+  | { ok: false; reason: "invalid" | "expired" | "not_configured" };
 
 function quoteKeys() { return websiteServerSigningKeyring("pricing-quote"); }
 export function websitePricingQuoteConfigured(): boolean { return Boolean(quoteKeys()); }
@@ -133,17 +133,11 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
   const q = value as Partial<WebsitePricingQuote>;
   const c = q.contract;
   const createdAt = q.created_at ?? q.issued_at;
-  const isLegacy = q.version === 4;
-  const customerType = isLegacy ? q.customer_type ?? "private" : q.customer_type;
-  const requestedStartMode = isLegacy ? q.requested_start_mode ?? "earliest_possible" : q.requested_start_mode;
-  const validAttempt = isLegacy
-    ? q.quote_attempt_id == null || text(q.quote_attempt_id)
-    : validUuidV4(q.quote_attempt_id);
-  return (q.version === 4 || q.version === 5) && validDate(createdAt) && validDate(q.issued_at) &&
-    optionalLegacyDate(q.expires_at) && optionalLegacyDate(q.valid_until) &&
-    (customerType === "private" || customerType === "business") &&
-    (requestedStartMode === "earliest_possible" || requestedStartMode === "specific_date") &&
-    validAttempt &&
+  return q.version === 6 && validDate(createdAt) && validDate(q.issued_at) &&
+    optionalLegacyDate(q.expires_at) && validDate(q.valid_until) &&
+    (q.customer_type === "private" || q.customer_type === "business") &&
+    (q.requested_start_mode === "earliest_possible" || q.requested_start_mode === "specific_date") &&
+    validUuidV4(q.quote_attempt_id) &&
     text(q.location_fingerprint) && text(q.pricing_snapshot_reference) && text(q.ops_quote_reference) && text(q.resolution_id) &&
     (q.energy_direction === "consumption" || q.energy_direction === "production") && isStrictCalendarDate(q.start_date) &&
     Boolean(c && text(c.offer_reference) && text(c.name) && text(c.contract_type)) &&
@@ -156,21 +150,6 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
     text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
     Array.isArray(q.assumptions) && Array.isArray(q.market_sources) && text(q.pricing_snapshot_schema_version);
-}
-
-function normalizeLegacyQuote(quote: WebsitePricingQuote): WebsitePricingQuote {
-  return {
-    ...quote,
-    created_at: quote.created_at ?? quote.issued_at,
-    customer_type: quote.customer_type ?? "private",
-    requested_start_mode: quote.requested_start_mode ?? "earliest_possible",
-    quote_attempt_id: quote.quote_attempt_id ?? null,
-    contract: {
-      ...quote.contract,
-      contract_reference: quote.contract.contract_reference ?? null,
-      product_code: quote.contract.product_code ?? null,
-    },
-  };
 }
 
 export function issueWebsitePricingQuote(input: {
@@ -187,21 +166,24 @@ export function issueWebsitePricingQuote(input: {
   const locationFingerprint = pricingLocationFingerprint(input.location);
   const now = input.now ?? new Date();
   const area = input.preview.price_area_code ?? input.preview.priceArea;
+  const validUntil = input.preview.valid_until;
+  const validUntilTimestamp = typeof validUntil === "string" ? Date.parse(validUntil) : Number.NaN;
   const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date &&
     input.preview.price_option_reference && input.preview.invoice_delivery_method && Number.isInteger(input.preview.site_count) &&
     input.preview.pricing_interval && input.preview.estimate_method && input.preview.pricing_snapshot_schema_version &&
-    typeof input.preview.is_binding === "boolean";
+    typeof input.preview.is_binding === "boolean" && Number.isFinite(validUntilTimestamp) &&
+    validUntilTimestamp > now.getTime();
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
       !finite(input.preview.totalMonthlyCostSek) || !finite(input.preview.totalMonthlyCostInclVatSek)) return null;
 
   const pricingSnapshotReference = input.preview.pricing_snapshot_reference ?? `wps_${createHash("sha256").update([input.contract.offer_reference, area, String(input.preview.kwh), now.toISOString()].join("|")).digest("hex").slice(0, 24)}`;
   const quote: WebsitePricingQuote = {
-    version: 5,
+    version: 6,
     created_at: now.toISOString(),
     issued_at: now.toISOString(),
     expires_at: input.preview.pricing_expires_at ?? null,
-    valid_until: input.preview.valid_until ?? null,
+    valid_until: validUntil as string,
     customer_type: input.customerType,
     requested_start_mode: input.requestedStartMode,
     quote_attempt_id: input.quoteAttemptId,
@@ -255,7 +237,7 @@ export function issueWebsitePricingQuote(input: {
   return { token: `${unsigned}.${hmac(unsigned, secret)}`, quote };
 }
 
-export function verifyWebsitePricingQuote(token: string | null | undefined, _now = new Date()): PricingQuoteVerification {
+export function verifyWebsitePricingQuote(token: string | null | undefined, now = new Date()): PricingQuoteVerification {
   const keyring = quoteKeys();
   if (!keyring) return { ok: false, reason: "not_configured" };
   if (!token) return { ok: false, reason: "invalid" };
@@ -268,9 +250,8 @@ export function verifyWebsitePricingQuote(token: string | null | undefined, _now
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isQuote(parsed)) return { ok: false, reason: "invalid" };
-    // Deliberately no Date.now()/expires_at/valid_until rejection here. OPS is
-    // the canonical verifier for revocation, orderability and quote integrity.
-    return { ok: true, quote: normalizeLegacyQuote(parsed) };
+    if (Date.parse(parsed.valid_until) <= now.getTime()) return { ok: false, reason: "expired" };
+    return { ok: true, quote: parsed };
   } catch { return { ok: false, reason: "invalid" }; }
 }
 
@@ -323,7 +304,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     market_sources: quote.market_sources,
     market_reference: quote.market_reference,
     pricing_snapshot_schema_version: quote.pricing_snapshot_schema_version,
-    valid_until: quote.valid_until ?? undefined,
+    valid_until: quote.valid_until,
     pricing_token: token,
     pricing_expires_at: quote.expires_at ?? undefined,
     quote_source: "website",
@@ -341,7 +322,7 @@ export function validateWebsitePricingQuote(input: {
   location: { postalCode: string; city: string; address: string };
 }): { ok: true; quote: WebsitePricingQuote } | { ok: false; reason: string } {
   const verified = verifyWebsitePricingQuote(input.token);
-  if (!verified.ok) return { ok: false, reason: verified.reason };
+  if (!verified.ok) return { ok: false, reason: verified.reason === "expired" ? "quote_expired" : verified.reason };
   const { quote } = verified;
   if (quote.version >= 5 && quote.customer_type !== input.customerType) return { ok: false, reason: "quote_customer_type_mismatch" };
   if (quote.contract.offer_reference !== input.contract.offer_reference) return { ok: false, reason: "contract_changed" };

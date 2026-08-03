@@ -21,7 +21,7 @@ const webhookBody = {
     reason: 'contracts_unpublished_by_tenant_admin',
     timestamp: '2026-08-01T18:00:00.000Z',
   },
-  contract_schema_version: '2026-08-01.1',
+  contract_schema_version: '2026-08-02.1',
 }
 const webhookHeaders = new Headers({
   'x-gridex-event-id': webhookBody.event_id,

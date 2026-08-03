@@ -112,9 +112,9 @@ export default async function SignupThanksPage({
           <div className="text-sm font-semibold text-white">{portal.title}</div>
           <p className="mt-2 text-sm leading-6 text-gray-200">{portal.body}</p>
         </div>
-        {stored?.applicationId && resultToken ? (
+        {stored?.applicationNumber && resultToken ? (
           <ApplicationStatusCard
-            applicationId={stored.applicationId}
+            applicationNumber={stored.applicationNumber}
             resultToken={resultToken}
             initialStatus={stored.status}
           />

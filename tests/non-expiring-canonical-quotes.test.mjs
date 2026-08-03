@@ -9,8 +9,8 @@ import {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-process.env.GRIDEX_WEBSITE_STATE_SIGNING_SECRET = 'non-expiring-quote-test-secret-with-more-than-32-bytes'
-process.env.GRIDEX_WEBSITE_STATE_SIGNING_KID = 'non-expiring-test-key'
+process.env.GRIDEX_WEBSITE_STATE_SIGNING_SECRET = 'canonical-expiring-quote-test-secret-with-more-than-32-bytes'
+process.env.GRIDEX_WEBSITE_STATE_SIGNING_KID = 'canonical-expiry-test-key'
 
 assert.equal(parseWebsiteCustomerType(undefined), null)
 assert.equal(parseWebsiteCustomerType('invalid'), null)
@@ -31,7 +31,7 @@ assert.deepEqual(
 )
 
 const contract = {
-  offer_reference: 'offer_non_expiring_test',
+  offer_reference: 'offer_expiring_test',
   product_code: 'GRIDEX-TEST',
   name: 'Gridex testavtal',
   contract_type: 'variable_monthly',
@@ -40,7 +40,7 @@ const contract = {
 }
 
 const basePreview = {
-  resolution_id: 'resolution_non_expiring_test',
+  resolution_id: 'resolution_expiring_test',
   energy_direction: 'consumption',
   production_pricing: null,
   start_date: '2026-09-01',
@@ -49,7 +49,7 @@ const basePreview = {
   contract: {
     slug: contract.offer_reference,
     offer_reference: contract.offer_reference,
-    contract_reference: 'contract_non_expiring_test',
+    contract_reference: 'contract_expiring_test',
     product_code: contract.product_code,
     name: contract.name,
     contractType: 'spot_monthly',
@@ -62,8 +62,8 @@ const basePreview = {
   totalMonthlyCostSek: 544,
   totalMonthlyCostInclVatSek: 680,
   totalYearlyCostSek: 8160,
-  pricing_snapshot_reference: 'wps_non_expiring_test',
-  ops_quote_reference: 'quote_non_expiring_test',
+  pricing_snapshot_reference: 'wps_expiring_test',
+  ops_quote_reference: 'quote_expiring_test',
   pricing_interval: 'month',
   estimate_method: 'ops_canonical_quote',
   source_period: '2026-07',
@@ -73,9 +73,10 @@ const basePreview = {
   assumptions: [],
   market_sources: [],
   market_reference: null,
-  pricing_snapshot_schema_version: '2026-08-01.1',
-  price_option_reference: 'price_option_non_expiring_test',
-  area_price_reference: 'area_price_non_expiring_test',
+  pricing_snapshot_schema_version: '2026-08-02.1',
+  valid_until: '2026-08-02T12:30:00.000Z',
+  price_option_reference: 'price_option_expiring_test',
+  area_price_reference: 'area_price_expiring_test',
   invoice_delivery_method: 'email',
   selected_component_references: [],
   mandatory_component_references: [],
@@ -84,72 +85,55 @@ const basePreview = {
 }
 
 function issue(preview, attemptId) {
-  const result = issueWebsitePricingQuote({
+  return issueWebsitePricingQuote({
     preview,
     contract,
     customerType: 'private',
     requestedStartMode: 'specific_date',
     quoteAttemptId: attemptId,
     location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
-    now: new Date('2026-07-31T12:00:00.000Z'),
+    now: new Date('2026-08-02T12:00:00.000Z'),
   })
-  assert.ok(result)
-  return result
 }
 
-const withoutExpiry = issue(basePreview, '11111111-1111-4111-8111-111111111111')
-assert.equal(withoutExpiry.quote.expires_at, null)
-assert.equal(withoutExpiry.quote.valid_until, null)
-assert.equal(verifyWebsitePricingQuote(withoutExpiry.token, new Date('2036-07-31T12:00:00.000Z')).ok, true)
-
-const legacyPastExpiry = issue(
-  {
-    ...basePreview,
-    pricing_snapshot_reference: 'wps_legacy_expiry_test',
-    ops_quote_reference: 'quote_legacy_expiry_test',
-    valid_until: '2020-01-01T00:00:00.000Z',
-    pricing_expires_at: '2020-01-01T00:00:00.000Z',
-  },
-  '22222222-2222-4222-8222-222222222222',
+assert.equal(
+  issue({ ...basePreview, valid_until: null }, '11111111-1111-4111-8111-111111111111'),
+  null,
+  'a canonical quote without valid_until must not be signed',
 )
-assert.equal(verifyWebsitePricingQuote(legacyPastExpiry.token, new Date('2036-07-31T12:00:00.000Z')).ok, true)
+assert.equal(
+  issue({ ...basePreview, valid_until: '2026-08-02T11:59:59.000Z' }, '22222222-2222-4222-8222-222222222222'),
+  null,
+  'an already expired OPS quote must not be signed',
+)
+
+const issued = issue(basePreview, '33333333-3333-4333-8333-333333333333')
+assert.ok(issued)
+assert.equal(issued.quote.version, 6)
+assert.equal(issued.quote.valid_until, basePreview.valid_until)
+assert.equal(verifyWebsitePricingQuote(issued.token, new Date('2026-08-02T12:29:59.000Z')).ok, true)
+assert.deepEqual(
+  verifyWebsitePricingQuote(issued.token, new Date('2026-08-02T12:30:00.000Z')),
+  { ok: false, reason: 'expired' },
+)
 
 const quoteSource = read('lib/website/pricingQuote.ts')
-assert.ok(quoteSource.includes('Gridex quotes are not time-limited'))
-assert.ok(quoteSource.includes('no Date.now()/expires_at/valid_until rejection'))
-assert.equal(quoteSource.includes('Date.parse(quote.expires_at)'), false)
-assert.equal(quoteSource.includes('Date.parse(quote.valid_until)'), false)
+assert.ok(quoteSource.includes('const CURRENT_TOKEN_VERSION = "v7"'))
+assert.ok(quoteSource.includes('Date.parse(parsed.valid_until) <= now.getTime()'))
+assert.ok(quoteSource.includes('validUntilTimestamp > now.getTime()'))
+assert.equal(quoteSource.includes('Gridex quotes are not time-limited'), false)
 
-const calculator = read('components/ElectricityCalculator.tsx')
-const resultCard = read('components/PriceResultCard.tsx')
-const applicationForm = read('components/signup/CustomerApplicationForm.tsx')
-assert.equal(calculator.includes('pricing_expires_at'), false)
-assert.equal(calculator.includes('valid_until'), false)
-assert.equal(resultCard.includes('Giltig till'), false)
-assert.equal(applicationForm.includes('Offert giltig till'), false)
-assert.ok(calculator.includes('crypto.randomUUID()'))
-assert.ok(calculator.includes('requested_start_mode: requestedStartMode'))
-assert.ok(calculator.includes('stockholmCalendarDate()'))
-assert.ok(calculator.indexOf('setResult(verifiedPreview)') < calculator.indexOf('onQuoteContextChange?.(nextQuoteContext)'))
+const canonicalValidation = read('lib/website/canonicalQuoteValidation.ts')
+assert.ok(canonicalValidation.includes("reason: 'quote_valid_until_changed'"))
+assert.ok(canonicalValidation.includes("reason: 'quote_expired'"))
 
-const checkoutRoute = read('app/api/checkout/context/route.ts')
-assert.ok(checkoutRoute.includes('quote_attempt_mismatch'))
-assert.ok(checkoutRoute.includes('verified.value.quote.quote_attempt_id !== quoteAttemptId'))
+const snapshotStore = read('lib/website/pricingSnapshotStore.ts')
+assert.ok(snapshotStore.includes('requires a future canonical valid_until'))
+assert.ok(snapshotStore.includes('ops_quote_valid_until: validUntil'))
 
-const opsClient = read('lib/ops/client.ts')
-assert.ok(opsClient.includes("['website-quote', input.quote_attempt_id, canonicalSha256(requestBody)].join(':')"))
-assert.equal(opsClient.includes('!validUntil || !priceOptionReference'), false)
+const restoreMigration = read('supabase/migrations/20260802224500_restore_canonical_quote_expiry.sql')
+assert.ok(restoreMigration.includes('website_pricing_snapshots_valid_until_required_chk'))
+assert.ok(restoreMigration.includes('check (valid_until > issued_at) not valid'))
+assert.ok(restoreMigration.includes('drop function if exists public.run_non_expiring_quote_backfill'))
 
-const checkoutStore = read('lib/website/checkoutContextStore.ts')
-assert.ok(checkoutStore.includes('technical handoff'))
-assert.equal(checkoutStore.includes('pricing_expires_at'), false)
-
-const migration = read('supabase/migrations/20260731184500_non_expiring_canonical_quotes.sql')
-assert.ok(migration.includes('alter column valid_until drop not null'))
-assert.ok(migration.includes('p_dry_run boolean default true'))
-assert.ok(migration.includes('rows_scanned'))
-assert.ok(migration.includes('rows_changed'))
-assert.ok(migration.includes('rows_skipped'))
-assert.ok(migration.includes('errors jsonb'))
-
-console.log('Non-expiring canonical quote tests passed')
+console.log('Canonical quote expiry tests passed')

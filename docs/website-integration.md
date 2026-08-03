@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-08-01.1`.
+Canonical kontraktsversion: `2026-08-02.1`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -17,12 +17,17 @@ docs/openapi/release-manifest.json
 docs/openapi/verification-status.json
 ```
 
-Aktuell lokal release:
+Officiell release och förväntade rå-byte-hashar:
 
 ```text
-Website SHA-256:       3a6227270d3b2cca77791334c7f29103afa75dbc9952c8c5dcf8fa75894a0821
-Customer Portal SHA:   ae6ef4b09137cd2cc8f22b21aed4a1b7730b45f12007e8516ab0a9ec1bebb2a3
+Website SHA-256:       971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a
+Customer Portal SHA:   921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779
 ```
+
+Den distribuerade zippen innehåller semantiskt uppdaterade kompatibilitetssnapshots,
+men markerar dem uttryckligen som ännu inte byteidentiska med live. `npm run api:sync`
+är nätåtkomst finns ersätter dem med officiella råa bytes, regenererar typer och
+validatorer och uppdaterar hashkonstanterna atomiskt.
 
 `npm run api:sync` hämtar release-manifestet först och verifierar SHA-256 över
 specifikationernas exakta råa bytes. Båda specifikationerna måste ha samma
@@ -60,7 +65,7 @@ OPS löser intern nätägare från canonical `grid_area_code` när ansökan beha
 ## Quote-giltighet, startdatum och idempotency
 
 `valid_until` är ett obligatoriskt canonical response-fält i API-version
-`2026-08-01.1`. Webben kräver ett giltigt date-time-värde i quote- och
+`2026-08-02.1`. Webben kräver ett giltigt date-time-värde i quote- och
 quote-validation-svaret och bevarar det i snapshoten. Kundgränssnittet använder
 inte en egen lokal nedräkning som ensam affärsregel; OPS quote-validation,
 teckningsbarhet, revocation och konsumtionsstatus är auktoritativa vid submit.
@@ -125,19 +130,25 @@ x-gridex-signature
 appliceras monotont och cache/revalidation sker först efter durable apply.
 
 Persistent avtalscache får endast användas när tenant, kontraktsversion,
-parser-version, OpenAPI-checksumma och maximal snapshotålder matchar. Stale
-fallback är endast tillåten vid kortvariga transport-/5xx-fel, aldrig vid
-schema-, version-, tenant-, juridik- eller publiceringsfel. Ett stale snapshot
-får inte svara `304 Not Modified`.
+parser-version, OpenAPI-checksumma och maximal snapshotålder matchar. Ett
+schemafelaktigt, partiellt eller tillfälligt misslyckat svar får aldrig ersätta
+last-known-good; ett tidigare verifierat snapshot kan användas som degraderad
+läsning. Tenant-/authfel får däremot aldrig döljas med fallback, och ett stale
+snapshot får inte svara `304 Not Modified`.
 
-Full avpublicering verifieras med tenant, kanal, ny publication revision och
-revision token. Beslutet bygger inte på en hårdkodad lista med fritextvärden i
-`reason`.
+Full avpublicering godtas endast från ett validerat `canonical_empty`-svar med
+komplett `empty_feed_authorization`: `authorized=true`, tillåten reason,
+revision som exakt matchar `publication_revision`, canonical source
+`canonical_public_contract_delivery_readiness_v` samt strängarrayer för berörda
+offerter och blockers. Fritext eller enbart tom array räcker aldrig.
 
 ## Kundportal
 
-Portalidentitet kommer från den verifierade Supabase-sessionen. Sync kan använda
-`authenticated_user_reference` när övriga kundidentifierare ännu saknas.
+Portalidentitet kommer från den verifierade Supabase-sessionen. Samma verifierade
+UUID skickas i både `x-gridex-customer-portal-user-id` och
+`x-gridex-auth-user-id`, och i sync-body som `customer_portal_user_id` respektive
+`auth_user_id`. `external_customer_id` är en stabil extern identitet och får inte
+ersättas med kundnummer; kundnummer skickas separat när det finns.
 
 `CustomerSyncRequest` är en stängd toppnivåmodell:
 

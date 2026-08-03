@@ -10,7 +10,7 @@ type Status = {
   missing_customer_action: boolean
   next_step?: string | null
   blocking_reason?: string | null
-  updated_at: string
+  updated_at: string | null
 }
 
 const LABELS: Record<Status['status'], { title: string; body: string }> = {
@@ -22,8 +22,8 @@ const LABELS: Record<Status['status'], { title: string; body: string }> = {
   failed: { title: 'Ansökan behöver hanteras', body: 'Vi behöver kontrollera ärendet innan det kan fortsätta.' },
 }
 
-export default function ApplicationStatusCard({ applicationId, resultToken, initialStatus }: {
-  applicationId: string
+export default function ApplicationStatusCard({ applicationNumber, resultToken, initialStatus }: {
+  applicationNumber: string
   resultToken: string
   initialStatus: string
 }) {
@@ -34,7 +34,7 @@ export default function ApplicationStatusCard({ applicationId, resultToken, init
     let active = true
     const load = async () => {
       const response = await fetch(
-        `/api/checkout/applications/${encodeURIComponent(applicationId)}?result_token=${encodeURIComponent(resultToken)}`,
+        `/api/checkout/applications/${encodeURIComponent(applicationNumber)}?result_token=${encodeURIComponent(resultToken)}`,
         { headers: { Accept: 'application/json' }, cache: 'no-store' },
       ).catch(() => null)
       if (!active) return
@@ -47,14 +47,16 @@ export default function ApplicationStatusCard({ applicationId, resultToken, init
     }
     void load()
     return () => { active = false }
-  }, [applicationId, resultToken])
+  }, [applicationNumber, resultToken])
 
-  const normalizedInitial = initialStatus as Status['status']
-  const current = status ?? (normalizedInitial in LABELS ? { status: normalizedInitial } as Status : null)
-  const copy = current ? LABELS[current.status] : LABELS.accepted
+  const fallbackStatus: Status['status'] = Object.hasOwn(LABELS, initialStatus)
+    ? initialStatus as Status['status']
+    : 'accepted'
+  const currentStatus = status?.status ?? fallbackStatus
+  const copy = LABELS[currentStatus as Status['status']]
 
   return (
-    <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5" data-application-status={current?.status ?? initialStatus}>
+    <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5" data-application-status={currentStatus}>
       <div className="text-sm font-semibold text-white">{copy.title}</div>
       <p className="mt-2 text-sm leading-6 text-gray-200">{copy.body}</p>
       {status?.next_step ? <p className="mt-2 text-xs text-gray-400">Nästa steg: {status.next_step}</p> : null}

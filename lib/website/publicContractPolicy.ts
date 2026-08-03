@@ -1,4 +1,4 @@
-export const CONTRACT_PARSER_VERSION = '2026-08-01.1' as const
+export const CONTRACT_PARSER_VERSION = '2026-08-02.1' as const
 
 export type ContractIssueSeverity =
   | 'fatal'
@@ -116,7 +116,7 @@ function criticalContractPath(path: string): boolean {
     /\.(offer_reference|name|contract_type|energy_direction|customer_type|channel|price_options|pricing|legal)(\.|\[|$)/.test(path) ||
     /\.price_options\[\d+\]\.(price_option_reference|contract_type|price_type|customer_type|resolution|currency|unit|fixed_price|markup|monthly_fee|selection_required|area_prices|is_default|default)(\.|\[|$)/.test(path) ||
     /\.price_options\[\d+\]\.area_prices\[\d+\]\.(area_price_reference|price_area|energy_price_ore_per_kwh|unit|valid_from|valid_to)(\.|\[|$)/.test(path) ||
-    /\.legal\.(legal_bundle_reference|legal_bundle_version_id|immutable|module_versions)(\.|\[|$)/.test(path) ||
+    /\.legal\.(legal_bundle_reference|legal_bundle_version_id|immutable|module_versions|power_of_attorney_version_id)(\.|\[|$)/.test(path) ||
     /\.legal\.module_versions\[\d+\]\.(id|legal_bundle_version_id|document_reference|module_key|version|title)(\.|\[|$)/.test(path)
   )
 }

@@ -180,7 +180,6 @@ export async function lockWebsiteSubmissionOpsPayload(input: {
 export async function updateWebsiteSubmission(input: {
   submissionAttemptId: string
   status: 'submitting' | 'accepted' | 'failed'
-  opsApplicationId?: string | null
   opsCustomerId?: string | null
   opsApplicationNumber?: string | null
   opsContractId?: string | null
@@ -214,7 +213,6 @@ export async function updateWebsiteSubmission(input: {
     .from('website_application_submissions')
     .update({
       status: input.status,
-      ops_application_id: input.opsApplicationId ?? null,
       ops_customer_id: input.opsCustomerId ?? null,
       ops_application_number: input.opsApplicationNumber ?? null,
       ops_contract_id: input.opsContractId ?? null,
@@ -249,7 +247,7 @@ export async function updateWebsiteSubmission(input: {
 }
 
 export async function syncWebsiteSubmissionStatus(input: {
-  opsApplicationId: string
+  opsApplicationNumber: string
   opsStatus: string
   opsWorkflowState?: string | null
   opsCustomerNumber?: string | null
@@ -257,8 +255,8 @@ export async function syncWebsiteSubmissionStatus(input: {
   supplierSwitchStatus?: string | null
   snapshot: Record<string, unknown>
 }): Promise<void> {
-  const applicationId = input.opsApplicationId.trim()
-  if (!applicationId) throw new Error('OPS application ID is required for status sync.')
+  const applicationNumber = input.opsApplicationNumber.trim()
+  if (!applicationNumber) throw new Error('OPS application number is required for status sync.')
   const now = new Date().toISOString()
   const supabase = serviceClient()
   const { error } = await supabase
@@ -273,6 +271,6 @@ export async function syncWebsiteSubmissionStatus(input: {
       ops_result_snapshot: input.snapshot,
       updated_at: now,
     })
-    .eq('ops_application_id', applicationId)
+    .eq('ops_application_number', applicationNumber)
   if (error) throw new Error(`Submission status sync failed: ${error.message}`)
 }

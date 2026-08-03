@@ -192,7 +192,7 @@ export type WebsitePricingPreview = {
   market_sources?: WebsiteQuoteMarketSource[];
   market_reference?: WebsiteQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
-  valid_until?: string | null;
+  valid_until: string;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: WebsiteInvoiceDeliveryMethod;

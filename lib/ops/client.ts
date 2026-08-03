@@ -15,6 +15,7 @@ import {
 } from "@/lib/website/publicContractContract";
 import {
   GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+  GRIDEX_WEBSITE_OPENAPI_SHA256,
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import {
@@ -50,7 +51,6 @@ import {
   isBlockingContractIssue,
   type ContractValidationIssue,
 } from '@/lib/website/publicContractPolicy'
-import openApiManifest from '@/docs/openapi/manifest.json'
 import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 import {
   readWebsitePublicContractSnapshot,
@@ -287,7 +287,6 @@ export type OpsCustomerApplicationCommunication = {
 
 export type OpsCustomerApplicationResult = {
   status: string;
-  application_id?: string | null;
   application_number?: string | null;
   customer_id?: string | null;
   customer_number?: string | null;
@@ -488,7 +487,7 @@ export type OpsWebsiteQuoteValidationInput = {
   price_area?: OpsWebsitePriceArea | null;
   grid_area_code?: string | null;
   postal_code?: string | null;
-  application_id?: string | null;
+  application_number?: string | null;
 };
 
 export type OpsWebsiteQuoteValidation = {
@@ -601,7 +600,7 @@ export type OpsWebsitePricingPreview = {
   market_sources?: OpsQuoteMarketSource[];
   market_reference?: OpsQuoteMarketReference | null;
   pricing_snapshot_schema_version?: string;
-  valid_until?: string | null;
+  valid_until: string;
   price_option_reference: string;
   area_price_reference: string | null;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
@@ -689,20 +688,19 @@ export type OpsWebsiteApplicationStatusValue =
   | "failed";
 
 export type OpsWebsiteApplicationStatus = {
-  application_id: string;
-  application_number?: string | null;
+  application_number: string;
   status: OpsWebsiteApplicationStatusValue;
   stage: string;
   customer_number?: string | null;
   contract_status?: string | null;
-  supplier_switch_status?: string | null;
+  supplier_switch_status: string;
   supply_status?: string | null;
   requested_start_date?: string | null;
   confirmed_start_date?: string | null;
   missing_customer_action: boolean;
   next_step?: string | null;
   blocking_reason?: string | null;
-  updated_at: string;
+  updated_at: string | null;
   raw: Record<string, unknown>;
 };
 
@@ -716,9 +714,27 @@ export type OpsBlockedPublicContract = {
   issues?: ContractValidationIssue[];
 };
 
+export type OpsPublicContractFeedState = 'contracts_present' | 'canonical_empty'
+export type OpsEmptyFeedAuthorizationReason =
+  | 'no_canonical_publications'
+  | 'canonical_unpublished_or_archived'
+  | 'publication_validity_ended'
+  | 'canonical_no_visible_contracts'
+
+export type OpsEmptyFeedAuthorization = {
+  authorized: true
+  reason: OpsEmptyFeedAuthorizationReason
+  publication_revision: number
+  canonical_source: 'canonical_public_contract_delivery_readiness_v'
+  affected_offer_references: string[]
+  blockers: string[]
+}
+
 export type OpsPublicContractsSnapshot = {
   contracts: OpsPublicContract[];
   blocked_contracts: OpsBlockedPublicContract[];
+  feed_state: OpsPublicContractFeedState;
+  empty_feed_authorization: OpsEmptyFeedAuthorization | null;
   warnings: OpsPublicContractIssue[];
   compatibility_issues: OpsPublicContractIssue[];
   parser_version: string;
@@ -1875,7 +1891,7 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     market_sources: marketSources,
     market_reference: marketReference,
     pricing_snapshot_schema_version: pickString(row, ['pricing_snapshot_schema_version', 'schema_version', 'schemaVersion']) ?? GRIDEX_WEBSITE_API_CONTRACT_VERSION,
-    valid_until: validUntil ?? null,
+    valid_until: validUntil,
     price_option_reference: priceOptionReference,
     area_price_reference: areaPriceReference,
     invoice_delivery_method: normalizedInvoiceDeliveryMethod,
@@ -2233,9 +2249,147 @@ function contractVersionFromPayload(payload: unknown): string | null {
   )
 }
 
+const EMPTY_FEED_AUTHORIZATION_REASONS = new Set<OpsEmptyFeedAuthorizationReason>([
+  'no_canonical_publications',
+  'canonical_unpublished_or_archived',
+  'publication_validity_ended',
+  'canonical_no_visible_contracts',
+])
+const EMPTY_FEED_AUTHORIZATION_KEYS = new Set([
+  'authorized',
+  'reason',
+  'publication_revision',
+  'canonical_source',
+  'affected_offer_references',
+  'blockers',
+])
+
+function stringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return null
+  return [...value] as string[]
+}
+
+function publicContractFeedMetadata(payload: unknown, publicationRevision: number): {
+  feedState: OpsPublicContractFeedState
+  emptyFeedAuthorization: OpsEmptyFeedAuthorization | null
+  upstreamCount: number
+} {
+  const root = recordValue(payload)
+  const meta = recordValue(root?.meta)
+  const rows = Array.isArray(root?.data) ? root.data : null
+  if (!root || !meta || !rows) {
+    throw new OpsError('OPS public-contracts saknar canonical data/meta.', 502, {
+      code: 'ops_public_contracts_feed_metadata_invalid',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+
+  if (meta.channel !== 'website' || meta.api_version !== 'v1') {
+    throw new OpsError('OPS public-contracts meta beskriver fel kanal eller API-version.', 502, {
+      code: 'ops_public_contracts_meta_context_invalid',
+      endpoint: '/api/v1/website/public-contracts',
+      channel: meta.channel ?? null,
+      api_version: meta.api_version ?? null,
+      retryable: false,
+    })
+  }
+
+  const declaredCount = normalizeInteger(meta.count)
+  if (declaredCount === null || declaredCount < 0 || declaredCount !== rows.length) {
+    throw new OpsError('OPS public-contracts meta.count matchar inte data.', 502, {
+      code: 'ops_public_contracts_count_mismatch',
+      endpoint: '/api/v1/website/public-contracts',
+      declared_count: declaredCount,
+      actual_count: rows.length,
+      retryable: false,
+    })
+  }
+  if (!Array.isArray(root.contracts) || canonicalSha256(root.contracts) !== canonicalSha256(rows)) {
+    throw new OpsError('OPS public-contracts compatibility-aliasen contracts matchar inte data.', 502, {
+      code: 'ops_public_contracts_alias_mismatch',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+
+  const feedState = meta.feed_state
+  if (feedState !== 'contracts_present' && feedState !== 'canonical_empty') {
+    throw new OpsError('OPS public-contracts saknar giltigt feed_state.', 502, {
+      code: 'ops_public_contracts_feed_state_invalid',
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
+    })
+  }
+
+  if (feedState === 'contracts_present') {
+    if (rows.length === 0 || meta.empty_feed_authorization !== null) {
+      throw new OpsError('OPS public-contracts contracts_present saknar avtal eller innehåller tomfeedbevis.', 502, {
+        code: 'ops_public_contracts_feed_state_mismatch',
+        endpoint: '/api/v1/website/public-contracts',
+        feed_state: feedState,
+        upstream_count: rows.length,
+        retryable: false,
+      })
+    }
+    return { feedState, emptyFeedAuthorization: null, upstreamCount: rows.length }
+  }
+
+  if (rows.length !== 0) {
+    throw new OpsError('OPS public-contracts canonical_empty innehåller avtal.', 502, {
+      code: 'ops_public_contracts_feed_state_mismatch',
+      endpoint: '/api/v1/website/public-contracts',
+      feed_state: feedState,
+      upstream_count: rows.length,
+      retryable: false,
+    })
+  }
+
+  const authorization = recordValue(meta.empty_feed_authorization)
+  const reason = authorization?.reason
+  const affected = stringArray(authorization?.affected_offer_references)
+  const blockers = stringArray(authorization?.blockers)
+  const authorizationRevision = normalizeInteger(authorization?.publication_revision)
+  const extraKeys = authorization
+    ? Object.keys(authorization).filter((key) => !EMPTY_FEED_AUTHORIZATION_KEYS.has(key))
+    : ['missing']
+  if (
+    !authorization ||
+    authorization.authorized !== true ||
+    typeof reason !== 'string' ||
+    !EMPTY_FEED_AUTHORIZATION_REASONS.has(reason as OpsEmptyFeedAuthorizationReason) ||
+    authorizationRevision !== publicationRevision ||
+    authorization.canonical_source !== 'canonical_public_contract_delivery_readiness_v' ||
+    affected === null ||
+    blockers === null ||
+    extraKeys.length > 0
+  ) {
+    throw new OpsError('OPS public-contracts canonical_empty saknar giltigt empty_feed_authorization.', 502, {
+      code: 'ops_public_contracts_empty_authorization_invalid',
+      endpoint: '/api/v1/website/public-contracts',
+      response_publication_revision: publicationRevision,
+      authorization_publication_revision: authorizationRevision,
+      retryable: false,
+    })
+  }
+
+  return {
+    feedState,
+    emptyFeedAuthorization: {
+      authorized: true,
+      reason: reason as OpsEmptyFeedAuthorizationReason,
+      publication_revision: authorizationRevision,
+      canonical_source: 'canonical_public_contract_delivery_readiness_v',
+      affected_offer_references: affected,
+      blockers,
+    },
+    upstreamCount: 0,
+  }
+}
+
 type PublicContractsCacheEntry = OpsPublicContractsSnapshot & { cache_key: string };
 const publicContractsCache = new Map<string, PublicContractsCacheEntry>();
-const WEBSITE_OPENAPI_SCHEMA_SHA256 = openApiManifest.specifications['website-integration-v1.json'].sha256
+const WEBSITE_OPENAPI_SCHEMA_SHA256 = GRIDEX_WEBSITE_OPENAPI_SHA256
 
 function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): string {
   return [
@@ -2549,7 +2703,7 @@ export async function validateOpsWebsiteQuote(
     ...(input.price_area ? { price_area: input.price_area } : {}),
     ...(input.grid_area_code ? { grid_area_code: input.grid_area_code } : {}),
     ...(input.postal_code ? { postal_code: input.postal_code.replace(/\s+/g, '') } : {}),
-    ...(input.application_id ? { application_id: input.application_id } : {}),
+    ...(input.application_number ? { application_number: input.application_number } : {}),
   } satisfies OpsWebsiteQuoteValidationRequestDto
   assertWebsiteRequest(
     'QuoteValidationRequest',
@@ -2783,13 +2937,13 @@ export async function fetchOpsCurrentMarketPrice(
 }
 
 export async function fetchOpsWebsiteApplicationStatus(
-  applicationId: string,
+  applicationNumber: string,
 ): Promise<OpsWebsiteApplicationStatus> {
-  const normalized = normalizeText(applicationId)
+  const normalized = normalizeText(applicationNumber)
   if (!normalized) {
-    throw new OpsError('Application ID krävs.', 400, {
-      code: 'application_id_required',
-      field: 'application_id',
+    throw new OpsError('Ansökningsnummer krävs.', 400, {
+      code: 'application_number_required',
+      field: 'application_number',
       retryable: false,
     })
   }
@@ -2807,30 +2961,29 @@ export async function fetchOpsWebsiteApplicationStatus(
     })
   }
   const value = row as OpsCustomerApplicationStatusDto
-  if (value.application_id !== normalized) {
+  if (value.application_number !== normalized) {
     throw new OpsError('OPS returnerade status för en annan ansökan.', 502, {
       code: 'ops_application_status_identity_mismatch',
       endpoint,
-      expected_application_id: normalized,
-      received_application_id: value.application_id,
+      expected_application_number: normalized,
+      received_application_number: value.application_number,
       retryable: false,
     })
   }
   return {
-    application_id: value.application_id,
-    application_number: value.application_number ?? null,
+    application_number: value.application_number,
     status: value.status,
     stage: value.stage,
     customer_number: value.customer_number ?? null,
     contract_status: value.contract_status ?? null,
-    supplier_switch_status: value.supplier_switch_status ?? null,
+    supplier_switch_status: value.supplier_switch_status,
     supply_status: value.supply_status ?? null,
     requested_start_date: value.requested_start_date ?? null,
     confirmed_start_date: value.confirmed_start_date ?? null,
     missing_customer_action: value.missing_customer_action,
     next_step: value.next_step ?? null,
     blocking_reason: value.blocking_reason ?? null,
-    updated_at: value.updated_at,
+    updated_at: value.updated_at ?? null,
     raw: row,
   }
 }
@@ -2991,6 +3144,8 @@ function snapshotFromCacheEntry(
   return {
     contracts: cached.contracts,
     blocked_contracts: input.blockedContracts ?? cached.blocked_contracts,
+    feed_state: cached.feed_state,
+    empty_feed_authorization: cached.empty_feed_authorization,
     warnings: input.warnings ?? cached.warnings,
     compatibility_issues: input.compatibilityIssues ?? cached.compatibility_issues,
     parser_version: cached.parser_version,
@@ -3014,6 +3169,12 @@ function publicContractsFallbackEligible(error: unknown): boolean {
   if (!isOpsError(error)) return false
   if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
   if ([401, 403, 410, 423].includes(error.status)) return false
+
+  // Invalid/partial public-contract payloads must never replace the durable
+  // last-known-good snapshot. A schema or canonical metadata failure is safe
+  // to serve from LKG even though retryable=false correctly prevents blind
+  // request retries against the same malformed release.
+  if ((error.code ?? '').startsWith('ops_public_contracts_') && error.status >= 500) return true
   return isTransientOpsError(error)
 }
 
@@ -3097,13 +3258,28 @@ export async function fetchOpsPublicContractsSnapshot(
   let parsed: ReturnType<typeof parseOpsPublicContractsPayload>
   let responseContractVersion: string | null
   let responseRevision: number | null
+  let feedMetadata: ReturnType<typeof publicContractFeedMetadata>
   try {
     tenantReference = await verifiedTenantReference(
       response.payload,
       '/api/v1/website/public-contracts',
     )
     parsed = parseOpsPublicContractsPayload(response.payload)
-    responseContractVersion = response.contractVersion ?? contractVersionFromPayload(response.payload)
+    const payloadContractVersion = contractVersionFromPayload(response.payload)
+    if (
+      response.contractVersion &&
+      payloadContractVersion &&
+      response.contractVersion !== payloadContractVersion
+    ) {
+      throw new OpsError('OPS public-contracts header- och payloadversion matchar inte.', 502, {
+        code: 'ops_public_contracts_contract_version_sources_mismatch',
+        endpoint: '/api/v1/website/public-contracts',
+        header_version: response.contractVersion,
+        payload_version: payloadContractVersion,
+        retryable: false,
+      })
+    }
+    responseContractVersion = response.contractVersion ?? payloadContractVersion
     responseRevision = publicationRevisionFromPayload(response.payload)
     if (!responseContractVersion) {
       throw new OpsError('OPS public-contracts saknar kontraktsversion.', 502, {
@@ -3121,13 +3297,14 @@ export async function fetchOpsPublicContractsSnapshot(
         retryable: false,
       })
     }
-    if (responseRevision === null) {
-      throw new OpsError('OPS public-contracts saknar publiceringsrevision.', 502, {
+    if (responseRevision === null || responseRevision < 0) {
+      throw new OpsError('OPS public-contracts saknar en giltig publiceringsrevision.', 502, {
         code: 'ops_public_contracts_publication_revision_missing',
         endpoint: '/api/v1/website/public-contracts',
         retryable: false,
       })
     }
+    feedMetadata = publicContractFeedMetadata(response.payload, responseRevision)
   } catch (error) {
     if (!options.forceFresh && cached && publicContractsFallbackEligible(error)) {
       return snapshotFromCacheEntry(cached, {
@@ -3142,34 +3319,41 @@ export async function fetchOpsPublicContractsSnapshot(
     throw error
   }
 
-  if (
-    !options.forceFresh &&
-    cached &&
-    cached.contracts.length > 0 &&
-    parsed.contracts.length === 0 &&
-    responseRevision === cached.publication_revision
-  ) {
-    console.warn('[gridex-public-contracts] empty feed rejected because no newer publication revision was supplied', {
-      cached_publication_revision: cached.publication_revision,
+  const allBlocked = parsed.contracts.length === 0 && parsed.blockedContracts.length > 0
+  if (allBlocked) {
+    if (!options.forceFresh && cached) {
+      return snapshotFromCacheEntry(cached, {
+        source: 'stale-cache',
+        stale: true,
+        staleReason: 'ops_public_contracts_all_blocked',
+        upstreamStatus: response.status,
+        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+        blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+        warnings: [...cached.warnings, ...parsed.warnings],
+        compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+      })
+    }
+    throw new OpsError('Alla avtal i OPS public-contracts blockerades av canonical validering.', 502, {
+      code: 'ops_public_contracts_all_blocked',
       response_publication_revision: responseRevision,
-    })
-    return snapshotFromCacheEntry(cached, {
-      source: 'stale-cache',
-      stale: true,
-      staleReason: 'empty_feed_without_new_publication_revision',
-      upstreamStatus: response.status,
-      upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-      blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
-      warnings: [...cached.warnings, ...parsed.warnings],
-      compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+      accepted_count: 0,
+      blocked_count: parsed.blockedContracts.length,
+      blockers: parsed.blockedContracts,
+      request_id: response.headers.get('x-request-id'),
+      correlation_id: response.headers.get('x-correlation-id'),
+      endpoint: '/api/v1/website/public-contracts',
+      retryable: false,
     })
   }
+
 
   const snapshot: PublicContractsCacheEntry = {
     cache_key: cacheKey,
     contracts: parsed.contracts,
     blocked_contracts: parsed.blockedContracts,
+    feed_state: feedMetadata.feedState,
+    empty_feed_authorization: feedMetadata.emptyFeedAuthorization,
     warnings: parsed.warnings,
     compatibility_issues: parsed.compatibilityIssues,
     parser_version: CONTRACT_PARSER_VERSION,
@@ -3206,28 +3390,31 @@ export async function fetchOpsPublicContractsSnapshot(
     })
   }
 
-  if (!options.forceFresh && cached?.contracts.length && parsed.contracts.length === 0) {
-    if (persistenceFailed || persistenceResult?.stored !== true) {
-      const reason = persistenceFailed
-        ? 'persistent_snapshot_write_failed_for_empty_feed'
-        : persistenceResult?.result ?? 'empty_feed_not_persisted'
-      console.warn('[gridex-public-contracts] retained last-known-good snapshot', {
-        cached_publication_revision: cached.publication_revision,
-        response_publication_revision: responseRevision,
-        reason,
-      })
-      return snapshotFromCacheEntry(cached, {
-        source: 'stale-cache',
-        stale: true,
-        staleReason: reason,
-        upstreamStatus: response.status,
-        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-        blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
-        warnings: [...cached.warnings, ...parsed.warnings],
-        compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
-      })
-    }
+  if (
+    !options.forceFresh &&
+    cached &&
+    feedMetadata.feedState === 'canonical_empty' &&
+    (persistenceFailed || persistenceResult?.stored !== true)
+  ) {
+    const reason = persistenceFailed
+      ? 'persistent_snapshot_write_failed_for_empty_feed'
+      : persistenceResult?.result ?? 'empty_feed_not_persisted'
+    console.warn('[gridex-public-contracts] retained last-known-good snapshot', {
+      cached_publication_revision: cached.publication_revision,
+      response_publication_revision: responseRevision,
+      reason,
+    })
+    return snapshotFromCacheEntry(cached, {
+      source: 'stale-cache',
+      stale: true,
+      staleReason: reason,
+      upstreamStatus: response.status,
+      upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
+      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+      blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
+      warnings: [...cached.warnings, ...parsed.warnings],
+      compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+    })
   }
 
   if (persistenceResult && !persistenceResult.stored) {
@@ -3248,21 +3435,16 @@ export async function fetchOpsPublicContractsSnapshot(
       }
     }
 
-    const allBlocked = parsed.contracts.length === 0 && parsed.blockedContracts.length > 0
-    const unverifiedEmpty = parsed.contracts.length === 0
+    const unverifiedEmpty = feedMetadata.feedState === 'canonical_empty'
     throw new OpsError(
-      allBlocked
-        ? 'Alla avtal i OPS public-contracts blockerades av canonical validering.'
-        : unverifiedEmpty
+      unverifiedEmpty
           ? 'OPS returnerade en tom avtalsfeed som inte kunde verifieras som en avpublicering.'
           : 'OPS public-contracts var äldre än den verifierade publiceringsrevisionen.',
-      allBlocked ? 502 : 503,
+      503,
       {
-        code: allBlocked
-          ? 'ops_public_contracts_all_blocked'
-          : unverifiedEmpty
-            ? 'ops_public_contracts_empty_unverified'
-            : 'ops_public_contracts_stale_revision',
+        code: unverifiedEmpty
+          ? 'ops_public_contracts_empty_unverified'
+          : 'ops_public_contracts_stale_revision',
         persistence_result: persistenceResult.result,
         response_publication_revision: responseRevision,
         stored_publication_revision: persistenceResult.stored_revision,
@@ -3272,29 +3454,12 @@ export async function fetchOpsPublicContractsSnapshot(
         request_id: response.headers.get('x-request-id'),
         correlation_id: response.headers.get('x-correlation-id'),
         endpoint: '/api/v1/website/public-contracts',
-        retryable: !allBlocked,
+        retryable: true,
       },
     )
   }
 
-  if (parsed.contracts.length === 0 && parsed.blockedContracts.length > 0) {
-    // Defensive invariant: an all-blocked response must never become a valid
-    // empty customer feed, even if a future database function accidentally
-    // accepts it. Surface the canonical blockers instead.
-    throw new OpsError('Alla avtal i OPS public-contracts blockerades av canonical validering.', 502, {
-      code: 'ops_public_contracts_all_blocked',
-      response_publication_revision: responseRevision,
-      accepted_count: 0,
-      blocked_count: parsed.blockedContracts.length,
-      blockers: parsed.blockedContracts,
-      request_id: response.headers.get('x-request-id'),
-      correlation_id: response.headers.get('x-correlation-id'),
-      endpoint: '/api/v1/website/public-contracts',
-      retryable: false,
-    })
-  }
-
-  if (persistenceFailed && parsed.contracts.length === 0) {
+  if (persistenceFailed && feedMetadata.feedState === 'canonical_empty') {
     // Without the durable publication guard, data: [] is ambiguous. It may be
     // a legitimate full unpublish or a transient OPS/database failure. Never
     // turn that ambiguity into a customer-visible empty feed.
@@ -3310,8 +3475,7 @@ export async function fetchOpsPublicContractsSnapshot(
     })
   }
 
-  const parserResultIsCacheable = parsed.contracts.length > 0 || parsed.blockedContracts.length === 0
-  const mayCacheInMemory = persistenceResult?.stored === true || (persistenceFailed && parserResultIsCacheable)
+  const mayCacheInMemory = persistenceResult?.stored === true || (persistenceFailed && feedMetadata.feedState === 'contracts_present')
   if (mayCacheInMemory) {
     publicContractsCache.set(cacheKey, snapshot)
   }
@@ -3945,7 +4109,7 @@ function recoverCustomerApplicationConflict(value: unknown): unknown | null {
     visited.add(current);
     const row = current as Record<string, unknown>;
     const hasStableResult = Boolean(
-      pickString(row, ["application_id", "applicationId", "application_number", "applicationNumber"]) &&
+      pickString(row, ["application_number", "applicationNumber"]) &&
         pickString(row, ["customer_id", "customerId", "customer_number", "customerNumber", "external_customer_id", "externalCustomerId"]),
     );
     if (hasStableResult) return row;
@@ -4039,7 +4203,6 @@ export function mapOpsCustomerApplicationResult(
     status: pickString(row, ['status']) ?? 'application_received',
     customer_id: pickString(row, ['customer_id']),
     customer_number: pickString(row, ['customer_number']),
-    application_id: pickString(row, ['application_id']),
     application_number: pickString(row, ['application_number']),
     external_customer_id: pickString(row, ['external_customer_id']),
     external_customer_reference: pickString(row, ['external_customer_reference']),
@@ -4188,11 +4351,25 @@ export type OpsPortalBundle = {
   notifications: Record<string, unknown>[];
 };
 
+function normalizeStableExternalCustomerId(
+  value: string | null | undefined,
+  customerNumber?: string | null,
+): string | null {
+  const normalized = normalizeText(value)
+  const normalizedCustomerNumber = normalizeText(customerNumber)
+  if (
+    !normalized ||
+    normalized === normalizedCustomerNumber ||
+    /^DX-\d+$/i.test(normalized)
+  ) return null
+  return normalized
+}
+
 function stableExternalCustomerId(identity: OpsPortalIdentity): string | null {
-  const value = normalizeText(identity.externalCustomerId);
-  const customerNumber = normalizeText(identity.customerNumber);
-  if (!value || value === customerNumber || /^DX-\d+$/i.test(value)) return null;
-  return value;
+  return normalizeStableExternalCustomerId(
+    identity.externalCustomerId,
+    identity.customerNumber,
+  )
 }
 
 function portalHeaders(identity: OpsPortalIdentity): Headers {
@@ -4453,9 +4630,11 @@ export async function submitOpsCustomerPortalSync(
   },
 ): Promise<OpsCustomerSyncResult> {
   const headers = portalHeaders(input.identity);
-  const externalCustomerId =
-    normalizeText(input.externalCustomerId) ??
-    stableExternalCustomerId(input.identity)
+  const customerNumber = normalizeText(input.customerNumber) ?? normalizeText(input.identity.customerNumber)
+  const externalCustomerId = normalizeStableExternalCustomerId(
+    input.externalCustomerId ?? input.identity.externalCustomerId,
+    customerNumber,
+  )
   if (!externalCustomerId) {
     throw new OpsError('Portal recovery kräver external_customer_id.', 400, {
       code: 'external_customer_id_required',

@@ -124,7 +124,7 @@ export async function loadWebsitePublicContractFeed(input: {
     })
   }
 
-  if (contracts.length === 0) {
+  if (contracts.length === 0 && snapshot.feed_state !== 'canonical_empty') {
     await diagnoseEmptyFeed(input.context, input.customerType)
   }
 
@@ -148,6 +148,8 @@ export async function loadWebsitePublicContractFeed(input: {
     schema_sha256: snapshot.schema_sha256,
     contract_version: snapshot.contract_version,
     publication_revision: snapshot.publication_revision,
+    feed_state: snapshot.feed_state,
+    empty_feed_reason: snapshot.empty_feed_authorization?.reason ?? null,
     upstream_count: snapshot.contracts.length + snapshot.blocked_contracts.length,
     accepted_count: contracts.length,
     blocked_count: blockedContracts.length,

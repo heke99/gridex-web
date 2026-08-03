@@ -10,7 +10,6 @@ export type WebsiteCommunicationItem = {
 }
 
 export type WebsiteApplicationPublicResult = {
-  applicationId: string | null
   workflowId: string | null
   workflowState: string | null
   status: string

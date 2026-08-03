@@ -30,9 +30,10 @@ export async function persistWebsitePricingSnapshot(input: {
   customerType: WebsiteCustomerType
 }): Promise<string> {
   const issuedAt = new Date().toISOString()
-  const legacyValidUntil = input.preview.valid_until ?? input.preview.pricing_expires_at ?? null
-  if (legacyValidUntil && !Number.isFinite(Date.parse(legacyValidUntil))) {
-    throw new Error('Website pricing snapshot has invalid legacy expiry metadata.')
+  const validUntil = input.preview.valid_until
+  const validUntilTimestamp = typeof validUntil === 'string' ? Date.parse(validUntil) : Number.NaN
+  if (!Number.isFinite(validUntilTimestamp) || validUntilTimestamp <= Date.parse(issuedAt)) {
+    throw new Error('Website pricing snapshot requires a future canonical valid_until.')
   }
 
   const reference = input.preview.pricing_snapshot_reference ?? `wps_${randomUUID().replaceAll('-', '')}`
@@ -66,7 +67,7 @@ export async function persistWebsitePricingSnapshot(input: {
   const { error } = await serviceClient().from('website_pricing_snapshots').insert({
     pricing_snapshot_reference: reference,
     ops_quote_reference: input.preview.ops_quote_reference ?? null,
-    ops_quote_valid_until: input.preview.valid_until ?? null,
+    ops_quote_valid_until: validUntil,
     ops_quote_payload_sha256: snapshotHash(input.preview.raw ?? input.preview),
     ops_quote_validation_status: 'issued',
     ops_publication_revision: input.preview.publication_revision ?? null,
@@ -83,7 +84,7 @@ export async function persistWebsitePricingSnapshot(input: {
     total_inc_vat: totalIncVat,
     calculation_version: input.preview.pricing_snapshot_schema_version ?? 'website-pricing-v3',
     issued_at: issuedAt,
-    valid_until: legacyValidUntil,
+    valid_until: validUntil,
     snapshot_sha256: hash,
     status: 'issued',
   })

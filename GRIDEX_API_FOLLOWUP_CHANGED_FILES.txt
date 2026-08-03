@@ -1,0 +1,15 @@
+GRIDEX_API_FOLLOWUP_FIX_2026-08-03.md
+GRIDEX_API_FOLLOWUP_CHANGED_FILES.txt
+package.json
+app/(public)/teckna-avtal/page.tsx
+app/(public)/teckna-avtal/tack/SignupThanksPage.tsx
+app/api/checkout/applications/[applicationId]/route.ts
+components/signup/ApplicationStatusCard.tsx
+lib/customerPortal/onboarding.ts
+lib/ops/client.ts
+lib/website/applicationResultStore.ts
+lib/website/submissionStore.ts
+tests/live-application-number-contract.test.mjs
+tests/staging-canonical-ops-flow.mjs
+tests/website-api-runtime.contract.test.mjs
+tests/website-api.contract.test.mjs
