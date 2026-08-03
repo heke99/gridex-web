@@ -44,6 +44,7 @@ function safeOpsError(error: unknown) {
     request_id: isOpsError(error) ? error.requestId : null,
     correlation_id: isOpsError(error) ? error.correlationId : null,
     retryable: isTransientOpsError(error),
+    details: isOpsError(error) ? error.details : null,
     message: error instanceof Error ? error.message : String(error),
   }
 }

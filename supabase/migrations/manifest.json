@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-02T21:33:09.148Z",
-  "migration_count": 29,
+  "generated_at": "2026-08-03T10:24:50.647Z",
+  "migration_count": 31,
   "version_collisions": [],
   "migrations": [
     {
@@ -148,6 +148,16 @@
       "file": "20260802224500_restore_canonical_quote_expiry.sql",
       "version": "20260802224500",
       "sha256": "b6c29bcef8d7881d991e67bf8cf5e900730fb04527cf883c1b952de4f0acbaed"
+    },
+    {
+      "file": "20260803100040_public_contract_snapshot_shared_schema.sql",
+      "version": "20260803100040",
+      "sha256": "b5544c98352ff3c4af13b243b8ea0379dede473c3c499f36928e1d6bf92dc09f"
+    },
+    {
+      "file": "20260803100130_public_contract_snapshot_shared_rpc.sql",
+      "version": "20260803100130",
+      "sha256": "2842c1869a14452a30fd3f5741828fb5564377d6ceb7314674b91736609494e2"
     }
   ]
 }

@@ -28,6 +28,19 @@ assert.equal(deprecatedCompatible.blockedContracts.length, 0)
 assert.ok(deprecatedCompatible.compatibilityIssues.some((issue) => issue.code === 'deprecated_default_alias_used'))
 assert.equal(deprecatedCompatible.contracts[0].price_options[0].is_default, true)
 
+const canonicalSemanticDrift = structuredClone(fixture)
+canonicalSemanticDrift.data[0].legal.required_modules = [
+  ...canonicalSemanticDrift.data[0].legal.required_modules,
+  'future_optional_legal_module',
+]
+const semanticCompatible = parseOpsPublicContractsPayload(canonicalSemanticDrift)
+assert.equal(semanticCompatible.contracts.length, 1)
+assert.equal(semanticCompatible.blockedContracts.length, 0)
+assert.ok(semanticCompatible.warnings.some((issue) => (
+  issue.code === 'legal_required_module_missing' &&
+  issue.severity === 'warning'
+)))
+
 const invalidCommercialType = structuredClone(fixture)
 invalidCommercialType.data[0].price_options[0].markup = '1'
 const invalidCommercial = parseOpsPublicContractsPayload(invalidCommercialType)

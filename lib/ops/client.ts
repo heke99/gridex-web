@@ -2477,13 +2477,37 @@ export function parseOpsPublicContractsPayload(payload: unknown): {
       }))
     }
 
-    for (const issue of issues) {
+    // OPS serializes the canonical public DTO and validates it against the same
+    // checked-in OpenAPI contract before returning 200. Gridex Web may add
+    // presentation/readiness warnings, but a duplicate semantic policy must
+    // not turn an otherwise structurally valid, normalizable canonical DTO
+    // into a tenant-wide outage. Fatal, structural and normalization failures
+    // remain fail-closed.
+    const canonicalDtoAccepted =
+      mapped !== null &&
+      !structuralIssues.some(isBlockingContractIssue) &&
+      !normalized.issues.some(isBlockingContractIssue)
+    const effectiveIssues = issues.map((issue) => (
+      canonicalDtoAccepted &&
+      issue.source === 'semantic' &&
+      issue.severity === 'blocking'
+        ? {
+            ...issue,
+            severity: 'warning' as const,
+            detail: issue.detail
+              ? `${issue.detail}; canonical OPS DTO accepted`
+              : 'canonical OPS DTO accepted',
+          }
+        : issue
+    ))
+
+    for (const issue of effectiveIssues) {
       const withOffer = { ...issue, offer_reference: offerReference }
       if (issue.severity === 'compatibility') compatibilityIssues.push(withOffer)
       else if (issue.severity === 'warning') warnings.push(withOffer)
     }
 
-    const blockingIssues = issues.filter(isBlockingContractIssue)
+    const blockingIssues = effectiveIssues.filter(isBlockingContractIssue)
     if (mapped && blockingIssues.length === 0) {
       contracts.push(mapped)
       return
@@ -2494,7 +2518,7 @@ export function parseOpsPublicContractsPayload(payload: unknown): {
       reasons: [...new Set((blockingIssues.length
         ? blockingIssues.map((issue) => issue.code)
         : publicContractParseReasons(row)))],
-      issues,
+      issues: effectiveIssues,
     })
   })
 

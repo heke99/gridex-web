@@ -1,0 +1,8 @@
+lib/ops/client.ts
+lib/website/publicContractFeed.ts
+tests/public-contract-runtime-compatibility.test.mjs
+tests/public-contract-cache-durability.test.mjs
+supabase/migrations/20260803100040_public_contract_snapshot_shared_schema.sql
+supabase/migrations/20260803100130_public_contract_snapshot_shared_rpc.sql
+supabase/migrations/manifest.json
+GRIDEX_WEB_PUBLIC_CONTRACT_END_TO_END_FIX_2026-08-03.md
