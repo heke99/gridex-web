@@ -11,8 +11,18 @@ import {
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const openapi = JSON.parse(read('docs/openapi/website-integration-v1.json'))
 
-const publicationOperation = openapi.paths['/webhooks/contracts.publication.changed']?.post
-assert.ok(publicationOperation, 'publication webhook route must be published')
+const publicationWebhookOperation = openapi.webhooks?.contractsPublicationChanged?.post
+const legacyPublicationPathOperation = openapi.paths?.['/webhooks/contracts.publication.changed']?.post
+const publicationOperation = publicationWebhookOperation ?? legacyPublicationPathOperation
+
+assert.ok(publicationOperation, 'publication webhook callback must be published')
+if (publicationWebhookOperation) {
+  assert.equal(
+    legacyPublicationPathOperation,
+    undefined,
+    'OpenAPI 3.1 callbacks must not be advertised as app.gridex.se server paths',
+  )
+}
 assert.deepEqual(
   publicationOperation.parameters
     .filter((parameter) => parameter.in === 'header' && parameter.required)
