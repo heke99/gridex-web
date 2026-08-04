@@ -6,8 +6,19 @@ export const WEBSITE_PRICE_AREAS = ["SE1", "SE2", "SE3", "SE4"] as const;
 export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 export type WebsiteInvoiceDeliveryMethod = "email" | "e_invoice" | "paper" | "direct_debit";
 
+export type WebsitePriceAreaAssurance = {
+  status: 'verified' | 'estimated' | 'ambiguous' | 'unresolved';
+  price_area: WebsitePriceArea | null;
+  confidence: number;
+  source: 'facility_data' | 'grid_area_master' | 'address_polygon' | 'postal_city_consensus' | 'postal_consensus' | null;
+  candidate_count: number;
+  unique_price_area_count: number;
+  source_version: string | null;
+};
+
 export type WebsiteEnergyResolution = {
   status: string;
+  resolution_status?: string | null;
   resolution_id?: string | null;
   resolution_token?: string;
   valid_until?: string | null;
@@ -15,6 +26,8 @@ export type WebsiteEnergyResolution = {
   grid_area_code?: string | null;
   grid_owner_name?: string | null;
   confidence?: number | null;
+  price_area_assurance?: WebsitePriceAreaAssurance;
+  assurance_level?: WebsitePriceAreaAssurance['status'];
   capabilities?: {
     pricing_ready: boolean;
     quote_ready: boolean;

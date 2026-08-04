@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Website and Partner Integration API",
-    "version": "2026-08-04.1",
+    "version": "2026-08-04.2",
     "description": "Canonical V1 contract for tenant context, public contracts, tenant-bound energy-area resolution, current normalized spot price, OPS-owned quote and website applications. public-contracts is a product feed, market-price/current is the current market interval, and quote is the complete customer calculation. Tenant backends never select company_id or calculate price, fees or VAT locally."
   },
   "servers": [
@@ -298,7 +298,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.1"
+                          "const": "2026-08-04.2"
                         },
                         "feed_state": {
                           "type": "string",
@@ -581,7 +581,7 @@
                     "count": 1,
                     "publication_revision": 42,
                     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-                    "contract_schema_version": "2026-08-04.1",
+                    "contract_schema_version": "2026-08-04.2",
                     "deprecated_aliases": [
                       "contracts",
                       "contract_offer_id",
@@ -1067,7 +1067,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.1"
+                          "const": "2026-08-04.2"
                         },
                         "feed_state": {
                           "type": "string",
@@ -1473,7 +1473,7 @@
                     "site_count": 1
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-04.1"
+                  "contract_schema_version": "2026-08-04.2"
                 }
               }
             },
@@ -1745,7 +1745,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -2249,8 +2249,8 @@
         "tags": [
           "Website energy area"
         ],
-        "summary": "Resolve canonical SE area, grid area and grid owner before quote and application",
-        "description": "Scope: website_energy_area.resolve. Uses the tenant-scoped OPS resolver. The unauthenticated legacy GET /api/public/energy-area remains removed.",
+        "summary": "Resolve canonical SE price area independently from grid-owner and EDIFACT readiness",
+        "description": "Scope: website_energy_area.resolve. OPS evaluates full-address polygon/master evidence first and may use bounded postal/city candidate consensus as a pricing-only fallback. pricing_ready and quote_ready depend on price_area_assurance; facility lookup, switch creation and EDIFACT remain separately blocked until verified network context exists.",
         "x-required-scopes": [
           "website_energy_area.resolve"
         ],
@@ -2271,6 +2271,113 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WebsiteEnergyAreaResolveResponse"
+                },
+                "examples": {
+                  "postal_single_area_pricing_ready": {
+                    "summary": "Postal/city consensus resolves SE3 for pricing but not EDIFACT",
+                    "value": {
+                      "data": {
+                        "resolution_id": "b5f0d364-ad29-46a6-b6bc-7f7e81340932",
+                        "price_area": "SE3",
+                        "grid_area_code": null,
+                        "grid_area_name": null,
+                        "grid_owner_name": "Föreslagen nätägare",
+                        "resolution_status": "postal_suggested",
+                        "confidence": 0.85,
+                        "price_area_assurance": {
+                          "status": "estimated",
+                          "price_area": "SE3",
+                          "confidence": 0.85,
+                          "source": "postal_city_consensus",
+                          "candidate_count": 2,
+                          "unique_price_area_count": 1,
+                          "source_version": "2026-08-04T15:00:00.000Z",
+                          "evidence": {
+                            "city_scope": "exact_city",
+                            "price_areas": [
+                              "SE3"
+                            ]
+                          }
+                        },
+                        "next_required_action": "Verifiera föreslagen nätägare innan EDIFACT skickas.",
+                        "warnings": [
+                          "postal_code_multiple_grid_area_candidates"
+                        ],
+                        "resolved_at": "2026-08-04T15:28:00.000Z",
+                        "expires_at": "2026-08-05T15:28:00.000Z",
+                        "resolver_version": "energy-resolver-v2",
+                        "geodata_version": null,
+                        "source": {
+                          "chain": [
+                            "postal_code",
+                            "platform_postal_code_grid_mappings",
+                            "postal_price_area_consensus"
+                          ],
+                          "resolver_version": "energy-resolver-v2",
+                          "geodata_version": null
+                        },
+                        "capabilities": {
+                          "pricing_ready": true,
+                          "quote_ready": true,
+                          "facility_lookup_ready": false,
+                          "switch_request_creatable": false,
+                          "switch_dispatch_ready": false
+                        },
+                        "blockers": {
+                          "pricing": [],
+                          "quote": [],
+                          "facility_lookup": [
+                            {
+                              "code": "grid_area_missing",
+                              "message": "Verifierat nätområde saknas.",
+                              "retryable": false
+                            },
+                            {
+                              "code": "grid_owner_missing",
+                              "message": "Verifierad nätägare saknas.",
+                              "retryable": false
+                            }
+                          ],
+                          "switch_creation": [
+                            {
+                              "code": "grid_area_missing",
+                              "message": "Verifierat nätområde saknas.",
+                              "retryable": false
+                            },
+                            {
+                              "code": "grid_owner_missing",
+                              "message": "Verifierad nätägare saknas.",
+                              "retryable": false
+                            }
+                          ],
+                          "switch_dispatch": [
+                            {
+                              "code": "grid_area_missing",
+                              "message": "Verifierat nätområde saknas.",
+                              "retryable": false
+                            },
+                            {
+                              "code": "grid_owner_missing",
+                              "message": "Verifierad nätägare saknas.",
+                              "retryable": false
+                            },
+                            {
+                              "code": "switch_context_required",
+                              "message": "Fullmakt, anläggning, aktuell leverantör, PRODAT-route och transportberedskap måste verifieras i kundflödet.",
+                              "retryable": false
+                            }
+                          ]
+                        },
+                        "conflict_code": null,
+                        "error_code": null,
+                        "retryable": false
+                      },
+                      "request_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
+                      "correlation_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
+                      "retryable": false,
+                      "contract_schema_version": "2026-08-04.2"
+                    }
+                  }
                 }
               }
             },
@@ -2783,7 +2890,7 @@
                     "next_update_at": "2026-07-24T16:15:00+02:00"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-04.1"
+                  "contract_schema_version": "2026-08-04.2"
                 }
               }
             },
@@ -3126,7 +3233,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -3585,7 +3692,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -3936,7 +4043,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.1"
+                          "const": "2026-08-04.2"
                         },
                         "feed_state": {
                           "type": "string",
@@ -4536,7 +4643,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -4632,15 +4739,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -4675,15 +4773,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -4720,15 +4809,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -4763,15 +4843,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -5058,6 +5129,146 @@
         },
         "x-required-scopes": []
       }
+    },
+    "/api/v1/openapi/2026-08-04.2/website-integration-v1.json": {
+      "get": {
+        "summary": "Hämta Website Integration OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
     }
   },
   "components": {
@@ -5144,7 +5355,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -5209,7 +5420,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "configuration": {
             "type": "object",
@@ -6798,7 +7009,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -6980,7 +7191,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -7864,7 +8075,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -8062,7 +8273,8 @@
           "capabilities",
           "blockers",
           "retryable",
-          "warnings"
+          "warnings",
+          "price_area_assurance"
         ],
         "properties": {
           "resolution_id": {
@@ -8173,10 +8385,13 @@
           },
           "retryable": {
             "type": "boolean"
+          },
+          "price_area_assurance": {
+            "$ref": "#/components/schemas/PriceAreaAssurance"
           }
         },
         "additionalProperties": false,
-        "description": "Tenantbunden OPS-resolution with independent pricing, quote, facility lookup, switch creation and switch dispatch readiness. Pricing and quote never depend on PRODAT transport readiness."
+        "description": "Tenant-bound OPS resolution with independent price-area assurance and readiness for pricing, quote, facility lookup, switch creation and switch dispatch. A single-area postal consensus may allow pricing/quote while facility and EDIFACT actions remain blocked."
       },
       "WebsiteEnergyAreaResolveResponse": {
         "type": "object",
@@ -8202,7 +8417,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "additionalProperties": false
@@ -8953,7 +9168,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "additionalProperties": false
@@ -9026,7 +9241,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9259,7 +9474,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9605,7 +9820,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -10081,23 +10296,23 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "released_at": {
             "type": "string",
@@ -10137,7 +10352,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "url": {
             "type": "string",
@@ -10382,7 +10597,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -10882,7 +11097,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -11034,9 +11249,85 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
+      },
+      "PriceAreaAssurance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "price_area",
+          "confidence",
+          "source",
+          "candidate_count",
+          "unique_price_area_count",
+          "source_version",
+          "evidence"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "estimated",
+              "ambiguous",
+              "unresolved"
+            ]
+          },
+          "price_area": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SE1",
+              "SE2",
+              "SE3",
+              "SE4",
+              null
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "facility_data",
+              "grid_area_master",
+              "address_polygon",
+              "postal_city_consensus",
+              "postal_consensus",
+              null
+            ]
+          },
+          "candidate_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unique_price_area_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "source_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "description": "Canonical evidence used only to decide whether SE1-SE4 is safe for pricing and quote. This object never proves facility, grid-owner, PRODAT or EDIFACT readiness."
       }
     },
     "responses": {
@@ -11268,7 +11559,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-04.1"
+          "const": "2026-08-04.2"
         }
       },
       "RequestId": {
@@ -11346,7 +11637,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-04.1",
+  "x-contract-schema-version": "2026-08-04.2",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

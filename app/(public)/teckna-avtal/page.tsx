@@ -1018,7 +1018,7 @@ export default async function TecknaPage({
       serverPriceAreaCode,
       gridAreaCode: serverResolution.gridAreaCode,
       gridOwnerName: serverResolution.gridOwnerName,
-      energyResolutionStatus: "resolved",
+      energyResolutionStatus: serverResolution.resolutionStatus,
       energyResolutionConfidence: serverResolution.confidence,
       pricingSnapshotReference: verifiedQuote.value.quote.pricing_snapshot_reference,
       annualConsumptionKwh,

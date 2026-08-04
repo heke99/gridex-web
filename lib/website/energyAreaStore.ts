@@ -23,14 +23,7 @@ export async function persistOpsEnergyAreaResolution(input: {
 }): Promise<void> {
   const validUntil = input.resolution.valid_until
   if (!validUntil || !Number.isFinite(Date.parse(validUntil))) throw new Error('OPS energy-area resolution has no valid_until.')
-  const confidence = input.resolution.confidence
-  const assuranceLevel = confidence == null
-    ? 'verified'
-    : confidence >= 0.95
-      ? 'sufficient_for_application'
-      : confidence >= 0.75
-        ? 'verified'
-        : 'unresolved'
+  const assurance = input.resolution.price_area_assurance
   const payloadHash = createHash('sha256').update(JSON.stringify(input.resolution.raw ?? input.resolution)).digest('hex')
   const { error } = await serviceClient().from('website_price_area_resolutions').insert({
     address_fingerprint: fingerprint(input.location),
@@ -41,9 +34,14 @@ export async function persistOpsEnergyAreaResolution(input: {
     // not an internal grid-owner UUID. Never infer or persist an identifier here.
     grid_owner_id: null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
-    confidence: input.resolution.confidence ?? null,
-    assurance_level: assuranceLevel,
-    source: input.resolution.source?.provider ?? input.resolution.source?.resolved_by ?? 'ops',
+    confidence: assurance.confidence,
+    assurance_level: assurance.status,
+    assurance_source: assurance.source,
+    assurance_candidate_count: assurance.candidate_count,
+    assurance_unique_price_area_count: assurance.unique_price_area_count,
+    assurance_source_version: assurance.source_version,
+    assurance_evidence: assurance.evidence,
+    source: assurance.source ?? input.resolution.source?.provider ?? input.resolution.source?.resolved_by ?? 'ops',
     source_chain: input.resolution.source_chain ?? [],
     resolver_version: input.resolution.resolver_version ?? `ops-${input.resolution.contract_version}`,
     resolved_at: input.resolution.resolved_at ?? new Date().toISOString(),

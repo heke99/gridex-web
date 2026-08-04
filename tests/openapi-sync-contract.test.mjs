@@ -19,6 +19,8 @@ assert.equal(portal['x-contract-schema-version'], release.release_version)
 assert.equal(release.website_openapi_version, release.release_version)
 assert.equal(release.customer_portal_openapi_version, release.release_version)
 assert.equal(release.runtime_contract_version, release.release_version)
+assert.equal(release.release_version, '2026-08-04.2')
+assert.equal(release.minimum_tenant_integration_version, '2026-08-04.2')
 assert.equal(manifest.contract_version, release.release_version)
 assert.equal(manifest.specifications['website-integration-v1.json'].sha256, sha(websiteRaw))
 assert.equal(manifest.specifications['customer-portal-v1.json'].sha256, sha(portalRaw))
@@ -40,6 +42,20 @@ assert.equal(priceOption.properties.is_default.type, 'boolean')
 assert.equal(priceOption.properties.default.deprecated, true)
 assert.equal(priceOption.properties.area_prices.type, 'array')
 assert.equal(priceOption.properties.area_prices.minItems, undefined)
+
+const energyResolution = website.components.schemas.WebsiteEnergyAreaResolution
+assert.ok(energyResolution.required.includes('price_area_assurance'))
+assert.equal(energyResolution.properties.price_area_assurance.$ref, '#/components/schemas/PriceAreaAssurance')
+assert.deepEqual(website.components.schemas.PriceAreaAssurance.required, [
+  'status',
+  'price_area',
+  'confidence',
+  'source',
+  'candidate_count',
+  'unique_price_area_count',
+  'source_version',
+  'evidence',
+])
 
 const legal = website.components.schemas.WebsiteLegalBlock
 assert.ok(legal.required.includes('legal_bundle_version_id'))

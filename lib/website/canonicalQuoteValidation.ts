@@ -1,5 +1,6 @@
 import {
   validateOpsWebsiteQuote,
+  type OpsPriceAreaAssurance,
   type OpsPublicContract,
   type OpsWebsitePriceArea,
   type OpsWebsiteQuoteValidation,
@@ -34,6 +35,8 @@ export type CanonicalQuoteValidationSuccess = {
     gridAreaCode: string | null
     gridOwnerName: string | null
     confidence: number | null
+    resolutionStatus: string
+    priceAreaAssurance: Omit<OpsPriceAreaAssurance, 'evidence'>
   }
 }
 
@@ -122,6 +125,8 @@ export async function validateCanonicalWebsiteQuote(
         gridAreaCode: area.payload.grid_area_code,
         gridOwnerName: area.payload.grid_owner_name,
         confidence: area.payload.confidence,
+        resolutionStatus: area.payload.resolution_status,
+        priceAreaAssurance: area.payload.price_area_assurance,
       },
     },
   }

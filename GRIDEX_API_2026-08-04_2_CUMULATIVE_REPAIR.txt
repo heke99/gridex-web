@@ -1,0 +1,9 @@
+Cumulative repair for Gridex Web API contract 2026-08-04.2.
+
+This archive includes:
+- all API 2026-08-04.2 changed files;
+- the complete tests directory referenced by package.json;
+- package-lock.json and build/typecheck configuration files.
+
+Install dependencies before running scripts:
+  npm ci --include=dev

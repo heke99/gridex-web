@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal and Website API",
-    "version": "2026-08-04.1",
+    "version": "2026-08-04.2",
     "description": "Canonical V1 contract for the authenticated customer portal and customer self-service APIs. Website checkout, public contracts, energy-area resolution, current market price and quote are documented exclusively in website-integration-v1.json."
   },
   "servers": [
@@ -151,7 +151,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -2666,7 +2666,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -2717,7 +2717,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -3300,7 +3300,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -4479,7 +4479,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -5073,7 +5073,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -5387,7 +5387,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -5668,7 +5668,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.1"
+                      "const": "2026-08-04.2"
                     }
                   }
                 }
@@ -6156,15 +6156,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -6199,15 +6190,6 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
-              },
-              "X-RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "X-RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "X-RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -6216,6 +6198,76 @@
       }
     },
     "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json": {
       "get": {
         "summary": "Hämta Customer Portal OpenAPI",
         "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
@@ -7109,7 +7161,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -7652,7 +7704,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           },
           "configuration": {
             "type": "object",
@@ -7906,7 +7958,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8076,7 +8128,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -8581,7 +8633,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8654,7 +8706,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9080,7 +9132,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.1"
+            "const": "2026-08-04.2"
           }
         }
       },
@@ -9096,7 +9148,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-04.1"
+          "const": "2026-08-04.2"
         }
       },
       "RequestId": {
@@ -9161,7 +9213,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-04.1",
+  "x-contract-schema-version": "2026-08-04.2",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

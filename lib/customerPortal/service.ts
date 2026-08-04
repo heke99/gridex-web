@@ -415,7 +415,8 @@ function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAtt
 
 function mapCustomerStatus(row: Record<string, unknown> | null): CustomerStatus | null {
   if (!row) return null
-  const canStart = row.can_start_switch ?? row.canStartSwitch
+  const supplierSwitch = asRecord(row.supplier_switch ?? row.supplierSwitch)
+  const canStart = supplierSwitch.can_dispatch ?? supplierSwitch.canDispatch ?? row.can_start_switch ?? row.canStartSwitch
   return {
     code: pick(row, ['code', 'status']),
     label: pick(row, ['label', 'title']),

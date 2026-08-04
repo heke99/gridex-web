@@ -113,7 +113,9 @@ export async function POST(req: Request) {
     const structurallyResolved = Boolean(
       resolution.price_area_code &&
       resolution.resolution_id &&
-      resolution.valid_until,
+      resolution.valid_until &&
+      resolution.price_area_assurance.price_area === resolution.price_area_code &&
+      resolution.price_area_assurance.unique_price_area_count === 1,
     )
     if (!structurallyResolved || resolution.capabilities.pricing_ready !== true) {
       console.warn('[website energy resolve] pricing is blocked', {
@@ -125,7 +127,9 @@ export async function POST(req: Request) {
         pricing_blockers: resolution.blockers.pricing.map((blocker) => blocker.code),
         next_required_action: resolution.next_required_action ?? null,
         retryable: resolution.retryable,
-        confidence: resolution.confidence ?? null,
+        confidence: resolution.price_area_assurance.confidence,
+        price_area_assurance_status: resolution.price_area_assurance.status,
+        price_area_assurance_source: resolution.price_area_assurance.source,
       })
       return NextResponse.json(
         {
@@ -150,8 +154,6 @@ export async function POST(req: Request) {
     if (!issued) throw new Error('OPS energy-area resolution could not be signed.')
     await persistOpsEnergyAreaResolution({ resolution, location })
 
-    const confidence = resolution.confidence ?? 0
-    const assuranceLevel = confidence >= 0.95 ? 'sufficient_for_application' : 'verified'
     return NextResponse.json(
       {
         data: {
@@ -162,7 +164,9 @@ export async function POST(req: Request) {
           price_area_code: resolution.price_area_code,
           grid_area_code: resolution.grid_area_code ?? null,
           grid_owner_name: resolution.grid_owner_name ?? null,
-          confidence: resolution.confidence ?? null,
+          confidence: resolution.price_area_assurance.confidence,
+          resolution_status: resolution.resolution_status ?? resolution.status,
+          price_area_assurance: issued.payload.price_area_assurance,
           capabilities: resolution.capabilities,
           blockers: {
             pricing: publicBlockers(resolution.blockers.pricing),
@@ -183,7 +187,7 @@ export async function POST(req: Request) {
             : null,
           contract_version: resolution.contract_version,
           customer_message: resolution.customer_message ?? null,
-          assurance_level: assuranceLevel,
+          assurance_level: resolution.price_area_assurance.status,
         },
       },
       { headers: { 'Cache-Control': 'private, no-store' } },

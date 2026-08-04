@@ -1,12 +1,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import type { OpsWebsiteEnergyResolution, OpsWebsitePriceArea } from '@/lib/ops/client'
+import type {
+  OpsPriceAreaAssurance,
+  OpsWebsiteEnergyResolution,
+  OpsWebsitePriceArea,
+} from '@/lib/ops/client'
 import { websiteServerSigningKeyring } from '@/lib/website/serverTokenSecret'
 
-const TOKEN_VERSION = 'ea5'
+const TOKEN_VERSION = 'ea6'
 const MAX_TOKEN_TTL_MS = 30 * 60_000
 
 export type WebsiteEnergyAreaTokenPayload = {
-  version: 2
+  version: 3
   issued_at: string
   expires_at: string
   resolution_id: string
@@ -14,10 +18,39 @@ export type WebsiteEnergyAreaTokenPayload = {
   grid_area_code: string | null
   grid_owner_name: string | null
   confidence: number | null
+  resolution_status: string
+  price_area_assurance: Omit<OpsPriceAreaAssurance, 'evidence'>
   pricing_ready: true
   quote_ready: boolean
   contract_version: string
   location_fingerprint: string
+}
+
+function assuranceCanAuthorizePricing(
+  assurance: OpsPriceAreaAssurance,
+  area: OpsWebsitePriceArea,
+): boolean {
+  const sourceValid = assurance.source === null || [
+    'facility_data',
+    'grid_area_master',
+    'address_polygon',
+    'postal_city_consensus',
+    'postal_consensus',
+  ].includes(assurance.source)
+  return (
+    (assurance.status === 'verified' || assurance.status === 'estimated') &&
+    assurance.price_area === area &&
+    sourceValid &&
+    (assurance.source_version === null || typeof assurance.source_version === 'string') &&
+    assurance.unique_price_area_count === 1 &&
+    Number.isFinite(assurance.confidence) &&
+    assurance.confidence >= 0 &&
+    assurance.confidence <= 1 &&
+    Number.isInteger(assurance.candidate_count) &&
+    assurance.candidate_count >= 0 &&
+    Number.isInteger(assurance.unique_price_area_count) &&
+    assurance.unique_price_area_count >= 0
+  )
 }
 
 function keys() {
@@ -57,6 +90,8 @@ export function issueWebsiteEnergyAreaToken(input: {
   const resolutionId = input.resolution.resolution_id?.trim()
   const area = input.resolution.price_area_code
   const validUntil = input.resolution.valid_until?.trim()
+  const resolutionStatus = input.resolution.resolution_status?.trim() || input.resolution.status.trim()
+  const assurance = input.resolution.price_area_assurance
   if (
     !key ||
     !resolutionId ||
@@ -64,7 +99,9 @@ export function issueWebsiteEnergyAreaToken(input: {
     input.resolution.capabilities.pricing_ready !== true ||
     !validUntil ||
     !Number.isFinite(Date.parse(validUntil)) ||
-    !input.resolution.contract_version
+    !input.resolution.contract_version ||
+    !resolutionStatus ||
+    !assuranceCanAuthorizePricing(assurance, area)
   ) return null
 
   const now = input.now ?? new Date()
@@ -72,14 +109,24 @@ export function issueWebsiteEnergyAreaToken(input: {
   if (upstreamExpiry <= now.getTime()) return null
   const expiresAt = new Date(Math.min(upstreamExpiry, now.getTime() + MAX_TOKEN_TTL_MS)).toISOString()
   const payload: WebsiteEnergyAreaTokenPayload = {
-    version: 2,
+    version: 3,
     issued_at: now.toISOString(),
     expires_at: expiresAt,
     resolution_id: resolutionId,
     price_area_code: area,
     grid_area_code: input.resolution.grid_area_code ?? null,
     grid_owner_name: input.resolution.grid_owner_name ?? null,
-    confidence: input.resolution.confidence ?? null,
+    confidence: assurance.confidence,
+    resolution_status: resolutionStatus,
+    price_area_assurance: {
+      status: assurance.status,
+      price_area: assurance.price_area,
+      confidence: assurance.confidence,
+      source: assurance.source,
+      candidate_count: assurance.candidate_count,
+      unique_price_area_count: assurance.unique_price_area_count,
+      source_version: assurance.source_version,
+    },
     pricing_ready: true,
     quote_ready: input.resolution.capabilities.quote_ready,
     contract_version: input.resolution.contract_version,
@@ -112,11 +159,17 @@ export function verifyWebsiteEnergyAreaToken(input: {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as WebsiteEnergyAreaTokenPayload
     const now = input.now ?? new Date()
     if (
-      payload.version !== 2 ||
+      payload.version !== 3 ||
       !payload.resolution_id ||
       !['SE1', 'SE2', 'SE3', 'SE4'].includes(payload.price_area_code) ||
       payload.pricing_ready !== true ||
       typeof payload.quote_ready !== 'boolean' ||
+      !payload.resolution_status ||
+      !payload.price_area_assurance ||
+      !assuranceCanAuthorizePricing(
+        { ...payload.price_area_assurance, evidence: {} },
+        payload.price_area_code,
+      ) ||
       !payload.contract_version ||
       !Number.isFinite(Date.parse(payload.issued_at)) ||
       !Number.isFinite(Date.parse(payload.expires_at)) ||

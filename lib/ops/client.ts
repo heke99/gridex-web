@@ -454,6 +454,26 @@ export type OpsResolutionSource = {
   raw: Record<string, unknown>;
 };
 
+export type OpsPriceAreaAssuranceStatus = 'verified' | 'estimated' | 'ambiguous' | 'unresolved';
+
+export type OpsPriceAreaAssuranceSource =
+  | 'facility_data'
+  | 'grid_area_master'
+  | 'address_polygon'
+  | 'postal_city_consensus'
+  | 'postal_consensus';
+
+export type OpsPriceAreaAssurance = {
+  status: OpsPriceAreaAssuranceStatus;
+  price_area: OpsWebsitePriceArea | null;
+  confidence: number;
+  source: OpsPriceAreaAssuranceSource | null;
+  candidate_count: number;
+  unique_price_area_count: number;
+  source_version: string | null;
+  evidence: Record<string, unknown>;
+};
+
 export type OpsWebsiteEnergyResolution = {
   status: string;
   resolution_id?: string | null;
@@ -476,6 +496,7 @@ export type OpsWebsiteEnergyResolution = {
   geodata_version?: string | null;
   conflict_code?: string | null;
   error_code?: string | null;
+  price_area_assurance: OpsPriceAreaAssurance;
   source?: OpsResolutionSource | null;
   source_chain?: string[];
   customer_message?: string | null;
@@ -2613,6 +2634,71 @@ function mapResolutionSource(value: unknown): OpsResolutionSource | null {
   }
 }
 
+function isPriceAreaAssuranceStatus(value: unknown): value is OpsPriceAreaAssuranceStatus {
+  return value === 'verified' || value === 'estimated' || value === 'ambiguous' || value === 'unresolved'
+}
+
+function isPriceAreaAssuranceSource(value: unknown): value is OpsPriceAreaAssuranceSource {
+  return value === 'facility_data' ||
+    value === 'grid_area_master' ||
+    value === 'address_polygon' ||
+    value === 'postal_city_consensus' ||
+    value === 'postal_consensus'
+}
+
+function mapPriceAreaAssurance(
+  value: OpsWebsiteEnergyAreaResolutionDto['price_area_assurance'],
+  input: {
+    priceArea: OpsWebsitePriceArea | null;
+    pricingReady: boolean;
+    endpoint: string;
+    requestId: string;
+  },
+): OpsPriceAreaAssurance {
+  const assuranceArea = value.price_area
+  const source = value.source
+  const evidence = recordValue(value.evidence)
+  const structurallyValid =
+    isPriceAreaAssuranceStatus(value.status) &&
+    (assuranceArea === null || isOpsWebsitePriceArea(assuranceArea)) &&
+    (source === null || isPriceAreaAssuranceSource(source)) &&
+    Number.isFinite(value.confidence) &&
+    value.confidence >= 0 &&
+    value.confidence <= 1 &&
+    Number.isInteger(value.candidate_count) &&
+    value.candidate_count >= 0 &&
+    Number.isInteger(value.unique_price_area_count) &&
+    value.unique_price_area_count >= 0 &&
+    Boolean(evidence)
+
+  const pricingEvidenceValid = !input.pricingReady || (
+    (value.status === 'verified' || value.status === 'estimated') &&
+    input.priceArea !== null &&
+    assuranceArea === input.priceArea &&
+    value.unique_price_area_count === 1
+  )
+
+  if (!structurallyValid || !pricingEvidenceValid) {
+    throw new OpsError('OPS returnerade ett inkonsekvent price_area_assurance-underlag.', 502, {
+      code: 'ops_price_area_assurance_invalid',
+      endpoint: input.endpoint,
+      request_id: input.requestId,
+      retryable: false,
+    })
+  }
+
+  return {
+    status: value.status,
+    price_area: assuranceArea,
+    confidence: value.confidence,
+    source,
+    candidate_count: value.candidate_count,
+    unique_price_area_count: value.unique_price_area_count,
+    source_version: value.source_version ?? null,
+    evidence: evidence!,
+  }
+}
+
 export async function fetchOpsWebsiteEnergyArea(
   input: OpsWebsiteEnergyResolutionInput,
 ): Promise<OpsWebsiteEnergyResolution> {
@@ -2654,7 +2740,14 @@ export async function fetchOpsWebsiteEnergyArea(
 
   const responseRoot = recordValue(payload)
   const responseData = recordValue(responseRoot?.data)
-  if (!responseRoot || !responseData || !recordValue(responseData.capabilities) || !recordValue(responseData.blockers) || !Array.isArray(responseData.warnings)) {
+  if (
+    !responseRoot ||
+    !responseData ||
+    !recordValue(responseData.capabilities) ||
+    !recordValue(responseData.blockers) ||
+    !recordValue(responseData.price_area_assurance) ||
+    !Array.isArray(responseData.warnings)
+  ) {
     throw new OpsError('OPS returnerade ett ofullständigt elområdessvar.', 502, {
       code: 'ops_energy_area_contract_invalid',
       endpoint,
@@ -2665,7 +2758,7 @@ export async function fetchOpsWebsiteEnergyArea(
   const response = payload as OpsWebsiteEnergyAreaResolveResponseDto
   const row: OpsWebsiteEnergyAreaResolutionDto = response.data
   const priceArea = row.price_area
-  if (!isOpsWebsitePriceArea(priceArea)) {
+  if (priceArea !== null && !isOpsWebsitePriceArea(priceArea)) {
     throw new OpsError('OPS returnerade ett ogiltigt elområde.', 502, {
       code: 'ops_energy_area_invalid',
       endpoint,
@@ -2679,6 +2772,16 @@ export async function fetchOpsWebsiteEnergyArea(
   const source = row.source && typeof row.source === 'object' && !Array.isArray(row.source)
     ? mapResolutionSource(row.source)
     : null
+  const priceAreaAssurance = mapPriceAreaAssurance(row.price_area_assurance, {
+    priceArea,
+    pricingReady: row.capabilities.pricing_ready,
+    endpoint,
+    requestId: response.request_id,
+  })
+  const sourceRecord = recordValue(row.source)
+  const sourceChain = Array.isArray(sourceRecord?.chain)
+    ? sourceRecord.chain.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+    : []
 
   return {
     status: row.resolution_status,
@@ -2714,8 +2817,9 @@ export async function fetchOpsWebsiteEnergyArea(
     geodata_version: row.geodata_version ?? null,
     conflict_code: row.conflict_code ?? null,
     error_code: row.error_code ?? null,
+    price_area_assurance: priceAreaAssurance,
     source,
-    source_chain: [],
+    source_chain: sourceChain,
     customer_message: null,
     raw: payload as Record<string, unknown>,
   }

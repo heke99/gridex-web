@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-03T16:15:35.786Z",
-  "migration_count": 32,
+  "generated_at": "2026-08-04T16:52:49.658Z",
+  "migration_count": 33,
   "version_collisions": [],
   "migrations": [
     {
@@ -163,6 +163,11 @@
       "file": "20260803173000_checkout_post_commit_reconciliation.sql",
       "version": "20260803173000",
       "sha256": "2564796a69733f16184ae59fcb06853d565b2c676b8ce8df5fdd1d1d96969bb9"
+    },
+    {
+      "file": "20260804190000_price_area_assurance_20260804_2.sql",
+      "version": "20260804190000",
+      "sha256": "6b98561a602d50d6d8c0ff8dc9941c9cee13f85fd551cb3ebf217a2fbabb55f3"
     }
   ]
 }

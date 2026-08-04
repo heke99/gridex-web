@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-08-04.1`.
+Canonical kontraktsversion: `2026-08-04.2`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -20,14 +20,13 @@ docs/openapi/verification-status.json
 Officiell release och förväntade rå-byte-hashar:
 
 ```text
-Website SHA-256:       971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a
-Customer Portal SHA:   921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779
+Website SHA-256:       8c1bc549b4b874ce66e8b68793cafb16184d1a70214ea980f2b4bed8b2583ec6
+Customer Portal SHA:   b28e73ee068619e2677d966d3bd4be82a95d926c6e347c60e59df080ff94d95d
 ```
 
-Den distribuerade zippen innehåller semantiskt uppdaterade kompatibilitetssnapshots,
-men markerar dem uttryckligen som ännu inte byteidentiska med live. `npm run api:sync`
-är nätåtkomst finns ersätter dem med officiella råa bytes, regenererar typer och
-validatorer och uppdaterar hashkonstanterna atomiskt.
+Den distribuerade zippen innehåller de byteidentiska, hashverifierade
+releasefilerna för `2026-08-04.2`. `npm run api:sync` hämtar framtida releaser,
+regenererar typer och validatorer och uppdaterar hashkonstanterna atomiskt.
 
 `npm run api:sync` hämtar release-manifestet först och verifierar SHA-256 över
 specifikationernas exakta råa bytes. Båda specifikationerna måste ha samma
@@ -35,8 +34,8 @@ version och matcha manifestets hash innan de ersätter lokala filer atomiskt.
 Typer, validatorer, manifest, semantisk diff och lokala kontroller genereras
 därefter.
 
-En distribuerad snapshot har avsiktligt `live_sync_verified=false`. Mottagande
-miljö måste köra `npm run api:sync` för ett nytt livebevis.
+`verification-status.json` dokumenterar vilken release som verifierades och
+vilka rå-byte-hashar som låg till grund för genererade typer.
 
 ## Checkout och canonical sanningskällor
 
@@ -62,10 +61,19 @@ Webbens resolver använder `resolution_id`, `price_area`, `grid_area_code` och
 `grid_owner_id`; webben får därför inte skapa eller förvänta sig ett sådant ID.
 OPS löser intern nätägare från canonical `grid_area_code` när ansökan behandlas.
 
+`resolution_status` är inte en readiness-regel. Pris och offert får fortsätta
+endast när `capabilities.pricing_ready` respektive `capabilities.quote_ready` är
+true och `price_area_assurance` är strukturellt konsekvent. En
+`postal_suggested`-resolution kan därför vara giltig för SE-prissättning samtidigt
+som anläggningsuppslag, leverantörsbyte och EDIFACT fortsatt är blockerade.
+`price_area_assurance` binds i den signerade resolution-tokenen och sparas i
+webbens revisionsspår; klienten får inte härleda assurance från ett eget
+confidence-tröskelvärde.
+
 ## Quote-giltighet, startdatum och idempotency
 
 `valid_until` är ett obligatoriskt canonical response-fält i API-version
-`2026-08-04.1`. Webben kräver ett giltigt date-time-värde i quote- och
+`2026-08-04.2`. Webben kräver ett giltigt date-time-värde i quote- och
 quote-validation-svaret och bevarar det i snapshoten. Kundgränssnittet använder
 inte en egen lokal nedräkning som ensam affärsregel; OPS quote-validation,
 teckningsbarhet, revocation och konsumtionsstatus är auktoritativa vid submit.
@@ -156,6 +164,10 @@ Supabase-session. UUID:t skickas i både `x-gridex-customer-portal-user-id` och
 `x-gridex-auth-user-id`, och i sync-body som `customer_portal_user_id` respektive
 `auth_user_id`. `external_customer_id` är en stabil extern identitet och får inte
 ersättas med kundnummer; kundnummer skickas separat när det finns.
+
+Portalens canonicala `customer_status.supplier_switch.can_dispatch` styr om
+leverantörsbytet kan startas. `can_start_switch` läses endast som deprecated
+fallback för äldre svar.
 
 `CustomerSyncRequest` är en stängd toppnivåmodell:
 
