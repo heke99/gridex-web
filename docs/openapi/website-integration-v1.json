@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Website and Partner Integration API",
-    "version": "2026-08-03.1",
+    "version": "2026-08-04.1",
     "description": "Canonical V1 contract for tenant context, public contracts, tenant-bound energy-area resolution, current normalized spot price, OPS-owned quote and website applications. public-contracts is a product feed, market-price/current is the current market interval, and quote is the complete customer calculation. Tenant backends never select company_id or calculate price, fees or VAT locally."
   },
   "servers": [
@@ -298,7 +298,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-03.1"
+                          "const": "2026-08-04.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -581,7 +581,7 @@
                     "count": 1,
                     "publication_revision": 42,
                     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-                    "contract_schema_version": "2026-08-03.1",
+                    "contract_schema_version": "2026-08-04.1",
                     "deprecated_aliases": [
                       "contracts",
                       "contract_offer_id",
@@ -1067,7 +1067,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-03.1"
+                          "const": "2026-08-04.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -1473,7 +1473,7 @@
                     "site_count": 1
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-03.1"
+                  "contract_schema_version": "2026-08-04.1"
                 }
               }
             },
@@ -1745,7 +1745,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-03.1"
+                      "const": "2026-08-04.1"
                     }
                   }
                 }
@@ -1977,7 +1977,7 @@
           "Customer applications"
         ],
         "summary": "Create a customer application bound to a published offer",
-        "description": "Scope: website_applications.write. Idempotency-Key krävs. Tenant hämtas enbart från API-nyckelns integrationskontext. I en databastransaktion validerar OPS en aktiv, okonsumerad quote_reference, skapar eller länkar canonical kund och valfri site/mätpunkt, skapar avtals- och juridiksnapshot, reserverar ansökningsidentiteten och konsumerar quoten. Exakt signaturbevis, workflow, portalidentitet och customer_application_continuation skrivs därefter idempotent. Om ett sådant eftersteg misslyckas returneras inte accepted: ansökan markeras partial/failed med reparerbart workflow och ett osignerat avtal markeras signature_failed. Endast exakt juridisk identitet inom samma tenant får återanvända kund; leveranspunkt är aldrig ensam kundnyckel. Därefter äger OPS juridiska mail, nätägarbegäran, Z01/Z02, Z03/Z04, APERAK, aktivering och webhooks.",
+        "description": "Scope: website_applications.write. Idempotency-Key krävs. Tenant härleds enbart från API-nyckeln. auth_user_id och customer_portal_user_id krävs som samma verifierade UUID. OPS committar canonical kund, kundnummer, site/mätpunkt, avtal, juridik, portalidentitet, workflow och ett beständigt customer_application_continuation-jobb. status=accepted betyder att denna beständiga commit är klar; e-post, anläggningsuppslag, leverantörsbyte och webhooks fortsätter asynkront och följs via statusendpointen.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -2783,7 +2783,7 @@
                     "next_update_at": "2026-07-24T16:15:00+02:00"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-03.1"
+                  "contract_schema_version": "2026-08-04.1"
                 }
               }
             },
@@ -3126,7 +3126,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-03.1"
+                      "const": "2026-08-04.1"
                     }
                   }
                 }
@@ -3585,7 +3585,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-03.1"
+                      "const": "2026-08-04.1"
                     }
                   }
                 }
@@ -3936,7 +3936,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-03.1"
+                          "const": "2026-08-04.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -4536,7 +4536,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-03.1"
+                      "const": "2026-08-04.1"
                     }
                   }
                 }
@@ -4632,6 +4632,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -4666,6 +4675,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -4702,6 +4720,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -4736,6 +4763,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -4814,6 +4850,146 @@
       }
     },
     "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-04.1/website-integration-v1.json": {
+      "get": {
+        "summary": "Hämta Website Integration OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json": {
       "get": {
         "summary": "Hämta Customer Portal OpenAPI",
         "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
@@ -4968,7 +5144,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -5033,7 +5209,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "configuration": {
             "type": "object",
@@ -5773,7 +5949,9 @@
           "price_option_reference",
           "invoice_delivery_method",
           "selected_component_references",
-          "site_count"
+          "site_count",
+          "auth_user_id",
+          "customer_portal_user_id"
         ],
         "properties": {
           "external_customer_id": {
@@ -6620,7 +6798,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         }
       },
@@ -6802,7 +6980,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         }
       },
@@ -7686,7 +7864,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         }
       },
@@ -8024,7 +8202,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "additionalProperties": false
@@ -8256,7 +8434,10 @@
           "status",
           "stage",
           "supplier_switch_status",
-          "missing_customer_action"
+          "missing_customer_action",
+          "automation",
+          "communication",
+          "webhook"
         ],
         "properties": {
           "application_number": {
@@ -8323,6 +8504,270 @@
               "string",
               "null"
             ]
+          },
+          "automation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "attempts",
+              "max_attempts"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max_attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "next_retry_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "completed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "communication": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pending",
+              "source_of_truth",
+              "triggered",
+              "queued",
+              "sent",
+              "failed"
+            ],
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "source_of_truth": {
+                "type": "string",
+                "const": "communication_logs"
+              },
+              "triggered": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "queued": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "sent": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "failed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "webhook": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "fanout_status",
+              "queued",
+              "sent",
+              "failed",
+              "attempts"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_triggered",
+                  "not_configured",
+                  "pending",
+                  "sent",
+                  "failed"
+                ]
+              },
+              "fanout_status": {
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "pending",
+                  "completed",
+                  "failed"
+                ]
+              },
+              "queued": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sent": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "next_retry_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
           },
           "updated_at": {
             "type": [
@@ -8508,7 +8953,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "additionalProperties": false
@@ -8581,7 +9026,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8814,7 +9259,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9160,7 +9605,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         }
       },
@@ -9636,23 +10081,23 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "released_at": {
             "type": "string",
@@ -9692,7 +10137,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           },
           "url": {
             "type": "string",
@@ -9937,7 +10382,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-03.1"
+            "const": "2026-08-04.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9950,7 +10395,10 @@
           "status",
           "stage",
           "supplier_switch_status",
-          "missing_customer_action"
+          "missing_customer_action",
+          "automation",
+          "communication",
+          "webhook"
         ],
         "properties": {
           "application_number": {
@@ -10018,11 +10466,575 @@
               "null"
             ]
           },
+          "automation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "attempts",
+              "max_attempts"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max_attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "next_retry_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "completed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "communication": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pending",
+              "source_of_truth",
+              "triggered",
+              "queued",
+              "sent",
+              "failed"
+            ],
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "source_of_truth": {
+                "type": "string",
+                "const": "communication_logs"
+              },
+              "triggered": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "queued": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "sent": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "failed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "event_type",
+                    "status"
+                  ],
+                  "properties": {
+                    "event_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "occurred_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "webhook": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "fanout_status",
+              "queued",
+              "sent",
+              "failed",
+              "attempts"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_triggered",
+                  "not_configured",
+                  "pending",
+                  "sent",
+                  "failed"
+                ]
+              },
+              "fanout_status": {
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "pending",
+                  "completed",
+                  "failed"
+                ]
+              },
+              "queued": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sent": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "next_retry_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
           "updated_at": {
             "type": [
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "CustomerApplicationStatusChangedWebhook": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "created_at",
+          "tenant_reference",
+          "aggregate",
+          "data",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "pattern": "^event_[a-f0-9]{32}$"
+          },
+          "event_type": {
+            "type": "string",
+            "const": "customer_application.status_changed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenant_reference": {
+            "type": "string",
+            "pattern": "^tenant_[A-Za-z0-9._-]+$"
+          },
+          "environment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "test",
+              "production",
+              null
+            ]
+          },
+          "aggregate": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "reference"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "website_customer_application"
+              },
+              "reference": {
+                "type": "string"
+              }
+            }
+          },
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "customer_reference",
+              "customer_number"
+            ],
+            "properties": {
+              "customer_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "application_number",
+              "status",
+              "workflow_state",
+              "event_code"
+            ],
+            "properties": {
+              "application_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contract_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "processing",
+                  "needs_information",
+                  "failed",
+                  "completed"
+                ]
+              },
+              "workflow_state": {
+                "type": "string"
+              },
+              "next_step": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "event_code": {
+                "type": "string"
+              }
+            }
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-08-04.1"
+          }
+        }
+      },
+      "SupplierSwitchUpdatedWebhook": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "created_at",
+          "tenant_reference",
+          "aggregate",
+          "data",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "pattern": "^event_[a-f0-9]{32}$"
+          },
+          "event_type": {
+            "type": "string",
+            "const": "supplier_switch.updated"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenant_reference": {
+            "type": "string",
+            "pattern": "^tenant_[A-Za-z0-9._-]+$"
+          },
+          "environment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "test",
+              "production",
+              null
+            ]
+          },
+          "aggregate": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "reference"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "website_customer_application"
+              },
+              "reference": {
+                "type": "string"
+              }
+            }
+          },
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "customer_reference",
+              "customer_number"
+            ],
+            "properties": {
+              "customer_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "application_number",
+              "status",
+              "workflow_state",
+              "event_code",
+              "supplier_switch_status"
+            ],
+            "properties": {
+              "application_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "customer_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contract_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "processing",
+                  "needs_information",
+                  "failed",
+                  "completed"
+                ]
+              },
+              "workflow_state": {
+                "type": "string"
+              },
+              "next_step": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "event_code": {
+                "type": "string"
+              },
+              "supplier_switch_status": {
+                "type": "string"
+              }
+            }
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-08-04.1"
           }
         }
       }
@@ -10256,7 +11268,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-03.1"
+          "const": "2026-08-04.1"
         }
       },
       "RequestId": {
@@ -10334,7 +11346,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-03.1",
+  "x-contract-schema-version": "2026-08-04.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -10456,6 +11468,130 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PublicationChangedWebhook"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Event accepted and durably deduplicated by the tenant receiver."
+          }
+        },
+        "security": []
+      }
+    },
+    "customerApplicationStatusChanged": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receive customer_application.status_changed from Gridex",
+        "description": "Sent after every durable customer-application workflow transition. The tenant must verify the HMAC signature, deduplicate event and delivery headers, persist the event, and return 2xx. Non-2xx responses enter the retry and dead-letter pipeline.",
+        "parameters": [
+          {
+            "name": "X-Gridex-Event-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^event_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-Gridex-Delivery-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^delivery_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-Gridex-Timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gridex-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^sha256=[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerApplicationStatusChangedWebhook"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Event accepted and durably deduplicated by the tenant receiver."
+          }
+        },
+        "security": []
+      }
+    },
+    "supplierSwitchUpdated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receive supplier_switch.updated from Gridex",
+        "description": "Sent for every switch- or supply-related customer-application workflow transition. The event is tenant-scoped, durably queued, idempotent, signed, retried, and dead-lettered on terminal delivery failure.",
+        "parameters": [
+          {
+            "name": "X-Gridex-Event-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^event_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-Gridex-Delivery-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^delivery_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-Gridex-Timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gridex-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^sha256=[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierSwitchUpdatedWebhook"
               }
             }
           }
