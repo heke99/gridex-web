@@ -1,9 +1,10 @@
 //app/register/page.tsx
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 function calculateStrength(password: string): number {
   let score = 0
@@ -57,6 +58,12 @@ function strengthLabel(strength: number): string {
 
 export default function RegisterPage() {
   const supabase = createSupabaseBrowserClient()
+  const [next, setNext] = useState('/mina-sidor')
+  const loginHref = `/login?next=${encodeURIComponent(next)}`
+
+  useEffect(() => {
+    setNext(safeRedirectPath(new URLSearchParams(window.location.search).get('next')))
+  }, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -108,7 +115,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const redirectNext = encodeURIComponent('/login?status=verified')
+      const redirectNext = encodeURIComponent(`/login?status=verified&next=${encodeURIComponent(next)}`)
 
       const { error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -193,7 +200,7 @@ export default function RegisterPage() {
             Har du redan konto?{' '}
             <Link
               className="text-white underline decoration-white/20 underline-offset-4 hover:text-cyan-300"
-              href="/login"
+              href={loginHref}
             >
               Logga in här
             </Link>
@@ -226,7 +233,7 @@ export default function RegisterPage() {
                 </p>
                 <div className="pt-2">
                   <Link
-                    href="/login"
+                    href={loginHref}
                     className="inline-flex rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
                   >
                     Till inloggning
@@ -322,7 +329,7 @@ export default function RegisterPage() {
                 <div className="text-sm text-gray-400">
                   Har du redan konto?{' '}
                   <Link
-                    href="/login"
+                    href={loginHref}
                     className="underline decoration-white/20 underline-offset-4 hover:text-white"
                   >
                     Logga in

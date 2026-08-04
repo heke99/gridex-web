@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import {
   assertCustomerPortalOperationRequest,
-  assertWebsiteOperationRequest,
+  assertWebsiteRequest,
 } from '../lib/ops/validators/openapi.ts'
+import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from '../lib/ops/contract.ts'
 
 const webhookBody = {
   event_id: `event_${'a'.repeat(32)}`,
@@ -21,42 +22,27 @@ const webhookBody = {
     reason: 'contracts_unpublished_by_tenant_admin',
     timestamp: '2026-08-01T18:00:00.000Z',
   },
-  contract_schema_version: '2026-08-02.1',
+  contract_schema_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
 }
-const webhookHeaders = new Headers({
-  'x-gridex-event-id': webhookBody.event_id,
-  'x-gridex-delivery-id': webhookBody.delivery_id,
-  'x-gridex-timestamp': '1785607200',
-  'x-gridex-signature': `sha256=${'a'.repeat(64)}`,
-})
-assert.doesNotThrow(() => assertWebsiteOperationRequest(
-  '/webhooks/contracts.publication.changed',
-  'post',
+assert.doesNotThrow(() => assertWebsiteRequest(
+  'PublicationChangedWebhook',
   webhookBody,
-  webhookHeaders,
+  '/webhooks/contracts.publication.changed',
 ))
 const legacyWebhookBody = {
   ...webhookBody,
   event_id: 'evt_publication_301',
   delivery_id: 'delivery_publication_301',
 }
-const legacyWebhookHeaders = new Headers({
-  'x-gridex-event-id': legacyWebhookBody.event_id,
-  'x-gridex-delivery-id': legacyWebhookBody.delivery_id,
-  'x-gridex-timestamp': '1785607200',
-  'x-gridex-signature': `sha256=${'a'.repeat(64)}`,
-})
-assert.throws(() => assertWebsiteOperationRequest(
-  '/webhooks/contracts.publication.changed',
-  'post',
+assert.throws(() => assertWebsiteRequest(
+  'PublicationChangedWebhook',
   legacyWebhookBody,
-  legacyWebhookHeaders,
-))
-assert.throws(() => assertWebsiteOperationRequest(
   '/webhooks/contracts.publication.changed',
-  'post',
+))
+assert.throws(() => assertWebsiteRequest(
+  'PublicationChangedWebhook',
   { ...webhookBody, aggregate: { type: 'contract_publication', id: 'legacy-id' } },
-  webhookHeaders,
+  '/webhooks/contracts.publication.changed',
 ))
 
 const portalHeaders = new Headers({

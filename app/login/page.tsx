@@ -1,6 +1,7 @@
 //app/login/page.tsx
 import Link from 'next/link'
 import { loginWithPassword } from './actions'
+import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,20 +14,13 @@ function readParam(v: string | string[] | undefined): string {
   return Array.isArray(v) ? (v[0] ?? '') : v
 }
 
-function safeNext(next: string): string {
-  if (!next) return '/mina-sidor'
-  if (!next.startsWith('/')) return '/mina-sidor'
-  if (next.startsWith('//')) return '/mina-sidor'
-  return next
-}
-
 export default async function LoginPage({ searchParams }: Props) {
   const sp = (await searchParams) || {}
 
   const error = readParam(sp.error)
   const reason = readParam(sp.reason)
   const status = readParam(sp.status)
-  const next = safeNext(readParam(sp.next) || '/mina-sidor')
+  const next = safeRedirectPath(readParam(sp.next), '/mina-sidor')
 
   let banner = ''
 

@@ -12,8 +12,15 @@ if (website.info?.version !== expected || portal.info?.version !== expected) {
 }
 
 const gaps = []
-const applicationProperties = website.components?.schemas?.CustomerApplicationRequest?.properties ?? {}
-if (!applicationProperties.customer_portal_user_id || !applicationProperties.auth_user_id) {
+const applicationSchema = website.components?.schemas?.CustomerApplicationRequest ?? {}
+const applicationProperties = applicationSchema.properties ?? {}
+const applicationRequired = new Set(Array.isArray(applicationSchema.required) ? applicationSchema.required : [])
+if (
+  !applicationProperties.customer_portal_user_id ||
+  !applicationProperties.auth_user_id ||
+  !applicationRequired.has('customer_portal_user_id') ||
+  !applicationRequired.has('auth_user_id')
+) {
   gaps.push('customer_application_portal_identity_missing')
 }
 const legalSchema = website.components?.schemas?.LegalAcceptances

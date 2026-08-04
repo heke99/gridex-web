@@ -484,6 +484,13 @@ export function websiteSchemaHasProperty(schema: string, property: string): bool
   return Boolean(properties && typeof properties === 'object' && Object.hasOwn(properties, property))
 }
 
+export function websiteSchemaRequiresProperty(schema: string, property: string): boolean {
+  const value = documents.website.components?.schemas?.[schema]
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const required = (value as JsonRecord).required
+  return Array.isArray(required) && required.includes(property)
+}
+
 function schemaIsClosedObject(schema: unknown): boolean {
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return false
   const row = schema as JsonRecord
@@ -517,7 +524,9 @@ export function gridexOpenApiContractGaps(): string[] {
   const gaps: string[] = []
   if (
     !websiteSchemaHasProperty('CustomerApplicationRequest', 'customer_portal_user_id') ||
-    !websiteSchemaHasProperty('CustomerApplicationRequest', 'auth_user_id')
+    !websiteSchemaHasProperty('CustomerApplicationRequest', 'auth_user_id') ||
+    !websiteSchemaRequiresProperty('CustomerApplicationRequest', 'customer_portal_user_id') ||
+    !websiteSchemaRequiresProperty('CustomerApplicationRequest', 'auth_user_id')
   ) gaps.push('customer_application_portal_identity_missing')
 
   const legalAcceptances = documents.website.components?.schemas?.LegalAcceptances

@@ -142,10 +142,17 @@ revision som exakt matchar `publication_revision`, canonical source
 `canonical_public_contract_delivery_readiness_v` samt strängarrayer för berörda
 offerter och blockers. Fritext eller enbart tom array räcker aldrig.
 
-## Kundportal
+## Kundportal och kundansökan
 
-Portalidentitet kommer från den verifierade Supabase-sessionen. Samma verifierade
-UUID skickas i både `x-gridex-customer-portal-user-id` och
+Den slutliga kundansökan får inte skickas anonymt. Kunden måste först ha en
+verifierad Supabase Auth-session. Samma verifierade UUID skickas obligatoriskt i
+`CustomerApplicationRequest.customer_portal_user_id` och
+`CustomerApplicationRequest.auth_user_id`. Webbflödet stoppar därför anonym
+submit och återför kunden till den bevarade offerten efter inloggning eller
+registrering.
+
+För efterföljande kundportalanrop kommer portalidentiteten från samma verifierade
+Supabase-session. UUID:t skickas i både `x-gridex-customer-portal-user-id` och
 `x-gridex-auth-user-id`, och i sync-body som `customer_portal_user_id` respektive
 `auth_user_id`. `external_customer_id` är en stabil extern identitet och får inte
 ersättas med kundnummer; kundnummer skickas separat när det finns.

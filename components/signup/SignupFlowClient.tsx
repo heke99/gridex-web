@@ -28,6 +28,8 @@ type Props = {
   initialSelectedValue: string;
   initialCustomerType?: WebsiteCustomerType;
   authenticatedEmail?: string | null;
+  authenticationRequired?: boolean;
+  authenticationReturnPath?: string;
   canSubmit: boolean;
   utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string };
   action: (state: SignupSubmissionState, formData: FormData) => Promise<SignupSubmissionState>;
@@ -40,6 +42,8 @@ export default function SignupFlowClient({
   initialSelectedValue,
   initialCustomerType = "private",
   authenticatedEmail,
+  authenticationRequired = false,
+  authenticationReturnPath = '/teckna-avtal',
   canSubmit,
   utm,
   action,
@@ -150,6 +154,8 @@ export default function SignupFlowClient({
             selectedValue={selectedValue}
             customerType={customerType}
             authenticatedEmail={authenticatedEmail}
+            authenticationRequired={authenticationRequired}
+            authenticationReturnPath={authenticationReturnPath}
             canSubmit={canSubmit}
             utm={utm}
             action={action}

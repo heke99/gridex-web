@@ -116,7 +116,13 @@ assert.ok(customerPortalOpenApi.paths['/api/v1/customer/notifications/read'].pos
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer/profile-update'].post)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer-portal/sync'].post)
 assert.ok(!customerPortalOpenApi.paths['/customer/portal-bundle'])
-assert.ok(!JSON.stringify(customerPortalOpenApi).includes('customer_portal.read'))
+assert.equal(customerPortalOpenApi['x-scope-aliases']['customer_portal.read'].status, 'deprecated_legacy_alias')
+for (const pathItem of Object.values(customerPortalOpenApi.paths)) {
+  for (const operation of Object.values(pathItem)) {
+    if (!operation || typeof operation !== 'object') continue
+    assert.ok(!(operation['x-required-scopes'] ?? []).includes('customer_portal.read'))
+  }
+}
 assert.deepEqual(
   customerPortalOpenApi.paths['/api/v1/customer/profile-update'].post['x-required-scopes'],
   ['customer_contact.write', 'customer_facility_data.write'],
@@ -161,6 +167,8 @@ assert.ok('metering_point' in applicationSchema.properties)
 assert.ok(!('source' in applicationSchema.properties))
 assert.ok('customer_portal_user_id' in applicationSchema.properties)
 assert.ok('auth_user_id' in applicationSchema.properties)
+assert.ok(applicationSchema.required.includes('customer_portal_user_id'))
+assert.ok(applicationSchema.required.includes('auth_user_id'))
 assert.ok(applicationSchema.required.includes('legal_bundle_version'))
 assert.ok(applicationSchema.required.includes('legal_acceptances'))
 assert.equal(websiteOpenApi.components.schemas.LegalAcceptances.type, 'array')
@@ -201,6 +209,8 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
   resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
   annual_consumption_kwh: 5000,
   start_date: '2026-09-01',
+  customer_portal_user_id: '11111111-1111-4111-8111-111111111111',
+  auth_user_id: '11111111-1111-4111-8111-111111111111',
   customer: {
     customer_type: 'private',
     first_name: 'Test',
@@ -249,8 +259,8 @@ assert.equal(applicationPayload.site.price_area_code, 'SE3')
 assert.equal(applicationPayload.site.annual_consumption_kwh, 5000)
 assert.deepEqual(applicationPayload.metering_point, { metering_point_id: '735999123456789012' })
 assert.equal('source' in applicationPayload, false)
-assert.equal('auth_user_id' in applicationPayload, false)
-assert.equal('customer_portal_user_id' in applicationPayload, false)
+assert.equal(applicationPayload.auth_user_id, '11111111-1111-4111-8111-111111111111')
+assert.equal(applicationPayload.customer_portal_user_id, '11111111-1111-4111-8111-111111111111')
 assert.equal('metering_point_id' in applicationPayload.site, false)
 assert.equal('current_supplier_id' in applicationPayload.site, false)
 assert.equal('offer_reference' in applicationPayload.contract, false)
@@ -264,5 +274,55 @@ assert.deepEqual(applicationPayload.legal_acceptances, [{
   accepted: true,
   accepted_at: '2026-07-30T12:00:00.000Z',
 }])
+
+const baseApplicationInput = {
+  external_customer_id: 'tenant-customer-identity-test',
+  offer_reference: 'offer_test',
+  quote_reference: 'quote_test',
+  price_option_reference: 'price_option_test',
+  invoice_delivery_method: 'email',
+  selected_component_references: [],
+  site_count: 1,
+  resolution_id: 'f8249704-7ce8-4885-93cb-fbb9922ed77d',
+  annual_consumption_kwh: 5000,
+  start_date: '2026-09-01',
+  customer: { customer_type: 'private', personal_number: '199001011234', email: 'test@example.se', phone: '0700000000' },
+  site: { street: 'Testgatan 1', postal_code: '58200', city: 'Linköping', country: 'SE', price_area_code: 'SE3', grid_area_code: 'GRID-1' },
+  contract: { requested_start_mode: 'specific_date', requested_start_date: '2026-09-01' },
+  idempotency_key: 'identity-test',
+  legal_bundle_version: 'f8249704-7ce8-4885-93cb-fbb9922ed77f',
+  legal_acceptances: [{
+    requirement_code: 'general_consumer_terms',
+    document_reference: 'f8249704-7ce8-4885-93cb-fbb9922ed780',
+    document_version: '1',
+    document_hash: 'a'.repeat(64),
+    accepted: true,
+    accepted_at: '2026-07-30T12:00:00.000Z',
+  }],
+}
+assert.throws(
+  () => buildOpsCustomerApplicationPayload({
+    ...baseApplicationInput,
+    customer_portal_user_id: '',
+    auth_user_id: '',
+  }),
+  (error) => error?.code === 'customer_portal_identity_required',
+)
+assert.throws(
+  () => buildOpsCustomerApplicationPayload({
+    ...baseApplicationInput,
+    customer_portal_user_id: '11111111-1111-4111-8111-111111111111',
+    auth_user_id: '22222222-2222-4222-8222-222222222222',
+  }),
+  (error) => error?.code === 'customer_portal_identity_mismatch',
+)
+assert.throws(
+  () => buildOpsCustomerApplicationPayload({
+    ...baseApplicationInput,
+    customer_portal_user_id: 'not-a-uuid',
+    auth_user_id: 'not-a-uuid',
+  }),
+  (error) => error?.code === 'customer_portal_identity_invalid',
+)
 
 console.log(`Website API contract tests passed (${contractVersion})`)

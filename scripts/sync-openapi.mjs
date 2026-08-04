@@ -140,6 +140,11 @@ try {
   )
   nextContractSource = replaceContractConstant(
     nextContractSource,
+    'GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION',
+    releaseManifest.minimum_tenant_integration_version,
+  )
+  nextContractSource = replaceContractConstant(
+    nextContractSource,
     'GRIDEX_WEBSITE_OPENAPI_SHA256',
     websiteSpecification.sha256,
   )

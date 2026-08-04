@@ -42,6 +42,8 @@ type Props = {
   customerType: WebsiteCustomerType;
   canSubmit: boolean;
   authenticatedEmail?: string | null;
+  authenticationRequired?: boolean;
+  authenticationReturnPath?: string;
   utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string };
   action: (state: SignupSubmissionState, formData: FormData) => Promise<SignupSubmissionState>;
   energyResolution?: WebsiteEnergyResolution | null;
@@ -206,6 +208,8 @@ export default function CustomerApplicationForm({
   customerType,
   canSubmit,
   authenticatedEmail,
+  authenticationRequired = false,
+  authenticationReturnPath = '/teckna-avtal',
   utm,
   action,
   energyResolution,
@@ -419,6 +423,29 @@ export default function CustomerApplicationForm({
         </div>
       ) : null}
 
+      {authenticationRequired ? (
+        <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-sm text-cyan-50" role="status">
+          <div className="font-semibold">Verifierat konto krävs för att teckna</div>
+          <p className="mt-2 leading-6 text-cyan-50/80">
+            Den aktuella Gridex-API-versionen kräver att ansökan kopplas till samma verifierade användare i Mina sidor redan när avtalet skickas. Din valda offert bevaras när du loggar in.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href={`/login?next=${encodeURIComponent(authenticationReturnPath)}`}
+              className="inline-flex rounded-xl bg-cyan-400 px-4 py-2 font-semibold text-black transition hover:bg-cyan-300"
+            >
+              Logga in och fortsätt
+            </Link>
+            <Link
+              href={`/register?next=${encodeURIComponent(authenticationReturnPath)}`}
+              className="inline-flex rounded-xl border border-cyan-200/30 px-4 py-2 font-semibold text-cyan-50 transition hover:bg-white/10"
+            >
+              Skapa konto
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {!quoteValid ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="status">
           Prisberäkningen behöver hämtas på nytt ovan. Dina ifyllda kunduppgifter ligger kvar i den här fliken.
@@ -512,7 +539,7 @@ export default function CustomerApplicationForm({
           {authenticatedEmailMismatch ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               <div className="font-semibold">Du är inloggad med {authenticatedEmail}</div>
-              <p className="mt-1">Teckningen använder {form.email}. Den kopplas därför inte automatiskt till det inloggade kontot.</p>
+              <p className="mt-1">Teckningen använder {form.email}, men ansökan och Mina sidor kopplas fortfarande till det verifierade konto du är inloggad med.</p>
               <label className="mt-3 flex items-start gap-3">
                 <input type="checkbox" checked={differentEmailConfirmed} onChange={(event) => { rotateSubmissionAttempt(); setDifferentEmailConfirmed(event.target.checked); }} className="mt-1 h-4 w-4" />
                 <span>Jag vill fortsätta med den andra e-postadressen.</span>

@@ -3,6 +3,7 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { syncConfirmedUserProfileDurably } from '@/lib/customerPortal/authProfileSync'
 import { resumePortalOnboardingForConfirmedUser } from '@/lib/customerPortal/onboarding'
+import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 const ALLOWED_TYPES = new Set<EmailOtpType>([
   'email',
@@ -10,17 +11,6 @@ const ALLOWED_TYPES = new Set<EmailOtpType>([
   'invite',
   'email_change',
 ])
-
-function safeNext(value: string | null, fallback: string): string {
-  if (!value) return fallback
-
-  const normalized = value.trim()
-
-  if (!normalized.startsWith('/')) return fallback
-  if (normalized.startsWith('//')) return fallback
-
-  return normalized
-}
 
 function fallbackForType(type: EmailOtpType): string {
   switch (type) {
@@ -49,7 +39,7 @@ export async function GET(request: NextRequest) {
   }
 
   const type = typeParam as EmailOtpType
-  const next = safeNext(searchParams.get('next'), fallbackForType(type))
+  const next = safeRedirectPath(searchParams.get('next'), fallbackForType(type))
   const supabase = await createSupabaseServerActionClient()
 
   const { error } = await supabase.auth.verifyOtp({

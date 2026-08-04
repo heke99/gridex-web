@@ -305,12 +305,22 @@ assert.ok(
 assertIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "customer_portal_user_id: linkedAuthUserId",
-  "logged-in signup must forward the server-verified portal identity when the OPS contract supports it",
+  "signup must always forward the server-verified portal identity",
+);
+assertIncludes(
+  "app/(public)/teckna-avtal/page.tsx",
+  "return fail('portal_auth_required'",
+  "anonymous signup must fail before an OPS customer application is built",
+);
+assertIncludes(
+  "components/signup/CustomerApplicationForm.tsx",
+  "Logga in och fortsätt",
+  "anonymous customers must receive an explicit authentication path",
 );
 assertIncludes(
   "lib/ops/client.ts",
   "ops_customer_application_portal_identity_contract_unsupported",
-  "signup must fail closed while the OPS schema forbids the documented portal identity fields",
+  "signup must fail closed if the OPS schema drops the required portal identity contract",
 );
 assertIncludes(
   "app/api/web/customer/portal-bundle/route.ts",

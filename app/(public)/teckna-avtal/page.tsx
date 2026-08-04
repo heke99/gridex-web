@@ -190,6 +190,8 @@ function errorText(code?: string) {
       return "Teckning online är inte aktiverad just nu.";
     case "ops_auth":
       return "Teckningen är inte rätt kopplad just nu. Kontakta kundservice så hjälper vi dig.";
+    case "portal_auth_required":
+      return "Du behöver logga in eller skapa ett verifierat konto innan elavtalet kan tecknas.";
     case "ops_validation":
       return "Vi kunde inte skicka teckningen just nu. Kontrollera att uppgifterna är ifyllda och försök igen.";
     case "idempotency_retry_failed":
@@ -340,7 +342,8 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     application_number: context.applicationNumber || null,
   });
 
-  if (/ops_customer_application_portal_identity_contract_unsupported/i.test(context.code))
+  if (/customer_portal_identity_required/i.test(context.code)) return "portal_auth_required";
+  if (/customer_portal_identity_(invalid|mismatch)|ops_customer_application_portal_identity_contract_unsupported/i.test(context.code))
     return "portal_contract";
   if (error.status === 503) return "live_disabled";
   if (error.status === 401) return "ops_auth";
@@ -543,6 +546,7 @@ export default async function TecknaPage({
   const signupOptions = contracts.map(toSignupContractOption);
   const selectedValue = selectedContract?.offer_reference ?? "";
   const currentAuth = await getCurrentPortalAuth();
+  const signupReturnPath = `/teckna-avtal${params.checkout ? `?checkout=${encodeURIComponent(params.checkout)}` : params.offer ? `?offer=${encodeURIComponent(params.offer)}` : ''}`;
   const pageError =
     errorText(params.error) ??
     (params.checkout && !checkoutContext
@@ -554,7 +558,8 @@ export default async function TecknaPage({
     status.configured &&
     status.liveSignupEnabled &&
     !loadError &&
-    contracts.length > 0;
+    contracts.length > 0 &&
+    currentAuth !== null;
 
   async function submitApplicationAction(
     _previousState: SignupSubmissionState,
@@ -789,6 +794,14 @@ export default async function TecknaPage({
     }
 
     const currentAuth = await getCurrentPortalAuth();
+    if (!currentAuth) {
+      return fail('portal_auth_required', {
+        step: 0,
+        fieldErrors: {
+          form: 'Logga in eller skapa ett verifierat konto innan du fortsätter.',
+        },
+      });
+    }
     const authenticatedEmailMismatch = Boolean(
       currentAuth?.email && !sameEmail(currentAuth.email, email),
     );
@@ -950,10 +963,9 @@ export default async function TecknaPage({
 
     const idempotencyKey = `website-application:${submissionAttemptId}`;
     const externalApplicationId = createExternalApplicationId(submissionAttemptId);
-    const canLinkCurrentAuth = !authenticatedEmailMismatch;
-    const linkedAuthUserId = canLinkCurrentAuth ? (currentAuth?.id ?? null) : null;
+    const linkedAuthUserId = currentAuth.id;
     const externalCustomerId =
-      (canLinkCurrentAuth ? currentAuth?.externalCustomerId : null) ??
+      currentAuth.externalCustomerId ??
       createExternalCustomerId([
         "gridex_website_customer_v2",
         customerType,
@@ -1165,12 +1177,8 @@ export default async function TecknaPage({
             ? verifiedQuote.value.quote.start_date
             : null,
       },
-      ...(linkedAuthUserId
-        ? {
-            customer_portal_user_id: linkedAuthUserId,
-            auth_user_id: linkedAuthUserId,
-          }
-        : {}),
+      customer_portal_user_id: linkedAuthUserId,
+      auth_user_id: linkedAuthUserId,
       idempotency_key: idempotencyKey,
       legal_bundle_version: legalBundleVersion,
       legal_acceptances: legalRequirements.flatMap((requirement) => {
@@ -1477,6 +1485,8 @@ export default async function TecknaPage({
         initialSelectedValue={selectedValue}
         initialCustomerType={checkoutContextUsable?.customerType ?? "private"}
         authenticatedEmail={currentAuth?.email ?? null}
+        authenticationRequired={currentAuth === null}
+        authenticationReturnPath={signupReturnPath}
         canSubmit={canSubmit}
         utm={{
           utm_source: params.utm_source,

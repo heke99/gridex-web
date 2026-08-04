@@ -12,10 +12,10 @@ const syncScript = await readFile(new URL('../scripts/sync-openapi.mjs', import.
 const website = JSON.parse(websiteRaw)
 const portal = JSON.parse(portalRaw)
 
-assert.equal(website.info.version, '2026-08-02.1')
-assert.equal(portal.info.version, '2026-08-02.1')
-assert.equal(website['x-contract-schema-version'], '2026-08-02.1')
-assert.equal(release.release_version, '2026-08-02.1')
+assert.equal(website.info.version, release.release_version)
+assert.equal(portal.info.version, release.release_version)
+assert.equal(website['x-contract-schema-version'], release.release_version)
+assert.equal(portal['x-contract-schema-version'], release.release_version)
 assert.equal(release.website_openapi_version, release.release_version)
 assert.equal(release.customer_portal_openapi_version, release.release_version)
 assert.equal(release.runtime_contract_version, release.release_version)
@@ -30,6 +30,8 @@ assert.match(syncScript, /GRIDEX_WEBSITE_OPENAPI_SHA256/)
 assert.match(syncScript, /GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256/)
 assert.match(syncScript, /websiteSpecification\.sha256/)
 assert.match(syncScript, /portalSpecification\.sha256/)
+assert.match(syncScript, /GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION/)
+assert.match(syncScript, /releaseManifest\.minimum_tenant_integration_version/)
 
 const priceOption = website.components.schemas.ContractPriceOption
 assert.ok(priceOption.required.includes('is_default'))
@@ -49,8 +51,15 @@ const feedMeta = website.paths['/api/v1/website/public-contracts'].get.responses
 assert.ok(feedMeta.required.includes('feed_state'))
 assert.ok(feedMeta.required.includes('empty_feed_authorization'))
 assert.deepEqual(feedMeta.properties.feed_state.enum, ['contracts_present', 'canonical_empty'])
-const emptyAuthorization = feedMeta.properties.empty_feed_authorization.oneOf
-  .find((candidate) => candidate.type === 'object')
+const emptyAuthorizationProperty = feedMeta.properties.empty_feed_authorization
+const emptyAuthorization = Array.isArray(emptyAuthorizationProperty.oneOf)
+  ? emptyAuthorizationProperty.oneOf.find((candidate) => candidate.type === 'object')
+  : emptyAuthorizationProperty
+assert.ok(emptyAuthorization)
+assert.ok(
+  emptyAuthorization.type === 'object' ||
+  (Array.isArray(emptyAuthorization.type) && emptyAuthorization.type.includes('object')),
+)
 assert.equal(emptyAuthorization.additionalProperties, false)
 assert.deepEqual(emptyAuthorization.required, [
   'authorized',

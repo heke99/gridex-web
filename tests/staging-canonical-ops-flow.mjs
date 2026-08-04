@@ -12,6 +12,7 @@ import {
   submitOpsCustomerApplication,
   validateOpsWebsiteQuote,
 } from '../lib/ops/client.ts'
+import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from '../lib/ops/contract.ts'
 
 const fixturePath = process.env.GRIDEX_STAGING_E2E_FIXTURE?.trim()
 if (!process.env.GRIDEX_API_KEY?.trim()) {
@@ -31,7 +32,7 @@ const annualConsumptionKwh = Number(fixture.annual_consumption_kwh)
 assert.ok(Number.isFinite(annualConsumptionKwh) && annualConsumptionKwh > 0)
 
 const context = await fetchOpsIntegrationContext(true)
-assert.equal(context.contract_version, '2026-08-02.1')
+assert.equal(context.contract_version, GRIDEX_WEBSITE_API_CONTRACT_VERSION)
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
 assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
@@ -106,6 +107,7 @@ assert.equal(validation.valid, true)
 assert.equal(validation.quote_reference, quote.ops_quote_reference)
 
 const idempotencyKey = requiredText('idempotency_key')
+const portalUserId = requiredText('portal_user_id')
 const applicationInput = {
   external_customer_id: requiredText('external_customer_id'),
   offer_reference: offerReference,
@@ -130,6 +132,8 @@ const applicationInput = {
   },
   legal_bundle_version: requiredText('legal_bundle_version'),
   legal_acceptances: fixture.legal_acceptances,
+  customer_portal_user_id: portalUserId,
+  auth_user_id: portalUserId,
   powerOfAttorney: fixture.powerOfAttorney ?? null,
   idempotency_key: idempotencyKey,
 }
@@ -146,16 +150,13 @@ assert.equal(second.workflow_id, first.workflow_id)
 const status = await fetchOpsWebsiteApplicationStatus(first.application_number)
 assert.equal(status.application_number, first.application_number)
 
-let portal = null
-if (fixture.portal_user_id) {
-  portal = await fetchOpsCustomerPortalBundle({
-    userId: fixture.portal_user_id,
-    email: fixture.customer?.email ?? null,
-    customerNumber: first.customer_number ?? null,
-    externalCustomerId: applicationInput.external_customer_id,
-  })
-  assert.ok(portal && typeof portal === 'object')
-}
+const portal = await fetchOpsCustomerPortalBundle({
+  userId: portalUserId,
+  email: fixture.customer?.email ?? null,
+  customerNumber: first.customer_number ?? null,
+  externalCustomerId: applicationInput.external_customer_id,
+})
+assert.ok(portal && typeof portal === 'object')
 
 console.log(JSON.stringify({
   tenant_reference: context.tenant_reference,

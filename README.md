@@ -153,7 +153,7 @@ npm run build
 npm run api:preflight
 ```
 
-Staging-E2E kräver en godkänd testnyckel och en git-ignorerad fixture:
+Staging-E2E kräver en godkänd testnyckel och en git-ignorerad fixture. Fixturen måste innehålla `portal_user_id` som ett verifierat Supabase Auth-UUID; samma UUID skickas som både `customer_portal_user_id` och `auth_user_id` i kundansökan:
 
 ```bash
 GRIDEX_API_KEY='gridex_test_xxxxxxxxx' \

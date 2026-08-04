@@ -6,6 +6,7 @@ import {
 } from '../lib/ops/client.ts'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
+import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from '../lib/ops/contract.ts'
 
 
 const TEST_PRICE_OPTION = {
@@ -27,7 +28,7 @@ const PRODUCTION_PRICE_OPTION = {
   resolution: 'quarterly',
 }
 
-const CONTRACT_VERSION = '2026-08-02.1'
+const CONTRACT_VERSION = GRIDEX_WEBSITE_API_CONTRACT_VERSION
 const BASE_URL = 'https://app.gridex.se/api/v1'
 const TENANT_REFERENCE = 'tenant_runtime_test'
 

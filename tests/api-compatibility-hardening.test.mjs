@@ -63,8 +63,12 @@ assert.ok(!portfolioRoute.includes("price_area_code')"), 'portfolio BFF must acc
 
 assert.match(signup, /customer_portal_user_id:\s*linkedAuthUserId/, 'authenticated signup must propagate verified portal identity')
 assert.match(signup, /auth_user_id:\s*linkedAuthUserId/, 'authenticated signup must propagate verified auth identity')
-assert.match(client, /ops_customer_application_portal_identity_contract_unsupported/, 'signup must fail closed if a future OPS schema drops identity fields')
-assert.match(client, /customerPortalUserId\) !== Boolean\(authUserId\).*customerPortalUserId !== authUserId/s, 'identity fields must be equal')
+assert.match(client, /ops_customer_application_portal_identity_contract_unsupported/, 'signup must fail closed if a future OPS schema drops or makes identity fields optional')
+assert.match(client, /websiteSchemaRequiresProperty\('CustomerApplicationRequest', 'customer_portal_user_id'\)/, 'signup must require portal identity in the OpenAPI required list')
+assert.match(client, /websiteSchemaRequiresProperty\('CustomerApplicationRequest', 'auth_user_id'\)/, 'signup must require auth identity in the OpenAPI required list')
+assert.match(client, /if \(!customerPortalUserId \|\| !authUserId\)/, 'both identity fields must be required')
+assert.match(client, /uuidPattern\.test\(customerPortalUserId\).*uuidPattern\.test\(authUserId\)/s, 'identity fields must be valid UUID values')
+assert.match(client, /if \(customerPortalUserId !== authUserId\)/, 'identity fields must be equal')
 
 assert.match(validators, /assertWebsiteOperationRequest/, 'website operation requests must be validated')
 assert.match(validators, /assertWebsiteOperationResponse/, 'website operation responses must be validated')

@@ -70,6 +70,12 @@ export async function fetchReleaseManifest() {
   ) {
     throw new Error('OpenAPI release manifest contains mixed contract versions')
   }
+  if (
+    typeof manifest?.minimum_tenant_integration_version !== 'string' ||
+    !manifest.minimum_tenant_integration_version.trim()
+  ) {
+    throw new Error('OpenAPI release manifest is missing minimum_tenant_integration_version')
+  }
   for (const key of ['website', 'customer_portal']) {
     const specification = manifest?.specifications?.[key]
     if (

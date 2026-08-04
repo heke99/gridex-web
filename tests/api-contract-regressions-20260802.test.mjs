@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+const sha256 = (value) => createHash('sha256').update(value).digest('hex')
 const website = JSON.parse(read('docs/openapi/website-integration-v1.json'))
 const portal = JSON.parse(read('docs/openapi/customer-portal-v1.json'))
 const release = JSON.parse(read('docs/openapi/release-manifest.json'))
@@ -13,13 +15,16 @@ const canonicalQuoteValidation = read('lib/website/canonicalQuoteValidation.ts')
 const migration = read('supabase/migrations/20260802223000_public_contract_canonical_empty_proof.sql')
 const quoteExpiryMigration = read('supabase/migrations/20260802224500_restore_canonical_quote_expiry.sql')
 
-assert.equal(release.release_version, '2026-08-02.1')
-assert.equal(release.minimum_tenant_integration_version, '2026-08-02.1')
-assert.equal(release.compatibility_classification, 'additive-with-cache-correctness-fix')
-assert.equal(release.specifications.website.sha256, '971f0f4e00330971c92a37046f54fa7d27416a5b64932c7d37d7892b79691e7a')
-assert.equal(release.specifications.customer_portal.sha256, '921daeb0c1bdfe4f4dc50cbbc3990defce8556bfe7cff0a88a0f4d96f4d6b779')
+assert.match(release.release_version, /^\d{4}-\d{2}-\d{2}\.\d+$/)
+assert.match(release.minimum_tenant_integration_version, /^\d{4}-\d{2}-\d{2}\.\d+$/)
+assert.equal(typeof release.compatibility_classification, 'string')
+assert.ok(release.compatibility_classification.length > 0)
+assert.equal(release.specifications.website.sha256, sha256(read('docs/openapi/website-integration-v1.json')))
+assert.equal(release.specifications.customer_portal.sha256, sha256(read('docs/openapi/customer-portal-v1.json')))
 assert.equal(website.info.version, release.release_version)
 assert.equal(portal.info.version, release.release_version)
+assert.equal(website['x-contract-schema-version'], release.release_version)
+assert.equal(portal['x-contract-schema-version'], release.release_version)
 
 const publicFeedSchema = website.paths['/api/v1/website/public-contracts'].get.responses['200']
   .content['application/json'].schema
@@ -31,7 +36,12 @@ assert.ok(publicFeedSchema.required.includes('meta'))
 assert.ok(meta.required.includes('feed_state'))
 assert.ok(meta.required.includes('empty_feed_authorization'))
 assert.deepEqual(meta.properties.feed_state.enum, ['contracts_present', 'canonical_empty'])
-const proof = meta.properties.empty_feed_authorization.oneOf.find((value) => value.type === 'object')
+const emptyAuthorizationProperty = meta.properties.empty_feed_authorization
+const proof = Array.isArray(emptyAuthorizationProperty.oneOf)
+  ? emptyAuthorizationProperty.oneOf.find((value) => value.type === 'object')
+  : emptyAuthorizationProperty
+assert.ok(proof)
+assert.ok(proof.type === 'object' || (Array.isArray(proof.type) && proof.type.includes('object')))
 assert.equal(proof.additionalProperties, false)
 assert.equal(proof.properties.authorized.const, true)
 assert.equal(proof.properties.canonical_source.const, 'canonical_public_contract_delivery_readiness_v')

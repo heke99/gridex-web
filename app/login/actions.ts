@@ -2,17 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-
-function safeNext(next?: string | null): string {
-  if (!next) return '/mina-sidor'
-
-  const normalized = String(next).trim()
-
-  if (!normalized.startsWith('/')) return '/mina-sidor'
-  if (normalized.startsWith('//')) return '/mina-sidor'
-
-  return normalized
-}
+import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 function normalizeEmail(v: string): string {
   return v.trim().toLowerCase()
@@ -34,7 +24,7 @@ function isAdminRole(role: string): boolean {
 export async function loginWithPassword(formData: FormData) {
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
-  const next = safeNext(String(formData.get('next') || '') || '/mina-sidor')
+  const next = safeRedirectPath(String(formData.get('next') || ''), '/mina-sidor')
 
   if (!email || !looksLikeEmail(email) || !password) {
     redirect(
