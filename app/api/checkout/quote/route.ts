@@ -23,7 +23,12 @@ import {
   stockholmCalendarDate,
 } from '@/lib/website/businessDate'
 import { readWebJson } from '@/lib/api/webBoundary'
-import { selectPublicContractPriceOption } from '@/lib/website/publicContractContract'
+import { selectAutomaticPublicContractPriceOption } from '@/lib/website/publicContractContract'
+import {
+  GRIDEX_FALLBACK_INVOICE_DELIVERY_METHOD,
+  GRIDEX_WEBSITE_SITE_COUNT,
+  gridexWebsiteSelectedComponentReferences,
+} from '@/lib/website/checkoutPolicy'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -65,27 +70,6 @@ function requestedPriceArea(value: unknown): OpsWebsitePriceArea | null {
   return AREAS.has(area as OpsWebsitePriceArea) ? area as OpsWebsitePriceArea : null
 }
 
-function invoiceDeliveryMethod(value: unknown) {
-  return value === 'email' || value === 'e_invoice' || value === 'paper' || value === 'direct_debit'
-    ? value
-    : null
-}
-
-function componentReferences(value: unknown): string[] | null {
-  if (!Array.isArray(value) || value.length > 100) return null
-  const references = value.map((item) => text(item, 160))
-  if (
-    references.some((item) => !item || !/^[a-z0-9][a-z0-9_-]{2,159}$/i.test(item)) ||
-    new Set(references).size !== references.length
-  ) return null
-  return references as string[]
-}
-
-function siteCount(value: unknown): number | null {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1_000 ? parsed : null
-}
-
 export async function POST(req: Request) {
   const requestId = globalThis.crypto.randomUUID()
   const rateLimit = await checkRateLimit(
@@ -122,17 +106,11 @@ export async function POST(req: Request) {
   const customerType = parseWebsiteCustomerType(body?.customer_type)
   const areaToken = text(body?.resolution_token, 12_000)
   const claimedArea = requestedPriceArea(body?.price_area_code)
-  const requestedPriceOption = text(body?.price_option_reference, 100)
-  const requestedInvoiceMethod =
-    body?.invoice_delivery_method === undefined
-      ? 'email'
-      : invoiceDeliveryMethod(body.invoice_delivery_method)
-  const requestedComponents =
-    body?.selected_component_references === undefined
-      ? []
-      : componentReferences(body.selected_component_references)
-  const requestedSiteCount =
-    body?.site_count === undefined ? 1 : siteCount(body.site_count)
+  // Commercial defaults are server-owned. Values supplied by the browser are
+  // intentionally ignored so the customer cannot override OPS/Gridex policy.
+  const requestedInvoiceMethod = GRIDEX_FALLBACK_INVOICE_DELIVERY_METHOD
+  const requestedComponents = gridexWebsiteSelectedComponentReferences()
+  const requestedSiteCount = GRIDEX_WEBSITE_SITE_COUNT
 
   if (!customerType) {
     return NextResponse.json({ error: { code: 'validation_error', field: 'customer_type', message: 'customer_type måste vara private eller business.' } }, { status: 400 })
@@ -143,7 +121,7 @@ export async function POST(req: Request) {
   if (!quoteAttemptId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quoteAttemptId)) {
     return NextResponse.json({ error: { code: 'validation_error', field: 'quote_attempt_id', message: 'quote_attempt_id måste vara ett giltigt UUID.' } }, { status: 400 })
   }
-  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !areaToken || !isStrictCalendarDate(canonicalStartDate) || !requestedInvoiceMethod || !requestedComponents || !requestedSiteCount) {
+  if (!monthlyKwh || !annualKwh || !postalCode || !/^\d{5}$/.test(postalCode) || !city || !address || !offerReference || !areaToken || !isStrictCalendarDate(canonicalStartDate)) {
     return NextResponse.json({ error: 'Adress, avtal, förbrukning och verifierat elområde krävs.' }, { status: 400 })
   }
 
@@ -159,7 +137,7 @@ export async function POST(req: Request) {
     if (verifiedArea.payload.quote_ready !== true) {
       return NextResponse.json(
         {
-          error: 'Elområdet är identifierat, men en offert kan inte skapas just nu.',
+          error: 'Elområdet är identifierat, men prisunderlaget kan inte skapas just nu.',
           code: 'resolution_quote_not_ready',
           request_id: requestId,
         },
@@ -172,21 +150,20 @@ export async function POST(req: Request) {
     if (!contract || !buildPublicContractDisplay(contract).onlineReady) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
     }
-    const priceOptionSelection = selectPublicContractPriceOption({
+    const priceOptionSelection = selectAutomaticPublicContractPriceOption({
       options: contract.price_options ?? [],
       customer_type: customerType,
       price_area_code: verifiedArea.payload.price_area_code,
       start_date: canonicalStartDate,
-      selected_reference: requestedPriceOption,
     })
     if (priceOptionSelection.status !== 'selected') {
       return NextResponse.json(
         {
           error: priceOptionSelection.status === 'selection_required'
-            ? 'Välj ett giltigt prisalternativ innan priset hämtas.'
+            ? 'OPS måste ange exakt ett standardprisalternativ för kundtyp, elområde och startdatum.'
             : 'Inget giltigt prisalternativ finns för kundtyp, elområde och startdatum.',
           code: priceOptionSelection.status === 'selection_required'
-            ? 'price_option_selection_required'
+            ? 'price_option_default_missing'
             : 'price_option_invalid',
         },
         { status: 409 },
@@ -292,7 +269,7 @@ export async function POST(req: Request) {
     const publicMessage = publicCode === 'resolution_pricing_not_ready'
       ? 'Adressen behöver kompletteras eller kontrolleras innan priset kan hämtas.'
       : publicCode === 'resolution_quote_not_ready'
-        ? 'Elområdet är identifierat, men en offert kan inte skapas just nu.'
+        ? 'Elområdet är identifierat, men prisunderlaget kan inte skapas just nu.'
         : publicCode === 'resolution_expired'
           ? 'Adresskontrollen har löpt ut. Kontrollera adressen igen.'
           : publicCode === 'resolution_not_found'

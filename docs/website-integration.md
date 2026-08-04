@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-08-02.1`.
+Canonical kontraktsversion: `2026-08-04.1`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -49,13 +49,13 @@ integration/context
 → customer-applications
 ```
 
-Kundens val av `price_option_reference`, canonical
-`area_price_reference`, `invoice_delivery_method`,
-`selected_component_references` och `site_count` verifieras mot det publicerade
-avtalet, skickas till OPS och binds i webbens signerade offerttoken. OPS quote
-måste returnera samma canonical referenser och samma echoed input som kunden
-valde. Checkout återskapar valen från den signerade serverkontexten, inte från
-ändringsbara formulärfält.
+Kunden väljer inte `price_option_reference`, `invoice_delivery_method`,
+`selected_component_references` eller `site_count`. Webbservern väljer exakt ett
+OPS-publicerat standardprisalternativ, skickar inga kundvalda pristillägg och
+låser `site_count=1`. Fakturering styrs av Gridex policy: Kivra prövas först i
+downstream billing och nuvarande OPS-API representerar fallbacken som
+`invoice_delivery_method=e_invoice`. Alla serverägda värden binds i den
+signerade pris-tokenen och återanvänds oförändrade i kundansökan.
 
 Webbens resolver använder `resolution_id`, `price_area`, `grid_area_code` och
 `grid_owner_name` från OPS. Resolverkontraktet publicerar inte ett internt
@@ -65,7 +65,7 @@ OPS löser intern nätägare från canonical `grid_area_code` när ansökan beha
 ## Quote-giltighet, startdatum och idempotency
 
 `valid_until` är ett obligatoriskt canonical response-fält i API-version
-`2026-08-02.1`. Webben kräver ett giltigt date-time-värde i quote- och
+`2026-08-04.1`. Webben kräver ett giltigt date-time-värde i quote- och
 quote-validation-svaret och bevarar det i snapshoten. Kundgränssnittet använder
 inte en egen lokal nedräkning som ensam affärsregel; OPS quote-validation,
 teckningsbarhet, revocation och konsumtionsstatus är auktoritativa vid submit.
@@ -81,8 +81,8 @@ Giltighetskontrollen binder minst:
 
 Kunden väljer `earliest_possible` eller `specific_date` före prisberäkningen.
 Ogiltiga eller saknade canonical värden får aldrig normaliseras tyst. Ändrad
-kundtyp, resolution, avtal, prisalternativ, förbrukning eller startuppgift rensar
-den aktuella quoten och nästa aktiva klick skapar ett nytt `quote_attempt_id`.
+kundtyp, resolution, avtal, förbrukning eller startuppgift rensar den aktuella
+pris-tokenen och nästa aktiva klick skapar ett nytt `quote_attempt_id`.
 
 Quote-idempotency använder `quote_attempt_id` tillsammans med hash över den
 canonicala requesten. Samma tekniska retry återanvänder nyckeln; ett nytt

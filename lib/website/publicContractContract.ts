@@ -1100,6 +1100,35 @@ export function selectPublicContractPriceOption(input: {
   return { status: 'selection_required', option: null, area_price: null, options }
 }
 
+
+/**
+ * Resolve the one canonical price option configured by OPS without exposing a
+ * customer choice. Exactly one eligible option, or exactly one eligible
+ * `is_default` option, is required. Ambiguous OPS configuration fails closed.
+ */
+export function selectAutomaticPublicContractPriceOption(input: {
+  options: readonly PublicContractPriceOption[]
+  customer_type: 'private' | 'business'
+  price_area_code: 'SE1' | 'SE2' | 'SE3' | 'SE4'
+  start_date: string
+}): PublicPriceOptionSelection {
+  const initial = selectPublicContractPriceOption(input)
+  if (initial.status === 'selected' || initial.status === 'unavailable') return initial
+
+  const defaults = initial.options.filter((option) => option.is_default)
+  const automatic = defaults.length === 1
+    ? defaults[0]
+    : initial.options.length === 1
+      ? initial.options[0]
+      : null
+
+  if (!automatic) return initial
+  return selectPublicContractPriceOption({
+    ...input,
+    selected_reference: automatic.price_option_reference,
+  })
+}
+
 function pricingComponentSource(
   row: Record<string, unknown>,
   pricing: Record<string, unknown>,

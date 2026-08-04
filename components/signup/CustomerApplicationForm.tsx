@@ -427,7 +427,7 @@ export default function CustomerApplicationForm({
         <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-sm text-cyan-50" role="status">
           <div className="font-semibold">Verifierat konto krävs för att teckna</div>
           <p className="mt-2 leading-6 text-cyan-50/80">
-            Den aktuella Gridex-API-versionen kräver att ansökan kopplas till samma verifierade användare i Mina sidor redan när avtalet skickas. Din valda offert bevaras när du loggar in.
+            Den aktuella Gridex-API-versionen kräver att ansökan kopplas till samma verifierade användare i Mina sidor redan när avtalet skickas. Din påbörjade teckning bevaras när du loggar in.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
@@ -549,13 +549,13 @@ export default function CustomerApplicationForm({
           ) : null}
 
           <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-            <div className="text-sm font-semibold text-cyan-100">Startdatum låst i offerten</div>
+            <div className="text-sm font-semibold text-cyan-100">Önskad avtalsstart</div>
             <p className="mt-2 text-sm text-cyan-50/80">
               {quoteContext.requested_start_mode === 'specific_date'
                 ? `Valt startdatum: ${quoteContext.requested_start_date}`
                 : `Så snart som möjligt (bekräftat startdatum: ${pricingPreview?.start_date ?? 'verifieras av Gridex'})`}
             </p>
-            <p className="mt-2 text-xs leading-5 text-cyan-50/60">Ändra startvalet i prissteget för att skapa en ny signerad offert.</p>
+            <p className="mt-2 text-xs leading-5 text-cyan-50/60">Ändra startvalet i prissteget för att uppdatera det verifierade prisunderlaget.</p>
           </div>
 
           <details className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -647,7 +647,7 @@ export default function CustomerApplicationForm({
                   <ReviewRow label={selectedContract?.energyDirection === "production" ? "Produktionsunderlag" : "Förbrukningsunderlag"} value={selectedContract?.energyDirection === "production" ? "Angiven årsproduktion" : consumptionSourceLabel(quoteContext.consumption_profile)} />
                   <ReviewRow label="Beräkningsvärde" value={`${quoteContext.estimated_monthly_kwh.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kWh/mån`} />
                   {pricingPreview?.totalMonthlyCostInclVatSek != null ? <ReviewRow label="Beräknat inkl. moms" value={`${pricingPreview.totalMonthlyCostInclVatSek.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr/mån`} /> : null}
-                  {pricingPreview?.is_binding != null ? <ReviewRow label="Prisstatus" value={pricingPreview.is_binding ? 'Bindande offert' : 'Indikativ prisuppgift'} /> : null}
+                  {pricingPreview?.is_binding != null ? <ReviewRow label="Prisstatus" value={pricingPreview.is_binding ? 'Bindande pris' : 'Indikativ prisuppgift'} /> : null}
                   {pricingPreview?.source_period ? <ReviewRow label="Prisperiod" value={pricingPreview.source_period} /> : null}
                   {pricingPreview?.market_data_timestamp ? <ReviewRow label="Marknadsdata uppdaterad" value={new Date(pricingPreview.market_data_timestamp).toLocaleString('sv-SE')} /> : null}
                 </dl>

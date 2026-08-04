@@ -59,6 +59,7 @@ import {
 } from "@/lib/website/signupValidation";
 import { isStrictCalendarDate } from "@/lib/website/businessDate";
 import { parseRequestedStartSelection } from "@/lib/website/requestedStart";
+import { matchesGridexWebsiteCheckoutPolicy } from "@/lib/website/checkoutPolicy";
 import { checkoutFaqItems } from "@/lib/content/faq";
 import {
   consumptionProfileMatchesMonthlyKwh,
@@ -226,7 +227,7 @@ function errorText(code?: string) {
     case "resolution_expired":
       return "Adressen behöver kontrolleras igen innan avtalet kan tecknas.";
     case "quote_expired":
-      return "Offerten har löpt ut. Hämta ett nytt pris och granska uppgifterna igen.";
+      return "Prisunderlaget har löpt ut. Hämta priset på nytt och granska uppgifterna igen.";
     case "market_price_stale":
       return "Ett aktuellt marknadspris kan inte hämtas just nu.";
     case "missing_scope":
@@ -550,7 +551,7 @@ export default async function TecknaPage({
   const pageError =
     errorText(params.error) ??
     (params.checkout && !checkoutContext
-      ? "Checkout-länken kunde inte återställas. Din offert är inte tidsbegränsad; öppna prissteget igen för att återuppta teckningen."
+      ? "Checkout-länken kunde inte återställas. Öppna prissteget igen för att återuppta teckningen."
       : null) ??
     (checkoutContext && !restoredCheckoutContract ? errorText("price_changed") : null) ??
     (requestedOffer && !requestedOfferExists ? errorText("offer") : null);
@@ -913,6 +914,13 @@ export default async function TecknaPage({
         fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
       });
     }
+    if (!matchesGridexWebsiteCheckoutPolicy(verifiedQuote.value.quote)) {
+      return fail("price_changed", {
+        step: 0,
+        requiresQuoteRefresh: true,
+        fieldErrors: { pricing: "Prisunderlaget använder äldre val och behöver hämtas på nytt." },
+      });
+    }
     if (
       verifiedQuote.value.quote.legal_bundle_version &&
       verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersion
@@ -920,7 +928,7 @@ export default async function TecknaPage({
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Juridikpaketet har ändrats. Hämta offerten på nytt." },
+        fieldErrors: { pricing: "Juridikpaketet har ändrats. Hämta prisunderlaget på nytt." },
       });
     }
     if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
@@ -932,7 +940,7 @@ export default async function TecknaPage({
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Offerten stämmer inte med valt avtal. Hämta priset på nytt." },
+        fieldErrors: { pricing: "Prisunderlaget stämmer inte med valt avtal. Hämta priset på nytt." },
       });
     }
     const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
@@ -953,7 +961,7 @@ export default async function TecknaPage({
       return fail("price_changed", {
         step: 0,
         requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Uppgifterna stämmer inte med den signerade offerten. Hämta priset på nytt." },
+        fieldErrors: { pricing: "Uppgifterna stämmer inte med det verifierade prisunderlaget. Hämta priset på nytt." },
       });
     }
     const canonicalPricingPreviewSnapshot: Record<string, unknown> = {

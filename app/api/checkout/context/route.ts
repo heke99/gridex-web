@@ -12,6 +12,7 @@ import {
   normalizeWebsiteConsumptionProfile,
 } from '@/lib/website/consumptionEstimator'
 import { readWebJson } from '@/lib/api/webBoundary'
+import { matchesGridexWebsiteCheckoutPolicy } from '@/lib/website/checkoutPolicy'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -111,7 +112,13 @@ export async function POST(req: Request) {
     }
     if (verified.value.quote.version >= 5 && verified.value.quote.quote_attempt_id !== quoteAttemptId) {
       return NextResponse.json(
-        { error: 'Offertförsöket matchar inte den signerade prisberäkningen.', code: 'quote_attempt_mismatch' },
+        { error: 'Prisförsöket matchar inte den signerade prisberäkningen.', code: 'quote_attempt_mismatch' },
+        { status: 409 },
+      )
+    }
+    if (!matchesGridexWebsiteCheckoutPolicy(verified.value.quote)) {
+      return NextResponse.json(
+        { error: 'Prisunderlaget använder äldre kundval och behöver skapas på nytt.', code: 'checkout_policy_changed' },
         { status: 409 },
       )
     }

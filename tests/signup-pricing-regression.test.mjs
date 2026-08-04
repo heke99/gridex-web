@@ -22,12 +22,18 @@ for (const selection of [
   'selected_component_references',
   'site_count',
 ]) {
-  assert.ok(route.includes(selection), `quote route must validate ${selection}`)
-  assert.ok(calculator.includes(selection), `calculator must submit ${selection}`)
+  assert.ok(route.includes(selection), `quote route must bind ${selection}`)
   assert.ok(quote.includes(selection), `signed quote must lock ${selection}`)
 }
+assert.ok(!calculator.includes('price_option_reference: priceOptionReference'))
+assert.ok(!calculator.includes('invoice_delivery_method: invoiceDeliveryMethod'))
+assert.ok(!calculator.includes('selected_component_references: selectedComponentReferences'))
+assert.ok(!calculator.includes('site_count: siteCount'))
 assert.ok(route.includes('price_option_invalid'))
 assert.ok(route.includes('component_selection_invalid'))
+assert.ok(route.includes('selectAutomaticPublicContractPriceOption'))
+assert.ok(route.includes('GRIDEX_FALLBACK_INVOICE_DELIVERY_METHOD'))
+assert.ok(route.includes('GRIDEX_WEBSITE_SITE_COUNT'))
 assert.ok(route.includes('selectedAreaPriceReference'))
 assert.ok(route.includes('opsQuote.area_price_reference !== selectedAreaPriceReference'))
 assert.ok(quote.includes('area_price_reference: input.preview.area_price_reference'))

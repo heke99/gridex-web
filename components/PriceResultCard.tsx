@@ -39,7 +39,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">{contractTypeLabel(contract.contractType)}</span>
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${data.is_binding ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-amber-500/20 bg-amber-500/10 text-amber-100"}`}>
-                {data.is_binding ? "Bindande offert" : "Indikativ prisuppgift"}
+                {data.is_binding ? "Bindande pris" : "Indikativ prisuppgift"}
               </span>
             </div>
             <div>
@@ -79,7 +79,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
 
         {data.assumptions?.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i beräkningen</div><ul className="mt-3 space-y-2 text-gray-300">{data.assumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
         {data.market_sources?.length ? <div className="text-xs leading-relaxed text-gray-400">Marknadskällor: {data.market_sources.map((source) => source.name).join(", ")}.</div> : null}
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs leading-relaxed text-emerald-100">Ditt pris är låst till den valda avtals-, pris- och områdesreferensen. Gridex verifierar den signerade offerten innan avtalet registreras.</div>
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs leading-relaxed text-emerald-100">Ditt pris är hämtat från det publicerade avtalet i OPS och verifieras igen innan avtalet registreras.</div>
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
         <div className="grid gap-3 md:grid-cols-2">

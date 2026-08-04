@@ -28,7 +28,6 @@ import {
   type WebsiteCustomerType,
 } from "@/lib/website/customerType";
 import {
-  selectPublicContractPriceOption,
   type PublicContractPriceOption,
   type PublicPricingComponent,
 } from "@/lib/website/publicContractContract";
@@ -170,21 +169,6 @@ function restoredProfile(
   return null;
 }
 
-function initialPriceOptionReference(
-  contract: ContractOption | null | undefined,
-  customerType: WebsiteCustomerType,
-  priceArea: WebsitePriceArea | null,
-  startDate: string,
-): string {
-  if (!contract || !priceArea || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return ''
-  const selection = selectPublicContractPriceOption({
-    options: contract.priceOptions ?? [],
-    customer_type: customerType,
-    price_area_code: priceArea,
-    start_date: startDate,
-  })
-  return selection.status === 'selected' ? selection.option.price_option_reference : ''
-}
 
 export default function ElectricityCalculator({
   contracts = [],
@@ -262,26 +246,6 @@ export default function ElectricityCalculator({
     initialQuoteContext?.requested_start_date ??
       (initialPricingPreview?.requested_start_mode === "specific_date" ? initialPricingPreview.start_date : ""),
   );
-  const [priceOptionReference, setPriceOptionReference] = useState(
-    initialQuoteContext?.price_option_reference ??
-      initialPricingPreview?.price_option_reference ??
-      "",
-  );
-  const [invoiceDeliveryMethod, setInvoiceDeliveryMethod] = useState<
-    "email" | "e_invoice" | "paper" | "direct_debit"
-  >(
-    initialQuoteContext?.invoice_delivery_method ??
-      initialPricingPreview?.invoice_delivery_method ??
-      "email",
-  );
-  const [selectedComponentReferences, setSelectedComponentReferences] = useState<string[]>(
-    initialQuoteContext?.selected_component_references ??
-      initialPricingPreview?.selected_component_references ??
-      [],
-  );
-  const [siteCount, setSiteCount] = useState(
-    initialQuoteContext?.site_count ?? initialPricingPreview?.site_count ?? 1,
-  );
   const [resolution, setResolutionState] = useState<WebsiteEnergyResolution | null>(
     initialQuoteContext
       ? {
@@ -314,16 +278,6 @@ export default function ElectricityCalculator({
     () =>
       availableContracts.find((contract) => contract.value === selectedValue) ?? null,
     [availableContracts, selectedValue],
-  );
-  const selectableComponents = useMemo(
-    () =>
-      (selectedContract?.pricingComponents ?? []).filter(
-        (component) =>
-          component.component_reference &&
-          (component.selection_policy === "customer_optional" ||
-            component.selection_policy === "conditional"),
-      ),
-    [selectedContract],
   );
   const effectiveArea = resolution?.price_area_code ?? null;
   const hasContracts = availableContracts.length > 0;
@@ -475,54 +429,15 @@ export default function ElectricityCalculator({
 
   const setSelectedValue = useCallback(
     (value: string) => {
-      const nextContract = contracts.find((contract) => contract.value === value);
       setInternalSelectedValue(value);
       onSelectedValueChange?.(value);
-      setPriceOptionReference(
-        initialPriceOptionReference(
-          nextContract,
-          customerType,
-          resolution?.price_area_code ?? null,
-          requestedStartMode === "specific_date" ? requestedStartDate : stockholmCalendarDate(),
-        ),
-      );
-      setSelectedComponentReferences([]);
-      setSiteCount(1);
       setResultState(null);
       onPricingPreviewChange?.(null);
       onQuoteContextChange?.(null);
       setContinueHref(null);
-    }, [contracts, customerType, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange, requestedStartDate, requestedStartMode, resolution?.price_area_code],
+    }, [onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
   );
 
-  useEffect(() => {
-    if (!selectedContract) return;
-    setPriceOptionReference((current) => {
-      const priceArea = resolution?.price_area_code ?? null;
-      const startDate = requestedStartMode === "specific_date"
-        ? requestedStartDate
-        : stockholmCalendarDate();
-      if (priceArea && current) {
-        const currentSelection = selectPublicContractPriceOption({
-          options: selectedContract.priceOptions ?? [],
-          customer_type: customerType,
-          price_area_code: priceArea,
-          start_date: startDate,
-          selected_reference: current,
-        });
-        if (currentSelection.status === 'selected') return current;
-      }
-      return initialPriceOptionReference(selectedContract, customerType, priceArea, startDate);
-    });
-    const allowed = new Set(
-      selectableComponents.flatMap((component) =>
-        component.component_reference ? [component.component_reference] : [],
-      ),
-    );
-    setSelectedComponentReferences((current) =>
-      current.filter((reference) => allowed.has(reference)),
-    );
-  }, [customerType, requestedStartDate, requestedStartMode, resolution?.price_area_code, selectableComponents, selectedContract]);
 
   useEffect(() => {
     if (selectedContract || availableContracts.length === 0) return;
@@ -582,15 +497,6 @@ export default function ElectricityCalculator({
     clearQuote();
   }
 
-  function togglePricingComponent(reference: string) {
-    setSelectedComponentReferences((current) =>
-      current.includes(reference)
-        ? current.filter((item) => item !== reference)
-        : [...current, reference],
-    );
-    clearQuote();
-  }
-
   async function resolveArea(): Promise<WebsiteEnergyResolution> {
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
@@ -632,9 +538,6 @@ export default function ElectricityCalculator({
           ? "Ange företagets uppskattade årsförbrukning innan du räknar pris."
           : "Ange din årsförbrukning eller fyll i bostadsuppgifterna för att få en uppskattning.",
       );
-    if ((selectedContract.priceOptions?.length ?? 0) > 0 && !priceOptionReference) {
-      return setError("Välj ett prisalternativ innan du räknar pris.");
-    }
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
       !/^\d{5}$/.test(normalizedPostalCode) ||
@@ -668,10 +571,6 @@ export default function ElectricityCalculator({
         requested_start_mode: requestedStartMode,
         requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
         quote_attempt_id: quoteAttemptId,
-        price_option_reference: priceOptionReference || null,
-        invoice_delivery_method: invoiceDeliveryMethod,
-        selected_component_references: selectedComponentReferences,
-        site_count: siteCount,
       });
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
         throw new Error("Prisberäkningen returnerade en annan förbrukning än den du godkände.");
@@ -700,9 +599,9 @@ export default function ElectricityCalculator({
         annual_consumption_kwh: consumptionProfile.annual_kwh,
         consumption_profile: consumptionProfile,
         price_option_reference: preview.price_option_reference ?? null,
-        invoice_delivery_method: preview.invoice_delivery_method ?? invoiceDeliveryMethod,
+        invoice_delivery_method: preview.invoice_delivery_method,
         selected_component_references: preview.selected_component_references ?? [],
-        site_count: preview.site_count ?? siteCount,
+        site_count: preview.site_count,
         requested_start_mode: requestedStartMode,
         requested_start_date: requestedStartMode === "specific_date" ? preview.start_date : null,
         quote_attempt_id: quoteAttemptId,
@@ -1068,13 +967,13 @@ export default function ElectricityCalculator({
         {selectedContract ? (
           <section className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div>
-              <h3 className="text-lg font-semibold text-white">Offertval</h3>
+              <h3 className="text-lg font-semibold text-white">Önskad avtalsstart</h3>
               <p className="mt-1 text-sm text-gray-400">
-                Valen verifieras av Gridex och låses i den signerade offerten.
+                Gridex använder automatiskt det standardpris som OPS har publicerat. Du väljer endast när avtalet ska börja gälla.
               </p>
             </div>
             <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-white/80">Önskad avtalsstart</legend>
+              <legend className="sr-only">Önskad avtalsstart</legend>
               <div className="grid gap-3 sm:grid-cols-2">
                 {([
                   ["earliest_possible", "Så snart som möjligt"],
@@ -1111,105 +1010,8 @@ export default function ElectricityCalculator({
                   />
                 </div>
               ) : null}
-              <p className="text-xs leading-5 text-white/45">Startvalet verifieras när priset skapas och låses därefter i den signerade offerten.</p>
+              <p className="text-xs leading-5 text-white/45">Startvalet verifieras tillsammans med det publicerade avtalet och priset från OPS.</p>
             </fieldset>
-            <div className="grid gap-4 md:grid-cols-3">
-              {(selectedContract.priceOptions?.length ?? 0) > 0 ? (
-                <div className="space-y-2">
-                  <label htmlFor="calculator-price-option" className="text-sm font-medium text-white/80">
-                    Prisalternativ
-                  </label>
-                  <select
-                    id="calculator-price-option"
-                    value={priceOptionReference}
-                    onChange={(event) => {
-                      setPriceOptionReference(event.target.value);
-                      clearQuote();
-                    }}
-                    className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
-                  >
-                    {selectedContract.priceOptions?.map((option) => (
-                      <option
-                        key={option.price_option_reference}
-                        value={option.price_option_reference}
-                      >
-                        {option.customer_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-              <div className="space-y-2">
-                <label htmlFor="calculator-invoice-method" className="text-sm font-medium text-white/80">
-                  Fakturasätt
-                </label>
-                <select
-                  id="calculator-invoice-method"
-                  value={invoiceDeliveryMethod}
-                  onChange={(event) => {
-                    setInvoiceDeliveryMethod(
-                      event.target.value as typeof invoiceDeliveryMethod,
-                    );
-                    clearQuote();
-                  }}
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
-                >
-                  <option value="email">E-postfaktura</option>
-                  <option value="e_invoice">E-faktura</option>
-                  <option value="paper">Pappersfaktura</option>
-                  <option value="direct_debit">Autogiro</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="calculator-site-count" className="text-sm font-medium text-white/80">
-                  Antal anläggningar
-                </label>
-                <input
-                  id="calculator-site-count"
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={siteCount}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    setSiteCount(Number.isInteger(next) && next >= 1 ? Math.min(next, 1000) : 1);
-                    clearQuote();
-                  }}
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
-                />
-              </div>
-            </div>
-            {selectableComponents.length > 0 ? (
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-white/80">
-                  Valbara pristillägg
-                </legend>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {selectableComponents.map((component) => {
-                    const reference = component.component_reference as string;
-                    return (
-                      <label
-                        key={reference}
-                        className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-gray-300"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedComponentReferences.includes(reference)}
-                          onChange={() => togglePricingComponent(reference)}
-                          className="h-4 w-4 accent-cyan-400"
-                        />
-                        <span>
-                          <span className="font-medium text-white">{component.name}</span>
-                          <span className="ml-2 text-xs text-white/50">
-                            {component.amount.toLocaleString("sv-SE")} {component.unit}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            ) : null}
           </section>
         ) : null}
 

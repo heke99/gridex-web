@@ -526,8 +526,8 @@ assertIncludes(
 );
 assertIncludes(
   "components/PriceResultCard.tsx",
-  "Bindande offert",
-  "price result card must display quote binding status",
+  "Bindande pris",
+  "price result card must display binding status without exposing an offer choice",
 );
 assertNotIncludes(
   "components/PriceResultCard.tsx",
