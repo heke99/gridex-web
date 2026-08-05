@@ -64,7 +64,47 @@ try {
     },
   )
 
-  console.log('OPS transport 304/redirect regression tests: passed')
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    error: {
+      code: 'quote_reference_mismatch',
+      message: 'Quote-underlaget har ändrats efter att det skapades.',
+      action: 'refresh_quote',
+      hint: 'Create a new canonical quote.',
+      blockers: ['quote_basis_changed'],
+      details: {
+        expected_reference: 'quote_expected',
+        received_reference: 'quote_received',
+      },
+    },
+  }), {
+    status: 409,
+    headers: {
+      'content-type': 'application/json',
+      'x-request-id': '00000000-0000-4000-8000-000000000409',
+    },
+  })
+
+  await assert.rejects(
+    () => opsRequest('/api/v1/website/quote/validate', {
+      method: 'POST',
+      body: JSON.stringify({ quote_reference: 'quote_received' }),
+    }),
+    (error) => {
+      assert.equal(error?.code, 'quote_reference_mismatch')
+      assert.equal(error?.status, 409)
+      assert.equal(error?.requestId, '00000000-0000-4000-8000-000000000409')
+      assert.equal(error?.details?.action, 'refresh_quote')
+      assert.equal(error?.details?.hint, 'Create a new canonical quote.')
+      assert.deepEqual(error?.details?.blockers, ['quote_basis_changed'])
+      assert.deepEqual(error?.details?.details, {
+        expected_reference: 'quote_expected',
+        received_reference: 'quote_received',
+      })
+      return true
+    },
+  )
+
+  console.log('OPS transport 304/redirect/error-details regression tests: passed')
 } finally {
   globalThis.fetch = originalFetch
 }

@@ -328,11 +328,11 @@ function opsErrorContext(error: unknown): OpsErrorContext {
   };
 }
 
-function opsErrorCode(error: unknown): OpsSignupFailureCode {
+function opsErrorCode(error: unknown, operation = "customer application"): OpsSignupFailureCode {
   if (!isOpsError(error)) return "ops_unavailable";
 
   const context = opsErrorContext(error);
-  console.error("[website signup] OPS customer application failed", {
+  console.error(`[website signup] OPS ${operation} failed`, {
     status: error.status,
     message: error.message,
     code: context.code || null,
@@ -359,7 +359,7 @@ function opsErrorCode(error: unknown): OpsSignupFailureCode {
     if (/idempotency_in_progress|application_business_in_progress/i.test(context.code)) return "idempotency_in_progress";
     if (/quote_already_consumed|quote_consumed/i.test(context.code)) return "duplicate_application";
     if (/quote_revoked|offer_unavailable|contract_not_orderable|publication_withdrawn/i.test(context.code)) return "offer";
-    if (/quote_reference_invalid|quote_validation_failed|price_reference_invalid|resolution_mismatch|quote_start_date_mismatch|quote_customer_type_mismatch/i.test(context.code)) return "price_changed";
+    if (/quote_reference_(?:invalid|mismatch)|quote_validation_failed|price_reference_invalid|resolution_mismatch|quote_start_date_mismatch|quote_customer_type_mismatch/i.test(context.code)) return "price_changed";
     if (/application_business_conflict|business_conflict/i.test(context.code)) return "application_business_conflict";
     if (/duplicate/i.test(context.code)) return "duplicate_application";
     if (context.code === "idempotent_failed") return "idempotency_retry_failed";
@@ -906,18 +906,33 @@ export default async function TecknaPage({
     }
     const pricingQuoteToken = normalizeText(formData.get("pricing_snapshot_token"));
     const pricingSnapshotReference = normalizeText(formData.get("pricing_snapshot_reference"));
-    const verifiedQuote = await validateCanonicalWebsiteQuote({
-      pricingToken: pricingQuoteToken,
-      pricingSnapshotReference,
-      resolutionToken,
-      contract: offer,
-      customerType,
-      estimatedMonthlyKwh,
-      annualConsumptionKwh,
-      requestedStartMode,
-      requestedStartDate: requestedStartMode === "specific_date" ? requestedStartDate : null,
-      location: { postalCode, city, address },
-    });
+    let verifiedQuote: Awaited<ReturnType<typeof validateCanonicalWebsiteQuote>>;
+    try {
+      verifiedQuote = await validateCanonicalWebsiteQuote({
+        pricingToken: pricingQuoteToken,
+        pricingSnapshotReference,
+        resolutionToken,
+        contract: offer,
+        customerType,
+        estimatedMonthlyKwh,
+        annualConsumptionKwh,
+        requestedStartMode,
+        requestedStartDate: requestedStartMode === "specific_date" ? requestedStartDate : null,
+        location: { postalCode, city, address },
+      });
+    } catch (error) {
+      const publicCode = opsErrorCode(error, "quote validation");
+      const priceConflict = publicCode === "price_changed";
+      return fail(publicCode, {
+        step: 1,
+        requiresQuoteRefresh: priceConflict,
+        fieldErrors: {
+          pricing: priceConflict
+            ? "Prisunderlaget kunde inte verifieras mot OPS. Hämta priset på nytt och försök igen."
+            : "Prisunderlaget kunde inte verifieras just nu. Försök igen eller kontakta kundservice.",
+        },
+      });
+    }
     if (!verifiedQuote.ok) {
       console.warn("[website signup] canonical quote verification failed", {
         reason: verifiedQuote.reason,

@@ -164,5 +164,8 @@ assert.ok(contractDisplay.includes("'automatic_renewal'"))
 
 assert.ok(!signup.includes('source: "gridex_web"'))
 assert.ok(signup.includes('quote_reference: verifiedQuote.value.quote.ops_quote_reference'))
+assert.ok(signup.includes('opsErrorCode(error, "quote validation")'))
+assert.ok(signup.includes('quote_reference_(?:invalid|mismatch)'))
+assert.ok(signup.includes('requiresQuoteRefresh: priceConflict'))
 
 console.log('Website signup hardening checks passed')

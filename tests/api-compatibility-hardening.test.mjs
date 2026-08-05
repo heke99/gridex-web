@@ -95,8 +95,14 @@ for (const field of ['price_option_reference', 'invoice_delivery_method', 'site_
 assert.match(quoteValidationFunction, /selected_component_references:\s*selectedComponentReferences/, 'quote validation request must send deduplicated selected_component_references')
 assert.match(quoteValidationFunction, /ops_quote_validation_selection_mismatch/, 'quote validation must reject a changed canonical selection')
 for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) {
-  assert.ok(canonicalQuoteValidation.includes(`${field}: local.quote.${field}`), `signed quote validation must forward ${field}`)
+  assert.ok(canonicalQuoteValidation.includes(`${field}: effectiveQuote.${field}`), `effective canonical quote validation must forward ${field}`)
   assert.ok(stagingFlow.includes(`${field}: quote.${field}`), `staging flow must validate ${field}`)
+}
+const canonicalValidationStart = canonicalQuoteValidation.indexOf('const opsValidation = await validateOpsWebsiteQuote({')
+const canonicalValidationEnd = canonicalQuoteValidation.indexOf('\n  })', canonicalValidationStart)
+const canonicalValidationPayload = canonicalQuoteValidation.slice(canonicalValidationStart, canonicalValidationEnd)
+for (const field of ['price_area:', 'grid_area_code:', 'postal_code:']) {
+  assert.ok(!canonicalValidationPayload.includes(field), `${field} must not alter an existing canonical quote reference`)
 }
 assert.ok(!client.includes('\"switch-status\": \"/api/v1/customer/switch-status\"'), 'undocumented portal switch-status endpoint must not be called')
 

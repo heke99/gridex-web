@@ -426,9 +426,10 @@ export async function validateCanonicalWebsiteQuote(
     invoice_delivery_method: effectiveQuote.invoice_delivery_method,
     selected_component_references: effectiveQuote.selected_component_references,
     site_count: effectiveQuote.site_count,
-    price_area: area.price_area_code,
-    grid_area_code: area.grid_area_code,
-    postal_code: input.location.postalCode,
+    // The quote reference was created from the canonical quote tuple above.
+    // resolution_id already binds the verified area. Do not append optional
+    // location assertions during revalidation, because OPS may then calculate
+    // a different reference basis and return quote_reference_mismatch.
   })
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }

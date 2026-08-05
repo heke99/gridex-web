@@ -72,6 +72,17 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     const status = isOpsError(error) && error.status >= 400 && error.status < 500 ? error.status : 503
-    return NextResponse.json({ ok: false, error: { code: 'ops_quote_validation_unavailable' } }, { status })
+    const code = isOpsError(error) && error.code
+      ? error.code
+      : 'ops_quote_validation_unavailable'
+    return NextResponse.json({
+      ok: false,
+      error: { code },
+      request_id: isOpsError(error) ? error.requestId : null,
+      correlation_id: isOpsError(error) ? error.correlationId : null,
+    }, {
+      status,
+      headers: { 'Cache-Control': 'private, no-store' },
+    })
   }
 }

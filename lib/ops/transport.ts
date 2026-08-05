@@ -145,9 +145,22 @@ function safeErrorDetails(payload: unknown, response: Response, path: string) {
       : typeof root.stage === 'string'
         ? root.stage
         : null,
-    action: typeof root.action === 'string' ? root.action : null,
-    hint: typeof root.hint === 'string' ? root.hint : null,
-    blockers: Array.isArray(root.blockers) ? root.blockers : [],
+    action: typeof nested.action === 'string'
+      ? nested.action
+      : typeof root.action === 'string'
+        ? root.action
+        : null,
+    hint: typeof nested.hint === 'string'
+      ? nested.hint
+      : typeof root.hint === 'string'
+        ? root.hint
+        : null,
+    blockers: Array.isArray(nested.blockers)
+      ? nested.blockers
+      : Array.isArray(root.blockers)
+        ? root.blockers
+        : [],
+    details: nested.details ?? root.details ?? null,
     retryable: typeof nested.retryable === 'boolean'
       ? nested.retryable
       : typeof root.retryable === 'boolean'
