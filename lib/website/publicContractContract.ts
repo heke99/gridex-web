@@ -48,13 +48,22 @@ export type PublicAreaPricing = {
 
 export type PublicLegalRequirement = {
   requirement_code: string
-  acceptance_type: string
+  document_type: string
+  acceptance_mode: 'accept' | 'acknowledge'
+  /** @deprecated Compatibility alias. Use acceptance_mode. */
+  acceptance_type: 'accept' | 'acknowledge'
   required: boolean
   label: string
+  description: string
   document_reference: string | null
   document_version: string | null
   document_hash: string | null
   public_url: string | null
+  legal_bundle_version_id: string | null
+  module_keys: string[]
+  source_document_ids: string[]
+  primary_document_id: string | null
+  sort_order: number
 }
 
 export type PublicContractPriceOptionCustomerType = 'private' | 'business' | 'both'
@@ -144,6 +153,7 @@ export type PublicContractLegal = {
   power_of_attorney_version_id: string | null
   immutable: boolean
   module_versions: PublicContractLegalModuleVersion[]
+  customer_documents: PublicLegalRequirement[]
 }
 
 export type PublicContractApiShape = {
@@ -992,6 +1002,106 @@ function legalValidationIssues(value: unknown, path: string): PublicContractVali
       issues.push(validationIssue('legal_required_module_missing', `${path}.module_versions.${requiredModule}`))
     }
   }
+
+  const publishedDocumentsById = new Map(
+    modules.flatMap((item) => {
+      const module = record(item)
+      const id = module ? text(module.id) : null
+      return id && module ? [[id, module] as const] : []
+    }),
+  )
+  if (!Object.hasOwn(legal, 'customer_documents') || !Array.isArray(legal.customer_documents)) {
+    issues.push(validationIssue('legal_customer_documents_missing', `${path}.customer_documents`))
+  } else {
+    if (legal.customer_documents.length < 1 || legal.customer_documents.length > 3) {
+      issues.push(validationIssue('legal_customer_documents_count_invalid', `${path}.customer_documents`))
+    }
+    const seenRequirementCodes = new Set<string>()
+    legal.customer_documents.forEach((item, index) => {
+      const documentPath = `${path}.customer_documents[${index}]`
+      const document = record(item)
+      if (!document) {
+        issues.push(validationIssue('legal_customer_document_invalid', documentPath))
+        return
+      }
+      const requirementCode = text(document.requirement_code)
+      const documentType = text(document.document_type)
+      const acceptanceMode = text(document.acceptance_mode)
+      const documentHash = text(document.document_hash)
+      const documentBundleVersionId = text(document.legal_bundle_version_id)
+      const moduleKeys = Array.isArray(document.module_keys)
+        ? document.module_keys.flatMap((value) => text(value) ?? [])
+        : []
+      const sourceDocumentIds = Array.isArray(document.source_document_ids)
+        ? document.source_document_ids.flatMap((value) => text(value) ?? [])
+        : []
+      const primaryDocumentId = text(document.primary_document_id)
+      if (!requirementCode || !['agreement', 'power_of_attorney', 'withdrawal'].includes(requirementCode)) {
+        issues.push(validationIssue('legal_customer_document_requirement_code_invalid', `${documentPath}.requirement_code`))
+      } else if (seenRequirementCodes.has(requirementCode)) {
+        issues.push(validationIssue('legal_customer_document_requirement_code_duplicate', `${documentPath}.requirement_code`))
+      } else {
+        seenRequirementCodes.add(requirementCode)
+      }
+      if (!documentType || documentType !== requirementCode) {
+        issues.push(validationIssue('legal_customer_document_type_invalid', `${documentPath}.document_type`))
+      }
+      if (!text(document.title)) issues.push(validationIssue('legal_customer_document_title_missing', `${documentPath}.title`))
+      if (!text(document.description)) issues.push(validationIssue('legal_customer_document_description_missing', `${documentPath}.description`))
+      if (document.required !== true) issues.push(validationIssue('legal_customer_document_required_invalid', `${documentPath}.required`))
+      if (acceptanceMode !== 'accept' && acceptanceMode !== 'acknowledge') {
+        issues.push(validationIssue('legal_customer_document_acceptance_mode_invalid', `${documentPath}.acceptance_mode`))
+      }
+      if (!text(document.document_reference)) issues.push(validationIssue('legal_customer_document_reference_missing', `${documentPath}.document_reference`))
+      if (!text(document.document_version)) issues.push(validationIssue('legal_customer_document_version_missing', `${documentPath}.document_version`))
+      if (!documentHash || !/^[a-f0-9]{64}$/i.test(documentHash)) {
+        issues.push(validationIssue('legal_customer_document_hash_invalid', `${documentPath}.document_hash`))
+      }
+      if (document.document_url !== null && !text(document.document_url)) {
+        issues.push(validationIssue('legal_customer_document_url_invalid', `${documentPath}.document_url`))
+      }
+      if (!documentBundleVersionId || (bundleVersionId && documentBundleVersionId !== bundleVersionId)) {
+        issues.push(validationIssue('legal_customer_document_bundle_version_mismatch', `${documentPath}.legal_bundle_version_id`))
+      }
+      if (moduleKeys.length === 0 || new Set(moduleKeys).size !== moduleKeys.length) {
+        issues.push(validationIssue('legal_customer_document_module_keys_invalid', `${documentPath}.module_keys`))
+      }
+      for (const moduleKey of moduleKeys) {
+        if (!publishedModuleKeys.has(moduleKey)) {
+          issues.push(validationIssue('legal_customer_document_module_missing', `${documentPath}.module_keys.${moduleKey}`))
+        }
+      }
+      if (sourceDocumentIds.length === 0 || new Set(sourceDocumentIds).size !== sourceDocumentIds.length) {
+        issues.push(validationIssue('legal_customer_document_source_ids_invalid', `${documentPath}.source_document_ids`))
+      }
+      const sourceModules = sourceDocumentIds.flatMap((sourceDocumentId) => {
+        const sourceModule = publishedDocumentsById.get(sourceDocumentId)
+        if (!sourceModule) {
+          issues.push(validationIssue('legal_customer_document_source_missing', `${documentPath}.source_document_ids.${sourceDocumentId}`))
+          return []
+        }
+        return [sourceModule]
+      })
+      if (sourceModules.some((sourceModule) => {
+        const moduleKey = text(sourceModule.module_key)
+        return !moduleKey || !moduleKeys.includes(moduleKey)
+      })) {
+        issues.push(validationIssue('legal_customer_document_source_module_mismatch', `${documentPath}.source_document_ids`))
+      }
+      for (const moduleKey of moduleKeys) {
+        if (!sourceModules.some((sourceModule) => text(sourceModule.module_key) === moduleKey)) {
+          issues.push(validationIssue('legal_customer_document_module_source_missing', `${documentPath}.module_keys.${moduleKey}`))
+        }
+      }
+      if (primaryDocumentId && !sourceDocumentIds.includes(primaryDocumentId)) {
+        issues.push(validationIssue('legal_customer_document_primary_mismatch', `${documentPath}.primary_document_id`))
+      }
+      const sortOrder = number(document.sort_order)
+      if (sortOrder === null || !Number.isInteger(sortOrder) || sortOrder < 0) {
+        issues.push(validationIssue('legal_customer_document_sort_order_invalid', `${documentPath}.sort_order`))
+      }
+    })
+  }
   return issues
 }
 
@@ -1278,19 +1388,28 @@ function legalModule(
 }
 
 function legalRequirements(row: Record<string, unknown>, legal: Record<string, unknown>): PublicLegalRequirement[] {
-  const source = legal.requirements ?? legal.legal_requirements ?? row.legal_requirements
+  const source = legal.customer_documents ?? legal.requirements ?? legal.legal_requirements ?? row.legal_requirements
   if (Array.isArray(source)) {
-    return source.flatMap((item) => {
+    return source.flatMap((item, index) => {
       const requirement = record(item)
       if (!requirement) return []
       const code = text(requirement.requirement_code ?? requirement.requirementCode ?? requirement.code)
-      const label = text(requirement.label ?? requirement.title ?? requirement.name)
-      if (!code || !label) return []
+      const label = text(requirement.title ?? requirement.label ?? requirement.name)
+      const documentType = text(requirement.document_type ?? requirement.documentType) ?? code
+      const acceptanceMode = text(
+        requirement.acceptance_mode ?? requirement.acceptanceMode ?? requirement.acceptance_type ?? requirement.acceptanceType,
+      )
+      if (!code || !label || !documentType) return []
+      const canonicalAcceptanceMode: PublicLegalRequirement['acceptance_mode'] =
+        acceptanceMode === 'acknowledge' ? 'acknowledge' : 'accept'
       return [{
         requirement_code: code,
-        acceptance_type: text(requirement.acceptance_type ?? requirement.acceptanceType) ?? 'checkbox',
+        document_type: documentType,
+        acceptance_mode: canonicalAcceptanceMode,
+        acceptance_type: canonicalAcceptanceMode,
         required: boolean(requirement.required) !== false,
         label,
+        description: text(requirement.description) ?? label,
         document_reference: text(
           requirement.document_reference ??
           requirement.documentReference ??
@@ -1301,32 +1420,53 @@ function legalRequirements(row: Record<string, unknown>, legal: Record<string, u
         ),
         document_version: text(requirement.document_version ?? requirement.documentVersion ?? requirement.version),
         document_hash: text(requirement.document_hash ?? requirement.documentHash ?? requirement.sha256),
-        public_url: text(requirement.public_url ?? requirement.publicUrl ?? requirement.url),
+        public_url: text(requirement.document_url ?? requirement.documentUrl ?? requirement.public_url ?? requirement.publicUrl ?? requirement.url),
+        legal_bundle_version_id: text(requirement.legal_bundle_version_id ?? requirement.legalBundleVersionId) ?? text(legal.legal_bundle_version_id),
+        module_keys: Array.isArray(requirement.module_keys)
+          ? requirement.module_keys.flatMap((value) => text(value) ?? [])
+          : code ? [code] : [],
+        source_document_ids: Array.isArray(requirement.source_document_ids)
+          ? requirement.source_document_ids.flatMap((value) => text(value) ?? [])
+          : [],
+        primary_document_id: text(requirement.primary_document_id ?? requirement.primaryDocumentId),
+        sort_order: number(requirement.sort_order ?? requirement.sortOrder) ?? ((index + 1) * 10),
       }]
-    })
+    }).sort((left, right) => left.sort_order - right.sort_order)
   }
 
+  // Compatibility only for pre-2026-08-05 snapshots. As soon as OPS supplies
+  // customer_documents, module_versions are evidence and never become separate
+  // customer acceptances.
   const requiredModules = new Set(
     Array.isArray(legal.required_modules)
       ? legal.required_modules.flatMap((value) => text(value)?.toLowerCase() ?? [])
       : [],
   )
-  return legalModuleVersions(legal).flatMap((module) => {
+  return legalModuleVersions(legal).flatMap((module, index) => {
     const code = text(module.module_key)?.toLowerCase()
     const label = text(module.title)
     const documentReference = text(module.document_reference)
     const version = text(module.version)
-    if (!code || !label || !documentReference || !version) return []
+    const id = text(module.id)
+    if (!code || !label || !documentReference || !version || !id) return []
     const explicitlyRequired = boolean(legal[`${code}_required`])
     return [{
       requirement_code: code,
-      acceptance_type: 'checkbox',
+      document_type: code,
+      acceptance_mode: 'accept',
+      acceptance_type: 'accept',
       required: requiredModules.has(code) || explicitlyRequired === true,
       label,
+      description: label,
       document_reference: documentReference,
       document_version: version,
       document_hash: text(module.content_sha256),
       public_url: text(module.url),
+      legal_bundle_version_id: text(module.legal_bundle_version_id) ?? text(legal.legal_bundle_version_id),
+      module_keys: [code],
+      source_document_ids: [id],
+      primary_document_id: id,
+      sort_order: (index + 1) * 10,
     }]
   })
 }
@@ -1363,6 +1503,7 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
 
   const canonicalAreaPrices = canonicalPriceOptions.flatMap((option) => option.area_prices)
   const canonicalPriceAreas = [...new Set(canonicalAreaPrices.map((areaPrice) => areaPrice.price_area))]
+  const canonicalCustomerDocuments = legalRequirements(row, legal)
   const publishedPriceAreas = normalizedPriceAreas(row.price_areas ?? row.priceAreas)
   const publishedAreaPricing = areaPricing(
     row.area_pricing ?? row.areaPricing ?? pricing.area_pricing ?? pricing.areaPricing,
@@ -1412,13 +1553,14 @@ export function normalizePublicContractApiPayload(value: unknown): PublicContrac
     display_components: displayComponents,
     summary_components: summaryComponents,
     price_options: canonicalPriceOptions,
-    legal_requirements: legalRequirements(row, legal),
+    legal_requirements: canonicalCustomerDocuments,
     legal: {
       legal_bundle_reference: text(legal.legal_bundle_reference),
       legal_bundle_version_id: text(legal.legal_bundle_version_id),
       power_of_attorney_version_id: text(legal.power_of_attorney_version_id),
       immutable: boolean(legal.immutable) === true,
       module_versions: normalizedLegalModules,
+      customer_documents: canonicalCustomerDocuments,
     },
     portfolio_monthly_prices: portfolioMonthlyPrices(
       pricing.portfolio_monthly_prices ?? pricing.portfolioMonthlyPrices,

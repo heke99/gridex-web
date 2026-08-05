@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Website and Partner Integration API",
-    "version": "2026-08-04.3",
+    "version": "2026-08-05.1",
     "description": "Canonical V1 contract for tenant context, public contracts, tenant-bound energy-area resolution, current normalized spot price, OPS-owned quote and website applications. public-contracts is a product feed, market-price/current is the current market interval, and quote is the complete customer calculation. Tenant backends never select company_id or calculate price, fees or VAT locally."
   },
   "servers": [
@@ -298,7 +298,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.3"
+                          "const": "2026-08-05.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -475,7 +475,32 @@
                             "url": "https://app.gridex.se/legal/example/price-terms"
                           }
                         ],
-                        "power_of_attorney_version_id": null
+                        "power_of_attorney_version_id": null,
+                        "customer_documents": [
+                          {
+                            "requirement_code": "agreement",
+                            "document_type": "agreement",
+                            "title": "Elhandelsavtal och fullständiga villkor",
+                            "description": "Kundens elhandelsavtal, pris- och betalningsvillkor samt övriga tillämpliga avtalsvillkor i ett sammanhållet dokument.",
+                            "required": true,
+                            "acceptance_mode": "accept",
+                            "document_reference": "legal_customer_document_fSFN3xRPWycXaPjYSPDiQqJopdbi9MWH",
+                            "document_version": "legal_customer_version_GCWsbSNFeL-mkql25pIpHSs8QB6yqI0W",
+                            "document_hash": "9001facf2aefea371fc4f15edd55d38b53873777da65901743d81a33fba586ef",
+                            "document_url": null,
+                            "legal_bundle_version_id": "00000000-0000-4000-8000-000000000001",
+                            "module_keys": [
+                              "general_consumer_terms",
+                              "price_terms"
+                            ],
+                            "source_document_ids": [
+                              "00000000-0000-4000-8000-000000000002",
+                              "00000000-0000-4000-8000-000000000003"
+                            ],
+                            "primary_document_id": null,
+                            "sort_order": 10
+                          }
+                        ]
                       },
                       "valid_from": "2026-08-01",
                       "valid_to": null,
@@ -567,7 +592,32 @@
                             "url": "https://app.gridex.se/legal/example/price-terms"
                           }
                         ],
-                        "power_of_attorney_version_id": null
+                        "power_of_attorney_version_id": null,
+                        "customer_documents": [
+                          {
+                            "requirement_code": "agreement",
+                            "document_type": "agreement",
+                            "title": "Elhandelsavtal och fullständiga villkor",
+                            "description": "Kundens elhandelsavtal, pris- och betalningsvillkor samt övriga tillämpliga avtalsvillkor i ett sammanhållet dokument.",
+                            "required": true,
+                            "acceptance_mode": "accept",
+                            "document_reference": "legal_customer_document_fSFN3xRPWycXaPjYSPDiQqJopdbi9MWH",
+                            "document_version": "legal_customer_version_GCWsbSNFeL-mkql25pIpHSs8QB6yqI0W",
+                            "document_hash": "9001facf2aefea371fc4f15edd55d38b53873777da65901743d81a33fba586ef",
+                            "document_url": null,
+                            "legal_bundle_version_id": "00000000-0000-4000-8000-000000000001",
+                            "module_keys": [
+                              "general_consumer_terms",
+                              "price_terms"
+                            ],
+                            "source_document_ids": [
+                              "00000000-0000-4000-8000-000000000002",
+                              "00000000-0000-4000-8000-000000000003"
+                            ],
+                            "primary_document_id": null,
+                            "sort_order": 10
+                          }
+                        ]
                       },
                       "valid_from": "2026-08-01",
                       "valid_to": null,
@@ -581,7 +631,7 @@
                     "count": 1,
                     "publication_revision": 42,
                     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-                    "contract_schema_version": "2026-08-04.3",
+                    "contract_schema_version": "2026-08-05.1",
                     "deprecated_aliases": [
                       "contracts",
                       "contract_offer_id",
@@ -1067,7 +1117,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.3"
+                          "const": "2026-08-05.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -1473,7 +1523,7 @@
                     "site_count": 1
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-04.3"
+                  "contract_schema_version": "2026-08-05.1"
                 }
               }
             },
@@ -1846,7 +1896,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.3"
+                      "const": "2026-08-05.1"
                     }
                   }
                 }
@@ -2476,7 +2526,7 @@
                       "request_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "correlation_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "retryable": false,
-                      "contract_schema_version": "2026-08-04.3"
+                      "contract_schema_version": "2026-08-05.1"
                     }
                   }
                 }
@@ -2991,7 +3041,7 @@
                     "next_update_at": "2026-07-24T16:15:00+02:00"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-04.3"
+                  "contract_schema_version": "2026-08-05.1"
                 }
               }
             },
@@ -3334,7 +3384,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.3"
+                      "const": "2026-08-05.1"
                     }
                   }
                 }
@@ -3793,7 +3843,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.3"
+                      "const": "2026-08-05.1"
                     }
                   }
                 }
@@ -4144,7 +4194,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-04.3"
+                          "const": "2026-08-05.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -4744,7 +4794,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-04.3"
+                      "const": "2026-08-05.1"
                     }
                   }
                 }
@@ -5296,6 +5346,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -5330,6 +5389,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -5366,6 +5434,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -5400,6 +5477,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -5478,6 +5564,146 @@
       }
     },
     "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json": {
+      "get": {
+        "summary": "Hämta Customer Portal OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-05.1/website-integration-v1.json": {
+      "get": {
+        "summary": "Hämta Website Integration OpenAPI",
+        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": []
+      }
+    },
+    "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json": {
       "get": {
         "summary": "Hämta Customer Portal OpenAPI",
         "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
@@ -5632,7 +5858,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -5697,7 +5923,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "configuration": {
             "type": "object",
@@ -7286,7 +7512,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -7468,7 +7694,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -8352,7 +8578,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -8694,7 +8920,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "additionalProperties": false
@@ -8872,14 +9098,20 @@
           "scope": {
             "type": "array",
             "minItems": 1,
+            "maxItems": 2,
             "uniqueItems": true,
             "items": {
+              "type": "string",
               "enum": [
                 "supplier_switch",
                 "facility_information_lookup"
               ]
             },
-            "description": "Exakt publicerat authorization scope."
+            "contains": {
+              "const": "supplier_switch"
+            },
+            "minContains": 1,
+            "description": "Exact customer-signed scopes. supplier_switch is mandatory; facility_information_lookup may be added. OPS never widens the scope after acceptance."
           },
           "signerName": {
             "type": "string",
@@ -8906,7 +9138,7 @@
           "textVersionId": {
             "type": "string",
             "format": "uuid",
-            "description": "Publicerad power-of-attorney-version från legal bundle."
+            "description": "Use primary_document_id from the power_of_attorney requirement in the exact accepted legal bundle."
           },
           "ipAddress": {
             "type": "string"
@@ -9445,7 +9677,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "additionalProperties": false
@@ -9518,7 +9750,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9751,7 +9983,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9830,7 +10062,8 @@
           "immutable",
           "legal_bundle_reference",
           "legal_bundle_version_id",
-          "power_of_attorney_version_id"
+          "power_of_attorney_version_id",
+          "customer_documents"
         ],
         "properties": {
           "terms_version": {
@@ -9977,6 +10210,15 @@
               "null"
             ]
           },
+          "customer_documents": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/CustomerLegalDocument"
+            },
+            "description": "Customer-facing grouped documents. Render these instead of one checkbox per module_version. module_versions remains the immutable evidence manifest."
+          },
           "power_of_attorney_version_id": {
             "type": [
               "string",
@@ -10070,9 +10312,12 @@
           },
           "requirements": {
             "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
             "items": {
               "$ref": "#/components/schemas/WebsiteLegalRequirement"
-            }
+            },
+            "description": "Customer-facing acceptance surface. Private consumer offers normally contain agreement, power_of_attorney and withdrawal. Business offers omit withdrawal when no withdrawal modules are published."
           }
         }
       },
@@ -10097,7 +10342,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -10114,7 +10359,8 @@
         ],
         "properties": {
           "requirement_code": {
-            "type": "string"
+            "type": "string",
+            "description": "Use agreement, power_of_attorney or withdrawal from legal-bundle requirements. Exact module keys remain accepted only for backward compatibility."
           },
           "document_reference": {
             "type": "string"
@@ -10573,23 +10819,23 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "released_at": {
             "type": "string",
@@ -10629,7 +10875,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           },
           "url": {
             "type": "string",
@@ -10653,17 +10899,37 @@
         "additionalProperties": false,
         "required": [
           "requirement_code",
+          "document_type",
           "title",
           "description",
           "required",
+          "acceptance_mode",
           "document_reference",
           "document_version",
           "document_hash",
-          "document_url"
+          "document_url",
+          "legal_bundle_version_id",
+          "module_keys",
+          "source_document_ids",
+          "primary_document_id",
+          "sort_order"
         ],
         "properties": {
           "requirement_code": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "agreement",
+              "power_of_attorney",
+              "withdrawal"
+            ]
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "agreement",
+              "power_of_attorney",
+              "withdrawal"
+            ]
           },
           "title": {
             "type": "string"
@@ -10674,6 +10940,13 @@
           "required": {
             "type": "boolean",
             "const": true
+          },
+          "acceptance_mode": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "acknowledge"
+            ]
           },
           "document_reference": {
             "type": "string"
@@ -10688,8 +10961,41 @@
           "document_url": {
             "type": "string",
             "format": "uri"
+          },
+          "legal_bundle_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module_keys": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_document_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "primary_document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0
           }
-        }
+        },
+        "description": "One of the three customer-facing documents. module_keys and source_document_ids bind the presentation document to every immutable canonical legal module it contains."
       },
       "ContractPriceOptionAreaPrice": {
         "type": "object",
@@ -10874,7 +11180,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -11374,7 +11680,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -11526,7 +11832,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-04.3"
+            "const": "2026-08-05.1"
           }
         }
       },
@@ -11605,6 +11911,112 @@
           }
         },
         "description": "Canonical evidence used only to decide whether SE1-SE4 is safe for pricing and quote. This object never proves facility, grid-owner, PRODAT or EDIFACT readiness."
+      },
+      "CustomerLegalDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requirement_code",
+          "document_type",
+          "title",
+          "description",
+          "required",
+          "acceptance_mode",
+          "document_reference",
+          "document_version",
+          "document_hash",
+          "document_url",
+          "legal_bundle_version_id",
+          "module_keys",
+          "source_document_ids",
+          "primary_document_id",
+          "sort_order"
+        ],
+        "properties": {
+          "requirement_code": {
+            "type": "string",
+            "enum": [
+              "agreement",
+              "power_of_attorney",
+              "withdrawal"
+            ]
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "agreement",
+              "power_of_attorney",
+              "withdrawal"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean",
+            "const": true
+          },
+          "acceptance_mode": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "acknowledge"
+            ]
+          },
+          "document_reference": {
+            "type": "string"
+          },
+          "document_version": {
+            "type": "string"
+          },
+          "document_hash": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "document_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "legal_bundle_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module_keys": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_document_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "primary_document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "description": "One of the three customer-facing documents. module_keys and source_document_ids bind the presentation document to every immutable canonical legal module it contains."
       }
     },
     "responses": {
@@ -11836,7 +12248,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-04.3"
+          "const": "2026-08-05.1"
         }
       },
       "RequestId": {
@@ -11914,7 +12326,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-04.3",
+  "x-contract-schema-version": "2026-08-05.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

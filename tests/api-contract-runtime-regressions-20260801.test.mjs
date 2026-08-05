@@ -60,7 +60,7 @@ const syncBody = {
   }],
   power_of_attorney: {
     document_reference: 'poa_doc_1',
-    scope: ['request_grid_data'],
+    scope: ['supplier_switch', 'facility_information_lookup'],
     accepted: true,
     accepted_at: '2026-08-01T18:00:00.000Z',
   },
@@ -82,6 +82,18 @@ assert.doesNotThrow(() => assertCustomerPortalOperationRequest(
   '/api/v1/customer/sync',
   'post',
   syncBody,
+  portalHeaders,
+))
+assert.throws(() => assertCustomerPortalOperationRequest(
+  '/api/v1/customer/sync',
+  'post',
+  {
+    ...syncBody,
+    power_of_attorney: {
+      ...syncBody.power_of_attorney,
+      scope: ['request_grid_data'],
+    },
+  },
   portalHeaders,
 ))
 assert.throws(() => assertCustomerPortalOperationRequest(

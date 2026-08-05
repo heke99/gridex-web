@@ -686,24 +686,29 @@ export default async function TecknaPage({
     const submittedLegalBundleVersion = normalizeText(
       formData.get("legal_bundle_version"),
     );
-    const legalBundleVersion =
-      offer.legal.legal_bundle_version_id ?? offer.legal.legal_bundle_reference;
-    const legalRequirements = offer.legal_requirements ?? [];
+    const legalBundleVersion = offer.legal.legal_bundle_version_id;
+    const legalRequirements = offer.legal.customer_documents ?? [];
     const unsupportedLegalRequirements = legalRequirements.filter((requirement) =>
-      requirement.acceptance_type !== "checkbox" ||
-      (requirement.required && !(
+      !["accept", "acknowledge"].includes(requirement.acceptance_mode) ||
+      requirement.legal_bundle_version_id !== legalBundleVersion ||
+      requirement.required !== true ||
+      !(
         requirement.label &&
+        requirement.description &&
         requirement.document_reference &&
         requirement.document_version &&
         requirement.document_hash &&
-        requirement.public_url
-      )),
+        requirement.module_keys.length > 0 &&
+        requirement.source_document_ids.length > 0
+      ),
     );
     if (
       offer.legal.immutable !== true ||
       !legalBundleVersion ||
       !submittedLegalBundleVersion ||
       submittedLegalBundleVersion !== legalBundleVersion ||
+      legalRequirements.length < 1 ||
+      legalRequirements.length > 3 ||
       unsupportedLegalRequirements.length > 0
     ) {
       console.error("[website signup] immutable contract legal snapshot is unsupported or changed", {
@@ -739,13 +744,23 @@ export default async function TecknaPage({
     );
     const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
     const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
+    const groupedPowerOfAttorneyDocumentId =
+      powerOfAttorneyRequirement?.primary_document_id ??
+      powerOfAttorneyRequirement?.source_document_ids.find((documentId) =>
+        offer.legal.module_versions.some(
+          (module) => module.id === documentId && module.module_key === "power_of_attorney",
+        ),
+      ) ??
+      null;
     const legalModulePowerOfAttorneyVersionId =
       offer.legal.module_versions.find((module) => module.module_key === "power_of_attorney")?.id ?? null;
-    const powerOfAttorneyTextVersionId = isUuid(legalModulePowerOfAttorneyVersionId)
-      ? legalModulePowerOfAttorneyVersionId
-      : isUuid(offer.power_of_attorney_version_id)
-        ? offer.power_of_attorney_version_id
-        : null;
+    const powerOfAttorneyTextVersionId = isUuid(groupedPowerOfAttorneyDocumentId)
+      ? groupedPowerOfAttorneyDocumentId
+      : isUuid(legalModulePowerOfAttorneyVersionId)
+        ? legalModulePowerOfAttorneyVersionId
+        : isUuid(offer.power_of_attorney_version_id)
+          ? offer.power_of_attorney_version_id
+          : null;
 
     const hasIdentity =
       customerType === "business"

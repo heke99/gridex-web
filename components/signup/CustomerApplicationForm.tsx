@@ -289,21 +289,29 @@ export default function CustomerApplicationForm({
         message: "Valt avtal saknar juridiskt snapshot.",
       };
     }
-    const bundleVersion =
-      selectedContract.legal.legal_bundle_version_id ??
-      selectedContract.legal.legal_bundle_reference;
-    const requirements = selectedContract.legalRequirements ?? [];
+    const bundleVersion = selectedContract.legal.legal_bundle_version_id;
+    const requirements = selectedContract.legal.customer_documents ?? [];
     const unsupported = requirements.some((requirement) =>
-      requirement.acceptance_type !== "checkbox" ||
-      (requirement.required && !(
+      !["accept", "acknowledge"].includes(requirement.acceptance_mode) ||
+      requirement.legal_bundle_version_id !== bundleVersion ||
+      requirement.required !== true ||
+      !(
         requirement.label &&
+        requirement.description &&
         requirement.document_reference &&
         requirement.document_version &&
         requirement.document_hash &&
-        requirement.public_url
-      )),
+        requirement.module_keys.length > 0 &&
+        requirement.source_document_ids.length > 0
+      ),
     );
-    const supported = Boolean(selectedContract.legal.immutable && bundleVersion && !unsupported);
+    const supported = Boolean(
+      selectedContract.legal.immutable &&
+      bundleVersion &&
+      requirements.length >= 1 &&
+      requirements.length <= 3 &&
+      !unsupported
+    );
     return {
       status: supported ? "ready" : "error",
       bundleVersion,
@@ -322,10 +330,13 @@ export default function CustomerApplicationForm({
     legalRequirements.every((requirement) =>
       !requirement.required || Boolean(
         requirement.label &&
-        requirement.public_url &&
+        requirement.description &&
         requirement.document_reference &&
         requirement.document_version &&
-        requirement.document_hash
+        requirement.document_hash &&
+        requirement.legal_bundle_version_id === legalBundle.bundleVersion &&
+        requirement.module_keys.length > 0 &&
+        requirement.source_document_ids.length > 0
       ),
     ),
   );
@@ -676,13 +687,13 @@ export default function CustomerApplicationForm({
 
             {!legalReady ? (
               <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                {legalBundle.message ?? "Avtalets dokumentlänkar är inte kompletta. Teckning är blockerad."}
+                {legalBundle.message ?? "Avtalets juridiska dokument är inte kompletta. Teckning är blockerad."}
               </div>
             ) : (
               <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
                 <div>
                   <div className="text-base font-semibold text-white">Villkor och godkännanden</div>
-                  <p className="mt-1 text-sm leading-6 text-gray-400">Varje länk är den exakta publicerade version som binds till avtalet.</p>
+                  <p className="mt-1 text-sm leading-6 text-gray-400">Varje godkännande binds till exakt publicerad dokumentversion och kontrollsumma.</p>
                 </div>
                 {legalRequirements.map((requirement) => (
                   <ConsentCheckbox
@@ -693,8 +704,22 @@ export default function CustomerApplicationForm({
                     required={requirement.required}
                     onChange={(_, value) => updateConsent(requirement.requirement_code, value)}
                   >
-                    {requirement.label}{' '}
-                    {requirement.public_url ? <LegalLink href={requirement.public_url}>Öppna dokument</LegalLink> : null}
+                    <span className="block">
+                      <span className="font-medium text-white">{requirement.label}</span>
+                      {requirement.description ? <span className="mt-1 block text-xs leading-5 text-white/55">{requirement.description}</span> : null}
+                      <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                        {requirement.public_url ? <LegalLink href={requirement.public_url}>Öppna dokument</LegalLink> : null}
+                        {!requirement.public_url
+                          ? selectedContract?.legal.module_versions
+                              .filter((module) => requirement.source_document_ids.includes(module.id) && Boolean(module.url))
+                              .map((module, index) => (
+                                <LegalLink key={module.id} href={module.url as string}>
+                                  {requirement.source_document_ids.length > 1 ? `Öppna del ${index + 1}` : 'Öppna dokument'}
+                                </LegalLink>
+                              ))
+                          : null}
+                      </span>
+                    </span>
                   </ConsentCheckbox>
                 ))}
               </div>

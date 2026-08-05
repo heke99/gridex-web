@@ -20,14 +20,15 @@ const auditStore = read('lib/website/energyAreaStore.ts')
 const publicApi = read('lib/website/publicApi.ts')
 const migration = read('supabase/migrations/20260804190000_price_area_assurance_20260804_2.sql')
 
-assert.equal(release.release_version, '2026-08-04.3')
-assert.equal(release.minimum_tenant_integration_version, '2026-08-04.3')
-assert.equal(website.info.version, '2026-08-04.3')
-assert.equal(portal.info.version, '2026-08-04.3')
-assert.equal(sha256(websiteRaw), 'cb646455421d1c56bd94ce11c970ad73560d88b72a9c9940c405ac754c0a6595')
-assert.equal(sha256(portalRaw), '16187883ad4df64ac8e67b9352753d2492369978961c3c84cef0eadb8739d922')
-assert.ok(contract.includes("GRIDEX_API_CONTRACT_VERSION = '2026-08-04.3'"))
-assert.ok(contract.includes("GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION = '2026-08-04.3'"))
+assert.equal(website.info.version, release.release_version)
+assert.equal(portal.info.version, release.release_version)
+assert.equal(release.minimum_tenant_integration_version, release.release_version)
+assert.equal(sha256(websiteRaw), release.specifications.website.sha256)
+assert.equal(sha256(portalRaw), release.specifications.customer_portal.sha256)
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.release_version}'`))
+assert.ok(contract.includes(`GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION = '${release.minimum_tenant_integration_version}'`))
+assert.ok(contract.includes(`GRIDEX_WEBSITE_OPENAPI_SHA256 = '${release.specifications.website.sha256}'`))
+assert.ok(contract.includes(`GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '${release.specifications.customer_portal.sha256}'`))
 
 const quoteOperation = website.paths['/api/v1/website/quote'].post
 const quoteHeader = quoteOperation.parameters.find(
@@ -116,7 +117,7 @@ const canonicalResolution = {
   valid_until: '2026-08-04T17:00:00.000Z',
   price_area_code: 'SE3',
   confidence: 0.85,
-  contract_version: '2026-08-04.3',
+  contract_version: release.release_version,
   price_area_assurance: {
     status: 'estimated',
     price_area: 'SE3',
@@ -146,4 +147,4 @@ assert.equal(issueWebsiteEnergyAreaToken({
   now,
 }), null)
 
-console.log('2026-08-04.3 Gridex API regressions passed')
+console.log(`${release.release_version} Gridex price-area API regressions passed`)

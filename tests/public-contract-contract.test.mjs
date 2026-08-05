@@ -81,26 +81,49 @@ assert.equal(
   'a displayable contract without an immutable bundle version must not enter digital checkout',
 )
 
+const nullableCustomerDocument = {
+  requirement_code: 'agreement',
+  document_type: 'agreement',
+  acceptance_mode: 'accept',
+  acceptance_type: 'accept',
+  required: true,
+  label: 'Jag godkänner avtalet',
+  description: 'Godkänn avtalet och de dokument som ingår i den publicerade juridiksnapshoten.',
+  document_reference: 'agreement_doc_1',
+  document_version: 'v1',
+  document_hash: 'a'.repeat(64),
+  public_url: null,
+  legal_bundle_version_id: '11111111-1111-4111-8111-111111111111',
+  module_keys: ['terms'],
+  source_document_ids: ['terms_source_1'],
+  primary_document_id: 'terms_source_1',
+  sort_order: 10,
+}
 const missingLegalUrlContract = {
   ...emptyLegalRequirementsContract,
   legal: {
     ...emptyLegalRequirementsContract.legal,
     legal_bundle_version_id: '11111111-1111-4111-8111-111111111111',
+    required_modules: ['terms'],
+    module_versions: [{
+      id: 'terms_source_1',
+      legal_bundle_version_id: '11111111-1111-4111-8111-111111111111',
+      document_reference: 'terms_source_reference_1',
+      module_key: 'terms',
+      version: 'v1',
+      title: 'Villkor',
+      published_at: null,
+      content_sha256: 'b'.repeat(64),
+      origin: 'canonical_bundle_document',
+      url: null,
+    }],
+    customer_documents: [nullableCustomerDocument],
   },
-  legal_requirements: [{
-    requirement_code: 'terms',
-    acceptance_type: 'checkbox',
-    required: true,
-    label: 'Jag godkänner villkoren',
-    document_reference: 'terms_doc_1',
-    document_version: 'v1',
-    document_hash: 'a'.repeat(64),
-    public_url: null,
-  }],
+  legal_requirements: [nullableCustomerDocument],
 }
 const missingLegalUrlDisplay = buildPublicContractDisplay(missingLegalUrlContract)
 assert.equal(missingLegalUrlDisplay.ready, true, 'nullable legal URL must not hide a published contract')
-assert.equal(missingLegalUrlDisplay.onlineReady, false, 'required legal URL must block digital checkout only')
+assert.equal(missingLegalUrlDisplay.onlineReady, true, 'nullable legal URL must not block digital checkout')
 
 const malformedRequiredLegalContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_malformed_required_legal',

@@ -19,8 +19,10 @@ assert.equal(portal['x-contract-schema-version'], release.release_version)
 assert.equal(release.website_openapi_version, release.release_version)
 assert.equal(release.customer_portal_openapi_version, release.release_version)
 assert.equal(release.runtime_contract_version, release.release_version)
-assert.equal(release.release_version, '2026-08-04.3')
-assert.equal(release.minimum_tenant_integration_version, '2026-08-04.3')
+assert.equal(release.release_version, '2026-08-05.1')
+assert.equal(release.minimum_tenant_integration_version, '2026-08-05.1')
+assert.equal(release.specifications.website.sha256, '341aff52313d55acf7a688a3611482df5ed0a9684ea546c34ba78d99a8ea14d8')
+assert.equal(release.specifications.customer_portal.sha256, '83a3befbb6285dc1b61075bfcac7e7a1b51557aa6b333f94b909d2f7115e5a6f')
 assert.equal(manifest.contract_version, release.release_version)
 assert.equal(manifest.specifications['website-integration-v1.json'].sha256, sha(websiteRaw))
 assert.equal(manifest.specifications['customer-portal-v1.json'].sha256, sha(portalRaw))
@@ -60,7 +62,52 @@ assert.deepEqual(website.components.schemas.PriceAreaAssurance.required, [
 const legal = website.components.schemas.WebsiteLegalBlock
 assert.ok(legal.required.includes('legal_bundle_version_id'))
 assert.ok(legal.required.includes('module_versions'))
+assert.ok(legal.required.includes('customer_documents'))
 assert.ok(legal.required.includes('power_of_attorney_version_id'))
+assert.equal(legal.properties.customer_documents.type, 'array')
+assert.equal(legal.properties.customer_documents.minItems, 1)
+assert.equal(legal.properties.customer_documents.maxItems, 3)
+assert.equal(legal.properties.customer_documents.items.$ref, '#/components/schemas/CustomerLegalDocument')
+
+const customerLegalDocument = website.components.schemas.CustomerLegalDocument
+assert.deepEqual(customerLegalDocument.required, [
+  'requirement_code',
+  'document_type',
+  'title',
+  'description',
+  'required',
+  'acceptance_mode',
+  'document_reference',
+  'document_version',
+  'document_hash',
+  'document_url',
+  'legal_bundle_version_id',
+  'module_keys',
+  'source_document_ids',
+  'primary_document_id',
+  'sort_order',
+])
+assert.deepEqual(customerLegalDocument.properties.requirement_code.enum, [
+  'agreement',
+  'power_of_attorney',
+  'withdrawal',
+])
+assert.deepEqual(customerLegalDocument.properties.acceptance_mode.enum, ['accept', 'acknowledge'])
+assert.deepEqual(customerLegalDocument.properties.document_url.type, ['string', 'null'])
+assert.equal(customerLegalDocument.properties.legal_bundle_version_id.format, 'uuid')
+assert.equal(customerLegalDocument.properties.module_keys.minItems, 1)
+assert.equal(customerLegalDocument.properties.module_keys.uniqueItems, true)
+assert.equal(customerLegalDocument.properties.source_document_ids.minItems, 1)
+assert.equal(customerLegalDocument.properties.source_document_ids.uniqueItems, true)
+assert.equal(customerLegalDocument.properties.source_document_ids.items.format, 'uuid')
+
+const websiteLegalRequirement = website.components.schemas.WebsiteLegalRequirement
+assert.equal(websiteLegalRequirement.properties.document_url.type, 'string')
+assert.equal(websiteLegalRequirement.properties.document_url.format, 'uri')
+const legalBundleRequirements = website.components.schemas.WebsiteLegalBundle.properties.requirements
+assert.equal(legalBundleRequirements.minItems, 1)
+assert.equal(legalBundleRequirements.maxItems, 3)
+assert.equal(legalBundleRequirements.items.$ref, '#/components/schemas/WebsiteLegalRequirement')
 
 const feedMeta = website.paths['/api/v1/website/public-contracts'].get.responses['200']
   .content['application/json'].schema.properties.meta

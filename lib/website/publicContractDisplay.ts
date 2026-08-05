@@ -373,18 +373,80 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   if (contract.energy_direction === 'production' && !contract.production_pricing) {
     blockedReasons.push('produktionsprissättning saknas')
   }
-  // OPS public-contracts is the publication source of truth. An empty
-  // legal.requirements array is a valid published contract: it means that this
-  // exact legal bundle has no customer checkboxes. Only validate requirements
-  // that OPS actually publishes; never invent a local minimum count.
-  const legalRequirements = contract.legal_requirements ?? []
+  // customer_documents is the only customer-facing legal projection in the
+  // 2026-08-05.1 contract. module_versions remains immutable evidence and must
+  // never become one checkbox per internal module.
+  const legalRequirements = contract.legal?.customer_documents ?? contract.legal_requirements ?? []
+  if (legalRequirements.length > 3) {
+    blockedReasons.push('juridiken innehåller fler än tre kunddokument')
+  }
+  const allowedLegalRequirementCodes = new Set(['agreement', 'power_of_attorney', 'withdrawal'])
+  const seenLegalRequirementCodes = new Set<string>()
+  const legalModulesById = new Map(
+    (contract.legal?.module_versions ?? []).map((module) => [module.id, module]),
+  )
+  const legalModuleKeys = new Set(
+    (contract.legal?.module_versions ?? []).map((module) => module.module_key),
+  )
   for (const requirement of legalRequirements) {
-    if (!requirement.required) continue
-    if (!requirement.requirement_code) blockedReasons.push('juridikkrav saknar kod')
-    if (requirement.acceptance_type !== 'checkbox') blockedReasons.push(`${requirement.requirement_code}: acceptance_type stöds inte`)
-    if (!requirement.document_version) blockedReasons.push(`${requirement.requirement_code}: dokumentversion saknas`)
-    if (!requirement.document_reference) {
-      blockedReasons.push(`${requirement.requirement_code}: juridisk dokumentreferens saknas`)
+    const code = requirement.requirement_code
+    if (!allowedLegalRequirementCodes.has(code)) {
+      blockedReasons.push(`${code || 'juridikkrav'}: kunddokumenttypen stöds inte`)
+    } else if (seenLegalRequirementCodes.has(code)) {
+      blockedReasons.push(`${code}: dubblerat kunddokument`)
+    } else {
+      seenLegalRequirementCodes.add(code)
+    }
+    if (requirement.document_type !== code) {
+      blockedReasons.push(`${code || 'juridikkrav'}: dokumenttyp matchar inte kravkoden`)
+    }
+    if (requirement.required !== true) {
+      blockedReasons.push(`${code || 'juridikkrav'}: kunddokumentet måste vara obligatoriskt`)
+      continue
+    }
+    if (!requirement.label) blockedReasons.push(`${code}: dokumenttitel saknas`)
+    if (!requirement.description) blockedReasons.push(`${code}: dokumentbeskrivning saknas`)
+    if (requirement.acceptance_mode !== 'accept' && requirement.acceptance_mode !== 'acknowledge') {
+      blockedReasons.push(`${code}: acceptance_mode stöds inte`)
+    }
+    if (!requirement.document_version) blockedReasons.push(`${code}: dokumentversion saknas`)
+    if (!requirement.document_reference) blockedReasons.push(`${code}: juridisk dokumentreferens saknas`)
+    if (!requirement.document_hash || !/^[a-f0-9]{64}$/i.test(requirement.document_hash)) {
+      blockedReasons.push(`${code}: dokumenthash saknas eller är ogiltig`)
+    }
+    if (requirement.legal_bundle_version_id !== contract.legal?.legal_bundle_version_id) {
+      blockedReasons.push(`${code}: juridikpaketsversion matchar inte`)
+    }
+    if (
+      requirement.module_keys.length === 0 ||
+      new Set(requirement.module_keys).size !== requirement.module_keys.length ||
+      requirement.module_keys.some((moduleKey) => !legalModuleKeys.has(moduleKey))
+    ) {
+      blockedReasons.push(`${code}: modulbindning saknas eller är ogiltig`)
+    }
+    if (
+      requirement.source_document_ids.length === 0 ||
+      new Set(requirement.source_document_ids).size !== requirement.source_document_ids.length
+    ) {
+      blockedReasons.push(`${code}: källdokument saknas eller är dubblerade`)
+    } else {
+      const sourceModules = requirement.source_document_ids.map((documentId) => legalModulesById.get(documentId))
+      if (sourceModules.some((module) => !module)) {
+        blockedReasons.push(`${code}: källdokument finns inte i juridiksnapshoten`)
+      } else if (sourceModules.some((module) => module && !requirement.module_keys.includes(module.module_key))) {
+        blockedReasons.push(`${code}: källdokument och modulbindning matchar inte`)
+      } else if (requirement.module_keys.some((moduleKey) => !sourceModules.some((module) => module?.module_key === moduleKey))) {
+        blockedReasons.push(`${code}: modul saknar bundet källdokument`)
+      }
+    }
+    if (
+      requirement.primary_document_id &&
+      !requirement.source_document_ids.includes(requirement.primary_document_id)
+    ) {
+      blockedReasons.push(`${code}: primärt dokument ingår inte i källdokumenten`)
+    }
+    if (!Number.isInteger(requirement.sort_order) || requirement.sort_order < 0) {
+      blockedReasons.push(`${code}: sorteringsordning är ogiltig`)
     }
   }
   validatePublicPricingForType(blockedReasons, contract)
@@ -508,18 +570,20 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
   }
 
   const onlineBlockedReasons = [...blockedReasons]
+  if (legalRequirements.length === 0) {
+    onlineBlockedReasons.push('kunddokument saknas för digital teckning')
+  }
   if (contract.legal?.immutable !== true) {
     onlineBlockedReasons.push('juridiksnapshot är inte immutable')
   }
-  const legalBundleVersion = contract.legal?.legal_bundle_version_id ?? contract.legal?.legal_bundle_reference
+  const legalBundleVersion = contract.legal?.legal_bundle_version_id
   if (!legalBundleVersion) {
     onlineBlockedReasons.push('juridikpaketets version saknas för digital teckning')
   }
-  for (const requirement of legalRequirements) {
-    if (requirement.required && !requirement.public_url) {
-      onlineBlockedReasons.push(`${requirement.requirement_code}: dokumentlänk saknas för digital teckning`)
-    }
-  }
+  // document_url/public_url is explicitly nullable in the 2026-08-05.1
+  // customer-document contract. The immutable references, version, hash and
+  // source-document bindings above are the acceptance evidence; a public URL
+  // is presentation metadata and must not block digital checkout.
 
   const snapshot = {
     offer_reference: contract.offer_reference,

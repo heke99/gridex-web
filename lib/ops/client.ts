@@ -3765,14 +3765,21 @@ export type OpsWebsiteLegalBundle = {
   complete: boolean;
   missing_types: string[];
   requirements: Array<{
-    requirement_code: string;
+    requirement_code: 'agreement' | 'power_of_attorney' | 'withdrawal';
+    document_type: 'agreement' | 'power_of_attorney' | 'withdrawal';
     title: string;
     description: string;
     required: true;
+    acceptance_mode: 'accept' | 'acknowledge';
     document_reference: string;
     document_version: string;
     document_hash: string;
-    document_url: string;
+    document_url: string | null;
+    legal_bundle_version_id: string;
+    module_keys: string[];
+    source_document_ids: string[];
+    primary_document_id: string | null;
+    sort_order: number;
   }>;
   texts: OpsLegalText[];
   raw: Record<string, unknown>;
@@ -3813,40 +3820,71 @@ export async function fetchOpsWebsiteLegalBundle(
   const requiredTypes = Array.isArray(raw.required_types)
     ? raw.required_types.map(String)
     : []
-  const requirements = Array.isArray(raw.requirements)
-    ? raw.requirements.flatMap((value) => {
+  const requirements: OpsWebsiteLegalBundle['requirements'] = Array.isArray(raw.requirements)
+    ? raw.requirements.flatMap<OpsWebsiteLegalBundle['requirements'][number]>((value) => {
         const requirement = recordValue(value)
         const requirementCode = normalizeText(requirement?.requirement_code)
+        const documentType = normalizeText(requirement?.document_type)
         const title = normalizeText(requirement?.title)
         const description = normalizeText(requirement?.description)
+        const acceptanceMode = normalizeText(requirement?.acceptance_mode)
         const documentReference = normalizeText(
           requirement?.document_reference ?? requirement?.document_id,
         )
         const documentVersion = normalizeText(requirement?.document_version)
         const documentHash = normalizeText(requirement?.document_hash)
         const documentUrl = normalizeText(requirement?.document_url)
+        const legalBundleVersionId = normalizeText(requirement?.legal_bundle_version_id)
+        const moduleKeys = Array.isArray(requirement?.module_keys)
+          ? requirement.module_keys.map(String).map((value) => value.trim()).filter(Boolean)
+          : []
+        const sourceDocumentIds = Array.isArray(requirement?.source_document_ids)
+          ? requirement.source_document_ids.map(String).map((value) => value.trim()).filter(Boolean)
+          : []
+        const primaryDocumentId = normalizeText(requirement?.primary_document_id)
+        const sortOrder = typeof requirement?.sort_order === 'number' && Number.isInteger(requirement.sort_order)
+          ? requirement.sort_order
+          : null
         if (
-          !requirementCode ||
+          (requirementCode !== 'agreement' &&
+            requirementCode !== 'power_of_attorney' &&
+            requirementCode !== 'withdrawal') ||
+          documentType !== requirementCode ||
           !title ||
           !description ||
           requirement?.required !== true ||
+          (acceptanceMode !== 'accept' && acceptanceMode !== 'acknowledge') ||
           !documentReference ||
           !documentVersion ||
           !documentHash ||
           !/^[a-f0-9]{64}$/i.test(documentHash) ||
-          !documentUrl
+          !legalBundleVersionId ||
+          moduleKeys.length === 0 ||
+          new Set(moduleKeys).size !== moduleKeys.length ||
+          sourceDocumentIds.length === 0 ||
+          new Set(sourceDocumentIds).size !== sourceDocumentIds.length ||
+          (primaryDocumentId !== null && !sourceDocumentIds.includes(primaryDocumentId)) ||
+          sortOrder === null ||
+          sortOrder < 0
         ) {
           return []
         }
         return [{
           requirement_code: requirementCode,
+          document_type: requirementCode,
           title,
           description,
           required: true as const,
+          acceptance_mode: acceptanceMode,
           document_reference: documentReference,
           document_version: documentVersion,
           document_hash: documentHash,
           document_url: documentUrl,
+          legal_bundle_version_id: legalBundleVersionId,
+          module_keys: moduleKeys,
+          source_document_ids: sourceDocumentIds,
+          primary_document_id: primaryDocumentId,
+          sort_order: sortOrder,
         }]
       })
     : []
