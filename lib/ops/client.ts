@@ -18,6 +18,7 @@ import {
   GRIDEX_WEBSITE_OPENAPI_SHA256,
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
+import { isCompatibleAdditiveResponseSchemaError } from '@/lib/ops/schemaCompatibility'
 import {
   env,
   getOpsApiBaseUrl,
@@ -1390,13 +1391,25 @@ function jsonRequestBody(init?: RequestInit): unknown {
   }
 }
 
-function additiveResponsePropertiesOnly(error: unknown): boolean {
-  if (!(error instanceof OpsSchemaError)) return false
+function schemaValidationIssues(error: unknown): Array<{
+  path: string
+  keyword: string
+  message: string | null
+  additional_property: string | null
+}> {
+  if (!(error instanceof OpsSchemaError)) return []
   const details = recordValue(error.details)
   const errors = Array.isArray(details?.errors) ? details.errors : []
-  return errors.length > 0 && errors.every((item) => {
+  return errors.flatMap((item) => {
     const row = recordValue(item)
-    return row?.keyword === 'additionalProperties'
+    if (!row) return []
+    const params = recordValue(row.params)
+    return [{
+      path: normalizeText(row.instancePath) ?? '/',
+      keyword: normalizeText(row.keyword) ?? 'unknown',
+      message: normalizeText(row.message),
+      additional_property: normalizeText(params?.additionalProperty),
+    }]
   })
 }
 
@@ -1408,11 +1421,14 @@ function observeRuntimeSchemaValidation(input: {
   try {
     input.validate()
   } catch (error) {
-    if (additiveResponsePropertiesOnly(error)) {
+    if (isCompatibleAdditiveResponseSchemaError(error)) {
       console.warn('[gridex-openapi] compatible additive response fields detected', {
         endpoint: input.endpoint,
         schema: input.schema,
         code: isOpsError(error) ? error.code : null,
+        request_id: isOpsError(error) ? error.requestId : null,
+        correlation_id: isOpsError(error) ? error.correlationId : null,
+        issues: schemaValidationIssues(error),
       })
       return
     }

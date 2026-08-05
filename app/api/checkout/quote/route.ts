@@ -245,6 +245,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ data }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     const opsCode = isOpsError(error) ? error.code : null
+    const opsDetails = isOpsError(error) && error.details && typeof error.details === 'object' && !Array.isArray(error.details)
+      ? error.details as Record<string, unknown>
+      : null
+    const schemaIssues = Array.isArray(opsDetails?.errors)
+      ? opsDetails.errors.flatMap((item) => {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+          const issue = item as Record<string, unknown>
+          const params = issue.params && typeof issue.params === 'object' && !Array.isArray(issue.params)
+            ? issue.params as Record<string, unknown>
+            : null
+          return [{
+            path: typeof issue.instancePath === 'string' && issue.instancePath ? issue.instancePath : '/',
+            keyword: typeof issue.keyword === 'string' ? issue.keyword : 'unknown',
+            message: typeof issue.message === 'string' ? issue.message : null,
+            additional_property: typeof params?.additionalProperty === 'string'
+              ? params.additionalProperty
+              : null,
+          }]
+        })
+      : []
     console.error('[website pricing quote] failed', {
       request_id: requestId,
       upstream_request_id: isOpsError(error) ? error.requestId : null,
@@ -254,6 +274,16 @@ export async function POST(req: Request) {
       code: opsCode,
       retryable: isOpsError(error) ? error.retryable : null,
       message: error instanceof Error ? error.message : String(error),
+      schema_issues: schemaIssues,
+      upstream_contract_schema_version: typeof opsDetails?.contract_schema_version === 'string'
+        ? opsDetails.contract_schema_version
+        : null,
+      upstream_top_level_keys: Array.isArray(opsDetails?.response_top_level_keys)
+        ? opsDetails.response_top_level_keys
+        : [],
+      upstream_data_keys: Array.isArray(opsDetails?.response_data_keys)
+        ? opsDetails.response_data_keys
+        : [],
     })
     const publicCode = opsCode === 'resolution_pricing_not_ready' || opsCode === 'resolution_not_ready'
       ? 'resolution_pricing_not_ready'

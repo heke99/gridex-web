@@ -1,5 +1,4 @@
 import {
-  OpsError,
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsSnapshot,
   isOpsError,

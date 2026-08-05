@@ -1,0 +1,9 @@
+app/api/checkout/quote/route.ts
+lib/ops/client.ts
+lib/ops/errors.ts
+lib/ops/validators/openapi.ts
+lib/ops/schemaCompatibility.ts
+tests/schema-additive-compatibility.test.mjs
+package.json
+GRIDEX_QUOTE_API_AUDIT_2026-08-05.md
+GRIDEX_QUOTE_API_AUDIT_CHANGED_FILES.txt

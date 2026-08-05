@@ -66,8 +66,19 @@ export class OpsSchemaError extends OpsError {
   constructor(input: {
     schema: string
     stage: 'request' | 'response'
-    errors: Array<{ instancePath: string; keyword: string; message: string | null }>
+    errors: Array<{
+      instancePath: string
+      keyword: string
+      message: string | null
+      params?: Record<string, unknown>
+      schemaPath?: string | null
+    }>
     endpoint?: string | null
+    request_id?: string | null
+    correlation_id?: string | null
+    contract_schema_version?: string | null
+    response_top_level_keys?: string[]
+    response_data_keys?: string[]
   }) {
     super(
       input.stage === 'request'
@@ -82,6 +93,11 @@ export class OpsSchemaError extends OpsError {
         stage: input.stage,
         endpoint: input.endpoint ?? null,
         errors: input.errors,
+        request_id: input.request_id ?? null,
+        correlation_id: input.correlation_id ?? null,
+        contract_schema_version: input.contract_schema_version ?? null,
+        response_top_level_keys: input.response_top_level_keys ?? [],
+        response_data_keys: input.response_data_keys ?? [],
         retryable: false,
       },
     )

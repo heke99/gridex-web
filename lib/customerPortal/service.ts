@@ -177,7 +177,6 @@ function stableEntityId(
   entity: string,
   row: Record<string, unknown>,
   idKeys: string[],
-  _fallbackKeys: string[],
 ): string {
   const direct = pick(row, idKeys)
   if (direct) return direct
@@ -324,7 +323,7 @@ function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
 
 function mapOpsEvent(row: Record<string, unknown>): CustomerPortalEvent {
   return {
-    id: stableEntityId('event', row, ['event_reference', 'id', 'event_id'], ['event_type', 'created_at', 'occurred_at']),
+    id: stableEntityId('event', row, ['event_reference', 'id', 'event_id']),
     event_type: pick(row, ['event_type', 'type']) ?? 'customer.event',
     title: pick(row, ['title', 'customer_label']),
     summary: pick(row, ['summary', 'message', 'body']),
@@ -373,7 +372,7 @@ function acceptanceTitle(type: string) {
 function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAcceptance {
   const type = pick(row, ['acceptance_type', 'type', 'legal_type']) ?? 'acceptance'
   return {
-    id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id'], ['acceptance_type', 'version', 'accepted_at']),
+    id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
     version: pick(row, ['version', 'legal_version', 'version_key']),
@@ -402,7 +401,7 @@ function poaScopeLabel(scopes: string[]) {
 function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAttorney {
   const scopes = stringArray(row.scope ?? row.scopes ?? row.poa_scope)
   return {
-    id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id'], ['status', 'accepted_at', 'version']),
+    id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id']),
     status: pick(row, ['status']) ?? 'active',
     scopes,
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
@@ -451,7 +450,7 @@ function mapOpsSwitchStatus(row: Record<string, unknown> | null): CustomerSwitch
 
 function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValue {
   return {
-    id: stableEntityId('metering', row, ['metering_value_reference', 'id', 'metering_value_id'], ['metering_point_id', 'period_start', 'period_end']),
+    id: stableEntityId('metering', row, ['metering_value_reference', 'id', 'metering_value_id']),
     metering_point_id: pick(row, ['metering_point_id', 'mpan']),
     facility_id: pick(row, ['facility_id']),
     period_start: pickDate(row, ['period_start', 'from_at', 'start_time']),

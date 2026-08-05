@@ -33,7 +33,6 @@ import {
 } from "@/lib/website/publicContractContract";
 import {
   isStrictCalendarDate,
-  stockholmCalendarDate,
 } from "@/lib/website/businessDate";
 import type { RequestedStartMode } from "@/lib/website/requestedStart";
 

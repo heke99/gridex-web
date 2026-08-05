@@ -253,7 +253,10 @@ export default function CustomerApplicationForm({
     requested_start_mode: quoteContext.requested_start_mode,
     requested_start_date: quoteContext.requested_start_date ?? "",
   });
-  const [consents, setConsents] = useState<Consents>({});
+  const [consentState, setConsentState] = useState<{ scope: string; values: Consents }>({
+    scope: "",
+    values: {},
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submissionState, formAction] = useActionState(action, { errorMessage: null });
 
@@ -327,9 +330,8 @@ export default function CustomerApplicationForm({
     ),
   );
 
-  useEffect(() => {
-    setConsents({});
-  }, [selectedContract?.offerReference]);
+  const consentScope = `${selectedContract?.offerReference ?? selectedValue}:${legalBundle.bundleVersion ?? "missing"}`;
+  const consents = consentState.scope === consentScope ? consentState.values : {};
   const authenticatedEmailMismatch = Boolean(
     authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
   );
@@ -357,7 +359,13 @@ export default function CustomerApplicationForm({
 
   function updateConsent(name: string, value: boolean) {
     rotateSubmissionAttempt();
-    setConsents((current) => ({ ...current, [name]: value }));
+    setConsentState((current) => ({
+      scope: consentScope,
+      values:
+        current.scope === consentScope
+          ? { ...current.values, [name]: value }
+          : { [name]: value },
+    }));
   }
 
   function validateDetails(): boolean {

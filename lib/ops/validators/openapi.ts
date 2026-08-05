@@ -54,10 +54,44 @@ const cache = new Map<string, ValidateFunction>()
 function safeErrors(errors: ErrorObject[] | null | undefined) {
   return (errors ?? []).map((error) => ({
     instancePath: error.instancePath,
+    schemaPath: error.schemaPath ?? null,
     keyword: error.keyword,
     message: error.message ?? null,
     params: error.params as Record<string, unknown>,
   }))
+}
+
+function responseDiagnostics(value: unknown, stage: Stage): {
+  request_id: string | null
+  correlation_id: string | null
+  contract_schema_version: string | null
+  response_top_level_keys: string[]
+  response_data_keys: string[]
+} {
+  if (stage !== 'response' || !value || typeof value !== 'object' || Array.isArray(value)) {
+    return {
+      request_id: null,
+      correlation_id: null,
+      contract_schema_version: null,
+      response_top_level_keys: [],
+      response_data_keys: [],
+    }
+  }
+  const root = value as JsonRecord
+  const data = root.data && typeof root.data === 'object' && !Array.isArray(root.data)
+    ? root.data as JsonRecord
+    : null
+  const stringField = (key: string): string | null => {
+    const field = root[key]
+    return typeof field === 'string' && field.trim() ? field.trim() : null
+  }
+  return {
+    request_id: stringField('request_id'),
+    correlation_id: stringField('correlation_id'),
+    contract_schema_version: stringField('contract_schema_version'),
+    response_top_level_keys: Object.keys(root).sort(),
+    response_data_keys: data ? Object.keys(data).sort() : [],
+  }
 }
 
 function namedValidator(contract: ContractName, schema: string): ValidateFunction {
@@ -385,17 +419,20 @@ function assertWithValidator(
   input: { stage: Stage; endpoint?: string | null },
 ): void {
   if (validate(value)) return
+  const diagnostics = responseDiagnostics(value, input.stage)
   throw new OpsSchemaError({
     schema: `${contract}:${schema}`,
     stage: input.stage,
     endpoint: input.endpoint ?? null,
     errors: safeErrors(validate.errors),
+    ...diagnostics,
   })
 }
 
 
 export type OpenApiValidationIssue = {
   instancePath: string
+  schemaPath: string | null
   keyword: string
   message: string | null
   params: Record<string, unknown>
