@@ -25,8 +25,9 @@ export type WebsitePricingQuote = {
   version: 6;
   created_at: string;
   issued_at: string;
-  // OPS is authoritative for quote lifetime. The exact canonical valid_until
-  // value is signed into the browser token and enforced both locally and by OPS.
+  // OPS valid_until is retained as canonical lifecycle metadata. The browser
+  // signature remains verifiable after that timestamp so the server can renew
+  // the internal quote without forcing the customer through the calculator again.
   expires_at?: string | null;
   valid_until: string;
   customer_type: WebsiteCustomerType;
@@ -237,7 +238,11 @@ export function issueWebsitePricingQuote(input: {
   return { token: `${unsigned}.${hmac(unsigned, secret)}`, quote };
 }
 
-export function verifyWebsitePricingQuote(token: string | null | undefined, now = new Date()): PricingQuoteVerification {
+export function verifyWebsitePricingQuote(
+  token: string | null | undefined,
+  now = new Date(),
+  options: { allowExpired?: boolean } = {},
+): PricingQuoteVerification {
   const keyring = quoteKeys();
   if (!keyring) return { ok: false, reason: "not_configured" };
   if (!token) return { ok: false, reason: "invalid" };
@@ -250,7 +255,9 @@ export function verifyWebsitePricingQuote(token: string | null | undefined, now 
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isQuote(parsed)) return { ok: false, reason: "invalid" };
-    if (Date.parse(parsed.valid_until) <= now.getTime()) return { ok: false, reason: "expired" };
+    if (!options.allowExpired && Date.parse(parsed.valid_until) <= now.getTime()) {
+      return { ok: false, reason: "expired" };
+    }
     return { ok: true, quote: parsed };
   } catch { return { ok: false, reason: "invalid" }; }
 }
@@ -320,8 +327,11 @@ export function validateWebsitePricingQuote(input: {
   estimatedMonthlyKwh: number;
   annualConsumptionKwh: number;
   location: { postalCode: string; city: string; address: string };
+  allowExpired?: boolean;
 }): { ok: true; quote: WebsitePricingQuote } | { ok: false; reason: string } {
-  const verified = verifyWebsitePricingQuote(input.token);
+  const verified = verifyWebsitePricingQuote(input.token, new Date(), {
+    allowExpired: input.allowExpired,
+  });
   if (!verified.ok) return { ok: false, reason: verified.reason === "expired" ? "quote_expired" : verified.reason };
   const { quote } = verified;
   if (quote.version >= 5 && quote.customer_type !== input.customerType) return { ok: false, reason: "quote_customer_type_mismatch" };

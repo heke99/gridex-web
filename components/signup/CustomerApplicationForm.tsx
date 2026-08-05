@@ -381,7 +381,7 @@ export default function CustomerApplicationForm({
 
   function validateDetails(): boolean {
     const next: Record<string, string> = {};
-    if (!selectedContract || !hasPricingPreview) next.pricing = "Räkna om priset innan du fortsätter.";
+    if (!selectedContract || !hasPricingPreview) next.pricing = "Välj ett avtal och hämta priset innan du fortsätter.";
     if (!legalReady) next.legal = "Avtalets juridiska underlag är inte komplett. Välj ett annat avtal eller kontakta kundservice.";
     if (!form.first_name.trim()) next.first_name = customerType === 'business' ? "Ange firmatecknarens förnamn." : "Ange ditt förnamn.";
     if (!form.last_name.trim()) next.last_name = customerType === 'business' ? "Ange firmatecknarens efternamn." : "Ange ditt efternamn.";
@@ -462,12 +462,6 @@ export default function CustomerApplicationForm({
               Skapa konto
             </Link>
           </div>
-        </div>
-      ) : null}
-
-      {!quoteValid ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="status">
-          Prisberäkningen behöver hämtas på nytt ovan. Dina ifyllda kunduppgifter ligger kvar i den här fliken.
         </div>
       ) : null}
 
@@ -572,9 +566,8 @@ export default function CustomerApplicationForm({
             <p className="mt-2 text-sm text-cyan-50/80">
               {quoteContext.requested_start_mode === 'specific_date'
                 ? `Valt startdatum: ${quoteContext.requested_start_date}`
-                : `Så snart som möjligt (bekräftat startdatum: ${pricingPreview?.start_date ?? 'verifieras av Gridex'})`}
+                : 'Så snart som möjligt'}
             </p>
-            <p className="mt-2 text-xs leading-5 text-cyan-50/60">Ändra startvalet i prissteget för att uppdatera det verifierade prisunderlaget.</p>
           </div>
 
           <details className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -680,7 +673,7 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="E-post" value={form.email} />
                   <ReviewRow label="Telefon" value={normalizePhoneToE164(form.phone) ?? form.phone} />
                   <ReviewRow label="Adress" value={`${quoteContext.address}, ${quoteContext.postal_code} ${quoteContext.city}`} />
-                  <ReviewRow label="Start" value={quoteContext.requested_start_mode === 'specific_date' ? quoteContext.requested_start_date ?? pricingPreview?.start_date ?? '' : `Så snart som möjligt (${pricingPreview?.start_date ?? 'Gridex verifierar datum'})`} />
+                  <ReviewRow label="Start" value={quoteContext.requested_start_mode === 'specific_date' ? quoteContext.requested_start_date ?? pricingPreview?.start_date ?? '' : 'Så snart som möjligt'} />
                 </dl>
               </div>
             </div>

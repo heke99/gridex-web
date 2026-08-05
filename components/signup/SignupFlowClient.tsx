@@ -144,7 +144,7 @@ export default function SignupFlowClient({
       {lastPricingPreview && lastQuoteContext && selectedContract ? (
         <section id="teckna-kunduppgifter" className="scroll-mt-24 rounded-3xl border border-white/10 bg-gray-950 p-6 md:p-10">
           <div className="mb-8 max-w-2xl">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">Pris verifierat</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">Prisindikation klar</div>
             <h2 className="mt-3 text-2xl font-bold text-white md:text-3xl">Slutför teckningen</h2>
             <p className="mt-3 text-gray-400">Fyll i kunduppgifterna, granska de publicerade dokumenten och teckna.</p>
           </div>

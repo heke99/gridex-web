@@ -144,6 +144,7 @@ export function verifyWebsiteEnergyAreaToken(input: {
   token: string | null | undefined
   location: { postalCode: string; city: string; address: string }
   now?: Date
+  allowExpired?: boolean
 }): { ok: true; payload: WebsiteEnergyAreaTokenPayload } | { ok: false; reason: string } {
   const keyring = keys()
   if (!keyring) return { ok: false, reason: 'not_configured' }
@@ -174,7 +175,7 @@ export function verifyWebsiteEnergyAreaToken(input: {
       !Number.isFinite(Date.parse(payload.issued_at)) ||
       !Number.isFinite(Date.parse(payload.expires_at)) ||
       Date.parse(payload.issued_at) > now.getTime() + 60_000 ||
-      Date.parse(payload.expires_at) <= now.getTime() ||
+      (!input.allowExpired && Date.parse(payload.expires_at) <= now.getTime()) ||
       Date.parse(payload.expires_at) - Date.parse(payload.issued_at) > MAX_TOKEN_TTL_MS + 1_000 ||
       !safeEqual(payload.location_fingerprint, fingerprint(input.location, key))
     ) return { ok: false, reason: 'invalid_or_expired' }

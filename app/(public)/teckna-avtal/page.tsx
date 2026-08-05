@@ -221,13 +221,13 @@ function errorText(code?: string) {
     case "price_snapshot":
       return "Prisberäkningen saknas. Räkna priset innan du tecknar.";
     case "price_changed":
-      return "Priset eller avtalet har ändrats. Räkna om priset och granska den uppdaterade teckningen.";
+      return "Det valda avtalet kunde inte verifieras automatiskt. Försök skicka teckningen igen.";
     case "area_mismatch":
-      return "Vi kunde inte bekräfta elområdet för adressen. Kontrollera adressen och räkna om priset.";
+      return "Vi kunde inte bekräfta elområdet för adressen. Kontrollera adressen och försök igen.";
     case "resolution_expired":
       return "Adressen behöver kontrolleras igen innan avtalet kan tecknas.";
     case "quote_expired":
-      return "Prisunderlaget har löpt ut. Hämta priset på nytt och granska uppgifterna igen.";
+      return "Prisunderlaget kunde inte uppdateras automatiskt. Försök skicka teckningen igen.";
     case "market_price_stale":
       return "Ett aktuellt marknadspris kan inte hämtas just nu.";
     case "missing_scope":
@@ -394,7 +394,7 @@ function opsFieldFailure(error: unknown): Pick<SignupSubmissionState, "step" | "
   if (/email/.test(key)) return { step: 0, fieldErrors: { email: "Kontrollera e-postadressen." } };
   if (/phone/.test(key)) return { step: 0, fieldErrors: { phone: "Kontrollera telefonnumret." } };
   if (/facility|metering|site|address|postal|city|price_area/.test(key)) {
-    return { step: 0, fieldErrors: { pricing: "Kontrollera adressen och räkna om priset." } };
+    return { step: 0, fieldErrors: { pricing: "Kontrollera adressen och försök igen." } };
   }
   if (/legal|consent|power_of_attorney|price_terms|terms|withdrawal/.test(key)) {
     return { step: 1, fieldErrors: { legal: "Kontrollera villkoren och de obligatoriska godkännandena." } };
@@ -924,16 +924,14 @@ export default async function TecknaPage({
         offer_reference: offer.offer_reference,
       });
       return fail("price_changed", {
-        step: 0,
-        requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Uppgifterna behöver verifieras igen. Hämta priset på nytt." },
+        step: 1,
+        fieldErrors: { pricing: "Prisunderlaget kunde inte verifieras automatiskt. Försök skicka teckningen igen." },
       });
     }
     if (!matchesGridexWebsiteCheckoutPolicy(verifiedQuote.value.quote)) {
       return fail("price_changed", {
-        step: 0,
-        requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Prisunderlaget använder äldre val och behöver hämtas på nytt." },
+        step: 1,
+        fieldErrors: { pricing: "Valda avtalsinställningar kunde inte verifieras automatiskt." },
       });
     }
     if (
@@ -941,9 +939,8 @@ export default async function TecknaPage({
       verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersion
     ) {
       return fail("price_changed", {
-        step: 0,
-        requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Juridikpaketet har ändrats. Hämta prisunderlaget på nytt." },
+        step: 1,
+        fieldErrors: { pricing: "Avtalsvillkoren kunde inte verifieras automatiskt. Försök skicka teckningen igen." },
       });
     }
     if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
@@ -953,18 +950,24 @@ export default async function TecknaPage({
         received_energy_direction: verifiedQuote.value.quote.energy_direction,
       });
       return fail("price_changed", {
-        step: 0,
-        requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Prisunderlaget stämmer inte med valt avtal. Hämta priset på nytt." },
+        step: 1,
+        fieldErrors: { pricing: "Prisunderlaget stämmer inte med valt avtal." },
       });
     }
     const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
     const serverResolution = verifiedQuote.value.area;
-    const signedPreview = quoteToWebsitePricingPreview(verifiedQuote.value.quote, pricingQuoteToken);
+    // The browser token belongs to the exact preview the customer saw. An
+    // internally renewed quote gets its own canonical snapshot without falsely
+    // attaching the old browser token to it.
+    const signedPreview = quoteToWebsitePricingPreview(
+      verifiedQuote.value.quote,
+      verifiedQuote.value.pricingToken,
+    );
+    const displayedPreview = quoteToWebsitePricingPreview(verifiedQuote.value.displayedQuote, pricingQuoteToken);
     const pricingValidation = validatePricingPreviewSnapshot({
       contract: offer,
       snapshot: pricingPreviewSnapshot,
-      livePreview: signedPreview,
+      livePreview: displayedPreview,
       expectedPriceArea: serverPriceAreaCode,
       expectedMonthlyKwh: estimatedMonthlyKwh,
     });
@@ -974,9 +977,8 @@ export default async function TecknaPage({
         offer_reference: offer.offer_reference,
         });
       return fail("price_changed", {
-        step: 0,
-        requiresQuoteRefresh: true,
-        fieldErrors: { pricing: "Uppgifterna stämmer inte med det verifierade prisunderlaget. Hämta priset på nytt." },
+        step: 1,
+        fieldErrors: { pricing: "Prisunderlaget stämmer inte med de valda uppgifterna." },
       });
     }
     const canonicalPricingPreviewSnapshot: Record<string, unknown> = {
@@ -1037,7 +1039,7 @@ export default async function TecknaPage({
       energyResolutionConfidence: serverResolution.confidence,
       pricingSnapshotReference: verifiedQuote.value.quote.pricing_snapshot_reference,
       annualConsumptionKwh,
-      quoteToken: pricingQuoteToken,
+      quoteToken: verifiedQuote.value.pricingToken,
       canonicalPricingPreviewSnapshot,
       consumptionProfile,
       contractDisplaySnapshot,

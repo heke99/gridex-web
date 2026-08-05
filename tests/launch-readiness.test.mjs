@@ -86,8 +86,10 @@ assert.ok(
   "submit must reject a displayed price that no longer matches the server calculation",
 );
 assert.ok(
-  !signup.includes("loadVerifiedWebsitePricingPreview") && signup.includes("livePreview: signedPreview"),
-  "submit must validate the exact signed OPS quote without recalculating it",
+  !signup.includes("loadVerifiedWebsitePricingPreview") &&
+    signup.includes("livePreview: displayedPreview") &&
+    signup.includes("verifiedQuote.value.displayedQuote"),
+  "submit must validate the exact signed price shown to the customer while allowing internal quote renewal",
 );
 assert.ok(
   signup.includes("validateCanonicalWebsiteQuote"),
@@ -108,8 +110,14 @@ assert.ok(
   "form must post contract display snapshot",
 );
 assert.ok(
-  form.includes("quoteValid") && form.includes("Prisberäkningen behöver hämtas på nytt"),
-  "form must require a price preview before progressing",
+  form.includes("quoteValid") && form.includes("Välj ett avtal och hämta priset innan du fortsätter."),
+  "form must require an initial price preview before progressing",
+);
+assert.ok(
+  !form.includes("Prisberäkningen behöver hämtas på nytt") &&
+    !form.includes("bekräftat startdatum") &&
+    form.includes("'Så snart som möjligt'"),
+  "form must not expose internal quote expiry or claim an unconfirmed start date",
 );
 assert.ok(
   form.includes("legalRequirements.map") && form.includes("legal_acceptance:${requirement.requirement_code}"),

@@ -108,9 +108,12 @@ export async function POST(req: Request) {
       location: { postalCode, city, address },
     })
     if (!verified.ok) {
-      return NextResponse.json({ error: 'Uppgifterna behöver verifieras igen innan du fortsätter.' }, { status: 409 })
+      return NextResponse.json({ error: 'Prisunderlaget kunde inte kontrolleras automatiskt. Försök igen.' }, { status: 409 })
     }
-    if (verified.value.quote.version >= 5 && verified.value.quote.quote_attempt_id !== quoteAttemptId) {
+    if (
+      verified.value.displayedQuote.version >= 5 &&
+      verified.value.displayedQuote.quote_attempt_id !== quoteAttemptId
+    ) {
       return NextResponse.json(
         { error: 'Prisförsöket matchar inte den signerade prisberäkningen.', code: 'quote_attempt_mismatch' },
         { status: 409 },
@@ -118,7 +121,7 @@ export async function POST(req: Request) {
     }
     if (!matchesGridexWebsiteCheckoutPolicy(verified.value.quote)) {
       return NextResponse.json(
-        { error: 'Prisunderlaget använder äldre kundval och behöver skapas på nytt.', code: 'checkout_policy_changed' },
+        { error: 'De valda avtalsinställningarna kunde inte kontrolleras automatiskt.', code: 'checkout_policy_changed' },
         { status: 409 },
       )
     }
@@ -126,12 +129,12 @@ export async function POST(req: Request) {
     const token = await createWebsiteCheckoutContext({
       customerType,
       selectedOffer: offerReference,
-      pricingPreview: quoteToWebsitePricingPreview(verified.value.quote, quoteToken),
+      pricingPreview: quoteToWebsitePricingPreview(verified.value.quote, verified.value.pricingToken),
       quoteContext: {
         postal_code: postalCode,
         city,
         address,
-        resolution_token: resolutionToken,
+        resolution_token: verified.value.resolutionToken,
         resolution_id: verified.value.area.resolutionId,
         price_area_code: verified.value.area.priceAreaCode,
         grid_area_code: verified.value.area.gridAreaCode,

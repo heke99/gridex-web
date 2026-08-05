@@ -23,12 +23,21 @@ function contractTypeLabel(type: WebsitePricingPreview["contract"]["contractType
   return "Mixavtal";
 }
 
+function isCustomerVisibleAssumption(label: string) {
+  const normalized = label.trim().toLocaleLowerCase("sv-SE");
+  const isInternalSpotPortfolioRule = normalized.includes("spot- och portföljpris");
+  const isInternalFreshnessRule = normalized.includes("fallback") && normalized.includes("freshness");
+  const isInternalLockedPortfolioRule = normalized.includes("portföljpris") && normalized.includes("låst avräkning");
+  return !isInternalSpotPortfolioRule && !isInternalFreshnessRule && !isInternalLockedPortfolioRule;
+}
+
 export default function PriceResultCard({ data, updatedAt, onSelect, continueHref }: Props) {
   const { totalMonthlyCostSek, totalMonthlyCostInclVatSek, pricePerKwhOre, priceArea, kwh, specification, contract } = data;
   const fees = specification?.fees ?? {};
   const contractHref = continueHref ?? (contract.offer_reference ? `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}` : "/teckna-avtal");
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek) ? totalMonthlyCostInclVatSek : undefined;
   const marketTimestamp = formatDate(data.market_data_timestamp);
+  const visibleAssumptions = (data.assumptions ?? []).filter((item) => isCustomerVisibleAssumption(item.label));
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">
@@ -77,9 +86,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
           </div>
         </div>
 
-        {data.assumptions?.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i beräkningen</div><ul className="mt-3 space-y-2 text-gray-300">{data.assumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
-        {data.market_sources?.length ? <div className="text-xs leading-relaxed text-gray-400">Marknadskällor: {data.market_sources.map((source) => source.name).join(", ")}.</div> : null}
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs leading-relaxed text-emerald-100">Ditt pris är hämtat från det publicerade avtalet i OPS och verifieras igen innan avtalet registreras.</div>
+        {visibleAssumptions.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i beräkningen</div><ul className="mt-3 space-y-2 text-gray-300">{visibleAssumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
         <div className="grid gap-3 md:grid-cols-2">

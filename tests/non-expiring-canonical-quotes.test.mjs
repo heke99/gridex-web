@@ -116,6 +116,15 @@ assert.deepEqual(
   verifyWebsitePricingQuote(issued.token, new Date('2026-08-02T12:30:00.000Z')),
   { ok: false, reason: 'expired' },
 )
+assert.equal(
+  verifyWebsitePricingQuote(
+    issued.token,
+    new Date('2026-08-02T12:30:00.000Z'),
+    { allowExpired: true },
+  ).ok,
+  true,
+  'an expired signed quote must remain readable for automatic server-side renewal',
+)
 
 const quoteSource = read('lib/website/pricingQuote.ts')
 assert.ok(quoteSource.includes('const CURRENT_TOKEN_VERSION = "v7"'))
@@ -124,6 +133,9 @@ assert.ok(quoteSource.includes('validUntilTimestamp > now.getTime()'))
 assert.equal(quoteSource.includes('Gridex quotes are not time-limited'), false)
 
 const canonicalValidation = read('lib/website/canonicalQuoteValidation.ts')
+assert.ok(canonicalValidation.includes('allowExpired: true'))
+assert.ok(canonicalValidation.includes('refreshCanonicalArea'))
+assert.ok(canonicalValidation.includes('refreshCanonicalQuote'))
 assert.ok(canonicalValidation.includes("reason: 'quote_valid_until_changed'"))
 assert.ok(canonicalValidation.includes("reason: 'quote_expired'"))
 
@@ -136,4 +148,4 @@ assert.ok(restoreMigration.includes('website_pricing_snapshots_valid_until_requi
 assert.ok(restoreMigration.includes('check (valid_until > issued_at) not valid'))
 assert.ok(restoreMigration.includes('drop function if exists public.run_non_expiring_quote_backfill'))
 
-console.log('Canonical quote expiry tests passed')
+console.log('Canonical quote renewal tests passed')

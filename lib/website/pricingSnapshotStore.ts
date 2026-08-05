@@ -28,6 +28,11 @@ export async function persistWebsitePricingSnapshot(input: {
   preview: WebsitePricingPreview
   contract: OpsPublicContract
   customerType: WebsiteCustomerType
+  /**
+   * Used by server-side quote renewal. A deterministic reference makes retries
+   * safe without replacing or mutating the original customer-visible snapshot.
+   */
+  idempotent?: boolean
 }): Promise<string> {
   const issuedAt = new Date().toISOString()
   const validUntil = input.preview.valid_until
@@ -64,7 +69,7 @@ export async function persistWebsitePricingSnapshot(input: {
   }
   const hash = snapshotHash(fullCalculation)
 
-  const { error } = await serviceClient().from('website_pricing_snapshots').insert({
+  const row = {
     pricing_snapshot_reference: reference,
     ops_quote_reference: input.preview.ops_quote_reference ?? null,
     ops_quote_valid_until: validUntil,
@@ -87,7 +92,15 @@ export async function persistWebsitePricingSnapshot(input: {
     valid_until: validUntil,
     snapshot_sha256: hash,
     status: 'issued',
-  })
+  }
+
+  const table = serviceClient().from('website_pricing_snapshots')
+  const { error } = input.idempotent
+    ? await table.upsert(row, {
+        onConflict: 'pricing_snapshot_reference',
+        ignoreDuplicates: true,
+      })
+    : await table.insert(row)
 
   if (error) throw new Error(`Website pricing snapshot storage failed: ${error.message}`)
   return reference
