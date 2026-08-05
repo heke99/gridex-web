@@ -415,21 +415,20 @@ export async function validateCanonicalWebsiteQuote(
     effectivePricingToken = refreshed.token
   }
 
+  // Revalidate the exact immutable tuple from the signed quote. The browser
+  // inputs have already been checked against this snapshot above, but they must
+  // never become a second source of truth for the OPS integrity check.
   const opsValidation = await validateOpsWebsiteQuote({
     quote_reference: effectiveQuote.ops_quote_reference,
-    offer_reference: input.contract.offer_reference,
-    customer_type: input.customerType,
-    resolution_id: area.resolution_id,
-    annual_consumption_kwh: input.annualConsumptionKwh,
+    offer_reference: effectiveQuote.contract.offer_reference,
+    customer_type: effectiveQuote.customer_type,
+    resolution_id: effectiveQuote.resolution_id,
+    annual_consumption_kwh: effectiveQuote.annual_consumption_kwh,
     start_date: effectiveQuote.start_date,
     price_option_reference: effectiveQuote.price_option_reference,
     invoice_delivery_method: effectiveQuote.invoice_delivery_method,
     selected_component_references: effectiveQuote.selected_component_references,
     site_count: effectiveQuote.site_count,
-    // The quote reference was created from the canonical quote tuple above.
-    // resolution_id already binds the verified area. Do not append optional
-    // location assertions during revalidation, because OPS may then calculate
-    // a different reference basis and return quote_reference_mismatch.
   })
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }

@@ -928,7 +928,7 @@ export default async function TecknaPage({
         requiresQuoteRefresh: priceConflict,
         fieldErrors: {
           pricing: priceConflict
-            ? "Prisunderlaget kunde inte verifieras mot OPS. Hämta priset på nytt och försök igen."
+            ? "Prisunderlaget kunde inte verifieras. Gå tillbaka till prissteget och försök igen."
             : "Prisunderlaget kunde inte verifieras just nu. Försök igen eller kontakta kundservice.",
         },
       });

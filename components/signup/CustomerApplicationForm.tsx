@@ -409,6 +409,9 @@ export default function CustomerApplicationForm({
   );
   const submitDisabled = !canSubmit || !allConsentsAccepted || !legalReady || !hasPricingPreview;
   const errorList = [...new Set(Object.values(errors))];
+  const showSubmissionError = Boolean(
+    submissionState.errorMessage && errorList.length === 0,
+  );
   const displayName = customerType === 'business'
     ? `${form.company_name} – ${form.first_name} ${form.last_name}`.trim()
     : `${form.first_name} ${form.last_name}`.trim();
@@ -434,7 +437,7 @@ export default function CustomerApplicationForm({
         </div>
       ) : null}
 
-      {submissionState.errorMessage ? (
+      {showSubmissionError ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
           {submissionState.errorMessage}
         </div>

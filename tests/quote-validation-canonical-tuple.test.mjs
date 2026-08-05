@@ -13,9 +13,10 @@ for (const field of ['price_area:', 'grid_area_code:', 'postal_code:', 'applicat
 }
 for (const field of [
   'quote_reference: effectiveQuote.ops_quote_reference',
-  'offer_reference: input.contract.offer_reference',
-  'resolution_id: area.resolution_id',
-  'annual_consumption_kwh: input.annualConsumptionKwh',
+  'offer_reference: effectiveQuote.contract.offer_reference',
+  'resolution_id: effectiveQuote.resolution_id',
+  'annual_consumption_kwh: effectiveQuote.annual_consumption_kwh',
+  'customer_type: effectiveQuote.customer_type',
   'start_date: effectiveQuote.start_date',
   'price_option_reference: effectiveQuote.price_option_reference',
   'invoice_delivery_method: effectiveQuote.invoice_delivery_method',
