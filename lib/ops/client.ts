@@ -42,6 +42,7 @@ import {
   validateOpenApiSchema,
 } from '@/lib/ops/validators/openapi'
 import { toOpsCustomerType, type WebsiteCustomerType } from "@/lib/website/customerType";
+import { annualToMonthlyKwh } from '@/lib/website/consumptionEstimator'
 import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
 import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
@@ -1785,7 +1786,8 @@ function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput): OpsW
     pickString(row, ['price_area_code', 'priceAreaCode', 'price_area'])
   )?.toUpperCase();
   const annualKwh = quoteNumber(quoteInput, [['annual_consumption_kwh']]);
-  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']]) ?? (annualKwh !== null ? annualKwh / 12 : null);
+  const monthlyKwh = quoteNumber(row, [['estimated_monthly_kwh'], ['monthly_kwh'], ['consumption', 'estimated_monthly_kwh']])
+    ?? (annualKwh !== null ? annualToMonthlyKwh(annualKwh) : null);
   const pricePerKwh = quoteNumber(row, [
     ['price_per_kwh_ore'],
     ['energy_price_ore_per_kwh'],

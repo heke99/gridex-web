@@ -62,9 +62,6 @@ export default function SignupFlowClient({
       ? { status: 'restored_verified_quote', price_area_code: initialQuoteContext.price_area_code, confidence: 1, source: 'server_checkout_context' }
       : null,
   );
-  const [estimatedMonthlyKwh, setEstimatedMonthlyKwh] = useState<number | null>(
-    initialQuoteContext?.estimated_monthly_kwh ?? initialPricingPreview?.kwh ?? null,
-  );
   const [quoteContext, setQuoteContext] = useState<WebsitePricingQuoteContext | null>(initialQuoteContext);
   const [lastQuoteContext, setLastQuoteContext] = useState<WebsitePricingQuoteContext | null>(initialQuoteContext);
   const [calculatorResetSignal, setCalculatorResetSignal] = useState(0);
@@ -133,7 +130,6 @@ export default function SignupFlowClient({
         showCustomerTypeSelector
         onPricingPreviewChange={updatePricingPreview}
         onEnergyResolutionChange={setEnergyResolution}
-        onEstimatedMonthlyKwhChange={setEstimatedMonthlyKwh}
         onQuoteContextChange={updateQuoteContext}
         initialPricingPreview={initialPricingPreview}
         initialQuoteContext={initialQuoteContext}
@@ -161,7 +157,6 @@ export default function SignupFlowClient({
             action={action}
             energyResolution={energyResolution}
             pricingPreview={pricingPreview ?? lastPricingPreview}
-            estimatedMonthlyKwh={estimatedMonthlyKwh}
             contractDisplay={contractDisplay}
             quoteContext={quoteContext ?? lastQuoteContext}
             quoteValid={Boolean(pricingPreview && quoteContext)}

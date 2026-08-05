@@ -48,7 +48,6 @@ type Props = {
   action: (state: SignupSubmissionState, formData: FormData) => Promise<SignupSubmissionState>;
   energyResolution?: WebsiteEnergyResolution | null;
   pricingPreview?: WebsitePricingPreview | null;
-  estimatedMonthlyKwh?: number | null;
   contractDisplay?: PublicContractDisplay | null;
   quoteContext: WebsitePricingQuoteContext;
   quoteValid?: boolean;
@@ -214,7 +213,6 @@ export default function CustomerApplicationForm({
   action,
   energyResolution,
   pricingPreview,
-  estimatedMonthlyKwh,
   contractDisplay,
   quoteContext,
   quoteValid = true,
@@ -636,7 +634,11 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="postal_code" value={quoteContext.postal_code} />
           <input type="hidden" name="city" value={quoteContext.city} />
           <input type="hidden" name="price_area_code" value={pricingPreview?.price_area_code ?? pricingPreview?.priceArea ?? energyResolution?.price_area_code ?? ""} />
-          <input type="hidden" name="estimated_monthly_kwh" value={estimatedMonthlyKwh ?? pricingPreview?.kwh ?? ""} />
+          <input
+            type="hidden"
+            name="estimated_monthly_kwh"
+            value={pricingPreview?.kwh ?? quoteContext.estimated_monthly_kwh}
+          />
           <input type="hidden" name="annual_consumption_kwh" value={quoteContext.annual_consumption_kwh} />
           <input type="hidden" name="consumption_profile" value={quoteContext.consumption_profile ? JSON.stringify(quoteContext.consumption_profile) : ""} />
           <input type="hidden" name="pricing_preview_snapshot" value={pricingPreview ? JSON.stringify(pricingPreview) : ""} />

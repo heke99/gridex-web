@@ -594,7 +594,10 @@ export default function ElectricityCalculator({
         price_area_code: resolvedArea,
         grid_area_code: resolved.grid_area_code ?? null,
         grid_owner_name: resolved.grid_owner_name ?? null,
-        estimated_monthly_kwh: monthlyKwh,
+        // Once OPS has issued the quote, its signed consumption value is the
+        // canonical checkout value. The customer profile remains the source
+        // for annual consumption and the tolerance-based consistency check.
+        estimated_monthly_kwh: preview.kwh,
         annual_consumption_kwh: consumptionProfile.annual_kwh,
         consumption_profile: consumptionProfile,
         price_option_reference: preview.price_option_reference ?? null,
