@@ -1,6 +1,6 @@
 # Gridex Web ↔ Gridex OPS
 
-Canonical kontraktsversion: `2026-08-04.2`.
+Canonical kontraktsversion: `2026-08-04.3`.
 
 Gridex Web är en extern OPS-klient. `GRIDEX_API_KEY` väljer tenant server-side;
 webben skickar inte `company_id` och har ingen parallell lokal affärskälla.
@@ -20,12 +20,12 @@ docs/openapi/verification-status.json
 Officiell release och förväntade rå-byte-hashar:
 
 ```text
-Website SHA-256:       8c1bc549b4b874ce66e8b68793cafb16184d1a70214ea980f2b4bed8b2583ec6
-Customer Portal SHA:   b28e73ee068619e2677d966d3bd4be82a95d926c6e347c60e59df080ff94d95d
+Website SHA-256:       cb646455421d1c56bd94ce11c970ad73560d88b72a9c9940c405ac754c0a6595
+Customer Portal SHA:   16187883ad4df64ac8e67b9352753d2492369978961c3c84cef0eadb8739d922
 ```
 
 Den distribuerade zippen innehåller de byteidentiska, hashverifierade
-releasefilerna för `2026-08-04.2`. `npm run api:sync` hämtar framtida releaser,
+releasefilerna för `2026-08-04.3`. `npm run api:sync` hämtar framtida releaser,
 regenererar typer och validatorer och uppdaterar hashkonstanterna atomiskt.
 
 `npm run api:sync` hämtar release-manifestet först och verifierar SHA-256 över
@@ -73,7 +73,7 @@ confidence-tröskelvärde.
 ## Quote-giltighet, startdatum och idempotency
 
 `valid_until` är ett obligatoriskt canonical response-fält i API-version
-`2026-08-04.2`. Webben kräver ett giltigt date-time-värde i quote- och
+`2026-08-04.3`. Webben kräver ett giltigt date-time-värde i quote- och
 quote-validation-svaret och bevarar det i snapshoten. Kundgränssnittet använder
 inte en egen lokal nedräkning som ensam affärsregel; OPS quote-validation,
 teckningsbarhet, revocation och konsumtionsstatus är auktoritativa vid submit.

@@ -1,0 +1,29 @@
+=== Gridex API 2026-08-04.3 verification ===
+2026-08-05T08:03:58Z
+
+website-integration-v1.json: local snapshot/types consistent (2026-08-04.3)
+customer-portal-v1.json: local snapshot/types consistent (2026-08-04.3)
+Migration integrity passed (33 files).
+{
+  "contract_version": "2026-08-04.3",
+  "upstream_contract_gaps": [],
+  "environment_blockers": []
+}
+openapi sync contract tests passed
+2026-08-04.3 Gridex API regressions passed
+API compatibility hardening static checks passed.
+2026-08-02 Gridex API contract regressions passed
+Automatic checkout policy checks passed
+Checkout post-commit durability checks passed
+live application-number contract regression passed
+public-contract cache durability tests passed
+public-contract failure visibility tests passed
+public-contract feed contract-isolation tests passed
+Signup quote binding regression checks passed
+
+=== SHA-256 ===
+cb646455421d1c56bd94ce11c970ad73560d88b72a9c9940c405ac754c0a6595  docs/openapi/website-integration-v1.json
+16187883ad4df64ac8e67b9352753d2492369978961c3c84cef0eadb8739d922  docs/openapi/customer-portal-v1.json
+
+=== stale active references ===
+No stale active 2026-08-04.2 test/version references found.

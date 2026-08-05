@@ -1,0 +1,23 @@
+ÄNDRADE FILER
+README.md
+docs/openapi/customer-portal-v1.json
+docs/openapi/last-sync-diff.json
+docs/openapi/manifest.json
+docs/openapi/release-manifest.json
+docs/openapi/verification-status.json
+docs/openapi/website-integration-v1.json
+docs/website-integration.md
+lib/ops/contract.ts
+lib/ops/generated/customer-portal-api.d.ts
+lib/ops/generated/website-api.d.ts
+package.json
+tests/openapi-sync-contract.test.mjs
+
+TILLAGDA FILER
+GRIDEX_API_UPGRADE_2026-08-04_3.md
+GRIDEX_API_VERIFICATION_2026-08-04_3.log
+GRIDEX_API_CHANGED_FILES_2026-08-04_3.txt
+tests/api-contract-regressions-20260804-3.test.mjs
+
+BORTTAGEN FIL
+tests/api-contract-regressions-20260804-2.test.mjs
