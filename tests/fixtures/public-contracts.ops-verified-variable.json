@@ -68,7 +68,30 @@
             "url": null
           }
         ],
-        "power_of_attorney_version_id": null
+        "power_of_attorney_version_id": null,
+        "customer_documents": [
+          {
+            "requirement_code": "agreement",
+            "document_type": "agreement",
+            "title": "Elhandelsavtal och fullständiga villkor",
+            "description": "Kundens sammanhållna elhandelsavtal och tillämpliga villkor.",
+            "required": true,
+            "acceptance_mode": "accept",
+            "document_reference": "legal_customer_document_example",
+            "document_version": "legal_customer_version_example",
+            "document_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "document_url": null,
+            "legal_bundle_version_id": "00000000-0000-4000-8000-000000000001",
+            "module_keys": [
+              "general_consumer_terms"
+            ],
+            "source_document_ids": [
+              "00000000-0000-4000-8000-000000000002"
+            ],
+            "primary_document_id": "00000000-0000-4000-8000-000000000002",
+            "sort_order": 10
+          }
+        ]
       },
       "valid_from": null,
       "valid_to": null

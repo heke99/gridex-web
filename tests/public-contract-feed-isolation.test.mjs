@@ -70,6 +70,23 @@ const validContract = (suffix) => ({
     legal_bundle_reference: `legal_bundle_${suffix}`,
     legal_bundle_version_id: '00000000-0000-4000-8000-000000000001',
     power_of_attorney_version_id: null,
+    customer_documents: [{
+      requirement_code: 'agreement',
+      document_type: 'agreement',
+      title: 'Elhandelsavtal och fullständiga villkor',
+      description: 'Kundens sammanhållna elhandelsavtal och tillämpliga villkor.',
+      required: true,
+      acceptance_mode: 'accept',
+      document_reference: `legal_customer_document_${suffix}`,
+      document_version: `legal_customer_version_${suffix}`,
+      document_hash: 'c'.repeat(64),
+      document_url: null,
+      legal_bundle_version_id: '00000000-0000-4000-8000-000000000001',
+      module_keys: ['general_consumer_terms'],
+      source_document_ids: ['00000000-0000-4000-8000-000000000002'],
+      primary_document_id: '00000000-0000-4000-8000-000000000002',
+      sort_order: 10,
+    }],
   },
 })
 
@@ -79,6 +96,7 @@ const result = parseOpsPublicContractsPayload({
   data: [validContract('one'), broken, validContract('two')],
 })
 assert.equal(result.contracts.length, 2)
+assert.equal(result.contracts[0].legal.customer_documents.length, 1)
 assert.equal(result.blockedContracts.length, 1)
 assert.equal(result.blockedContracts[0].offer_reference, 'offer_broken')
 assert.ok(result.blockedContracts[0].reasons.includes('area_price_reference_missing'))
