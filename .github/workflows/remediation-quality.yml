@@ -1,0 +1,36 @@
+name: Remediation quality gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - remediation/gridex-web-performance-integrity-api-2026-08-07
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: OpenAPI local drift
+        run: npm run api:check:local
+      - name: Migration manifest
+        run: npm run db:migrations:check
+      - name: API compatibility
+        run: npm run api:compatibility
+      - name: Production file-size guard
+        run: node scripts/check-file-size.mjs
+      - name: Contract-version observation regression
+        run: node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-contract-version-observation.test.mjs
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
