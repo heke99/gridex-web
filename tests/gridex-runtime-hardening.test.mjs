@@ -32,7 +32,14 @@ assert.match(transport, /logContractVersionDrift/)
 assert.doesNotMatch(transport, /headers\.has\('Idempotency-Key'\)/)
 assert.match(transport, /method === 'GET' \|\| method === 'HEAD'/)
 
-const client = read('lib/ops/client.ts')
+const client = [
+  read('lib/ops/client.ts'),
+  read('lib/ops/client/types.ts'),
+  read('lib/ops/client/core.ts'),
+  read('lib/ops/client/website.ts'),
+  read('lib/ops/client/application.ts'),
+  read('lib/ops/client/portal.ts'),
+].join('\n')
 assert.match(client, /blocked_contracts/)
 assert.match(client, /publicContractParseReasons/)
 assert.match(client, /compatible configuration drift detected/)
