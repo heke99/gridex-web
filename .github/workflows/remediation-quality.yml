@@ -30,8 +30,8 @@ jobs:
         run: node scripts/fix-remediation-source.mjs
       - name: Split oversized OPS client by responsibility
         run: node scripts/split-ops-client.mjs
-      - name: Inventory split-client test consumers
-        run: grep -R -n "lib/ops/client.ts" tests || true
+      - name: Migrate split-client source assertions
+        run: node scripts/fix-split-client-tests.mjs
       - name: Production file-size guard
         run: node scripts/check-file-size.mjs
       - name: Contract-version observation regression
@@ -43,11 +43,11 @@ jobs:
       - name: Commit verified remediation
         if: github.event_name == 'push'
         run: |
-          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts)" ]; then
+          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts tests)" ]; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts
-          git commit -m "refactor(ops): split client and clear lint blocker"
+          git add lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts tests
+          git commit -m "refactor(ops): split client and align source assertions"
           git push origin "HEAD:${GITHUB_REF_NAME}"
