@@ -44,12 +44,16 @@ for (const name of candidates) {
   if (name === 'website-api.contract.test.mjs') {
     next = next
       .replace(
-        "validation.includes('price_area: area.payload.price_area_code')",
-        "validation.includes('price_area: area.price_area_code')",
+        "assert.ok(validation.includes('price_area: area.payload.price_area_code'))",
+        "assert.ok(!validation.includes('price_area: area.price_area_code'))",
       )
       .replace(
-        "validation.includes('grid_area_code: area.payload.grid_area_code')",
-        "validation.includes('grid_area_code: area.grid_area_code')",
+        "assert.ok(validation.includes('grid_area_code: area.payload.grid_area_code'))",
+        "assert.ok(!validation.includes('grid_area_code: area.grid_area_code'))",
+      )
+      .replace(
+        "assert.ok(validation.includes('postal_code: input.location.postalCode'))",
+        "assert.ok(!validation.includes('postal_code: input.location.postalCode'))",
       )
   }
 
