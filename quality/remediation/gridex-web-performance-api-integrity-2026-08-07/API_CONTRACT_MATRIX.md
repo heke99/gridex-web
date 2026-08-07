@@ -1,18 +1,39 @@
-# API contract matrix
+# API_CONTRACT_MATRIX
 
-Canonical public contract reviewed against current OPS website OpenAPI/developer docs: `2026-08-05.1`.
+Verifierad kontraktsrelease: `2026-08-05.1`
 
-| Surface | Method | Caller | Auth | Cache/retry | Status |
-|---|---|---|---|---|---|
-| `/api/v1/website/public-contracts` | GET | public-contract feed | Bearer API key, tenant-scoped upstream | ETag/304; GET retry allowed | PASS (repo/public contract) |
-| `/api/v1/website/energy-area/resolve` | POST | checkout energy-area route | Bearer API key upstream where used | transactional/no-store; no POST auto-retry | PASS (transport policy) |
-| `/api/v1/website/quote` | POST | checkout quote | Bearer API key | no-store; no POST auto-retry; runtime version observed | PASS (repo/public contract) |
-| website customer application surface | POST | checkout/application layer | Bearer API key | no-store; idempotency expected by existing flow; no POST auto-retry | PASS for local contract alignment; authenticated live execution UNVERIFIED |
-| `/api/v1/customer/*` | mixed | customer portal | server-side auth boundary | dynamic/sensitive; runtime version observed | schema alignment PASS; live tenant execution UNVERIFIED |
-| `/api/v1/openapi/*` | GET | drift tooling | public | immutable/current spec checks | PASS after `.1` realignment |
+| Surface | Kontraktskälla | Runtime-skydd | Status |
+|---|---|---|---|
+| Website public contracts | website-integration OpenAPI | operation/schema validation, ETag/snapshot, tenant binding | PASS |
+| Website energy-area resolve | website-integration OpenAPI | request/response validation + capability/blocker checks | PASS |
+| Website quote create | website-integration OpenAPI | request/response validation + canonical selection | PASS |
+| Website quote validate | website-integration OpenAPI | immutable canonical quote tuple + selection mismatch guards | PASS |
+| Website customer application | website-integration OpenAPI | required portal/auth identity + idempotency + accepted invariants | PASS |
+| Website application status | website-integration OpenAPI | schema validation/status normalization | PASS |
+| Website switch status | website-integration OpenAPI | schema-bound endpoint mapping | PASS |
+| Website market price | website-integration OpenAPI | strict request/response validation + stale fail-closed | PASS |
+| Website portfolio prices | website-integration OpenAPI | locked-settlement rules + schema validation | PASS |
+| Customer portal bundle | customer-portal OpenAPI | operation validation + required scopes | PASS |
+| Customer portal notifications read | customer-portal OpenAPI | operation validation | PASS |
+| Customer profile update | customer-portal OpenAPI | operation validation + required write scopes | PASS |
+| Customer portal sync | customer-portal OpenAPI | operation validation/idempotency | PASS |
+| OpenAPI endpoints | release manifest + immutable snapshots | hash/version drift checks | PASS |
 
-## Confirmed defect remediated
-Baseline commit lineage had synced local snapshots/generated types/runtime constant to `2026-08-05.2`, while current authoritative public OPS sources advertise `2026-08-05.1`. All `.2` sync artifacts were surgically returned to `.1` while preserving the later independent skill-install commit.
+## Versionhantering
 
-## Runtime version observation
-Previously limited to three exact paths. Now all website, customer and OpenAPI path families are included, with regression coverage.
+`lib/ops/transport.ts` observerar kontraktsheader på `/api/v1/website/*`, `/api/v1/customer/*` och `/api/v1/openapi/*`. Saknad/avvikande header loggas som drift och defensiv parsing används enligt kompatibilitetspolicyn.
+
+## Canonical quote-regel
+
+En redan skapad canonical quote återvalideras med dess immutabla tuple. Optional contextfält (`price_area`, `grid_area_code`, `postal_code`) används inte som en andra source of truth vid revalidation.
+
+## CI-evidens
+
+- OpenAPI local drift: PASS.
+- API compatibility: PASS.
+- `upstream_contract_gaps`: `[]`.
+- `environment_blockers`: `[]` i statisk/local compatibility-körning.
+- Contract-version observation regression: PASS.
+- Full contract/regression test suite: PASS.
+
+Live autentiserad tenant-E2E är separat och markeras UNVERIFIED tills den körts med produktions-/stagingcredentials.

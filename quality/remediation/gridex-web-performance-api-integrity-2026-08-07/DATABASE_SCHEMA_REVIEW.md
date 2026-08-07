@@ -1,14 +1,34 @@
-# Database schema review
+# DATABASE_SCHEMA_REVIEW
 
-Repository migrations were treated as the expected schema source of truth. The audited tree contains the customer portal, checkout quote sessions, tenant-domain checkout, security hardening, public-contract, and API-hardening migration series through `20260710090000_customer_portal_api_hardening.sql`.
+## Scope
 
-## Confirmed consistency check
-`lib/security/rateLimit.ts` calls `consume_distributed_rate_limit`. Migration `20260710090000_customer_portal_api_hardening.sql` defines the backing rate-limit bucket state/RPC, enables RLS, revokes anon/auth access, grants execution to service role, and includes a reset-time index/cleanup path. Therefore no remediation migration was justified for this finding.
+Granskning av Gridex Webs incheckade Supabase/Postgres-migrationer och kodens beroenden mot dessa.
 
-## Index policy
-No index was added without a demonstrated query pattern. The rate-limit cleanup/query path already has the relevant reset-time index. Blind indexes on tenant/status/date columns were intentionally avoided without query evidence or `EXPLAIN` from production-like data.
+## Verifierat
 
-## Migrations
-New migrations in this remediation: **0**.
+- Migrationsmanifest: PASS, 33 filer.
+- Ingen applicerad migration ändrades.
+- Distributed rate limiter har migration-backed tabell och RPC.
+- Rate-limit-tabellen har RLS aktiverad.
+- RPC execute är begränsad för avsedd server-side roll.
+- Reset/expiry-sökvägen har relevant index.
+- Public-contract snapshot-store och canonical-empty proof är migration-backed.
+- Post-commit reconciliation/onboarding/auth-profile-sync tabeller och policies finns i migrationskedjan.
+- Webhook domain projection/retry persistence är migration-backed.
 
-Production database state, actual table cardinalities, `EXPLAIN ANALYZE`, advisor output and deployed migration parity are `UNVERIFIED` because this GitHub-only run has no authenticated production database session.
+## Query/index-bedömning
+
+Ingen verifierad hot query path motiverade ett nytt index i denna remediation. Att lägga till index utan `EXPLAIN ANALYZE`/produktionstelemetri skulle vara spekulativt och kan öka write amplification.
+
+## RLS/tenant isolation
+
+Browsern ska inte ha service-role-access. Privilegier i granskade migrationsvägar är explicit begränsade. Persistent public-contract snapshots binds till tenant/customer type och avvisar fel tenantbindning.
+
+## Resultat
+
+Databasens incheckade schema är konsekvent med de granskade kodvägarna. Ingen ny migration krävdes för de fel som hittades.
+
+## UNVERIFIED
+
+- Exakt produktionsschema i Supabase jämfört med repo-migrationerna kan inte bekräftas enbart från GitHub.
+- Produktionsindex hit-rate, lock contention och p95/p99 query latency kräver databas-/telemetriåtkomst.

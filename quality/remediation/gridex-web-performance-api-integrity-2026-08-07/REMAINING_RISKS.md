@@ -1,12 +1,43 @@
-# Remaining risks
+# REMAINING_RISKS
 
-Only unresolved or environment-dependent items are listed.
+## Resolved repo risks
 
-1. **Deployed authenticated end-to-end verification — UNVERIFIED.** Repository/public-contract evidence cannot prove tenant-specific production behavior.
-2. **Production database parity and query plans — UNVERIFIED.** Repository migrations are internally reviewable, but deployed migration state, table cardinality and production `EXPLAIN` evidence require database access.
-3. **Vercel/CDN runtime cache headers — UNVERIFIED.** Source policy was reviewed; deployed edge behavior requires runtime observation.
-4. **Real-user performance budgets — UNVERIFIED.** No production RUM/Lighthouse trace is available in the GitHub connector, so no invented LCP/CLS/INP improvements are claimed.
-5. **Future OPS releases.** The repo now aligns to current public `2026-08-05.1`; the existing drift tooling and new CI gate must remain required so a later release is adopted only after it is actually published and verified.
-6. **Missing repository governance files.** `AGENTS.md`, `skills-lock.json` and referenced `.agent-memory` material were absent on the baseline. The remediation did not fabricate them.
+Följande är inte längre öppna risker i repo-scope:
 
-No known blocker justifies a new database migration or unsafe cache/index change in the verified paths.
+- OPS/OpenAPI `2026-08-05.2` vs `2026-08-05.1` drift.
+- 5 287-raders OPS client-monolit.
+- Begränsad runtime version-observation.
+- Next.js `module` lint blocker.
+- Runtime type-importfel från första modulsplitten.
+- Föråldrade source-text regressionstester.
+- Avsaknad av full CI quality gate.
+
+## Kvarvarande externa risker
+
+### R-001 – Live tenant E2E
+Status: UNVERIFIED
+
+En full checkout med verklig API credential, tenant, quote, application, customer number, contract, portal sync och efterföljande statusflöde har inte körts i denna GitHub-only remediation.
+
+### R-002 – Produktionsdeployment
+Status: UNVERIFIED
+
+Vercel/deploymentstatus måste verifieras separat efter `main` push.
+
+### R-003 – Produktionstelemetri och last
+Status: UNVERIFIED
+
+Repo-gates bevisar korrekthet/build men inte p95/p99 latency, connection saturation, OPS rate-limit behavior under peak eller Core Web Vitals i verkliga användarsessioner.
+
+### R-004 – Produktionsschema drift
+Status: UNVERIFIED
+
+Migrationskedjan är intern konsekvent, men exakt live Supabase-schema kräver miljö-/DB-jämförelse.
+
+## Rekommenderad releaseordning
+
+1. Push verifierad commitkedja till `main`.
+2. Kräv grön read-only main quality gate.
+3. Verifiera deploymentstatus.
+4. Kör staging/live-safe tenant smoke/E2E med testidentiteter.
+5. Följ p95/p99, 429/5xx, reconciliation queues och DB telemetry efter release.
