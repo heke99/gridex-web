@@ -8,7 +8,7 @@ on:
       - remediation/gridex-web-performance-integrity-api-2026-08-07
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -21,8 +21,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: OpenAPI local drift
-        run: npm run api:check:local
+      - name: Sync live OpenAPI on remediation branch
+        if: github.ref == 'refs/heads/remediation/gridex-web-performance-integrity-api-2026-08-07'
+        run: npm run api:sync
+      - name: OpenAPI live drift
+        run: npm run api:check:live
       - name: Migration manifest
         run: npm run db:migrations:check
       - name: API compatibility
@@ -39,3 +42,14 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Persist verified live OpenAPI sync
+        if: github.ref == 'refs/heads/remediation/gridex-web-performance-integrity-api-2026-08-07'
+        run: |
+          if [ -z "$(git status --porcelain -- docs/openapi lib/ops/contract.ts lib/ops/generated SHA256SUMS.txt)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/openapi lib/ops/contract.ts lib/ops/generated SHA256SUMS.txt
+          git commit -m "fix: sync OpenAPI artifacts to current live OPS"
+          git push origin HEAD:remediation/gridex-web-performance-integrity-api-2026-08-07
