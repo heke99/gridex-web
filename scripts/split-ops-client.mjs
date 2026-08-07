@@ -72,6 +72,7 @@ for (const target of prepared) {
   }
 
   const content = [
+    '/* eslint-disable @typescript-eslint/no-unused-vars */',
     header,
     imports.join('\n'),
     target.body,
