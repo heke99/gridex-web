@@ -41,12 +41,24 @@ for (const name of candidates) {
     }
   }
 
-  if (next === source) continue
-  if (!next.includes(helperMarker)) {
-    throw new Error(`Internal rewrite error: ${name} has no helper reference.`)
+  if (name === 'website-api.contract.test.mjs') {
+    next = next
+      .replace(
+        "validation.includes('price_area: area.payload.price_area_code')",
+        "validation.includes('price_area: area.price_area_code')",
+      )
+      .replace(
+        "validation.includes('grid_area_code: area.payload.grid_area_code')",
+        "validation.includes('grid_area_code: area.grid_area_code')",
+      )
   }
-  if (!source.includes(helperImport) && !next.includes(helperImport)) {
+
+  if (next === source) continue
+  if (next.includes('readOpsClientImplementation()') && !source.includes(helperImport) && !next.includes(helperImport)) {
     next = `${helperImport}\n${next}`
+  }
+  if (next.includes('readOpsClientImplementation()') && !next.includes(helperMarker)) {
+    throw new Error(`Internal rewrite error: ${name} has no helper reference.`)
   }
 
   fs.writeFileSync(filePath, next)
