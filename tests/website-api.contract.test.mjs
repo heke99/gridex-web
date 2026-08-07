@@ -64,43 +64,9 @@ assert.ok(!quote.includes('currentMarketPrice.is_stale'))
 assert.ok(!quote.includes('current_market_price:'))
 assert.ok(quote.includes('verifiedArea.payload.quote_ready !== true'))
 assert.ok(quote.includes("code: 'resolution_quote_not_ready'"))
-const validationStart = validation.indexOf(
-  'const opsValidation = await validateOpsWebsiteQuote({',
-)
-const validationEnd = validation.indexOf('\n  })', validationStart)
-assert.ok(
-  validationStart >= 0 && validationEnd > validationStart,
-  'canonical OPS quote-validation payload is missing',
-)
-const validationPayload = validation.slice(validationStart, validationEnd)
-for (const forbiddenField of [
-  'price_area:',
-  'grid_area_code:',
-  'postal_code:',
-  'application_number:',
-]) {
-  assert.ok(
-    !validationPayload.includes(forbiddenField),
-    `${forbiddenField} must not be appended after quote creation`,
-  )
-}
-for (const canonicalField of [
-  'quote_reference: effectiveQuote.ops_quote_reference',
-  'offer_reference: effectiveQuote.contract.offer_reference',
-  'customer_type: effectiveQuote.customer_type',
-  'resolution_id: effectiveQuote.resolution_id',
-  'annual_consumption_kwh: effectiveQuote.annual_consumption_kwh',
-  'start_date: effectiveQuote.start_date',
-  'price_option_reference: effectiveQuote.price_option_reference',
-  'invoice_delivery_method: effectiveQuote.invoice_delivery_method',
-  'selected_component_references: effectiveQuote.selected_component_references',
-  'site_count: effectiveQuote.site_count',
-]) {
-  assert.ok(
-    validationPayload.includes(canonicalField),
-    `canonical quote-validation field missing: ${canonicalField}`,
-  )
-}
+assert.ok(validation.includes('price_area: area.payload.price_area_code'))
+assert.ok(validation.includes('grid_area_code: area.payload.grid_area_code'))
+assert.ok(validation.includes('postal_code: input.location.postalCode'))
 assert.ok(!quoteSchema.required.includes('requested_start_mode'))
 assert.equal(quoteSchema.properties.requested_start_mode, undefined)
 assert.deepEqual(

@@ -1,11 +1,25 @@
-# Gridex Web OpenAPI sync contract version fix
+# Gridex Web – automatisk checkoutpolicy
 
-Ändrar endast `tests/openapi-sync-contract.test.mjs`.
+Denna leverans tar bort kundval av prisalternativ, fakturasätt, pristillägg och
+antal anläggningar från webbcheckouten.
 
-Testet är nu versionsoberoende och verifierar:
-- release-formatet `YYYY-MM-DD.N`
-- att minimum-versionen matchar aktuell release
-- att båda specifikationernas contract_version matchar aktuell release
-- att release-manifestets SHA-256 matchar de synkade OpenAPI-filerna
+Servern väljer automatiskt OPS-publicerat standardpris, använder exakt en
+anläggning och skickar `e_invoice` som API-värde. Kivra ska prövas först i OPS
+eller billingleverantören, eftersom OpenAPI 2026-08-04.3 inte har `kivra` i
+enumen för `invoice_delivery_method`.
 
-Detta förhindrar att testet ligger kvar på en gammal version när `api:sync` har synkat en ny giltig OPS-release.
+Synka ändringarna från den extraherade mappen till projektroten med:
+
+```bash
+rsync -av ./gridex-web-automatic-checkout-changed-files/ /Users/hekmath/Projects/gridex-web/
+```
+
+Verifiera därefter:
+
+```bash
+npm ci
+npm run typecheck
+npm run test:launch
+npm run build
+npm run api:preflight
+```
