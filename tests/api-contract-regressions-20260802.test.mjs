@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -7,7 +8,7 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex')
 const website = JSON.parse(read('docs/openapi/website-integration-v1.json'))
 const portal = JSON.parse(read('docs/openapi/customer-portal-v1.json'))
 const release = JSON.parse(read('docs/openapi/release-manifest.json'))
-const client = read('lib/ops/client.ts')
+const client = readOpsClientImplementation()
 const snapshotStore = read('lib/website/publicContractSnapshotStore.ts')
 const browserPayload = read('lib/website/publicContractsPayload.ts')
 const pricingQuote = read('lib/website/pricingQuote.ts')

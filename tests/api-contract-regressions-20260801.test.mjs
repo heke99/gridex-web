@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
@@ -121,7 +122,7 @@ assert.deepEqual(syncDocuments([{
   secure_url: 'https://example.com/document.pdf',
 }])
 
-const client = read('lib/ops/client.ts')
+const client = readOpsClientImplementation()
 const syncSection = client.slice(client.indexOf('export async function submitOpsCustomerSync'), client.indexOf('export async function submitOpsCustomerPortalSync'))
 assert.ok(syncSection.includes('facility_data: input.facilityData'))
 assert.ok(syncSection.includes('power_of_attorney: input.powerOfAttorney'))

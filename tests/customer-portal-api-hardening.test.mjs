@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { moveOutPayload } from '../lib/customerPortal/writeValidation.ts'
@@ -32,7 +33,7 @@ assert.deepEqual(
   { facility_reference: 'site_123', requested_move_out_date: '2026-02-28' },
 )
 
-const ops = read('lib/ops/client.ts')
+const ops = readOpsClientImplementation()
 assert.ok(ops.includes('fetchOpsCustomerResource'))
 assert.ok(ops.includes('`${basePath}/${encodeURIComponent(id)}`'))
 assert.ok(ops.includes('notification-read:${identity.userId}:${input.operationId}'))

@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
@@ -135,7 +136,7 @@ assert.ok(read('app/(public)/vanliga-fragor/page.tsx').includes('FaqExplorer'))
 assert.ok(read('lib/seo/content.ts').includes("'/vanliga-fragor'"))
 
 
-const opsClient = read('lib/ops/client.ts')
+const opsClient = readOpsClientImplementation()
 assert.ok(opsClient.includes('toOpsCustomerType(input.customer.customer_type)'))
 assert.ok(opsClient.includes('org_number: normalizeText(input.customer.organization_number)!'))
 assert.ok(opsClient.includes('assertTenantReference'))

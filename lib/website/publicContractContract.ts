@@ -1005,9 +1005,9 @@ function legalValidationIssues(value: unknown, path: string): PublicContractVali
 
   const publishedDocumentsById = new Map(
     modules.flatMap((item) => {
-      const module = record(item)
-      const id = module ? text(module.id) : null
-      return id && module ? [[id, module] as const] : []
+      const legalDocument = record(item)
+      const id = legalDocument ? text(legalDocument.id) : null
+      return id && legalDocument ? [[id, legalDocument] as const] : []
     }),
   )
   if (!Object.hasOwn(legal, 'customer_documents') || !Array.isArray(legal.customer_documents)) {

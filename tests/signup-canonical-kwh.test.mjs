@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
@@ -7,7 +8,7 @@ import {
 } from '../lib/website/consumptionEstimator.ts'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
-const opsClient = read('lib/ops/client.ts')
+const opsClient = readOpsClientImplementation()
 const calculator = read('components/ElectricityCalculator.tsx')
 const form = read('components/signup/CustomerApplicationForm.tsx')
 const signupFlow = read('components/signup/SignupFlowClient.tsx')

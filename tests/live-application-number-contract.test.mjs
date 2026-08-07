@@ -1,8 +1,9 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const spec = JSON.parse(fs.readFileSync('docs/openapi/website-integration-v1.json', 'utf8'))
-const source = fs.readFileSync('lib/ops/client.ts', 'utf8')
+const source = readOpsClientImplementation()
 const route = fs.readFileSync('app/api/checkout/applications/[applicationId]/route.ts', 'utf8')
 const quote = spec.components.schemas.WebsiteQuoteRequest
 const status = spec.components.schemas.CustomerApplicationStatus

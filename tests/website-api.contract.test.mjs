@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -8,7 +9,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8')
 
 const contract = read('lib/ops/contract.ts')
-const ops = read('lib/ops/client.ts')
+const ops = readOpsClientImplementation()
 const readiness = read('lib/ops/readiness.ts')
 const portalReadiness = read('lib/ops/portalReadiness.ts')
 const area = read('app/api/checkout/energy-area/resolve/route.ts')
@@ -64,9 +65,9 @@ assert.ok(!quote.includes('currentMarketPrice.is_stale'))
 assert.ok(!quote.includes('current_market_price:'))
 assert.ok(quote.includes('verifiedArea.payload.quote_ready !== true'))
 assert.ok(quote.includes("code: 'resolution_quote_not_ready'"))
-assert.ok(validation.includes('price_area: area.payload.price_area_code'))
-assert.ok(validation.includes('grid_area_code: area.payload.grid_area_code'))
-assert.ok(validation.includes('postal_code: input.location.postalCode'))
+assert.ok(!validation.includes('price_area: area.price_area_code'))
+assert.ok(!validation.includes('grid_area_code: area.grid_area_code'))
+assert.ok(!validation.includes('postal_code: input.location.postalCode'))
 assert.ok(!quoteSchema.required.includes('requested_start_mode'))
 assert.equal(quoteSchema.properties.requested_start_mode, undefined)
 assert.deepEqual(

@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
@@ -26,7 +27,7 @@ for (const field of [
   assert.ok(validationPayload.includes(field), `missing canonical quote field: ${field}`)
 }
 
-const opsClient = read('lib/ops/client.ts')
+const opsClient = readOpsClientImplementation()
 assert.ok(opsClient.includes('{ application_number: input.application_number }'), 'explicit application-number validation support must remain available')
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')

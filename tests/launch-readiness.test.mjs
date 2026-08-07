@@ -1,7 +1,9 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 
 function read(path) {
+  if (path === "lib/ops/client.ts") return readOpsClientImplementation();
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
@@ -78,7 +80,7 @@ assert.ok(
 );
 assert.ok(
   signup.includes("Idempotency-Key") ||
-    read("lib/ops/client.ts").includes("Idempotency-Key"),
+    readOpsClientImplementation().includes("Idempotency-Key"),
   "customer application writes must use Idempotency-Key header",
 );
 assert.ok(
@@ -265,7 +267,7 @@ for (const removedVariable of [
   assert.ok(!envExample.includes(removedVariable), `env.example must not require ${removedVariable}`);
 }
 
-const opsClient = read("lib/ops/client.ts");
+const opsClient = readOpsClientImplementation();
 assertIncludes(
   "lib/ops/client.ts",
   "x-gridex-customer-portal-user-id",

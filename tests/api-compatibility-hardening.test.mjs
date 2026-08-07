@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -6,7 +7,7 @@ const root = process.cwd()
 const read = (path) => readFileSync(join(root, path), 'utf8')
 
 const contract = read('lib/ops/contract.ts')
-const client = read('lib/ops/client.ts')
+const client = readOpsClientImplementation()
 const transport = read('lib/ops/transport.ts')
 const validators = read('lib/ops/validators/openapi.ts')
 const readiness = read('lib/ops/readiness.ts')

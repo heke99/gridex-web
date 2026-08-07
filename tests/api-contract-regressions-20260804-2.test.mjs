@@ -1,3 +1,4 @@
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -11,7 +12,7 @@ const website = JSON.parse(websiteRaw)
 const portal = JSON.parse(portalRaw)
 const release = JSON.parse(read('docs/openapi/release-manifest.json'))
 const contract = read('lib/ops/contract.ts')
-const client = read('lib/ops/client.ts')
+const client = readOpsClientImplementation()
 const tokenSource = read('lib/website/energyAreaToken.ts')
 const resolverRoute = read('app/api/checkout/energy-area/resolve/route.ts')
 const signup = read('app/(public)/teckna-avtal/page.tsx')
