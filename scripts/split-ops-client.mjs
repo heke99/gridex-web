@@ -37,24 +37,24 @@ function exportTopLevel(text) {
     .replace(/^(?!export\s)(class\s+[A-Za-z_$][\w$]*)/gm, 'export $1')
 }
 
-function declaredNames(text) {
-  const names = new Set()
+function declaredSymbols(text) {
+  const symbols = new Map()
   const patterns = [
-    /^(?:export\s+)?type\s+([A-Za-z_$][\w$]*)/gm,
-    /^(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/gm,
-    /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
-    /^(?:export\s+)?(?:const|let|class)\s+([A-Za-z_$][\w$]*)/gm,
+    { pattern: /^(?:export\s+)?type\s+([A-Za-z_$][\w$]*)/gm, typeOnly: true },
+    { pattern: /^(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/gm, typeOnly: true },
+    { pattern: /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm, typeOnly: false },
+    { pattern: /^(?:export\s+)?(?:const|let|class)\s+([A-Za-z_$][\w$]*)/gm, typeOnly: false },
   ]
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) names.add(match[1])
+  for (const { pattern, typeOnly } of patterns) {
+    for (const match of text.matchAll(pattern)) symbols.set(match[1], { name: match[1], typeOnly })
   }
-  return [...names]
+  return [...symbols.values()]
 }
 
 const prepared = modules.map((module) => {
   const raw = lines.slice(module.start - 1, module.end).join('\n').trim()
   const body = exportTopLevel(raw)
-  return { ...module, body, declarations: declaredNames(body) }
+  return { ...module, body, declarations: declaredSymbols(body) }
 })
 
 function escapesRegExp(value) {
@@ -65,10 +65,13 @@ for (const target of prepared) {
   const imports = []
   for (const sourceModule of prepared) {
     if (sourceModule.name === target.name) continue
-    const used = sourceModule.declarations.filter((name) =>
+    const used = sourceModule.declarations.filter(({ name }) =>
       new RegExp(`\\b${escapesRegExp(name)}\\b`).test(target.body),
     )
-    if (used.length) imports.push(`import { ${used.join(', ')} } from './${sourceModule.name}'`)
+    const typeNames = used.filter((symbol) => symbol.typeOnly).map((symbol) => symbol.name)
+    const valueNames = used.filter((symbol) => !symbol.typeOnly).map((symbol) => symbol.name)
+    if (typeNames.length) imports.push(`import type { ${typeNames.join(', ')} } from './${sourceModule.name}'`)
+    if (valueNames.length) imports.push(`import { ${valueNames.join(', ')} } from './${sourceModule.name}'`)
   }
 
   const content = [
@@ -85,7 +88,7 @@ for (const target of prepared) {
 
 const facade = [
   "export { OpsError, isOpsError } from '@/lib/ops/errors'",
-  "export * from './client/types'",
+  "export type * from './client/types'",
   "export * from './client/core'",
   "export * from './client/website'",
   "export * from './client/application'",
