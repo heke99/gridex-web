@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { readOpsClientImplementation } from './ops-client-source.mjs'
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
-const client = read('lib/ops/client.ts')
+const client = readOpsClientImplementation()
 assert.match(client, /cache:\s*'no-store'/)
 assert.match(client, /readWebsitePublicContractSnapshot/)
 assert.match(client, /storeWebsitePublicContractSnapshot/)
