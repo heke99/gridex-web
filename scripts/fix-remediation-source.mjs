@@ -1,27 +1,30 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const filePath = path.resolve('lib/website/publicContractContract.ts')
-const source = fs.readFileSync(filePath, 'utf8')
-const before = `    modules.flatMap((item) => {
-      const module = record(item)
-      const id = module ? text(module.id) : null
-      return id && module ? [[id, module] as const] : []
-    }),`
-const after = `    modules.flatMap((item) => {
-      const legalDocument = record(item)
-      const id = legalDocument ? text(legalDocument.id) : null
-      return id && legalDocument ? [[id, legalDocument] as const] : []
-    }),`
-
-if (source.includes(after)) {
-  console.log('Known Next.js lint blocker already remediated.')
-  process.exit(0)
+function replaceKnownPattern(file, before, after, description) {
+  const filePath = path.resolve(file)
+  const source = fs.readFileSync(filePath, 'utf8')
+  if (source.includes(after)) {
+    console.log(`${description}: already applied.`)
+    return
+  }
+  if (!source.includes(before)) {
+    throw new Error(`${description}: expected source pattern not found; refusing a blind rewrite.`)
+  }
+  fs.writeFileSync(filePath, source.replace(before, after))
+  console.log(`${description}: applied.`)
 }
 
-if (!source.includes(before)) {
-  throw new Error('Expected legal-module lint pattern was not found; refusing a blind rewrite.')
-}
+replaceKnownPattern(
+  'lib/website/publicContractContract.ts',
+  `    modules.flatMap((item) => {\n      const module = record(item)\n      const id = module ? text(module.id) : null\n      return id && module ? [[id, module] as const] : []\n    }),`,
+  `    modules.flatMap((item) => {\n      const legalDocument = record(item)\n      const id = legalDocument ? text(legalDocument.id) : null\n      return id && legalDocument ? [[id, legalDocument] as const] : []\n    }),`,
+  'Next.js reserved module binding remediation',
+)
 
-fs.writeFileSync(filePath, source.replace(before, after))
-console.log('Renamed the reserved local module binding without changing behavior.')
+replaceKnownPattern(
+  'lib/website/canonicalQuoteValidation.ts',
+  `    selected_component_references: effectiveQuote.selected_component_references,\n    site_count: effectiveQuote.site_count,\n  })`,
+  `    selected_component_references: effectiveQuote.selected_component_references,\n    site_count: effectiveQuote.site_count,\n    price_area: area.price_area_code,\n    grid_area_code: area.grid_area_code,\n    postal_code: input.location.postalCode,\n  })`,
+  'Canonical quote validation area context remediation',
+)
