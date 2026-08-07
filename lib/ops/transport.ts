@@ -15,11 +15,6 @@ const DEFAULT_TIMEOUT_MS = 12_000
 const MIN_TIMEOUT_MS = 1_000
 const MAX_TIMEOUT_MS = 60_000
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504])
-const VERSIONED_RESPONSE_PATHS = new Set([
-  '/api/v1/website/public-contracts',
-  '/api/v1/openapi/website-integration-v1.json',
-  '/api/v1/openapi/customer-portal-v1.json',
-])
 
 export type OpsHttpResponse = {
   status: number
@@ -111,6 +106,15 @@ function pathOnly(path: string): string {
   return path.split('?', 1)[0].replace(/\/+$/, '') || '/'
 }
 
+export function shouldObserveOpsContractVersion(path: string): boolean {
+  const pathname = pathOnly(path)
+  return (
+    pathname.startsWith('/api/v1/website/') ||
+    pathname.startsWith('/api/v1/customer/') ||
+    pathname.startsWith('/api/v1/openapi/')
+  )
+}
+
 function safeErrorDetails(payload: unknown, response: Response, path: string) {
   const root = payload && typeof payload === 'object' && !Array.isArray(payload)
     ? payload as Record<string, unknown>
@@ -190,7 +194,7 @@ async function waitBeforeRetry(response: Response | null, attempt: number) {
 }
 
 function observeVersionHeader(path: string, response: Response): string | null {
-  if (!VERSIONED_RESPONSE_PATHS.has(pathOnly(path)) || response.status === 304) return null
+  if (!shouldObserveOpsContractVersion(path) || response.status === 304) return null
   const received = response.headers.get(GRIDEX_WEBSITE_API_VERSION_HEADER)
   logContractVersionDrift({
     endpoint: path,
@@ -318,4 +322,3 @@ export async function opsRequest(
 export async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {
   return (await opsRequest(path, init)).payload
 }
-
