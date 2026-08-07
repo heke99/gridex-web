@@ -1,13 +1,14 @@
-name: Remediation quality gate
+name: Gridex Web quality gate
 
 on:
   pull_request:
   push:
     branches:
+      - main
       - remediation/gridex-web-performance-integrity-api-2026-08-07
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -26,28 +27,15 @@ jobs:
         run: npm run db:migrations:check
       - name: API compatibility
         run: npm run api:compatibility
-      - name: Apply deterministic source remediation
-        run: node scripts/fix-remediation-source.mjs
-      - name: Split oversized OPS client by responsibility
-        run: node scripts/split-ops-client.mjs
-      - name: Migrate split-client source assertions
-        run: node scripts/fix-split-client-tests.mjs
       - name: Production file-size guard
         run: node scripts/check-file-size.mjs
       - name: Contract-version observation regression
         run: node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-contract-version-observation.test.mjs
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - name: Commit verified remediation
-        if: github.event_name == 'push'
-        run: |
-          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts lib/website/canonicalQuoteValidation.ts tests)" ]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts lib/website/canonicalQuoteValidation.ts tests
-          git commit -m "refactor(ops): split client and align canonical validation"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
