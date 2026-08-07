@@ -1,7 +1,6 @@
 //lib/admin/customerAdmin.ts
 ///
 ///
-///
 import { supabaseService } from '@/lib/supabase/service'
 
 export type CustomerAdminAgreement = {
