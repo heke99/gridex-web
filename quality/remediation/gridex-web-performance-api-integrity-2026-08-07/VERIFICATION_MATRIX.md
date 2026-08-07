@@ -1,9 +1,8 @@
 # VERIFICATION_MATRIX
 
 Datum: 2026-08-07
-Verifierad kod-head på `main`: `e70ed0ca6f8c16870a0aa97b8fb102095da10d7c`
-Live OpenAPI run: `31190726958`
-Full quality run: `31190727274`
+Verifierad runtime-/kontraktskod-head på `main`: `e70ed0ca6f8c16870a0aa97b8fb102095da10d7c`
+Verifierad rapport-/deployment-head före denna docs-only korrigering: `d1bfd11e24f1532695a4697a2f85f9fd1c9e0c3e`
 
 | Kontroll | Evidens | Status |
 |---|---|---|
@@ -22,17 +21,22 @@ Full quality run: `31190727274`
 | Full regression/launch suite | `npm test` | PASS |
 | Next.js production build | `npm run build` | PASS |
 | Main live-drift gate on every push | `.github/workflows/openapi-drift.yml` | PASS |
-| Quality workflow permissions | read-only på main | PASS |
+| Quality workflow permissions | read-only på `main` | PASS |
 | Existing migrations edited | none | PASS |
 | New speculative DB migration/index | none | PASS |
-| Authenticated live tenant checkout E2E | riktiga credentials ej använda i denna CI | UNVERIFIED |
-| Production Vercel deployment | kontrolleras separat | UNVERIFIED |
+| Vercel deployment/status | GitHub combined status på `d1bfd11e…`: `Vercel – gridex-web = success` | PASS |
+| Authenticated live tenant checkout E2E | riktiga integrationscredentials ej använda i denna CI-remediation | UNVERIFIED |
 | Production load/p95/p99 | produktionstelemetri ej tillgänglig i CI | UNVERIFIED |
+| Exact live Supabase schema vs migrations | DB-environment comparison ej genomförd här | UNVERIFIED |
 
-## Definition of Done – repo scope
+## Definition of Done – repo/CI/deployment scope
 
-PASS. Kod-head `e70ed0ca…` har både live contract gate och full quality gate gröna.
+PASS. Runtime-kodhead `e70ed0ca…` har både live contract gate och full quality gate gröna. Rapporthead `d1bfd11e…` har samma två gates gröna och Vercel commit-status `success`.
 
 ## Upstream release-integritet
 
-OPS ändrade website-specen inom samma versionsnummer `2026-08-05.2`. Klienten är synkad mot aktuell live-hash och main blockerar nu same-version drift via live preflight. Själva upstream-beteendet bör dock korrigeras i OPS genom immutable releases/version bump-policy.
+OPS ändrade website-specen inom samma versionsnummer `2026-08-05.2`. Klienten är synkad mot aktuell live-hash och `main` blockerar nu same-version drift via live preflight. Själva upstream-beteendet bör korrigeras i OPS genom immutable releases/version bump-policy.
+
+## Ej automatiskt bevisat av dessa gates
+
+Authenticated full tenant-E2E, verklig produktionslast och exakt live Supabase-schema kräver separat miljöevidens. De markeras därför inte PASS.
