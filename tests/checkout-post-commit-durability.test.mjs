@@ -5,7 +5,14 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 const thanks = read('app/(public)/teckna-avtal/tack/SignupThanksPage.tsx')
-const client = read('lib/ops/client.ts')
+const client = [
+  read('lib/ops/client.ts'),
+  read('lib/ops/client/types.ts'),
+  read('lib/ops/client/core.ts'),
+  read('lib/ops/client/website.ts'),
+  read('lib/ops/client/application.ts'),
+  read('lib/ops/client/portal.ts'),
+].join('\n')
 const resultStore = read('lib/website/applicationResultStore.ts')
 const submissionStore = read('lib/website/submissionStore.ts')
 const onboarding = read('lib/customerPortal/onboarding.ts')
