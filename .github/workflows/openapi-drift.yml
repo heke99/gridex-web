@@ -1,12 +1,21 @@
 name: OpenAPI compatibility
+
 on:
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: '17 4 * * *'
+
+permissions:
+  contents: read
+
 jobs:
   contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
