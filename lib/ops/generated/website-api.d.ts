@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/website-integration-v1.json.
  * Contract version: 2026-08-05.2.
- * Source SHA-256: d0bdc35697e92c1e1258a09dc1110ab647259673f4efd849c53e6929abf10920.
+ * Source SHA-256: e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 

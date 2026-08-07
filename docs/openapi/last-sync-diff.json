@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-08-06T06:41:56.965Z",
+  "synced_at": "2026-08-07T15:00:56.773Z",
   "contract_version": "2026-08-05.2",
   "release_manifest": {
     "release_version": "2026-08-05.2",
@@ -9,7 +9,7 @@
     "guide_version": "2026-08-05.2",
     "released_at": "2026-08-05T22:07:00.000Z",
     "generated_at": "2026-08-05T22:07:00.000Z",
-    "build_commit": "ec4ca3b63bb7c97a35755b0b393da404d67cc687",
+    "build_commit": "bb877506fb176d61095eb90e7af7df968e88f432",
     "compatibility_classification": "additive-price-area-assurance-and-readiness-correction",
     "deprecated_features": [
       {
@@ -30,7 +30,7 @@
         "contract_version": "2026-08-05.2",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
         "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-05.2/website-integration-v1.json",
-        "sha256": "d0bdc35697e92c1e1258a09dc1110ab647259673f4efd849c53e6929abf10920",
+        "sha256": "e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701",
         "compatibility": "additive-response-field-and-readiness-correction"
       },
       "customer_portal": {
@@ -45,80 +45,31 @@
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "d0bdc35697e92c1e1258a09dc1110ab647259673f4efd849c53e6929abf10920",
+      "sha256": "e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701",
       "semantic_diff": {
-        "previous_version": "2026-08-05.1",
+        "previous_version": "2026-08-05.2",
         "next_version": "2026-08-05.2",
-        "added_paths": [
-          "/api/v1/openapi/2026-08-05.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json"
-        ],
+        "added_paths": [],
         "removed_paths": [],
         "changed_paths": [
-          "/api/v1/website/public-contracts",
-          "/api/v1/contracts",
-          "/api/v1/website/quote",
-          "/api/v1/website/quote/validate",
-          "/api/v1/website/energy-area/resolve",
-          "/api/v1/website/market-price/current",
-          "/api/v1/website/portfolio-prices",
-          "/api/v1/website/customer-events",
-          "/api/v1/public-contracts",
-          "/api/v1/website/customer-applications/{application_number}",
-          "/api/v1/openapi/2026-08-05.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json"
+          "/api/v1/website/public-contracts"
         ],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "ErrorEnvelope",
-          "IntegrationContext",
-          "WebsiteCustomerApplicationResponse",
-          "PublicationChangedWebhook",
-          "WebsiteQuoteData",
-          "WebsiteQuoteResponse",
-          "WebsiteEnergyAreaResolveResponse",
-          "CurrentMarketPriceResponse",
-          "MarketPriceErrorEnvelope",
-          "ApiError",
-          "WebsiteLegalBundleResponse",
-          "OpenApiReleaseManifest",
-          "OpenApiReleaseSpecification",
-          "ErrorResponse",
-          "CustomerApplicationStatusChangedWebhook",
-          "SupplierSwitchUpdatedWebhook"
-        ]
+        "changed_schemas": []
       }
     },
     "customer-portal-v1.json": {
       "sha256": "2a998b7b8be3780fc9793ab1de742912915a9d4925bfb3246d84b2f1c3d9f65e",
       "semantic_diff": {
-        "previous_version": "2026-08-05.1",
+        "previous_version": "2026-08-05.2",
         "next_version": "2026-08-05.2",
-        "added_paths": [
-          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json"
-        ],
+        "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/customer-portal/sync",
-          "/api/v1/customer/move-out",
-          "/api/v1/customer/notifications/read",
-          "/api/v1/customer/profile-update",
-          "/api/v1/customer/sync",
-          "/api/v1/events",
-          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "ApiError",
-          "IntegrationContext",
-          "ErrorResponse",
-          "ClosedPortalResourceEnvelope",
-          "ErrorEnvelope",
-          "MarketPriceErrorEnvelope",
-          "PublicDomainEvent"
-        ]
+        "changed_schemas": []
       }
     }
   }
