@@ -2,38 +2,43 @@
 
 ## Resultat
 
-Remediation fokuserade på verifierade kostnader och fel, inte generell mikrooptimering.
+Remediationen fokuserade på verifierade kostnader/fel och undvek spekulativ mikrooptimering.
 
-### Förbättringar
+### Implementerade förbättringar
 
-1. OPS-klienten delades från 5 287 rader till fem ansvarsmoduler + tunn facade. Detta minskar ändringsyta, förbättrar tree-shaking/analyserbarhet och gör felisolering/testning tydligare.
-2. Kontraktsdrift observeras konsekvent över website/customer/OpenAPI-surfaces.
-3. GET/HEAD använder begränsad retry med backoff/jitter; write requests auto-retryas inte.
-4. OPS timeout är bounded och explicit.
-5. Public contracts har conditional caching/snapshot-strategi i stället för blind cache.
-6. File-size guard förhindrar nya produktionsmonoliter över 2 000 rader.
-7. CI kör full lint/typecheck/test/build så prestandarefaktorer inte kan landa utan korrekthetsbevis.
-
-## Client-side
-
-Ingen evidensbaserad regressionsorsak krävde en bred UI-rewrite. Befintliga client/server boundaries behölls. Ingen spekulativ memoization eller client-cache lades till.
+1. OPS-klienten delades från 5 287 rader till fem ansvarsmoduler + tunn facade.
+2. Kontraktsdrift observeras över website/customer/OpenAPI-surfaces.
+3. Live OpenAPI-preflight körs på varje push till `main`, inklusive SHA-/semantic drift inom samma versionsnummer.
+4. GET/HEAD använder begränsad retry med backoff/jitter; write requests auto-retryas inte.
+5. OPS timeout är bounded och explicit.
+6. Public contracts använder conditional caching/verifierad snapshot-strategi i stället för blind cache.
+7. File-size guard förhindrar nya produktionsmonoliter över 2 000 rader.
+8. CI kräver lint, typecheck, full test och production build.
 
 ## API/network
 
-- Default `no-store` i transportlagret.
-- ETag/304 används där public-contract-kontraktet stödjer det.
+- Transport-default: `no-store`.
+- ETag/304 används där kontraktet stödjer det.
 - Redirects blockeras.
-- GET/HEAD retryas vid 429/502/503/504 enligt transportpolicy.
+- GET/HEAD retryas vid definierade temporära fel.
 - POST/write retryas inte automatiskt.
+- Current live OPS website hash är `e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701`.
+
+## Client-side
+
+Ingen evidensbaserad UI-regression krävde bred redesign eller ny client-cache. Befintliga client/server boundaries behölls.
 
 ## Databas
 
-Ingen ny indexering gjordes utan query-plan-evidens. Befintligt rate-limit reset-index och migrationsbaserade constraints/policies behölls.
+Ingen ny indexering gjordes utan query-plan-evidens. Befintlig rate-limit RPC/RLS/reset-index och snapshot/reconciliation-schema verifierades mot migrationerna.
 
 ## Verifiering
 
-Read-only run `31188663234`: file-size, lint, typecheck, full testsuite och build PASS.
+På main kod-head `e70ed0ca6f8c16870a0aa97b8fb102095da10d7c`:
+
+- Live contract run `31190726958`: PASS.
+- Full quality run `31190727274`: PASS.
 
 ## UNVERIFIED
 
-RUM/Core Web Vitals, production TTFB, OPS p95/p99 latency, Supabase query p95/p99 och verklig lastkapacitet kräver produktionstelemetri/loadtest och påstås därför inte vara optimerade till ett specifikt numeriskt mål.
+RUM/Core Web Vitals, production TTFB, OPS p95/p99, Supabase query p95/p99 och verklig lastkapacitet kräver produktionstelemetri/loadtest och påstås därför inte nå något obekräftat numeriskt mål.

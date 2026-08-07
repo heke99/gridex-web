@@ -4,46 +4,43 @@
 
 `Browser -> Next.js App Router/BFF -> OPS API -> Supabase/Postgres`
 
-Gridex Web håller OPS API credentials server-side. Browsern arbetar mot webbens egna route handlers och signerade/validerade tokens/snapshots.
+Gridex Web håller OPS API credentials server-side. Browsern arbetar mot webbens egna route handlers samt signerade/validerade tokens och snapshots.
 
 ## OPS-klient efter remediation
 
-Den tidigare 5 287-radersmonoliten är ersatt av en kompatibilitetsfasad och fem ansvarsmoduler:
+Den tidigare 5 287-radersmonoliten är ersatt av:
 
 - `lib/ops/client.ts` – tunn publik facade.
 - `lib/ops/client/types.ts` – DTO- och domäntyper.
-- `lib/ops/client/core.ts` – gemensam transport-/schema-/public-contract-kärna.
-- `lib/ops/client/website.ts` – energy area, quote, public-contract/feed och websiteflöden.
+- `lib/ops/client/core.ts` – gemensam OPS-/schema-/public-contract-kärna.
+- `lib/ops/client/website.ts` – website-, energy-area-, quote- och feedflöden.
 - `lib/ops/client/application.ts` – customer application payload/resultat och accepted invariants.
 - `lib/ops/client/portal.ts` – customer portal reads/writes/events.
 
-Samtliga icke-genererade produktionskällfiler ligger under 2 000 rader enligt CI.
+CI verifierar att ingen icke-genererad produktionskällfil överskrider 2 000 rader.
 
 ## Source of truth
 
-1. Publicerad OPS OpenAPI/release-manifest.
-2. Incheckade OpenAPI snapshots och genererade typer.
-3. Runtime schema validators och compatibility guards.
-4. Migrationsmanifest och migrationsfiler för Gridex Webs lokala Supabase-schema.
+1. Aktuell live OPS release-manifest/OpenAPI.
+2. Incheckade snapshots och deras exakta SHA-256.
+3. Genererade TypeScript-typer.
+4. Runtime OpenAPI validators/compatibility guards.
+5. Migrationsmanifest + migrationsfiler för lokalt Supabase-schema.
 
-Aktuell verifierad kontraktsrelease: `2026-08-05.1`.
+Aktuell verifierad release: `2026-08-05.2`.
+Website hash: `e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701`.
 
-## Cache
+## Upstream immutability
 
-Public contracts använder verifierad snapshot/ETag-strategi och fail-closed-regler. OPS-transportens default är `no-store`; caching aktiveras explicit där kontraktet tillåter det. Tenantcache-nycklar härleds från OPS base URL + API-key hash och blandar inte tenantdata.
+OPS ändrade website-specens hash inom samma `.2`-versionsnummer. Därför räcker inte längre endast versionsjämförelse som skydd; `main` kör nu `api:preflight` mot live på varje push och blockerar även same-version hash/semantic drift.
 
-## Rate limiting
+## Cache och tenant isolation
 
-Distributed limiter använder Supabase RPC `consume_distributed_rate_limit`. Schema/RPC/RLS/behörigheter och reset-index är migration-backed. Ingen ny migration krävdes.
-
-## Felgränser
-
-- GET/HEAD kan retryas för definierade temporära fel.
-- POST/andra writes auto-retryas inte i transportlagret.
-- Redirects blockeras innan credentials kan följas vidare.
-- 304 hanteras endast där caller uttryckligen tillåter conditional cache.
-- OPS-responses valideras mot OpenAPI och additive compatibility policy.
+OPS transport är `no-store` som default. Public contracts använder explicit ETag/304 + verifierad last-known-good snapshot där kontraktet tillåter det. Cache-/snapshotbindning verifierar tenant/customer type och får inte bli en andra source of truth.
 
 ## CI
 
-`.github/workflows/remediation-quality.yml` är read-only och kör samma quality gate på PR, remediation branch och `main`: OpenAPI, migrations, compatibility, file-size, contract regression, lint, typecheck, full test och build.
+`main` har två read-only gates:
+
+- `Gridex Web quality gate`: local OpenAPI, migrations, compatibility, file-size, regression, lint, typecheck, full test och build.
+- `OpenAPI compatibility`: live `api:preflight` vid varje main-push, PR, manuellt och schemalagt.

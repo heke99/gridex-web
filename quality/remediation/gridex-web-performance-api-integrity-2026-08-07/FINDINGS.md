@@ -3,38 +3,38 @@
 Datum: 2026-08-07
 Repo: `heke99/gridex-web`
 Baseline: `04058b7a22daeb6f43fa598869faf46eed868c7c`
-Remediation branch: `remediation/gridex-web-performance-integrity-api-2026-08-07`
-Verifierad branch-head före rapportslut: `4be6d2881af641c42d37c8bc66508797ce0b317a`
+Verifierad kod-head på `main`: `e70ed0ca6f8c16870a0aa97b8fb102095da10d7c`
 
-## Sammanfattning
+## Slutstatus
 
-Alla verifierbara kod-, kontrakts-, migrations-, filstorleks-, lint-, typecheck-, test- och buildfel som hittades i denna remediation är rättade.
+Alla verifierbara kod-, kontrakts-, migrations-, filstorleks-, lint-, typecheck-, test- och buildfel som hittades i remediationen är rättade.
 
 | ID | Severity | Fynd | Status |
 |---|---|---|---|
-| F-001 | P0 | Lokala OPS/OpenAPI-artefakter låg på `2026-08-05.2` medan aktuell kanonisk publicerad release var `2026-08-05.1`. | RESOLVED |
-| F-002 | P1 | `lib/ops/client.ts` var 5 287 rader och bröt maxgränsen 2 000 rader. | RESOLVED |
-| F-003 | P1 | Runtime contract-version observation täckte inte hela website/customer/OpenAPI-ytan. | RESOLVED |
-| F-004 | P1 | Next.js lint blockerades av lokal variabel med namnet `module`. | RESOLVED |
-| F-005 | P1 | Källtextbaserade regressionstester antog att hela OPS-klienten låg i en monolitisk fil. | RESOLVED |
-| F-006 | P1 | Första modulsplitten importerade TypeScript-typer som runtimevärden i ESM. | RESOLVED |
-| F-007 | P1 | Två kontraktstester uttryckte motstridiga regler för optional quote validation context. | RESOLVED till immutable canonical tuple |
-| F-008 | P2 | CI verifierade inte full kedja inklusive filstorlek, lint, typecheck, test och build. | RESOLVED |
+| F-001 | P0 | OPS/OpenAPI-drift mellan lokala artefakter och livekontrakt. OPS växlade under arbetet från `.1` tillbaka till `.2`. | RESOLVED |
+| F-002 | P0 | OPS muterade `2026-08-05.2` utan versionsbump: website-hash ändrades från `d0bdc356…` till `e8ddc6b8…`; semantic diff låg på `/api/v1/website/public-contracts`. | CLIENT RESYNCED; UPSTREAM GOVERNANCE RISK DOCUMENTED |
+| F-003 | P1 | `lib/ops/client.ts` var 5 287 rader och bröt 2 000-raderskravet. | RESOLVED |
+| F-004 | P1 | Runtime contract-version observation täckte inte hela website/customer/OpenAPI-ytan. | RESOLVED |
+| F-005 | P1 | Next.js lint blockerades av lokal variabel `module`. | RESOLVED |
+| F-006 | P1 | Regressionstester var kopplade till monolitisk `client.ts`. | RESOLVED |
+| F-007 | P1 | Första klient-splitten importerade TypeScript-typer som runtimevärden. | RESOLVED |
+| F-008 | P1 | Motstridiga quote-validation assertions kunde återintroducera optional context som andra source of truth. | RESOLVED: immutable canonical tuple |
+| F-009 | P2 | `main` saknade obligatorisk live OpenAPI-preflight på varje push. | RESOLVED |
 
-## Slutligt kontraktsbeslut
+## Aktuell OPS-kontraktstatus
 
-Canonical quote revalidation använder den redan signerade/validerade quote-tupeln som source of truth. Optional `price_area`, `grid_area_code` och `postal_code` förs inte in igen i den existerande canonical quote-referensen.
+- Release: `2026-08-05.2`
+- Website OpenAPI SHA-256: `e8ddc6b8a35d14f561caf4e3ef13917affb1b1af58ae759cb1a8a0332f59a701`
+- Customer portal SHA-256: `2a998b7b8be3780fc9793ab1de742912915a9d4925bfb3246d84b2f1c3d9f65e`
+- Live OpenAPI gate på main: run `31190726958` PASS.
+- Full quality gate på samma kod-head: run `31190727274` PASS.
 
 ## Databas
 
-33 migrationsfiler verifieras av manifestet. Ingen ny migration eller nytt index lades till utan evidens. Distributed rate-limit RPC/tabell/RLS/index finns redan och behövde ingen schemaändring.
-
-## Verifiering
-
-Read-only quality gate run `31188663234` kördes mot den persistenta branchen utan codemods och gav PASS för OpenAPI, migrationsmanifest, API compatibility, filstorlek, kontraktsregression, lint, typecheck, full testsuite och build.
+33 migrationsfiler verifieras av manifestet. Ingen applicerad migration ändrades och ingen ny migration/index lades till utan evidens.
 
 ## Kvarvarande externa osäkerheter
 
-- Produktionens Vercel-deploy: UNVERIFIED tills GitHub/deployment-evidens finns.
-- Autentiserad live tenant-E2E mot verkliga OPS/Supabase credentials: UNVERIFIED i denna GitHub-körning.
-- Produktionslatens/DB p95/p99 under verklig last: UNVERIFIED utan produktionstelemetri.
+- Verklig Vercel production deployment: verifieras separat via deployment-evidens.
+- Authenticated live tenant-E2E med riktiga integrationscredentials: UNVERIFIED i GitHub CI.
+- Produktionslatens och DB p95/p99: UNVERIFIED utan produktionstelemetri.
