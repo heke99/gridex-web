@@ -26,6 +26,8 @@ jobs:
         run: npm run db:migrations:check
       - name: API compatibility
         run: npm run api:compatibility
+      - name: Client structure diagnostic
+        run: grep -nE '^(export )?(async )?function |^export type |^const |^class ' lib/ops/client.ts || true
       - name: Production file-size guard
         run: node scripts/check-file-size.mjs
       - name: Contract-version observation regression
