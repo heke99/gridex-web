@@ -21,6 +21,9 @@ const sourceReadPatterns = [
   /\breadFileSync\(\s*(['"])lib\/ops\/client\.ts\1\s*,\s*(['"])utf8\2\s*\)/g,
 ]
 
+const launchReadBefore = `function read(path) {\n  return readFileSync(new URL(\`../\${path}\`, import.meta.url), "utf8");\n}`
+const launchReadAfter = `function read(path) {\n  if (path === "lib/ops/client.ts") return readOpsClientImplementation();\n  return readFileSync(new URL(\`../\${path}\`, import.meta.url), "utf8");\n}`
+
 let changed = 0
 for (const name of candidates) {
   const filePath = path.join(testsDir, name)
@@ -29,6 +32,13 @@ for (const name of candidates) {
 
   for (const pattern of sourceReadPatterns) {
     next = next.replace(pattern, 'readOpsClientImplementation()')
+  }
+
+  if (name === 'launch-readiness.test.mjs') {
+    if (next.includes(launchReadBefore)) next = next.replace(launchReadBefore, launchReadAfter)
+    else if (!next.includes(launchReadAfter)) {
+      throw new Error('launch-readiness read helper shape changed; refusing a blind rewrite.')
+    }
   }
 
   if (next === source) continue
