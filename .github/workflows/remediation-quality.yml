@@ -26,6 +26,8 @@ jobs:
         run: npm run db:migrations:check
       - name: API compatibility
         run: npm run api:compatibility
+      - name: Apply deterministic source remediation
+        run: node scripts/fix-remediation-source.mjs
       - name: Split oversized OPS client by responsibility
         run: node scripts/split-ops-client.mjs
       - name: Production file-size guard
@@ -36,14 +38,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: Commit verified OPS client split
+      - name: Commit verified remediation
         if: github.event_name == 'push'
         run: |
-          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client)" ]; then
+          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts)" ]; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/ops/client.ts lib/ops/client
-          git commit -m "refactor(ops): split client by responsibility"
+          git add lib/ops/client.ts lib/ops/client lib/website/publicContractContract.ts
+          git commit -m "refactor(ops): split client and clear lint blocker"
           git push origin "HEAD:${GITHUB_REF_NAME}"
