@@ -7,7 +7,7 @@ on:
       - remediation/gridex-web-performance-integrity-api-2026-08-07
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -26,8 +26,8 @@ jobs:
         run: npm run db:migrations:check
       - name: API compatibility
         run: npm run api:compatibility
-      - name: Client structure diagnostic
-        run: grep -nE '^(export )?(async )?function |^export type |^const |^class ' lib/ops/client.ts || true
+      - name: Split oversized OPS client by responsibility
+        run: node scripts/split-ops-client.mjs
       - name: Production file-size guard
         run: node scripts/check-file-size.mjs
       - name: Contract-version observation regression
@@ -36,3 +36,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Commit verified OPS client split
+        if: github.event_name == 'push'
+        run: |
+          if [ -z "$(git status --porcelain -- lib/ops/client.ts lib/ops/client)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/ops/client.ts lib/ops/client
+          git commit -m "refactor(ops): split client by responsibility"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
