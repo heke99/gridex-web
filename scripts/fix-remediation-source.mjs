@@ -21,10 +21,3 @@ replaceKnownPattern(
   `    modules.flatMap((item) => {\n      const legalDocument = record(item)\n      const id = legalDocument ? text(legalDocument.id) : null\n      return id && legalDocument ? [[id, legalDocument] as const] : []\n    }),`,
   'Next.js reserved module binding remediation',
 )
-
-replaceKnownPattern(
-  'lib/website/canonicalQuoteValidation.ts',
-  `    selected_component_references: effectiveQuote.selected_component_references,\n    site_count: effectiveQuote.site_count,\n  })`,
-  `    selected_component_references: effectiveQuote.selected_component_references,\n    site_count: effectiveQuote.site_count,\n    price_area: area.price_area_code,\n    grid_area_code: area.grid_area_code,\n    postal_code: input.location.postalCode,\n  })`,
-  'Canonical quote validation area context remediation',
-)
