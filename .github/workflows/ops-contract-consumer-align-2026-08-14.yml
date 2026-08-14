@@ -1,0 +1,98 @@
+name: Bounded OPS consumer alignment
+
+on:
+  push:
+    branches:
+      - fix/ops-contract-2026-08-14-1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ops-contract-consumer-align-2026-08-14
+  cancel-in-progress: false
+
+jobs:
+  align:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ops-contract-2026-08-14-1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Align portal bundle scopes to canonical 2026-08-14.1
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const readScopes = [
+            'customer_profile.read',
+            'customer_sites.read',
+            'customer_contracts.read',
+            'customer_invoices.read',
+            'customer_metering.read',
+            'customer_legal.read',
+            'customer_events.read',
+            'customer_documents.read',
+            'customer_notifications.read',
+            'customer_power_of_attorney.read',
+          ]
+
+          const readinessPath = 'lib/ops/portalReadiness.ts'
+          let readiness = fs.readFileSync(readinessPath, 'utf8')
+          if (!readiness.includes("'customer_power_of_attorney.write',")) {
+            readiness = readiness.replace(
+              "  'customer_facility_data.write',\n] as const",
+              "  'customer_facility_data.write',\n  'customer_power_of_attorney.write',\n] as const",
+            )
+          }
+          const oldProbe = "      scopes: ['customer_portal.read'],"
+          if (!readiness.includes(oldProbe)) throw new Error('Legacy portal bundle probe was not found')
+          const scopeLines = readScopes.map((scope) => `        '${scope}',`).join('\n')
+          readiness = readiness.replace(oldProbe, `      scopes: [\n${scopeLines}\n      ],`)
+          fs.writeFileSync(readinessPath, readiness)
+
+          const testPath = 'tests/website-api.contract.test.mjs'
+          let test = fs.readFileSync(testPath, 'utf8')
+          const expectedInline = "  ['customer_portal.read'],"
+          const replacement = `  [\n${readScopes.map((scope) => `    '${scope}',`).join('\n')}\n  ],`
+          const occurrences = test.split(expectedInline).length - 1
+          if (occurrences !== 2) throw new Error(`Expected exactly 2 legacy bundle assertions, found ${occurrences}`)
+          test = test.replace(expectedInline, replacement).replace(expectedInline, replacement)
+          const oldProbeAssertion = `assert.ok(portalReadiness.includes("scopes: ['customer_portal.read']"))`
+          if (!test.includes(oldProbeAssertion)) throw new Error('Legacy readiness probe assertion was not found')
+          test = test.replace(
+            oldProbeAssertion,
+            `assert.ok(!portalReadiness.includes("scopes: ['customer_portal.read']"))\nassert.ok(portalReadiness.includes("'customer_power_of_attorney.write'"))`,
+          )
+          fs.writeFileSync(testPath, test)
+          NODE
+
+      - name: Verify contract preflight and consumer suite
+        run: |
+          npm run api:preflight
+          npm run lint
+          npm run typecheck
+          npm test
+
+      - name: Commit bounded consumer alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/ops/portalReadiness.ts tests/website-api.contract.test.mjs
+          if git diff --cached --quiet; then
+            echo 'No consumer changes generated.'
+            exit 0
+          fi
+          git commit -m 'fix(api): align portal readiness with 2026-08-14.1'
+          git push origin HEAD:fix/ops-contract-2026-08-14-1
