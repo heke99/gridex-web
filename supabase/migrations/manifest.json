@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-04T16:52:49.658Z",
-  "migration_count": 33,
+  "generated_at": "2026-08-14T09:00:00.000Z",
+  "migration_count": 34,
   "version_collisions": [],
   "migrations": [
     {
@@ -168,6 +168,11 @@
       "file": "20260804190000_price_area_assurance_20260804_2.sql",
       "version": "20260804190000",
       "sha256": "6b98561a602d50d6d8c0ff8dc9941c9cee13f85fd551cb3ebf217a2fbabb55f3"
+    },
+    {
+      "file": "20260814110000_production_security_surface_hardening.sql",
+      "version": "20260814110000",
+      "sha256": "a16d34eb34f6687d91693656d74d9c11be76f54915325814948e9252abf3dbee"
     }
   ]
 }
