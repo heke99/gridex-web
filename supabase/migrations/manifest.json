@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T09:00:00.000Z",
-  "migration_count": 34,
+  "generated_at": "2026-08-14T09:30:00.000Z",
+  "migration_count": 35,
   "version_collisions": [],
   "migrations": [
     {
@@ -173,6 +173,11 @@
       "file": "20260814110000_production_security_surface_hardening.sql",
       "version": "20260814110000",
       "sha256": "a16d34eb34f6687d91693656d74d9c11be76f54915325814948e9252abf3dbee"
+    },
+    {
+      "file": "20260814113000_finalize_client_privilege_hardening.sql",
+      "version": "20260814113000",
+      "sha256": "040ac3ea80d68dec0a5d75a397be24a96e77e44c6b5ca48f6346566b4ccd893a"
     }
   ]
 }
