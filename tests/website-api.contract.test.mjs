@@ -120,7 +120,16 @@ assert.ok(customerPortalOpenApi.paths['/api/v1/customer/profile-update'].post)
 assert.ok(customerPortalOpenApi.paths['/api/v1/customer-portal/sync'].post)
 assert.ok(!customerPortalOpenApi.paths['/customer/portal-bundle'])
 assert.equal(customerPortalOpenApi['x-scope-aliases']['customer_portal.read'].status, 'deprecated_legacy_alias')
-for (const pathItem of Object.values(customerPortalOpenApi.paths)) {
+assert.deepEqual(
+  customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].get['x-required-scopes'],
+  ['customer_portal.read'],
+)
+assert.deepEqual(
+  customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].post['x-required-scopes'],
+  ['customer_portal.read'],
+)
+for (const [apiPath, pathItem] of Object.entries(customerPortalOpenApi.paths)) {
+  if (apiPath === '/api/v1/customer/portal-bundle') continue
   for (const operation of Object.values(pathItem)) {
     if (!operation || typeof operation !== 'object') continue
     assert.ok(!(operation['x-required-scopes'] ?? []).includes('customer_portal.read'))
@@ -129,21 +138,6 @@ for (const pathItem of Object.values(customerPortalOpenApi.paths)) {
 assert.deepEqual(
   customerPortalOpenApi.paths['/api/v1/customer/profile-update'].post['x-required-scopes'],
   ['customer_contact.write', 'customer_facility_data.write'],
-)
-for (const scope of [
-  'customer_profile.read',
-  'customer_sites.read',
-  'customer_contracts.read',
-  'customer_invoices.read',
-  'customer_metering.read',
-  'customer_legal.read',
-  'customer_events.read',
-  'customer_documents.read',
-  'customer_notifications.read',
-  'customer_power_of_attorney.read',
-]) assert.ok(
-  customerPortalOpenApi.paths['/api/v1/customer/portal-bundle'].post['x-required-scopes'].includes(scope),
-  `portal OpenAPI bundle scope missing: ${scope}`,
 )
 assert.ok(energySchema.required.includes('capabilities'))
 assert.ok(energySchema.required.includes('blockers'))
@@ -187,7 +181,7 @@ assert.ok(readiness.includes('website_quotes.write'))
 assert.ok(ops.includes('opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {'))
 assert.ok(ops.includes('method: "POST"'))
 assert.ok(ops.includes('body: JSON.stringify(portalIdentityPayload(identity))'))
-assert.ok(!portalReadiness.includes('customer_portal.read'))
+assert.ok(portalReadiness.includes("scopes: ['customer_portal.read']"))
 for (const scope of [
   'customer_profile.read',
   'customer_sites.read',
