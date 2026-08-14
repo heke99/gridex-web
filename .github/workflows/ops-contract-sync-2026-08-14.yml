@@ -1,0 +1,79 @@
+name: Bounded OPS contract sync
+
+on:
+  push:
+    branches:
+      - fix/ops-contract-2026-08-14-1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ops-contract-sync-2026-08-14-1
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/ops-contract-2026-08-14-1
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync canonical OPS OpenAPI release
+        run: npm run api:sync
+
+      - name: Verify exact release
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const manifest = JSON.parse(fs.readFileSync('docs/openapi/release-manifest.json', 'utf8'))
+          if (manifest.release_version !== '2026-08-14.1') {
+            throw new Error(`Expected 2026-08-14.1, got ${manifest.release_version}`)
+          }
+          if (manifest.specifications.website.sha256 !== '6726e9d2350d440d15b150afbe1ca5ed3e67ac14a07bd3b29da5c74636865bcd') {
+            throw new Error('Website OpenAPI checksum does not match live OPS release manifest')
+          }
+          if (manifest.specifications.customer_portal.sha256 !== 'e6e667565b9e4760c9590dc02cb130a277edd0b3d5eb4178ed95fccd60df9de5') {
+            throw new Error('Customer portal OpenAPI checksum does not match live OPS release manifest')
+          }
+          NODE
+          npm run api:check
+
+      - name: Commit generated canonical artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No contract changes generated.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            docs/openapi/website-integration-v1.json \
+            docs/openapi/customer-portal-v1.json \
+            docs/openapi/release-manifest.json \
+            docs/openapi/manifest.json \
+            docs/openapi/verification-status.json \
+            docs/openapi/last-sync-diff.json \
+            lib/ops/contract.ts \
+            lib/ops/generated/
+          git diff --cached --check
+          git commit -m 'chore(api): sync OPS contract 2026-08-14.1'
+          git push origin HEAD:fix/ops-contract-2026-08-14-1
