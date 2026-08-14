@@ -1,0 +1,42 @@
+name: One-shot lockfile remediation
+
+on:
+  push:
+    branches:
+      - remediation/post-merge-production-verification-2026-08-14
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: remediation/post-merge-production-verification-2026-08-14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Regenerate lockfile only
+        run: npm install --package-lock-only --ignore-scripts --no-fund
+      - name: Verify clean install
+        run: npm ci --ignore-scripts --no-fund
+      - name: Verify production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Commit deterministic lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already matches package.json"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(deps): refresh lockfile for patched nanoid"
+          git push origin HEAD:remediation/post-merge-production-verification-2026-08-14
