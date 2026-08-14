@@ -1,14 +1,24 @@
 {
-  "release_version": "2026-08-05.1",
-  "website_openapi_version": "2026-08-05.1",
-  "customer_portal_openapi_version": "2026-08-05.1",
-  "runtime_contract_version": "2026-08-05.1",
-  "guide_version": "2026-08-05.1",
-  "released_at": "2026-08-04T15:30:00.000Z",
-  "generated_at": "2026-08-04T15:30:00.000Z",
-  "build_commit": "fede0863a31829f806353d1bcd40dc1d8ac00d18",
-  "compatibility_classification": "additive-price-area-assurance-and-readiness-correction",
+  "release_version": "2026-08-10.1",
+  "website_openapi_version": "2026-08-10.1",
+  "customer_portal_openapi_version": "2026-08-10.1",
+  "runtime_contract_version": "2026-08-10.1",
+  "guide_version": "2026-08-10.1",
+  "released_at": "2026-08-10T20:25:00.000Z",
+  "generated_at": "2026-08-10T20:25:00.000Z",
+  "build_commit": "c2adf6a081e67ff316bb5e2bd55a25e93d16eae2",
+  "compatibility_classification": "additive-public-boundary-and-tenant-remediation",
   "deprecated_features": [
+    {
+      "feature": "public contract id and contract_offer_id compatibility aliases",
+      "replacement": "offer_reference",
+      "sunset_at": "2026-10-31T23:59:59.000Z"
+    },
+    {
+      "feature": "legal evidence UUID compatibility fields",
+      "replacement": "legal_bundle_reference and document_reference",
+      "sunset_at": "2026-10-31T23:59:59.000Z"
+    },
     {
       "feature": "diagnostics=true on public-contracts",
       "replacement": "/api/v1/website/public-contracts/diagnostics",
@@ -20,23 +30,23 @@
       "sunset_at": "2026-10-31T23:59:59.000Z"
     }
   ],
-  "minimum_tenant_integration_version": "2026-08-05.1",
+  "minimum_tenant_integration_version": "2026-08-10.1",
   "specifications": {
     "website": {
       "contract_name": "website-integration-v1",
-      "contract_version": "2026-08-05.1",
+      "contract_version": "2026-08-10.1",
       "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-      "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-05.1/website-integration-v1.json",
-      "sha256": "341aff52313d55acf7a688a3611482df5ed0a9684ea546c34ba78d99a8ea14d8",
-      "compatibility": "additive-response-field-and-readiness-correction"
+      "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-10.1/website-integration-v1.json",
+      "sha256": "0dbe7cd7fb3f14f97fa8785c8809b9d6549ab6e05435757b77b4f010a233519b",
+      "compatibility": "additive-public-boundary-and-tenant-remediation"
     },
     "customer_portal": {
       "contract_name": "customer-portal-v1",
-      "contract_version": "2026-08-05.1",
+      "contract_version": "2026-08-10.1",
       "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-      "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-05.1/customer-portal-v1.json",
-      "sha256": "83a3befbb6285dc1b61075bfcac7e7a1b51557aa6b333f94b909d2f7115e5a6f",
-      "compatibility": "additive"
+      "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-10.1/customer-portal-v1.json",
+      "sha256": "5543676bd67f4b55183e2618bb4f9af541936293395b8c650947992b523fb675",
+      "compatibility": "additive-public-boundary-and-tenant-remediation"
     }
   }
 }
