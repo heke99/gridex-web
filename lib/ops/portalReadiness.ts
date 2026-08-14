@@ -16,6 +16,7 @@ export const DEFAULT_CUSTOMER_PORTAL_SCOPES = [
   'customer_notifications.write',
   'customer_contact.write',
   'customer_facility_data.write',
+  'customer_power_of_attorney.write',
 ] as const
 
 type PortalScopeStatus = 'verified' | 'alternative_verified' | 'missing' | 'unverified'
@@ -48,7 +49,18 @@ function probeDefinitions(): PortalProbe[] {
   return [
     {
       name: 'customer_portal.bundle.read',
-      scopes: ['customer_portal.read'],
+      scopes: [
+        'customer_profile.read',
+        'customer_sites.read',
+        'customer_contracts.read',
+        'customer_invoices.read',
+        'customer_metering.read',
+        'customer_legal.read',
+        'customer_events.read',
+        'customer_documents.read',
+        'customer_notifications.read',
+        'customer_power_of_attorney.read',
+      ],
       path: '/api/v1/customer/portal-bundle',
       method: 'POST',
       body: { external_customer_id: READINESS_EXTERNAL_ID },
