@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - main
-      - remediation/gridex-web-performance-integrity-api-2026-08-07
+      - 'remediation/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
