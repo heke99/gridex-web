@@ -48,7 +48,7 @@ function probeDefinitions(): PortalProbe[] {
   return [
     {
       name: 'customer_portal.bundle.read',
-      scopes: DEFAULT_CUSTOMER_PORTAL_SCOPES.filter((scope) => scope.endsWith('.read')),
+      scopes: ['customer_portal.read'],
       path: '/api/v1/customer/portal-bundle',
       method: 'POST',
       body: { external_customer_id: READINESS_EXTERNAL_ID },
