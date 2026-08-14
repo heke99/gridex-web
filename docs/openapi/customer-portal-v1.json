@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal and Website API",
-    "version": "2026-08-05.2",
+    "version": "2026-08-10.1",
     "description": "Canonical V1 contract for the authenticated customer portal and customer self-service APIs. Website checkout, public contracts, energy-area resolution, current market price and quote are documented exclusively in website-integration-v1.json."
   },
   "servers": [
@@ -14,7 +14,7 @@
     "/api/v1/customer-portal/sync": {
       "post": {
         "operationId": "postApiV1CustomerPortalSync",
-        "summary": "Länka extern portalidentitet till en entydig kund.",
+        "summary": "Länka eller granska extern portalidentitet",
         "security": [
           {
             "bearerAuth": [
@@ -151,7 +151,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -367,13 +367,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Länka eller granska extern portalidentitet.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/contracts": {
       "get": {
         "operationId": "getApiV1CustomerContracts",
-        "summary": "Hämta kundens avtal.",
+        "summary": "Hämta kundens avtal",
         "security": [
           {
             "bearerAuth": [
@@ -652,13 +657,17 @@
             }
           }
         },
-        "description": "Hämtar den lösta kundens tecknade customer_contracts inom API-nyckelns tenant, inklusive immutable offer-/juridik-/signaturreferenser när tillgängliga."
+        "description": "Hämta kundens avtal.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/documents": {
       "get": {
         "operationId": "getApiV1CustomerDocuments",
-        "summary": "Hämta kundens dokument.",
+        "summary": "Hämta kundens dokument utan interna lagringsvägar",
         "security": [
           {
             "bearerAuth": [
@@ -925,13 +934,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens dokument utan interna lagringsvägar.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/events": {
       "get": {
         "operationId": "getApiV1CustomerEvents",
-        "summary": "Hämta kundens händelser.",
+        "summary": "Hämta kundens händelser",
         "security": [
           {
             "bearerAuth": [
@@ -1198,13 +1212,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens händelser.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/invoices": {
       "get": {
         "operationId": "getApiV1CustomerInvoices",
-        "summary": "Hämta kundens fakturor.",
+        "summary": "Hämta kundens fakturor",
         "security": [
           {
             "bearerAuth": [
@@ -1471,13 +1490,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens fakturor.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/invoices/{id}": {
       "get": {
-        "operationId": "getApiV1CustomerInvoicesId}",
-        "summary": "Hämta en tenant- och kundbunden faktura.",
+        "operationId": "getApiV1CustomerInvoicesId",
+        "summary": "Hämta en faktura",
         "security": [
           {
             "bearerAuth": [
@@ -1753,13 +1777,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta en faktura.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/legal-acceptances": {
       "get": {
         "operationId": "getApiV1CustomerLegalAcceptances",
-        "summary": "Hämta juridiska godkännanden.",
+        "summary": "Hämta kundens juridiska godkännanden",
         "security": [
           {
             "bearerAuth": [
@@ -2026,13 +2055,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens juridiska godkännanden.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/me": {
       "get": {
         "operationId": "getApiV1CustomerMe",
-        "summary": "Hämta kundprofil.",
+        "summary": "Hämta länkad kundprofil",
         "security": [
           {
             "bearerAuth": [
@@ -2299,13 +2333,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta länkad kundprofil.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/metering-values": {
       "get": {
         "operationId": "getApiV1CustomerMeteringValues",
-        "summary": "Hämta kanoniska mätvärden.",
+        "summary": "Hämta kundens mätvärden",
         "security": [
           {
             "bearerAuth": [
@@ -2572,13 +2611,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens mätvärden.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "expensive",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/move-out": {
       "post": {
         "operationId": "postApiV1CustomerMoveOut",
-        "summary": "Registrera utflyttning med verkligt kalenderdatum.",
+        "summary": "Skicka flyttanmälan",
         "security": [
           {
             "bearerAuth": [
@@ -2666,7 +2710,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -2717,7 +2761,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -2933,13 +2977,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Skicka flyttanmälan.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/notifications": {
       "get": {
         "operationId": "getApiV1CustomerNotifications",
-        "summary": "Hämta kundnotiser.",
+        "summary": "Hämta kundens notiser",
         "security": [
           {
             "bearerAuth": [
@@ -3206,13 +3255,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens notiser.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/notifications/read": {
       "post": {
         "operationId": "postApiV1CustomerNotificationsRead",
-        "summary": "Markera exakt angivna notiser som lästa.",
+        "summary": "Markera kundnotiser som lästa",
         "security": [
           {
             "bearerAuth": [
@@ -3300,7 +3354,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -3516,26 +3570,22 @@
               }
             }
           }
-        }
+        },
+        "description": "Markera kundnotiser som lästa.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/portal-bundle": {
       "get": {
         "operationId": "getApiV1CustomerPortalBundle",
-        "summary": "Hämta kundportalpaket via headers/query.",
+        "summary": "Hämta kundportalens samlade läsmodell med verifierad portalidentitet",
         "security": [
           {
             "bearerAuth": [
-              "customer_profile.read",
-              "customer_sites.read",
-              "customer_contracts.read",
-              "customer_invoices.read",
-              "customer_metering.read",
-              "customer_legal.read",
-              "customer_events.read",
-              "customer_documents.read",
-              "customer_notifications.read",
-              "customer_power_of_attorney.read"
+              "customer_portal.read"
             ]
           },
           {
@@ -3543,16 +3593,7 @@
           }
         ],
         "x-required-scopes": [
-          "customer_profile.read",
-          "customer_sites.read",
-          "customer_contracts.read",
-          "customer_invoices.read",
-          "customer_metering.read",
-          "customer_legal.read",
-          "customer_events.read",
-          "customer_documents.read",
-          "customer_notifications.read",
-          "customer_power_of_attorney.read"
+          "customer_portal.read"
         ],
         "x-idempotency-required": false,
         "parameters": [
@@ -3807,24 +3848,20 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundportalens samlade läsmodell med verifierad portalidentitet.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       },
       "post": {
         "operationId": "postApiV1CustomerPortalBundle",
-        "summary": "Hämta kundportalpaket via JSON-body.",
+        "summary": "Hämta kundportalens samlade läsmodell med verifierad portalidentitet",
         "security": [
           {
             "bearerAuth": [
-              "customer_profile.read",
-              "customer_sites.read",
-              "customer_contracts.read",
-              "customer_invoices.read",
-              "customer_metering.read",
-              "customer_legal.read",
-              "customer_events.read",
-              "customer_documents.read",
-              "customer_notifications.read",
-              "customer_power_of_attorney.read"
+              "customer_portal.read"
             ]
           },
           {
@@ -3832,16 +3869,7 @@
           }
         ],
         "x-required-scopes": [
-          "customer_profile.read",
-          "customer_sites.read",
-          "customer_contracts.read",
-          "customer_invoices.read",
-          "customer_metering.read",
-          "customer_legal.read",
-          "customer_events.read",
-          "customer_documents.read",
-          "customer_notifications.read",
-          "customer_power_of_attorney.read"
+          "customer_portal.read"
         ],
         "x-idempotency-required": false,
         "parameters": [
@@ -4106,13 +4134,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundportalens samlade läsmodell med verifierad portalidentitet.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/powers-of-attorney": {
       "get": {
         "operationId": "getApiV1CustomerPowersOfAttorney",
-        "summary": "Hämta fullmakter.",
+        "summary": "Hämta kundens fullmakter",
         "security": [
           {
             "bearerAuth": [
@@ -4379,13 +4412,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens fullmakter.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/profile-update": {
       "post": {
         "operationId": "postApiV1CustomerProfileUpdate",
-        "summary": "Uppdatera kontakt- eller anläggningsuppgifter.",
+        "summary": "Skicka profil- eller anläggningsadressändring",
         "security": [
           {
             "bearerAuth": [
@@ -4479,7 +4517,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -4696,7 +4734,7 @@
             }
           }
         },
-        "x-scope-mode": "any-per-request; both required when both operations are present",
+        "x-scope-mode": "any",
         "x-scope-requirement": {
           "anyOf": [
             "customer_contact.write",
@@ -4706,13 +4744,17 @@
             "customer_contact.write",
             "customer_facility_data.write"
           ]
-        }
+        },
+        "description": "Skicka profil- eller anläggningsadressändring.",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/sites": {
       "get": {
         "operationId": "getApiV1CustomerSites",
-        "summary": "Hämta anläggningar och mätpunkter.",
+        "summary": "Hämta kundens anläggningar",
         "security": [
           {
             "bearerAuth": [
@@ -4979,13 +5021,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Hämta kundens anläggningar.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/customer/sync": {
       "post": {
         "operationId": "postApiV1CustomerSync",
-        "summary": "Synka dokument, fullmakter, juridik och anläggningsdata.",
+        "summary": "Synka kundkompletteringar till OPS",
         "security": [
           {
             "bearerAuth": [
@@ -5073,7 +5120,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -5289,13 +5336,18 @@
               }
             }
           }
-        }
+        },
+        "description": "Synka kundkompletteringar till OPS.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/events": {
       "get": {
         "operationId": "getApiV1Events",
-        "summary": "Hämta tenantens domänhändelser.",
+        "summary": "Läs bolagets domänhändelser",
         "security": [
           {
             "bearerAuth": [
@@ -5387,7 +5439,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -5603,11 +5655,16 @@
               }
             }
           }
-        }
+        },
+        "description": "Läs bolagets domänhändelser.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       },
       "post": {
         "operationId": "postApiV1Events",
-        "summary": "Skicka kundhändelse från hemsida eller portal.",
+        "summary": "Skicka kundhändelse",
         "security": [
           {
             "bearerAuth": [
@@ -5668,7 +5725,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -5884,7 +5941,12 @@
               }
             }
           }
-        }
+        },
+        "description": "Skicka kundhändelse.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/integration/context": {
@@ -5892,8 +5954,8 @@
         "tags": [
           "Integration context"
         ],
-        "summary": "Verify the API key tenant context",
-        "description": "Scope: integration_context.read. The API key is authoritative; company_id is never accepted as a tenant selector.",
+        "summary": "Verifiera opak tenantreferens för den autentiserade API-nyckeln",
+        "description": "Verifiera opak tenantreferens för den autentiserade API-nyckeln.",
         "responses": {
           "200": {
             "description": "Tenant context",
@@ -5984,13 +6046,32 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1IntegrationContext",
+        "x-required-scopes": [
+          "integration_context.read"
+        ],
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references",
+        "security": [
+          {
+            "bearerAuth": [
+              "integration_context.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ]
       }
     },
     "/api/v1/openapi/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Publik versionerad OpenAPI-specifikation för kundportalen",
+        "description": "Publik versionerad OpenAPI-specifikation för kundportalen.",
         "security": [],
         "responses": {
           "200": {
@@ -6054,13 +6135,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1OpenapiCustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "private-revalidate",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-02",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-02.1.",
         "security": [],
         "responses": {
           "200": {
@@ -6124,13 +6211,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608021CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-03",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-03.1.",
         "security": [],
         "responses": {
           "200": {
@@ -6194,13 +6287,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608031CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.1.",
         "security": [],
         "responses": {
           "200": {
@@ -6282,13 +6381,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608041CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.3.",
         "security": [],
         "responses": {
           "200": {
@@ -6352,13 +6457,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608043CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.2.",
         "security": [],
         "responses": {
           "200": {
@@ -6440,13 +6551,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608042CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-05",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-05.1.",
         "security": [],
         "responses": {
           "200": {
@@ -6510,13 +6627,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608051CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-05",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-05.2.",
         "security": [],
         "responses": {
           "200": {
@@ -6580,7 +6703,89 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608052CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-10",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-10.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608101CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     }
   },
@@ -7407,7 +7612,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -7950,7 +8155,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "configuration": {
             "type": "object",
@@ -8204,7 +8409,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8374,7 +8579,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -8905,7 +9110,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8978,7 +9183,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9404,7 +9609,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -9420,7 +9625,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-05.2"
+          "const": "2026-08-10.1"
         }
       },
       "RequestId": {
@@ -9485,7 +9690,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-05.2",
+  "x-contract-schema-version": "2026-08-10.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"

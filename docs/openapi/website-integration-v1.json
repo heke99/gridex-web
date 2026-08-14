@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Website and Partner Integration API",
-    "version": "2026-08-05.2",
+    "version": "2026-08-10.1",
     "description": "Canonical V1 contract for tenant context, public contracts, tenant-bound energy-area resolution, current normalized spot price, OPS-owned quote and website applications. public-contracts is a product feed, market-price/current is the current market interval, and quote is the complete customer calculation. Tenant backends never select company_id or calculate price, fees or VAT locally."
   },
   "servers": [
@@ -53,8 +53,8 @@
         "tags": [
           "Integration context"
         ],
-        "summary": "Verify the API key tenant context",
-        "description": "Scope: integration_context.read. The API key is authoritative; company_id is never accepted as a tenant selector.",
+        "summary": "Verifiera opak tenantreferens för den autentiserade API-nyckeln",
+        "description": "Verifiera opak tenantreferens för den autentiserade API-nyckeln.",
         "responses": {
           "200": {
             "description": "Tenant context",
@@ -158,7 +158,13 @@
         ],
         "x-required-scopes": [
           "integration_context.read"
-        ]
+        ],
+        "operationId": "getApiV1IntegrationContext",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/public-contracts": {
@@ -166,8 +172,8 @@
         "tags": [
           "Website contracts"
         ],
-        "summary": "List website-published contracts",
-        "description": "Scope: website_contracts.read. Supports ETag/If-None-Match and returns 304. diagnostics=1 is deprecated; use the diagnostics endpoint. Sunset: 2026-10-31. ETag changes when publication version, price options, area prices, validity, channel/website flags or legal snapshot changes.",
+        "summary": "Hämta publicerade avtal med komplett beräkningsunderlag och separata visningsregler",
+        "description": "Hämta publicerade avtal med komplett beräkningsunderlag och separata visningsregler.",
         "parameters": [
           {
             "name": "customer_type",
@@ -298,7 +304,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-05.2"
+                          "const": "2026-08-10.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -631,7 +637,7 @@
                     "count": 1,
                     "publication_revision": 42,
                     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-                    "contract_schema_version": "2026-08-05.2",
+                    "contract_schema_version": "2026-08-10.1",
                     "deprecated_aliases": [
                       "contracts",
                       "contract_offer_id",
@@ -792,7 +798,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1WebsitePublicContracts",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/public-contracts/diagnostics": {
@@ -800,8 +812,8 @@
         "tags": [
           "Website contracts"
         ],
-        "summary": "Diagnose canonical website publication readiness",
-        "description": "Scope: website_contracts.diagnostics. Uses the same canonical publication graph and readiness sources as the normal feed. The normal data field remains an array.",
+        "summary": "Hämta tenant-skopad diagnostik för publiceringsgrafen",
+        "description": "Hämta tenant-skopad diagnostik för publiceringsgrafen.",
         "parameters": [
           {
             "name": "customer_type",
@@ -982,7 +994,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1WebsitePublicContractsDiagnostics",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/contracts": {
@@ -990,8 +1008,8 @@
         "tags": [
           "API contracts"
         ],
-        "summary": "List contracts published to the api channel",
-        "description": "Deprecated compatibility alias for GET /api/v1/public-contracts. Uses the same api channel, scope, DTO, ETag and strict tenant resolution. ETag changes when publication version, price options, area prices, validity, channel/website flags or legal snapshot changes.",
+        "summary": "Deprecated kompatibilitetsalias för API-kanalens public contracts-feed",
+        "description": "Deprecated kompatibilitetsalias för API-kanalens public contracts-feed.",
         "x-required-scopes": [
           "api_contracts.read"
         ],
@@ -1117,7 +1135,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-05.2"
+                          "const": "2026-08-10.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -1440,7 +1458,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1Contracts",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/quote": {
@@ -1448,8 +1472,8 @@
         "tags": [
           "Website pricing"
         ],
-        "summary": "Create a tenant-bound canonical quote for one published offer and one SE area",
-        "description": "Scope: website_quotes.write. Idempotency-Key is required. The claim is isolated by company, API client and route. The same key and normalized payload replay the stored response; the same key with different content returns 409. Freezes the exact published product/version, selected SE-area price, fees, VAT, assumptions, consumption and requested start date. One quote is consumed by at most one canonical customer application.",
+        "summary": "Skapa en tenantbunden canonical prisquote från exakt publicerad avtalsversion och valt SE-område",
+        "description": "Skapa en tenantbunden canonical prisquote från exakt publicerad avtalsversion och valt SE-område.",
         "x-required-scopes": [
           "website_quotes.write"
         ],
@@ -1520,10 +1544,14 @@
                     "selected_component_references": [],
                     "mandatory_component_references": [],
                     "conditional_component_references": [],
-                    "site_count": 1
+                    "site_count": 1,
+                    "offer": {
+                      "offer_reference": "offer_example",
+                      "energy_direction": "consumption"
+                    }
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-05.2"
+                  "contract_schema_version": "2026-08-10.1"
                 }
               }
             },
@@ -1845,7 +1873,12 @@
           "api_client_id",
           "route",
           "idempotency_key"
-        ]
+        ],
+        "operationId": "postApiV1WebsiteQuote",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "expensive",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/quote/validate": {
@@ -1853,8 +1886,8 @@
         "tags": [
           "Website pricing"
         ],
-        "summary": "Validate a canonical quote before customer application",
-        "description": "Scope: website_quotes.validate. Verifies tenant, offer, customer type, SE area, grid area, postal code, annual consumption and requested start date. A quote already consumed by another application is rejected.",
+        "summary": "Validera att quote_reference fortfarande matchar tenant, offer, kundtyp, SE-område, förbrukning och startdatum",
+        "description": "Validera att quote_reference fortfarande matchar tenant, offer, kundtyp, SE-område, förbrukning och startdatum.",
         "x-required-scopes": [
           "website_quotes.validate"
         ],
@@ -1896,7 +1929,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -2119,7 +2152,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "postApiV1WebsiteQuoteValidate",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/customer-applications": {
@@ -2127,8 +2166,8 @@
         "tags": [
           "Customer applications"
         ],
-        "summary": "Create a customer application bound to a published offer",
-        "description": "Scope: website_applications.write. Idempotency-Key krävs. Tenant härleds enbart från API-nyckeln. auth_user_id och customer_portal_user_id krävs som samma verifierade UUID. OPS committar canonical kund, kundnummer, site/mätpunkt, avtal, juridik, portalidentitet, workflow och ett beständigt customer_application_continuation-jobb. status=accepted betyder att denna beständiga commit är klar; e-post, anläggningsuppslag, leverantörsbyte och webhooks fortsätter asynkront och följs via statusendpointen.",
+        "summary": "Skapa kundansökan och juridiska godkännanden",
+        "description": "Skapa kundansökan och juridiska godkännanden.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -2392,7 +2431,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "postApiV1WebsiteCustomerApplications",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-idempotency-required": true,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/energy-area/resolve": {
@@ -2400,8 +2445,8 @@
         "tags": [
           "Website energy area"
         ],
-        "summary": "Resolve canonical SE price area independently from grid-owner and EDIFACT readiness",
-        "description": "Scope: website_energy_area.resolve. OPS evaluates full-address polygon/master evidence first and may use bounded postal/city candidate consensus as a pricing-only fallback. pricing_ready and quote_ready depend on price_area_assurance; facility lookup, switch creation and EDIFACT remain separately blocked until verified network context exists.",
+        "summary": "Lös SE1–SE4 med separat price-area assurance; nätområde, nätägare och EDIFACT har egna readiness-krav",
+        "description": "Lös SE1–SE4 med separat price-area assurance; nätområde, nätägare och EDIFACT har egna readiness-krav.",
         "x-required-scopes": [
           "website_energy_area.resolve"
         ],
@@ -2526,7 +2571,7 @@
                       "request_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "correlation_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "retryable": false,
-                      "contract_schema_version": "2026-08-05.2"
+                      "contract_schema_version": "2026-08-10.1"
                     }
                   }
                 }
@@ -2695,7 +2740,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "postApiV1WebsiteEnergyAreaResolve",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "expensive",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/switch-status": {
@@ -2703,8 +2754,8 @@
         "tags": [
           "Switch status"
         ],
-        "summary": "Read supplier-switch status for an application",
-        "description": "Scope: website_switch_status.read. application_number is resolved strictly inside the API key tenant. Internal company, application and switch UUIDs are not exposed.",
+        "summary": "Läs aktuell leverantörsbytesstatus via tenantens application_number",
+        "description": "Läs aktuell leverantörsbytesstatus via tenantens application_number.",
         "parameters": [
           {
             "in": "query",
@@ -2845,13 +2896,19 @@
         ],
         "x-required-scopes": [
           "website_switch_status.read"
-        ]
+        ],
+        "operationId": "getApiV1WebsiteSwitchStatus",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/openapi/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Publik versionerad OpenAPI-specifikation för tenantens websiteintegration",
+        "description": "Publik versionerad OpenAPI-specifikation för tenantens websiteintegration.",
         "security": [],
         "responses": {
           "200": {
@@ -2915,13 +2972,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1OpenapiWebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "private-revalidate",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Publik versionerad OpenAPI-specifikation för kundportalen",
+        "description": "Publik versionerad OpenAPI-specifikation för kundportalen.",
         "security": [],
         "responses": {
           "200": {
@@ -2985,7 +3048,13 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1OpenapiCustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "private-revalidate",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/website/market-price/current": {
@@ -2993,8 +3062,8 @@
         "tags": [
           "Market price"
         ],
-        "summary": "Get the current normalized spot-price interval for a tenant-bound energy resolution",
-        "description": "Scope: website_market_prices.read. resolution_id is authoritative for SE1-SE4. The response is the current wholesale market interval before VAT, supplier fees, energy tax and grid fees. It is not a complete customer price or settlement input.",
+        "summary": "Hämta aktuellt normaliserat spotpris för elområdet i en tenantbunden OPS-resolution",
+        "description": "Hämta aktuellt normaliserat spotpris för elområdet i en tenantbunden OPS-resolution.",
         "x-required-scopes": [
           "website_market_prices.read"
         ],
@@ -3026,6 +3095,11 @@
                     "price_area": "SE3",
                     "reference_type": "current_interval",
                     "resolution": "quarterly",
+                    "selected_resolution": "quarterly",
+                    "available_resolutions": [
+                      "hourly",
+                      "quarterly"
+                    ],
                     "time_start": "2026-07-24T16:00:00+02:00",
                     "time_end": "2026-07-24T16:15:00+02:00",
                     "price_sek_per_kwh": 0.655699,
@@ -3037,11 +3111,12 @@
                     "includes_grid_fees": false,
                     "is_indicative": false,
                     "is_stale": false,
+                    "fallback_used": false,
                     "source_as_of": "2026-07-24T14:02:14Z",
                     "next_update_at": "2026-07-24T16:15:00+02:00"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-08-05.2"
+                  "contract_schema_version": "2026-08-10.1"
                 }
               }
             },
@@ -3319,7 +3394,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "postApiV1WebsiteMarketPriceCurrent",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/portfolio-prices": {
@@ -3327,8 +3408,8 @@
         "tags": [
           "Website contracts"
         ],
-        "summary": "Get public portfolio method and sanitized final historical prices",
-        "description": "Scope: website_contracts.read. This endpoint never returns current market indications and is not the calculator market-price source.",
+        "summary": "Hämta publik metod och sanerade historiska finala avräkningar för ett publicerat portföljavtal",
+        "description": "Hämta publik metod och sanerade historiska finala avräkningar för ett publicerat portföljavtal. Inga marknadsindikationer eller interna versions-ID:n exponeras.",
         "x-required-scopes": [
           "website_contracts.read"
         ],
@@ -3384,7 +3465,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -3553,7 +3634,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1WebsitePortfolioPrices",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/legal-bundle": {
@@ -3561,8 +3648,8 @@
         "tags": [
           "Customer applications"
         ],
-        "summary": "Get the published legal bundle",
-        "description": "Canonical offer-specific GET route. Scope: website_legal.read. Tenant is derived from the API key; offer_reference resolves the exact publication and immutable legal bundle.",
+        "summary": "Hämta publicerade juridikversioner och länkar",
+        "description": "Hämta publicerade juridikversioner och länkar. Ett av angivna scopes räcker.",
         "x-required-scopes": [
           "website_legal.read",
           "website_contracts.read"
@@ -3791,7 +3878,12 @@
             "website_legal.read",
             "website_contracts.read"
           ]
-        }
+        },
+        "operationId": "getApiV1WebsiteLegalBundle",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/customer-events": {
@@ -3799,8 +3891,8 @@
         "tags": [
           "Webhooks"
         ],
-        "summary": "Write a website customer event",
-        "description": "Scope: website_events.write. Idempotency-Key is required.",
+        "summary": "Skicka kundhändelse från hemsida eller kundportal",
+        "description": "Skicka kundhändelse från hemsida eller kundportal.",
         "x-required-scopes": [
           "website_events.write"
         ],
@@ -3843,7 +3935,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -3990,13 +4082,18 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "postApiV1WebsiteCustomerEvents",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/openapi/release-manifest.json": {
       "get": {
-        "operationId": "getOpenApiReleaseManifest",
-        "summary": "Hämta atomiskt OpenAPI release-manifest",
+        "operationId": "getApiV1OpenapiReleaseManifestJson",
+        "summary": "Maskinläsbart release-manifest med versioner och SHA-256 för båda publika OpenAPI-kontrakten",
         "x-required-scopes": [],
         "responses": {
           "200": {
@@ -4059,7 +4156,13 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "Maskinläsbart release-manifest med versioner och SHA-256 för båda publika OpenAPI-kontrakten.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "private-revalidate",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/public-contracts": {
@@ -4067,8 +4170,8 @@
         "tags": [
           "API contracts"
         ],
-        "summary": "List canonical contracts published to the api channel",
-        "description": "Canonical endpoint. Scope: api_contracts.read. Tenant identity is derived strictly from the authenticated API client; the api and website channels are independent. A valid empty result returns data=[], contracts=[] and meta.count=0. ETag changes when publication version, price options, area prices, validity, channel/website flags or legal snapshot changes.",
+        "summary": "Canonical feed för avtal som tenant har publicerat till API-kanalen",
+        "description": "Canonical feed för avtal som tenant har publicerat till API-kanalen.",
         "x-required-scopes": [
           "api_contracts.read"
         ],
@@ -4194,7 +4297,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-08-05.2"
+                          "const": "2026-08-10.1"
                         },
                         "feed_state": {
                           "type": "string",
@@ -4570,7 +4673,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1PublicContracts",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/public-contracts/diagnostics": {
@@ -4578,8 +4687,8 @@
         "tags": [
           "API contracts"
         ],
-        "summary": "Diagnose canonical API-channel publication readiness",
-        "description": "Scope: api_contracts.diagnostics. Starts from the internal contract offer with LEFT JOINs and returns explicit blockers even when the strict feed would hide the contract.",
+        "summary": "Tenant-skopad diagnostik för API-kanalens publiceringsgraf",
+        "description": "Tenant-skopad diagnostik för API-kanalens publiceringsgraf.",
         "parameters": [],
         "responses": {
           "200": {
@@ -4746,7 +4855,13 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1PublicContractsDiagnostics",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/website/customer-applications/{application_number}": {
@@ -4754,8 +4869,8 @@
         "tags": [
           "Customer applications"
         ],
-        "summary": "Read tenant-scoped automatic application status",
-        "description": "Scope: website_switch_status.read. application_number is resolved strictly inside the API-key tenant. Internal database UUIDs are never accepted or returned.",
+        "summary": "Läs tenant-skopad status för en accepterad kundansökan och OPS fortsatta automation",
+        "description": "Läs tenant-skopad status för en accepterad kundansökan och OPS fortsatta automation.",
         "parameters": [
           {
             "name": "application_number",
@@ -4794,7 +4909,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-05.2"
+                      "const": "2026-08-10.1"
                     }
                   }
                 }
@@ -4858,13 +4973,19 @@
           {
             "legacyApiKeyAuth": []
           }
-        ]
+        ],
+        "operationId": "getApiV1WebsiteCustomerApplicationsApplicationNumber",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
       }
     },
     "/api/v1/openapi/2026-08-03.1/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-03",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-03.1.",
         "security": [],
         "responses": {
           "200": {
@@ -4928,13 +5049,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608031WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-03",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-03.1.",
         "security": [],
         "responses": {
           "200": {
@@ -4998,13 +5125,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608031CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-02.1/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-02",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-02.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5068,13 +5201,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608021WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-02",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-02.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5138,13 +5277,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608021CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.1/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-04",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-04.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5226,13 +5371,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608041WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5314,13 +5465,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608041CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.2/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-04",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-04.2.",
         "security": [],
         "responses": {
           "200": {
@@ -5402,13 +5559,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608042WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.2.",
         "security": [],
         "responses": {
           "200": {
@@ -5490,13 +5653,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608042CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.3/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-04",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-04.3.",
         "security": [],
         "responses": {
           "200": {
@@ -5560,13 +5729,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608043WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-04",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-04.3.",
         "security": [],
         "responses": {
           "200": {
@@ -5630,13 +5805,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608043CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.1/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-05",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-05.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5700,13 +5881,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608051WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-05",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-05.1.",
         "security": [],
         "responses": {
           "200": {
@@ -5770,13 +5957,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608051CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.2/website-integration-v1.json": {
       "get": {
-        "summary": "Hämta Website Integration OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-05",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-05.2.",
         "security": [],
         "responses": {
           "200": {
@@ -5840,13 +6033,19 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608052WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     },
     "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Hämta Customer Portal OpenAPI",
-        "description": "Publik dokumentationsendpoint. Ingen API-nyckel krävs och endpointen används endast för utveckling, typgenerering och kontraktskontroll — aldrig som runtime-konfiguration.",
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-05",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-05.2.",
         "security": [],
         "responses": {
           "200": {
@@ -5910,7 +6109,165 @@
             }
           }
         },
-        "x-required-scopes": []
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608052CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-08-10.1/website-integration-v1.json": {
+      "get": {
+        "summary": "Immutable Website Integration OpenAPI för release 2026-08-10",
+        "description": "Immutable Website Integration OpenAPI för release 2026-08-10.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608101WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI för release 2026-08-10",
+        "description": "Immutable Customer Portal OpenAPI för release 2026-08-10.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608101CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
       }
     }
   },
@@ -5998,7 +6355,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -6063,7 +6420,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "configuration": {
             "type": "object",
@@ -7652,7 +8009,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -7834,7 +8191,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -8723,7 +9080,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -9065,7 +9422,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "additionalProperties": false
@@ -9822,7 +10179,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "additionalProperties": false
@@ -9895,7 +10252,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -10128,7 +10485,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -10487,7 +10844,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -10964,23 +11321,23 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "released_at": {
             "type": "string",
@@ -11020,7 +11377,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           },
           "url": {
             "type": "string",
@@ -11325,7 +11682,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -11825,7 +12182,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -11977,7 +12334,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-05.2"
+            "const": "2026-08-10.1"
           }
         }
       },
@@ -12393,7 +12750,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-05.2"
+          "const": "2026-08-10.1"
         }
       },
       "RequestId": {
@@ -12471,7 +12828,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-05.2",
+  "x-contract-schema-version": "2026-08-10.1",
   "x-gridex-tenant-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
