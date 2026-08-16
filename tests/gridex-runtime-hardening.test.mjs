@@ -7,6 +7,15 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
+const retiredCommercialOffers = read('lib/gridex/offers.ts')
+assert.match(retiredCommercialOffers, /LEGACY_COMMERCIAL_PRICING_DISABLED/)
+assert.match(retiredCommercialOffers, /canonical Gridex Ops quote\/application-flöde/)
+assert.doesNotMatch(retiredCommercialOffers, /computeCustomerSpec|contract_products|pricing_versions/)
+
+const marketInformation = read('lib/gridex/livePrices.ts')
+assert.match(marketInformation, /source: 'elprisetjustnu'/)
+assert.doesNotMatch(marketInformation, /contract_products|pricing_versions|price_snapshot/)
+
 const drift = compareContractVersions('2026-07-30.2', '2026-07-30.3')
 assert.equal(drift.exactMatch, false)
 assert.equal(drift.parseable, true)
@@ -50,6 +59,7 @@ assert.doesNotMatch(client, /acceptance\.document_id/)
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.match(signup, /document_reference: requirement\.document_reference/)
 assert.doesNotMatch(signup, /document_id: requirement\.document_id/)
+assert.doesNotMatch(signup, /gridex\/offers|customerSignup\/service/)
 
 const endpoint = read('lib/website/publicContractsEndpoint.ts')
 const publicContractsPayload = read('lib/website/publicContractsPayload.ts')
