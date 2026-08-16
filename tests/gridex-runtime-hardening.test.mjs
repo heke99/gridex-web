@@ -1,10 +1,22 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { compareContractVersions } from '../lib/ops/contractCompatibility.ts'
 import { stockholmValidityStatus } from '../lib/website/businessDate.ts'
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+}
+
+const legacyCommercialPricingModules = [
+  'lib/gridex/offers.ts',
+  'lib/gridex/livePrices.ts',
+]
+for (const path of legacyCommercialPricingModules) {
+  assert.equal(
+    existsSync(new URL(`../${path}`, import.meta.url)),
+    false,
+    `${path} must not be restored: customer-facing commercial pricing is canonical OPS API data only`,
+  )
 }
 
 const drift = compareContractVersions('2026-07-30.2', '2026-07-30.3')
