@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { compareContractVersions } from '../lib/ops/contractCompatibility.ts'
 import { stockholmValidityStatus } from '../lib/website/businessDate.ts'
 
@@ -7,17 +7,14 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
-const legacyCommercialPricingModules = [
-  'lib/gridex/offers.ts',
-  'lib/gridex/livePrices.ts',
-]
-for (const path of legacyCommercialPricingModules) {
-  assert.equal(
-    existsSync(new URL(`../${path}`, import.meta.url)),
-    false,
-    `${path} must not be restored: customer-facing commercial pricing is canonical OPS API data only`,
-  )
-}
+const retiredCommercialOffers = read('lib/gridex/offers.ts')
+assert.match(retiredCommercialOffers, /LEGACY_COMMERCIAL_PRICING_DISABLED/)
+assert.match(retiredCommercialOffers, /canonical Gridex Ops quote\/application-flöde/)
+assert.doesNotMatch(retiredCommercialOffers, /computeCustomerSpec|contract_products|pricing_versions/)
+
+const marketInformation = read('lib/gridex/livePrices.ts')
+assert.match(marketInformation, /source: 'elprisetjustnu'/)
+assert.doesNotMatch(marketInformation, /contract_products|pricing_versions|price_snapshot/)
 
 const drift = compareContractVersions('2026-07-30.2', '2026-07-30.3')
 assert.equal(drift.exactMatch, false)
@@ -62,6 +59,7 @@ assert.doesNotMatch(client, /acceptance\.document_id/)
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 assert.match(signup, /document_reference: requirement\.document_reference/)
 assert.doesNotMatch(signup, /document_id: requirement\.document_id/)
+assert.doesNotMatch(signup, /gridex\/offers|customerSignup\/service/)
 
 const endpoint = read('lib/website/publicContractsEndpoint.ts')
 const publicContractsPayload = read('lib/website/publicContractsPayload.ts')
