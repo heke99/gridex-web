@@ -125,7 +125,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant- och kundfiltrerad fakturalista. Varje canonical rad exponerar kundavtal, underlag och exportitem; draft/blockerade adminrader visas inte i portalen.",
+            "description": "Tenant- och kundfiltrerad portalsynk med profil, anläggningar, avtal, fakturor, mätvärden, juridik, händelser, dokument, fullmakter och notiser.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9822,7 +9822,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-03.1",
+  "x-gridex-release-version": "2026-08-14.1",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",
