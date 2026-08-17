@@ -43,6 +43,13 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
   }
 }
 
+function newCustomerState(status: PortalStatus | undefined, detail?: string | null): boolean | null {
+  if (status === 'email_confirmation_sent' || status === 'invite_sent') return true
+  if (status === 'profile_linked') return false
+  if (status === 'pending' && detail?.toLowerCase().includes('konto finns redan')) return false
+  return null
+}
+
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return null
   const date = new Date(value)
@@ -71,6 +78,7 @@ export default async function SignupThanksPage({
   const missing = stored.missingFields ?? []
   const status = stored.status
   const portal = portalMessage(stored.portalStatus, stored.portalMessage)
+  const isNewCustomer = newCustomerState(stored.portalStatus, stored.portalMessage)
   const signedAt = formatTimestamp(stored.signedAt)
   const withdrawalDeadline = formatTimestamp(stored.withdrawalDeadlineAt)
   const confirmationFailed = includesCommunicationEvent(stored.communicationFailed, 'contract.confirmation_sent')
@@ -84,6 +92,7 @@ export default async function SignupThanksPage({
         data-gridex-verified-application-received="true"
         data-gridex-contract-signed={stored.contractStatus === 'signed' ? 'true' : 'false'}
         data-gridex-application-number={stored.applicationNumber ?? undefined}
+        data-gridex-new-customer={isNewCustomer === null ? undefined : isNewCustomer ? 'true' : 'false'}
       />
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
         <div className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Teckning mottagen</div>
