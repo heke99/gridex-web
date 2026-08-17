@@ -2,25 +2,36 @@
 
 import Link from 'next/link'
 import { useSyncExternalStore } from 'react'
-
-type ConsentValue = 'accepted' | 'rejected' | null
-
-const STORAGE_KEY = 'gridex_cookie_consent'
+import {
+  GRIDEX_COOKIE_CONSENT_EVENT,
+  GRIDEX_COOKIE_CONSENT_KEY,
+  type GridexCookieConsent,
+  googleConsentState,
+  parseGridexCookieConsent,
+} from '@/lib/analytics/googleConsent'
 
 function subscribe(callback: () => void) {
   window.addEventListener('storage', callback)
-  return () => window.removeEventListener('storage', callback)
+  window.addEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
+  return () => {
+    window.removeEventListener('storage', callback)
+    window.removeEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
+  }
 }
 
-function getSnapshot(): ConsentValue {
+function getSnapshot(): GridexCookieConsent {
   if (typeof window === 'undefined') return null
-  const value = window.localStorage.getItem(STORAGE_KEY)
-  if (value === 'accepted' || value === 'rejected') return value
+  return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
+}
+
+function getServerSnapshot(): GridexCookieConsent {
   return null
 }
 
-function getServerSnapshot(): ConsentValue {
-  return null
+function persistConsent(value: Exclude<GridexCookieConsent, null>) {
+  window.localStorage.setItem(GRIDEX_COOKIE_CONSENT_KEY, value)
+  window.gtag?.('consent', 'update', googleConsentState(value))
+  window.dispatchEvent(new Event(GRIDEX_COOKIE_CONSENT_EVENT))
 }
 
 export default function CookieBanner() {
@@ -29,16 +40,6 @@ export default function CookieBanner() {
     getSnapshot,
     getServerSnapshot
   )
-
-  const accept = () => {
-    window.localStorage.setItem(STORAGE_KEY, 'accepted')
-    window.dispatchEvent(new Event('storage'))
-  }
-
-  const reject = () => {
-    window.localStorage.setItem(STORAGE_KEY, 'rejected')
-    window.dispatchEvent(new Event('storage'))
-  }
 
   if (consent !== null) return null
 
@@ -64,14 +65,14 @@ export default function CookieBanner() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={reject}
+              onClick={() => persistConsent('rejected')}
               className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-gray-200 transition hover:border-cyan-500/40"
             >
               Avvisa
             </button>
             <button
               type="button"
-              onClick={accept}
+              onClick={() => persistConsent('accepted')}
               className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-bold text-black transition hover:bg-cyan-400"
             >
               Acceptera
