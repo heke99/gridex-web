@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/customer-portal-v1.json.
  * Contract version: 2026-08-14.1.
- * Source SHA-256: e6e667565b9e4760c9590dc02cb130a277edd0b3d5eb4178ed95fccd60df9de5.
+ * Source SHA-256: 324a2bdd41e3d3dc915c8b5d75e144d37e4401c6688375dfb6b707340a3bd518.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
