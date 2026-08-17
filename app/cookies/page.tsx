@@ -7,18 +7,18 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://gridex.se/cookies' },
 }
 
-const UPDATED_AT = '2026-06-15'
+const UPDATED_AT = '2026-08-18'
 
 export default function CookiePolicyPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-6 py-16">
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-10">
         <div className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-          Cookiepolicy • Version 1.0 • Gäller från {UPDATED_AT}
+          Cookiepolicy • Version 1.1 • Gäller från {UPDATED_AT}
         </div>
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Cookiepolicy</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300 md:text-base">
-          Den här sidan beskriver den faktiska cookieanvändningen på Gridex webbplats. Nödvändiga cookies används för funktionalitet. Analys- och marknadsföringstaggar laddas endast om du accepterar cookies.
+          Den här sidan beskriver den faktiska cookieanvändningen på Gridex webbplats. Nödvändiga cookies används för funktionalitet. Gridex använder Google Consent Mode med analys- och annonslagring avstängd som standard. Google-taggen kan därför laddas innan du har gjort ett val, men full mätning och lagring aktiveras först om du accepterar.
         </p>
       </section>
 
@@ -36,14 +36,14 @@ export default function CookiePolicyPage() {
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-gray-300">
           <li><strong className="text-white">Nödvändiga cookies</strong> används för inloggning, säkerhet och formulärfunktioner.</li>
           <li><strong className="text-white">Cookieval</strong> sparas lokalt i webbläsaren så att vi vet om bannern ska visas igen.</li>
-          <li><strong className="text-white">Analys och annonsering</strong> kan användas för att mäta besök och teckningar efter att du har accepterat cookies.</li>
+          <li><strong className="text-white">Google Consent Mode</strong> startar med annons- och analyslagring avstängd. Om du accepterar uppdateras samtycket och Google kan använda cookies och full mätdata enligt ditt val.</li>
         </ul>
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-gray-950 p-6">
         <h2 className="text-xl font-semibold text-white">3. Tredjepartstjänster</h2>
         <p className="mt-4 text-sm leading-7 text-gray-300">
-          Tjänster för hosting, inloggning, signering, betalning eller drift kan behöva tekniska cookies för att fungera. Om du accepterar cookies kan Google-taggar användas för att mäta trafik och konverteringar, utan att Gridex skickar personnummer, kundnummer eller andra känsliga kunduppgifter i annonsmätningen.
+          Tjänster för hosting, inloggning, signering, betalning eller drift kan behöva tekniska cookies för att fungera. Google-taggen används med samtyckesstatus som styr hur mätningen får fungera. Gridex skickar inte personnummer, kundnummer eller andra känsliga kunduppgifter som annonsparametrar i Google Ads-mätningen.
         </p>
       </section>
 
