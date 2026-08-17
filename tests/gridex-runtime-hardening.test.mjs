@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { compareContractVersions } from '../lib/ops/contractCompatibility.ts'
 import { stockholmValidityStatus } from '../lib/website/businessDate.ts'
+import { isSupportedOpsWebhookEventType } from '../lib/webhooks/opsWebhook.ts'
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
@@ -40,6 +41,13 @@ const transport = read('lib/ops/transport.ts')
 assert.match(transport, /logContractVersionDrift/)
 assert.doesNotMatch(transport, /headers\.has\('Idempotency-Key'\)/)
 assert.match(transport, /method === 'GET' \|\| method === 'HEAD'/)
+
+assert.match(transport, /pathname\.startsWith\('\/api\/v1\/customer-portal\/'\)/)
+assert.match(transport, /pathname\.startsWith\('\/api\/v1\/customer\/'\)/)
+
+assert.equal(isSupportedOpsWebhookEventType('customer_application.status_changed'), true)
+assert.equal(isSupportedOpsWebhookEventType('supplier_switch.updated'), true)
+assert.equal(isSupportedOpsWebhookEventType('supplier_switch.unknown'), false)
 
 const client = [
   read('lib/ops/client.ts'),

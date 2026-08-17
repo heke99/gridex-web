@@ -111,6 +111,7 @@ export function shouldObserveOpsContractVersion(path: string): boolean {
   return (
     pathname.startsWith('/api/v1/website/') ||
     pathname.startsWith('/api/v1/customer/') ||
+    pathname.startsWith('/api/v1/customer-portal/') ||
     pathname.startsWith('/api/v1/openapi/')
   )
 }

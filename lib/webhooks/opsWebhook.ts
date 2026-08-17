@@ -33,6 +33,8 @@ export const OPS_WEBHOOK_EVENT_TYPES = new Set([
   'contract.confirmation_sent',
   'contract.cooling_off_sent',
   'contract.needs_facility_data',
+  'customer_application.status_changed',
+  'supplier_switch.updated',
   'power_of_attorney.signed',
   'document.created',
   'facility_data.received',
