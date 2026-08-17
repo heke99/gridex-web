@@ -48,13 +48,11 @@ export default function GoogleMarketingTags() {
   const primaryTagId = gaId || adsId
   const pathname = usePathname()
   const consent = useSyncExternalStore(subscribe, currentConsent, serverConsent)
-
-  const enabled = consent === 'accepted' && Boolean(primaryTagId)
+  const measurementConsentGranted = consent === 'accepted'
 
   const bootstrap = useMemo(() => {
-    if (!enabled || !primaryTagId) return ''
+    if (!primaryTagId) return ''
 
-    const grantedConsent = JSON.stringify(googleConsentState('accepted'))
     const configLines = [
       gaId
         ? `window.gtag('config', ${JSON.stringify(gaId)}, { send_page_view: false, anonymize_ip: true });`
@@ -69,11 +67,10 @@ export default function GoogleMarketingTags() {
     return `
       window.dataLayer = window.dataLayer || [];
       window.gtag = window.gtag || function gtag(){ window.dataLayer.push(arguments); };
-      window.gtag('consent', 'update', ${grantedConsent});
       window.gtag('js', new Date());
       ${configLines}
     `
-  }, [adsId, enabled, gaId, primaryTagId])
+  }, [adsId, gaId, primaryTagId])
 
   useEffect(() => {
     if (!consent || !window.gtag) return
@@ -81,7 +78,7 @@ export default function GoogleMarketingTags() {
   }, [consent])
 
   useEffect(() => {
-    if (!enabled) return
+    if (!measurementConsentGranted) return
 
     let cancelled = false
     let timeoutId: number | undefined
@@ -154,9 +151,9 @@ export default function GoogleMarketingTags() {
       cancelled = true
       if (timeoutId) window.clearTimeout(timeoutId)
     }
-  }, [adsId, conversionLabel, enabled, pathname])
+  }, [adsId, conversionLabel, measurementConsentGranted, pathname])
 
-  if (!enabled || !primaryTagId) return null
+  if (!primaryTagId) return null
 
   return (
     <>
