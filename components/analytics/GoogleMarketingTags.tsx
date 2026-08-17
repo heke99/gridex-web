@@ -43,8 +43,7 @@ function eventKey(event: string, applicationNumber?: string | null) {
 
 export default function GoogleMarketingTags() {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim()
-  const configuredAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim()
-  const adsId = configuredAdsId || GRIDEX_GOOGLE_ADS_ID
+  const adsId = GRIDEX_GOOGLE_ADS_ID
   const conversionLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim()
   const primaryTagId = gaId || adsId
   const pathname = usePathname()
