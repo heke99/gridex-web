@@ -79,7 +79,12 @@ export default async function SignupThanksPage({
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
-      <span hidden data-gridex-verified-application-received="true" />
+      <span
+        hidden
+        data-gridex-verified-application-received="true"
+        data-gridex-contract-signed={stored.contractStatus === 'signed' ? 'true' : 'false'}
+        data-gridex-application-number={stored.applicationNumber ?? undefined}
+      />
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
         <div className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Teckning mottagen</div>
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Tack! Din teckning är skickad.</h1>
