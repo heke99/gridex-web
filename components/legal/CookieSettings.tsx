@@ -1,32 +1,37 @@
 'use client'
 
 import { useState } from 'react'
+import {
+  GRIDEX_COOKIE_CONSENT_EVENT,
+  GRIDEX_COOKIE_CONSENT_KEY,
+  type GridexCookieConsent,
+  googleConsentState,
+  parseGridexCookieConsent,
+} from '@/lib/analytics/googleConsent'
 
-const STORAGE_KEY = 'gridex_cookie_consent'
-
-type Consent = 'accepted' | 'rejected' | null
-
-function label(value: Consent) {
+function label(value: GridexCookieConsent) {
   if (value === 'accepted') return 'Accepterat'
   if (value === 'rejected') return 'Avvisat'
   return 'Inget val sparat'
 }
 
 export default function CookieSettings() {
-  const [consent, setConsent] = useState<Consent>(() => {
+  const [consent, setConsent] = useState<GridexCookieConsent>(() => {
     if (typeof window === 'undefined') return null
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    return stored === 'accepted' || stored === 'rejected' ? stored : null
+    return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
   })
 
-  function save(value: Consent) {
+  function save(value: GridexCookieConsent) {
     if (value) {
-      window.localStorage.setItem(STORAGE_KEY, value)
+      window.localStorage.setItem(GRIDEX_COOKIE_CONSENT_KEY, value)
+      window.gtag?.('consent', 'update', googleConsentState(value))
     } else {
-      window.localStorage.removeItem(STORAGE_KEY)
+      window.localStorage.removeItem(GRIDEX_COOKIE_CONSENT_KEY)
+      window.gtag?.('consent', 'update', googleConsentState('rejected'))
     }
+
     setConsent(value)
-    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event(GRIDEX_COOKIE_CONSENT_EVENT))
   }
 
   return (
