@@ -18,6 +18,8 @@ declare global {
   }
 }
 
+const GOOGLE_ADS_PURCHASE_EVENT = 'ads_conversion_Purchase_1'
+
 function subscribe(callback: () => void) {
   window.addEventListener('storage', callback)
   window.addEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
@@ -44,7 +46,6 @@ function eventKey(event: string, applicationNumber?: string | null) {
 export default function GoogleMarketingTags() {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim()
   const adsId = GRIDEX_GOOGLE_ADS_ID
-  const conversionLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim()
   const primaryTagId = gaId || adsId
   const pathname = usePathname()
   const consent = useSyncExternalStore(subscribe, currentConsent, serverConsent)
@@ -129,20 +130,24 @@ export default function GoogleMarketingTags() {
       if (!contractSigned) return
 
       const signedKey = eventKey('contract_signed', applicationNumber)
-      if (window.sessionStorage.getItem(signedKey)) return
-
-      window.gtag('event', 'contract_signed', {
-        event_category: 'purchase',
-        event_label: 'gridex_contract_signed_verified',
-      })
-
-      if (adsId && conversionLabel) {
-        window.gtag('event', 'conversion', {
-          send_to: `${adsId}/${conversionLabel}`,
+      if (!window.sessionStorage.getItem(signedKey)) {
+        window.gtag('event', 'contract_signed', {
+          event_category: 'purchase',
+          event_label: 'gridex_contract_signed_verified',
         })
+        window.sessionStorage.setItem(signedKey, '1')
       }
 
-      window.sessionStorage.setItem(signedKey, '1')
+      const adsConversionKey = eventKey(GOOGLE_ADS_PURCHASE_EVENT, applicationNumber)
+      if (window.sessionStorage.getItem(adsConversionKey)) return
+
+      const newCustomerState = marker.dataset.gridexNewCustomer
+      const conversionParams: Record<string, boolean> = {}
+      if (newCustomerState === 'true') conversionParams.new_customer = true
+      if (newCustomerState === 'false') conversionParams.new_customer = false
+
+      window.gtag('event', GOOGLE_ADS_PURCHASE_EVENT, conversionParams)
+      window.sessionStorage.setItem(adsConversionKey, '1')
     }
 
     sendWhenReady()
@@ -151,7 +156,7 @@ export default function GoogleMarketingTags() {
       cancelled = true
       if (timeoutId) window.clearTimeout(timeoutId)
     }
-  }, [adsId, conversionLabel, measurementConsentGranted, pathname])
+  }, [measurementConsentGranted, pathname])
 
   if (!primaryTagId) return null
 
