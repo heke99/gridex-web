@@ -1,0 +1,51 @@
+name: Go-live canonical contract sync
+
+on:
+  push:
+    branches:
+      - codex/gridex-web-go-live-20260819
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/gridex-web-go-live-20260819
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync canonical live OpenAPI
+        run: npm run api:sync
+      - name: Verify API preflight
+        run: npm run api:preflight
+      - name: Verify migrations
+        run: npm run db:migrations:check
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test -- --runInBand
+        continue-on-error: false
+      - name: Production build
+        run: npm run build
+      - name: Commit canonical generated artifacts
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No contract drift after live sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/openapi lib/ops/contract.ts lib/ops/generated
+          git commit -m "chore(api): sync canonical OPS contract for go-live"
+          git push origin HEAD:codex/gridex-web-go-live-20260819
