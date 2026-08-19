@@ -26,6 +26,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Go-live repository inventory
+        shell: bash
+        run: |
+          set -u
+          echo '=== tenant/company/organization references ==='
+          grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'tenant_reference|tenantReference|company_id|companyId|organization_reference|organizationReference' app components lib tests scripts supabase 2>/dev/null | head -n 500 || true
+          echo '=== browser/auth/supabase references ==='
+          grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'createBrowserClient|NEXT_PUBLIC_SUPABASE|SUPABASE_SERVICE|service_role|GRIDEX_API_KEY|GRIDEX_OPS_API_URL|mina-sidor|auth\.getUser|auth\.getSession' app components lib tests scripts 2>/dev/null | head -n 500 || true
+          echo '=== checkout/idempotency/conversion references ==='
+          grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'idempotenc|web_checkout|conversion|gtag|google ads|google_ads|claim_web_conversion_dispatch|purchase|begin_checkout' app components lib tests scripts supabase 2>/dev/null | head -n 700 || true
+          echo '=== cache/performance references ==='
+          grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'Cache-Control|cache-control|revalidate|unstable_cache|force-cache|no-store|ETag|If-None-Match|dynamic =|fetchPriority|priority=' app components lib tests 2>/dev/null | head -n 700 || true
+          echo '=== files above 1800 lines ==='
+          find app components lib tests scripts supabase -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.sql' \) -print0 2>/dev/null | xargs -0 wc -l | awk '$1 > 1800 && $2 != "total" {print}' | sort -nr || true
       - name: Sync canonical live OpenAPI
         run: npm run api:sync
       - name: Commit canonical generated artifacts before verification
