@@ -37,7 +37,7 @@ export type PortalReadiness = {
   portalBundleProbe: { ok: boolean; status: number | null; code: string | null }
   contextReadiness: {
     customerPortalReady: boolean
-    completeTenantWebsiteReady: boolean
+    completeIntegrationReady: boolean
     missingCustomerPortalScopes: string[]
   } | null
 }
@@ -134,7 +134,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     const context = await fetchOpsIntegrationContext(true)
     contextReadiness = {
       customerPortalReady: context.capabilities.customer_portal_ready,
-      completeTenantWebsiteReady: context.capabilities.complete_tenant_website_ready,
+      completeIntegrationReady: context.capabilities.complete_integration_ready,
       missingCustomerPortalScopes: context.capabilities.missing_customer_portal_scopes,
     }
     for (const scope of context.capabilities.required_customer_portal_scopes) scopeNames.add(scope)

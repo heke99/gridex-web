@@ -111,7 +111,7 @@ export type OpsIntegrationReadiness = {
   contextReadiness: {
     websiteCheckoutReady: boolean
     customerPortalReady: boolean
-    completeTenantWebsiteReady: boolean
+    completeIntegrationReady: boolean
     missingWebsiteScopes: string[]
     missingCustomerPortalScopes: string[]
     missingRecommendedScopes: string[]
@@ -186,11 +186,11 @@ function probeDefinitions(): ProbeDefinition[] {
   return [
     { name: 'integration_context', scopes: ['integration_context.read'], run: async () => {
       const context = await fetchOpsIntegrationContext(true)
-      if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_checkout_scopes.length > 0) {
+      if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_scopes.length > 0) {
         return {
           ok: false,
           status: 403,
-          code: `missing_scope:${context.capabilities.missing_website_checkout_scopes.join(',')}`,
+          code: `missing_scope:${context.capabilities.missing_website_scopes.join(',')}`,
         }
       }
       if (context.configuration.application_reference_location !== 'top_level') {
@@ -299,10 +299,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       contextReadiness = {
         websiteCheckoutReady: context.capabilities.website_checkout_ready,
         customerPortalReady: context.capabilities.customer_portal_ready,
-        completeTenantWebsiteReady: context.capabilities.complete_tenant_website_ready,
-        missingWebsiteScopes: context.capabilities.missing_website_checkout_scopes,
+        completeIntegrationReady: context.capabilities.complete_integration_ready,
+        missingWebsiteScopes: context.capabilities.missing_website_scopes,
         missingCustomerPortalScopes: context.capabilities.missing_customer_portal_scopes,
-        missingRecommendedScopes: context.capabilities.recommended_missing_scopes,
+        missingRecommendedScopes: context.capabilities.missing_recommended_scopes,
       }
     } catch (error) {
       code = classifyProbeFailure(error)
