@@ -1,5 +1,6 @@
 import EventLink from '@/components/customer/EventLink'
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import type { CustomerDocument } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 
 // Private page: ensure search engines do not index this page
@@ -33,7 +34,8 @@ function statusLabel(status: string | null | undefined) {
 }
 
 export default async function DashboardDocumentsPage() {
-  const overview = await getCustomerPortalOverview()
+  const resource = await getCanonicalCustomerResource('documents')
+  const documents = resource.data as CustomerDocument[]
 
   return (
     <div className="space-y-6">
@@ -44,14 +46,8 @@ export default async function DashboardDocumentsPage() {
         </p>
       </div>
 
-      {!overview.opsAvailable ? (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
-        </div>
-      ) : null}
-
       <div className="space-y-4">
-        {overview.documents.map((doc) => (
+        {documents.map((doc) => (
           <article key={doc.id} className="rounded-3xl border border-white/10 bg-black/30 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -81,7 +77,7 @@ export default async function DashboardDocumentsPage() {
           </article>
         ))}
 
-        {overview.documents.length === 0 ? (
+        {documents.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/60">
             Inga dokument finns att visa ännu.
           </div>
