@@ -68,24 +68,24 @@ export function opsBaseUrl(): string {
   return getOpsApiBaseUrl()
 }
 
-export function opsTenantCacheKey(): string {
+export function opsOrganizationCacheKey(): string {
   const baseUrl = opsBaseUrl()
   const apiKey = getOpsApiKey().value ?? "missing-api-key";
   return createHash("sha256").update(`${baseUrl}|${apiKey}`).digest("hex").slice(0, 24);
 }
 
-export function tenantReferenceFromPayload(payload: unknown): string | null {
+export function organizationReferenceFromPayload(payload: unknown): string | null {
   const root = recordValue(payload);
   const data = recordValue(root?.data);
   const meta = recordValue(root?.meta) ?? recordValue(data?.meta);
   const context = recordValue(root?.context) ?? recordValue(data?.context);
-  return pickFromRecords([meta, context, data, root], ["tenant_reference", "tenantReference"]);
+  return pickFromRecords([meta, context, data, root], ["organization_reference", "organizationReference"]);
 }
 
-export function assertTenantReference(actual: string | null, source: string): string {
+export function assertOrganizationReference(actual: string | null, source: string): string {
   if (!actual) {
-    throw new OpsError("OPS kunde inte verifiera tenant-bindningen från API-nyckeln.", 503, {
-      code: "ops_tenant_binding_unverified",
+    throw new OpsError("OPS kunde inte verifiera organisationsbindningen från API-nyckeln.", 503, {
+      code: "ops_organization_binding_unverified",
       source,
     });
   }
@@ -1358,12 +1358,12 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
     recordValue(context.authoritative_identity) ??
     recordValue(context.authoritativeIdentity) ??
     null
-  const tenantReference = pickFromRecords(
+  const organizationReference = pickFromRecords(
     [context, meta, data, root],
-    ['tenant_reference', 'tenantReference'],
+    ['organization_reference', 'organizationReference'],
   )
-  const verifiedTenantReference = assertTenantReference(
-    tenantReference,
+  const verifiedOrganizationReference = assertOrganizationReference(
+    organizationReference,
     '/api/v1/integration/context',
   )
   const contractVersion =
@@ -1372,8 +1372,8 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
     pickStringArray(configuration, ['required_environment_variables', 'requiredEnvironmentVariables']) ?? []
   const websiteMissing =
     pickStringArray(capabilities, [
-      'missing_website_checkout_scopes',
-      'missingWebsiteCheckoutScopes',
+      'missing_website_scopes',
+      'missingWebsiteScopes',
       'missing_website_scopes',
       'missingWebsiteScopes',
     ]) ?? []
@@ -1383,9 +1383,9 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
     pickStringArray(capabilities, ['missing_complete_tenant_website_scopes', 'missingCompleteTenantWebsiteScopes']) ??
     [...new Set([...websiteMissing, ...portalMissing])]
   const recommendedMissing =
-    pickStringArray(capabilities, ['missing_recommended_scopes', 'missingRecommendedScopes', 'recommended_missing_scopes', 'recommendedMissingScopes']) ?? []
+    pickStringArray(capabilities, ['missing_recommended_scopes', 'missingRecommendedScopes', 'missing_recommended_scopes', 'missingRecommendedScopes']) ?? []
   const requiredWebsiteScopes =
-    pickStringArray(capabilities, ['required_website_checkout_scopes', 'requiredWebsiteCheckoutScopes', 'required_website_scopes', 'requiredWebsiteScopes']) ?? []
+    pickStringArray(capabilities, ['required_website_scopes', 'requiredWebsiteScopes', 'required_website_scopes', 'requiredWebsiteScopes']) ?? []
   const requiredPortalScopes =
     pickStringArray(capabilities, ['required_customer_portal_scopes', 'requiredCustomerPortalScopes']) ?? []
   const applicationReferenceLocation =
@@ -1397,11 +1397,8 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
   const authServerSideOnly = pickBoolean(authentication ?? {}, ['server_side_only', 'serverSideOnly'])
   const websiteOpenapiUrl = pickString(configuration, ['openapi_url', 'openapiUrl', 'website_openapi_url', 'websiteOpenapiUrl', 'website_integration_openapi_url', 'websiteIntegrationOpenapiUrl'])
   const customerPortalOpenapiUrl = pickString(configuration, ['customer_portal_openapi_url', 'customerPortalOpenapiUrl'])
-  const tenantIdEnvironmentRequired = pickBoolean(configuration, ['tenant_id_environment_required', 'tenantIdEnvironmentRequired'])
-  const companyIdEnvironmentRequired = pickBoolean(configuration, ['company_id_environment_required', 'companyIdEnvironmentRequired'])
   const value: OpsIntegrationContext = {
-    tenant_reference: verifiedTenantReference,
-    company_id: pickFromRecords([context, meta, data, root], ['company_id', 'companyId']),
+    organization_reference: verifiedOrganizationReference,
     api_client_reference: apiClientReference ?? '',
     authoritative_identity: 'api_key',
     authentication: { header: 'Authorization', scheme: 'Bearer', server_side_only: true },
@@ -1418,9 +1415,7 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
       api_base_url: pickString(configuration, ['api_base_url', 'apiBaseUrl']) ?? '',
       application_reference_location: 'top_level',
       authentication: { header: 'Authorization', scheme: 'Bearer', server_side_only: true },
-      tenant_id_environment_required: false,
-      company_id_environment_required: false,
-      website_openapi_url: websiteOpenapiUrl ?? '',
+      openapi_url: websiteOpenapiUrl ?? '',
       customer_portal_openapi_url: customerPortalOpenapiUrl ?? '',
     },
     capabilities: {
@@ -1428,13 +1423,12 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
         pickBoolean(capabilities, ['website_checkout_ready', 'websiteCheckoutReady']) ?? websiteMissing.length === 0,
       customer_portal_ready:
         pickBoolean(capabilities, ['customer_portal_ready', 'customerPortalReady']) ?? portalMissing.length === 0,
-      complete_tenant_website_ready:
-        pickBoolean(capabilities, ['complete_tenant_website_ready', 'completeTenantWebsiteReady']) ?? completeMissing.length === 0,
-      missing_website_checkout_scopes: websiteMissing,
+      complete_integration_ready:
+        pickBoolean(capabilities, ['complete_integration_ready', 'completeIntegrationReady']) ?? completeMissing.length === 0,
+      missing_website_scopes: websiteMissing,
       missing_customer_portal_scopes: portalMissing,
-      missing_complete_tenant_website_scopes: completeMissing,
-      recommended_missing_scopes: recommendedMissing,
-      required_website_checkout_scopes: requiredWebsiteScopes,
+      missing_recommended_scopes: recommendedMissing,
+      required_website_scopes: requiredWebsiteScopes,
       required_customer_portal_scopes: requiredPortalScopes,
     },
     raw: root,
@@ -1487,13 +1481,6 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
       retryable: false,
     })
   }
-  if (tenantIdEnvironmentRequired !== false || companyIdEnvironmentRequired !== false) {
-    integrationWarnings.push({
-      code: 'tenant_environment_requirement_drift',
-      tenant_id_environment_required: tenantIdEnvironmentRequired,
-      company_id_environment_required: companyIdEnvironmentRequired,
-    })
-  }
   if (websiteOpenapiUrl !== expectedWebsiteOpenapiUrl || customerPortalOpenapiUrl !== expectedCustomerPortalOpenapiUrl) {
     integrationWarnings.push({
       code: 'openapi_url_drift',
@@ -1525,7 +1512,7 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
 }
 
 export async function getVerifiedOpsIntegrationContext(forceFresh = false): Promise<OpsIntegrationContext> {
-  const key = opsTenantCacheKey();
+  const key = opsOrganizationCacheKey();
   const now = Date.now();
   if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
     return integrationContextCache.value;
@@ -1538,18 +1525,18 @@ export async function getVerifiedOpsIntegrationContext(forceFresh = false): Prom
 
 export const fetchOpsIntegrationContext = getVerifiedOpsIntegrationContext;
 
-export async function verifiedTenantReference(payload: unknown, source: string): Promise<string> {
+export async function verifiedOrganizationReference(payload: unknown, source: string): Promise<string> {
   const context = await getVerifiedOpsIntegrationContext();
-  const direct = tenantReferenceFromPayload(payload);
-  if (direct && direct !== context.tenant_reference) {
-    throw new OpsError("OPS-svaret tillhör fel tenant.", 503, {
-      code: "ops_tenant_mismatch",
-      expected_tenant_reference: context.tenant_reference,
-      actual_tenant_reference: direct,
+  const direct = organizationReferenceFromPayload(payload);
+  if (direct && direct !== context.organization_reference) {
+    throw new OpsError("OPS-svaret tillhör fel organisation.", 503, {
+      code: "ops_organization_mismatch",
+      expected_organization_reference: context.organization_reference,
+      actual_organization_reference: direct,
       source,
     });
   }
-  return context.tenant_reference;
+  return context.organization_reference;
 }
 
 export function publicationRevisionFromPayload(payload: unknown): number | null {
@@ -1720,7 +1707,7 @@ export const WEBSITE_OPENAPI_SCHEMA_SHA256 = GRIDEX_WEBSITE_OPENAPI_SHA256
 
 export function publicContractsCacheKey(customerType?: WebsiteCustomerType | null): string {
   return [
-    opsTenantCacheKey(),
+    opsOrganizationCacheKey(),
     'website',
     'public-contracts',
     GRIDEX_WEBSITE_API_CONTRACT_VERSION,
@@ -1885,14 +1872,14 @@ export function parseOpsPublicContractsPayload(payload: unknown): {
 }
 
 export function invalidateOpsPublicContractsCache(input?: {
-  tenantReference?: string | null;
+  organizationReference?: string | null;
   channel?: string | null;
   publicationRevision?: number | null;
 }): void {
   if (input?.channel && input.channel !== "website") return;
-  if (input?.tenantReference) {
+  if (input?.organizationReference) {
     for (const [key, value] of publicContractsCache.entries()) {
-      if (value.tenant_reference === input.tenantReference) publicContractsCache.delete(key);
+      if (value.organization_reference === input.organizationReference) publicContractsCache.delete(key);
     }
     return;
   }

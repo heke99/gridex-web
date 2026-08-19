@@ -82,7 +82,7 @@ function parseEmptyFeedAuthorization(
 }
 
 type SnapshotReadExpectations = {
-  tenantReference?: string | null
+  organizationReference?: string | null
   contractVersion: string
   parserVersion: string
   schemaSha256: string
@@ -110,7 +110,7 @@ function parseStoredSnapshot(
     !Array.isArray(row.compatibility_issues) ||
     typeof row.parser_version !== 'string' ||
     typeof row.schema_sha256 !== 'string' ||
-    typeof row.tenant_reference !== 'string' ||
+    typeof row.organization_reference !== 'string' ||
     typeof row.fetched_at !== 'string' ||
     !Number.isFinite(Date.parse(row.fetched_at)) ||
     typeof row.upstream_status !== 'number'
@@ -133,7 +133,7 @@ function parseStoredSnapshot(
   } else if (row.contracts.length === 0 || row.empty_feed_authorization !== null) {
     return null
   }
-  if (expected.tenantReference && row.tenant_reference !== expected.tenantReference) return null
+  if (expected.organizationReference && row.organization_reference !== expected.organizationReference) return null
   if (row.contract_version !== expected.contractVersion) return null
   if (row.parser_version !== expected.parserVersion) return null
   if (row.schema_sha256 !== expected.schemaSha256) return null
@@ -150,7 +150,7 @@ function parseStoredSnapshot(
     schema_sha256: row.schema_sha256,
     etag: nullableString(row.etag),
     publication_revision: publicationRevision,
-    tenant_reference: row.tenant_reference,
+    organization_reference: row.organization_reference,
     contract_version: nullableString(row.contract_version),
     not_modified: true,
     fetched_at: row.fetched_at,
@@ -188,9 +188,9 @@ export async function storeWebsitePublicContractSnapshot(input: {
   const acceptedCount = input.snapshot.contracts.length
   const blockedCount = input.snapshot.blocked_contracts.length
   const upstreamCount = acceptedCount + blockedCount
-  const { data, error } = await supabaseService.rpc('store_website_public_contract_snapshot', {
+  const { data, error } = await supabaseService.rpc('store_website_public_contract_snapshot_v2', {
     p_cache_key: input.cacheKey,
-    p_tenant_reference: input.snapshot.tenant_reference,
+    p_organization_reference: input.snapshot.organization_reference,
     p_customer_type: input.customerType,
     p_publication_revision: input.snapshot.publication_revision,
     p_contract_version: input.snapshot.contract_version,
@@ -224,7 +224,7 @@ export async function storeWebsitePublicContractSnapshot(input: {
 
 
 export async function inspectWebsitePublicContractSnapshotStore(
-  tenantReference: string,
+  organizationReference: string,
 ): Promise<{
   available: true
   snapshotCount: number
@@ -235,7 +235,7 @@ export async function inspectWebsitePublicContractSnapshotStore(
   const query = supabaseService
     .from('website_public_contract_snapshots')
     .select('publication_revision,accepted_count,updated_at', { count: 'exact' })
-    .eq('tenant_reference', tenantReference)
+    .eq('organization_reference', organizationReference)
     .eq('channel', 'website')
     .order('publication_revision', { ascending: false, nullsFirst: false })
     .limit(1)

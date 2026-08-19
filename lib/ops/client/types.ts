@@ -673,8 +673,7 @@ export type OpsClientStatus = {
 };
 
 export type OpsIntegrationContext = {
-  tenant_reference: string;
-  company_id?: string | null;
+  organization_reference: string;
   api_client_reference: string;
   authoritative_identity: 'api_key';
   authentication: { header: 'Authorization'; scheme: 'Bearer'; server_side_only: true };
@@ -688,20 +687,17 @@ export type OpsIntegrationContext = {
     api_base_url: string;
     application_reference_location: "top_level";
     authentication: { header: 'Authorization'; scheme: 'Bearer'; server_side_only: true };
-    tenant_id_environment_required: false;
-    company_id_environment_required: false;
-    website_openapi_url: string;
+    openapi_url: string;
     customer_portal_openapi_url: string;
   };
   capabilities: {
     website_checkout_ready: boolean;
     customer_portal_ready: boolean;
-    complete_tenant_website_ready: boolean;
-    missing_website_checkout_scopes: string[];
+    complete_integration_ready: boolean;
+    missing_website_scopes: string[];
     missing_customer_portal_scopes: string[];
-    missing_complete_tenant_website_scopes: string[];
-    recommended_missing_scopes: string[];
-    required_website_checkout_scopes: string[];
+    missing_recommended_scopes: string[];
+    required_website_scopes: string[];
     required_customer_portal_scopes: string[];
   };
   raw: Record<string, unknown>;
@@ -789,7 +785,7 @@ export type OpsPublicContractsSnapshot = {
   schema_sha256: string;
   etag: string | null;
   publication_revision: number | null;
-  tenant_reference: string;
+  organization_reference: string;
   contract_version: string | null;
   not_modified: boolean;
   fetched_at: string;

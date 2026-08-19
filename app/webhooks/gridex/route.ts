@@ -75,13 +75,13 @@ export async function POST(request: Request) {
   if (event.delivery_id && event.delivery_id !== deliveryId) {
     return error('webhook_delivery_mismatch', 'Signed delivery identifier does not match the body.', 400)
   }
-  if (!event.tenant_reference) {
+  if (!event.organization_reference) {
     return error('webhook_tenant_missing', 'Webhook tenant reference is required.', 400)
   }
 
   try {
     const integration = await getVerifiedOpsIntegrationContext()
-    if (event.tenant_reference !== integration.tenant_reference) {
+    if (event.organization_reference !== integration.organization_reference) {
       return error('webhook_tenant_mismatch', 'Webhook tenant does not match this deployment.', 403)
     }
   } catch (tenantError) {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     p_event_id: eventId,
     p_delivery_id: deliveryId,
     p_event_type: eventType,
-    p_tenant_reference: event.tenant_reference,
+    p_organization_reference: event.organization_reference,
     p_created_at: event.occurred_at,
     p_payload_hash: payloadHash,
     p_payload: payload,

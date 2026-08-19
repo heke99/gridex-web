@@ -10,7 +10,7 @@ type RetryableWebhookRow = {
   event_id: string
   event_type: string
   delivery_id: string | null
-  tenant_reference: string | null
+  organization_reference: string | null
   occurred_at: string | null
   payload_hash: string | null
   payload: Record<string, unknown> | null
@@ -51,7 +51,7 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
   const now = new Date().toISOString()
   const { data, error } = await supabaseService
     .from('ops_webhook_events')
-    .select('id,event_id,event_type,delivery_id,tenant_reference,occurred_at,payload_hash,payload')
+    .select('id,event_id,event_type,delivery_id,organization_reference,occurred_at,payload_hash,payload')
     .eq('status', 'retryable_failure')
     .lte('next_attempt_at', now)
     .order('next_attempt_at', { ascending: true })
@@ -75,7 +75,7 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       event.event_id !== row.event_id ||
       event.event_type !== row.event_type ||
       !row.delivery_id ||
-      !row.tenant_reference ||
+      !row.organization_reference ||
       !row.occurred_at ||
       !row.payload_hash
     ) {
@@ -89,7 +89,7 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       p_event_id: row.event_id,
       p_delivery_id: row.delivery_id,
       p_event_type: row.event_type,
-      p_tenant_reference: row.tenant_reference,
+      p_organization_reference: row.organization_reference,
       p_created_at: row.occurred_at,
       p_payload_hash: row.payload_hash,
       p_payload: payload,

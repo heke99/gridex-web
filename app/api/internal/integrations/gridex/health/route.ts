@@ -82,7 +82,7 @@ export async function GET(request: Request) {
         .catch((error) => ({ ok: false as const, error: safeOpsError(error) })),
     ])
 
-    const durableSnapshotStore = await inspectWebsitePublicContractSnapshotStore(context.tenant_reference)
+    const durableSnapshotStore = await inspectWebsitePublicContractSnapshotStore(context.organization_reference)
       .catch((error) => ({
         available: false as const,
         error: error instanceof Error ? error.message : String(error),
@@ -122,13 +122,13 @@ export async function GET(request: Request) {
         local_api_contract_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       },
       integration: {
-        tenant_verified: Boolean(context.tenant_reference),
+        tenant_verified: Boolean(context.organization_reference),
         tenant_status: tenantStatus(context.raw),
         api_client_verified: Boolean(context.api_client_reference),
         contract_version: context.contract_version || null,
         active_scopes: context.active_scopes,
         website_checkout_ready: context.capabilities.website_checkout_ready,
-        missing_scopes: context.capabilities.missing_website_checkout_scopes,
+        missing_scopes: context.capabilities.missing_website_scopes,
       },
       api_contract: {
         expected_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,

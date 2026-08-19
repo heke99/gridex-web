@@ -63,7 +63,7 @@ import {
 
 import type { OpsWebsiteQuoteRequestDto, OpsWebsiteQuoteValidationRequestDto, OpsCurrentMarketPriceResponseDto, OpsCustomerApplicationStatusDto, OpsWebsiteEnergyAreaResolveResponseDto, OpsWebsiteEnergyAreaResolutionDto, OpsSwitchStatusDto, OpsPublicContract, OpsPublicContractDiagnostics, OpsLegalText, OpsWebsitePriceArea, OpsWebsiteEnergyResolutionInput, OpsResolutionBlocker, OpsResolutionSource, OpsPriceAreaAssuranceStatus, OpsPriceAreaAssuranceSource, OpsPriceAreaAssurance, OpsWebsiteEnergyResolution, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsWebsiteQuoteValidationInput, OpsWebsiteQuoteValidation, OpsWebsitePricingPreview, OpsCurrentMarketPrice, OpsWebsitePortfolioPrices, OpsWebsiteApplicationStatus, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractsSnapshot } from './types'
 import type { PublicContractsCacheEntry } from './core'
-import { normalizeInteger, normalizeText, recordValue, pickString, opsRequest, observeRuntimeSchemaValidation, opsFetch, extractObject, isOpsWebsitePriceArea, pickStringArray, normalizeQuoteMarketReference, mapOpsWebsiteQuote, publicContractsPath, extractPublicContractDiagnostics, getVerifiedOpsIntegrationContext, verifiedTenantReference, publicationRevisionFromPayload, contractVersionFromPayload, publicContractFeedMetadata, publicContractsCacheKey, parseOpsPublicContractsPayload, publicContractsCache, WEBSITE_OPENAPI_SCHEMA_SHA256 } from './core'
+import { normalizeInteger, normalizeText, recordValue, pickString, opsRequest, observeRuntimeSchemaValidation, opsFetch, extractObject, isOpsWebsitePriceArea, pickStringArray, normalizeQuoteMarketReference, mapOpsWebsiteQuote, publicContractsPath, extractPublicContractDiagnostics, getVerifiedOpsIntegrationContext, verifiedOrganizationReference, publicationRevisionFromPayload, contractVersionFromPayload, publicContractFeedMetadata, publicContractsCacheKey, parseOpsPublicContractsPayload, publicContractsCache, WEBSITE_OPENAPI_SCHEMA_SHA256 } from './core'
 import { isTransientOpsError } from './portal'
 
 export function mapResolutionSource(value: unknown): OpsResolutionSource | null {
@@ -184,7 +184,7 @@ export async function fetchOpsWebsiteEnergyArea(
     body: JSON.stringify(requestBody),
   })
   observeRuntimeSchemaValidation({ endpoint, schema: 'WebsiteEnergyAreaResolveResponse', validate: () => assertWebsiteResponse('WebsiteEnergyAreaResolveResponse', payload, endpoint) })
-  await verifiedTenantReference(payload, endpoint)
+  await verifiedOrganizationReference(payload, endpoint)
 
   const responseRoot = recordValue(payload)
   const responseData = recordValue(responseRoot?.data)
@@ -307,7 +307,7 @@ export async function fetchOpsWebsiteQuote(
     schema: 'WebsiteQuoteResponse',
     validate: () => assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote'),
   })
-  await verifiedTenantReference(payload, '/api/v1/website/quote')
+  await verifiedOrganizationReference(payload, '/api/v1/website/quote')
   return mapOpsWebsiteQuote(payload, input)
 }
 
@@ -341,7 +341,7 @@ export async function validateOpsWebsiteQuote(
     method: 'POST',
     body: JSON.stringify(requestBody),
   })
-  await verifiedTenantReference(payload, '/api/v1/website/quote/validate')
+  await verifiedOrganizationReference(payload, '/api/v1/website/quote/validate')
   const root = recordValue(payload)
   const row = recordValue(root?.data)
   const status = normalizeText(row?.status)
@@ -510,7 +510,7 @@ export async function fetchOpsCurrentMarketPrice(
     method: 'POST',
     body: JSON.stringify(requestBody),
   })
-  await verifiedTenantReference(payload, endpoint)
+  await verifiedOrganizationReference(payload, endpoint)
   observeRuntimeSchemaValidation({ endpoint, schema: 'CurrentMarketPriceResponse', validate: () => assertWebsiteResponse('CurrentMarketPriceResponse', payload, endpoint) })
 
   const marketRoot = recordValue(payload)
@@ -577,7 +577,7 @@ export async function fetchOpsWebsiteApplicationStatus(
   await getVerifiedOpsIntegrationContext()
   const endpoint = `/api/v1/website/customer-applications/${encodeURIComponent(normalized)}`
   const payload = await opsFetch(endpoint)
-  await verifiedTenantReference(payload, endpoint)
+  await verifiedOrganizationReference(payload, endpoint)
   const root = recordValue(payload)
   const row = recordValue(root?.data)
   if (!row) {
@@ -628,7 +628,7 @@ export async function fetchOpsWebsiteSwitchStatus(
   }
   const endpoint = `/api/v1/website/switch-status?application_number=${encodeURIComponent(normalized)}`
   const payload = await opsFetch(endpoint)
-  await verifiedTenantReference(payload, '/api/v1/website/switch-status')
+  await verifiedOrganizationReference(payload, '/api/v1/website/switch-status')
   const root = recordValue(payload)
   const row = recordValue(root?.data)
   if (!row) {
@@ -667,7 +667,7 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
   if (input.priceArea) query.set('price_area', input.priceArea)
   const endpoint = `/api/v1/website/portfolio-prices?${query.toString()}`
   const payload = await opsFetch(endpoint)
-  await verifiedTenantReference(payload, '/api/v1/website/portfolio-prices')
+  await verifiedOrganizationReference(payload, '/api/v1/website/portfolio-prices')
 
   const root = recordValue(payload)
   const data = recordValue(root?.data)
@@ -779,7 +779,7 @@ export function snapshotFromCacheEntry(
     schema_sha256: cached.schema_sha256,
     etag: cached.etag,
     publication_revision: cached.publication_revision,
-    tenant_reference: cached.tenant_reference,
+    organization_reference: cached.organization_reference,
     contract_version: cached.contract_version,
     not_modified: true,
     fetched_at: cached.fetched_at,
@@ -794,7 +794,7 @@ export function snapshotFromCacheEntry(
 
 export function publicContractsFallbackEligible(error: unknown): boolean {
   if (!isOpsError(error)) return false
-  if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
+  if (['ops_organization_mismatch', 'ops_organization_binding_unverified'].includes(error.code ?? '')) return false
   if ([401, 403, 410, 423].includes(error.status)) return false
 
   // Schema-readiness outages are deployment failures, not evidence that the
@@ -813,7 +813,7 @@ export function publicContractsFallbackEligible(error: unknown): boolean {
 
 export function integrationContextSnapshotFallbackEligible(error: unknown): boolean {
   if (!isOpsError(error)) return false
-  if (['ops_tenant_mismatch', 'ops_tenant_binding_unverified'].includes(error.code ?? '')) return false
+  if (['ops_organization_mismatch', 'ops_organization_binding_unverified'].includes(error.code ?? '')) return false
   if ([401, 403, 410, 423].includes(error.status)) return false
   return error.status >= 500
 }
@@ -821,9 +821,9 @@ export function integrationContextSnapshotFallbackEligible(error: unknown): bool
 export async function persistentPublicContractsCacheEntry(
   cacheKey: string,
 ): Promise<PublicContractsCacheEntry | null> {
-  let tenantReference: string | null = null
+  let organizationReference: string | null = null
   try {
-    tenantReference = (await getVerifiedOpsIntegrationContext()).tenant_reference
+    organizationReference = (await getVerifiedOpsIntegrationContext()).organization_reference
   } catch (error) {
     if (!integrationContextSnapshotFallbackEligible(error)) {
       console.error('[gridex-public-contracts] integration context verification failed before snapshot read', {
@@ -842,7 +842,7 @@ export async function persistentPublicContractsCacheEntry(
 
   try {
     const snapshot = await readWebsitePublicContractSnapshot(cacheKey, {
-      tenantReference,
+      organizationReference,
       contractVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       parserVersion: CONTRACT_PARSER_VERSION,
       schemaSha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
@@ -912,13 +912,13 @@ export async function fetchOpsPublicContractsSnapshot(
     })
   }
 
-  let tenantReference: string
+  let organizationReference: string
   let parsed: ReturnType<typeof parseOpsPublicContractsPayload>
   let responseContractVersion: string | null
   let responseRevision: number | null
   let feedMetadata: ReturnType<typeof publicContractFeedMetadata>
   try {
-    tenantReference = await verifiedTenantReference(
+    organizationReference = await verifiedOrganizationReference(
       response.payload,
       '/api/v1/website/public-contracts',
     )
@@ -1018,7 +1018,7 @@ export async function fetchOpsPublicContractsSnapshot(
     schema_sha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
     etag: response.headers.get('etag'),
     publication_revision: responseRevision,
-    tenant_reference: tenantReference,
+    organization_reference: organizationReference,
     contract_version: responseContractVersion,
     not_modified: false,
     fetched_at: new Date().toISOString(),
@@ -1156,7 +1156,7 @@ export async function fetchOpsPublicContractDiagnostics(
   customerType?: WebsiteCustomerType | null,
 ): Promise<OpsPublicContractDiagnostics> {
   const payload = await opsFetch(publicContractsPath(customerType, true));
-  await verifiedTenantReference(payload, "/api/v1/website/public-contracts/diagnostics");
+  await verifiedOrganizationReference(payload, "/api/v1/website/public-contracts/diagnostics");
   return {
     items: extractPublicContractDiagnostics(payload),
     raw: extractObject(payload),
@@ -1230,7 +1230,7 @@ export async function fetchOpsWebsiteLegalBundle(
   const endpoint = `/api/v1/website/legal-bundle?offer_reference=${encodeURIComponent(normalized)}`
   const payload = await opsFetch(endpoint)
   observeRuntimeSchemaValidation({ endpoint, schema: 'WebsiteLegalBundleResponse', validate: () => assertWebsiteResponse('WebsiteLegalBundleResponse', payload, endpoint) })
-  await verifiedTenantReference(payload, '/api/v1/website/legal-bundle')
+  await verifiedOrganizationReference(payload, '/api/v1/website/legal-bundle')
   const raw = extractObject(payload)
   const legal = recordValue(raw.legal) ?? {}
   const rows = Array.isArray(legal.module_versions)
