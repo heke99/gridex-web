@@ -76,22 +76,22 @@ export async function POST(request: Request) {
     return error('webhook_delivery_mismatch', 'Signed delivery identifier does not match the body.', 400)
   }
   if (!event.organization_reference) {
-    return error('webhook_tenant_missing', 'Webhook tenant reference is required.', 400)
+    return error('webhook_organization_missing', 'Webhook organization reference is required.', 400)
   }
 
   try {
     const integration = await getVerifiedOpsIntegrationContext()
     if (event.organization_reference !== integration.organization_reference) {
-      return error('webhook_tenant_mismatch', 'Webhook tenant does not match this deployment.', 403)
+      return error('webhook_organization_mismatch', 'Webhook organization does not match this deployment.', 403)
     }
-  } catch (tenantError) {
-    console.error('[gridex webhook] tenant verification failed', tenantError)
-    return error('webhook_tenant_unavailable', 'Webhook tenant context is unavailable.', 503)
+  } catch (organizationError) {
+    console.error('[gridex webhook] organization verification failed', organizationError)
+    return error('webhook_organization_unavailable', 'Webhook organization context is unavailable.', 503)
   }
 
   const notification = customerNotificationForEvent(event)
   const payloadHash = createHash('sha256').update(rawBody).digest('hex')
-  const { data, error: rpcError } = await supabaseService.rpc('apply_ops_domain_event', {
+  const { data, error: rpcError } = await supabaseService.rpc('apply_ops_domain_event_v2', {
     p_event_id: eventId,
     p_delivery_id: deliveryId,
     p_event_type: eventType,
