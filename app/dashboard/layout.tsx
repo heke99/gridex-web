@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import UserMenu from '@/components/account/UserMenu'
 import DashboardNav from './ui/DashboardNav'
-import { loadUserPermissions } from '@/lib/auth/permissions'
+import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
 import { PermissionsProvider } from '@/components/auth/PermissionsProvider'
 
 export const dynamic = 'force-dynamic'
@@ -92,26 +92,24 @@ export default async function DashboardLayout({
     redirect(buildLoginRedirect('/dashboard'))
   }
 
-  let roles: Role[] = []
+  const [{ data: roleRows }, permissions] = await Promise.all([
+    supabase
+      .from('user_roles')
+      .select('role,is_active')
+      .eq('user_id', user.id)
+      .returns<RoleRow[]>(),
+    loadUserPermissionsWithClient(supabase, user.id),
+  ])
 
-  const { data: roleRows } = await supabase
-    .from('user_roles')
-    .select('role,is_active')
-    .eq('user_id', user.id)
-    .returns<RoleRow[]>()
-
-  if (roleRows) {
-    roles = roleRows
-      .filter((row) => row.is_active !== false)
-      .map((row) => mapRole(row.role))
-      .filter((role): role is Role => role !== null)
-  }
+  const roles: Role[] = (roleRows ?? [])
+    .filter((row) => row.is_active !== false)
+    .map((row) => mapRole(row.role))
+    .filter((role): role is Role => role !== null)
 
   const isAdmin = roles.includes('admin') || roles.includes('super_admin')
   const isSupport = roles.includes('support')
   const isPartner = roles.includes('partner')
 
-  const permissions = await loadUserPermissions(user.id)
   const roleLabel = getUserMenuRoleLabel(roles)
   const roleBadges = getVisibleRoleBadges(roles)
 
