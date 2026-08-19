@@ -85,7 +85,7 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
     }
 
     const notification = customerNotificationForEvent(event)
-    const { data: rpcData, error: rpcError } = await supabaseService.rpc('apply_ops_domain_event', {
+    const { data: rpcData, error: rpcError } = await supabaseService.rpc('apply_ops_domain_event_v2', {
       p_event_id: row.event_id,
       p_delivery_id: row.delivery_id,
       p_event_type: row.event_type,
