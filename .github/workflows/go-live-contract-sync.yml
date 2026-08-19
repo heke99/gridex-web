@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/gridex-web-go-live-20260819
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -12,7 +15,7 @@ jobs:
   sync-and-verify:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,8 +37,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Tests
-        run: npm test -- --runInBand
-        continue-on-error: false
+        run: npm test
       - name: Production build
         run: npm run build
       - name: Commit canonical generated artifacts
