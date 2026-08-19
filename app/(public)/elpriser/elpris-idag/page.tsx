@@ -137,7 +137,7 @@ export default async function ElprisIdagPage() {
             </p>
           </div>
           <Link href="/#rakna-elpris" className="rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black transition hover:bg-cyan-400">
-            Hämta personlig OPS-offert
+            Hämta personlig offert
           </Link>
         </div>
 
