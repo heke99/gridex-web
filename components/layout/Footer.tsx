@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="mt-20 border-t border-gray-800 bg-black">
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 text-sm text-gray-400 md:grid-cols-4">
         <div className="space-y-3">
-          <GridexLogo className="h-10 w-auto max-w-[170px]" />
+          <GridexLogo className="h-10 w-auto max-w-[170px]" inverted />
           <div>Org.nr: 559416-7149</div>
           <div>Svenskt elhandelsbolag</div>
           <div>
