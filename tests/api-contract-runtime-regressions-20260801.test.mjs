@@ -10,7 +10,7 @@ const webhookBody = {
   delivery_id: `delivery_${'b'.repeat(32)}`,
   event_type: 'contracts.publication.changed',
   created_at: '2026-08-01T18:00:00.000Z',
-  tenant_reference: 'tenant_gridex',
+  organization_reference: 'org_gridex',
   aggregate: {
     type: 'contract_publication',
     reference: 'publication_gridex_website',
