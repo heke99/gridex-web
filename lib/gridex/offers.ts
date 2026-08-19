@@ -59,13 +59,14 @@ export type OfferCalculation = {
  * regain local pricing. Any attempted call is rejected before customer/order
  * data is written.
  */
-export async function calculateCustomerOffer(_params: {
+export async function calculateCustomerOffer(params: {
   supabase: SupabaseClient
   contractSlug: string
   postalCode?: string | null
   manualPriceArea?: PriceArea | null
   kwh: number
 }): Promise<OfferCalculation> {
+  void params
   throw Object.assign(
     new Error(
       'Legacy local avtalsprissättning är avstängd. Använd canonical Gridex Ops quote/application-flöde.'
