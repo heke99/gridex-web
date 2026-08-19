@@ -1,0 +1,34 @@
+name: One-shot go-live test contract cutover
+
+on:
+  push:
+    branches:
+      - codex/gridex-web-go-live-20260819
+
+permissions:
+  contents: write
+
+jobs:
+  cutover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/gridex-web-go-live-20260819
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/go-live-test-contract-cutover.mjs
+      - name: Persist canonical test cutover
+        run: |
+          if git diff --quiet; then
+            echo "No stale contract test markers remain."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests
+          git commit -m "test(api): align launch regressions with 2026-08-19.2"
+          git push origin HEAD:codex/gridex-web-go-live-20260819
