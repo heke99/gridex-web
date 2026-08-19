@@ -75,7 +75,7 @@ export default function HeaderClient({ userEmail, roles = [] }: Props) {
           </button>
 
           <Link href="/" className="flex items-center gap-3" aria-label="Gridex startsida">
-            <GridexLogo className="h-10 w-auto max-w-[170px]" priority />
+            <GridexLogo className="h-10 w-auto max-w-[170px]" inverted priority />
           </Link>
         </div>
 
