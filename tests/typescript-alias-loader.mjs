@@ -24,6 +24,13 @@ export async function resolve(specifier, context, nextResolve) {
     if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true }
   }
 
+  // Next's package subpath is resolved by the framework/bundler in production,
+  // while direct Node ESM execution used by the launch tests requires the
+  // concrete .js entrypoint.
+  if (specifier === 'next/server') {
+    return nextResolve('next/server.js', context)
+  }
+
   return nextResolve(specifier, context)
 }
 
