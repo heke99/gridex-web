@@ -4,27 +4,24 @@ type GridexLogoProps = {
   className?: string
   markOnly?: boolean
   inverted?: boolean
+  priority?: boolean
 }
 
 export default function GridexLogo({
   className = 'h-10 w-auto',
   markOnly = false,
-  inverted = true,
+  priority = false,
 }: GridexLogoProps) {
-  const src = markOnly
-    ? '/brand/gridex-mark.svg'
-    : inverted
-      ? '/brand/gridex-logo-inverted.svg'
-      : '/brand/gridex-logo.svg'
+  const src = markOnly ? '/icon.png' : '/brand/gridex-wordmark.webp'
 
   return (
     <Image
       src={src}
       alt="Gridex"
       className={className}
-      width={markOnly ? 512 : 1200}
-      height={markOnly ? 512 : 360}
-      priority
+      width={markOnly ? 192 : 600}
+      height={markOnly ? 192 : 111}
+      priority={priority}
       unoptimized
     />
   )

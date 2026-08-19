@@ -1,15 +1,25 @@
+import { after } from 'next/server'
 import {
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsSnapshot,
   isOpsError,
   isTransientOpsError,
+  publicContractsCacheKey,
+  WEBSITE_OPENAPI_SCHEMA_SHA256,
   type OpsBlockedPublicContract,
   type OpsPublicContract,
   type OpsPublicContractsSnapshot,
 } from '@/lib/ops/client'
+import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from '@/lib/ops/contract'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
+import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
+import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+
+const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
+const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
+const publicContractRevalidations = new Set<string>()
 
 export type WebsitePublicContractFeedState =
   | 'feed_loaded_with_contracts'
@@ -83,14 +93,66 @@ async function diagnoseEmptyFeed(context: string, customerType?: WebsiteCustomer
   }
 }
 
+async function readFastPublicContractSnapshot(
+  customerType?: WebsiteCustomerType | null,
+): Promise<OpsPublicContractsSnapshot | null> {
+  try {
+    return await readWebsitePublicContractSnapshot(publicContractsCacheKey(customerType), {
+      contractVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
+      parserVersion: CONTRACT_PARSER_VERSION,
+      schemaSha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
+      maxAgeMs: FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS,
+    })
+  } catch (error) {
+    console.warn('[gridex-public-contracts] fast snapshot read unavailable', {
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+function schedulePublicContractRevalidation(
+  context: string,
+  snapshot: OpsPublicContractsSnapshot,
+  customerType?: WebsiteCustomerType | null,
+): void {
+  if (Date.now() - Date.parse(snapshot.fetched_at) < FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS) return
+
+  const cacheKey = publicContractsCacheKey(customerType)
+  if (publicContractRevalidations.has(cacheKey)) return
+  publicContractRevalidations.add(cacheKey)
+
+  after(async () => {
+    try {
+      await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
+    } catch (error) {
+      console.warn(`[${context}] public contracts post-response revalidation failed`, safeOpsError(error))
+    } finally {
+      publicContractRevalidations.delete(cacheKey)
+    }
+  })
+}
+
 export async function loadWebsitePublicContractFeed(input: {
   context: string
   customerType?: WebsiteCustomerType | null
   forceFresh?: boolean
 }): Promise<WebsitePublicContractFeed> {
-  const snapshot = await fetchOpsPublicContractsSnapshot(input.customerType, {
-    forceFresh: input.forceFresh,
-  })
+  let snapshot: OpsPublicContractsSnapshot | null = null
+
+  if (!input.forceFresh) {
+    snapshot = await readFastPublicContractSnapshot(input.customerType)
+    if (snapshot) {
+      schedulePublicContractRevalidation(input.context, snapshot, input.customerType)
+    }
+  }
+
+  if (!snapshot) {
+    snapshot = await fetchOpsPublicContractsSnapshot(input.customerType, {
+      forceFresh: input.forceFresh,
+    })
+  }
+
   const contracts: OpsPublicContract[] = []
   const blockedContracts: WebsiteBlockedPublicContract[] = snapshot.blocked_contracts.map((item) => ({
     ...item,

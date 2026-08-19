@@ -1,5 +1,6 @@
 import EventLink from '@/components/customer/EventLink'
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import type { CustomerInvoice } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -45,8 +46,8 @@ function invoiceStatus(status: string) {
 }
 
 export default async function DashboardInvoicesPage() {
-  const overview = await getCustomerPortalOverview()
-  const invoices = overview.invoices
+  const resource = await getCanonicalCustomerResource('invoices')
+  const invoices = resource.data as CustomerInvoice[]
 
   return (
     <div className="space-y-6">
@@ -56,12 +57,6 @@ export default async function DashboardInvoicesPage() {
           Här ser du fakturor, belopp, förfallodatum och tillgängliga underlag.
         </p>
       </div>
-
-      {!overview.opsAvailable ? (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
-        </div>
-      ) : null}
 
       {invoices.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/60 sm:p-6">
