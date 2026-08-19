@@ -28,6 +28,21 @@ jobs:
       - run: npm ci
       - name: Sync canonical live OpenAPI
         run: npm run api:sync
+      - name: Commit canonical generated artifacts before verification
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No contract drift after live sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/openapi lib/ops/contract.ts lib/ops/generated
+          if git diff --cached --quiet; then
+            echo "No generated contract artifacts changed."
+            exit 0
+          fi
+          git commit -m "chore(api): sync canonical OPS contract for go-live"
+          git push origin HEAD:codex/gridex-web-go-live-20260819
       - name: Verify API preflight
         run: npm run api:preflight
       - name: Verify migrations
@@ -40,14 +55,3 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: Commit canonical generated artifacts
-        run: |
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "No contract drift after live sync."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/openapi lib/ops/contract.ts lib/ops/generated
-          git commit -m "chore(api): sync canonical OPS contract for go-live"
-          git push origin HEAD:codex/gridex-web-go-live-20260819
