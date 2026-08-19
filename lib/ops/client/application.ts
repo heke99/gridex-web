@@ -62,7 +62,7 @@ import {
 } from '@/lib/website/publicContractSnapshotStore'
 
 import type { OpsCustomerApplicationRequestDto, OpsPowerOfAttorneyScope, OpsPowerOfAttorneyMethod, OpsCustomerApplicationInput, OpsWebsiteSupplierSwitchState, OpsPowerOfAttorneyState, OpsCustomerApplicationCommunicationItem, OpsCustomerApplicationCommunication, OpsCustomerApplicationResult, AcceptedOpsCustomerApplicationResult, OpsInvoiceDeliveryMethod } from './types'
-import { getOpsClientStatus, normalizeNumber, normalizeText, recordValue, pickString, pickBoolean, observeRuntimeSchemaValidation, opsFetch, getVerifiedOpsIntegrationContext, verifiedTenantReference, stringArray } from './core'
+import { getOpsClientStatus, normalizeNumber, normalizeText, recordValue, pickString, pickBoolean, observeRuntimeSchemaValidation, opsFetch, getVerifiedOpsIntegrationContext, verifiedOrganizationReference, stringArray } from './core'
 import { opsErrorCodeValue } from './portal'
 
 export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
@@ -518,7 +518,7 @@ export async function submitOpsCustomerApplication(
       schema: 'WebsiteCustomerApplicationResponse',
       validate: () => assertWebsiteResponse('WebsiteCustomerApplicationResponse', payload, '/api/v1/website/customer-applications'),
     })
-    await verifiedTenantReference(payload, "/api/v1/website/customer-applications");
+    await verifiedOrganizationReference(payload, "/api/v1/website/customer-applications");
   } catch (error) {
     if (!isOpsError(error) || error.status !== 409) throw error;
     const code = opsErrorCodeValue(error) ?? "";

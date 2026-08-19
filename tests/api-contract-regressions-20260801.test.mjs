@@ -39,7 +39,7 @@ assert.deepEqual(webhookSchema.required, [
   'delivery_id',
   'event_type',
   'created_at',
-  'tenant_reference',
+  'organization_reference',
   'aggregate',
   'data',
   'contract_schema_version',
@@ -136,7 +136,7 @@ assert.ok(moveOutSection.includes('requested_move_out_date: requestedMoveOutDate
 assert.ok(!moveOutSection.includes('data: moveOutData'))
 
 const snapshotStore = read('lib/website/publicContractSnapshotStore.ts')
-for (const invariant of ['tenantReference', 'contractVersion', 'parserVersion', 'schemaSha256', 'maxAgeMs']) {
+for (const invariant of ['organizationReference', 'contractVersion', 'parserVersion', 'schemaSha256', 'maxAgeMs']) {
   assert.ok(snapshotStore.includes(invariant), `snapshot validation must include ${invariant}`)
 }
 const endpoint = read('lib/website/publicContractsEndpoint.ts')

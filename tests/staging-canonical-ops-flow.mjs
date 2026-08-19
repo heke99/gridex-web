@@ -35,7 +35,7 @@ const context = await fetchOpsIntegrationContext(true)
 assert.equal(context.contract_version, GRIDEX_WEBSITE_API_CONTRACT_VERSION)
 assert.equal(context.configuration.application_reference_location, 'top_level')
 assert.equal(context.capabilities.website_checkout_ready, true)
-assert.deepEqual(context.capabilities.missing_website_checkout_scopes, [])
+assert.deepEqual(context.capabilities.missing_website_scopes, [])
 
 const contracts = await fetchOpsPublicContractsFresh(fixture.customer_type ?? 'private')
 assert.ok(contracts.length > 0, 'OPS måste returnera minst ett website-publicerat avtal.')

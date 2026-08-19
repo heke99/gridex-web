@@ -11,7 +11,7 @@ type PublicationChangedWebhook = {
   delivery_id: string
   event_type: 'contracts.publication.changed'
   created_at: string
-  tenant_reference: string
+  organization_reference: string
   aggregate: {
     type: 'contract_publication'
     reference: string
@@ -91,11 +91,11 @@ function errorResponse(code: string, message: string, status: number) {
 }
 
 function invalidateWebsiteContractSurfaces(args: {
-  tenantReference: string
+  organizationReference: string
   publicationRevision: number
 }): boolean {
   invalidateOpsPublicContractsCache({
-    tenantReference: args.tenantReference,
+    organizationReference: args.organizationReference,
     channel: 'website',
     publicationRevision: args.publicationRevision,
   })
@@ -106,7 +106,7 @@ function invalidateWebsiteContractSurfaces(args: {
     return true
   } catch (error) {
     console.error('[publication webhook] cache revalidation failed after durable apply', {
-      tenant_reference: args.tenantReference,
+      organization_reference: args.organizationReference,
       publication_revision: args.publicationRevision,
       error: error instanceof Error ? error.message : String(error),
     })
@@ -166,11 +166,11 @@ export async function handlePublicationChangedWebhook(request: Request) {
     return errorResponse('webhook_identity_mismatch', 'Signed webhook identifiers do not match.', 400)
   }
 
-  const tenantReference = publicationPayload.tenant_reference
+  const organizationReference = publicationPayload.organization_reference
 
   try {
     const integration = await getVerifiedOpsIntegrationContext()
-    if (tenantReference !== integration.tenant_reference) {
+    if (organizationReference !== integration.organization_reference) {
       return errorResponse('webhook_tenant_mismatch', 'Webhook tenant does not match this deployment.', 403)
     }
   } catch {
@@ -185,7 +185,7 @@ export async function handlePublicationChangedWebhook(request: Request) {
   const { data, error } = await supabase.rpc('apply_ops_publication_event', {
     p_event_id: eventId,
     p_delivery_id: deliveryId,
-    p_tenant_reference: payload.tenant_reference,
+    p_organization_reference: payload.organization_reference,
     p_channel: payload.data.channel,
     p_publication_revision: payload.data.publication_revision,
     p_revision_token: payload.data.revision_token,
@@ -220,7 +220,7 @@ export async function handlePublicationChangedWebhook(request: Request) {
   )
   const cacheRevalidated = shouldRevalidateWebsite
     ? invalidateWebsiteContractSurfaces({
-        tenantReference: payload.tenant_reference,
+        organizationReference: payload.organization_reference,
         publicationRevision: payload.data.publication_revision,
       })
     : false

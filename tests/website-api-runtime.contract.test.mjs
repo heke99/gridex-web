@@ -30,10 +30,10 @@ const PRODUCTION_PRICE_OPTION = {
 
 const CONTRACT_VERSION = GRIDEX_WEBSITE_API_CONTRACT_VERSION
 const BASE_URL = 'https://app.gridex.se/api/v1'
-const TENANT_REFERENCE = 'tenant_runtime_test'
+const ORGANIZATION_REFERENCE = 'organization_runtime_test_0123456789'
 
 const validContext = {
-  tenant_reference: TENANT_REFERENCE,
+  organization_reference: ORGANIZATION_REFERENCE,
   api_client_reference: 'api_client_runtime_test',
   api_version: 'v1',
   authoritative_identity: 'api_key',
@@ -53,13 +53,11 @@ const validContext = {
     openapi_url: `${BASE_URL}/openapi/website-integration-v1.json`,
     customer_portal_openapi_url: `${BASE_URL}/openapi/customer-portal-v1.json`,
     application_reference_location: 'top_level',
-    tenant_id_environment_required: false,
-    company_id_environment_required: false,
   },
   capabilities: {
     website_checkout_ready: true,
     customer_portal_ready: false,
-    complete_tenant_website_ready: false,
+    complete_integration_ready: false,
     missing_website_scopes: [],
     missing_customer_portal_scopes: ['customer_profile.read'],
     missing_recommended_scopes: ['website_market_prices.read'],

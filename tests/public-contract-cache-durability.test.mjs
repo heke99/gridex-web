@@ -26,9 +26,9 @@ assert.doesNotMatch(
 
 const store = read('lib/website/publicContractSnapshotStore.ts')
 assert.match(store, /website_public_contract_snapshots/)
-assert.match(store, /store_website_public_contract_snapshot/)
-assert.match(store, /tenantReference\?: string \| null/)
-assert.match(store, /expected\.tenantReference && row\.tenant_reference !== expected\.tenantReference/)
+assert.match(store, /store_website_public_contract_snapshot_v2/)
+assert.match(store, /organizationReference\?: string \| null/)
+assert.match(store, /expected\.organizationReference && row\.organization_reference !== expected\.organizationReference/)
 
 const migration = read('supabase/migrations/20260802223000_public_contract_canonical_empty_proof.sql')
 assert.match(migration, /pg_advisory_xact_lock/)

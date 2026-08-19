@@ -62,7 +62,7 @@ export type OpsReadinessCode =
 export type OpsReadinessCheckName =
   | 'configuration_ready'
   | 'authentication_ready'
-  | 'tenant_ready'
+  | 'organization_binding_ready'
   | 'contract_version_ready'
   | 'local_schema_ready'
   | 'live_schema_ready'
@@ -86,7 +86,6 @@ export type OpsReadinessCheckName =
   | 'webhook_retry_ready'
   | 'database_migrations_ready'
   | 'staging_flow_ready'
-  | 'tenant_isolation_ready'
   | 'full_api_compatibility_ready'
 
 export type OpsReadinessCheck = {
@@ -111,7 +110,7 @@ export type OpsIntegrationReadiness = {
   contextReadiness: {
     websiteCheckoutReady: boolean
     customerPortalReady: boolean
-    completeTenantWebsiteReady: boolean
+    completeIntegrationReady: boolean
     missingWebsiteScopes: string[]
     missingCustomerPortalScopes: string[]
     missingRecommendedScopes: string[]
@@ -186,11 +185,11 @@ function probeDefinitions(): ProbeDefinition[] {
   return [
     { name: 'integration_context', scopes: ['integration_context.read'], run: async () => {
       const context = await fetchOpsIntegrationContext(true)
-      if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_checkout_scopes.length > 0) {
+      if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_scopes.length > 0) {
         return {
           ok: false,
           status: 403,
-          code: `missing_scope:${context.capabilities.missing_website_checkout_scopes.join(',')}`,
+          code: `missing_scope:${context.capabilities.missing_website_scopes.join(',')}`,
         }
       }
       if (context.configuration.application_reference_location !== 'top_level') {
@@ -275,8 +274,6 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     webhookRetryWorkerConfigured
   const stagingFlowVerified =
     process.env.GRIDEX_STAGING_FLOW_VERIFIED === 'true'
-  const tenantIsolationVerified =
-    process.env.GRIDEX_TWO_TENANT_ISOLATION_VERIFIED === 'true'
   const webhook = {
     enabled: webhookEnabled,
     signingSecretConfigured: webhookSecretConfigured,
@@ -299,10 +296,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       contextReadiness = {
         websiteCheckoutReady: context.capabilities.website_checkout_ready,
         customerPortalReady: context.capabilities.customer_portal_ready,
-        completeTenantWebsiteReady: context.capabilities.complete_tenant_website_ready,
-        missingWebsiteScopes: context.capabilities.missing_website_checkout_scopes,
+        completeIntegrationReady: context.capabilities.complete_integration_ready,
+        missingWebsiteScopes: context.capabilities.missing_website_scopes,
         missingCustomerPortalScopes: context.capabilities.missing_customer_portal_scopes,
-        missingRecommendedScopes: context.capabilities.recommended_missing_scopes,
+        missingRecommendedScopes: context.capabilities.missing_recommended_scopes,
       }
     } catch (error) {
       code = classifyProbeFailure(error)
@@ -366,7 +363,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const checks: Record<OpsReadinessCheckName, OpsReadinessCheck> = {
     configuration_ready: check(client.configured, client.configured ? 'configured' : 'not_configured', client.configured ? 'Gridex API är serverkonfigurerat.' : 'GRIDEX_API_KEY eller canonical API-bas saknas.'),
     authentication_ready: check(probeReady('integration_context'), probeReady('integration_context') ? 'authenticated' : 'authentication_unverified', 'API-nyckeln har verifierats mot integration/context.'),
-    tenant_ready: check(Boolean(contextReadiness), contextReadiness ? 'tenant_verified' : 'tenant_unverified', 'Tenantidentiteten härleds och verifieras från API-nyckeln.'),
+    organization_binding_ready: check(Boolean(contextReadiness), contextReadiness ? 'organization_verified' : 'organization_unverified', 'Organisationsidentiteten härleds och verifieras från serverns API-nyckel.'),
     contract_version_ready: check(
       resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION,
       resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION ? 'contract_version_verified' : 'contract_version_mismatch',
@@ -503,22 +500,13 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       undefined,
       'warning',
     ),
-    tenant_isolation_ready: check(
-      tenantIsolationVerified,
-      tenantIsolationVerified
-        ? 'tenant_isolation_verified'
-        : 'tenant_isolation_unverified',
-      'Två separata tenantnycklar ska bevisa läs-, skriv- och webhookisolering.',
-      undefined,
-      'warning',
-    ),
     full_api_compatibility_ready: check(false, 'pending_full_evaluation', 'Full kompatibilitet beräknas från samtliga obligatoriska kontroller.'),
   }
 
   const fullPrerequisites: OpsReadinessCheckName[] = [
     'configuration_ready',
     'authentication_ready',
-    'tenant_ready',
+    'organization_binding_ready',
     'contract_version_ready',
     'local_schema_ready',
     'live_schema_ready',
@@ -542,7 +530,6 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     'webhook_retry_ready',
     'database_migrations_ready',
     'staging_flow_ready',
-    'tenant_isolation_ready',
   ]
   const fullApiCompatibilityReady =
     upstreamContractGaps.length === 0 &&

@@ -4,7 +4,7 @@ export type OpsWebhookEvent = {
   event_id: string
   event_type: string
   occurred_at: string
-  tenant_reference?: string | null
+  organization_reference?: string | null
   channel?: string | null
   publication_revision?: string | null
   publication_reason?: string | null
@@ -146,10 +146,10 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
     event_id: eventId,
     event_type: eventType,
     occurred_at: occurredAt,
-    tenant_reference:
-      text(root.tenant_reference) ?? text(root.tenantReference) ??
-      text(data.tenant_reference) ?? text(data.tenantReference) ??
-      text(meta.tenant_reference) ?? text(meta.tenantReference),
+    organization_reference:
+      text(root.organization_reference) ?? text(root.organizationReference) ??
+      text(data.organization_reference) ?? text(data.organizationReference) ??
+      text(meta.organization_reference) ?? text(meta.organizationReference),
     channel: text(root.channel) ?? text(data.channel) ?? text(meta.channel),
     publication_revision:
       text(root.publication_revision) ?? text(root.publicationRevision) ??

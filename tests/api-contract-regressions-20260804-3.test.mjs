@@ -37,7 +37,7 @@ const quoteHeader = quoteOperation.parameters.find(
 )
 assert.equal(quoteOperation['x-idempotency-required'], true)
 assert.deepEqual(quoteOperation['x-idempotency-scope'], [
-  'company_id',
+  'internal organization identifier',
   'api_client_id',
   'route',
   'idempotency_key',

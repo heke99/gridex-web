@@ -81,7 +81,7 @@ assert.match(validators, /legal_acceptances_not_dynamic/, 'known OPS legal gap m
 assert.match(validators, /customer_portal_resource_schemas_not_strict/, 'permissive portal schemas must block full compatibility')
 assert.match(validators, /ops_domain_webhook_schema_not_published/, 'unpublished domain webhook schemas must block full compatibility')
 assert.match(client, /OPS-anropet saknar ett incheckat OpenAPI-kontrakt/, 'unknown OPS operations must fail closed')
-assert.match(client, /return error\.retryable &&/, 'non-retryable schema and tenant errors must never trigger local portal fallback')
+assert.match(client, /return error\.retryable &&/, 'non-retryable schema and organization-binding errors must never trigger local portal fallback')
 
 const quoteValidationSchema = websiteOpenApi.components.schemas.QuoteValidationRequest
 for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) {
@@ -122,7 +122,7 @@ for (const checkName of [
   'webhook_retry_ready',
   'database_migrations_ready',
   'staging_flow_ready',
-  'tenant_isolation_ready',
+  'organization_binding_ready',
   'full_api_compatibility_ready',
 ]) {
   assert.ok(readiness.includes(checkName), `readiness must expose ${checkName}`)
