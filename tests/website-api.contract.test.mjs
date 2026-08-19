@@ -195,7 +195,7 @@ assert.ok(!('metering_point_id' in applicationSchema.properties.site.properties)
 assert.ok(!('current_supplier_id' in applicationSchema.properties.site.properties))
 
 assert.ok(ops.includes('customer_portal_ready'))
-assert.ok(ops.includes('complete_tenant_website_ready'))
+assert.ok(ops.includes('complete_integration_ready'))
 assert.ok(ops.includes('missing_recommended_scopes'))
 assert.ok(ops.includes('capabilities: {'))
 assert.ok(ops.includes('facility_lookup_ready: row.capabilities.facility_lookup_ready'))

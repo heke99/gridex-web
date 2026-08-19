@@ -104,9 +104,9 @@ for (const marker of [
 for (const marker of [
   'verifyOpsWebhookSignature',
   'getVerifiedOpsIntegrationContext',
-  "rpc('apply_ops_domain_event'",
+  "rpc('apply_ops_domain_event_v2'",
   'webhook_identity_mismatch',
-  'webhook_tenant_mismatch',
+  'webhook_organization_mismatch',
 ]) assert.ok(webhook.includes(marker), `missing webhook marker: ${marker}`)
 assert.ok(webhookParser.includes('Number.isNaN(Date.parse(occurredAt))'))
 assert.ok(webhookParser.includes('customer.customer_reference'))
