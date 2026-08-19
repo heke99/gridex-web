@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-19T17:30:00.000Z",
-  "migration_count": 37,
+  "generated_at": "2026-08-19T17:45:00.000Z",
+  "migration_count": 38,
   "version_collisions": [],
   "migrations": [
     {"file":"20260306_customer_portal_enterprise.sql","version":"20260306","sha256":"a70d2d7c648cad9f9de481e7f9b96b6c368f1f8bf9032cde867ab376fde850c2"},
@@ -40,6 +40,7 @@
     {"file":"20260814110000_production_security_surface_hardening.sql","version":"20260814110000","sha256":"a16d34eb34f6687d91693656d74d9c11be76f54915325814948e9252abf3dbee"},
     {"file":"20260814113000_finalize_client_privilege_hardening.sql","version":"20260814113000","sha256":"040ac3ea80d68dec0a5d75a397be24a96e77e44c6b5ca48f6346566b4ccd893a"},
     {"file":"20260814120000_optimize_rls_auth_initplans.sql","version":"20260814120000","sha256":"60035b74ce9822e63891c1b2d7590fee3e70df85177603b608cbbeceef1d3107"},
-    {"file":"20260819193000_ops_organization_reference_expand.sql","version":"20260819193000","sha256":"a6e13dd7eff56b46a7dee3f5367c88ec7f8ed3e627a535341af000fac4cf61fd"}
+    {"file":"20260819193000_ops_organization_reference_expand.sql","version":"20260819193000","sha256":"a6e13dd7eff56b46a7dee3f5367c88ec7f8ed3e627a535341af000fac4cf61fd"},
+    {"file":"20260819194500_ops_domain_webhook_organization_reference.sql","version":"20260819194500","sha256":"8830f7cc6dda710e479bc0b4a8f7e6aed8fa8887fcc32e31eb0bbe94762ec9ef"}
   ]
 }
