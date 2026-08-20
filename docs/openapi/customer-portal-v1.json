@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal API",
-    "version": "2026-08-19.2",
+    "version": "2026-08-20.1",
     "description": "Production API for customer portals. Access is organization-scoped by the server-side API credential and customer data is limited to the verified linked customer identity."
   },
   "servers": [
@@ -151,7 +151,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -2710,7 +2710,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -2761,7 +2761,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -3354,7 +3354,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -4553,7 +4553,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -5156,7 +5156,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -5475,7 +5475,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -5761,7 +5761,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-19.2"
+                      "const": "2026-08-20.1"
                     }
                   }
                 }
@@ -6947,6 +6947,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -6981,6 +6990,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -6996,8 +7014,8 @@
     },
     "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Immutable Customer Portal OpenAPI release 2026-08-19.2",
-        "description": "Immutable Customer Portal OpenAPI release 2026-08-19.2.",
+        "summary": "Current OpenAPI specification for customer portal integrations",
+        "description": "Current OpenAPI specification for customer portal integrations.",
         "security": [],
         "responses": {
           "200": {
@@ -7063,6 +7081,82 @@
         },
         "x-required-scopes": [],
         "operationId": "getApiV1Openapi202608192CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Current OpenAPI specification for customer portal integrations",
+        "description": "Current OpenAPI specification for customer portal integrations.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608201CustomerPortalV1Json",
         "x-scope-mode": "all",
         "x-rate-limit-class": "read",
         "x-idempotency-required": false,
@@ -7894,7 +7988,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8439,7 +8533,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           },
           "configuration": {
             "type": "object",
@@ -8686,7 +8780,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8856,7 +8950,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         }
       },
@@ -8867,11 +8961,11 @@
           "data": {
             "type": "object"
           },
-          "notification_ids": {
+          "notification_references": {
             "type": "array",
             "items": {
               "type": "string",
-              "format": "uuid"
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
             }
           },
           "external_customer_id": {
@@ -9128,14 +9222,14 @@
               "accepted",
               "accepted_at"
             ],
-            "description": "organization-synkad fullmakt. signer_name, signer_identity_number och method krävs för att fullmakten ska bli signerad och externt sändbar; äldre payload utan dessa lagras endast som ett ofullständigt utkast och blockerar leverantörsbyte.",
+            "description": "Tenant-synkad fullmakt. signer_name, signer_identity_number och method krävs för att fullmakten ska bli signerad och externt sändbar; äldre payload utan dessa lagras endast som ett ofullständigt utkast och blockerar leverantörsbyte.",
             "properties": {
               "power_of_attorney_reference": {
                 "type": "string"
               },
               "document_reference": {
                 "type": "string",
-                "description": "Accepterar både den nya customer_documents-referensen för power_of_attorney och äldre exakt module_version-referens från samma organization-scoped legal bundle."
+                "description": "Accepterar både den nya customer_documents-referensen för power_of_attorney och äldre exakt module_version-referens från samma tenantbundna legal bundle."
               },
               "scope": {
                 "type": "array",
@@ -9387,7 +9481,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9460,7 +9554,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9469,17 +9563,20 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "notification_ids"
+          "notification_references"
         ],
         "properties": {
-          "notification_ids": {
+          "notification_references": {
             "type": "array",
             "minItems": 1,
             "maxItems": 100,
             "uniqueItems": true,
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
             }
           }
         }
@@ -9488,38 +9585,28 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "data",
-          "updated_count"
+          "updated_count",
+          "notification_references",
+          "read_at"
         ],
         "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "id",
-                "status",
-                "read_at"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "status": {
-                  "type": "string"
-                },
-                "read_at": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              }
-            }
-          },
           "updated_count": {
             "type": "integer",
             "minimum": 0
+          },
+          "notification_references": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            }
+          },
+          "read_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -9815,7 +9902,7 @@
           "event_id",
           "event_type",
           "created_at",
-          "organization_reference",
+          "tenant_reference",
           "environment",
           "aggregate",
           "data",
@@ -9832,10 +9919,8 @@
             "type": "string",
             "format": "date-time"
           },
-          "organization_reference": {
-            "type": "string",
-            "pattern": "^organization_[A-Za-z0-9_-]{20,64}$",
-            "description": "Stable opaque public reference for the organization associated with the authenticated API credential."
+          "tenant_reference": {
+            "type": "string"
           },
           "environment": {
             "type": [
@@ -9888,7 +9973,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-19.2"
+            "const": "2026-08-20.1"
           }
         }
       },
@@ -9904,7 +9989,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-19.2"
+          "const": "2026-08-20.1"
         }
       },
       "RequestId": {
@@ -9969,7 +10054,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-19.2",
+  "x-contract-schema-version": "2026-08-20.1",
   "x-gridex-organization-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -9987,7 +10072,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-19.2",
+  "x-gridex-release-version": "2026-08-20.1",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",
