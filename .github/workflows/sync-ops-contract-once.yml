@@ -1,0 +1,53 @@
+name: Sync OPS contract once
+
+on:
+  push:
+    branches:
+      - fix/ops-contract-2026-08-20-1
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ops-contract-2026-08-20-1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync canonical OpenAPI release from OPS
+        run: npm run api:sync
+      - name: Verify canonical API, types and runtime
+        run: |
+          npm run api:preflight
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Commit synchronized contract artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            docs/openapi/website-integration-v1.json \
+            docs/openapi/customer-portal-v1.json \
+            docs/openapi/release-manifest.json \
+            docs/openapi/manifest.json \
+            docs/openapi/verification-status.json \
+            docs/openapi/last-sync-diff.json \
+            lib/ops/contract.ts \
+            lib/ops/generated/website-api.d.ts \
+            lib/ops/generated/customer-portal-api.d.ts
+          if git diff --cached --quiet; then
+            echo "No synchronized contract changes to commit."
+            exit 0
+          fi
+          git commit -m "fix: sync Gridex OPS API contract 2026-08-20.1"
+          git push origin HEAD:fix/ops-contract-2026-08-20-1
