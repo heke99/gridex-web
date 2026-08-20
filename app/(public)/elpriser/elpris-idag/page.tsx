@@ -114,8 +114,7 @@ export default async function ElprisIdagPage() {
           Elpris idag och föregående månads spotpris
         </h1>
         <p className="mt-3 max-w-3xl text-gray-400">
-          Här visas generell marknadsinformation för elområdena. Det är inte en
-          personlig offert och används aldrig som avtals- eller faktureringspris.
+          Här visas generell marknadsinformation för elområdena. Informationen används inte som avtals- eller faktureringspris.
           {` ${GENERIC_MARKET_INFORMATION_NOTICE}`}
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -137,7 +136,7 @@ export default async function ElprisIdagPage() {
             </p>
           </div>
           <Link href="/#rakna-elpris" className="rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black transition hover:bg-cyan-400">
-            Hämta personlig offert
+            Räkna totalpris
           </Link>
         </div>
 
