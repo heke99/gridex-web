@@ -1,5 +1,4 @@
 import './globals.css'
-import AuthSessionSync from '@/components/auth/AuthSessionSync'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/legal/CookieBanner'
 import GoogleMarketingTags from '@/components/analytics/GoogleMarketingTags'
@@ -40,9 +39,6 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-black text-white min-h-screen flex flex-col">
-        <AuthSessionSync />
-
-        {/* Skip link for improved accessibility */}
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only absolute left-0 top-0 m-2 rounded bg-cyan-500 px-3 py-2 text-black"
