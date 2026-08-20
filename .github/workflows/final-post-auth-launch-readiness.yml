@@ -30,19 +30,39 @@ jobs:
           from pathlib import Path
           path = Path('tests/launch-readiness.test.mjs')
           source = path.read_text()
-          old = '''assertIncludes(
+
+          old_gate = '''assertIncludes(
             "app/(public)/teckna-avtal/page.tsx",
             "return fail('portal_auth_required'",
             "anonymous signup must fail before an OPS customer application is built",
           );'''
-          new = '''assertNotIncludes(
+          new_gate = '''assertNotIncludes(
             "app/(public)/teckna-avtal/page.tsx",
             "return fail('portal_auth_required'",
             "anonymous signup must remain allowed before the OPS customer application is built",
           );'''
-          if old not in source:
+          if old_gate not in source:
               raise SystemExit('stale anonymous launch-readiness assertion anchor missing')
-          path.write_text(source.replace(old, new))
+          source = source.replace(old_gate, new_gate)
+
+          old_copy = '''assertIncludes(
+            "components/signup/CustomerApplicationForm.tsx",
+            "Logga in och fortsätt",
+            "anonymous customers must receive an explicit authentication path",
+          );'''
+          new_copy = '''assertIncludes(
+            "components/signup/CustomerApplicationForm.tsx",
+            "Du behöver inte ha ett konto för att teckna elavtal.",
+            "anonymous customers must be told portal activation is available after checkout",
+          );
+          assertIncludes(
+            "components/signup/CustomerApplicationForm.tsx",
+            "Jag har redan ett konto",
+            "existing customers must retain an optional login path without blocking anonymous checkout",
+          );'''
+          if old_copy not in source:
+              raise SystemExit('stale anonymous authentication-copy assertion anchor missing')
+          path.write_text(source.replace(old_copy, new_copy))
           PY
       - name: Verify launch readiness and full quality suite
         run: |
