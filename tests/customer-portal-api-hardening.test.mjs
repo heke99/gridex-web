@@ -39,6 +39,22 @@ assert.ok(ops.includes('`${basePath}/${encodeURIComponent(id)}`'))
 assert.ok(ops.includes('notification-read:${identity.userId}:${input.operationId}'))
 assert.ok(!ops.includes('GRIDEX_ENABLE_LEGACY_PORTAL_BUNDLE_COMPATIBILITY'))
 
+const portalConsistency = read('lib/ops/client/portalConsistency.ts')
+assert.ok(portalConsistency.includes("opsErrorCodeValue(error) === 'customer_not_found'"))
+assert.ok(portalConsistency.includes('hasStableCustomerReference(identity)'))
+assert.ok(portalConsistency.includes("code: 'customer_portal_link_out_of_sync'"))
+assert.ok(portalConsistency.includes("onboarding_state: 'not_linked'"))
+assert.ok(portalConsistency.includes("customer_link_state: 'not_linked'"))
+assert.ok(portalConsistency.includes('fetchRawOpsCustomerPortalBundle(identity)'))
+assert.ok(portalConsistency.includes('fetchRawOpsCustomerResource(identity, resource, opaqueId)'))
+assert.ok(portalConsistency.includes('if (hasStableCustomerReference(identity)) throw outOfSyncError(identity)'))
+assert.ok(portalConsistency.includes('OPS is always queried first with the verified auth user id.'))
+
+const opsBarrel = read('lib/ops/client.ts')
+assert.ok(opsBarrel.includes("from './client/portalConsistency'"))
+assert.ok(opsBarrel.includes('fetchOpsCustomerPortalBundle'))
+assert.ok(opsBarrel.includes('fetchOpsCustomerResource'))
+
 for (const resource of [
   'contracts',
   'sites',

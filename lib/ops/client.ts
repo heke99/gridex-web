@@ -4,3 +4,7 @@ export * from './client/core'
 export * from './client/website'
 export * from './client/application'
 export * from './client/portal'
+export {
+  fetchOpsCustomerPortalBundle,
+  fetchOpsCustomerResource,
+} from './client/portalConsistency'
