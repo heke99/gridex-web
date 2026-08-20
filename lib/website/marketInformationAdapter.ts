@@ -8,7 +8,7 @@ import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/
  * It must never be imported by checkout, quote, customer application or invoice code.
  */
 export const GENERIC_MARKET_INFORMATION_NOTICE =
-  'Ej en personlig offert. Exklusive Gridex avtalsavgifter, moms, skatter och elnätsavgifter. Kan inte användas som avtals- eller faktureringspris.'
+  'Exklusive Gridex avtalsavgifter, moms, skatter och elnätsavgifter. Kan inte användas som avtals- eller faktureringspris.'
 
 export async function getGenericCurrentMarketInformation(input: {
   supabase: SupabaseClient
