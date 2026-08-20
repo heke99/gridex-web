@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal API",
-    "version": "2026-08-20.1",
+    "version": "2026-08-20.2",
     "description": "Production API for customer portals. Access is organization-scoped by the server-side API credential and customer data is limited to the verified linked customer identity."
   },
   "servers": [
@@ -151,7 +151,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -2710,7 +2710,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -2761,7 +2761,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -3354,7 +3354,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -4553,7 +4553,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -5156,7 +5156,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -5475,7 +5475,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -5761,7 +5761,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -7988,7 +7988,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8533,7 +8533,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           },
           "configuration": {
             "type": "object",
@@ -8780,7 +8780,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8950,7 +8950,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         }
       },
@@ -9481,7 +9481,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9554,7 +9554,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9973,7 +9973,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         }
       },
@@ -9989,7 +9989,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-20.1"
+          "const": "2026-08-20.2"
         }
       },
       "RequestId": {
@@ -10054,7 +10054,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-20.1",
+  "x-contract-schema-version": "2026-08-20.2",
   "x-gridex-organization-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -10072,7 +10072,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-20.1",
+  "x-gridex-release-version": "2026-08-20.2",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",

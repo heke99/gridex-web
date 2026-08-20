@@ -268,8 +268,8 @@ export type OpsCustomerApplicationInput = {
   contract: OpsContractInput;
   legal_bundle_version: string;
   legal_acceptances: OpsConsentInput;
-  customer_portal_user_id: string;
-  auth_user_id: string;
+  customer_portal_user_id?: string;
+  auth_user_id?: string;
   powerOfAttorney?: OpsWebsitePowerOfAttorneyInput | null;
   idempotency_key: string;
 };

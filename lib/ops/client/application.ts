@@ -136,35 +136,37 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
   }
   const customerPortalUserId = normalizeText(input.customer_portal_user_id)
   const authUserId = normalizeText(input.auth_user_id)
-  if (!customerPortalUserId || !authUserId) {
-    throw new OpsError('Verifierad portalidentitet krävs innan kundansökan kan skickas.', 400, {
-      code: 'customer_portal_identity_required',
+  const hasCustomerPortalUserId = Boolean(customerPortalUserId)
+  const hasAuthUserId = Boolean(authUserId)
+  if (hasCustomerPortalUserId !== hasAuthUserId) {
+    throw new OpsError('Portalidentiteten måste skickas som ett komplett ID-par eller utelämnas helt.', 400, {
+      code: 'customer_portal_identity_mismatch',
       field: !customerPortalUserId ? 'customer_portal_user_id' : 'auth_user_id',
       retryable: false,
     })
   }
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-  if (!uuidPattern.test(customerPortalUserId) || !uuidPattern.test(authUserId)) {
-    throw new OpsError('Portalidentiteten måste vara ett giltigt användar-UUID.', 400, {
-      code: 'customer_portal_identity_invalid',
-      field: !uuidPattern.test(customerPortalUserId) ? 'customer_portal_user_id' : 'auth_user_id',
-      retryable: false,
-    })
-  }
-  if (customerPortalUserId !== authUserId) {
-    throw new OpsError('Portalidentiteten måste innehålla samma verifierade användar-ID i båda fälten.', 400, {
-      code: 'customer_portal_identity_mismatch',
-      field: 'auth_user_id',
-      retryable: false,
-    })
+  if (customerPortalUserId && authUserId) {
+    if (!uuidPattern.test(customerPortalUserId) || !uuidPattern.test(authUserId)) {
+      throw new OpsError('Portalidentiteten måste vara ett giltigt användar-UUID.', 400, {
+        code: 'customer_portal_identity_invalid',
+        field: !uuidPattern.test(customerPortalUserId) ? 'customer_portal_user_id' : 'auth_user_id',
+        retryable: false,
+      })
+    }
+    if (customerPortalUserId !== authUserId) {
+      throw new OpsError('Portalidentiteten måste innehålla samma verifierade användar-ID i båda fälten.', 400, {
+        code: 'customer_portal_identity_mismatch',
+        field: 'auth_user_id',
+        retryable: false,
+      })
+    }
   }
   const portalIdentitySupported =
     websiteSchemaHasProperty('CustomerApplicationRequest', 'customer_portal_user_id') &&
-    websiteSchemaHasProperty('CustomerApplicationRequest', 'auth_user_id') &&
-    websiteSchemaRequiresProperty('CustomerApplicationRequest', 'customer_portal_user_id') &&
-    websiteSchemaRequiresProperty('CustomerApplicationRequest', 'auth_user_id')
+    websiteSchemaHasProperty('CustomerApplicationRequest', 'auth_user_id')
   if (!portalIdentitySupported) {
-    throw new OpsError('OPS OpenAPI saknar stöd för atomisk Mina sidor-koppling i kundansökan.', 503, {
+    throw new OpsError('OPS OpenAPI saknar stöd för Mina sidor-identitet i kundansökan.', 503, {
       code: 'ops_customer_application_portal_identity_contract_unsupported',
       endpoint: '/api/v1/website/customer-applications',
       contract_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
@@ -310,8 +312,9 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     resolution_id: resolutionId!,
     annual_consumption_kwh: input.annual_consumption_kwh,
     start_date: startDate!,
-    customer_portal_user_id: customerPortalUserId,
-    auth_user_id: authUserId,
+    ...(customerPortalUserId && authUserId
+      ? { customer_portal_user_id: customerPortalUserId, auth_user_id: authUserId }
+      : {}),
     customer: {
       customer_type: toOpsCustomerType(input.customer.customer_type),
       ...(normalizeText(input.customer.first_name) ? { first_name: normalizeText(input.customer.first_name)! } : {}),
