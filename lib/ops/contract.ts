@@ -16,10 +16,12 @@ export const GRIDEX_WEBSITE_CHECKOUT_SCOPES = [
   'integration_context.read',
   'website_contracts.read',
   'website_energy_area.resolve',
+  'website_market_prices.read',
   'website_quotes.write',
   'website_quotes.validate',
   'website_legal.read',
   'website_applications.write',
+  'website_switch_status.read',
 ] as const
 
 export const GRIDEX_WEBSITE_MARKET_PRICE_SCOPE = 'website_market_prices.read' as const
