@@ -18,8 +18,8 @@ export default function GridexLogo({
       src={markOnly ? '/icon.svg' : '/brand/gridex-logo-upload.svg'}
       alt="Gridex"
       className={className}
-      width={markOnly ? 192 : 600}
-      height={markOnly ? 192 : 132}
+      width={markOnly ? 192 : 450}
+      height={markOnly ? 192 : 312}
       priority={priority}
       unoptimized
     />
