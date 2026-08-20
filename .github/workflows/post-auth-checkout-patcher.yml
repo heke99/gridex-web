@@ -1,16 +1,15 @@
-name: post-auth-checkout-patcher
+name: post-auth-checkout-verification
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/post-auth-checkout-20260820
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  cutover:
-    if: github.actor != 'github-actions[bot]'
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,26 +20,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: node scripts/post-auth-checkout-cutover.mjs
       - run: npm ci
-      - run: npm run api:generate
-      - name: Persist post-auth checkout cutover
+      - name: Verify API contract and TypeScript
         run: |
-          if git diff --quiet; then
-            echo "No checkout drift remains."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            'app/(public)/teckna-avtal/page.tsx' \
-            components/signup/CustomerApplicationForm.tsx \
-            lib/ops/client/types.ts \
-            lib/ops/client/application.ts \
-            docs/openapi/website-integration-v1.json \
-            docs/openapi/customer-portal-v1.json \
-            lib/ops/generated/website-api.d.ts \
-            lib/ops/generated/customer-portal-api.d.ts \
-            lib/ops/contract.ts
-          git commit -m "fix(checkout): allow tenant-scoped post-auth onboarding"
-          git push origin HEAD:fix/post-auth-checkout-20260820
+          npm run api:check:local
+          npm run api:compatibility
+          npm run typecheck
+      - name: Verify checkout and post-commit behavior
+        run: |
+          node tests/automatic-checkout-policy.test.mjs
+          node tests/checkout-post-commit-durability.test.mjs
+          node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs
+      - name: Production build
+        run: npm run build
