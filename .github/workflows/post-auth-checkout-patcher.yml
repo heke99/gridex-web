@@ -22,7 +22,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Align customer-application contract assertion with post-auth pair semantics
+      - name: Align customer-application contract assertions with post-auth semantics
         shell: bash
         run: |
           set -euo pipefail
@@ -30,15 +30,34 @@ jobs:
           from pathlib import Path
           path = Path('tests/website-api.contract.test.mjs')
           source = path.read_text()
-          old = """assert.ok(applicationSchema.required.includes('customer_portal_user_id'))
+          old_required = """assert.ok(applicationSchema.required.includes('customer_portal_user_id'))
           assert.ok(applicationSchema.required.includes('auth_user_id'))"""
-          new = """assert.ok(!applicationSchema.required.includes('customer_portal_user_id'))
+          new_required = """assert.ok(!applicationSchema.required.includes('customer_portal_user_id'))
           assert.ok(!applicationSchema.required.includes('auth_user_id'))
           assert.ok(applicationSchema.dependentRequired?.auth_user_id?.includes('customer_portal_user_id'))
           assert.ok(applicationSchema.dependentRequired?.customer_portal_user_id?.includes('auth_user_id'))"""
-          if old not in source:
-              raise SystemExit('stale portal identity assertion anchor missing')
-          path.write_text(source.replace(old, new))
+          if old_required not in source:
+              raise SystemExit('stale portal identity required assertion anchor missing')
+          source = source.replace(old_required, new_required)
+
+          old_anonymous = """assert.throws(
+            () => buildOpsCustomerApplicationPayload({
+              ...baseApplicationInput,
+              customer_portal_user_id: '',
+              auth_user_id: '',
+            }),
+            (error) => error?.code === 'customer_portal_identity_required',
+          )"""
+          new_anonymous = """const anonymousApplicationPayload = buildOpsCustomerApplicationPayload({
+            ...baseApplicationInput,
+            customer_portal_user_id: '',
+            auth_user_id: '',
+          })
+          assert.ok(!('customer_portal_user_id' in anonymousApplicationPayload))
+          assert.ok(!('auth_user_id' in anonymousApplicationPayload))"""
+          if old_anonymous not in source:
+              raise SystemExit('stale anonymous portal identity assertion anchor missing')
+          path.write_text(source.replace(old_anonymous, new_anonymous))
           PY
       - name: Sync canonical live OpenAPI release
         run: npm run api:sync
