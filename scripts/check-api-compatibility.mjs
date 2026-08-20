@@ -15,13 +15,18 @@ const gaps = []
 const applicationSchema = website.components?.schemas?.CustomerApplicationRequest ?? {}
 const applicationProperties = applicationSchema.properties ?? {}
 const applicationRequired = new Set(Array.isArray(applicationSchema.required) ? applicationSchema.required : [])
+const applicationDependentRequired = applicationSchema.dependentRequired ?? {}
 if (
   !applicationProperties.customer_portal_user_id ||
   !applicationProperties.auth_user_id ||
-  !applicationRequired.has('customer_portal_user_id') ||
-  !applicationRequired.has('auth_user_id')
+  applicationRequired.has('customer_portal_user_id') ||
+  applicationRequired.has('auth_user_id') ||
+  !Array.isArray(applicationDependentRequired.auth_user_id) ||
+  !applicationDependentRequired.auth_user_id.includes('customer_portal_user_id') ||
+  !Array.isArray(applicationDependentRequired.customer_portal_user_id) ||
+  !applicationDependentRequired.customer_portal_user_id.includes('auth_user_id')
 ) {
-  gaps.push('customer_application_portal_identity_missing')
+  gaps.push('customer_application_portal_identity_pair_policy_missing')
 }
 const legalSchema = website.components?.schemas?.LegalAcceptances
 if (legalSchema?.type === 'object' && legalSchema?.additionalProperties === false) {

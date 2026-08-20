@@ -192,7 +192,7 @@ function errorText(code?: string) {
     case "ops_auth":
       return "Teckningen är inte rätt kopplad just nu. Kontakta kundservice så hjälper vi dig.";
     case "portal_auth_required":
-      return "Du behöver logga in eller skapa ett verifierat konto innan elavtalet kan tecknas.";
+      return "Kundansökan kunde inte verifieras mot Gridex just nu. Försök igen eller kontakta kundservice.";
     case "ops_validation":
       return "Vi kunde inte skicka teckningen just nu. Kontrollera att uppgifterna är ifyllda och försök igen.";
     case "idempotency_retry_failed":
@@ -559,8 +559,7 @@ export default async function TecknaPage({
     status.configured &&
     status.liveSignupEnabled &&
     !loadError &&
-    contracts.length > 0 &&
-    currentAuth !== null;
+    contracts.length > 0;
 
   async function submitApplicationAction(
     _previousState: SignupSubmissionState,
@@ -810,14 +809,6 @@ export default async function TecknaPage({
     }
 
     const currentAuth = await getCurrentPortalAuth();
-    if (!currentAuth) {
-      return fail('portal_auth_required', {
-        step: 0,
-        fieldErrors: {
-          form: 'Logga in eller skapa ett verifierat konto innan du fortsätter.',
-        },
-      });
-    }
     const authenticatedEmailMismatch = Boolean(
       currentAuth?.email && !sameEmail(currentAuth.email, email),
     );
@@ -1003,9 +994,9 @@ export default async function TecknaPage({
 
     const idempotencyKey = `website-application:${submissionAttemptId}`;
     const externalApplicationId = createExternalApplicationId(submissionAttemptId);
-    const linkedAuthUserId = currentAuth.id;
+    const linkedAuthUserId = currentAuth?.id ?? null;
     const externalCustomerId =
-      currentAuth.externalCustomerId ??
+      currentAuth?.externalCustomerId ??
       createExternalCustomerId([
         "gridex_website_customer_v2",
         customerType,
@@ -1217,8 +1208,12 @@ export default async function TecknaPage({
             ? verifiedQuote.value.quote.start_date
             : null,
       },
-      customer_portal_user_id: linkedAuthUserId,
-      auth_user_id: linkedAuthUserId,
+      ...(linkedAuthUserId
+        ? {
+            customer_portal_user_id: linkedAuthUserId,
+            auth_user_id: linkedAuthUserId,
+          }
+        : {}),
       idempotency_key: idempotencyKey,
       legal_bundle_version: legalBundleVersion,
       legal_acceptances: legalRequirements.flatMap((requirement) => {

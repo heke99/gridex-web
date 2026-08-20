@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal API",
-    "version": "2026-08-20.1",
+    "version": "2026-08-20.2",
     "description": "Production API for customer portals. Access is organization-scoped by the server-side API credential and customer data is limited to the verified linked customer identity."
   },
   "servers": [
@@ -51,7 +51,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -60,7 +61,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -85,11 +87,13 @@
                   },
                   "customer_portal_user_id": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
                   },
                   "auth_user_id": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
                   },
                   "email": {
                     "type": "string",
@@ -151,7 +155,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -412,7 +416,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -421,7 +426,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -701,7 +707,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -710,7 +717,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -979,7 +987,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -988,7 +997,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -1257,7 +1267,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -1266,7 +1277,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -1544,7 +1556,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -1553,7 +1566,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -1822,7 +1836,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -1831,7 +1846,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -2100,7 +2116,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -2109,7 +2126,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -2378,7 +2396,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -2387,7 +2406,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -2659,7 +2679,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -2668,7 +2689,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -2710,7 +2732,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -2761,7 +2783,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -3022,7 +3044,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -3031,7 +3054,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -3303,7 +3327,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -3312,7 +3337,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -3354,7 +3380,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -3633,7 +3659,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -3642,7 +3669,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -3927,7 +3955,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -3936,7 +3965,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -4215,7 +4245,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -4224,7 +4255,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -4502,7 +4534,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -4511,7 +4544,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -4553,7 +4587,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -4824,7 +4858,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -4833,7 +4868,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -5105,7 +5141,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           },
           {
@@ -5114,7 +5151,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
           }
         ],
@@ -5156,7 +5194,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -5475,7 +5513,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -5761,7 +5799,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-20.1"
+                      "const": "2026-08-20.2"
                     }
                   }
                 }
@@ -7014,8 +7052,8 @@
     },
     "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json": {
       "get": {
-        "summary": "Current OpenAPI specification for customer portal integrations",
-        "description": "Current OpenAPI specification for customer portal integrations.",
+        "summary": "Immutable Customer Portal OpenAPI release 2026-08-19.2",
+        "description": "Immutable Customer Portal OpenAPI release 2026-08-19.2.",
         "security": [],
         "responses": {
           "200": {
@@ -7041,6 +7079,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             },
             "content": {
@@ -7075,6 +7122,15 @@
               },
               "Content-Disposition": {
                 "$ref": "#/components/headers/ContentDisposition"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
               }
             }
           }
@@ -7090,8 +7146,8 @@
     },
     "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json": {
       "get": {
-        "summary": "Current OpenAPI specification for customer portal integrations",
-        "description": "Current OpenAPI specification for customer portal integrations.",
+        "summary": "Immutable Customer Portal OpenAPI release 2026-08-20.1",
+        "description": "Immutable Customer Portal OpenAPI release 2026-08-20.1.",
         "security": [],
         "responses": {
           "200": {
@@ -7157,6 +7213,82 @@
         },
         "x-required-scopes": [],
         "operationId": "getApiV1Openapi202608201CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-08-20.2",
+        "description": "Immutable Customer Portal OpenAPI release 2026-08-20.2.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202608202CustomerPortalV1Json",
         "x-scope-mode": "all",
         "x-rate-limit-class": "read",
         "x-idempotency-required": false,
@@ -7234,7 +7366,8 @@
         "required": true,
         "schema": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
         }
       },
       "AuthUserId": {
@@ -7243,7 +7376,8 @@
         "required": true,
         "schema": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
         }
       }
     },
@@ -7988,7 +8122,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8533,7 +8667,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           },
           "configuration": {
             "type": "object",
@@ -8780,7 +8914,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8810,11 +8944,13 @@
           },
           "customer_portal_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "auth_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "email": {
             "type": "string",
@@ -8887,11 +9023,13 @@
           },
           "customer_portal_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "auth_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "portal_role": {
             "type": "string",
@@ -8912,7 +9050,8 @@
           },
           "identity_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           }
         }
       },
@@ -8950,7 +9089,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         }
       },
@@ -8980,11 +9119,13 @@
           },
           "auth_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "customer_portal_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "facility_data": {
             "type": "object"
@@ -9222,14 +9363,14 @@
               "accepted",
               "accepted_at"
             ],
-            "description": "Tenant-synkad fullmakt. signer_name, signer_identity_number och method krävs för att fullmakten ska bli signerad och externt sändbar; äldre payload utan dessa lagras endast som ett ofullständigt utkast och blockerar leverantörsbyte.",
+            "description": "organization-synkad fullmakt. signer_name, signer_identity_number och method krävs för att fullmakten ska bli signerad och externt sändbar; äldre payload utan dessa lagras endast som ett ofullständigt utkast och blockerar leverantörsbyte.",
             "properties": {
               "power_of_attorney_reference": {
                 "type": "string"
               },
               "document_reference": {
                 "type": "string",
-                "description": "Accepterar både den nya customer_documents-referensen för power_of_attorney och äldre exakt module_version-referens från samma tenantbundna legal bundle."
+                "description": "Accepterar både den nya customer_documents-referensen för power_of_attorney och äldre exakt module_version-referens från samma organization-scoped legal bundle."
               },
               "scope": {
                 "type": "array",
@@ -9481,7 +9622,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9554,7 +9695,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9765,11 +9906,13 @@
           },
           "auth_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "customer_portal_user_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
           },
           "email": {
             "type": "string",
@@ -9815,11 +9958,13 @@
               },
               "auth_user_id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
               },
               "customer_portal_user_id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
               },
               "email": {
                 "type": "string",
@@ -9902,7 +10047,7 @@
           "event_id",
           "event_type",
           "created_at",
-          "tenant_reference",
+          "organization_reference",
           "environment",
           "aggregate",
           "data",
@@ -9919,8 +10064,10 @@
             "type": "string",
             "format": "date-time"
           },
-          "tenant_reference": {
-            "type": "string"
+          "organization_reference": {
+            "type": "string",
+            "pattern": "^organization_[A-Za-z0-9_-]{20,64}$",
+            "description": "Stable opaque public reference for the organization associated with the authenticated API credential."
           },
           "environment": {
             "type": [
@@ -9973,7 +10120,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-20.1"
+            "const": "2026-08-20.2"
           }
         }
       },
@@ -9989,7 +10136,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-20.1"
+          "const": "2026-08-20.2"
         }
       },
       "RequestId": {
@@ -10054,7 +10201,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-20.1",
+  "x-contract-schema-version": "2026-08-20.2",
   "x-gridex-organization-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -10072,7 +10219,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-20.1",
+  "x-gridex-release-version": "2026-08-20.2",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",

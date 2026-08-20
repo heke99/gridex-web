@@ -445,22 +445,16 @@ export default function CustomerApplicationForm({
 
       {authenticationRequired ? (
         <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-sm text-cyan-50" role="status">
-          <div className="font-semibold">Verifierat konto krävs för att teckna</div>
+          <div className="font-semibold">Mina sidor kan aktiveras efter teckningen</div>
           <p className="mt-2 leading-6 text-cyan-50/80">
-            Den aktuella Gridex-API-versionen kräver att ansökan kopplas till samma verifierade användare i Mina sidor redan när avtalet skickas. Din påbörjade teckning bevaras när du loggar in.
+            Du behöver inte ha ett konto för att teckna elavtal. Efter en godkänd teckning skickar Gridex en säker länk till e-postadressen i ansökan så att du kan aktivera Mina sidor och se dina uppgifter.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href={`/login?next=${encodeURIComponent(authenticationReturnPath)}`}
-              className="inline-flex rounded-xl bg-cyan-400 px-4 py-2 font-semibold text-black transition hover:bg-cyan-300"
-            >
-              Logga in och fortsätt
-            </Link>
-            <Link
-              href={`/register?next=${encodeURIComponent(authenticationReturnPath)}`}
               className="inline-flex rounded-xl border border-cyan-200/30 px-4 py-2 font-semibold text-cyan-50 transition hover:bg-white/10"
             >
-              Skapa konto
+              Jag har redan ett konto
             </Link>
           </div>
         </div>
