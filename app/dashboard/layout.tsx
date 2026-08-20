@@ -7,6 +7,7 @@ import UserMenu from '@/components/account/UserMenu'
 import DashboardNav from './ui/DashboardNav'
 import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
 import { PermissionsProvider } from '@/components/auth/PermissionsProvider'
+import AuthSessionSync from '@/components/auth/AuthSessionSync'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,6 +116,7 @@ export default async function DashboardLayout({
 
   return (
     <PermissionsProvider permissions={permissions}>
+      <AuthSessionSync />
       <div className="flex min-h-screen flex-col bg-black text-white">
         <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
