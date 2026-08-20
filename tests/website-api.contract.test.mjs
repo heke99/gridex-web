@@ -186,8 +186,10 @@ assert.ok('metering_point' in applicationSchema.properties)
 assert.ok(!('source' in applicationSchema.properties))
 assert.ok('customer_portal_user_id' in applicationSchema.properties)
 assert.ok('auth_user_id' in applicationSchema.properties)
-assert.ok(applicationSchema.required.includes('customer_portal_user_id'))
-assert.ok(applicationSchema.required.includes('auth_user_id'))
+assert.ok(!applicationSchema.required.includes('customer_portal_user_id'))
+assert.ok(!applicationSchema.required.includes('auth_user_id'))
+assert.ok(applicationSchema.dependentRequired?.auth_user_id?.includes('customer_portal_user_id'))
+assert.ok(applicationSchema.dependentRequired?.customer_portal_user_id?.includes('auth_user_id'))
 assert.ok(applicationSchema.required.includes('legal_bundle_version'))
 assert.ok(applicationSchema.required.includes('legal_acceptances'))
 assert.equal(websiteOpenApi.components.schemas.LegalAcceptances.type, 'array')
@@ -320,14 +322,13 @@ const baseApplicationInput = {
     accepted_at: '2026-07-30T12:00:00.000Z',
   }],
 }
-assert.throws(
-  () => buildOpsCustomerApplicationPayload({
-    ...baseApplicationInput,
-    customer_portal_user_id: '',
-    auth_user_id: '',
-  }),
-  (error) => error?.code === 'customer_portal_identity_required',
-)
+const anonymousApplicationPayload = buildOpsCustomerApplicationPayload({
+  ...baseApplicationInput,
+  customer_portal_user_id: '',
+  auth_user_id: '',
+})
+assert.ok(!('customer_portal_user_id' in anonymousApplicationPayload))
+assert.ok(!('auth_user_id' in anonymousApplicationPayload))
 assert.throws(
   () => buildOpsCustomerApplicationPayload({
     ...baseApplicationInput,

@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/customer-portal-v1.json.
  * Contract version: 2026-08-20.2.
- * Source SHA-256: e6f3c38d8b5289373e73b0c935272171ae8be2d08a1e65943c66b5ec1dd4d894.
+ * Source SHA-256: cf115699988680e167cde55543994294c7000e58c52d5aaebb9f2a02f268d08b.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -38,6 +38,7 @@ export interface paths {
   "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
+  "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
 }
 
 export interface components {
@@ -78,7 +79,7 @@ export interface components {
     "CustomerEventIdentity": { external_customer_id?: string; customer_number?: string; auth_user_id?: string; customer_portal_user_id?: string; email?: string }
     "CustomerEventRequest": { event_type: string; event_reference: string; occurred_at: string; customer: { external_customer_id?: string; customer_number?: string; auth_user_id?: string; customer_portal_user_id?: string; email?: string }; subject: { type: string; reference?: string }; data: { [key: string]: unknown }; metadata?: { [key: string]: unknown } }
     "CustomerEventData": { event_reference: string; event_resource_reference: string | null; event_type: string; customer_reference: string | null; status: "accepted"; occurred_at: string; replayed: boolean }
-    "PublicDomainEvent": { event_id: string; event_type: string; created_at: string; tenant_reference: string; environment: "test" | "production" | null; aggregate: { type: string; reference: string }; customer?: { customer_reference?: string | null; customer_number?: string | null }; data: { [key: string]: unknown }; contract_schema_version: "2026-08-20.2" }
+    "PublicDomainEvent": { event_id: string; event_type: string; created_at: string; organization_reference: string; environment: "test" | "production" | null; aggregate: { type: string; reference: string }; customer?: { customer_reference?: string | null; customer_number?: string | null }; data: { [key: string]: unknown }; contract_schema_version: "2026-08-20.2" }
     "DomainEventListData": Array<components["schemas"]["PublicDomainEvent"]>
   }
 }
