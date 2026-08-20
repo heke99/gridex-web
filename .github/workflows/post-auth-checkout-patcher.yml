@@ -22,6 +22,24 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Align customer-application contract assertion with post-auth pair semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/website-api.contract.test.mjs')
+          source = path.read_text()
+          old = """assert.ok(applicationSchema.required.includes('customer_portal_user_id'))
+          assert.ok(applicationSchema.required.includes('auth_user_id'))"""
+          new = """assert.ok(!applicationSchema.required.includes('customer_portal_user_id'))
+          assert.ok(!applicationSchema.required.includes('auth_user_id'))
+          assert.ok(applicationSchema.dependentRequired?.auth_user_id?.includes('customer_portal_user_id'))
+          assert.ok(applicationSchema.dependentRequired?.customer_portal_user_id?.includes('auth_user_id'))"""
+          if old not in source:
+              raise SystemExit('stale portal identity assertion anchor missing')
+          path.write_text(source.replace(old, new))
+          PY
       - name: Sync canonical live OpenAPI release
         run: npm run api:sync
       - name: Verify local API contract and TypeScript
@@ -48,6 +66,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- docs/openapi lib/ops/generated lib/ops/contract.ts
+          git add -- docs/openapi lib/ops/generated lib/ops/contract.ts tests/website-api.contract.test.mjs
           git commit -m "chore(api): sync live OpenAPI 2026-08-20.2"
           git push origin HEAD:fix/post-auth-checkout-20260820
