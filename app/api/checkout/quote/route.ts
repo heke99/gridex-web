@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   fetchOpsPublicContractsSnapshot,
-  fetchOpsWebsiteQuote,
+  fetchOpsWebsiteQuoteAutoSelect,
   getOpsClientStatus,
   isOpsError,
   type OpsWebsitePriceArea,
@@ -145,7 +145,25 @@ export async function POST(req: Request) {
       )
     }
 
-    const contractsSnapshot = await fetchOpsPublicContractsSnapshot(customerType)
+    // These calls are independent. OPS remains authoritative for the price-option
+    // selection, while the public snapshot independently verifies that selection
+    // before a browser-facing checkout token can be issued.
+    const [contractsSnapshot, opsQuote] = await Promise.all([
+      fetchOpsPublicContractsSnapshot(customerType),
+      fetchOpsWebsiteQuoteAutoSelect({
+        resolution_id: verifiedArea.payload.resolution_id,
+        offer_reference: offerReference,
+        annual_consumption_kwh: annualKwh,
+        start_date: canonicalStartDate,
+        quote_attempt_id: quoteAttemptId,
+        requested_start_mode: requestedStart.value.mode,
+        customer_type: customerType,
+        invoice_delivery_method: requestedInvoiceMethod,
+        selected_component_references: requestedComponents,
+        site_count: requestedSiteCount,
+      }),
+    ])
+
     const contract = contractsSnapshot.contracts.find((item) => item.offer_reference === offerReference)
     if (!contract || !buildPublicContractDisplay(contract).onlineReady) {
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
@@ -187,24 +205,12 @@ export async function POST(req: Request) {
       )
     }
 
-    const opsQuote = await fetchOpsWebsiteQuote({
-      resolution_id: verifiedArea.payload.resolution_id,
-      offer_reference: offerReference,
-      annual_consumption_kwh: annualKwh,
-      start_date: canonicalStartDate,
-      quote_attempt_id: quoteAttemptId,
-      requested_start_mode: requestedStart.value.mode,
-      customer_type: customerType,
-      price_option_reference: selectedPriceOptionReference,
-      invoice_delivery_method: requestedInvoiceMethod,
-      selected_component_references: requestedComponents,
-      site_count: requestedSiteCount,
-    })
     if (
       opsQuote.contract.offer_reference !== offerReference ||
       opsQuote.resolution_id !== verifiedArea.payload.resolution_id ||
       opsQuote.start_date !== canonicalStartDate ||
       opsQuote.priceArea !== verifiedArea.payload.price_area_code ||
+      opsQuote.price_option_reference !== selectedPriceOptionReference ||
       opsQuote.area_price_reference !== selectedAreaPriceReference ||
       Math.abs((opsQuote.annual_consumption_kwh ?? 0) - annualKwh) > 0.001
     ) {
