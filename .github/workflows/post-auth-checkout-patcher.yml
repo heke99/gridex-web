@@ -1,0 +1,157 @@
+name: post-auth-checkout-patcher
+
+on:
+  push:
+    branches:
+      - fix/post-auth-checkout-20260820
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[post-auth-checkout-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/post-auth-checkout-20260820
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch checkout and local API contract
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json, re
+
+          page_path = Path('app/(public)/teckna-avtal/page.tsx')
+          page = page_path.read_text()
+          page = page.replace('''    case "portal_auth_required":\n      return "Du behöver logga in eller skapa ett verifierat konto innan elavtalet kan tecknas.";''', '''    case "portal_auth_required":\n      return "Kundansökan kunde inte verifieras mot Gridex just nu. Försök igen eller kontakta kundservice.";''', 1)
+          old_can_submit = '''  const canSubmit =\n    status.configured &&\n    status.liveSignupEnabled &&\n    !loadError &&\n    contracts.length > 0 &&\n    currentAuth !== null;'''
+          new_can_submit = '''  const canSubmit =\n    status.configured &&\n    status.liveSignupEnabled &&\n    !loadError &&\n    contracts.length > 0;'''
+          assert old_can_submit in page, 'canSubmit auth gate anchor missing'
+          page = page.replace(old_can_submit, new_can_submit, 1)
+
+          old_gate = '''    const currentAuth = await getCurrentPortalAuth();\n    if (!currentAuth) {\n      return fail('portal_auth_required', {\n        step: 0,\n        fieldErrors: {\n          form: 'Logga in eller skapa ett verifierat konto innan du fortsätter.',\n        },\n      });\n    }\n    const authenticatedEmailMismatch = Boolean(\n      currentAuth?.email && !sameEmail(currentAuth.email, email),\n    );'''
+          new_gate = '''    const currentAuth = await getCurrentPortalAuth();\n    const authenticatedEmailMismatch = Boolean(\n      currentAuth?.email && !sameEmail(currentAuth.email, email),\n    );'''
+          assert old_gate in page, 'server auth gate anchor missing'
+          page = page.replace(old_gate, new_gate, 1)
+
+          old_linked = '''    const linkedAuthUserId = currentAuth.id;\n    const externalCustomerId =\n      currentAuth.externalCustomerId ??'''
+          new_linked = '''    const linkedAuthUserId = currentAuth?.id ?? null;\n    const externalCustomerId =\n      currentAuth?.externalCustomerId ??'''
+          assert old_linked in page, 'linked auth user anchor missing'
+          page = page.replace(old_linked, new_linked, 1)
+
+          old_ids = '''      customer_portal_user_id: linkedAuthUserId,\n      auth_user_id: linkedAuthUserId,\n      idempotency_key: idempotencyKey,'''
+          new_ids = '''      ...(linkedAuthUserId\n        ? {\n            customer_portal_user_id: linkedAuthUserId,\n            auth_user_id: linkedAuthUserId,\n          }\n        : {}),\n      idempotency_key: idempotencyKey,'''
+          assert old_ids in page, 'application portal ids anchor missing'
+          page = page.replace(old_ids, new_ids, 1)
+          page_path.write_text(page)
+
+          form_path = Path('components/signup/CustomerApplicationForm.tsx')
+          form = form_path.read_text()
+          old_ui = '''      {authenticationRequired ? (\n        <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-sm text-cyan-50" role="status">\n          <div className="font-semibold">Verifierat konto krävs för att teckna</div>\n          <p className="mt-2 leading-6 text-cyan-50/80">\n            Den aktuella Gridex-API-versionen kräver att ansökan kopplas till samma verifierade användare i Mina sidor redan när avtalet skickas. Din påbörjade teckning bevaras när du loggar in.\n          </p>\n          <div className="mt-4 flex flex-wrap gap-3">\n            <Link\n              href={`/login?next=${encodeURIComponent(authenticationReturnPath)}`}\n              className="inline-flex rounded-xl bg-cyan-400 px-4 py-2 font-semibold text-black transition hover:bg-cyan-300"\n            >\n              Logga in och fortsätt\n            </Link>\n            <Link\n              href={`/register?next=${encodeURIComponent(authenticationReturnPath)}`}\n              className="inline-flex rounded-xl border border-cyan-200/30 px-4 py-2 font-semibold text-cyan-50 transition hover:bg-white/10"\n            >\n              Skapa konto\n            </Link>\n          </div>\n        </div>\n      ) : null}'''
+          new_ui = '''      {authenticationRequired ? (\n        <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-sm text-cyan-50" role="status">\n          <div className="font-semibold">Mina sidor kan aktiveras efter teckningen</div>\n          <p className="mt-2 leading-6 text-cyan-50/80">\n            Du behöver inte ha ett konto för att teckna elavtal. Efter en godkänd teckning skickar Gridex en säker länk till e-postadressen i ansökan så att du kan aktivera Mina sidor och se dina uppgifter.\n          </p>\n          <div className="mt-4 flex flex-wrap gap-3">\n            <Link\n              href={`/login?next=${encodeURIComponent(authenticationReturnPath)}`}\n              className="inline-flex rounded-xl border border-cyan-200/30 px-4 py-2 font-semibold text-cyan-50 transition hover:bg-white/10"\n            >\n              Jag har redan ett konto\n            </Link>\n          </div>\n        </div>\n      ) : null}'''
+          assert old_ui in form, 'blocking account UI anchor missing'
+          form_path.write_text(form.replace(old_ui, new_ui, 1))
+
+          types_path = Path('lib/ops/client/types.ts')
+          types = types_path.read_text()
+          old_type = '''  customer_portal_user_id: string;\n  auth_user_id: string;'''
+          new_type = '''  customer_portal_user_id?: string;\n  auth_user_id?: string;'''
+          assert old_type in types, 'OpsCustomerApplicationInput portal type anchor missing'
+          types_path.write_text(types.replace(old_type, new_type, 1))
+
+          app_path = Path('lib/ops/client/application.ts')
+          app = app_path.read_text()
+          portal_pattern = re.compile(r'''  const customerPortalUserId = normalizeText\(input\.customer_portal_user_id\)\n  const authUserId = normalizeText\(input\.auth_user_id\)\n  if \(!customerPortalUserId \|\| !authUserId\) \{.*?\n  \}\n  const uuidPattern = .*?\n  if \(!uuidPattern\.test\(customerPortalUserId\) \|\| !uuidPattern\.test\(authUserId\)\) \{.*?\n  \}\n  if \(customerPortalUserId !== authUserId\) \{.*?\n  \}\n  const portalIdentitySupported =\n    websiteSchemaHasProperty\('CustomerApplicationRequest', 'customer_portal_user_id'\) &&\n    websiteSchemaHasProperty\('CustomerApplicationRequest', 'auth_user_id'\) &&\n    websiteSchemaRequiresProperty\('CustomerApplicationRequest', 'customer_portal_user_id'\) &&\n    websiteSchemaRequiresProperty\('CustomerApplicationRequest', 'auth_user_id'\)\n  if \(!portalIdentitySupported\) \{.*?\n  \}\n''', re.S)
+          portal_replacement = '''  const customerPortalUserId = normalizeText(input.customer_portal_user_id)\n  const authUserId = normalizeText(input.auth_user_id)\n  const hasCustomerPortalUserId = Boolean(customerPortalUserId)\n  const hasAuthUserId = Boolean(authUserId)\n  if (hasCustomerPortalUserId !== hasAuthUserId) {\n    throw new OpsError('Portalidentiteten måste skickas som ett komplett ID-par eller utelämnas helt.', 400, {\n      code: 'customer_portal_identity_mismatch',\n      field: !customerPortalUserId ? 'customer_portal_user_id' : 'auth_user_id',\n      retryable: false,\n    })\n  }\n  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i\n  if (customerPortalUserId && authUserId) {\n    if (!uuidPattern.test(customerPortalUserId) || !uuidPattern.test(authUserId)) {\n      throw new OpsError('Portalidentiteten måste vara ett giltigt användar-UUID.', 400, {\n        code: 'customer_portal_identity_invalid',\n        field: !uuidPattern.test(customerPortalUserId) ? 'customer_portal_user_id' : 'auth_user_id',\n        retryable: false,\n      })\n    }\n    if (customerPortalUserId !== authUserId) {\n      throw new OpsError('Portalidentiteten måste innehålla samma verifierade användar-ID i båda fälten.', 400, {\n        code: 'customer_portal_identity_mismatch',\n        field: 'auth_user_id',\n        retryable: false,\n      })\n    }\n  }\n  const portalIdentitySupported =\n    websiteSchemaHasProperty('CustomerApplicationRequest', 'customer_portal_user_id') &&\n    websiteSchemaHasProperty('CustomerApplicationRequest', 'auth_user_id')\n  if (!portalIdentitySupported) {\n    throw new OpsError('OPS OpenAPI saknar stöd för Mina sidor-identitet i kundansökan.', 503, {\n      code: 'ops_customer_application_portal_identity_contract_unsupported',\n      endpoint: '/api/v1/website/customer-applications',\n      contract_version: GRIDEX_WEBSITE_API_CONTRACT_VERSION,\n      retryable: false,\n    })\n  }\n'''
+          app, count = portal_pattern.subn(portal_replacement, app, count=1)
+          assert count == 1, f'client portal validation replacement count={count}'
+          old_payload = '''    customer_portal_user_id: customerPortalUserId,\n    auth_user_id: authUserId,\n    customer: {'''
+          new_payload = '''    ...(customerPortalUserId && authUserId\n      ? { customer_portal_user_id: customerPortalUserId, auth_user_id: authUserId }\n      : {}),\n    customer: {'''
+          assert old_payload in app, 'client payload portal ids anchor missing'
+          app_path.write_text(app.replace(old_payload, new_payload, 1))
+
+          old_version = '2026-08-20.1'
+          new_version = '2026-08-20.2'
+
+          def rewrite_version(value):
+            if isinstance(value, dict):
+              return {key: rewrite_version(child) for key, child in value.items()}
+            if isinstance(value, list):
+              return [rewrite_version(child) for child in value]
+            return new_version if value == old_version else value
+
+          for file_name in ['docs/openapi/website-integration-v1.json', 'docs/openapi/customer-portal-v1.json']:
+            spec_path = Path(file_name)
+            spec = rewrite_version(json.loads(spec_path.read_text()))
+            if file_name.endswith('website-integration-v1.json'):
+              schema = spec['components']['schemas']['CustomerApplicationRequest']
+              schema['required'] = [field for field in schema.get('required', []) if field not in {'auth_user_id','customer_portal_user_id'}]
+              schema['dependentRequired'] = {
+                **schema.get('dependentRequired', {}),
+                'auth_user_id': ['customer_portal_user_id'],
+                'customer_portal_user_id': ['auth_user_id'],
+              }
+              schema['description'] = 'Customer application for one authenticated tenant API client. auth_user_id and customer_portal_user_id are optional as a pair when the tenant policy is post_auth_allowed; when either is supplied both must be the same verified UUID.'
+              schema['properties']['auth_user_id']['description'] = 'Optional verified tenant-portal auth UUID. Must be supplied together with customer_portal_user_id and must match it.'
+              schema['properties']['customer_portal_user_id']['description'] = 'Optional verified tenant-portal user UUID. Must be supplied together with auth_user_id and must match it.'
+            spec_path.write_text(json.dumps(spec, indent=2, ensure_ascii=False) + '\n')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate local OpenAPI types
+        run: npm run api:generate
+
+      - name: Refresh contract version and hashes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import hashlib, re
+          website = Path('docs/openapi/website-integration-v1.json').read_bytes()
+          portal = Path('docs/openapi/customer-portal-v1.json').read_bytes()
+          website_sha = hashlib.sha256(website).hexdigest()
+          portal_sha = hashlib.sha256(portal).hexdigest()
+          p = Path('lib/ops/contract.ts')
+          text = p.read_text().replace("'2026-08-20.1'", "'2026-08-20.2'")
+          text = re.sub(r"GRIDEX_WEBSITE_OPENAPI_SHA256 = '[a-f0-9]{64}'", f"GRIDEX_WEBSITE_OPENAPI_SHA256 = '{website_sha}'", text)
+          text = re.sub(r"GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '[a-f0-9]{64}'", f"GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '{portal_sha}'", text)
+          p.write_text(text)
+          PY
+
+      - name: Verify checkout and contract
+        run: |
+          npm run typecheck
+          npm run api:check:local
+          npm run test:customer-application
+          npm run test:portal
+          npm run test:post-commit-durability
+
+      - name: Commit verified checkout fix
+        run: |
+          git config user.name "gridex-checkout-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- \
+            'app/(public)/teckna-avtal/page.tsx' \
+            components/signup/CustomerApplicationForm.tsx \
+            lib/ops/client/types.ts \
+            lib/ops/client/application.ts \
+            docs/openapi/website-integration-v1.json \
+            docs/openapi/customer-portal-v1.json \
+            lib/ops/generated/website-api.d.ts \
+            lib/ops/generated/customer-portal-api.d.ts \
+            lib/ops/contract.ts
+          if git diff --cached --quiet; then
+            echo "No checkout changes to commit"
+            exit 0
+          fi
+          git commit -m "Complete post-auth checkout and portal onboarding [post-auth-checkout-patched]"
+          git push origin HEAD:fix/post-auth-checkout-20260820
