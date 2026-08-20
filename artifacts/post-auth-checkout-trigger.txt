@@ -1,1 +1,0 @@
-Trigger checkout patch and verification for 2026-08-20. This file is temporary and should be removed after the verified patch commit.
