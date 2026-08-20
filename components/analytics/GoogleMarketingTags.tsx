@@ -7,7 +7,6 @@ import {
   GRIDEX_COOKIE_CONSENT_EVENT,
   GRIDEX_COOKIE_CONSENT_KEY,
   GRIDEX_GOOGLE_ADS_ID,
-  googleConsentState,
   parseGridexCookieConsent,
 } from '@/lib/analytics/googleConsent'
 
@@ -72,11 +71,6 @@ export default function GoogleMarketingTags() {
       ${configLines}
     `
   }, [adsId, gaId, primaryTagId])
-
-  useEffect(() => {
-    if (!consent || !window.gtag) return
-    window.gtag('consent', 'update', googleConsentState(consent))
-  }, [consent])
 
   useEffect(() => {
     if (!measurementConsentGranted) return
@@ -158,15 +152,15 @@ export default function GoogleMarketingTags() {
     }
   }, [measurementConsentGranted, pathname])
 
-  if (!primaryTagId) return null
+  if (!primaryTagId || !measurementConsentGranted) return null
 
   return (
     <>
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(primaryTagId)}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
       />
-      <Script id="gridex-google-marketing-tags" strategy="afterInteractive">
+      <Script id="gridex-google-marketing-tags" strategy="lazyOnload">
         {bootstrap}
       </Script>
     </>
