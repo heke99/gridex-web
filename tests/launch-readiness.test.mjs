@@ -317,15 +317,20 @@ assertIncludes(
   "customer_portal_user_id: linkedAuthUserId",
   "signup must always forward the server-verified portal identity",
 );
-assertIncludes(
+assertNotIncludes(
   "app/(public)/teckna-avtal/page.tsx",
   "return fail('portal_auth_required'",
-  "anonymous signup must fail before an OPS customer application is built",
+  "anonymous signup must remain allowed before the OPS customer application is built",
 );
 assertIncludes(
   "components/signup/CustomerApplicationForm.tsx",
-  "Logga in och fortsätt",
-  "anonymous customers must receive an explicit authentication path",
+  "Du behöver inte ha ett konto för att teckna elavtal.",
+  "anonymous customers must be told portal activation is available after checkout",
+);
+assertIncludes(
+  "components/signup/CustomerApplicationForm.tsx",
+  "Jag har redan ett konto",
+  "existing customers must retain an optional login path without blocking anonymous checkout",
 );
 assertIncludes(
   "lib/ops/client.ts",
