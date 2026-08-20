@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import AdminShell from '@/app/admin/ui/AdminShell'
+import AuthSessionSync from '@/components/auth/AuthSessionSync'
 import { requireAdminAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
@@ -15,5 +16,10 @@ export default async function AdminLayout({
 }) {
   const ctx = await requireAdminAccess()
 
-  return <AdminShell ctx={ctx}>{children}</AdminShell>
+  return (
+    <>
+      <AuthSessionSync />
+      <AdminShell ctx={ctx}>{children}</AdminShell>
+    </>
+  )
 }

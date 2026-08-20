@@ -1,4 +1,5 @@
-import { after } from 'next/server'
+import { unstable_cache } from 'next/cache.js'
+import { after } from 'next/server.js'
 import {
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsSnapshot,
@@ -19,6 +20,7 @@ import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractS
 
 const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
 const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
+const PUBLIC_CONTRACT_DATA_CACHE_SECONDS = 15
 const publicContractRevalidations = new Set<string>()
 
 export type WebsitePublicContractFeedState =
@@ -111,6 +113,19 @@ async function readFastPublicContractSnapshot(
   }
 }
 
+const readCachedPublicContractSnapshot = unstable_cache(
+  async (
+    _cacheIdentity: string,
+    customerType: WebsiteCustomerType | null,
+  ): Promise<OpsPublicContractsSnapshot> => {
+    const stored = await readFastPublicContractSnapshot(customerType)
+    if (stored) return stored
+    return fetchOpsPublicContractsSnapshot(customerType)
+  },
+  ['gridex-public-contract-snapshot-v1'],
+  { revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS },
+)
+
 function schedulePublicContractRevalidation(
   context: string,
   snapshot: OpsPublicContractsSnapshot,
@@ -138,19 +153,17 @@ export async function loadWebsitePublicContractFeed(input: {
   customerType?: WebsiteCustomerType | null
   forceFresh?: boolean
 }): Promise<WebsitePublicContractFeed> {
-  let snapshot: OpsPublicContractsSnapshot | null = null
+  const customerType = input.customerType ?? null
+  let snapshot: OpsPublicContractsSnapshot
 
-  if (!input.forceFresh) {
-    snapshot = await readFastPublicContractSnapshot(input.customerType)
-    if (snapshot) {
-      schedulePublicContractRevalidation(input.context, snapshot, input.customerType)
-    }
-  }
-
-  if (!snapshot) {
-    snapshot = await fetchOpsPublicContractsSnapshot(input.customerType, {
-      forceFresh: input.forceFresh,
-    })
+  if (input.forceFresh) {
+    snapshot = await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
+  } else {
+    snapshot = await readCachedPublicContractSnapshot(
+      publicContractsCacheKey(customerType),
+      customerType,
+    )
+    schedulePublicContractRevalidation(input.context, snapshot, customerType)
   }
 
   const contracts: OpsPublicContract[] = []
@@ -187,7 +200,7 @@ export async function loadWebsitePublicContractFeed(input: {
   }
 
   if (contracts.length === 0 && snapshot.feed_state !== 'canonical_empty') {
-    await diagnoseEmptyFeed(input.context, input.customerType)
+    after(() => diagnoseEmptyFeed(input.context, customerType))
   }
 
   const state = classifyWebsitePublicContractFeedState(contracts.length, blockedContracts.length)

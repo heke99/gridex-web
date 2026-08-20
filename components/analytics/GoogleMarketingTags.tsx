@@ -54,6 +54,7 @@ export default function GoogleMarketingTags() {
   const bootstrap = useMemo(() => {
     if (!primaryTagId) return ''
 
+    const grantedConsent = JSON.stringify(googleConsentState('accepted'))
     const configLines = [
       gaId
         ? `window.gtag('config', ${JSON.stringify(gaId)}, { send_page_view: false, anonymize_ip: true });`
@@ -68,15 +69,11 @@ export default function GoogleMarketingTags() {
     return `
       window.dataLayer = window.dataLayer || [];
       window.gtag = window.gtag || function gtag(){ window.dataLayer.push(arguments); };
+      window.gtag('consent', 'update', ${grantedConsent});
       window.gtag('js', new Date());
       ${configLines}
     `
   }, [adsId, gaId, primaryTagId])
-
-  useEffect(() => {
-    if (!consent || !window.gtag) return
-    window.gtag('consent', 'update', googleConsentState(consent))
-  }, [consent])
 
   useEffect(() => {
     if (!measurementConsentGranted) return
@@ -158,15 +155,15 @@ export default function GoogleMarketingTags() {
     }
   }, [measurementConsentGranted, pathname])
 
-  if (!primaryTagId) return null
+  if (!primaryTagId || !measurementConsentGranted) return null
 
   return (
     <>
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(primaryTagId)}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
       />
-      <Script id="gridex-google-marketing-tags" strategy="afterInteractive">
+      <Script id="gridex-google-marketing-tags" strategy="lazyOnload">
         {bootstrap}
       </Script>
     </>
