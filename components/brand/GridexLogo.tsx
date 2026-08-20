@@ -15,11 +15,11 @@ export default function GridexLogo({
 }: GridexLogoProps) {
   return (
     <Image
-      src={markOnly ? '/icon.svg' : '/brand/gridex-logo-upload.svg'}
-      alt="Gridex"
+      src={markOnly ? '/icon.svg' : '/brand/gridex-logo-header.webp'}
+      alt={markOnly ? 'Gridex' : 'Gridex – Energi för morgondagen'}
       className={className}
-      width={markOnly ? 192 : 600}
-      height={markOnly ? 192 : 132}
+      width={markOnly ? 192 : 1000}
+      height={markOnly ? 192 : 220}
       priority={priority}
       unoptimized
     />
