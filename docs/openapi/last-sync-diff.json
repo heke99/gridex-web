@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-08-20T14:33:01.342Z",
+  "synced_at": "2026-08-20T14:34:23.947Z",
   "contract_version": "2026-08-20.1",
   "release_manifest": {
     "release_version": "2026-08-20.1",
@@ -57,92 +57,27 @@
     "website-integration-v1.json": {
       "sha256": "1d5f8853842af8a0b34a42a433045adb32a750e8190b4e3124cd07565d831720",
       "semantic_diff": {
-        "previous_version": "2026-08-19.2",
+        "previous_version": "2026-08-20.1",
         "next_version": "2026-08-20.1",
-        "added_paths": [
-          "/api/v1/openapi/2026-08-20.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json"
-        ],
+        "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/website/public-contracts",
-          "/api/v1/contracts",
-          "/api/v1/website/quote",
-          "/api/v1/website/quote/validate",
-          "/api/v1/website/customer-applications",
-          "/api/v1/website/energy-area/resolve",
-          "/api/v1/website/market-price/current",
-          "/api/v1/website/portfolio-prices",
-          "/api/v1/website/customer-events",
-          "/api/v1/openapi/release-manifest.json",
-          "/api/v1/public-contracts",
-          "/api/v1/website/customer-applications/{application_number}",
-          "/api/v1/openapi/2026-08-19.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-19.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "ErrorEnvelope",
-          "IntegrationContext",
-          "WebsiteCustomerApplicationResponse",
-          "PublicationChangedWebhook",
-          "WebsiteQuoteResponse",
-          "WebsiteEnergyAreaResolveResponse",
-          "PowerOfAttorneyInput",
-          "CurrentMarketPriceResponse",
-          "MarketPriceErrorEnvelope",
-          "ApiError",
-          "WebsiteLegalBundleResponse",
-          "WebsitePortfolioPriceData",
-          "OpsDomainWebhookEnvelope",
-          "OpenApiReleaseManifest",
-          "OpenApiReleaseSpecification",
-          "ErrorResponse",
-          "CustomerApplicationStatusChangedWebhook",
-          "SupplierSwitchUpdatedWebhook"
-        ]
+        "changed_schemas": []
       }
     },
     "customer-portal-v1.json": {
       "sha256": "7b10bc3bf6e1e777aece6308d0c27eccd8e124801426e7b23d75e1ce391e2506",
       "semantic_diff": {
-        "previous_version": "2026-08-19.2",
+        "previous_version": "2026-08-20.1",
         "next_version": "2026-08-20.1",
-        "added_paths": [
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json"
-        ],
+        "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [
-          "/api/v1/customer-portal/sync",
-          "/api/v1/customer/move-out",
-          "/api/v1/customer/notifications/read",
-          "/api/v1/customer/profile-update",
-          "/api/v1/customer/sync",
-          "/api/v1/events",
-          "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json"
-        ],
+        "changed_paths": [],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": [
-          "ApiError",
-          "IntegrationContext",
-          "ErrorResponse",
-          "ClosedPortalResourceEnvelope",
-          "ClosedPortalMutationRequest",
-          "CustomerSyncRequest",
-          "ErrorEnvelope",
-          "MarketPriceErrorEnvelope",
-          "CustomerNotificationReadRequest",
-          "CustomerNotificationReadData",
-          "PublicDomainEvent"
-        ]
+        "changed_schemas": []
       }
     }
   }
