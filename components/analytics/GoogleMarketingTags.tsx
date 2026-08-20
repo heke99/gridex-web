@@ -7,6 +7,7 @@ import {
   GRIDEX_COOKIE_CONSENT_EVENT,
   GRIDEX_COOKIE_CONSENT_KEY,
   GRIDEX_GOOGLE_ADS_ID,
+  googleConsentState,
   parseGridexCookieConsent,
 } from '@/lib/analytics/googleConsent'
 
@@ -53,6 +54,7 @@ export default function GoogleMarketingTags() {
   const bootstrap = useMemo(() => {
     if (!primaryTagId) return ''
 
+    const grantedConsent = JSON.stringify(googleConsentState('accepted'))
     const configLines = [
       gaId
         ? `window.gtag('config', ${JSON.stringify(gaId)}, { send_page_view: false, anonymize_ip: true });`
@@ -67,6 +69,7 @@ export default function GoogleMarketingTags() {
     return `
       window.dataLayer = window.dataLayer || [];
       window.gtag = window.gtag || function gtag(){ window.dataLayer.push(arguments); };
+      window.gtag('consent', 'update', ${grantedConsent});
       window.gtag('js', new Date());
       ${configLines}
     `
