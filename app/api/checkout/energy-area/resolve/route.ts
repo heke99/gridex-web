@@ -8,6 +8,7 @@ import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+export const preferredRegion = 'arn1'
 
 type ResolvePayload = {
   postal_code?: unknown
