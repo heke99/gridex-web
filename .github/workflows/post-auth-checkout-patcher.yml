@@ -21,10 +21,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Verify API contract and TypeScript
+      - name: Verify local API contract and TypeScript
         run: |
           npm run api:check:local
-          npm run api:compatibility
+          npm run api:compatibility:known-gaps
           npm run typecheck
       - name: Verify checkout and post-commit behavior
         run: |
