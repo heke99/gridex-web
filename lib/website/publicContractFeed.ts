@@ -1,5 +1,5 @@
-import { unstable_cache } from 'next/cache'
-import { after } from 'next/server'
+import { unstable_cache } from 'next/cache.js'
+import { after } from 'next/server.js'
 import {
   fetchOpsPublicContractDiagnostics,
   fetchOpsPublicContractsSnapshot,
