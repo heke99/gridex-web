@@ -39,7 +39,7 @@ assert.deepEqual(webhookSchema.required, [
   'delivery_id',
   'event_type',
   'created_at',
-  'organization_reference',
+  'tenant_reference',
   'aggregate',
   'data',
   'contract_schema_version',
