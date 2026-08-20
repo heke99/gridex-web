@@ -10,22 +10,16 @@ type GridexLogoProps = {
 export default function GridexLogo({
   className = 'h-10 w-auto',
   markOnly = false,
-  inverted = false,
+  inverted: _inverted = false,
   priority = false,
 }: GridexLogoProps) {
-  const src = markOnly
-    ? '/icon.png'
-    : inverted
-      ? '/brand/gridex-logo-inverted.svg'
-      : '/brand/gridex-logo.svg'
-
   return (
     <Image
-      src={src}
+      src={markOnly ? '/icon.svg' : '/brand/gridex-logo-upload.svg'}
       alt="Gridex"
       className={className}
-      width={markOnly ? 192 : 1200}
-      height={markOnly ? 192 : 360}
+      width={markOnly ? 192 : 600}
+      height={markOnly ? 192 : 132}
       priority={priority}
       unoptimized
     />
