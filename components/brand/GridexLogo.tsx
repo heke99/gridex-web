@@ -9,16 +9,15 @@ type GridexLogoProps = {
 
 export default function GridexLogo({
   className = 'h-10 w-auto',
-  markOnly = false,
   priority = false,
 }: GridexLogoProps) {
   return (
     <Image
-      src={markOnly ? '/icon.svg' : '/brand/gridex-logo-upload.svg'}
+      src="/icon.svg"
       alt="Gridex"
       className={className}
-      width={markOnly ? 192 : 450}
-      height={markOnly ? 192 : 312}
+      width={192}
+      height={192}
       priority={priority}
       unoptimized
     />
