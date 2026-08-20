@@ -10,7 +10,6 @@ type GridexLogoProps = {
 export default function GridexLogo({
   className = 'h-10 w-auto',
   markOnly = false,
-  inverted: _inverted = false,
   priority = false,
 }: GridexLogoProps) {
   return (
