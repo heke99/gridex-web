@@ -54,6 +54,7 @@ export default function PublicHeader({
   const pathname = usePathname()
   const isAuthenticated = Boolean(authenticatedEmail)
   const maskedEmail = authenticatedEmail ? maskEmail(authenticatedEmail) : null
+  const showCheckoutSessionNotice = isAuthenticated && pathname === '/teckna-avtal'
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
@@ -119,6 +120,22 @@ export default function PublicHeader({
           {open ? 'Stäng' : 'Meny'}
         </button>
       </div>
+
+      {showCheckoutSessionNotice ? (
+        <div className="border-t border-cyan-400/20 bg-cyan-400/10">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-3 text-xs text-cyan-50 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              Du tecknar medan du är inloggad som <span className="font-semibold">{maskedEmail}</span>. Om du anger en annan e-post i teckningen måste du bekräfta det; Mina sidor kopplas annars till den verifierade sessionen.
+            </p>
+            <LogoutForm
+              redirectTo="/teckna-avtal"
+              variant="ghost"
+              label="Logga ut och fortsätt med annan e-post"
+              className="w-full shrink-0 sm:w-72"
+            />
+          </div>
+        </div>
+      ) : null}
 
       {open && (
         <div className="border-t border-white/10 bg-black/90 md:hidden">
