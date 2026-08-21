@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import PublicHeader from '@/components/layout/PublicHeader'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import PublicHeaderAuth from '@/components/layout/PublicHeaderAuth'
 
 const SITE_URL = 'https://gridex.se'
 const BRAND_LOGO_URL = `${SITE_URL}/brand/gridex-logo.png`
@@ -50,16 +51,11 @@ export const metadata: Metadata = {
     : undefined,
 }
 
-export default async function PublicLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   return (
     <>
       {/* Organization + Website JSON-LD (global) */}
@@ -100,7 +96,9 @@ export default async function PublicLayout({
       />
 
       <div className="min-h-screen flex flex-col">
-        <PublicHeader authenticatedEmail={user?.email ?? null} />
+        <Suspense fallback={<PublicHeader authenticatedEmail={null} />}>
+          <PublicHeaderAuth />
+        </Suspense>
         <div className="flex-1">{children}</div>
       </div>
     </>
