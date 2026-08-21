@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const card = read('components/PriceResultCard.tsx')
 const customerCopy = read('lib/website/customerFacingCopy.ts')
 const form = read('components/signup/CustomerApplicationForm.tsx')
+const signupFlow = read('components/signup/SignupFlowClient.tsx')
 const signup = read('app/(public)/teckna-avtal/page.tsx')
 const canonical = read('lib/website/canonicalQuoteValidation.ts')
 const quoteToken = read('lib/website/pricingQuote.ts')
@@ -20,7 +21,6 @@ for (const removedCopy of [
   'Prisberäkningen behöver hämtas på nytt ovan.',
   'Priset eller avtalet har ändrats. Räkna om priset',
   'Uppgifterna behöver verifieras igen. Hämta priset på nytt.',
-  'Bindande pris',
 ]) {
   assert.equal(
     `${card}\n${form}\n${signup}`.includes(removedCopy),
@@ -38,6 +38,9 @@ assert.ok(card.includes('isMarketSettledContract'))
 assert.ok(customerCopy.includes('Verifierat prisunderlag'))
 assert.ok(customerCopy.includes('uppmätta förbrukning'))
 assert.ok(customerCopy.includes('faktureringsperioden enligt avtalet'))
+assert.ok(signupFlow.includes('is_binding: undefined'))
+assert.ok(signupFlow.includes("value: () => source"))
+assert.ok(signupFlow.includes('pricingPreview={applicationPricingPreview}'))
 assert.ok(form.includes("form.includes") === false)
 assert.ok(form.includes("'Så snart som möjligt'"))
 assert.ok(form.includes('Valt startdatum:'))
