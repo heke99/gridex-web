@@ -22,7 +22,7 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
   if (status === 'pending' && detail?.toLowerCase().includes('konto finns redan')) {
     return {
       title: 'Ett konto finns redan',
-      body: 'Logga in via knappen nedan. Gridex verifierar just den här teckningen mot ditt befintliga Mina sidor-konto och OPS kundidentitet. Ett nytt avtal eller en ny anläggning läggs till utan att tidigare avtal eller anläggningar ersätts.',
+      body: 'Logga in via knappen nedan. Gridex verifierar just den här teckningen mot ditt befintliga Mina sidor-konto och din kundidentitet. Ett nytt avtal eller en ny anläggning läggs till utan att tidigare avtal eller anläggningar ersätts.',
       tone: 'info' as const,
       showLogin: true,
       needsClaim: true,
