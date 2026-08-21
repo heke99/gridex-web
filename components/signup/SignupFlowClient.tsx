@@ -74,6 +74,20 @@ export default function SignupFlowClient({
     () => selectedContract ? buildPublicContractDisplay(signupContractOptionAsOpsContract(selectedContract)) : null,
     [selectedContract],
   );
+  const applicationPricingPreview = useMemo(() => {
+    const source = pricingPreview ?? lastPricingPreview;
+    if (!source) return null;
+
+    // `is_binding` verifies the canonical checkout quote. It must not be shown as
+    // a promise that a variable/spot market price is frozen for future invoices.
+    // Keep the exact canonical preview when the form serializes its audit snapshot.
+    const displayPreview = { ...source, is_binding: undefined };
+    Object.defineProperty(displayPreview, 'toJSON', {
+      value: () => source,
+      enumerable: false,
+    });
+    return displayPreview;
+  }, [lastPricingPreview, pricingPreview]);
 
   function updateCustomerType(value: WebsiteCustomerType) {
     setCustomerType(value);
@@ -156,7 +170,7 @@ export default function SignupFlowClient({
             utm={utm}
             action={action}
             energyResolution={energyResolution}
-            pricingPreview={pricingPreview ?? lastPricingPreview}
+            pricingPreview={applicationPricingPreview}
             contractDisplay={contractDisplay}
             quoteContext={quoteContext ?? lastQuoteContext}
             quoteValid={Boolean(pricingPreview && quoteContext)}
