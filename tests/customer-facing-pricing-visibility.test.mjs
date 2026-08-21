@@ -143,6 +143,7 @@ assert.equal(quote.includes('delete fees.invoiceFeeSek'), false, 'canonical quot
 assert.equal(quote.includes('delete fees.invoiceFeeIncludedInMonthlyEstimate'), false)
 
 for (const file of [
+  'components/ElectricityCalculator.tsx',
   'components/signup/CustomerApplicationForm.tsx',
   'components/signup/SignupFlowClient.tsx',
   'app/(public)/teckna-avtal/tack/SignupThanksPage.tsx',
