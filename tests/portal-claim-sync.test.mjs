@@ -47,7 +47,7 @@ test('claim route authenticates before linking and thank-you CTA carries verifie
   assert.match(claimRoute, /resumePortalOnboardingFromResultProof/)
   assert.match(thanksPage, /\/auth\/portal-claim\?result=/)
   assert.match(thanksPage, /Logga in och koppla den här teckningen/)
-  assert.match(thanksPage, /Gå till Mina sidor/)
+  assert.match(thanksPage, /Öppna Mina sidor/)
 })
 
 test('public header degrades safely and checkout ownership copy is explicit', () => {
