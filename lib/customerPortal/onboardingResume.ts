@@ -48,6 +48,16 @@ function stableProfileMatchesApplication(
   )
 }
 
+export function portalOnboardingCandidateHasStableIdentity(
+  job: Pick<PortalOnboardingJobCandidate, 'auth_user_id' | 'payload'>,
+  profile: ExistingProfile | null,
+  userId: string,
+): boolean {
+  if (job.auth_user_id === userId) return true
+  if (job.auth_user_id && job.auth_user_id !== userId) return false
+  return stableProfileMatchesApplication(profile, job.payload)
+}
+
 async function markBlocked(jobId: string): Promise<void> {
   const { error } = await supabaseService
     .from('portal_onboarding_jobs')
@@ -100,11 +110,9 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
   if (profileError) throw new Error(`Could not verify portal identity: ${profileError.message}`)
   const profile = (profileData ?? null) as ExistingProfile | null
 
-  const blocked = jobs.filter((job) => {
-    if (job.auth_user_id === input.userId) return false
-    if (job.auth_user_id && job.auth_user_id !== input.userId) return true
-    return !stableProfileMatchesApplication(profile, job.payload)
-  })
+  const blocked = jobs.filter(
+    (job) => !portalOnboardingCandidateHasStableIdentity(job, profile, input.userId),
+  )
 
   if (blocked.length > 0) {
     await Promise.all(blocked.map((job) => markBlocked(job.id)))
