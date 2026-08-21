@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
+import { resumePortalOnboardingForConfirmedUserSafely } from '@/lib/customerPortal/onboardingResume'
 
 function normalizeEmail(v: string): string {
   return v.trim().toLowerCase()
@@ -98,6 +99,21 @@ export async function loginWithPassword(formData: FormData) {
     await supabase.rpc('gridex_log_customer_login', { p_user_id: user.id })
   } catch (error) {
     console.error('[loginWithPassword] gridex_log_customer_login failed', error)
+  }
+
+  try {
+    const onboarding = await resumePortalOnboardingForConfirmedUserSafely({
+      userId: user.id,
+      email: user.email ?? null,
+    })
+    if (onboarding.blocked > 0) {
+      console.warn('[loginWithPassword] portal onboarding requires stable identity review', {
+        blocked: onboarding.blocked,
+      })
+    }
+  } catch (error) {
+    // Portal reconciliation must never make an otherwise valid login fail.
+    console.error('[loginWithPassword] portal onboarding resume failed', error)
   }
 
   if (next.startsWith('/admin') && !isAdmin) {

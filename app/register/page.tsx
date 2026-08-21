@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
+const RESEND_COOLDOWN_MS = 60_000
+
 function calculateStrength(password: string): number {
   let score = 0
   if (password.length >= 8) score++
@@ -48,12 +50,17 @@ function strengthLabel(strength: number): string {
     case 2:
       return 'Okej'
     case 3:
-      return 'Bra'
+      return 'Nästan klart'
     case 4:
       return 'Starkt'
     default:
       return 'För svagt'
   }
+}
+
+function confirmationRedirect(origin: string, next: string): string {
+  const redirectNext = encodeURIComponent(`/login?status=verified&next=${encodeURIComponent(next)}`)
+  return `${origin}/auth/confirm?next=${redirectNext}`
 }
 
 export default function RegisterPage() {
@@ -73,8 +80,20 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resendAvailableAt, setResendAvailableAt] = useState(0)
+  const [clock, setClock] = useState(0)
+
+  useEffect(() => {
+    if (!success || resendAvailableAt <= Date.now()) return
+    const interval = window.setInterval(() => setClock(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [resendAvailableAt, success])
 
   const strength = useMemo(() => calculateStrength(password), [password])
+  const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - (clock || Date.now())) / 1000))
 
   const strengthColor =
     ([
@@ -107,21 +126,19 @@ export default function RegisterPage() {
       return
     }
 
-    if (strength < 3) {
-      setError('Lösenordet är för svagt. Välj ett starkare lösenord.')
+    if (strength < 4) {
+      setError('Lösenordet måste vara minst 8 tecken och innehålla versal, siffra och specialtecken.')
       return
     }
 
     setLoading(true)
 
     try {
-      const redirectNext = encodeURIComponent(`/login?status=verified&next=${encodeURIComponent(next)}`)
-
       const { error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=${redirectNext}`,
+          emailRedirectTo: confirmationRedirect(window.location.origin, next),
         },
       })
 
@@ -130,9 +147,39 @@ export default function RegisterPage() {
         return
       }
 
+      setRegisteredEmail(cleanEmail)
+      setResendAvailableAt(Date.now() + RESEND_COOLDOWN_MS)
+      setClock(Date.now())
       setSuccess(true)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!registeredEmail || resendLoading || resendSeconds > 0) return
+
+    setResendLoading(true)
+    setResendMessage(null)
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: registeredEmail,
+        options: {
+          emailRedirectTo: confirmationRedirect(window.location.origin, next),
+        },
+      })
+
+      if (resendError) {
+        setResendMessage('Kunde inte skicka en ny länk just nu. Försök igen om en stund.')
+        return
+      }
+
+      setResendMessage('En ny verifieringslänk har skickats.')
+      setResendAvailableAt(Date.now() + RESEND_COOLDOWN_MS)
+      setClock(Date.now())
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -231,14 +278,27 @@ export default function RegisterPage() {
                   Vi har skickat en verifieringslänk till din e-postadress.
                   Öppna mailet och bekräfta kontot för att kunna logga in.
                 </p>
-                <div className="pt-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Link
                     href={loginHref}
                     className="inline-flex rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
                   >
                     Till inloggning
                   </Link>
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading || resendSeconds > 0}
+                    className="inline-flex rounded-xl border border-emerald-200/20 bg-black/20 px-4 py-2 text-sm font-semibold text-emerald-50 transition hover:bg-black/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {resendLoading
+                      ? 'Skickar…'
+                      : resendSeconds > 0
+                        ? `Skicka igen om ${resendSeconds}s`
+                        : 'Skicka verifieringsmail igen'}
+                  </button>
                 </div>
+                {resendMessage ? <p className="text-xs text-emerald-100/80">{resendMessage}</p> : null}
               </div>
             ) : (
               <form onSubmit={handleRegister} className="mt-6 space-y-4">

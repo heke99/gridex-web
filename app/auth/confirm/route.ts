@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { syncConfirmedUserProfileDurably } from '@/lib/customerPortal/authProfileSync'
-import { resumePortalOnboardingForConfirmedUser } from '@/lib/customerPortal/onboarding'
+import { resumePortalOnboardingForConfirmedUserSafely } from '@/lib/customerPortal/onboardingResume'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 const ALLOWED_TYPES = new Set<EmailOtpType>([
@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const resumed = await resumePortalOnboardingForConfirmedUser({ userId: user.id, email })
-      if (resumed.processed > resumed.completed) portalLinkPending = true
+      const resumed = await resumePortalOnboardingForConfirmedUserSafely({ userId: user.id, email })
+      if (resumed.processed > resumed.completed || resumed.blocked > 0) portalLinkPending = true
     } catch (error) {
       portalLinkPending = true
       console.warn('[auth confirm] portal onboarding resume queued', error)

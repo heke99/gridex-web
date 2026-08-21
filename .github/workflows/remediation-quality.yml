@@ -32,6 +32,8 @@ jobs:
         run: node scripts/check-file-size.mjs
       - name: Contract-version observation regression
         run: node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-contract-version-observation.test.mjs
+      - name: Auth onboarding hardening regression
+        run: node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/auth-onboarding-hardening.test.mjs
       - name: Lint
         run: npm run lint
       - name: Typecheck

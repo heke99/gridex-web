@@ -36,8 +36,8 @@ function humanizeAuthError(message: string): string {
 }
 
 function passwordRequirementText(strength: number): string {
-  if (strength >= 3) return 'Lösenordet uppfyller kraven.'
-  return 'Minst 8 tecken och gärna versal, siffra och specialtecken.'
+  if (strength === 4) return 'Lösenordet uppfyller kraven.'
+  return 'Minst 8 tecken, versal, siffra och specialtecken krävs.'
 }
 
 export default function ResetPasswordPage() {
@@ -87,13 +87,8 @@ export default function ResetPasswordPage() {
 
     setError(null)
 
-    if (!password || password.length < 8) {
-      setError('Lösenordet måste vara minst 8 tecken.')
-      return
-    }
-
-    if (strength < 3) {
-      setError('Lösenordet är för svagt.')
+    if (strength < 4) {
+      setError('Lösenordet måste vara minst 8 tecken och innehålla versal, siffra och specialtecken.')
       return
     }
 

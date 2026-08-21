@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import PublicHeader from '@/components/layout/PublicHeader'
+import PublicHeaderAuth from '@/components/layout/PublicHeaderAuth'
 
 const SITE_URL = 'https://gridex.se'
 const BRAND_LOGO_URL = `${SITE_URL}/brand/gridex-logo.png`
@@ -94,7 +96,9 @@ export default function PublicLayout({
       />
 
       <div className="min-h-screen flex flex-col">
-        <PublicHeader />
+        <Suspense fallback={<PublicHeader authenticatedEmail={null} />}>
+          <PublicHeaderAuth />
+        </Suspense>
         <div className="flex-1">{children}</div>
       </div>
     </>
