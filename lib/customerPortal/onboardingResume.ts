@@ -94,12 +94,20 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
     .select('id,status,email,auth_user_id,payload')
     .eq('email', email)
     .in('status', ['pending', 'retryable_failure', 'manual_review'])
-    .limit(10)
+    .limit(11)
 
   if (jobsError) throw new Error(`Could not load portal onboarding candidates: ${jobsError.message}`)
 
   const jobs = (jobsData ?? []) as PortalOnboardingJobCandidate[]
   if (jobs.length === 0) return { processed: 0, completed: 0, blocked: 0 }
+
+  // The legacy worker processes at most 10 jobs at a time without deterministic
+  // ordering. If more candidates exist, never risk validating one set and processing
+  // another; force manual review instead.
+  if (jobs.length > 10) {
+    await Promise.all(jobs.map((job) => markBlocked(job.id)))
+    return { processed: 0, completed: 0, blocked: jobs.length }
+  }
 
   const { data: profileData, error: profileError } = await supabaseService
     .from('customer_profiles')
