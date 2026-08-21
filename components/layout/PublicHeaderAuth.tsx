@@ -12,10 +12,21 @@ export default async function PublicHeaderAuth() {
     return <PublicHeader authenticatedEmail={null} />
   }
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    const supabase = await createSupabaseServerClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  return <PublicHeader authenticatedEmail={user?.email ?? null} />
+    if (error) {
+      console.warn('[public header] auth state unavailable')
+      return <PublicHeader authenticatedEmail={null} />
+    }
+
+    return <PublicHeader authenticatedEmail={user?.email ?? null} />
+  } catch {
+    console.warn('[public header] auth state unavailable')
+    return <PublicHeader authenticatedEmail={null} />
+  }
 }
