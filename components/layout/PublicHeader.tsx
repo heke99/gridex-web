@@ -5,6 +5,14 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import GridexLogo from '@/components/brand/GridexLogo'
+import LogoutForm from '@/components/account/LogoutForm'
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!local || !domain) return 'verifierat konto'
+  const visibleLocal = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2)
+  return `${visibleLocal}${'*'.repeat(Math.min(5, Math.max(2, local.length - visibleLocal.length)))}@${domain}`
+}
 
 function NavLink({
   href,
@@ -37,9 +45,15 @@ function NavLink({
   )
 }
 
-export default function PublicHeader() {
+export default function PublicHeader({
+  authenticatedEmail,
+}: {
+  authenticatedEmail?: string | null
+}) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const isAuthenticated = Boolean(authenticatedEmail)
+  const maskedEmail = authenticatedEmail ? maskEmail(authenticatedEmail) : null
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
@@ -58,13 +72,34 @@ export default function PublicHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/mina-sidor"
-            prefetch
-            className="text-sm text-gray-300 transition hover:text-white"
-          >
-            Mina sidor
-          </Link>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <div className="max-w-44 truncate text-xs text-gray-300" title="Du är inloggad">
+                Inloggad som <span className="font-medium text-white">{maskedEmail}</span>
+              </div>
+              <Link
+                href="/mina-sidor"
+                prefetch
+                className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200"
+              >
+                Mina sidor
+              </Link>
+              <LogoutForm
+                redirectTo="/"
+                variant="ghost"
+                label="Logga ut"
+                className="w-24"
+              />
+            </div>
+          ) : (
+            <Link
+              href="/mina-sidor"
+              prefetch
+              className="text-sm text-gray-300 transition hover:text-white"
+            >
+              Mina sidor
+            </Link>
+          )}
 
           <Link
             href="/teckna-avtal"
@@ -79,6 +114,7 @@ export default function PublicHeader() {
           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Öppna meny"
+          aria-expanded={open}
         >
           {open ? 'Stäng' : 'Meny'}
         </button>
@@ -98,14 +134,31 @@ export default function PublicHeader() {
             </div>
 
             <div className="mt-2 border-t border-white/10 pt-4">
-              <Link
-                href="/mina-sidor"
-                prefetch
-                className="block text-sm text-cyan-300"
-                onClick={() => setOpen(false)}
-              >
-                Mina sidor
-              </Link>
+              {isAuthenticated ? (
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs text-gray-300">
+                    Inloggad som <span className="font-medium text-white">{maskedEmail}</span>
+                  </div>
+                  <Link
+                    href="/mina-sidor"
+                    prefetch
+                    className="block text-sm font-medium text-cyan-300"
+                    onClick={() => setOpen(false)}
+                  >
+                    Mina sidor
+                  </Link>
+                  <LogoutForm redirectTo="/" variant="ghost" label="Logga ut" />
+                </div>
+              ) : (
+                <Link
+                  href="/mina-sidor"
+                  prefetch
+                  className="block text-sm text-cyan-300"
+                  onClick={() => setOpen(false)}
+                >
+                  Mina sidor
+                </Link>
+              )}
 
               <Link
                 href="/teckna-avtal"
