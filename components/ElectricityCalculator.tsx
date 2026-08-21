@@ -971,7 +971,7 @@ export default function ElectricityCalculator({
             <div>
               <h3 className="text-lg font-semibold text-white">Önskad avtalsstart</h3>
               <p className="mt-1 text-sm text-gray-400">
-                Gridex använder automatiskt det standardpris som OPS har publicerat. Du väljer endast när avtalet ska börja gälla.
+                Gridex använder automatiskt det publicerade standardpriset för avtalet. Du väljer endast när avtalet ska börja gälla.
               </p>
             </div>
             <fieldset className="space-y-3">
@@ -1012,7 +1012,7 @@ export default function ElectricityCalculator({
                   />
                 </div>
               ) : null}
-              <p className="text-xs leading-5 text-white/45">Startvalet verifieras tillsammans med det publicerade avtalet och priset från OPS.</p>
+              <p className="text-xs leading-5 text-white/45">Startvalet verifieras tillsammans med det publicerade avtalet och dess pris.</p>
             </fieldset>
           </section>
         ) : null}
