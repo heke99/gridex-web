@@ -125,7 +125,7 @@ export default function PublicHeader({
         <div className="border-t border-cyan-400/20 bg-cyan-400/10">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-3 text-xs text-cyan-50 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Du tecknar medan du är inloggad som <span className="font-semibold">{maskedEmail}</span>. Om du anger en annan e-post i teckningen måste du bekräfta det; Mina sidor kopplas annars till den verifierade sessionen.
+              Du tecknar medan du är inloggad som <span className="font-semibold">{maskedEmail}</span>. Fortsätter du medan du är inloggad kopplas teckningen till detta Mina sidor-konto även om du anger en annan kontaktadress. Logga ut först om avtalet ska kopplas till ett annat konto.
             </p>
             <LogoutForm
               redirectTo="/teckna-avtal"
