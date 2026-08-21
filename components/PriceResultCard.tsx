@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import type { WebsitePricingPreview } from "@/lib/website/publicApi";
-import { CUSTOMER_NETWORK_FEE_NOTICE } from "@/lib/website/customerFacingCopy";
+import {
+  CUSTOMER_MARKET_SETTLEMENT_NOTICE,
+  CUSTOMER_NETWORK_FEE_NOTICE,
+  CUSTOMER_VERIFIED_PRICE_BASIS_LABEL,
+} from "@/lib/website/customerFacingCopy";
 
 type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; continueHref?: string };
 function hasNumber(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
@@ -22,6 +26,9 @@ function contractTypeLabel(type: WebsitePricingPreview["contract"]["contractType
   if (type === "portfolio_managed") return "Förvaltat avtal";
   return "Mixavtal";
 }
+function isMarketSettledContract(type: WebsitePricingPreview["contract"]["contractType"]) {
+  return type !== "fixed" && type !== "monthly_fixed";
+}
 
 function isCustomerVisibleAssumption(label: string) {
   const normalized = label.trim().toLocaleLowerCase("sv-SE");
@@ -38,6 +45,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek) ? totalMonthlyCostInclVatSek : undefined;
   const marketTimestamp = formatDate(data.market_data_timestamp);
   const visibleAssumptions = (data.assumptions ?? []).filter((item) => isCustomerVisibleAssumption(item.label));
+  const marketSettled = isMarketSettledContract(contract.contractType);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-6 transition hover:border-cyan-400/40 md:p-8">
@@ -48,7 +56,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">{contractTypeLabel(contract.contractType)}</span>
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${data.is_binding ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-amber-500/20 bg-amber-500/10 text-amber-100"}`}>
-                {data.is_binding ? "Bindande pris" : "Indikativ prisuppgift"}
+                {data.is_binding ? CUSTOMER_VERIFIED_PRICE_BASIS_LABEL : "Indikativ prisuppgift"}
               </span>
             </div>
             <div>
@@ -86,6 +94,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
           </div>
         </div>
 
+        {marketSettled ? <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-relaxed text-cyan-100">{CUSTOMER_MARKET_SETTLEMENT_NOTICE}</div> : null}
         {visibleAssumptions.length ? <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm"><div className="font-medium text-white">Antaganden i beräkningen</div><ul className="mt-3 space-y-2 text-gray-300">{visibleAssumptions.map((item, index) => <li key={`${item.code ?? item.label}-${index}`}>• {item.label}{item.value !== undefined && item.value !== null ? `: ${String(item.value)}${item.unit ? ` ${item.unit}` : ""}` : ""}</li>)}</ul></div> : null}
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
