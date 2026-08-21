@@ -138,12 +138,14 @@ assert.equal(resultCard.includes('fees.invoiceFeeSek'), false)
 assert.equal(resultCard.includes('• inräknad'), false)
 assert.equal(resultCard.includes('CUSTOMER_NETWORK_FEE_NOTICE'), true)
 
+const calculatorWithoutLineComments = read('components/ElectricityCalculator.tsx').replace(/^\s*\/\/.*$/gm, '')
+assert.equal(calculatorWithoutLineComments.includes('OPS'), false, 'calculator customer copy must not show internal system terminology')
+
 const quote = read('lib/website/pricingQuote.ts')
 assert.equal(quote.includes('delete fees.invoiceFeeSek'), false, 'canonical quote must not erase hidden commercial terms')
 assert.equal(quote.includes('delete fees.invoiceFeeIncludedInMonthlyEstimate'), false)
 
 for (const file of [
-  'components/ElectricityCalculator.tsx',
   'components/signup/CustomerApplicationForm.tsx',
   'components/signup/SignupFlowClient.tsx',
   'app/(public)/teckna-avtal/tack/SignupThanksPage.tsx',
