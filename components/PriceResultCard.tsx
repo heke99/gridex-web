@@ -38,6 +38,7 @@ function isCustomerVisibleAssumption(label: string) {
   return !isInternalSpotPortfolioRule && !isInternalFreshnessRule && !isInternalLockedPortfolioRule;
 }
 
+// Legacy customer wording "Bindande pris" is intentionally not rendered here: is_binding verifies the checkout price basis, not a future variable/spot settlement price.
 export default function PriceResultCard({ data, updatedAt, onSelect, continueHref }: Props) {
   const { totalMonthlyCostSek, totalMonthlyCostInclVatSek, pricePerKwhOre, priceArea, kwh, specification, contract } = data;
   const fees = specification?.fees ?? {};
