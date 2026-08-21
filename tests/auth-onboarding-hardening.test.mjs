@@ -80,12 +80,12 @@ const confirmSource = fs.readFileSync(path.join(root, 'app/auth/confirm/route.ts
 assert.match(confirmSource, /resumePortalOnboardingForConfirmedUserSafely/)
 
 const registerSource = fs.readFileSync(path.join(root, 'app/register/page.tsx'), 'utf8')
-assert.match(registerSource, /strength < 4/)
+assert.match(registerSource, /passwordMeetsPolicy\(password\)/)
 assert.match(registerSource, /auth\.resend\(/)
 assert.match(registerSource, /RESEND_COOLDOWN_MS/)
 
 const resetSource = fs.readFileSync(path.join(root, 'app/login/reset-password/page.tsx'), 'utf8')
-assert.match(resetSource, /strength < 4/)
+assert.match(resetSource, /passwordMeetsPolicy\(password\)/)
 
 const headerSource = fs.readFileSync(path.join(root, 'components/layout/PublicHeader.tsx'), 'utf8')
 assert.match(headerSource, /Inloggad som/)
