@@ -5,17 +5,9 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { passwordMeetsPolicy, passwordStrength } from '@/lib/auth/passwordPolicy'
 
 type RecoveryStatus = 'checking' | 'ready' | 'expired'
-
-function calculateStrength(password: string): number {
-  let score = 0
-  if (password.length >= 8) score++
-  if (/[A-ZÅÄÖ]/.test(password)) score++
-  if (/[0-9]/.test(password)) score++
-  if (/[^A-Za-zÅÄÖåäö0-9]/.test(password)) score++
-  return score
-}
 
 function humanizeAuthError(message: string): string {
   const msg = message.toLowerCase()
@@ -51,7 +43,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const strength = useMemo(() => calculateStrength(password), [password])
+  const strength = useMemo(() => passwordStrength(password), [password])
 
   const strengthColor =
     ([
@@ -87,7 +79,7 @@ export default function ResetPasswordPage() {
 
     setError(null)
 
-    if (strength < 4) {
+    if (!passwordMeetsPolicy(password)) {
       setError('Lösenordet måste vara minst 8 tecken och innehålla versal, siffra och specialtecken.')
       return
     }
