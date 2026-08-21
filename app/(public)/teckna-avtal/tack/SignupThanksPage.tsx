@@ -22,24 +22,25 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
   if (status === 'pending' && detail?.toLowerCase().includes('konto finns redan')) {
     return {
       title: 'Ett konto finns redan',
-      body: 'Logga in via knappen nedan. Gridex verifierar då just den här teckningen mot ditt inloggade konto och de kund-ID:n som OPS skapade. Vi skickar inte en ny konto-inbjudan.',
+      body: 'Logga in via knappen nedan. Gridex verifierar just den här teckningen mot ditt befintliga Mina sidor-konto och OPS kundidentitet. Ett nytt avtal eller en ny anläggning läggs till utan att tidigare avtal eller anläggningar ersätts.',
       tone: 'info' as const,
       showLogin: true,
+      needsClaim: true,
     }
   }
   switch (status) {
     case 'email_confirmation_sent':
     case 'invite_sent':
-      return { title: 'Ny kund: bekräfta din e-post', body: 'Vi har skickat ett mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor.', tone: 'success' as const, showLogin: false }
+      return { title: 'Ny kund: bekräfta din e-post', body: 'Vi har skickat ett mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor.', tone: 'success' as const, showLogin: false, needsClaim: false }
     case 'profile_linked':
-      return { title: 'Redan kund? Logga in', body: 'Din teckning är kopplad till ditt befintliga kundkonto. Logga in med ditt nuvarande lösenord för att se Mina sidor.', tone: 'info' as const, showLogin: true }
+      return { title: 'Teckningen är kopplad till Mina sidor', body: 'Den här teckningen är kopplad till ditt befintliga kundkonto. Om avtalet gäller en ny anläggning visas den som en ny anläggning och tidigare avtal och anläggningar ligger kvar.', tone: 'info' as const, showLogin: true, needsClaim: false }
     case 'pending':
     case 'failed':
-      return { title: 'Inloggning skickas separat', body: 'Din teckning är mottagen. Om inloggningsmailet inte kommer fram skickar vi ny länk när kundprofilen är färdigkopplad.', tone: 'warning' as const, showLogin: false }
+      return { title: 'Inloggning skickas separat', body: 'Din teckning är mottagen. Om inloggningsmailet inte kommer fram skickar vi ny länk när kundprofilen är färdigkopplad.', tone: 'warning' as const, showLogin: false, needsClaim: false }
     case 'skipped':
-      return { title: 'Inloggning kommer separat', body: 'Din teckning är mottagen. Du får information om Mina sidor när kundprofilen är klar.', tone: 'info' as const, showLogin: false }
+      return { title: 'Inloggning kommer separat', body: 'Din teckning är mottagen. Du får information om Mina sidor när kundprofilen är klar.', tone: 'info' as const, showLogin: false, needsClaim: false }
     default:
-      return { title: 'Nästa steg kommer via e-post', body: 'Vi har tagit emot din teckning. Kontrollera din inkorg för bekräftelse och nästa steg.', tone: 'info' as const, showLogin: false }
+      return { title: 'Nästa steg kommer via e-post', body: 'Vi har tagit emot din teckning. Kontrollera din inkorg för bekräftelse och nästa steg.', tone: 'info' as const, showLogin: false, needsClaim: false }
   }
 }
 
@@ -87,6 +88,8 @@ export default async function SignupThanksPage({
   const portalClaimHref = resultToken
     ? `/auth/portal-claim?result=${encodeURIComponent(resultToken)}`
     : '/login'
+  const portalActionHref = portal.needsClaim ? portalClaimHref : '/mina-sidor'
+  const portalActionLabel = portal.needsClaim ? 'Logga in och koppla den här teckningen' : 'Gå till Mina sidor'
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -145,7 +148,7 @@ export default async function SignupThanksPage({
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-gray-300">
             <li>Först får du besked att teckningen har tagits emot.</li>
             <li>När avtalet är klart kommer avtalsbekräftelse, fryst PDF och information om ångerrätten.</li>
-            <li>Om du är ny kund kommer därefter en separat länk för att aktivera Mina sidor. Har du redan konto använder du knappen nedan så att just den här teckningen verifieras och kopplas säkert.</li>
+            <li>Om du är ny kund kommer därefter en separat länk för att aktivera Mina sidor. Har du redan konto kopplas just den här teckningen till samma kundkonto. Ett nytt avtal eller en ny anläggning läggs till separat och tidigare avtal och anläggningar ligger kvar.</li>
           </ol>
         </div>
         {missing.length > 0 ? <StatusList title="Uppgifter som kan behöva kompletteras" items={missing.map(friendlyMissingFieldLabel)} tone="warning" /> : null}
@@ -153,7 +156,7 @@ export default async function SignupThanksPage({
         {stored.warnings.length > 0 ? <StatusList title="Information från handläggningen" items={stored.warnings} tone="neutral" /> : null}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href="/" className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black transition hover:bg-cyan-400">Till startsidan</Link>
-          {portal.showLogin ? <Link href={portalClaimHref} className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5">Logga in och koppla teckningen</Link> : null}
+          {portal.showLogin ? <Link href={portalActionHref} className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5">{portalActionLabel}</Link> : null}
           <Link href="/kundservice" className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5">Kontakta oss</Link>
         </div>
       </section>
