@@ -33,7 +33,7 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
     case 'invite_sent':
       return { title: 'Ny kund: bekräfta din e-post', body: 'Vi har skickat ett mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor.', tone: 'success' as const, showLogin: false, needsClaim: false }
     case 'profile_linked':
-      return { title: 'Teckningen är kopplad till Mina sidor', body: 'Den här teckningen är kopplad till ditt befintliga kundkonto. Om avtalet gäller en ny anläggning visas den som en ny anläggning och tidigare avtal och anläggningar ligger kvar.', tone: 'info' as const, showLogin: true, needsClaim: false }
+      return { title: 'Redan kund? Logga in', body: 'Den här teckningen är kopplad till ditt befintliga kundkonto. Om avtalet gäller en ny anläggning visas den som en ny anläggning och tidigare avtal och anläggningar ligger kvar.', tone: 'info' as const, showLogin: true, needsClaim: false }
     case 'pending':
     case 'failed':
       return { title: 'Inloggning skickas separat', body: 'Din teckning är mottagen. Om inloggningsmailet inte kommer fram skickar vi ny länk när kundprofilen är färdigkopplad.', tone: 'warning' as const, showLogin: false, needsClaim: false }
@@ -89,7 +89,7 @@ export default async function SignupThanksPage({
     ? `/auth/portal-claim?result=${encodeURIComponent(resultToken)}`
     : '/login'
   const portalActionHref = portal.needsClaim ? portalClaimHref : '/mina-sidor'
-  const portalActionLabel = portal.needsClaim ? 'Logga in och koppla den här teckningen' : 'Gå till Mina sidor'
+  const portalActionLabel = portal.needsClaim ? 'Logga in och koppla den här teckningen' : 'Öppna Mina sidor'
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
