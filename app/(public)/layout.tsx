@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import PublicHeader from '@/components/layout/PublicHeader'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 const SITE_URL = 'https://gridex.se'
 const BRAND_LOGO_URL = `${SITE_URL}/brand/gridex-logo.png`
@@ -49,11 +50,16 @@ export const metadata: Metadata = {
     : undefined,
 }
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
     <>
       {/* Organization + Website JSON-LD (global) */}
@@ -94,7 +100,7 @@ export default function PublicLayout({
       />
 
       <div className="min-h-screen flex flex-col">
-        <PublicHeader />
+        <PublicHeader authenticatedEmail={user?.email ?? null} />
         <div className="flex-1">{children}</div>
       </div>
     </>
