@@ -13,6 +13,21 @@ assert.match(canonical, /resolution_id: effectiveQuote\.resolution_id/)
 assert.match(canonical, /annual_consumption_kwh: effectiveQuote\.annual_consumption_kwh/)
 assert.doesNotMatch(canonical, /offer_reference: input\.contract\.offer_reference[\s\S]*customer_type: input\.customerType[\s\S]*resolution_id: area\.resolution_id/)
 
+// PostgreSQL/PostgREST can return the exact same UTC timestamptz using +00:00
+// while the signed browser quote contains Z. Integrity must compare the instant,
+// not the textual wire representation.
+assert.match(canonical, /function sameCanonicalTimestamp\(/)
+assert.match(canonical, /Date\.parse\(left\)/)
+assert.match(canonical, /Date\.parse\(right\)/)
+assert.match(
+  canonical,
+  /!sameCanonicalTimestamp\(opsValidation\.valid_until, effectiveQuote\.valid_until\)/,
+)
+assert.doesNotMatch(
+  canonical,
+  /opsValidation\.valid_until\s*!==\s*effectiveQuote\.valid_until/,
+)
+
 assert.match(form, /const showSubmissionError = Boolean\([\s\S]*errorList\.length === 0/)
 assert.match(form, /\{showSubmissionError \? \(/)
 assert.doesNotMatch(form, /\{submissionState\.errorMessage \? \(/)
