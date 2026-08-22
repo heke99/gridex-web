@@ -1160,6 +1160,7 @@ export default async function TecknaPage({
       external_customer_id: externalCustomerId,
       offer_reference: offer.offer_reference,
       quote_reference: verifiedQuote.value.quote.ops_quote_reference,
+      settlement: verifiedQuote.value.quote.settlement,
       price_option_reference: verifiedQuote.value.quote.price_option_reference,
       invoice_delivery_method: verifiedQuote.value.quote.invoice_delivery_method,
       selected_component_references: verifiedQuote.value.quote.selected_component_references,

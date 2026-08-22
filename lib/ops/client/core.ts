@@ -61,7 +61,7 @@ import {
   storeWebsitePublicContractSnapshot,
 } from '@/lib/website/publicContractSnapshotStore'
 
-import type { OpsPublicContract, OpsAuthorizationProbeResult, OpsPublicContractDiagnostic, OpsWebsitePriceArea, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsQuoteAssumption, OpsQuoteMarketSource, OpsQuoteMarketReference, OpsWebsitePricingPreview, OpsClientStatus, OpsIntegrationContext, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractFeedState, OpsEmptyFeedAuthorizationReason, OpsEmptyFeedAuthorization, OpsPublicContractsSnapshot } from './types'
+import type { OpsPublicContract, OpsAuthorizationProbeResult, OpsPublicContractDiagnostic, OpsWebsitePriceArea, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsWebsiteQuoteSettlement, OpsQuoteAssumption, OpsQuoteMarketSource, OpsQuoteMarketReference, OpsWebsitePricingPreview, OpsClientStatus, OpsIntegrationContext, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractFeedState, OpsEmptyFeedAuthorizationReason, OpsEmptyFeedAuthorization, OpsPublicContractsSnapshot } from './types'
 import { opsErrorCodeValue } from './portal'
 
 export function opsBaseUrl(): string {
@@ -1097,6 +1097,7 @@ export function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput
   const mandatoryComponentReferences = pickStringArray(row, ['mandatory_component_references']);
   const conditionalComponentReferences = pickStringArray(row, ['conditional_component_references']);
   const siteCount = normalizeInteger(row.site_count);
+  const settlement = recordValue(row.settlement) as OpsWebsiteQuoteSettlement | null;
   const validUntilTimestamp = validUntil ? Date.parse(validUntil) : Number.NaN
   if (
     !quoteReference ||
@@ -1106,6 +1107,7 @@ export function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput
     !Object.hasOwn(row, 'price_option_reference') ||
     !Object.hasOwn(row, 'area_price_reference') ||
     !normalizedInvoiceDeliveryMethod ||
+    !settlement ||
     !resolutionId ||
     !startDate ||
     !isOpsWebsitePriceArea(area) ||
@@ -1214,6 +1216,7 @@ export function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput
     source_window: quoteSourceWindow(row.source_window ?? row.sourceWindow),
     market_data_timestamp: pickString(row, ['market_data_timestamp', 'marketDataTimestamp']) ?? marketReference?.as_of ?? undefined,
     is_binding: pickBoolean(row, ['is_binding', 'isBinding']) ?? false,
+    settlement,
     assumptions: normalizeQuoteAssumptions(row.assumptions),
     market_sources: marketSources,
     market_reference: marketReference,

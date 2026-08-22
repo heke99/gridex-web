@@ -1,15 +1,15 @@
 {
-  "synced_at": "2026-08-20T21:02:45.506Z",
-  "contract_version": "2026-08-20.2",
+  "synced_at": "2026-08-22T19:32:29.061Z",
+  "contract_version": "2026-08-22.2",
   "release_manifest": {
-    "release_version": "2026-08-20.2",
-    "website_openapi_version": "2026-08-20.2",
-    "customer_portal_openapi_version": "2026-08-20.2",
-    "runtime_contract_version": "2026-08-20.2",
-    "guide_version": "2026-08-20.2",
-    "released_at": "2026-08-20T11:38:24.000Z",
-    "generated_at": "2026-08-20T11:38:24.000Z",
-    "build_commit": "306428feaf3b53ba337953b92dc063428994e514",
+    "release_version": "2026-08-22.2",
+    "website_openapi_version": "2026-08-22.2",
+    "customer_portal_openapi_version": "2026-08-22.2",
+    "runtime_contract_version": "2026-08-22.2",
+    "guide_version": "2026-08-22.2",
+    "released_at": "2026-08-22T18:52:00.000Z",
+    "generated_at": "2026-08-22T18:52:00.000Z",
+    "build_commit": "bb96a39c8ece79164ec5b4e4abed7b85553fed79",
     "compatibility_classification": "breaking-client-update-required",
     "deprecated_features": [
       {
@@ -33,109 +33,108 @@
         "sunset_at": "2026-10-31T23:59:59.000Z"
       }
     ],
-    "minimum_tenant_integration_version": "2026-08-20.2",
+    "minimum_tenant_integration_version": "2026-08-22.2",
     "specifications": {
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-08-20.2",
+        "contract_version": "2026-08-22.2",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-20.2/website-integration-v1.json",
-        "sha256": "c3f44ca1ec805f219a8b940a6c05b90f32c6399aef48318ea1b61da9d819d8ab",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-22.2/website-integration-v1.json",
+        "sha256": "f89637e6138621acd7e4d25d2d7e025ce4b56a68d12b2f984b49d44adfce6dbb",
         "compatibility": "breaking-client-update-required"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-08-20.2",
+        "contract_version": "2026-08-22.2",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-20.2/customer-portal-v1.json",
-        "sha256": "cf115699988680e167cde55543994294c7000e58c52d5aaebb9f2a02f268d08b",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-08-22.2/customer-portal-v1.json",
+        "sha256": "f5c8909c37a88eece134a3c4db8f885e2f1a1699c58e5fe987c5b5fa4d61caf8",
         "compatibility": "breaking-client-update-required"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "c3f44ca1ec805f219a8b940a6c05b90f32c6399aef48318ea1b61da9d819d8ab",
+      "sha256": "f89637e6138621acd7e4d25d2d7e025ce4b56a68d12b2f984b49d44adfce6dbb",
       "semantic_diff": {
-        "previous_version": "2026-08-20.2",
-        "next_version": "2026-08-20.2",
+        "previous_version": "2026-08-22.1",
+        "next_version": "2026-08-22.2",
         "added_paths": [
-          "/api/v1/openapi/2026-08-20.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json"
+          "/api/v1/openapi/2026-08-22.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json"
         ],
-        "removed_paths": [],
+        "removed_paths": [
+          "/api/v1/openapi/2026-08-22.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-22.1/customer-portal-v1.json"
+        ],
         "changed_paths": [
           "/api/v1/website/public-contracts",
           "/api/v1/contracts",
-          "/api/v1/website/customer-applications",
-          "/api/v1/openapi/release-manifest.json",
+          "/api/v1/website/quote",
+          "/api/v1/website/quote/validate",
+          "/api/v1/website/energy-area/resolve",
+          "/api/v1/website/market-price/current",
+          "/api/v1/website/portfolio-prices",
+          "/api/v1/website/customer-events",
           "/api/v1/public-contracts",
           "/api/v1/website/customer-applications/{application_number}",
-          "/api/v1/openapi/2026-08-19.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json"
+          "/api/v1/openapi/2026-08-22.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-22.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-22.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json"
         ],
         "added_schemas": [],
         "removed_schemas": [],
         "changed_schemas": [
+          "ErrorEnvelope",
+          "IntegrationContext",
           "CustomerApplicationRequest",
+          "WebsiteCustomerApplicationResponse",
           "PublicationChangedWebhook",
-          "PowerOfAttorneyInput",
-          "LegalBundleDocument",
-          "WebsitePortfolioPriceData",
-          "WebsiteQuoteValidationData",
-          "WebsiteCustomerEventIdentity",
-          "WebsiteCustomerEventRequest",
-          "OpsDomainWebhookEnvelope",
-          "WebsiteLegalRequirement",
-          "LegacyLegalVersion",
-          "CustomerLegalDocument"
+          "WebsiteQuoteResponse",
+          "WebsiteEnergyAreaResolveResponse",
+          "CurrentMarketPriceResponse",
+          "MarketPriceErrorEnvelope",
+          "ApiError",
+          "WebsiteLegalBundleResponse",
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification",
+          "ErrorResponse",
+          "CustomerApplicationStatusChangedWebhook",
+          "SupplierSwitchUpdatedWebhook"
         ]
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "cf115699988680e167cde55543994294c7000e58c52d5aaebb9f2a02f268d08b",
+      "sha256": "f5c8909c37a88eece134a3c4db8f885e2f1a1699c58e5fe987c5b5fa4d61caf8",
       "semantic_diff": {
-        "previous_version": "2026-08-20.2",
-        "next_version": "2026-08-20.2",
+        "previous_version": "2026-08-22.1",
+        "next_version": "2026-08-22.2",
         "added_paths": [
-          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json"
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json"
         ],
-        "removed_paths": [],
+        "removed_paths": [
+          "/api/v1/openapi/2026-08-22.1/customer-portal-v1.json"
+        ],
         "changed_paths": [
           "/api/v1/customer-portal/sync",
-          "/api/v1/customer/contracts",
-          "/api/v1/customer/documents",
-          "/api/v1/customer/events",
-          "/api/v1/customer/invoices",
-          "/api/v1/customer/invoices/{id}",
-          "/api/v1/customer/legal-acceptances",
-          "/api/v1/customer/me",
-          "/api/v1/customer/metering-values",
           "/api/v1/customer/move-out",
-          "/api/v1/customer/notifications",
           "/api/v1/customer/notifications/read",
-          "/api/v1/customer/portal-bundle",
-          "/api/v1/customer/powers-of-attorney",
           "/api/v1/customer/profile-update",
-          "/api/v1/customer/sites",
           "/api/v1/customer/sync",
-          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json"
+          "/api/v1/events",
+          "/api/v1/openapi/2026-08-22.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json"
         ],
         "added_schemas": [],
         "removed_schemas": [],
         "changed_schemas": [
-          "PortalSyncRequest",
-          "PortalSyncData",
-          "ClosedPortalMutationRequest",
-          "CustomerSyncRequest",
-          "CustomerEventIdentity",
-          "CustomerEventRequest",
+          "ApiError",
+          "IntegrationContext",
+          "ErrorResponse",
+          "ClosedPortalResourceEnvelope",
+          "ErrorEnvelope",
+          "MarketPriceErrorEnvelope",
           "PublicDomainEvent"
         ]
       }

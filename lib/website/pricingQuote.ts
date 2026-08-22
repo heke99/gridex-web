@@ -12,6 +12,7 @@ import type {
   WebsiteQuoteAssumption,
   WebsiteQuoteMarketSource,
   WebsiteQuoteMarketReference,
+  WebsiteQuoteSettlement,
 } from "@/lib/website/publicApi";
 
 const CURRENT_TOKEN_VERSION = "v7";
@@ -71,6 +72,7 @@ export type WebsitePricingQuote = {
   source_window: { start: string; end: string } | null;
   market_data_timestamp: string | null;
   is_binding: boolean;
+  settlement: WebsiteQuoteSettlement;
   assumptions: WebsiteQuoteAssumption[];
   market_sources: WebsiteQuoteMarketSource[];
   market_reference: WebsiteQuoteMarketReference | null;
@@ -128,6 +130,17 @@ function validReferences(value: unknown): value is string[] {
     new Set(value).size === value.length;
 }
 
+function validSettlement(value: unknown): value is WebsiteQuoteSettlement {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return ["fixed_price", "market_monthly", "market_hourly", "market_quarter_hour", "portfolio", "mixed"].includes(String(row.model ?? "")) &&
+    ["fixed_energy_price", "pricing_model", "portfolio_pricing_model", "mixed_pricing_model"].includes(String(row.customer_accepts ?? "")) &&
+    typeof row.energy_price_locked_at_signup === "boolean" &&
+    row.uses_actual_metered_consumption === true &&
+    ["not_applicable", "indicative_preview_only"].includes(String(row.market_data_role ?? "")) &&
+    ["fixed", "month", "hour", "quarter_hour", "portfolio_period", "mixed_components"].includes(String(row.settlement_resolution ?? ""));
+}
+
 function isQuote(value: unknown): value is WebsitePricingQuote {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const q = value as Partial<WebsitePricingQuote>;
@@ -148,7 +161,7 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
     validReferences(q.conditional_component_references) && typeof q.site_count === "number" &&
     Number.isInteger(q.site_count) && q.site_count >= 1 && q.site_count <= 1_000 &&
     finite(q.price_per_kwh_ore) && finite(q.total_monthly_cost_sek) && finite(q.total_monthly_cost_incl_vat_sek) &&
-    text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" &&
+    text(q.pricing_interval) && text(q.estimate_method) && typeof q.is_binding === "boolean" && validSettlement(q.settlement) &&
     Array.isArray(q.assumptions) && Array.isArray(q.market_sources) && text(q.pricing_snapshot_schema_version);
 }
 
@@ -171,7 +184,7 @@ export function issueWebsitePricingQuote(input: {
   const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date &&
     input.preview.price_option_reference && input.preview.invoice_delivery_method && Number.isInteger(input.preview.site_count) &&
     input.preview.pricing_interval && input.preview.estimate_method && input.preview.pricing_snapshot_schema_version &&
-    typeof input.preview.is_binding === "boolean" && Number.isFinite(validUntilTimestamp);
+    typeof input.preview.is_binding === "boolean" && validSettlement(input.preview.settlement) && Number.isFinite(validUntilTimestamp);
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
       !finite(input.preview.totalMonthlyCostSek) || !finite(input.preview.totalMonthlyCostInclVatSek)) return null;
@@ -225,6 +238,7 @@ export function issueWebsitePricingQuote(input: {
     source_window: input.preview.source_window ?? null,
     market_data_timestamp: input.preview.market_data_timestamp ?? null,
     is_binding: input.preview.is_binding as boolean,
+    settlement: { ...input.preview.settlement },
     assumptions: input.preview.assumptions ?? [],
     market_sources: input.preview.market_sources ?? [],
     market_reference: input.preview.market_reference ?? null,
@@ -302,6 +316,7 @@ export function quoteToWebsitePricingPreview(quote: WebsitePricingQuote, token?:
     source_window: quote.source_window,
     market_data_timestamp: quote.market_data_timestamp ?? undefined,
     is_binding: quote.is_binding,
+    settlement: { ...quote.settlement },
     assumptions: quote.assumptions,
     market_sources: quote.market_sources,
     market_reference: quote.market_reference,

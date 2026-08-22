@@ -83,6 +83,7 @@ export type OpsEnergyDirection = WebsiteApiComponents['schemas']['EnergyDirectio
 export type OpsProductionPricing = WebsiteApiComponents['schemas']['ProductionPricing'];
 export type OpsWebsiteQuoteRequestDto = WebsiteApiComponents['schemas']['WebsiteQuoteRequest'];
 export type OpsCustomerApplicationRequestDto = WebsiteApiComponents['schemas']['CustomerApplicationRequest'];
+export type OpsWebsiteQuoteSettlement = WebsiteApiComponents['schemas']['WebsiteQuoteSettlement'];
 export type OpsWebsiteQuoteValidationRequestDto = WebsiteApiComponents['schemas']['QuoteValidationRequest'];
 export type OpsLegalAcceptancesDto = WebsiteApiComponents['schemas']['LegalAcceptances'];
 export type OpsCurrentMarketPriceDto = WebsiteApiComponents['schemas']['CurrentMarketPrice'];
@@ -255,6 +256,7 @@ export type OpsCustomerApplicationInput = {
   external_customer_id: string;
   offer_reference: string;
   quote_reference: string;
+  settlement: OpsWebsiteQuoteSettlement;
   price_option_reference: string;
   invoice_delivery_method: OpsInvoiceDeliveryMethod;
   selected_component_references: string[];
@@ -644,6 +646,7 @@ export type OpsWebsitePricingPreview = {
   source_window?: { start: string; end: string } | null;
   market_data_timestamp?: string;
   is_binding?: boolean;
+  settlement: OpsWebsiteQuoteSettlement;
   assumptions?: OpsQuoteAssumption[];
   market_sources?: OpsQuoteMarketSource[];
   market_reference?: OpsQuoteMarketReference | null;
