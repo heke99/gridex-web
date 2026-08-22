@@ -77,7 +77,7 @@ assert.deepEqual(
 assert.ok(websiteOpenApi.components.schemas.WebsiteQuoteData.required.includes('valid_until'))
 assert.equal(websiteOpenApi.components.schemas.WebsiteQuoteData.properties.valid_until.format, 'date-time')
 assert.ok(validation.includes("reason: 'quote_valid_until_changed'"))
-assert.ok(validation.includes("reason: 'quote_expired'"))
+assert.equal(validation.includes("reason: 'quote_expired'"), false)
 assert.ok(ops.includes('requested_start_mode: input.requested_start_mode'))
 assert.ok(ops.includes('value.application_number !== normalized'))
 assert.ok(!ops.includes('value.application_id !== normalized'))
