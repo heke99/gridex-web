@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-      - fix/sync-ops-schema-20260822
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: '17 4 * * *'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   contract:
@@ -19,32 +18,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: fix/sync-ops-schema-20260822
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Sync canonical live OpenAPI release
-        run: npm run api:sync
-      - name: Verify generated contract and runtime types
-        run: |
-          npm run typecheck
-          node tests/forward-contract-version-compatibility.test.mjs
-          npm run verify:delivery
-      - name: Restore read-only workflow and commit canonical sync
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/openapi-drift.yml
-          git add docs/openapi lib/ops/contract.ts lib/ops/generated tests/forward-contract-version-compatibility.test.mjs .github/workflows/openapi-drift.yml
-          if git diff --cached --quiet; then
-            echo "No OpenAPI sync changes to commit."
-            exit 0
-          fi
-          git commit -m "chore(api): sync Gridex Web to OPS 2026-08-22.2"
-          git pull --rebase origin fix/sync-ops-schema-20260822
-          git push origin HEAD:fix/sync-ops-schema-20260822
+      - name: Block unknown OpenAPI versions or schema hashes
+        run: npm run api:preflight
