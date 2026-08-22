@@ -37,8 +37,8 @@ export async function persistWebsitePricingSnapshot(input: {
   const issuedAt = new Date().toISOString()
   const validUntil = input.preview.valid_until
   const validUntilTimestamp = typeof validUntil === 'string' ? Date.parse(validUntil) : Number.NaN
-  if (!Number.isFinite(validUntilTimestamp) || validUntilTimestamp <= Date.parse(issuedAt)) {
-    throw new Error('Website pricing snapshot requires a future canonical valid_until.')
+  if (!Number.isFinite(validUntilTimestamp)) {
+    throw new Error('Website pricing snapshot requires a canonical valid_until compatibility timestamp.')
   }
 
   const reference = input.preview.pricing_snapshot_reference ?? `wps_${randomUUID().replaceAll('-', '')}`
