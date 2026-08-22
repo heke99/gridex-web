@@ -84,9 +84,10 @@ assert.match(snapshotStore, /p_empty_feed_authorization: input\.snapshot\.empty_
 assert.match(browserPayload, /feed_state: snapshot\.feed_state/)
 assert.match(browserPayload, /empty_feed_authorization: snapshot\.empty_feed_authorization/)
 assert.match(pricingQuote, /const CURRENT_TOKEN_VERSION = "v7"/)
-assert.match(pricingQuote, /Date\.parse\(parsed\.valid_until\) <= now\.getTime\(\)/)
+assert.doesNotMatch(pricingQuote, /Date\.parse\(parsed\.valid_until\) <= now\.getTime\(\)/)
+assert.match(pricingQuote, /not invalidated because wall-clock time passes/)
 assert.match(canonicalQuoteValidation, /quote_valid_until_changed/)
-assert.match(canonicalQuoteValidation, /quote_expired/)
+assert.doesNotMatch(canonicalQuoteValidation, /quote_expired/)
 assert.match(quoteExpiryMigration, /website_pricing_snapshots_valid_until_required_chk/)
 assert.match(quoteExpiryMigration, /drop function if exists public\.run_non_expiring_quote_backfill/)
 
