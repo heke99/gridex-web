@@ -41,4 +41,13 @@ assert.notEqual(
   'integration/context must continue accepting canonical envelope metadata such as request_id and contract_schema_version',
 )
 
+const quoteData = websiteOpenApi.components.schemas.WebsiteQuoteData
+const applicationRequest = websiteOpenApi.components.schemas.CustomerApplicationRequest
+assert.ok(quoteData.properties.settlement, 'canonical quotes must expose settlement evidence')
+assert.ok(applicationRequest.required.includes('settlement'), 'customer applications must preserve quote settlement evidence')
+assert.equal(
+  applicationRequest.properties.settlement.$ref,
+  '#/components/schemas/WebsiteQuoteSettlement',
+)
+
 console.log(`Forward contract version compatibility tests passed (${localContractVersion})`)
