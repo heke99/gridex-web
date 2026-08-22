@@ -1,0 +1,42 @@
+name: One-shot non-expiring settlement compatibility
+
+on:
+  push:
+    branches:
+      - fix/non-expiring-customer-price-20260822
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/non-expiring-customer-price-20260822
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply compatibility patch
+        run: node scripts/one-shot-non-expiring-settlement-compat.cjs
+      - name: Verify tenant patch
+        run: |
+          npm run typecheck
+          node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/non-expiring-canonical-quotes.test.mjs
+          node tests/customer-pricing-copy-and-renewal.test.mjs
+          node tests/forward-contract-version-compatibility.test.mjs
+      - name: Remove one-shot tooling and commit result
+        run: |
+          rm .github/workflows/one-shot-non-expiring-settlement-compat.yml
+          rm scripts/one-shot-non-expiring-settlement-compat.cjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(pricing): preserve accepted market pricing model without quote TTL"
+          git push origin HEAD:fix/non-expiring-customer-price-20260822
