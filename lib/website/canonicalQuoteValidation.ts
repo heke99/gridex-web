@@ -67,6 +67,19 @@ type CanonicalArea = {
   expires_at: string
 }
 
+function sameCanonicalTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const leftTimestamp = typeof left === 'string' ? Date.parse(left) : Number.NaN
+  const rightTimestamp = typeof right === 'string' ? Date.parse(right) : Number.NaN
+  return (
+    Number.isFinite(leftTimestamp) &&
+    Number.isFinite(rightTimestamp) &&
+    leftTimestamp === rightTimestamp
+  )
+}
+
 async function refreshCanonicalArea(input: {
   request: CanonicalQuoteValidationInput
   expectedPriceArea: OpsWebsitePriceArea
@@ -238,7 +251,9 @@ export async function validateCanonicalWebsiteQuote(
   if (opsValidation.area_price_reference !== effectiveQuote.area_price_reference) {
     return { ok: false, reason: 'area_price_reference_changed' }
   }
-  if (opsValidation.valid_until !== effectiveQuote.valid_until) {
+  // PostgREST can serialize the same UTC timestamptz with +00:00 while the signed
+  // browser quote carries Z. Compare the represented instant, not the wire spelling.
+  if (!sameCanonicalTimestamp(opsValidation.valid_until, effectiveQuote.valid_until)) {
     return { ok: false, reason: 'quote_valid_until_changed' }
   }
 
