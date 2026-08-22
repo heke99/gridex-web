@@ -305,6 +305,7 @@ export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplication
     external_customer_id: externalCustomerId,
     offer_reference: offerReference!,
     quote_reference: quoteReference!,
+    settlement: input.settlement,
     price_option_reference: priceOptionReference!,
     invoice_delivery_method: input.invoice_delivery_method,
     selected_component_references: [...input.selected_component_references],

@@ -4,48 +4,24 @@ on:
   push:
     branches:
       - main
-      - fix/sync-ops-schema-20260822
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: '17 4 * * *'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: fix/sync-ops-schema-20260822
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Patch immutable settlement propagation
-        run: |
-          python scripts/temp-settlement-chain-patch.py
-          python scripts/temp-settlement-fixtures-patch.py
-      - name: Verify full Web contract and production build
-        run: |
-          npm run api:check:local
-          npm run api:compatibility
-          npm run typecheck
-          npm test
-          npm run build
-      - name: Restore read-only workflow and commit settlement wiring
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/openapi-drift.yml
-          git rm -f scripts/.settlement-patch-trigger scripts/temp-settlement-chain-patch.py scripts/temp-settlement-fixtures-patch.py
-          git add lib/ops/client/types.ts lib/ops/client/application.ts lib/ops/client/core.ts lib/website/publicApi.ts lib/website/pricingQuote.ts 'app/(public)/teckna-avtal/page.tsx' tests/website-api.contract.test.mjs tests/customer-facing-pricing-visibility.test.mjs tests/non-expiring-canonical-quotes.test.mjs .github/workflows/openapi-drift.yml
-          git commit -m "fix(checkout): bind canonical quote settlement through application submit"
-          git pull --rebase origin fix/sync-ops-schema-20260822
-          git push origin HEAD:fix/sync-ops-schema-20260822
+      - name: Block unknown OpenAPI versions or schema hashes
+        run: npm run api:preflight

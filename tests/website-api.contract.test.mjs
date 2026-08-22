@@ -180,7 +180,7 @@ assert.equal(quoteValidationSchema.additionalProperties, false)
 assert.ok(applicationSchema.required.includes('offer_reference'))
 assert.ok(applicationSchema.required.includes('quote_reference'))
 assert.ok(applicationSchema.required.includes('resolution_id'))
-for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(applicationSchema.required.includes(field), `customer application field must be required: ${field}`)
+for (const field of ['settlement', 'price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(applicationSchema.required.includes(field), `customer application field must be required: ${field}`)
 assert.equal(applicationSchema.additionalProperties, false)
 assert.ok('metering_point' in applicationSchema.properties)
 assert.ok(!('source' in applicationSchema.properties))
@@ -224,6 +224,14 @@ const applicationPayload = buildOpsCustomerApplicationPayload({
   external_customer_id: 'tenant-customer-123',
   offer_reference: 'offer_test',
   quote_reference: 'quote_test',
+  settlement: {
+    model: 'market_monthly',
+    customer_accepts: 'pricing_model',
+    energy_price_locked_at_signup: false,
+    uses_actual_metered_consumption: true,
+    market_data_role: 'indicative_preview_only',
+    settlement_resolution: 'month',
+  },
   price_option_reference: 'price_option_test',
   invoice_delivery_method: 'email',
   selected_component_references: ['component_test'],
@@ -301,6 +309,14 @@ const baseApplicationInput = {
   external_customer_id: 'tenant-customer-identity-test',
   offer_reference: 'offer_test',
   quote_reference: 'quote_test',
+  settlement: {
+    model: 'market_monthly',
+    customer_accepts: 'pricing_model',
+    energy_price_locked_at_signup: false,
+    uses_actual_metered_consumption: true,
+    market_data_role: 'indicative_preview_only',
+    settlement_resolution: 'month',
+  },
   price_option_reference: 'price_option_test',
   invoice_delivery_method: 'email',
   selected_component_references: [],

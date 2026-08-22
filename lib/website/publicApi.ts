@@ -1,10 +1,12 @@
 import type { WebsiteConsumptionProfile } from '@/lib/website/consumptionEstimator'
 import type { PublicEnergyDirection, PublicProductionPricing } from '@/lib/website/publicContractContract'
+import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api'
 
 export const WEBSITE_PRICE_AREAS = ["SE1", "SE2", "SE3", "SE4"] as const;
 
 export type WebsitePriceArea = (typeof WEBSITE_PRICE_AREAS)[number];
 export type WebsiteInvoiceDeliveryMethod = "email" | "e_invoice" | "paper" | "direct_debit";
+export type WebsiteQuoteSettlement = WebsiteApiComponents['schemas']['WebsiteQuoteSettlement'];
 
 export type WebsitePriceAreaAssurance = {
   status: 'verified' | 'estimated' | 'ambiguous' | 'unresolved';
@@ -201,6 +203,7 @@ export type WebsitePricingPreview = {
   source_window?: { start: string; end: string } | null;
   market_data_timestamp?: string;
   is_binding?: boolean;
+  settlement: WebsiteQuoteSettlement;
   assumptions?: WebsiteQuoteAssumption[];
   market_sources?: WebsiteQuoteMarketSource[];
   market_reference?: WebsiteQuoteMarketReference | null;
