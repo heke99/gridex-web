@@ -960,6 +960,19 @@ export default async function TecknaPage({
         fieldErrors: { pricing: "Prisunderlaget stämmer inte med valt avtal." },
       });
     }
+    const settlementRecord = asRecord(verifiedQuote.value.quote.raw?.settlement);
+    if (!settlementRecord) {
+      console.error('[website signup] canonical quote settlement missing after validation', {
+        offer_reference: offer.offer_reference,
+        quote_reference: verifiedQuote.value.quote.ops_quote_reference,
+      });
+      return fail('price_changed', {
+        step: 1,
+        fieldErrors: { pricing: 'Prisunderlagets avräkningsmodell kunde inte verifieras.' },
+      });
+    }
+    const canonicalSettlement =
+      settlementRecord as Parameters<typeof buildOpsCustomerApplicationPayload>[1];
     const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
     const serverResolution = verifiedQuote.value.area;
     // The browser token belongs to the exact preview the customer saw. An
@@ -1241,7 +1254,7 @@ export default async function TecknaPage({
       await lockWebsiteSubmissionOpsPayload({
         submissionAttemptId,
         opsPayloadHash: submissionPayloadHash(
-          buildOpsCustomerApplicationPayload(applicationInput),
+          buildOpsCustomerApplicationPayload(applicationInput, canonicalSettlement),
         ),
       });
       await updateWebsiteSubmission({ submissionAttemptId, status: "submitting" });
@@ -1256,7 +1269,8 @@ export default async function TecknaPage({
       });
     }
 
-    const submitApplicationToOps = () => submitOpsCustomerApplication(applicationInput);
+    const submitApplicationToOps = () =>
+      submitOpsCustomerApplication(applicationInput, canonicalSettlement);
 
     let result: Awaited<ReturnType<typeof submitOpsCustomerApplication>>;
     try {

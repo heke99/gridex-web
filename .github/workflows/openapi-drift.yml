@@ -1,105 +1,27 @@
 name: OpenAPI compatibility
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   contract:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          ref: fix/sync-ops-schema-20260822
-          fetch-depth: 0
-      - name: Apply canonical settlement propagation patch
-        shell: python
-        run: |
-          from pathlib import Path
-
-          def replace(path, old, new, count=1):
-              p = Path(path)
-              text = p.read_text()
-              actual = text.count(old)
-              if actual < count:
-                  raise SystemExit(f"{path}: expected at least {count} occurrence(s), found {actual}: {old[:120]!r}")
-              text = text.replace(old, new, count)
-              p.write_text(text)
-
-          application = 'lib/ops/client/application.ts'
-          replace(
-              application,
-              "import { opsErrorCodeValue } from './portal'\n\nexport function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {",
-              "import { opsErrorCodeValue } from './portal'\n\nexport type OpsCustomerApplicationSettlement = WebsiteApiComponents['schemas']['WebsiteQuoteSettlement']\n\nexport function buildOpsCustomerApplicationPayload(\n  input: OpsCustomerApplicationInput,\n  settlement: OpsCustomerApplicationSettlement,\n) {",
-          )
-          replace(
-              application,
-              "  const startDate = normalizeText(input.start_date)\n  if (!externalCustomerId) {",
-              "  const startDate = normalizeText(input.start_date)\n  if (!settlement || typeof settlement !== 'object') {\n    throw new OpsError('Canonical settlement-bevis saknas i kundansökan.', 400, {\n      code: 'settlement_required',\n      field: 'settlement',\n      retryable: false,\n    })\n  }\n  if (!externalCustomerId) {",
-          )
-          replace(
-              application,
-              "    quote_reference: quoteReference!,\n    price_option_reference: priceOptionReference!,",
-              "    quote_reference: quoteReference!,\n    settlement,\n    price_option_reference: priceOptionReference!,",
-          )
-          replace(
-              application,
-              "export async function submitOpsCustomerApplication(\n  input: OpsCustomerApplicationInput,\n): Promise<AcceptedOpsCustomerApplicationResult> {",
-              "export async function submitOpsCustomerApplication(\n  input: OpsCustomerApplicationInput,\n  settlement: OpsCustomerApplicationSettlement,\n): Promise<AcceptedOpsCustomerApplicationResult> {",
-          )
-          replace(
-              application,
-              "  const applicationPayload = buildOpsCustomerApplicationPayload(input);",
-              "  const applicationPayload = buildOpsCustomerApplicationPayload(input, settlement);",
-          )
-
-          signup = 'app/(public)/teckna-avtal/page.tsx'
-          replace(
-              signup,
-              "    const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;",
-              "    const settlementRecord = asRecord(verifiedQuote.value.quote.raw?.settlement);\n    if (!settlementRecord) {\n      console.error('[website signup] canonical quote settlement missing after validation', {\n        offer_reference: offer.offer_reference,\n        quote_reference: verifiedQuote.value.quote.ops_quote_reference,\n      });\n      return fail('price_changed', {\n        step: 1,\n        fieldErrors: { pricing: 'Prisunderlagets avräkningsmodell kunde inte verifieras.' },\n      });\n    }\n    const canonicalSettlement =\n      settlementRecord as Parameters<typeof buildOpsCustomerApplicationPayload>[1];\n    const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;",
-          )
-          replace(
-              signup,
-              "          buildOpsCustomerApplicationPayload(applicationInput),",
-              "          buildOpsCustomerApplicationPayload(applicationInput, canonicalSettlement),",
-          )
-          replace(
-              signup,
-              "    const submitApplicationToOps = () => submitOpsCustomerApplication(applicationInput);",
-              "    const submitApplicationToOps = () =>\n      submitOpsCustomerApplication(applicationInput, canonicalSettlement);",
-          )
-
-          test = 'tests/website-api.contract.test.mjs'
-          replace(
-              test,
-              "for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count']) assert.ok(applicationSchema.required.includes(field), `customer application field must be required: ${field}`)\n",
-              "for (const field of ['price_option_reference', 'invoice_delivery_method', 'selected_component_references', 'site_count', 'settlement']) assert.ok(applicationSchema.required.includes(field), `customer application field must be required: ${field}`)\n",
-          )
-          replace(
-              test,
-              "  }],\n})\n\nassert.equal(applicationPayload.offer_reference, 'offer_test')",
-              "  }],\n}, {\n  model: 'market_hourly',\n  customer_accepts: 'pricing_model',\n  energy_price_locked_at_signup: false,\n  uses_actual_metered_consumption: true,\n  market_data_role: 'indicative_preview_only',\n  settlement_resolution: 'hour',\n})\n\nassert.equal(applicationPayload.offer_reference, 'offer_test')",
-          )
-          replace(
-              test,
-              "assert.equal(applicationPayload.quote_reference, 'quote_test')\n",
-              "assert.equal(applicationPayload.quote_reference, 'quote_test')\nassert.deepEqual(applicationPayload.settlement, {\n  model: 'market_hourly',\n  customer_accepts: 'pricing_model',\n  energy_price_locked_at_signup: false,\n  uses_actual_metered_consumption: true,\n  market_data_role: 'indicative_preview_only',\n  settlement_resolution: 'hour',\n})\n",
-          )
-      - name: Restore normal workflow and remove temporary inspection
-        run: |
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/openapi-drift.yml
-          git rm -f .github/workflows/temp-inspect-settlement.yml || true
-      - name: Commit compatibility patch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/ops/client/application.ts app/'(public)'/teckna-avtal/page.tsx tests/website-api.contract.test.mjs .github/workflows/openapi-drift.yml
-          git commit -m "fix(api): propagate canonical quote settlement to application"
-          git push origin HEAD:fix/sync-ops-schema-20260822
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Block unknown OpenAPI versions or schema hashes
+        run: npm run api:preflight
