@@ -63,17 +63,18 @@ jobs:
           fixture_anchor = "  quote_reference: 'quote_test',\n  price_option_reference: 'price_option_test',\n"
           if fixture_anchor not in text:
               raise SystemExit('website API application fixture quote anchor missing')
-          settlement = """  quote_reference: 'quote_test',
-  settlement: {
-    model: 'market_monthly',
-    customer_accepts: 'pricing_model',
-    energy_price_locked_at_signup: false,
-    uses_actual_metered_consumption: true,
-    market_data_role: 'indicative_preview_only',
-    settlement_resolution: 'month',
-  },
-  price_option_reference: 'price_option_test',
-"""
+          settlement = (
+              "  quote_reference: 'quote_test',\n"
+              "  settlement: {\n"
+              "    model: 'market_monthly',\n"
+              "    customer_accepts: 'pricing_model',\n"
+              "    energy_price_locked_at_signup: false,\n"
+              "    uses_actual_metered_consumption: true,\n"
+              "    market_data_role: 'indicative_preview_only',\n"
+              "    settlement_resolution: 'month',\n"
+              "  },\n"
+              "  price_option_reference: 'price_option_test',\n"
+          )
           text = text.replace(fixture_anchor, settlement, 1)
           test.write_text(text)
       - name: Verify full Web contract and production build
