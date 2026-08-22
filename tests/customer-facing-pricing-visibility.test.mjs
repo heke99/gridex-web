@@ -73,6 +73,14 @@ const issued = issueWebsitePricingQuote({
     conditional_component_references: [],
     site_count: 1,
     is_binding: true,
+    settlement: {
+      model: 'fixed_price',
+      customer_accepts: 'fixed_energy_price',
+      energy_price_locked_at_signup: true,
+      uses_actual_metered_consumption: true,
+      market_data_role: 'not_applicable',
+      settlement_resolution: 'fixed',
+    },
     public_contract_etag: '"visibility-etag"',
     publication_revision: 42,
     contract_payload_sha256: 'a'.repeat(64),
@@ -93,6 +101,14 @@ const tokenPayload = JSON.parse(Buffer.from(issued.token.split('.')[2], 'base64u
 assert.equal(tokenPayload.specification?.fees?.invoiceFeeSek, 19, 'canonical signed audit state must retain hidden fees')
 assert.equal(tokenPayload.total_monthly_cost_sek, 208, 'the browser total must still include the hidden invoice fee')
 assert.equal(tokenPayload.area_price_reference, 'area_price_visibility_se3', 'signed quote must retain canonical area price reference')
+assert.deepEqual(tokenPayload.settlement, {
+  model: 'fixed_price',
+  customer_accepts: 'fixed_energy_price',
+  energy_price_locked_at_signup: true,
+  uses_actual_metered_consumption: true,
+  market_data_role: 'not_applicable',
+  settlement_resolution: 'fixed',
+}, 'signed quote must retain the canonical settlement evidence')
 
 const resultCard = read('components/PriceResultCard.tsx')
 assert.equal(resultCard.includes('OPS-offert'), false)
