@@ -1,0 +1,35 @@
+name: Temporary OPS schema sync
+
+on:
+  push:
+    branches:
+      - fix/sync-ops-schema-20260822
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/sync-ops-schema-20260822
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync canonical OPS OpenAPI release
+        run: npm run api:sync
+      - name: Commit generated schema artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-schema-sync.yml
+          git add docs/openapi lib/ops/generated lib/ops/contract.ts
+          git commit -m "chore(api): sync canonical OPS schema release"
+          git push origin HEAD:fix/sync-ops-schema-20260822
