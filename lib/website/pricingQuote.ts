@@ -25,9 +25,8 @@ export type WebsitePricingQuote = {
   version: 6;
   created_at: string;
   issued_at: string;
-  // OPS valid_until is retained as canonical lifecycle metadata. The browser
-  // signature remains verifiable after that timestamp so the server can renew
-  // the internal quote without forcing the customer through the calculator again.
+  // OPS valid_until is retained only as V1 compatibility/audit metadata.
+  // Customer-visible website quotes are not invalidated because wall-clock time passes.
   expires_at?: string | null;
   valid_until: string;
   customer_type: WebsiteCustomerType;
@@ -172,8 +171,7 @@ export function issueWebsitePricingQuote(input: {
   const required = input.preview.ops_quote_reference && input.preview.resolution_id && input.preview.start_date &&
     input.preview.price_option_reference && input.preview.invoice_delivery_method && Number.isInteger(input.preview.site_count) &&
     input.preview.pricing_interval && input.preview.estimate_method && input.preview.pricing_snapshot_schema_version &&
-    typeof input.preview.is_binding === "boolean" && Number.isFinite(validUntilTimestamp) &&
-    validUntilTimestamp > now.getTime();
+    typeof input.preview.is_binding === "boolean" && Number.isFinite(validUntilTimestamp);
   if (!secret || !locationFingerprint || !validArea(area) || !required || !finite(input.preview.kwh) ||
       !finite(input.preview.annual_consumption_kwh) || !finite(input.preview.pricePerKwhOre) ||
       !finite(input.preview.totalMonthlyCostSek) || !finite(input.preview.totalMonthlyCostInclVatSek)) return null;
@@ -255,9 +253,6 @@ export function verifyWebsitePricingQuote(
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isQuote(parsed)) return { ok: false, reason: "invalid" };
-    if (!options.allowExpired && Date.parse(parsed.valid_until) <= now.getTime()) {
-      return { ok: false, reason: "expired" };
-    }
     return { ok: true, quote: parsed };
   } catch { return { ok: false, reason: "invalid" }; }
 }

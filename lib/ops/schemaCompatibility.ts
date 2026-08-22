@@ -25,6 +25,11 @@ export function isCompatibleAdditiveResponseSchemaError(error: unknown): boolean
   const additivePaths = normalized
     .filter((item) => item.keyword === 'additionalProperties')
     .map((item) => text(item.instancePath) ?? '')
+  const versionOnly = normalized.every((item) =>
+    item.keyword === 'const' &&
+    (text(item.instancePath) === '/contract_schema_version' || text(item.instancePath) === '/contract_version')
+  )
+  if (versionOnly && normalized.length > 0) return true
   if (additivePaths.length === 0) return false
 
   const isAtAdditivePath = (instancePath: string): boolean => additivePaths.some((path) => (
@@ -36,6 +41,7 @@ export function isCompatibleAdditiveResponseSchemaError(error: unknown): boolean
     const keyword = text(item.keyword)
     const instancePath = text(item.instancePath) ?? ''
     if (keyword === 'additionalProperties') return true
+    if (keyword === 'const' && (instancePath === '/contract_schema_version' || instancePath === '/contract_version')) return true
     if ((keyword === 'oneOf' || keyword === 'anyOf') && isAtAdditivePath(instancePath)) return true
     if (keyword === 'type' && isAtAdditivePath(instancePath)) {
       return record(item.params)?.type === 'null'
