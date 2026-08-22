@@ -28,7 +28,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Patch immutable settlement propagation
-        run: python scripts/temp-settlement-chain-patch.py
+        run: |
+          python scripts/temp-settlement-chain-patch.py
+          python scripts/temp-settlement-fixtures-patch.py
       - name: Verify full Web contract and production build
         run: |
           npm run api:check:local
@@ -42,7 +44,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout origin/main -- .github/workflows/openapi-drift.yml
-          git rm -f scripts/.settlement-patch-trigger scripts/temp-settlement-chain-patch.py
+          git rm -f scripts/.settlement-patch-trigger scripts/temp-settlement-chain-patch.py scripts/temp-settlement-fixtures-patch.py
           git add lib/ops/client/types.ts lib/ops/client/application.ts lib/ops/client/core.ts lib/website/publicApi.ts lib/website/pricingQuote.ts 'app/(public)/teckna-avtal/page.tsx' tests/website-api.contract.test.mjs tests/customer-facing-pricing-visibility.test.mjs tests/non-expiring-canonical-quotes.test.mjs .github/workflows/openapi-drift.yml
           git commit -m "fix(checkout): bind canonical quote settlement through application submit"
           git pull --rebase origin fix/sync-ops-schema-20260822
