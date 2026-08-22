@@ -44,6 +44,34 @@ function firstString(root: Record<string, unknown>, paths: string[][]): string |
   return null
 }
 
+type NullableStringField = {
+  present: boolean
+  valid: boolean
+  value: string | null
+}
+
+function firstNullableStringField(
+  root: Record<string, unknown>,
+  paths: string[][],
+): NullableStringField {
+  for (const path of paths) {
+    let current: unknown = root
+    let present = true
+    for (const key of path) {
+      if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, key)) {
+        present = false
+        break
+      }
+      current = current[key]
+    }
+    if (!present) continue
+    if (current === null) return { present: true, valid: true, value: null }
+    const value = stringValue(current)
+    return { present: true, valid: value !== null, value }
+  }
+  return { present: false, valid: false, value: null }
+}
+
 function firstNumber(root: Record<string, unknown>, paths: string[][]): number | null {
   for (const path of paths) {
     const value = numberValue(readPath(root, path))
@@ -179,11 +207,15 @@ export function validatePricingPreviewSnapshot(params: {
     reasons.push('prisalternativ i pricing_preview_snapshot matchar inte den signerade offerten')
   }
 
-  const snapshotAreaPriceReference = firstString(snapshot, [
+  const snapshotAreaPriceReference = firstNullableStringField(snapshot, [
     ['area_price_reference'],
     ['areaPriceReference'],
   ])
-  if (!snapshotAreaPriceReference || snapshotAreaPriceReference !== livePreview.area_price_reference) {
+  if (
+    !snapshotAreaPriceReference.present ||
+    !snapshotAreaPriceReference.valid ||
+    snapshotAreaPriceReference.value !== livePreview.area_price_reference
+  ) {
     reasons.push('områdespris i pricing_preview_snapshot matchar inte den signerade offerten')
   }
 
