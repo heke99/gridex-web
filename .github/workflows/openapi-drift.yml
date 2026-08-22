@@ -89,6 +89,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout origin/main -- .github/workflows/openapi-drift.yml
+          git rm -f scripts/.settlement-patch-trigger || true
           git add lib/ops/client/types.ts lib/ops/client/application.ts tests/website-api.contract.test.mjs .github/workflows/openapi-drift.yml
           git commit -m "fix(checkout): propagate canonical quote settlement to OPS application"
           git pull --rebase origin fix/sync-ops-schema-20260822
