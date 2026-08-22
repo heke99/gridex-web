@@ -65,25 +65,13 @@ import type { OpsCustomerApplicationRequestDto, OpsPowerOfAttorneyScope, OpsPowe
 import { getOpsClientStatus, normalizeNumber, normalizeText, recordValue, pickString, pickBoolean, observeRuntimeSchemaValidation, opsFetch, getVerifiedOpsIntegrationContext, verifiedOrganizationReference, stringArray } from './core'
 import { opsErrorCodeValue } from './portal'
 
-export type OpsCustomerApplicationSettlement = WebsiteApiComponents['schemas']['WebsiteQuoteSettlement']
-
-export function buildOpsCustomerApplicationPayload(
-  input: OpsCustomerApplicationInput,
-  settlement: OpsCustomerApplicationSettlement,
-) {
+export function buildOpsCustomerApplicationPayload(input: OpsCustomerApplicationInput) {
   const externalCustomerId = normalizeText(input.external_customer_id)
   const offerReference = normalizeText(input.offer_reference)
   const quoteReference = normalizeText(input.quote_reference)
   const resolutionId = normalizeText(input.resolution_id)
   const priceOptionReference = normalizeText(input.price_option_reference)
   const startDate = normalizeText(input.start_date)
-  if (!settlement || typeof settlement !== 'object') {
-    throw new OpsError('Canonical settlement-bevis saknas i kundansökan.', 400, {
-      code: 'settlement_required',
-      field: 'settlement',
-      retryable: false,
-    })
-  }
   if (!externalCustomerId) {
     throw new OpsError('Ett stabilt externt kund-ID krävs.', 400, {
       code: 'external_customer_id_required',
@@ -317,7 +305,6 @@ export function buildOpsCustomerApplicationPayload(
     external_customer_id: externalCustomerId,
     offer_reference: offerReference!,
     quote_reference: quoteReference!,
-    settlement,
     price_option_reference: priceOptionReference!,
     invoice_delivery_method: input.invoice_delivery_method,
     selected_component_references: [...input.selected_component_references],
@@ -513,7 +500,6 @@ export function mapCustomerApplicationCommunication(
 
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
-  settlement: OpsCustomerApplicationSettlement,
 ): Promise<AcceptedOpsCustomerApplicationResult> {
   if (!getOpsClientStatus().liveSignupEnabled) {
     throw new OpsError("Live-teckning är avstängd för hemsidan.", 503);
@@ -521,7 +507,7 @@ export async function submitOpsCustomerApplication(
 
   await getVerifiedOpsIntegrationContext();
 
-  const applicationPayload = buildOpsCustomerApplicationPayload(input, settlement);
+  const applicationPayload = buildOpsCustomerApplicationPayload(input);
 
   let payload: unknown;
   try {
