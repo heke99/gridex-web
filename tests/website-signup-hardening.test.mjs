@@ -10,7 +10,6 @@ import {
   stockholmToday,
 } from '../lib/website/signupValidation.ts'
 
-
 const TEST_PRICE_OPTION = {
   price_option_reference: 'price_option_runtime', option_code: 'standard', customer_name: 'Standard',
   contract_type: 'variable_monthly', price_type: 'variable_monthly', customer_type: 'both', resolution: 'monthly', currency: 'SEK', unit: 'ore_per_kwh', fixed_price: null, markup: 4, monthly_fee: 49, binding_months: 0, notice_months: 1,
@@ -25,7 +24,7 @@ const modern = normalizePublicContractApiPayload({
   code: 'MODERN',
   name: 'Modern mix',
   contract_type: 'mixed', energy_direction: 'consumption',
-    price_options: [TEST_PRICE_OPTION],
+  price_options: [TEST_PRICE_OPTION],
   customer_type: 'both',
   customer_types: ['private', 'business'],
   pricing: {
@@ -63,6 +62,27 @@ const singularBoth = normalizePublicContractApiPayload({
 })
 assert.deepEqual(singularBoth?.customer_types, ['private', 'business'])
 
+const legalReferenceContract = normalizePublicContractApiPayload({
+  offer_reference: 'offer-legal-reference',
+  name: 'Legal reference contract',
+  contract_type: 'variable_monthly',
+  energy_direction: 'consumption',
+  customer_type: 'private',
+  channel: 'website',
+  price_options: [TEST_PRICE_OPTION],
+  pricing: {},
+  legal: {
+    legal_bundle_reference: 'legal_bundle_0123456789abcdefghijklmnop',
+    legal_bundle_version_id: '6faa9bac-1f5c-4600-862c-7b478028ac6d',
+    immutable: true,
+    required_modules: [],
+    module_versions: [],
+    requirements: [],
+  },
+})
+assert.equal(legalReferenceContract?.legal.legal_bundle_reference, 'legal_bundle_0123456789abcdefghijklmnop')
+assert.equal(legalReferenceContract?.legal.legal_bundle_version_id, '6faa9bac-1f5c-4600-862c-7b478028ac6d')
+
 assert.equal(isValidSwedishPersonalNumber('19900101-0017'), true)
 assert.equal(isValidSwedishPersonalNumber('19900101-0018'), false)
 assert.equal(isValidSwedishOrganizationNumber('556016-0680'), true)
@@ -94,6 +114,20 @@ assert.ok(signup.includes('idempotency_key_payload_mismatch'))
 assert.ok(signup.includes('application_business_in_progress'))
 assert.ok(signup.includes('duplicate_application'))
 assert.ok(!signup.includes('fetchOpsWebsiteLegalBundle'))
+
+// Browser evidence pins the exact immutable bundle UUID while the server-to-server
+// API write uses the tenant-scoped opaque public reference returned by OPS.
+assert.ok(signup.includes('const legalBundleVersionId = offer.legal.legal_bundle_version_id'))
+assert.ok(signup.includes('const legalBundleReference = offer.legal.legal_bundle_reference'))
+assert.ok(signup.includes('submittedLegalBundleVersionId !== legalBundleVersionId'))
+assert.ok(signup.includes('requirement.legal_bundle_version_id !== legalBundleVersionId'))
+assert.ok(signup.includes('bundle_reference: legalBundleReference'))
+assert.ok(signup.includes('bundle_version_id: legalBundleVersionId'))
+assert.ok(signup.includes('legal_bundle_version: legalBundleReference'))
+assert.ok(!signup.includes('legal_bundle_version: legalBundleVersionId'))
+assert.ok(signup.includes('case "legal_changed"'))
+assert.ok(signup.includes('legal_bundle_version_mismatch'))
+assert.ok(signup.includes('Villkoren har uppdaterats'))
 
 const publicDto = read('lib/website/publicDtos.ts')
 assert.ok(publicDto.includes('Never spread an OPS object'))
@@ -134,7 +168,6 @@ const faq = read('lib/content/faq.ts')
 assert.ok(faq.includes('foretag-undertecknare'))
 assert.ok(read('app/(public)/vanliga-fragor/page.tsx').includes('FaqExplorer'))
 assert.ok(read('lib/seo/content.ts').includes("'/vanliga-fragor'"))
-
 
 const opsClient = readOpsClientImplementation()
 assert.ok(opsClient.includes('toOpsCustomerType(input.customer.customer_type)'))

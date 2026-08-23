@@ -183,6 +183,8 @@ function errorText(code?: string) {
       return "Kontrollera obligatoriska uppgifter och försök igen.";
     case "consent":
       return "Du behöver godkänna villkor, prisvillkor och övriga obligatoriska godkännanden för att teckna elavtal.";
+    case "legal_changed":
+      return "Villkoren har uppdaterats sedan du öppnade teckningen. Uppdatera sidan, granska de aktuella villkoren och godkänn dem igen.";
     case "legal_config":
       return "Avtalet kan inte tecknas online just nu. Kontakta kundservice så hjälper vi dig.";
     case "honeypot":
@@ -354,6 +356,7 @@ function opsErrorCode(error: unknown, operation = "customer application"): OpsSi
   }
   if (error.status === 400) return "ops_validation";
   if (error.status === 409) {
+    if (/legal_bundle_version_mismatch|legal_acceptance_document_mismatch|offer_legal_version_mismatch|power_of_attorney_offer_version_mismatch/i.test(context.code)) return "legal_changed";
     if (/idempotency_conflict/i.test(context.code)) return "idempotency_conflict";
     if (/idempotency_key_payload_mismatch|idempotency.*mismatch/i.test(context.code)) return "idempotency_mismatch";
     if (/idempotency_in_progress|application_business_in_progress/i.test(context.code)) return "idempotency_in_progress";
@@ -396,6 +399,9 @@ function opsFieldFailure(error: unknown): Pick<SignupSubmissionState, "step" | "
   if (/facility|metering|site|address|postal|city|price_area/.test(key)) {
     return { step: 0, fieldErrors: { pricing: "Kontrollera adressen och försök igen." } };
   }
+  if (/legal_bundle_version_mismatch|legal_acceptance_document_mismatch|offer_legal_version_mismatch|power_of_attorney_offer_version_mismatch/.test(key)) {
+    return { step: 1, fieldErrors: { legal: "Villkoren har uppdaterats. Uppdatera sidan och godkänn de aktuella dokumenten igen." } };
+  }
   if (/legal|consent|power_of_attorney|price_terms|terms|withdrawal/.test(key)) {
     return { step: 1, fieldErrors: { legal: "Kontrollera villkoren och de obligatoriska godkännandena." } };
   }
@@ -406,7 +412,6 @@ function safePortalStatus(value: unknown): string {
     ? value.trim().slice(0, 80)
     : "skipped";
 }
-
 
 function parseOptionalNumber(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
@@ -682,14 +687,19 @@ export default async function TecknaPage({
     const requestedStartMode = requestedStart.value.mode;
     const requestedStartDate = requestedStart.value.requestedDate ?? "";
 
-    const submittedLegalBundleVersion = normalizeText(
+    // The browser pins the exact immutable internal bundle version it displayed.
+    // The external OPS API, however, must receive the tenant-scoped opaque
+    // legal_bundle_reference. Keeping these two identities separate prevents
+    // stale-consent races without leaking an internal identifier into the write contract.
+    const submittedLegalBundleVersionId = normalizeText(
       formData.get("legal_bundle_version"),
     );
-    const legalBundleVersion = offer.legal.legal_bundle_version_id;
+    const legalBundleVersionId = offer.legal.legal_bundle_version_id;
+    const legalBundleReference = offer.legal.legal_bundle_reference;
     const legalRequirements = offer.legal.customer_documents ?? [];
     const unsupportedLegalRequirements = legalRequirements.filter((requirement) =>
       !["accept", "acknowledge"].includes(requirement.acceptance_mode) ||
-      requirement.legal_bundle_version_id !== legalBundleVersion ||
+      requirement.legal_bundle_version_id !== legalBundleVersionId ||
       requirement.required !== true ||
       !(
         requirement.label &&
@@ -703,23 +713,39 @@ export default async function TecknaPage({
     );
     if (
       offer.legal.immutable !== true ||
-      !legalBundleVersion ||
-      !submittedLegalBundleVersion ||
-      submittedLegalBundleVersion !== legalBundleVersion ||
+      !legalBundleVersionId ||
+      !legalBundleReference ||
       legalRequirements.length < 1 ||
       legalRequirements.length > 3 ||
       unsupportedLegalRequirements.length > 0
     ) {
-      console.error("[website signup] immutable contract legal snapshot is unsupported or changed", {
+      console.error("[website signup] immutable contract legal snapshot is unsupported", {
         offer_reference: offer.offer_reference,
-        submitted_bundle_version: submittedLegalBundleVersion || null,
-        contract_bundle_version: legalBundleVersion,
+        legal_bundle_reference: legalBundleReference,
+        legal_bundle_version_id: legalBundleVersionId,
         immutable: offer.legal.immutable,
         unsupported_requirements: unsupportedLegalRequirements.map(
           (requirement) => requirement.requirement_code,
         ),
       });
       return fail("legal_config", { step: 1 });
+    }
+    if (
+      !submittedLegalBundleVersionId ||
+      submittedLegalBundleVersionId !== legalBundleVersionId
+    ) {
+      console.warn("[website signup] legal bundle changed after customer review", {
+        offer_reference: offer.offer_reference,
+        submitted_bundle_version_id: submittedLegalBundleVersionId || null,
+        current_bundle_version_id: legalBundleVersionId,
+        legal_bundle_reference: legalBundleReference,
+      });
+      return fail("legal_changed", {
+        step: 1,
+        fieldErrors: {
+          legal: "Villkoren har uppdaterats. Uppdatera sidan och godkänn de aktuella dokumenten igen.",
+        },
+      });
     }
     const legalConsents = Object.fromEntries(
       legalRequirements.map((requirement) => [
@@ -732,7 +758,11 @@ export default async function TecknaPage({
     );
     const legalEvidenceSnapshot = {
       offer_reference: offer.offer_reference,
-      bundle_version: legalBundleVersion,
+      bundle_reference: legalBundleReference,
+      bundle_version_id: legalBundleVersionId,
+      // Kept for stored website-submission compatibility. It remains the exact
+      // internal immutable version id the browser reviewed, not the API write reference.
+      bundle_version: legalBundleVersionId,
       requirements: legalRequirements.map((requirement) => ({
         ...requirement,
         accepted: legalConsents[requirement.requirement_code] === true,
@@ -942,11 +972,11 @@ export default async function TecknaPage({
     }
     if (
       verifiedQuote.value.quote.legal_bundle_version &&
-      verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersion
+      verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersionId
     ) {
-      return fail("price_changed", {
+      return fail("legal_changed", {
         step: 1,
-        fieldErrors: { pricing: "Avtalsvillkoren kunde inte verifieras automatiskt. Försök skicka teckningen igen." },
+        fieldErrors: { legal: "Villkoren i prisunderlaget har uppdaterats. Uppdatera sidan och granska de aktuella dokumenten igen." },
       });
     }
     if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
@@ -962,9 +992,6 @@ export default async function TecknaPage({
     }
     const serverPriceAreaCode = verifiedQuote.value.area.priceAreaCode;
     const serverResolution = verifiedQuote.value.area;
-    // The browser token belongs to the exact preview the customer saw. An
-    // internally renewed quote gets its own canonical snapshot without falsely
-    // attaching the old browser token to it.
     const signedPreview = quoteToWebsitePricingPreview(
       verifiedQuote.value.quote,
       verifiedQuote.value.pricingToken,
@@ -981,7 +1008,7 @@ export default async function TecknaPage({
       console.warn("[website signup] signed pricing preview snapshot mismatch", {
         reasons: pricingValidation.reasons,
         offer_reference: offer.offer_reference,
-        });
+      });
       return fail("price_changed", {
         step: 1,
         fieldErrors: { pricing: "Prisunderlaget stämmer inte med de valda uppgifterna." },
@@ -1182,8 +1209,6 @@ export default async function TecknaPage({
         country: "SE",
         price_area_code: verifiedQuote.value.area.priceAreaCode,
         grid_area_code: verifiedQuote.value.area.gridAreaCode,
-        // OPS resolves the internal grid owner from the canonical grid-area code.
-        // The website resolver intentionally does not expose an internal UUID.
         grid_owner_name: verifiedQuote.value.area.gridOwnerName,
       },
       metering_point:
@@ -1216,7 +1241,9 @@ export default async function TecknaPage({
           }
         : {}),
       idempotency_key: idempotencyKey,
-      legal_bundle_version: legalBundleVersion,
+      // API write contract uses the opaque tenant-scoped reference. The exact
+      // internal bundle id is retained separately in legalEvidenceSnapshot.
+      legal_bundle_version: legalBundleReference,
       legal_acceptances: legalRequirements.flatMap((requirement) => {
         if (
           legalConsents[requirement.requirement_code] !== true ||
@@ -1290,9 +1317,6 @@ export default async function TecknaPage({
       });
     }
 
-    // OPS has committed and signed the canonical business transaction. Local
-    // persistence below is reconciliation evidence only and may never turn the
-    // accepted customer journey into a failed application.
     const acceptedSubmissionUpdate = {
       submissionAttemptId,
       status: "accepted",
@@ -1351,9 +1375,6 @@ export default async function TecknaPage({
         console.error("[website signup] reconciliation audit insert failed", auditError);
       });
     }
-
-    // The authenticated portal identity is linked atomically in the customer application.
-    // /customer-portal/sync is reserved for explicit repair and legacy reconciliation flows.
 
     const portalOnboarding = await ensureCustomerPortalOnboarding({
       application: result,
