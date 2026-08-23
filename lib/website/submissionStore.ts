@@ -272,14 +272,27 @@ export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInpu
   }
 
   const supabase = serviceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('website_application_submissions')
     .update(patch)
     .eq('submission_attempt_id', input.submissionAttemptId)
+
+  // The pre-read is an early exit, but this database predicate is the actual
+  // race guard: an accepted write that wins between read and update cannot be
+  // overwritten by a late submitting/failed writer.
+  if (input.status !== 'accepted') query = query.neq('status', 'accepted')
+
+  const { data, error } = await query
     .select('submission_attempt_id')
     .maybeSingle<{ submission_attempt_id: string }>()
   if (error) throw new Error(`Submission storage update failed: ${error.message}`)
-  if (!data) throw new Error('Submission storage update failed: submission row not found.')
+  if (data) return
+
+  if (input.status !== 'accepted') {
+    const raced = await readSubmission(input.submissionAttemptId)
+    if (raced?.status === 'accepted') return
+  }
+  throw new Error('Submission storage update failed: submission row not found.')
 }
 
 export async function syncWebsiteSubmissionStatus(input: {
