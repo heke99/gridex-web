@@ -215,50 +215,84 @@ export type WebsiteSubmissionUpdateInput = {
 }
 
 export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInput): Promise<void> {
+  const existing = await readSubmission(input.submissionAttemptId)
+  if (!existing) throw new Error('Submission storage update failed: submission row not found.')
+
+  // Once OPS has been durably recorded as accepted, a browser retry or a late
+  // transport/response error must never downgrade the local source of truth.
+  if (existing.status === 'accepted' && input.status !== 'accepted') return
+
+  const patch: Record<string, unknown> = {
+    status: input.status,
+    updated_at: new Date().toISOString(),
+  }
+  const assign = (column: string, value: unknown) => {
+    if (value !== undefined) patch[column] = value
+  }
+
+  assign('ops_customer_id', input.opsCustomerId)
+  assign('ops_customer_reference', input.opsCustomerReference)
+  assign('ops_application_number', input.opsApplicationNumber)
+  assign('ops_application_reference', input.opsApplicationReference)
+  assign('ops_contract_id', input.opsContractId)
+  assign('ops_contract_reference', input.opsContractReference)
+  assign('ops_facility_reference', input.opsFacilityReference)
+  assign('ops_metering_point_reference', input.opsMeteringPointReference)
+  assign('ops_customer_number', input.opsCustomerNumber)
+  assign('ops_site_id', input.opsSiteId)
+  assign('ops_metering_point_id', input.opsMeteringPointId)
+  assign('ops_workflow_id', input.opsWorkflowId)
+  assign('ops_continuation_job_id', input.opsContinuationJobId)
+  assign('ops_workflow_state', input.opsWorkflowState)
+  assign('ops_status', input.opsStatus)
+  assign('ops_supplier_switch_status', input.opsSupplierSwitchStatus)
+  assign('ops_request_id', input.opsRequestId)
+  assign('ops_correlation_id', input.opsCorrelationId)
+  assign('ops_trace_id', input.opsTraceId)
+  assign('ops_contract_schema_version', input.opsContractSchemaVersion)
+  assign('api_contract_version_used', input.apiContractVersionUsed)
+  assign('last_status_synced_at', input.lastStatusSyncedAt)
+  assign('ops_result_snapshot', input.opsResultSnapshot)
+  assign('contract_status', input.contractStatus)
+  assign('signed_at', input.signedAt)
+  assign('withdrawal_deadline_at', input.withdrawalDeadlineAt)
+  assign('signature_snapshot_sha256', input.signatureSnapshotSha256)
+  assign('can_send_agreement_confirmation', input.canSendAgreementConfirmation)
+  assign('can_start_switch', input.canStartSwitch)
+  assign('communication_snapshot', input.communication)
+  assign('last_error_code', input.errorCode)
+  assign(
+    'last_error_message',
+    input.errorMessage === undefined ? undefined : input.errorMessage?.slice(0, 1000) ?? null,
+  )
+
+  if (input.status === 'submitting' || input.status === 'accepted') {
+    patch.last_error_code = null
+    patch.last_error_message = null
+  }
+
   const supabase = serviceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('website_application_submissions')
-    .update({
-      status: input.status,
-      ops_customer_id: input.opsCustomerId ?? null,
-      ops_customer_reference: input.opsCustomerReference ?? null,
-      ops_application_number: input.opsApplicationNumber ?? null,
-      ops_application_reference: input.opsApplicationReference ?? null,
-      ops_contract_id: input.opsContractId ?? null,
-      ops_contract_reference: input.opsContractReference ?? null,
-      ops_facility_reference: input.opsFacilityReference ?? null,
-      ops_metering_point_reference: input.opsMeteringPointReference ?? null,
-      ops_customer_number: input.opsCustomerNumber ?? null,
-      ops_site_id: input.opsSiteId ?? null,
-      ops_metering_point_id: input.opsMeteringPointId ?? null,
-      ops_workflow_id: input.opsWorkflowId ?? null,
-      ops_continuation_job_id: input.opsContinuationJobId ?? null,
-      ops_workflow_state: input.opsWorkflowState ?? null,
-      ops_status: input.opsStatus ?? null,
-      ops_supplier_switch_status: input.opsSupplierSwitchStatus ?? null,
-      ops_request_id: input.opsRequestId ?? null,
-      ops_correlation_id: input.opsCorrelationId ?? null,
-      ops_trace_id: input.opsTraceId ?? null,
-      ops_contract_schema_version: input.opsContractSchemaVersion ?? null,
-      api_contract_version_used: input.apiContractVersionUsed ?? null,
-      last_status_synced_at: input.lastStatusSyncedAt ?? null,
-      ops_result_snapshot: input.opsResultSnapshot ?? null,
-      contract_status: input.contractStatus ?? null,
-      signed_at: input.signedAt ?? null,
-      withdrawal_deadline_at: input.withdrawalDeadlineAt ?? null,
-      signature_snapshot_sha256: input.signatureSnapshotSha256 ?? null,
-      can_send_agreement_confirmation: input.canSendAgreementConfirmation ?? null,
-      can_start_switch: input.canStartSwitch ?? null,
-      communication_snapshot: input.communication ?? null,
-      last_error_code: input.errorCode ?? null,
-      last_error_message: input.errorMessage?.slice(0, 1000) ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('submission_attempt_id', input.submissionAttemptId)
+
+  // The pre-read is an early exit, but this database predicate is the actual
+  // race guard: an accepted write that wins between read and update cannot be
+  // overwritten by a late submitting/failed writer.
+  if (input.status !== 'accepted') query = query.neq('status', 'accepted')
+
+  const { data, error } = await query
     .select('submission_attempt_id')
     .maybeSingle<{ submission_attempt_id: string }>()
   if (error) throw new Error(`Submission storage update failed: ${error.message}`)
-  if (!data) throw new Error('Submission storage update failed: submission row not found.')
+  if (data) return
+
+  if (input.status !== 'accepted') {
+    const raced = await readSubmission(input.submissionAttemptId)
+    if (raced?.status === 'accepted') return
+  }
+  throw new Error('Submission storage update failed: submission row not found.')
 }
 
 export async function syncWebsiteSubmissionStatus(input: {

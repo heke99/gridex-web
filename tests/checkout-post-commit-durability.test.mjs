@@ -71,6 +71,32 @@ assert.ok(!resultStore.includes("env('SUPABASE_SERVICE_ROLE_KEY') ??"))
 
 assert.ok(submissionStore.includes(".select('submission_attempt_id')"))
 assert.ok(submissionStore.includes('submission row not found'))
+assert.ok(
+  submissionStore.includes("existing.status === 'accepted' && input.status !== 'accepted'"),
+  'a retry or late failure must never downgrade a locally accepted OPS application',
+)
+assert.ok(
+  submissionStore.includes('if (value !== undefined) patch[column] = value'),
+  'partial submission updates must only mutate explicitly supplied fields',
+)
+assert.ok(
+  submissionStore.includes("if (input.status !== 'accepted') query = query.neq('status', 'accepted')"),
+  'accepted-state protection must be enforced atomically in the database update predicate',
+)
+assert.ok(
+  submissionStore.includes("if (raced?.status === 'accepted') return"),
+  'a concurrent accepted winner must be treated as success instead of a missing-row failure',
+)
+assert.equal(
+  submissionStore.includes('ops_application_number: input.opsApplicationNumber ?? null'),
+  false,
+  'partial failed/submitting updates must not erase the accepted application number',
+)
+assert.equal(
+  submissionStore.includes('ops_result_snapshot: input.opsResultSnapshot ?? null'),
+  false,
+  'partial failed/submitting updates must not erase the accepted OPS result snapshot',
+)
 for (const marker of [
   'website_submission_reconciliation_jobs',
   'claimWebsiteSubmissionReconciliationJob',
