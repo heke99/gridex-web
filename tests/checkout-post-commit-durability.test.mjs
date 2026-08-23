@@ -79,6 +79,14 @@ assert.ok(
   submissionStore.includes('if (value !== undefined) patch[column] = value'),
   'partial submission updates must only mutate explicitly supplied fields',
 )
+assert.ok(
+  submissionStore.includes("if (input.status !== 'accepted') query = query.neq('status', 'accepted')"),
+  'accepted-state protection must be enforced atomically in the database update predicate',
+)
+assert.ok(
+  submissionStore.includes("if (raced?.status === 'accepted') return"),
+  'a concurrent accepted winner must be treated as success instead of a missing-row failure',
+)
 assert.equal(
   submissionStore.includes('ops_application_number: input.opsApplicationNumber ?? null'),
   false,
