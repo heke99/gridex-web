@@ -37,6 +37,15 @@ assert.equal(canonical.includes('refreshCanonicalQuote'), false)
 assert.equal(canonical.includes('quoteExpired'), false)
 assert.equal(canonical.includes("reason: 'quote_expired'"), false)
 assert.ok(canonical.includes('exact signed quote is the accepted commercial evidence'))
+assert.ok(
+  canonical.includes('resolutionId: effectiveQuote.resolution_id'),
+  'an address-resolution refresh must not replace the immutable quote-bound resolution id used by the application',
+)
+assert.equal(
+  canonical.includes('resolutionId: area.resolution_id'),
+  false,
+  'the refreshed technical resolution id must not become the application tuple resolution id',
+)
 const snapshotStore = read('lib/website/pricingSnapshotStore.ts')
 assert.equal(snapshotStore.includes('requires a future canonical valid_until'), false)
 console.log('Non-expiring canonical quote tests passed')
