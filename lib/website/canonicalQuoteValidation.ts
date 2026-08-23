@@ -46,6 +46,7 @@ export type CanonicalQuoteValidationSuccess = {
   opsValidation: OpsWebsiteQuoteValidation
   area: {
     priceAreaCode: OpsWebsitePriceArea
+    /** Immutable resolution id bound to the accepted quote/application tuple. */
     resolutionId: string
     gridAreaCode: string | null
     gridOwnerName: string | null
@@ -274,7 +275,11 @@ export async function validateCanonicalWebsiteQuote(
       opsValidation,
       area: {
         priceAreaCode: area.price_area_code,
-        resolutionId: area.resolution_id,
+        // A refreshed address resolution can legitimately get a new technical
+        // resolution id. The customer application must still use the immutable
+        // id bound to the signed quote, otherwise OPS rejects the tuple as a
+        // resolution mismatch after an otherwise harmless refresh.
+        resolutionId: effectiveQuote.resolution_id,
         gridAreaCode: area.grid_area_code,
         gridOwnerName: area.grid_owner_name,
         confidence: area.confidence,
