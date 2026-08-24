@@ -3,6 +3,7 @@ import {
   createDecipheriv,
   createHash,
   createHmac,
+  randomBytes,
 } from 'node:crypto'
 import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import { createClient } from '@supabase/supabase-js'
@@ -89,9 +90,14 @@ function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-function resultTokenSecret(): string {
+function configuredResultTokenSecret(): string | null {
   const secret = env('WEBSITE_RESULT_TOKEN_SECRET')
-  if (!secret || secret.length < 32) {
+  return secret && secret.length >= 32 ? secret : null
+}
+
+function resultTokenSecret(): string {
+  const secret = configuredResultTokenSecret()
+  if (!secret) {
     throw new Error('WEBSITE_RESULT_TOKEN_SECRET must be configured with at least 32 characters.')
   }
   return secret
@@ -103,6 +109,10 @@ function encryptionKey(): Buffer {
 
 function tokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex')
+}
+
+function createOpaqueResultToken(): string {
+  return randomBytes(32).toString('base64url')
 }
 
 function validPublicResult(value: unknown): value is WebsiteApplicationPublicResult {
@@ -218,14 +228,17 @@ export async function createWebsiteApplicationResult(input: {
 
   const issuedAt = new Date(input.result.signedAt!)
   const expiresAt = new Date(issuedAt.getTime() + RESULT_TTL_MS).toISOString()
-  const token = encodeStatelessResult({
-    version: 1,
-    issuedAt: issuedAt.toISOString(),
-    expiresAt,
-    submissionAttemptId: input.submissionAttemptId,
-    userId: input.userId,
-    result: input.result,
-  })
+  const useStatelessToken = Boolean(configuredResultTokenSecret())
+  const token = useStatelessToken
+    ? encodeStatelessResult({
+        version: 1,
+        issuedAt: issuedAt.toISOString(),
+        expiresAt,
+        submissionAttemptId: input.submissionAttemptId,
+        userId: input.userId,
+        result: input.result,
+      })
+    : createOpaqueResultToken()
 
   try {
     const { error } = await serviceClient().from('website_application_results').upsert(
@@ -241,9 +254,19 @@ export async function createWebsiteApplicationResult(input: {
     )
     if (error) throw new Error(error.message)
   } catch (error) {
-    // OPS has already committed the business transaction. The encrypted token
-    // remains independently verifiable, while reconciliation can restore the DB row.
-    console.error('[website signup] durable result row upsert failed; using verified stateless result token', error)
+    if (useStatelessToken) {
+      // OPS has already committed the business transaction. A configured
+      // encrypted token remains independently verifiable, while reconciliation
+      // can restore the database projection later.
+      console.error('[website signup] durable result row upsert failed; using verified stateless result token', error)
+      return token
+    }
+
+    // Without the dedicated stateless secret, never redirect with an
+    // unverifiable token. The caller will keep the accepted submission in its
+    // reconciliation path instead of claiming the result page is verified.
+    console.error('[website signup] durable result row upsert failed and no stateless result token secret is configured', error)
+    throw new Error('Website result storage is unavailable.')
   }
 
   return token
