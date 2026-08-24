@@ -21,7 +21,7 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
   if (status === 'pending' && detail?.toLowerCase().includes('konto finns redan')) {
     return {
       title: 'Ett konto finns redan',
-      body: 'Logga in via knappen nedan. Den här teckningen kopplas till ditt befintliga Mina sidor-konto. Ett nytt avtal eller en ny anläggning läggs till utan att tidigare avtal eller anläggningar ersätts.',
+      body: 'Logga in via knappen nedan. Den här teckningen kopplas till ditt befintliga Mina sidor-konto. Ett nytt avtal eller en ny anläggning läggs till separat och tidigare avtal och anläggningar ligger kvar.',
       tone: 'info' as const,
       showLogin: true,
       needsClaim: true,
@@ -32,7 +32,7 @@ function portalMessage(status: PortalStatus | undefined, detail?: string | null)
     case 'invite_sent':
       return { title: 'Ny kund: bekräfta din e-post', body: 'Vi har skickat ett mail där du bekräftar din e-postadress och skapar lösenord till Mina sidor.', tone: 'success' as const, showLogin: false, needsClaim: false }
     case 'profile_linked':
-      return { title: 'Redan kund? Logga in', body: 'Den här teckningen är kopplad till ditt befintliga kundkonto. Om avtalet gäller en ny anläggning visas den som en ny anläggning och tidigare avtal och anläggningar ligger kvar.', tone: 'info' as const, showLogin: true, needsClaim: false }
+      return { title: 'Redan kund? Logga in', body: 'Den här teckningen är kopplad till ditt befintliga kundkonto. Ett nytt avtal eller en ny anläggning läggs till separat och tidigare avtal och anläggningar ligger kvar.', tone: 'info' as const, showLogin: true, needsClaim: false }
     case 'pending':
     case 'failed':
       return { title: 'Inloggning skickas separat', body: 'Din teckning är mottagen. Om inloggningsmailet inte kommer fram skickar vi en ny länk när Mina sidor är klart.', tone: 'warning' as const, showLogin: false, needsClaim: false }
@@ -158,7 +158,7 @@ export default async function SignupThanksPage({
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-gray-300">
             <li>Först får du besked att teckningen har tagits emot.</li>
             <li>När avtalet är klart får du avtalsbekräftelse, en PDF-kopia av avtalet och information om ångerrätten.</li>
-            <li>Om du är ny kund får du därefter en separat länk för att aktivera Mina sidor. Har du redan ett konto kopplas den här teckningen till samma kundkonto utan att tidigare avtal eller anläggningar ersätts.</li>
+            <li>Om du är ny kund får du därefter en separat länk för att aktivera Mina sidor. Har du redan ett konto kopplas den här teckningen till samma kundkonto. Ett nytt avtal eller en ny anläggning läggs till separat och tidigare avtal och anläggningar ligger kvar.</li>
           </ol>
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
