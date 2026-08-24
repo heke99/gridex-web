@@ -75,9 +75,23 @@ assert.equal(
 
 const loginSource = fs.readFileSync(path.join(root, 'app/login/actions.ts'), 'utf8')
 assert.match(loginSource, /resumePortalOnboardingForConfirmedUserSafely/)
+assert.match(loginSource, /\/mina-sidor/)
 
 const confirmSource = fs.readFileSync(path.join(root, 'app/auth/confirm/route.ts'), 'utf8')
 assert.match(confirmSource, /resumePortalOnboardingForConfirmedUserSafely/)
+assert.match(confirmSource, /\/login\/reset-password/)
+assert.doesNotMatch(confirmSource, /app\.gridex\.se/)
+
+const onboardingSource = fs.readFileSync(path.join(root, 'lib/customerPortal/onboarding.ts'), 'utf8')
+assert.match(onboardingSource, /https:\/\/gridex\.se/)
+assert.match(onboardingSource, /\/auth\/confirm\?next=/)
+assert.match(onboardingSource, /inviteUserByEmail/)
+assert.doesNotMatch(onboardingSource, /app\.gridex\.se/)
+assert.doesNotMatch(onboardingSource, /getBaseAppUrl/)
+
+const signupSource = fs.readFileSync(path.join(root, 'app/(public)/teckna-avtal/page.tsx'), 'utf8')
+assert.match(signupSource, /ensureCustomerPortalOnboarding/)
+assert.match(signupSource, /teckna-avtal\/tack/)
 
 const registerSource = fs.readFileSync(path.join(root, 'app/register/page.tsx'), 'utf8')
 assert.match(registerSource, /passwordMeetsPolicy\(password\)/)
@@ -86,6 +100,11 @@ assert.match(registerSource, /RESEND_COOLDOWN_MS/)
 
 const resetSource = fs.readFileSync(path.join(root, 'app/login/reset-password/page.tsx'), 'utf8')
 assert.match(resetSource, /passwordMeetsPolicy\(password\)/)
+assert.doesNotMatch(resetSource, /app\.gridex\.se/)
+
+const minaSidorSource = fs.readFileSync(path.join(root, 'app/mina-sidor/page.tsx'), 'utf8')
+assert.match(minaSidorSource, /Mina sidor/)
+assert.match(minaSidorSource, /\/login/)
 
 const headerSource = fs.readFileSync(path.join(root, 'components/layout/PublicHeader.tsx'), 'utf8')
 assert.match(headerSource, /Inloggad som/)
