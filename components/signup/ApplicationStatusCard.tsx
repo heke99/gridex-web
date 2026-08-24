@@ -14,12 +14,12 @@ type Status = {
 }
 
 const LABELS: Record<Status['status'], { title: string; body: string }> = {
-  accepted: { title: 'Ansökan mottagen', body: 'Vi har tagit emot ansökan och kontrollerar uppgifterna.' },
-  processing: { title: 'Behandlas', body: 'Ansökan behandlas nu av Gridex.' },
-  needs_customer_information: { title: 'Vi behöver fler uppgifter', body: 'Kontrollera din e-post eller Mina sidor för vad som behöver kompletteras.' },
-  completed: { title: 'Avtalet är aktivt', body: 'Ansökningsflödet är klart. Leverantörsbytets detaljstatus kan visas separat.' },
-  rejected: { title: 'Ansökan kunde inte godkännas', body: 'Du får mer information via e-post eller Mina sidor.' },
-  failed: { title: 'Ansökan behöver hanteras', body: 'Vi behöver kontrollera ärendet innan det kan fortsätta.' },
+  accepted: { title: 'Ansökan mottagen', body: 'Vi har tagit emot din teckning och hanterar nästa steg.' },
+  processing: { title: 'Behandlas', body: 'Vi hanterar din teckning och kontaktar dig om vi behöver något från dig.' },
+  needs_customer_information: { title: 'Vi behöver en komplettering', body: 'Kontrollera din e-post eller Mina sidor för information om vad vi behöver från dig.' },
+  completed: { title: 'Klart', body: 'Teckningen är färdigbehandlad. Du kan följa ditt avtal och kommande steg via Mina sidor.' },
+  rejected: { title: 'Teckningen kunde inte slutföras', body: 'Du får mer information via e-post eller Mina sidor.' },
+  failed: { title: 'Vi hanterar ditt ärende', body: 'Vi kontrollerar teckningen och kontaktar dig om något behöver kompletteras.' },
 }
 
 export default function ApplicationStatusCard({ applicationNumber, resultToken, initialStatus }: {
@@ -59,9 +59,8 @@ export default function ApplicationStatusCard({ applicationNumber, resultToken, 
     <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5" data-application-status={currentStatus}>
       <div className="text-sm font-semibold text-white">{copy.title}</div>
       <p className="mt-2 text-sm leading-6 text-gray-200">{copy.body}</p>
-      {status?.next_step ? <p className="mt-2 text-xs text-gray-400">Nästa steg: {status.next_step}</p> : null}
-      {status?.missing_customer_action ? <p className="mt-2 text-xs text-amber-200">Åtgärd från dig krävs.</p> : null}
-      {unavailable ? <p className="mt-2 text-xs text-gray-400">Aktuell status kunde inte hämtas. Din ansökan är fortfarande registrerad.</p> : null}
+      {status?.missing_customer_action ? <p className="mt-2 text-xs text-amber-200">Vi behöver en komplettering från dig. Kontrollera din e-post eller Mina sidor.</p> : null}
+      {unavailable ? <p className="mt-2 text-xs text-gray-400">Aktuell status kunde inte hämtas. Din teckning är fortfarande registrerad.</p> : null}
     </div>
   )
 }
