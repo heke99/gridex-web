@@ -74,6 +74,8 @@ export default async function SignupThanksPage({
     return <UnverifiedResult state={resultState.status} />
   }
 
+  // OPS nextActionMessage is intentionally never rendered directly. Customer-facing
+  // next-step copy must come from the allowlisted status helpers below.
   const stored = resultState.result
   const status = stored.status
   const portal = portalMessage(stored.portalStatus, stored.portalMessage)
