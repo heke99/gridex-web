@@ -1,7 +1,20 @@
 import './globals.css'
+import { Geist, Geist_Mono } from 'next/font/google'
 import Footer from '@/components/layout/Footer'
 import CookieBanner from '@/components/legal/CookieBanner'
 import GoogleMarketingTags from '@/components/analytics/GoogleMarketingTags'
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 const GOOGLE_CONSENT_DEFAULTS = `
   window.dataLayer = window.dataLayer || [];
@@ -38,10 +51,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: GOOGLE_CONSENT_DEFAULTS }}
         />
       </head>
-      <body className="bg-black text-white min-h-screen flex flex-col">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen flex flex-col antialiased`}
+      >
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only absolute left-0 top-0 m-2 rounded bg-cyan-500 px-3 py-2 text-black"
+          className="sr-only focus:not-sr-only absolute left-0 top-0 z-[100] m-2 rounded-lg bg-[var(--gx-accent)] px-3 py-2 font-medium text-[var(--gx-accent-ink)]"
         >
           Hoppa till innehåll
         </a>
