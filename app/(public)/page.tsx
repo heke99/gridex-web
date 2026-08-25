@@ -90,140 +90,101 @@ export default async function HomePage() {
 
 function HeroBlock() {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-14">
-      <div className="pointer-events-none absolute -top-40 -right-40 h-[440px] w-[440px] rounded-full bg-cyan-500/10 blur-[130px]" />
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-[360px] w-[360px] rounded-full bg-blue-500/10 blur-[130px]" />
+    <section className="grid gap-12 border-b border-[var(--gx-border)] pb-14 pt-2 md:grid-cols-[minmax(0,1.18fr)_minmax(280px,0.82fr)] md:items-end md:gap-16 md:pb-20 md:pt-8">
+      <div className="max-w-3xl">
+        <p className="text-sm font-medium tracking-[0.08em] text-[var(--gx-text-muted)]">
+          Gridex AB · Elhandelsbolag · SE1–SE4
+        </p>
 
-      <div className="relative grid gap-10 md:grid-cols-2 md:items-center">
-        <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-            Gridex AB • Elhandelsbolag • SE1–SE4
-          </div>
+        <h1 className="mt-5 max-w-3xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.035em] text-[var(--gx-text)] sm:text-5xl md:text-6xl lg:text-[4.5rem]">
+          Elavtal utan dolda avgifter – se ditt pris innan du tecknar
+        </h1>
 
-          <div className="space-y-4">
-            <h1 className="text-4xl font-bold leading-tight tracking-tight text-white md:text-6xl">
-              Elavtal utan dolda avgifter
-              <br />
-              se ditt pris innan du tecknar
-            </h1>
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--gx-text-muted)] md:text-xl">
+          Gridex AB är ett svenskt elhandelsbolag som gör det enklare att
+          förstå elpriset. Räkna på föregående månads spotpris, se påslag,
+          avgifter och moms innan du går vidare till teckning.
+        </p>
 
-            <p className="max-w-2xl text-lg leading-relaxed text-gray-300 md:text-xl">
-              Gridex AB är ett svenskt elhandelsbolag som gör det enklare att
-              förstå elpriset. Räkna på föregående månads spotpris, se påslag,
-              avgifter och moms innan du går vidare till teckning.
-            </p>
-          </div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="#rakna-elpris"
+            className="inline-flex min-h-12 items-center justify-center rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-6 py-3 text-sm font-semibold text-[var(--gx-accent-ink)] transition-colors duration-200 hover:bg-[var(--gx-accent-hover)]"
+          >
+            Räkna ditt elpris
+          </Link>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="#rakna-elpris"
-              className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400"
-            >
-              Räkna ditt elpris
-            </Link>
-
-            <Link
-              href="/elavtal"
-              className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-100 transition hover:border-cyan-500/40 hover:bg-white/5"
-            >
-              Se våra elavtal
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold text-white">
-                Tydliga avgifter
-              </div>
-              <div className="mt-1 text-sm text-gray-400">
-                Du ser vad som ingår i priset innan du tecknar.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold text-white">
-                Flera avtalsformer
-              </div>
-              <div className="mt-1 text-sm text-gray-400">
-                Spot, portfölj eller fastpris beroende på vad som passar dig.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold text-white">
-                Anpassat per område
-              </div>
-              <div className="mt-1 text-sm text-gray-400">
-                Jämför pris utifrån SE1, SE2, SE3 eller SE4.
-              </div>
-            </div>
-          </div>
+          <Link
+            href="/elavtal"
+            className="inline-flex min-h-12 items-center justify-center rounded-[var(--gx-radius-sm)] border border-[var(--gx-border-strong)] px-6 py-3 text-sm font-semibold text-[var(--gx-text)] transition-colors duration-200 hover:bg-white/[0.04]"
+          >
+            Se våra elavtal
+          </Link>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-black/30 p-6 backdrop-blur-sm md:p-8">
-          <div className="space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm text-gray-400">Varför Gridex?</div>
-                <div className="text-2xl font-semibold text-white">
-                  Enklare att förstå.
-                  <br />
-                  Enklare att välja rätt.
-                </div>
-              </div>
-
-              <div className="shrink-0 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs text-green-300">
-                Spotpris
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-medium text-white">
-                  Slipp otydliga elavtal
-                </div>
-                <div className="mt-1 text-sm text-gray-400">
-                  Hos oss ser du villkor, avgifter och avtalsform utan gömda
-                  överraskningar.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-medium text-white">
-                  Jämför ditt pris direkt
-                </div>
-                <div className="mt-1 text-sm text-gray-400">
-                  Ange adress och postnummer så fastställs elområdet automatiskt.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-medium text-white">
-                  Välj det som passar dig
-                </div>
-                <div className="mt-1 text-sm text-gray-400">
-                  Privatkunder och företag behöver olika upplägg. Därför visar vi flera
-                  avtalsformer tydligt.
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Link
-                href="#rakna-elpris"
-                className="block w-full rounded-xl bg-white py-3 text-center font-bold text-black transition hover:bg-gray-100"
-              >
-                Se ditt pris nu
-              </Link>
-            </div>
-
-            <p className="text-xs leading-relaxed text-gray-500">
-              Pris påverkas av elområde, förbrukning och vald avtalsform. Full
-              specifikation visas innan teckning.
-            </p>
+        <dl className="mt-10 grid gap-6 border-t border-[var(--gx-border)] pt-6 sm:grid-cols-3">
+          <div>
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">Tydliga avgifter</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-subtle)]">
+              Se vad som ingår innan du tecknar.
+            </dd>
           </div>
-        </div>
+          <div>
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">Flera avtalsformer</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-subtle)]">
+              Spot, portfölj eller fastpris.
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">SE1–SE4</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-subtle)]">
+              Prisbild anpassad efter ditt elområde.
+            </dd>
+          </div>
+        </dl>
       </div>
+
+      <aside className="border-t border-[var(--gx-border)] pt-7 md:border-l md:border-t-0 md:pl-10 md:pt-0">
+        <p className="text-sm font-medium text-[var(--gx-text-muted)]">
+          Det här ser du innan du tecknar
+        </p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-[var(--gx-text)] md:text-3xl">
+          Hela prisbilden, rad för rad.
+        </h2>
+
+        <dl className="mt-7 divide-y divide-[var(--gx-border)] border-y border-[var(--gx-border)]">
+          <div className="py-4">
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">Prisgrund</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-muted)]">
+              Spotpris och vald avtalsform visas tydligt.
+            </dd>
+          </div>
+          <div className="py-4">
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">Påslag och avgifter</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-muted)]">
+              Du ser avgifterna separat innan du går vidare.
+            </dd>
+          </div>
+          <div className="py-4">
+            <dt className="text-sm font-semibold text-[var(--gx-text)]">Månadsavgift och moms</dt>
+            <dd className="mt-1 text-sm leading-6 text-[var(--gx-text-muted)]">
+              Full specifikation visas före teckning.
+            </dd>
+          </div>
+        </dl>
+
+        <Link
+          href="#rakna-elpris"
+          className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--gx-text)] underline decoration-[var(--gx-border-strong)] underline-offset-4 transition-colors duration-200 hover:text-[var(--gx-accent)]"
+        >
+          Se ditt pris nu →
+        </Link>
+
+        <p className="mt-4 text-xs leading-5 text-[var(--gx-text-subtle)]">
+          Pris påverkas av elområde, förbrukning och vald avtalsform. Full
+          specifikation visas innan teckning.
+        </p>
+      </aside>
     </section>
   );
 }
