@@ -9,7 +9,7 @@ import { faqByIds } from "@/lib/content/faq";
 import { isOpsError } from "@/lib/ops/client";
 import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 15;
 
 export const metadata: Metadata = {
   title: "Elpris idag – Billiga & datadrivna elavtal",
