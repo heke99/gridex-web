@@ -60,7 +60,6 @@ export default function PublicHeader({
   const pathname = usePathname()
 
   useEffect(() => {
-    setSessionEmail(authenticatedEmail)
     if (!resolveAuthClientSide || authenticatedEmail) return
 
     const controller = new AbortController()
