@@ -1,10 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import ElectricityCalculator from "@/components/ElectricityCalculator";
-import CustomerApplicationForm, {
-  type SignupSubmissionState,
-} from "@/components/signup/CustomerApplicationForm";
+import type { SignupSubmissionState } from "@/components/signup/CustomerApplicationForm";
 import {
   buildPublicContractDisplay,
   type PublicContractDisplay,
@@ -22,6 +21,18 @@ import type {
   WebsitePricingPreview,
   WebsitePricingQuoteContext,
 } from "@/lib/website/publicApi";
+
+const CustomerApplicationForm = dynamic(
+  () => import("@/components/signup/CustomerApplicationForm"),
+  {
+    loading: () => (
+      <div
+        className="min-h-40 rounded-2xl border border-white/10 bg-white/[0.02]"
+        aria-hidden="true"
+      />
+    ),
+  },
+);
 
 type Props = {
   contracts: SignupContractOption[];
