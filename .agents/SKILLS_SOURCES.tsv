@@ -34,3 +34,6 @@ deployment-pipeline-design	wshobson/agents	2026-08-05T21:46:09Z
 nextjs-app-router-patterns	wshobson/agents	2026-08-05T21:46:09Z
 nodejs-backend-patterns	wshobson/agents	2026-08-05T21:46:09Z
 sql-optimization-patterns	wshobson/agents	2026-08-05T21:46:09Z
+vercel-composition-patterns	vercel-labs/agent-skills	2026-08-25T19:27:39Z
+vercel-react-view-transitions	vercel-labs/agent-skills	2026-08-25T19:27:39Z
+gridex-design	local/gridex-web	2026-08-25T19:27:39Z
