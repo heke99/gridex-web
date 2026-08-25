@@ -3,7 +3,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import GridexLogo from '@/components/brand/GridexLogo'
 import LogoutForm from '@/components/account/LogoutForm'
 
@@ -46,15 +46,49 @@ function NavLink({
   )
 }
 
-export default function PublicHeader({
-  authenticatedEmail,
-}: {
+type PublicHeaderProps = {
   authenticatedEmail?: string | null
-}) {
+  resolveAuthClientSide?: boolean
+}
+
+export default function PublicHeader({
+  authenticatedEmail = null,
+  resolveAuthClientSide = false,
+}: PublicHeaderProps) {
   const [open, setOpen] = useState(false)
+  const [sessionEmail, setSessionEmail] = useState<string | null>(authenticatedEmail)
   const pathname = usePathname()
-  const isAuthenticated = Boolean(authenticatedEmail)
-  const maskedEmail = authenticatedEmail ? maskEmail(authenticatedEmail) : null
+
+  useEffect(() => {
+    setSessionEmail(authenticatedEmail)
+    if (!resolveAuthClientSide || authenticatedEmail) return
+
+    const controller = new AbortController()
+
+    void fetch('/api/auth/public-session', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null
+        const payload = (await response.json()) as {
+          authenticatedEmail?: string | null
+        }
+        return payload.authenticatedEmail ?? null
+      })
+      .then((email) => {
+        if (!controller.signal.aborted) setSessionEmail(email)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSessionEmail(null)
+      })
+
+    return () => controller.abort()
+  }, [authenticatedEmail, resolveAuthClientSide])
+
+  const isAuthenticated = Boolean(sessionEmail)
+  const maskedEmail = sessionEmail ? maskEmail(sessionEmail) : null
   const showCheckoutSessionNotice = isAuthenticated && pathname === '/teckna-avtal'
 
   return (
@@ -118,7 +152,7 @@ export default function PublicHeader({
           type="button"
           className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--gx-radius-sm)] border border-[var(--gx-border)] px-3 py-2 text-sm font-medium text-[var(--gx-text)] transition-colors duration-200 hover:bg-white/[0.04] lg:hidden"
           onClick={() => setOpen((v) => !v)}
-          aria-label="Öppna meny"
+          aria-label={open ? 'Stäng meny' : 'Öppna meny'}
           aria-expanded={open}
           aria-controls="gridex-mobile-navigation"
         >
