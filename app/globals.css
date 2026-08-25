@@ -71,6 +71,36 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Public shell: keep the navigation visually open while retaining legibility over scrolled content. */
+header.sticky.top-0.z-50 {
+  background: transparent !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* Homepage hero actions: transparent by default, with restrained borders and hover feedback. */
+a[href="#rakna-elpris"][class*="bg-[var(--gx-accent)]"] {
+  border: 1px solid var(--gx-border-strong);
+  background: transparent !important;
+  color: var(--gx-text) !important;
+}
+
+a[href="#rakna-elpris"][class*="bg-[var(--gx-accent)]"]:hover {
+  border-color: rgba(53, 201, 215, 0.55);
+  background: transparent !important;
+  color: var(--gx-accent) !important;
+}
+
+a[href="/elavtal"][class*="border-[var(--gx-border-strong)]"] {
+  background: transparent !important;
+}
+
+a[href="/elavtal"][class*="border-[var(--gx-border-strong)]"]:hover {
+  border-color: rgba(53, 201, 215, 0.55);
+  background: transparent !important;
+  color: var(--gx-accent) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
