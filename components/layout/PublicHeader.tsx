@@ -34,10 +34,11 @@ function NavLink({
       prefetch
       aria-current={active ? 'page' : undefined}
       className={[
-        'inline-flex min-h-11 items-center text-sm font-medium transition-colors duration-200',
+        'group relative inline-flex min-h-11 items-center text-sm font-medium transition-colors duration-200',
+        'after:absolute after:bottom-1 after:left-0 after:h-px after:w-full after:origin-left after:bg-[var(--gx-accent)] after:transition-transform after:duration-200',
         active
-          ? 'text-[var(--gx-text)]'
-          : 'text-[var(--gx-text-muted)] hover:text-[var(--gx-text)]',
+          ? 'text-[var(--gx-text)] after:scale-x-100'
+          : 'text-[var(--gx-text-muted)] after:scale-x-0 hover:text-[var(--gx-text)] hover:after:scale-x-100',
       ].join(' ')}
     >
       {label}
@@ -106,9 +107,10 @@ export default function PublicHeader({
           <Link
             href="/teckna-avtal"
             prefetch
-            className="inline-flex min-h-11 items-center justify-center rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-2 text-sm font-semibold text-[var(--gx-accent-ink)] transition-colors duration-200 hover:bg-[var(--gx-accent-hover)]"
+            className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-2 text-sm font-semibold text-[var(--gx-accent-ink)] transition-[background-color,transform] duration-200 hover:-translate-y-0.5 hover:bg-[var(--gx-accent-hover)]"
           >
             Teckna elavtal
+            <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
           </Link>
         </div>
 
@@ -143,7 +145,7 @@ export default function PublicHeader({
       {open ? (
         <div id="gridex-mobile-navigation" className="border-t border-[var(--gx-border)] bg-[var(--gx-canvas)] lg:hidden">
           <div className="mx-auto max-w-6xl px-6 py-4">
-            <nav className="grid" aria-label="Mobilnavigation">
+            <nav className="grid divide-y divide-[var(--gx-border)]" aria-label="Mobilnavigation">
               <NavLink href="/#rakna-elpris" label="Räkna elpris" pathname={pathname} onClick={() => setOpen(false)} />
               <NavLink href="/elavtal" label="Elavtal" pathname={pathname} onClick={() => setOpen(false)} />
               <NavLink href="/elpriser" label="Elpriser" pathname={pathname} onClick={() => setOpen(false)} />
@@ -183,10 +185,10 @@ export default function PublicHeader({
               <Link
                 href="/teckna-avtal"
                 prefetch
-                className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-3 text-center text-sm font-semibold text-[var(--gx-accent-ink)] transition-colors duration-200 hover:bg-[var(--gx-accent-hover)]"
+                className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-3 text-center text-sm font-semibold text-[var(--gx-accent-ink)] transition-colors duration-200 hover:bg-[var(--gx-accent-hover)]"
                 onClick={() => setOpen(false)}
               >
-                Teckna elavtal
+                Teckna elavtal <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
