@@ -77,9 +77,13 @@ export default function FacilitySignupEnhancer() {
 
       const onInput = () => {
         setFacilityError(null);
-        if (facilityInput.value.trim() && facilityIdUnavailableRef.current) {
+        const raw = facilityInput.value.trim();
+        if (raw && facilityIdUnavailableRef.current) {
           facilityIdUnavailableRef.current = false;
           setFacilityIdUnavailable(false);
+        }
+        if (raw && isValidSwedishFacilityId(raw)) {
+          syncFacilityToMeteringPoint(normalizeSwedishFacilityId(raw));
         }
       };
       facilityInput.addEventListener("input", onInput);
