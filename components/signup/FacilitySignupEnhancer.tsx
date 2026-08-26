@@ -16,6 +16,26 @@ function setReactInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function syncFacilityToMeteringPoint(facilityId: string) {
+  const meteringInput = document.getElementById("metering_point_id") as HTMLInputElement | null;
+  if (!meteringInput) return;
+  if (!meteringInput.value.trim() || meteringInput.dataset.gridexFacilityMirror === "true") {
+    setReactInputValue(meteringInput, facilityId);
+    meteringInput.dataset.gridexFacilityMirror = "true";
+  }
+}
+
+function clearMirroredMeteringPoint(previousFacilityId: string) {
+  const meteringInput = document.getElementById("metering_point_id") as HTMLInputElement | null;
+  if (!meteringInput) return;
+  const meterValue = normalizeSwedishFacilityId(meteringInput.value);
+  const previousValue = normalizeSwedishFacilityId(previousFacilityId);
+  if (meteringInput.dataset.gridexFacilityMirror === "true" || (previousValue && meterValue === previousValue)) {
+    setReactInputValue(meteringInput, "");
+    delete meteringInput.dataset.gridexFacilityMirror;
+  }
+}
+
 export default function FacilitySignupEnhancer() {
   const [facilityFieldHost, setFacilityFieldHost] = useState<HTMLElement | null>(null);
   const [facilityIdUnavailable, setFacilityIdUnavailable] = useState(false);
@@ -87,7 +107,10 @@ export default function FacilitySignupEnhancer() {
 
       const raw = currentInput.value.trim();
       if (facilityIdUnavailableRef.current) {
-        if (raw) setReactInputValue(currentInput, "");
+        if (raw) {
+          clearMirroredMeteringPoint(raw);
+          setReactInputValue(currentInput, "");
+        }
         setFacilityError(null);
         return;
       }
@@ -114,6 +137,7 @@ export default function FacilitySignupEnhancer() {
 
       const normalized = normalizeSwedishFacilityId(raw);
       if (normalized !== raw) setReactInputValue(currentInput, normalized);
+      syncFacilityToMeteringPoint(normalized);
       setFacilityError(null);
     };
 
@@ -147,7 +171,10 @@ export default function FacilitySignupEnhancer() {
             setFacilityError(null);
             if (checked) {
               const input = document.getElementById("facility_id") as HTMLInputElement | null;
-              if (input) setReactInputValue(input, "");
+              if (input) {
+                clearMirroredMeteringPoint(input.value);
+                setReactInputValue(input, "");
+              }
             }
           }}
           className="mt-1 h-4 w-4 rounded border-white/20 bg-black/40 focus:ring-2 focus:ring-cyan-500/40"
