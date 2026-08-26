@@ -2,6 +2,14 @@ export function digitsOnly(value: string): string {
   return value.replace(/\D/g, '')
 }
 
+export function normalizeSwedishFacilityId(value: string): string {
+  return digitsOnly(value)
+}
+
+export function isValidSwedishFacilityId(value: string): boolean {
+  return /^735999\d{12}$/.test(normalizeSwedishFacilityId(value))
+}
+
 function luhn(value: string): boolean {
   if (!/^\d{10}$/.test(value)) return false
   const sum = value.split('').reduce((total, digit, index) => {
