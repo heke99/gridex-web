@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-const GOOGLE_ADS_PURCHASE_EVENT = 'ads_conversion_Purchase_1'
+const GOOGLE_ADS_PURCHASE_SEND_TO = 'AW-18268724498/tA4dCL_0hOgcEJK6modE'
 
 function subscribe(callback: () => void) {
   window.addEventListener('storage', callback)
@@ -124,7 +124,7 @@ export default function GoogleMarketingTags() {
       }
 
       const contractSigned = marker.dataset.gridexContractSigned === 'true'
-      if (!contractSigned) return
+      if (!contractSigned || !applicationNumber) return
 
       const signedKey = eventKey('contract_signed', applicationNumber)
       if (!window.sessionStorage.getItem(signedKey)) {
@@ -135,15 +135,18 @@ export default function GoogleMarketingTags() {
         window.sessionStorage.setItem(signedKey, '1')
       }
 
-      const adsConversionKey = eventKey(GOOGLE_ADS_PURCHASE_EVENT, applicationNumber)
+      const adsConversionKey = eventKey('google_ads_purchase_conversion', applicationNumber)
       if (window.sessionStorage.getItem(adsConversionKey)) return
 
       const newCustomerState = marker.dataset.gridexNewCustomer
-      const conversionParams: Record<string, boolean> = {}
+      const conversionParams: Record<string, string | boolean> = {
+        send_to: GOOGLE_ADS_PURCHASE_SEND_TO,
+        transaction_id: applicationNumber,
+      }
       if (newCustomerState === 'true') conversionParams.new_customer = true
       if (newCustomerState === 'false') conversionParams.new_customer = false
 
-      window.gtag('event', GOOGLE_ADS_PURCHASE_EVENT, conversionParams)
+      window.gtag('event', 'conversion', conversionParams)
       window.sessionStorage.setItem(adsConversionKey, '1')
     }
 
