@@ -2,6 +2,7 @@ import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
+import { energyAreaAuditRetryMatches, isOpsReferenceUniqueViolation } from '../lib/website/energyAreaStore.ts'
 import {
   isValidRequestedStartDate,
   isValidSwedishOrganizationNumber,
@@ -91,6 +92,35 @@ assert.equal(normalizePhoneToE164('070-123 45 67'), '+46701234567')
 assert.equal(isValidRequestedStartDate('specific_date', stockholmToday()), true)
 assert.equal(isValidRequestedStartDate('specific_date', '2020-01-01'), false)
 
+assert.equal(isOpsReferenceUniqueViolation({
+  code: '23505',
+  message: 'duplicate key value violates unique constraint "website_price_area_resolutions_ops_reference_uidx"',
+}), true)
+assert.equal(isOpsReferenceUniqueViolation({
+  code: '23505',
+  message: 'duplicate key value violates unique constraint "some_other_unique_constraint"',
+}), false)
+assert.equal(isOpsReferenceUniqueViolation({
+  code: '42501',
+  message: 'permission denied',
+}), false)
+
+const auditExpected = {
+  address_fingerprint: 'address-a',
+  postal_code: '11122',
+  price_area_code: 'SE3',
+  grid_area_code: 'ABC',
+  resolver_version: 'ops-2026-09',
+  ops_resolution_id: 'resolution-a',
+  ops_resolution_reference: 'reference-a',
+  ops_resolution_payload_sha256: 'payload-a',
+  ops_valid_until: '2026-09-02T15:00:00.000Z',
+}
+assert.equal(energyAreaAuditRetryMatches({ ...auditExpected }, auditExpected), true)
+assert.equal(energyAreaAuditRetryMatches({ ...auditExpected, ops_resolution_payload_sha256: 'payload-b' }, auditExpected), false)
+assert.equal(energyAreaAuditRetryMatches({ ...auditExpected, address_fingerprint: 'address-b' }, auditExpected), false)
+assert.equal(energyAreaAuditRetryMatches(null, auditExpected), false)
+
 const form = read('components/signup/CustomerApplicationForm.tsx')
 assert.ok(form.includes('company_signer_role'))
 assert.ok(form.includes('company_signer_authorized'))
@@ -158,6 +188,14 @@ const pricingPreviewRoute = read('app/api/checkout/quote/route.ts')
 assert.ok(pricingPreviewRoute.includes('quoteToWebsitePricingPreview'))
 assert.ok(!pricingPreviewRoute.includes('const safe = { ...preview }'))
 assert.ok(read('app/api/checkout/energy-area/resolve/route.ts').includes('fetchOpsWebsiteEnergyArea'))
+
+const energyAreaStore = read('lib/website/energyAreaStore.ts')
+assert.ok(energyAreaStore.includes('website_price_area_resolutions_ops_reference_uidx'))
+assert.ok(energyAreaStore.includes("error.code !== '23505'"))
+assert.ok(energyAreaStore.includes(".eq('ops_resolution_reference', record.ops_resolution_reference)"))
+assert.ok(energyAreaStore.includes('.maybeSingle()'))
+assert.ok(energyAreaStore.includes('Website energy-area audit reference collision detected'))
+assert.ok(!energyAreaStore.includes('.upsert('))
 
 const readiness = read('lib/ops/readiness.ts')
 assert.ok(readiness.includes("'integration_context.read'"))
