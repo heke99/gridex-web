@@ -57,6 +57,7 @@ type PortalOnboardingJob = {
   payload: PortalOnboardingInput
   attempt_count: number
   max_attempts: number
+  next_attempt_at: string | null
 }
 
 function env(name: string): string | null {
@@ -314,11 +315,16 @@ async function queueJob(
 ): Promise<PortalOnboardingJob> {
   const { data: existing, error: readError } = await supabase
     .from('portal_onboarding_jobs')
-    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts')
+    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at')
     .eq('submission_attempt_id', input.submissionAttemptId)
     .maybeSingle<PortalOnboardingJob>()
   if (readError) throw new Error(`Portal onboarding job read failed: ${readError.message}`)
   if (existing?.status === 'completed' || existing?.status === 'processing') return existing
+  if (
+    existing?.status === 'pending' &&
+    existing.auth_user_id &&
+    existing.next_attempt_at === null
+  ) return existing
 
   const { data, error } = await supabase
     .from('portal_onboarding_jobs')
@@ -340,7 +346,7 @@ async function queueJob(
       }],
       { onConflict: 'submission_attempt_id', defaultToNull: false },
     )
-    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts')
+    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at')
     .single<PortalOnboardingJob>()
   if (error || !data) throw new Error(`Portal onboarding job upsert failed: ${error?.message ?? 'missing row'}`)
   return data
@@ -376,6 +382,18 @@ async function processJob(
   job: PortalOnboardingJob,
 ): Promise<PortalOnboardingResult> {
   if (job.status === 'completed') return { status: 'profile_linked', userId: job.auth_user_id }
+  if (
+    job.status === 'pending' &&
+    job.auth_user_id &&
+    job.next_attempt_at === null &&
+    !job.payload.authenticatedUserId?.trim()
+  ) {
+    return {
+      status: 'email_confirmation_sent',
+      userId: job.auth_user_id,
+      message: 'Inväntar att kunden verifierar åtkomsten via den säkra länken i e-postmeddelandet.',
+    }
+  }
 
   const input = job.payload
   const attempt = await claimJob(supabase, job)
@@ -394,7 +412,8 @@ async function processJob(
     }
 
     if (!userId) {
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(normalizeEmail(input.email), {
+      const email = normalizeEmail(input.email)
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
         redirectTo: authRedirectTo(),
         data: {
           full_name: fullName(input),
@@ -409,15 +428,48 @@ async function processJob(
         if (!isExistingAuthUserInviteError(error)) {
           throw new Error(`Supabase invite failed: ${error.message}`)
         }
+
+        // Existing Auth users must prove control of the account before OPS access
+        // is linked. Resolve the exact Auth UUID server-side, then let Supabase
+        // send its normal recovery email. The generated link is never exposed or
+        // delivered by Gridex; it is only used to bind this durable job to the
+        // correct Auth UUID before the customer authenticates.
+        const { data: recoveryIdentity, error: recoveryIdentityError } =
+          await supabase.auth.admin.generateLink({
+            type: 'recovery',
+            email,
+            options: { redirectTo: authRedirectTo() },
+          })
+        if (recoveryIdentityError) {
+          throw new Error(`Existing Auth user verification failed: ${recoveryIdentityError.message}`)
+        }
+        const existingUserId = recoveryIdentity.user?.id ?? null
+        if (!existingUserId) {
+          throw new Error('Existing Auth user verification returned no user id.')
+        }
+
+        const { error: recoveryEmailError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: authRedirectTo(),
+        })
+        if (recoveryEmailError) {
+          throw new Error(`Supabase recovery email failed: ${recoveryEmailError.message}`)
+        }
+
         await updateClaimedJob(supabase, job.id, attempt, {
-          status: 'manual_review',
-          last_error: 'existing_auth_user_requires_login',
+          status: 'pending',
+          auth_user_id: existingUserId,
+          // Waiting for explicit recovery authentication is not a retryable
+          // technical failure. Null next_attempt_at deliberately removes this
+          // job from the background worker until the auth callback resumes it.
+          attempt_count: Math.max(0, attempt - 1),
           next_attempt_at: null,
+          last_error: null,
           locked_at: null,
         })
         return {
-          status: 'pending',
-          message: 'Ett konto finns redan för e-postadressen. Logga in för att slutföra Mina sidor-kopplingen.',
+          status: 'email_confirmation_sent',
+          userId: existingUserId,
+          message: 'Vi har skickat en säker länk för att aktivera Mina sidor.',
         }
       }
       userId = data.user?.id ?? null
@@ -546,7 +598,7 @@ export async function processPortalOnboardingJobs(limit = 25): Promise<{
   await recoverStalePortalOnboardingJobs(supabase)
   const { data, error } = await supabase
     .from('portal_onboarding_jobs')
-    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts')
+    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at')
     .in('status', ['pending', 'retryable_failure'])
     .lte('next_attempt_at', new Date().toISOString())
     .order('next_attempt_at', { ascending: true })
@@ -574,7 +626,7 @@ export async function resumePortalOnboardingForConfirmedUser(input: {
   const supabase = await loadServiceClient()
   const { data, error } = await supabase
     .from('portal_onboarding_jobs')
-    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts')
+    .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at')
     .ilike('email', normalizeEmail(input.email))
     .in('status', ['pending', 'retryable_failure', 'manual_review'])
     .limit(10)
@@ -599,6 +651,7 @@ export async function resumePortalOnboardingForConfirmedUser(input: {
       auth_user_id: input.userId,
       status: 'pending',
       attempt_count: 0,
+      next_attempt_at: new Date().toISOString(),
     })
     if (result.status === 'profile_linked') completed += 1
   }
