@@ -10,7 +10,7 @@ databasanslutning till OPS och inget internt OPS-bolags-ID.
 
 - Källor: `https://app.gridex.se/developers/customer-portal-api` och den
   verifierade release-manifesten i `docs/openapi/release-manifest.json`.
-- Kontraktsversion: `2026-10-02.2`. Båda specifikationerna och genererade
+- Kontraktsversion: `2026-10-02.3`. Båda specifikationerna och genererade
   TypeScript-typer är synkade tillsammans och kontrollerade mot samma release.
 - `GRIDEX_API_KEY` lagras endast på servern och bestämmer OPS-tenant.
   `/api/v1/integration/context` ger en opak `organization_reference`.
@@ -89,36 +89,70 @@ avpublicerar atomiskt med låsning och audit. Finita signerade prisvärden
 behåller sin tidigare betydelse. Lokala pris-/avtalskontroller avser lokal
 historik och kontroll; kanonisk publicering sker i OPS.
 
-Båda slutliga migrationerna har körts tillsammans på native PostgreSQL 16
+Migrationen `20261002192814_gridex_web_server_owned_rbac.sql` stänger
+alla tabell- och kolumnskrivningar för browserroller på de nio lokala
+roll-, rättighets-, bolags- och medlemskapstabellerna. Den bevarar befintliga
+SELECT-grants, alla RLS-policyer och service-rollens skrivningar. Bolagsägare
+kan därmed inte längre befordra egna medlemsroller eller ge sig rättigheter
+via direkt Databas-API. PostgreSQL 17:s MAINTAIN tas också bort.
+
+Migrationen `20261002192011_gridex_web_global_permission_override.sql`
+låter endast serverns service-roll sätta en global allow/deny. RPC:n verifierar
+aktörens aktuella globala `rbac.write` efter transaktionslåset, använder
+rättighetens kanoniska nyckel och bevarar alla bolagsposter. Den ersätter
+endast äldre globala direkträttigheter och global overridehistorik; en äldre
+global deny kan därför inte vinna över en senare allow. Godtyckliga
+användar- eller rättighets-ID:n och ogiltiga effekter avvisas.
+
+Alla fyra slutliga migrationer har körts tillsammans på native PostgreSQL 16
 med aktuella produktionsfunktioners exakta definitioner och pristriggers.
 Testerna omfattar tenantisolering, nekade och inaktiva rättigheter,
 identifierarmanipulation, supportsekretess, rollback vid skriv-/auditfel
-och samtidighet. Kontroll av funktionssignaturer i produktion gjordes
-read-only och gav noll avvikelser. Inga produktionsändringar har persisterats.
+och samtidighet. Nya ACL-tester bevarar exakta läsgrants och 27 policyer,
+nekar 108 browsermutationer och tillåter 27 serveroperationer. Tolv samtidiga
+globala beslut ger en aktiv post med bevarad historik; en aktör som tappar
+rättigheten under låsväntan nekas. Kontroll av funktionssignaturer i produktion gjordes
+read-only och gav noll avvikelser. Den separata ACL-spärren tillämpades i
+`gridex-prod` 2026-10-02 via `apply_migration`, historikversion
+`20261002192814`, namn `gridex_web_server_owned_rbac`. Efterkontrollerna
+passerar; SELECT/RLS för nio tabeller, alla 27 policydefinitioner och
+service-rollens INSERT/UPDATE/DELETE är oförändrade. Inga produktionsrader
+eller testfixturer skrevs. De ursprungliga två migrationerna och den globala
+setter-RPC:n väntar fortfarande på samordnad Web-driftsättning.
 
 Lokala testkällor finns i `tests/database/independent-web-fixture.sql`,
 `independent-web-existing-functions.sql`, `independent-web-security.sql`,
-`pricing-fixture.sql`, `atomic-pricing.sql` och `pricing-concurrency.sql`.
+`pricing-fixture.sql`, `atomic-pricing.sql`, `pricing-concurrency.sql` och
+`server-owned-rbac*.sql` samt `server-owned-rbac-concurrency.py`.
 Fixturefilerna får endast användas i en separat lokal testdatabas.
 Katalogkontroll före tillämpning finns i
 `tests/database/independent-web-function-preflight.sql`; efterkontrollerna
 finns i `independent-web-production-assertions.sql` och
-`pricing-deployment-assertions.sql`.
+`pricing-deployment-assertions.sql`, `server-owned-rbac-deployment-assertions.sql`
+och `server-owned-rbac-overrides-deployment-assertions.sql`.
+Den separata ACL-katalogkontrollen före tillämpning finns i
+`server-owned-rbac-preflight.sql`.
 
 ## Driftsättning och verklig verifiering
 
-1. Förbered den nya Web-kandidaten, kontrollera båda migrationernas lokala
-   PostgreSQL-regressioner och kör `npm run db:migrations:check`. Båda
-   migrationerna måste samordnas med den nya Web-versionen: de stänger
-   browsermutationer som den gamla UI-versionen fortfarande använder.
-   **Håll produktionsmigrationerna tills deployment, servermiljö och
-   domänåtkomst är bekräftade och kandidaten kan tas i drift samordnat.**
-   Före tillämpning körs endast read-only katalogkontroller i produktion.
-   Tillämpa sedan först RBAC/supportmigrationen och därefter
-   pris-/RLS-migrationen på rätt Web-projekt via `apply_migration` när
-   driftsättningen är redo. Använd inte `execute_sql` för produktions-DDL
-   eller en DDL-repetition med rollback. Kör båda efterkontrollerna efter
-   tillämpning. Ändra inte OPS databas med dessa Web-migrationer.
+1. Förbered Web-kandidaten, verifiera alla fyra migrationers lokala
+   PostgreSQL-regressioner och kör `npm run db:migrations:check` (42 filer).
+   Den rena ACL-migrationen är redan tillämpad separat i Gridex Prod: basens Web
+   (`9ae3736`) saknar browserfunktioner för bolag/medlemskap/overrides;
+   övriga berörda sessionsskrivningar var redan blockerade av RLS/helpergrants.
+   Fungerande serveroperationer behåller service-rollens rättigheter.
+   Kontrollerna `server-owned-rbac-preflight.sql` före/efter och den rena
+   ACL-efterkontrollen passerade med oförändrad läsåtkomst och policyer.
+   Faktisk historikversion är `20261002192814` från 2026-10-02.
+   Produktions-DDL går enbart via `apply_migration`.
+   **Håll de ursprungliga RBAC/support- och prismigrationerna samt den nya
+   globala setter-RPC:n tills deployment, servermiljö och domänåtkomst är
+   bekräftade och kandidaten kan tas i drift samordnat.**
+   Vid Web-driftsättning tillämpas eventuella återstående migrationer i
+   beroendeordning: RBAC/support, pris/RLS, global setter; ACL-spärren är
+   redan tillämpad och ska inte tillämpas på nytt. Kör alla fyra efterkontroller.
+   Använd inte `execute_sql` för produktions-DDL eller en DDL-repetition med
+   rollback. Ändra inte OPS databas med dessa Web-migrationer.
 2. Konfigurera serverns `GRIDEX_API_KEY` för avsedd OPS-tenant. Nyckeln behöver
    befintliga hemside-/portal-scopes och uttryckligen `customer_support.read`
    samt `customer_support.write`; vanliga portal-scopes räcker inte.

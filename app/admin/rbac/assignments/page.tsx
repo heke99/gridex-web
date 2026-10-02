@@ -2,6 +2,7 @@ import { supabaseService } from '@/lib/supabase/service'
 import RBACUserTable from '@/components/admin/RBACUserTable'
 import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { createUserWithRole } from './actions'
+import { globalPermissionOverrideRows, type CanonicalGlobalOverride } from '@/lib/admin/permissionOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,7 @@ type RoleRow = {
 type PermissionRow = {
   id: string
   name: string
+  key: string | null
 }
 
 type UserPermissionRow = {
@@ -115,7 +117,7 @@ export default async function AssignmentsPage({
 
   const { data: rolesRaw, error: rolesError } = await supabase
     .from('roles')
-    .select('id,name')
+    .select('id,name,key')
     .order('name', { ascending: true })
     .returns<RoleRow[]>()
 
@@ -127,7 +129,7 @@ export default async function AssignmentsPage({
 
   const { data: permsRaw, error: permsError } = await supabase
     .from('permissions')
-    .select('id,name')
+    .select('id,name,key')
     .order('name', { ascending: true })
     .returns<PermissionRow[]>()
 
@@ -168,7 +170,14 @@ export default async function AssignmentsPage({
     throw new Error(userPermsError.message)
   }
 
-  const userPerms = userPermsRaw ?? []
+  const { data: overridesRaw, error: overridesError } = hasUsers
+    ? await supabase.from('user_permission_overrides')
+        .select('user_id,permission_key,effect,is_active,valid_from,valid_to')
+        .is('company_id', null).in('user_id', userIds)
+        .returns<CanonicalGlobalOverride[]>()
+    : { data: [], error: null }
+  if (overridesError) throw new Error(overridesError.message)
+  const userPerms = globalPermissionOverrideRows(perms, userPermsRaw ?? [], overridesRaw ?? [])
 
   const filteredUsers = users.filter((user) => {
     const rolesForUser = userRoles.filter((row) => row.user_id === user.id)

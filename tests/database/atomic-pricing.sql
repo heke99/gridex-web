@@ -49,13 +49,13 @@ insert into auth.users(id,email) values
 ('eed10000-0000-4000-8000-000000000005','pricing-disabled-reader@example.invalid'),
 ('eed10000-0000-4000-8000-000000000006','pricing-auditor@example.invalid'),
 ('eed10000-0000-4000-8000-000000000007','contract-catalog-reader@example.invalid');
+insert into public.companies(id,name) values('eed20000-0000-4000-8000-000000000001','Synthetic pricing tenant');
 insert into public.user_permission_overrides(user_id,permission_key,effect,company_id) values
 ('eed10000-0000-4000-8000-000000000001','pricing.read','allow',null),
 ('eed10000-0000-4000-8000-000000000003','pricing.read','allow','eed20000-0000-4000-8000-000000000001'),
 ('eed10000-0000-4000-8000-000000000005','pricing.read','allow',null),
 ('eed10000-0000-4000-8000-000000000006','audit.read','allow',null),
 ('eed10000-0000-4000-8000-000000000007','contracts.read','allow',null);
-insert into public.companies(id,name) values('eed20000-0000-4000-8000-000000000001','Synthetic pricing tenant');
 insert into public.company_memberships(company_id,user_id) values
 ('eed20000-0000-4000-8000-000000000001','eed10000-0000-4000-8000-000000000003');
 insert into public.admin_users(user_id,role) values('eed10000-0000-4000-8000-000000000004','admin');

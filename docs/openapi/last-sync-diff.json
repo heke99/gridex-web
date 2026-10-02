@@ -1,15 +1,15 @@
 {
-  "synced_at": "2026-10-02T17:34:14.700Z",
-  "contract_version": "2026-10-02.2",
+  "synced_at": "2026-10-02T19:32:41.346Z",
+  "contract_version": "2026-10-02.3",
   "release_manifest": {
-    "release_version": "2026-10-02.2",
-    "website_openapi_version": "2026-10-02.2",
-    "customer_portal_openapi_version": "2026-10-02.2",
-    "runtime_contract_version": "2026-10-02.2",
-    "guide_version": "2026-10-02.2",
-    "released_at": "2026-10-02T12:00:00.000Z",
-    "generated_at": "2026-10-02T12:00:00.000Z",
-    "build_commit": "e98cef3aeefd0c564a4436e2e409bb0a5262c866",
+    "release_version": "2026-10-02.3",
+    "website_openapi_version": "2026-10-02.3",
+    "customer_portal_openapi_version": "2026-10-02.3",
+    "runtime_contract_version": "2026-10-02.3",
+    "guide_version": "2026-10-02.3",
+    "released_at": "2026-10-02T20:00:00.000Z",
+    "generated_at": "2026-10-02T20:00:00.000Z",
+    "build_commit": "d9dda64a19e5733e0324600ce072c36b38c716c7",
     "compatibility_classification": "breaking-client-update-required",
     "deprecated_features": [
       {
@@ -33,39 +33,35 @@
         "sunset_at": "2026-10-31T23:59:59.000Z"
       }
     ],
-    "minimum_tenant_integration_version": "2026-10-02.2",
+    "minimum_tenant_integration_version": "2026-10-02.3",
     "specifications": {
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-10-02.2",
+        "contract_version": "2026-10-02.3",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-02.2/website-integration-v1.json",
-        "sha256": "76f1ff9ea11d26b6ee0bed499f7d1a4033b2a15ca82bfb74b710bf94bd99c1fa",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-02.3/website-integration-v1.json",
+        "sha256": "500bfcb0b5558f49590b4316a22093036383f0204921e97b8e39a072eaed2c8e",
         "compatibility": "breaking-client-update-required"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-10-02.2",
+        "contract_version": "2026-10-02.3",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
-        "sha256": "04d709cf92bc30c481dd4369b277dd828919b5739bdbe86ba87ba379017f8849",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-02.3/customer-portal-v1.json",
+        "sha256": "f6eb115d099f3b7105155fdc5e6923c8bf4072eb41d83d6f495e297e5b4f50cf",
         "compatibility": "breaking-client-update-required"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "76f1ff9ea11d26b6ee0bed499f7d1a4033b2a15ca82bfb74b710bf94bd99c1fa",
+      "sha256": "500bfcb0b5558f49590b4316a22093036383f0204921e97b8e39a072eaed2c8e",
       "semantic_diff": {
-        "previous_version": "2026-08-22.2",
-        "next_version": "2026-10-02.2",
+        "previous_version": "2026-10-02.2",
+        "next_version": "2026-10-02.3",
         "added_paths": [
-          "/api/v1/openapi/2026-10-01.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-02.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-02.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json"
+          "/api/v1/openapi/2026-10-02.3/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json"
         ],
         "removed_paths": [],
         "changed_paths": [
@@ -79,12 +75,8 @@
           "/api/v1/website/customer-events",
           "/api/v1/public-contracts",
           "/api/v1/website/customer-applications/{application_number}",
-          "/api/v1/openapi/2026-10-01.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-02.1/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-02.2/website-integration-v1.json",
-          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json"
+          "/api/v1/openapi/2026-10-02.3/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json"
         ],
         "added_schemas": [],
         "removed_schemas": [],
@@ -108,58 +100,29 @@
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "04d709cf92bc30c481dd4369b277dd828919b5739bdbe86ba87ba379017f8849",
+      "sha256": "f6eb115d099f3b7105155fdc5e6923c8bf4072eb41d83d6f495e297e5b4f50cf",
       "semantic_diff": {
-        "previous_version": "2026-08-22.2",
-        "next_version": "2026-10-02.2",
+        "previous_version": "2026-10-02.2",
+        "next_version": "2026-10-02.3",
         "added_paths": [
-          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
-          "/api/v1/customer/support/cases",
-          "/api/v1/customer/support/cases/{reference}",
-          "/api/v1/customer/support/cases/{reference}/messages",
-          "/api/v1/customer/support/cases/{reference}/attachments",
-          "/api/v1/customer/support/cases/{reference}/attachments/{attachmentReference}"
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json"
         ],
         "removed_paths": [],
         "changed_paths": [
           "/api/v1/customer-portal/sync",
-          "/api/v1/customer/contracts",
-          "/api/v1/customer/documents",
-          "/api/v1/customer/events",
-          "/api/v1/customer/invoices",
-          "/api/v1/customer/invoices/{id}",
-          "/api/v1/customer/legal-acceptances",
-          "/api/v1/customer/me",
-          "/api/v1/customer/metering-values",
           "/api/v1/customer/move-out",
-          "/api/v1/customer/notifications",
           "/api/v1/customer/notifications/read",
-          "/api/v1/customer/portal-bundle",
-          "/api/v1/customer/powers-of-attorney",
           "/api/v1/customer/profile-update",
-          "/api/v1/customer/sites",
           "/api/v1/customer/sync",
           "/api/v1/events",
-          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
-          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
           "/api/v1/customer/support/cases",
           "/api/v1/customer/support/cases/{reference}",
           "/api/v1/customer/support/cases/{reference}/messages",
           "/api/v1/customer/support/cases/{reference}/attachments",
-          "/api/v1/customer/support/cases/{reference}/attachments/{attachmentReference}"
+          "/api/v1/customer/support/cases/{reference}/attachments/{attachmentReference}",
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json"
         ],
-        "added_schemas": [
-          "CustomerSupportCase",
-          "CustomerSupportMessage",
-          "CustomerSupportCaseDetail",
-          "CustomerSupportCaseCreateRequest",
-          "CustomerSupportMessageCreateRequest",
-          "PortalPage",
-          "CustomerSupportAttachment"
-        ],
+        "added_schemas": [],
         "removed_schemas": [],
         "changed_schemas": [
           "ApiError",
@@ -168,14 +131,7 @@
           "ClosedPortalResourceEnvelope",
           "ErrorEnvelope",
           "MarketPriceErrorEnvelope",
-          "PublicDomainEvent",
-          "CustomerSupportCase",
-          "CustomerSupportMessage",
-          "CustomerSupportCaseDetail",
-          "CustomerSupportCaseCreateRequest",
-          "CustomerSupportMessageCreateRequest",
-          "PortalPage",
-          "CustomerSupportAttachment"
+          "PublicDomainEvent"
         ]
       }
     }

@@ -1,4 +1,5 @@
 'use client'
+import { globalOverrideStates } from '@/lib/admin/permissionOverrides'
 
 import {
   setUserPermissionOverride,
@@ -54,12 +55,7 @@ export default function RBACUserTable({
       .filter((row) => row.is_active !== false)
       .map((row) => `${row.user_id}:${row.role}`)
   )
-
-  const overrideSet = new Set(
-    userPerms
-      .filter((row) => row.effect !== 'deny' && row.is_active !== false && row.status === 'active')
-      .map((row) => `${row.user_id}:${row.permission_id}`)
-  )
+  const overrideStates = globalOverrideStates(userPerms)
 
   return (
     <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-950">
@@ -124,7 +120,8 @@ export default function RBACUserTable({
                   <div className="flex flex-wrap gap-2">
                     {perms.map((perm) => {
                       const key = `${user.id}:${perm.id}`
-                      const enabled = overrideSet.has(key)
+                      const effect = overrideStates.get(key) ?? null
+                      const enabled = effect === 'allow'
 
                       return (
                         <form key={key} action={setUserPermissionOverride}>
@@ -140,14 +137,17 @@ export default function RBACUserTable({
                             value={enabled ? 'false' : 'true'}
                           />
                           <button
+                            title={effect === 'deny' ? 'Globalt nekad' : enabled ? 'Globalt tillåten' : 'Inget globalt undantag'}
                             className={[
                               'rounded-full border px-2 py-1 text-[11px] transition',
-                              enabled
+                              effect === 'deny'
+                                ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                                : enabled
                                 ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
                                 : 'border-white/10 bg-white/5 text-white/60',
                             ].join(' ')}
                           >
-                            {perm.name}
+                            {perm.name}{effect === 'deny' ? ' · Nekad' : enabled ? ' · Tillåten' : ''}
                           </button>
                         </form>
                       )

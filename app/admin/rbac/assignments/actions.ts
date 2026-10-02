@@ -197,16 +197,15 @@ export async function setUserPermissionOverride(formData: FormData) {
 
   const isEnabled = payload.enabled === 'true'
 
-  // A deny overrides role grants. Deleting a direct grant would otherwise leave
-  // the same permission inherited from an active role.
-  const { error } = await supabase.from('user_permissions').upsert({
-    user_id: payload.user_id,
-    permission_id: payload.permission_id,
-    company_id: null,
-    effect: isEnabled ? 'allow' : 'deny',
-    status: 'active',
-    is_active: true,
-  }, { onConflict: 'user_id,permission_id' })
+  // The direct-grant PK omits company_id. A NULL-scope upsert would overwrite
+  // an existing company grant. The RPC preserves scoped rows and serializes
+  // canonical global overrides, including superseding a legacy global deny.
+  const { error } = await supabase.rpc('gridex_web_set_global_permission_override', {
+    p_actor_id: ctx.userId,
+    p_user_id: payload.user_id,
+    p_permission_id: payload.permission_id,
+    p_effect: isEnabled ? 'allow' : 'deny',
+  })
   if (error) throw new Error(error.message)
 
   await logPermissionAudit({

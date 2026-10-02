@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-02T18:12:44.076Z",
-  "migration_count": 40,
+  "generated_at": "2026-10-02T19:30:21.751Z",
+  "migration_count": 42,
   "version_collisions": [],
   "migrations": [
     {
@@ -203,6 +203,16 @@
       "file": "20261002175651_gridex_web_atomic_pricing.sql",
       "version": "20261002175651",
       "sha256": "1a80900ab3ecd2e69f602b36bd503ccf0f2bbc1073af6ab98542f4e4e800b0ff"
+    },
+    {
+      "file": "20261002192011_gridex_web_global_permission_override.sql",
+      "version": "20261002192011",
+      "sha256": "bdb6eed911d41fed68f444502636870fa21d25c0542cbb18d0ae60ec32c09efe"
+    },
+    {
+      "file": "20261002192814_gridex_web_server_owned_rbac.sql",
+      "version": "20261002192814",
+      "sha256": "015366fe2ea75c5f02ab179792581ffe362f59ee96d5e3a87b9f86519def2a9a"
     }
   ]
 }
