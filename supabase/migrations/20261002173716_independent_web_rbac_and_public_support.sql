@@ -41,21 +41,23 @@ as $$ select * from public.gridex_get_user_roles(p_user_id, null::uuid); $$;
 
 create or replace function public.gridex_get_user_permission_overrides(p_user_id uuid, p_company_id uuid)
 returns table(permission_key text, effect text, valid_from timestamptz, valid_to timestamptz, is_active boolean)
-language sql stable security definer set search_path = ''
+language sql volatile security definer set search_path = ''
 as $$
-  with scope as (
+  -- Validity is evaluated when authorization actually runs, including a caller
+  -- that waited for a transaction lock. now() would freeze request-start time.
+  with current_clock as materialized(select clock_timestamp() as at), scope as (
     select 1 from public.company_memberships cm join public.companies c on c.id = cm.company_id
     where p_company_id is not null and cm.company_id = p_company_id and cm.user_id = p_user_id
       and coalesce(cm.is_active, true) and coalesce(cm.status, 'active') = 'active'
       and coalesce(c.is_active, true) and coalesce(c.status, 'active') in ('active', 'onboarding')
   )
   select o.permission_key, o.effect, o.valid_from, o.valid_to, o.is_active
-  from public.user_permission_overrides o
+  from public.user_permission_overrides o cross join current_clock c
   where o.user_id = p_user_id and o.is_active
     and not exists (select 1 from public.user_profiles up where (up.user_id = p_user_id or up.id = p_user_id)
       and coalesce(up.user_status, 'active') <> 'active')
     and (o.company_id is null or (o.company_id = p_company_id and exists(select 1 from scope)))
-    and (o.valid_from is null or o.valid_from <= now()) and (o.valid_to is null or o.valid_to > now())
+    and (o.valid_from is null or o.valid_from <= c.at) and (o.valid_to is null or o.valid_to > c.at)
   union all
   select coalesce(nullif(up.permission_key, ''), p.key, p.name), coalesce(up.effect, 'allow'),
     null::timestamptz, null::timestamptz, true
@@ -68,11 +70,11 @@ $$;
 
 create or replace function public.gridex_get_user_permission_overrides(p_user_id uuid)
 returns table(permission_key text, effect text)
-language sql stable security definer set search_path = ''
+language sql volatile security definer set search_path = ''
 as $$ select o.permission_key,o.effect from public.gridex_get_user_permission_overrides(p_user_id, null::uuid) o; $$;
 
 create or replace function public.gridex_get_user_permissions(p_user_id uuid, p_company_id uuid)
-returns text[] language sql stable security definer set search_path = ''
+returns text[] language sql volatile security definer set search_path = ''
 as $$
   with role_grants as (
     select coalesce(p.key, p.name) as permission_key
@@ -93,7 +95,7 @@ as $$
 $$;
 
 create or replace function public.gridex_get_user_permissions(p_user_id uuid)
-returns text[] language sql stable security definer set search_path = ''
+returns text[] language sql volatile security definer set search_path = ''
 as $$ select public.gridex_get_user_permissions(p_user_id, null::uuid); $$;
 
 revoke all on function public.gridex_get_user_roles(uuid,uuid), public.gridex_get_user_roles(uuid),
@@ -147,7 +149,7 @@ create schema if not exists gridex_web_private;
 revoke all on schema gridex_web_private from public, anon;
 grant usage on schema gridex_web_private to authenticated, service_role;
 create or replace function gridex_web_private.can(p_permission text)
-returns boolean language sql stable security definer set search_path = ''
+returns boolean language sql volatile security definer set search_path = ''
 as $$ select auth.uid() is not null and p_permission = any(public.gridex_get_user_permissions(auth.uid(),null::uuid)); $$;
 revoke all on function gridex_web_private.can(text) from public, anon;
 grant execute on function gridex_web_private.can(text) to authenticated, service_role;

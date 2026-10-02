@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +28,7 @@ export default async function AgreementsPage({
 }: {
   searchParams?: Promise<{ q?: string }>
 }) {
-  const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
+  const ctx = await requireGlobalAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
   const supabase = ctx.supabase
   const resolvedSearchParams = (await searchParams) ?? {}
   const q = resolvedSearchParams.q?.trim() ?? ''

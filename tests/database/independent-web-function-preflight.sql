@@ -13,7 +13,13 @@ with expected(signature,returns) as (values
  ('public.gridex_user_has_role_key(text)','boolean'),
  ('public.gridex_create_public_support_contact(uuid,text,text,text,text,text,text,text)','uuid'),
  ('public.gridex_web_save_draft_pricing(uuid,jsonb)','jsonb'),
- ('public.gridex_web_publish_pricing(uuid,uuid,uuid,text)','jsonb')
+ ('public.gridex_web_publish_pricing(uuid,uuid,uuid,text)','jsonb'),
+ ('public.gridex_web_set_global_permission_override(uuid,uuid,uuid,text)','jsonb'),
+ ('public.gridex_web_save_monthly_spot_prices(uuid,integer,integer,jsonb)','jsonb'),
+ ('public.gridex_web_publish_spot_basis(uuid,integer,integer,text)','jsonb'),
+ ('public.gridex_web_rollback_spot_basis(uuid,text)','jsonb'),
+ ('public.gridex_web_record_agreement_pdf(uuid,uuid,text)','jsonb'),
+ ('public.gridex_sync_portal_from_agreement()','trigger')
 ) select signature,expected.returns as expected,pg_get_function_result(to_regprocedure(signature)) as actual
 from expected where to_regprocedure(signature) is not null
 and pg_get_function_result(to_regprocedure(signature)) is distinct from expected.returns;

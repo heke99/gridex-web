@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
 import { AccessDeniedError } from '@/lib/admin/access'
 import { logPermissionAudit } from '@/lib/auth/audit'
 import type { ContractAgreement } from '@/lib/types/contracts'
@@ -40,7 +40,7 @@ function csvResponse(rows: ContractAgreement[]): NextResponse {
 
 export async function GET() {
   try {
-    const ctx = await requireAdminActionAccess({
+    const ctx = await requireGlobalAdminActionAccess({
       allOf: ['agreements.export'],
     })
 

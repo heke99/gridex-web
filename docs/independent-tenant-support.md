@@ -10,8 +10,11 @@ databasanslutning till OPS och inget internt OPS-bolags-ID.
 
 - Källor: `https://app.gridex.se/developers/customer-portal-api` och den
   verifierade release-manifesten i `docs/openapi/release-manifest.json`.
-- Kontraktsversion: `2026-10-02.3`. Båda specifikationerna och genererade
+- Kontraktsversion: `2026-10-02.4`, med minsta tenantversion `2026-10-02.3`.
+  Båda specifikationerna och genererade
   TypeScript-typer är synkade tillsammans och kontrollerade mot samma release.
+  OPS PR #461 rättar de stängda support- och manifestschemana i en ny,
+  bakåtkompatibel release; publicerade `.2`- och `.3`-arkiv behåller sina bytes.
 - `GRIDEX_API_KEY` lagras endast på servern och bestämmer OPS-tenant.
   `/api/v1/integration/context` ger en opak `organization_reference`.
 - Båda portalidentitetshuvudena kommer från serververifierad Supabase-användare.
@@ -104,7 +107,7 @@ endast äldre globala direkträttigheter och global overridehistorik; en äldre
 global deny kan därför inte vinna över en senare allow. Godtyckliga
 användar- eller rättighets-ID:n och ogiltiga effekter avvisas.
 
-Alla fyra slutliga migrationer har körts tillsammans på native PostgreSQL 16
+Det ursprungliga fyrmigrationspaketet kördes tillsammans på native PostgreSQL 16
 med aktuella produktionsfunktioners exakta definitioner och pristriggers.
 Testerna omfattar tenantisolering, nekade och inaktiva rättigheter,
 identifierarmanipulation, supportsekretess, rollback vid skriv-/auditfel
@@ -133,10 +136,32 @@ och `server-owned-rbac-overrides-deployment-assertions.sql`.
 Den separata ACL-katalogkontrollen före tillämpning finns i
 `server-owned-rbac-preflight.sql`.
 
+Slutgranskningen utökar paketet med fyra framåtriktade migrationer:
+
+| Migration | Ändring |
+| --- | --- |
+| `20261002200715_gridex_web_server_owned_postal_mapping.sql` | Stänger direkta browsermutationer till postnummermappningen; serveråtgärder kräver global `pricing.write`. |
+| `20261002201624_gridex_web_atomic_monthly_spot.sql` | Sparar, publicerar och återställer månadsspot atomiskt med verifierad aktör och global rättighet efter låsväntan. |
+| `20261002202211_gridex_web_atomic_agreement_pdf.sql` | Sparar PDF-referens och operatörsaudit atomiskt, bevarar livscykel/mailstatus och skyddar avtalsläsning med aktivt ägarskap eller global rättighet. |
+| `20261002202617_gridex_web_agreement_projection_trigger.sql` | Rättar den befintliga lokala projektionstriggerns verkliga schemafel och lämnar PDF-ändringar och kanoniska OPS-identiteter utanför projektionen. |
+
+Delade kund-, avtals-, export- och PDF-vyer kräver globala rättigheter.
+Kundkort filtrerar och sidindelar relaterade poster i databasen. Äldre lokala
+e-postsigneringslänkar är läsande och visar endast faktisk, tidigare sparad
+signatur; osignerade länkar hänvisar till den aktuella portalen. En PDF-åtgärd
+genererar dokumentet och innebär ingen aktivering eller skickad e-post.
+
+De ännu inte tillämpade behörighetsfunktionerna använder väggklockan när en
+tidsbegränsad override kontrolleras. En transaktions starttid får inte hålla
+en utgången rättighet giltig efter låsväntan. Native CI kör paketet på både
+PostgreSQL 16.15 och 17.6 med isolerade fixturedata, rollbackprov och riktiga
+fleranslutningsprov. Det kör inga fixtures mot produktionsdatabasen.
+
 ## Driftsättning och verklig verifiering
 
-1. Förbered Web-kandidaten, verifiera alla fyra migrationers lokala
-   PostgreSQL-regressioner och kör `npm run db:migrations:check` (42 filer).
+1. Förbered Web-kandidaten, verifiera alla åtta migrationers lokala
+   PostgreSQL-regressioner på båda versionerna och kör
+   `npm run db:migrations:check` (46 filer).
    Den rena ACL-migrationen är redan tillämpad separat i Gridex Prod: basens Web
    (`9ae3736`) saknar browserfunktioner för bolag/medlemskap/overrides;
    övriga berörda sessionsskrivningar var redan blockerade av RLS/helpergrants.
@@ -145,12 +170,19 @@ Den separata ACL-katalogkontrollen före tillämpning finns i
    ACL-efterkontrollen passerade med oförändrad läsåtkomst och policyer.
    Faktisk historikversion är `20261002192814` från 2026-10-02.
    Produktions-DDL går enbart via `apply_migration`.
-   **Håll de ursprungliga RBAC/support- och prismigrationerna samt den nya
-   globala setter-RPC:n tills deployment, servermiljö och domänåtkomst är
-   bekräftade och kandidaten kan tas i drift samordnat.**
+   **Håll samtliga sju återstående migrationer tills deployment, servermiljö
+   och domänåtkomst är bekräftade och kandidaten kan tas i drift samordnat.**
+   Basens fungerande postnummer- och avtalsoperationer använder fortfarande
+   sessionsklienten; nya ACL-spärrar måste därför införas tillsammans med
+   den nya serverkoden.
+   Pausa berörda administrativa skrivningar under databas-/Web-bytet.
    Vid Web-driftsättning tillämpas eventuella återstående migrationer i
-   beroendeordning: RBAC/support, pris/RLS, global setter; ACL-spärren är
-   redan tillämpad och ska inte tillämpas på nytt. Kör alla fyra efterkontroller.
+   beroendeordning: RBAC/support, pris/RLS, global setter, postnummer,
+   månadsspot, avtals-PDF och projektionstrigger. RBAC-ACL-spärren är redan
+   tillämpad och ska inte tillämpas på nytt. Kör paketets nio katalog- och
+   efterkontrollfiler, inklusive kontrollen av RPC-signaturer.
+   Ta därefter den testade Web-revisionen i drift, kontrollera sidor och
+   skrivflöden och återöppna de administrativa operationerna.
    Använd inte `execute_sql` för produktions-DDL eller en DDL-repetition med
    rollback. Ändra inte OPS databas med dessa Web-migrationer.
 2. Konfigurera serverns `GRIDEX_API_KEY` för avsedd OPS-tenant. Nyckeln behöver

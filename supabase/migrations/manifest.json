@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-02T19:30:21.751Z",
-  "migration_count": 42,
+  "generated_at": "2026-10-02T20:42:29.182Z",
+  "migration_count": 46,
   "version_collisions": [],
   "migrations": [
     {
@@ -197,7 +197,7 @@
     {
       "file": "20261002173716_independent_web_rbac_and_public_support.sql",
       "version": "20261002173716",
-      "sha256": "e56fa01e00f46395eb2b6a225a80b95bb90a26ed232f4c37a8c43f9bbe45533c"
+      "sha256": "acadd5562c56eb26c6815094003935783c16c6934c7dea91c4135fd132ae7866"
     },
     {
       "file": "20261002175651_gridex_web_atomic_pricing.sql",
@@ -213,6 +213,26 @@
       "file": "20261002192814_gridex_web_server_owned_rbac.sql",
       "version": "20261002192814",
       "sha256": "015366fe2ea75c5f02ab179792581ffe362f59ee96d5e3a87b9f86519def2a9a"
+    },
+    {
+      "file": "20261002200715_gridex_web_server_owned_postal_mapping.sql",
+      "version": "20261002200715",
+      "sha256": "50f76da2dad54fd88d447d79da8a36d801d76008b1c24c2331cb81a5fe73fc2a"
+    },
+    {
+      "file": "20261002201624_gridex_web_atomic_monthly_spot.sql",
+      "version": "20261002201624",
+      "sha256": "8c5e317e4cf300bb728bb7dc7e9512fc95e2148e30ab394eaa6a9ae70b0d2a98"
+    },
+    {
+      "file": "20261002202211_gridex_web_atomic_agreement_pdf.sql",
+      "version": "20261002202211",
+      "sha256": "965a30d995a90aeb375e1dca5fa516ed0fe7b67f1b0e6fd07244b2a719baa2c4"
+    },
+    {
+      "file": "20261002202617_gridex_web_agreement_projection_trigger.sql",
+      "version": "20261002202617",
+      "sha256": "87cde33e3ac6e9225d035f6b3c6ecfad7cdeb9a5f4fa31299dcbb950bc2a01fe"
     }
   ]
 }

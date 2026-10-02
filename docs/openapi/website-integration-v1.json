@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Website Integration API",
-    "version": "2026-10-02.3",
+    "version": "2026-10-02.4",
     "description": "Production API for electricity retail websites and backend integrations. Gridex owns published offers, authoritative pricing and quotes, legal document versions, customer and contract lifecycle state, and downstream processing. Integrations provide verified customer input and use public references only."
   },
   "servers": [
@@ -304,7 +304,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-10-02.3"
+                          "const": "2026-10-02.4"
                         },
                         "feed_state": {
                           "type": "string",
@@ -638,7 +638,7 @@
                     "count": 1,
                     "publication_revision": 42,
                     "publication_updated_at": "2026-08-01T00:00:00.000Z",
-                    "contract_schema_version": "2026-10-02.3",
+                    "contract_schema_version": "2026-10-02.4",
                     "deprecated_aliases": [
                       "contracts",
                       "contract_offer_id",
@@ -1136,7 +1136,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-10-02.3"
+                          "const": "2026-10-02.4"
                         },
                         "feed_state": {
                           "type": "string",
@@ -1553,7 +1553,7 @@
                     }
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-10-02.3"
+                  "contract_schema_version": "2026-10-02.4"
                 }
               }
             },
@@ -1931,7 +1931,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-10-02.3"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -2573,7 +2573,7 @@
                       "request_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "correlation_id": "ec75aee9-cc8d-45be-afa1-027ba7258a45",
                       "retryable": false,
-                      "contract_schema_version": "2026-10-02.3"
+                      "contract_schema_version": "2026-10-02.4"
                     }
                   }
                 }
@@ -3118,7 +3118,7 @@
                     "next_update_at": "2026-07-24T16:15:00+02:00"
                   },
                   "request_id": "0153b491-b4be-444d-b9a4-56573af449e8",
-                  "contract_schema_version": "2026-10-02.3"
+                  "contract_schema_version": "2026-10-02.4"
                 }
               }
             },
@@ -3467,7 +3467,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-10-02.3"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -3937,7 +3937,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-10-02.3"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -4299,7 +4299,7 @@
                         },
                         "contract_schema_version": {
                           "type": "string",
-                          "const": "2026-10-02.3"
+                          "const": "2026-10-02.4"
                         },
                         "feed_state": {
                           "type": "string",
@@ -4912,7 +4912,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-10-02.3"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -4995,7 +4995,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5029,7 +5033,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5071,7 +5079,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5105,7 +5117,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5147,7 +5163,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5181,7 +5201,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5223,7 +5247,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5257,7 +5285,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5299,7 +5331,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5342,7 +5378,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5393,7 +5433,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5436,7 +5480,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5487,7 +5535,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5530,7 +5582,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5581,7 +5637,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5624,7 +5684,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5675,7 +5739,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5709,7 +5777,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5751,7 +5823,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5785,7 +5861,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5827,7 +5907,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5861,7 +5945,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5903,7 +5991,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5937,7 +6029,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -5979,7 +6075,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6013,7 +6113,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6055,7 +6159,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6089,7 +6197,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6131,7 +6243,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6165,7 +6281,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6207,7 +6327,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6241,7 +6365,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6283,7 +6411,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6326,7 +6458,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6377,7 +6513,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6420,7 +6560,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6471,7 +6615,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6514,7 +6662,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6565,7 +6717,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6608,7 +6764,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6659,7 +6819,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6702,7 +6866,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6753,7 +6921,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6796,7 +6968,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6847,7 +7023,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6890,7 +7070,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6941,7 +7125,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6984,7 +7172,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7035,7 +7227,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7069,7 +7265,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7111,7 +7311,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7145,7 +7349,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7187,7 +7395,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7221,7 +7433,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7263,7 +7479,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7297,7 +7517,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7339,7 +7563,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7373,7 +7601,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7415,7 +7647,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7449,7 +7685,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7491,7 +7731,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7525,7 +7769,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7567,7 +7815,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7601,7 +7853,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7643,7 +7899,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7677,7 +7937,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7719,7 +7983,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7753,7 +8021,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7795,7 +8067,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7829,7 +8105,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7871,7 +8151,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7905,7 +8189,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7930,6 +8218,174 @@
         },
         "x-required-scopes": [],
         "operationId": "getApiV1Openapi202610023CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.4/website-integration-v1.json": {
+      "get": {
+        "summary": "Immutable Website Integration OpenAPI release 2026-10-02.4",
+        "description": "Immutable Website Integration OpenAPI release 2026-10-02.4.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610024WebsiteIntegrationV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-02.4",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-02.4.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610024CustomerPortalV1Json",
         "x-scope-mode": "all",
         "x-rate-limit-class": "read",
         "x-idempotency-required": false,
@@ -8022,7 +8478,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8089,7 +8545,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "configuration": {
             "type": "object",
@@ -9679,7 +10135,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -9862,7 +10318,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -10755,7 +11211,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -11097,7 +11553,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "additionalProperties": false
@@ -11882,7 +12338,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "additionalProperties": false
@@ -11955,7 +12411,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -12188,7 +12644,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -12548,7 +13004,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -13028,32 +13484,80 @@
           "runtime_contract_version",
           "guide_version",
           "released_at",
+          "generated_at",
+          "build_commit",
+          "compatibility_classification",
+          "deprecated_features",
+          "minimum_tenant_integration_version",
           "specifications"
         ],
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "released_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "build_commit": {
+            "type": "string"
+          },
+          "compatibility_classification": {
+            "type": "string",
+            "enum": [
+              "backward-compatible",
+              "breaking-client-update-required",
+              "breaking"
+            ]
+          },
+          "deprecated_features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "feature",
+                "replacement",
+                "sunset_at"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "replacement": {
+                  "type": "string"
+                },
+                "sunset_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "minimum_tenant_integration_version": {
+            "type": "string",
+            "const": "2026-10-02.3"
           },
           "specifications": {
             "type": "object",
@@ -13080,6 +13584,7 @@
           "contract_name",
           "contract_version",
           "url",
+          "immutable_url",
           "sha256",
           "compatibility"
         ],
@@ -13089,9 +13594,13 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           },
           "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "immutable_url": {
             "type": "string",
             "format": "uri"
           },
@@ -13103,6 +13612,7 @@
             "type": "string",
             "enum": [
               "backward-compatible",
+              "breaking-client-update-required",
               "breaking"
             ]
           }
@@ -13397,7 +13907,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -13926,7 +14436,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -14079,7 +14589,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-02.3"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -14692,7 +15202,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-10-02.3"
+          "const": "2026-10-02.4"
         }
       },
       "RequestId": {
@@ -14770,7 +15280,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-10-02.3",
+  "x-contract-schema-version": "2026-10-02.4",
   "x-gridex-organization-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -14782,7 +15292,7 @@
     "website_openapi_url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
     "customer_portal_openapi_url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json"
   },
-  "x-gridex-release-version": "2026-10-02.3",
+  "x-gridex-release-version": "2026-10-02.4",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",

@@ -31,8 +31,8 @@ assert.ok(
 
 assertIncludes(
   "app/api/admin/agreements/export/route.ts",
-  "requireAdminActionAccess",
-  "admin agreement export must require admin permissions",
+  "requireGlobalAdminActionAccess",
+  "global agreement export must require current global permissions",
 );
 assertNotIncludes(
   "app/api/admin/agreements/export/route.ts",

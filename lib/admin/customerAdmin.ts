@@ -143,48 +143,96 @@ function cmpDesc(a: string | null | undefined, b: string | null | undefined) {
   return av > bv ? -1 : 1
 }
 
-async function fetchProfiles() {
-  const { data, error } = await supabaseService
+const SCOPED_PAGE_SIZE = 500
+
+async function readScopedPages<T>(
+  read: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = []
+  for (let offset = 0; ; offset += SCOPED_PAGE_SIZE) {
+    const { data, error } = await read(offset, offset + SCOPED_PAGE_SIZE - 1)
+    if (error) throw new Error(error.message)
+    const page = data ?? []
+    rows.push(...page)
+    if (page.length < SCOPED_PAGE_SIZE) return rows
+  }
+}
+
+async function fetchProfiles(userId?: string) {
+  const query = () => supabaseService
     .from('customer_profiles')
     .select(
       'user_id,email,first_name,last_name,full_name,phone,onboarding_state,created_at,last_login_at,total_logins'
     )
-    .returns<CustomerAdminProfile[]>()
+  if (userId) {
+    const { data, error } = await query().eq('user_id', userId).returns<CustomerAdminProfile[]>()
+    if (error) throw new Error(error.message)
+    return data ?? []
+  }
+  const { data, error } = await query().returns<CustomerAdminProfile[]>()
 
   if (error) throw new Error(error.message)
   return data ?? []
 }
 
-async function fetchAgreements() {
-  const { data, error } = await supabaseService
+async function fetchAgreements(userId?: string) {
+  const query = () => supabaseService
     .from('contract_agreements')
     .select(
       'id,user_id,contract_slug,first_name,last_name,email,personal_number,phone,status,sign_method,created_at,email_signed_at,bankid_completed_at,activated_at,contract_pdf_path,welcome_email_sent_at'
     )
     .order('created_at', { ascending: false })
-    .returns<CustomerAdminAgreement[]>()
+    .order('id', { ascending: false })
+  if (userId) {
+    return readScopedPages<CustomerAdminAgreement>((from, to) => query().eq('user_id', userId)
+      .range(from, to).returns<CustomerAdminAgreement[]>())
+  }
+  const { data, error } = await query().returns<CustomerAdminAgreement[]>()
 
   if (error) throw new Error(error.message)
   return data ?? []
 }
 
-async function fetchAcceptances() {
-  const { data, error } = await supabaseService
+async function fetchAcceptances(agreementIds?: string[]) {
+  if (agreementIds?.length === 0) return []
+  const query = () => supabaseService
     .from('legal_acceptances')
     .select('*')
     .order('accepted_at', { ascending: false })
-    .returns<CustomerAdminAcceptance[]>()
+    .order('id', { ascending: false })
+  if (agreementIds) {
+    // Keep each PostgREST URL bounded even for customers with a long history.
+    const batches: string[][] = []
+    for (let start = 0; start < agreementIds.length; start += 100) batches.push(agreementIds.slice(start, start + 100))
+    const rows: CustomerAdminAcceptance[] = []
+    for (const ids of batches) {
+      rows.push(...await readScopedPages<CustomerAdminAcceptance>((from, to) => query().in('agreement_id', ids)
+        .range(from, to).returns<CustomerAdminAcceptance[]>()))
+    }
+    return rows.sort((a, b) => cmpDesc(a.accepted_at, b.accepted_at) || cmpDesc(a.id, b.id))
+  }
+  const { data, error } = await query().returns<CustomerAdminAcceptance[]>()
 
   if (error) throw new Error(error.message)
   return data ?? []
 }
 
-async function fetchDocuments() {
-  const { data, error } = await supabaseService
+async function fetchDocuments(userId?: string) {
+  const query = () => supabaseService
     .from('customer_documents')
     .select('id,user_id,agreement_id,document_type,title,file_name,storage_path,metadata,created_at')
     .order('created_at', { ascending: false })
-    .returns<CustomerDocument[]>()
+    .order('id', { ascending: false })
+  if (userId) {
+    try {
+      return await readScopedPages<CustomerDocument>((from, to) => query().eq('user_id', userId)
+        .range(from, to).returns<CustomerDocument[]>())
+    } catch (error) {
+      if (error instanceof Error && error.message.toLowerCase().includes('customer_documents')) return []
+      throw error
+    }
+  }
+  const { data, error } = await query().returns<CustomerDocument[]>()
 
   if (error) {
     if (error.message.toLowerCase().includes('customer_documents')) {
@@ -196,11 +244,13 @@ async function fetchDocuments() {
   return data ?? []
 }
 
-async function fetchActivity() {
+async function fetchActivity(userId: string) {
   const { data, error } = await supabaseService
     .from('customer_activity_events')
     .select('id,user_id,agreement_id,event_type,event_at,summary,payload')
+    .eq('user_id', userId)
     .order('event_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(500)
     .returns<CustomerActivityEvent[]>()
 
@@ -287,9 +337,7 @@ function buildOverview(params: {
 
     const personalNumber = userAgreements.find((item) => item.personal_number)?.personal_number ?? null
     const signedAgreementsCount = userAgreements.filter((item) => signedAtOf(item)).length
-    const activeAgreementsCount = userAgreements.filter(
-      (item) => item.activated_at || item.status === 'finalized'
-    ).length
+    const activeAgreementsCount = userAgreements.filter((item) => item.activated_at).length
 
     cards.push({
       userId,
@@ -368,13 +416,13 @@ export async function getCustomerAdminOverview(query?: string): Promise<Customer
 }
 
 export async function getCustomerAdminDetail(userId: string): Promise<CustomerAdminDetail> {
-  const [profiles, agreements, acceptances, documents, activity] = await Promise.all([
-    fetchProfiles(),
-    fetchAgreements(),
-    fetchAcceptances(),
-    fetchDocuments(),
-    fetchActivity(),
+  const [profiles, agreements, documents, activity] = await Promise.all([
+    fetchProfiles(userId),
+    fetchAgreements(userId),
+    fetchDocuments(userId),
+    fetchActivity(userId),
   ])
+  const acceptances = await fetchAcceptances(agreements.map((agreement) => agreement.id))
 
   const overview = buildOverview({ profiles, agreements, acceptances, documents })
   const card = overview.cards.find((item) => item.userId === userId) ?? null

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { sha, fetchManifestSpecification } from '../scripts/openapi-common.mjs'
+import { compareContractVersions } from '../lib/ops/contractCompatibility.ts'
 
 const websiteRaw = await readFile(new URL('../docs/openapi/website-integration-v1.json', import.meta.url), 'utf8')
 const portalRaw = await readFile(new URL('../docs/openapi/customer-portal-v1.json', import.meta.url), 'utf8')
@@ -20,7 +21,13 @@ assert.equal(release.website_openapi_version, release.release_version)
 assert.equal(release.customer_portal_openapi_version, release.release_version)
 assert.equal(release.runtime_contract_version, release.release_version)
 assert.match(release.release_version, /^\d{4}-\d{2}-\d{2}\.\d+$/)
-assert.equal(release.minimum_tenant_integration_version, release.release_version)
+const minimumVersion = compareContractVersions(release.release_version, release.minimum_tenant_integration_version)
+assert.equal(minimumVersion.parseable, true, 'minimum tenant version must be a valid contract version')
+assert.equal(minimumVersion.newerThanLocal, false, 'minimum tenant version cannot exceed the release')
+for (const spec of [website, portal]) {
+  assert.equal(spec.components.schemas.OpenApiReleaseManifest.properties.minimum_tenant_integration_version.const,
+    release.minimum_tenant_integration_version, 'each specification must declare the published compatibility floor')
+}
 assert.equal(release.specifications.website.contract_version, release.release_version)
 assert.equal(release.specifications.customer_portal.contract_version, release.release_version)
 assert.equal(release.specifications.website.sha256, sha(websiteRaw))

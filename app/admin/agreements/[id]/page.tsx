@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { supabaseService } from '@/lib/supabase/service'
-import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
+import { finalizeAgreementAction } from '../actions'
 import { ContractAgreement, LegalAcceptance } from '@/lib/types/contracts'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +27,8 @@ export default async function AgreementDetail({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
+  const ctx = await requireGlobalAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
+  const canFinalize = ctx.permissions.includes('agreements.write')
 
   const { data: agreement, error: agreementError } = await supabaseService
     .from('contract_agreements')
@@ -104,19 +105,19 @@ export default async function AgreementDetail({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <form
+            {canFinalize && <form
               action={async () => {
                 'use server'
-                await finalizeAgreement(id)
+                await finalizeAgreementAction(id)
               }}
             >
               <button
                 type="submit"
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-black hover:bg-white/90"
               >
-                Generera PDF + skicka mail
+                Generera PDF
               </button>
-            </form>
+            </form>}
 
             <a
               href={`/api/agreements/${id}/pdf`}

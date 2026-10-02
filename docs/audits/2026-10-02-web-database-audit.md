@@ -22,7 +22,7 @@ The read-only role-index inspection confirmed `user_roles_pkey(id)` and the acti
 
 `tests/rbac-role-assignment-runtime.test.mjs` runs the actual create-user and role-assignment actions against an isolated fixture implementing those inspected index rules. It first reproduces the former `42P10`, then verifies grant, revoke, reactivation, canonical support-role creation, retained company assignments, and concurrent grants resolving to one active global assignment. The test is included in `npm run test:independent-tenant` and passes on Node 22. This runtime fixture is distinct from the native SQL migration tests and performs no production writes.
 
-Native PostgreSQL 16 verification uses a fixture derived from the inspected production columns and the exact existing production function definitions in `tests/database/independent-web-existing-functions.sql`, without production data. All four final migrations were replayed together into a fresh database with the actual pricing trigger definitions. Behavioral tests cover tenant isolation, disabled assignments/memberships/profile, role-ID resolution, timed global denials, confidential notes, sender spoofing, console-only restrictions, global prospect scope, browser identity tampering, RPC grants, repeat submissions, mismatched replay and a forced second-write failure. Twelve concurrent identical contact requests produced one ticket, one message and the same returned UUID.
+The initial native PostgreSQL 16 verification uses a fixture derived from the inspected production columns and the exact existing production function definitions in `tests/database/independent-web-existing-functions.sql`, without production data. The original four migrations were replayed together into a fresh database with the actual pricing trigger definitions. Behavioral tests cover tenant isolation, disabled assignments/memberships/profile, role-ID resolution, timed global denials, confidential notes, sender spoofing, console-only restrictions, global prospect scope, browser identity tampering, RPC grants, repeat submissions, mismatched replay and a forced second-write failure. Twelve concurrent identical contact requests produced one ticket, one message and the same returned UUID.
 
 The pricing package closes public draft/future/inactive price disclosure, permits draft prices only with global `pricing.read`, and permits inactive product metadata with `contracts.read`. It closes table and column browser mutations and uses service-only invoker RPCs for atomic draft replacement and publication/unpublication with audit. Existing finite signed price components remain supported. Failure injection verifies that rejected row inserts and audit writes preserve the previous draft/publication. Three real concurrency scenarios passed: publication before draft save rejects the late save, draft save before publication publishes the saved rows, and two publishers serialize to one active version with both audit records. Both read-only deployment assertion scripts and the return-shape preflight passed on the combined final native candidate.
 
@@ -42,7 +42,7 @@ Leaked-password protection remains an Auth configuration advisory, outside this 
 
 The pricing schema inspection also found nonexistent `created_by`/`published_by` fields in version create/clone/publish callers and a date-valued `valid_from`. Caller corrections belong to the pricing/RBAC package. The database pricing package covers draft replacement/publication transaction boundaries; it does not publish canonical OPS Website API data. Local pricing/contracts controls represent local history/control, with OPS remaining the publication authority.
 
-Verified SQL files and deployment status:
+Initial verified SQL files and deployment status, before the continuation's wall-clock correction to the unapplied RBAC/support migration:
 
 | Migration | SHA256 | Production status |
 | --- | --- | --- |
@@ -64,3 +64,67 @@ Production application journal — 2026-10-02:
 | Still held | Original RBAC/support migration, atomic pricing migration and global override RPC pending coordinated Web deployment |
 
 This journal records root's successful production operation and read-only verification in this session. The database agent performed no production mutation.
+
+
+## Continuation: expanded coordinated release
+
+The final administration review adds the postal, monthly spot, agreement PDF
+and agreement projection-trigger corrections described in
+`docs/audits/2026-10-02-final-admin-review.md`. The pending RBAC/support helper
+also uses a captured `clock_timestamp()` rather than transaction-start `now()`
+for override validity. Its time-sensitive wrappers and private permission
+helper are VOLATILE so they do not promise statement-stable authorization.
+The applied RBAC ACL migration is byte-identical to its original evidence.
+
+Read-only production preflight during the continuation still reports only
+`20261002192814` from this eight-migration package applied. The existing
+nine-table RBAC ACL assertions pass, RPC return-shape incompatibilities are
+empty, and the postal catalog fingerprint remains
+`f42e4dc03685f3ccf4d14a952611316b`. Postal browser mutation grants, including
+PostgreSQL 17 MAINTAIN, remain present until coordinated deployment. The new
+agreement trigger is based on the inspected live enum and
+`bankid_completed_at` column. Nullable names preserve an existing full name;
+`facility_id` is NOT NULL in both live agreement and delivery-point tables.
+
+Current frozen migration sources (the manifest contains 46 files):
+
+| Migration | SHA256 | Production status |
+| --- | --- | --- |
+| `20261002173716_independent_web_rbac_and_public_support.sql` | `acadd5562c56eb26c6815094003935783c16c6934c7dea91c4135fd132ae7866` | Held for coordinated Web deployment |
+| `20261002175651_gridex_web_atomic_pricing.sql` | `1a80900ab3ecd2e69f602b36bd503ccf0f2bbc1073af6ab98542f4e4e800b0ff` | Held for coordinated Web deployment |
+| `20261002192011_gridex_web_global_permission_override.sql` | `bdb6eed911d41fed68f444502636870fa21d25c0542cbb18d0ae60ec32c09efe` | Held for coordinated Web deployment |
+| `20261002192814_gridex_web_server_owned_rbac.sql` | `015366fe2ea75c5f02ab179792581ffe362f59ee96d5e3a87b9f86519def2a9a` | Applied; do not reapply |
+| `20261002200715_gridex_web_server_owned_postal_mapping.sql` | `50f76da2dad54fd88d447d79da8a36d801d76008b1c24c2331cb81a5fe73fc2a` | Held for coordinated Web deployment |
+| `20261002201624_gridex_web_atomic_monthly_spot.sql` | `8c5e317e4cf300bb728bb7dc7e9512fc95e2148e30ab394eaa6a9ae70b0d2a98` | Held for coordinated Web deployment |
+| `20261002202211_gridex_web_atomic_agreement_pdf.sql` | `965a30d995a90aeb375e1dca5fa516ed0fe7b67f1b0e6fd07244b2a719baa2c4` | Held for coordinated Web deployment |
+| `20261002202617_gridex_web_agreement_projection_trigger.sql` | `87cde33e3ac6e9225d035f6b3c6ecfad7cdeb9a5f4fa31299dcbb950bc2a01fe` | Held for coordinated Web deployment |
+
+
+Apply only the seven unapplied migrations to the Web project, in filename
+order, together with the replacement Web application. Do not apply the
+already-recorded ACL migration a second time or apply this package to OPS.
+The new postal/monthly/agreement ACLs close baseline session-client operations;
+they must not be deployed ahead of their replacement server flows. Run the
+nine metadata assertion/preflight files listed in the native runner after
+coordinated activation. Production DDL uses only `apply_migration`.
+
+The checked-in native runner and CI matrix use dedicated empty disposable
+PostgreSQL 16.15 and 17.6 databases. The runner requires an explicit safety
+flag, localhost, fixed port/database and expected server version, refuses a
+populated database, logs a hash of the selected fixture/migration/test sources,
+and rejects source changes during a run. No production data or credentials
+are part of those fixtures.
+
+
+Final frozen native verification passed on actual PostgreSQL 16.15 and 17.6
+with the same selected-source SHA256
+`5d7af0639119bdf31e674461e893da17ac88926931f4e694543f453a4c1f4161`.
+Each run verifies eight forward migrations, nine assertion/preflight files,
+eight rollback behavior files and six multi-session programs. Five actual
+lock-wait scenarios reproduce transaction-clock expiry errors in RED,
+restore the exact candidate function, then deny the expired grant in GREEN:
+monthly save, publish, rollback, agreement PDF and global override. Data and
+audit snapshots remain unchanged. Both runs also verify populated-database
+refusal, and PostgreSQL 17 directly verifies MAINTAIN removal. These local
+results qualify the frozen migration package; they do not apply it to
+production or substitute for authenticated tenant tests after cutover.
