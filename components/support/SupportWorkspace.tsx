@@ -91,6 +91,21 @@ export default function SupportWorkspace({ initial, initialError }: { initial: S
     setTickets((previous) => previous.map((ticket) => ticket.case_reference === reference ? result.data : ticket))
   }
 
+  async function refreshCase() {
+    if (busy || loadingAttachments || !detail) return
+    setBusy('list'); setLoadingAttachments(true); setError(null)
+    const reference = detail.case_reference
+    const results = await Promise.allSettled([
+      refreshDetail(reference),
+      request<SupportResponse<SupportAttachment[]>>(`${API}/${encodeURIComponent(reference)}/attachments`)
+        .then((result) => { setAttachments(result.data); setAttachmentError(null) }),
+    ])
+    const failure = results.find((result) => result.status === 'rejected')
+    if (failure?.status === 'rejected') setError(failure.reason instanceof Error ? failure.reason.message : 'Ärendet kunde inte uppdateras.')
+    // Both reads must settle before a write can replace their snapshots.
+    setLoadingAttachments(false); setBusy(null)
+  }
+
   async function createCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (busy) return
@@ -131,7 +146,8 @@ export default function SupportWorkspace({ initial, initialError }: { initial: S
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy || !detail) return
+    // Wait for the initial snapshot so a late read cannot erase an accepted upload.
+    if (busy || loadingAttachments || !detail) return
     const form = event.currentTarget
     const file = new FormData(form).get('file')
     if (!(file instanceof File) || file.size === 0) { setError('Välj en fil först.'); return }
@@ -177,14 +193,14 @@ export default function SupportWorkspace({ initial, initialError }: { initial: S
         </aside>
         <section className="min-w-0 rounded-2xl border border-white/10 bg-white/[.03] p-5 sm:p-6">
           {selected ? loadingDetail ? <p role="status" className="py-12 text-center text-sm text-white/60">Hämtar ditt ärende…</p> : detail ? <div className="space-y-6">
-            <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="break-words text-xl font-semibold">{detail.title}</h2><p className="mt-2 text-xs text-white/50">{statusLabels[detail.status]} · Skapat {formatDate(detail.created_at)}</p></div><button type="button" disabled={Boolean(busy)} className="text-sm text-cyan-200 hover:underline disabled:opacity-50" onClick={() => { setBusy('list'); setError(null); void Promise.all([refreshDetail(detail.case_reference), request<SupportResponse<SupportAttachment[]>>(`${API}/${encodeURIComponent(detail.case_reference)}/attachments`).then((result) => { setAttachments(result.data); setAttachmentError(null) })]).catch((failure) => setError(failure instanceof Error ? failure.message : 'Ärendet kunde inte uppdateras.')).finally(() => setBusy(null)) }}>Uppdatera ärendet</button></header>
+            <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="break-words text-xl font-semibold">{detail.title}</h2><p className="mt-2 text-xs text-white/50">{statusLabels[detail.status]} · Skapat {formatDate(detail.created_at)}</p></div><button type="button" disabled={Boolean(busy) || loadingAttachments} className="text-sm text-cyan-200 hover:underline disabled:opacity-50" onClick={() => void refreshCase()}>Uppdatera ärendet</button></header>
             <div className="space-y-3" aria-label="Meddelanden">
               {detail.messages.length ? detail.messages.map((message) => <article key={message.message_reference} className={`rounded-2xl border p-4 ${message.author_type === 'staff' ? 'border-cyan-300/20 bg-cyan-300/5' : 'border-white/10 bg-black/20'}`}><div className="flex flex-wrap justify-between gap-2 text-xs text-white/55"><span>{message.author_type === 'customer' ? 'Du' : 'Kundservice'}{message.kind === 'phone_summary' ? ' · Samtalssammanfattning' : ''}</span><time dateTime={message.created_at}>{formatDate(message.created_at)}</time></div><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p></article>) : <p className="whitespace-pre-wrap text-sm leading-6 text-white/70">{detail.description ?? 'Ärendet har ännu inga meddelanden.'}</p>}
             </div>
             <div><h3 className="text-sm font-semibold">Bilagor</h3>{loadingAttachments ? <p role="status" className="mt-2 text-sm text-white/50">Hämtar bilagor…</p> : null}{attachmentError ? <p role="alert" className="mt-2 text-sm text-amber-200">{attachmentError}</p> : null}<ul className="mt-3 space-y-2">{attachments.map((file) => <li key={file.attachment_reference}><a href={`${API}/${encodeURIComponent(detail.case_reference)}/attachments/${encodeURIComponent(file.attachment_reference)}`} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm text-cyan-200 hover:bg-white/5"><span className="truncate">{file.file_name}</span><span className="shrink-0 text-xs text-white/45">{Math.ceil(file.byte_size / 1024)} kB</span></a></li>)}</ul>{!attachments.length && !attachmentError && !loadingAttachments ? <p className="mt-2 text-sm text-white/50">Inga bilagor.</p> : null}</div>
             {detail.status === 'closed' || detail.status === 'resolved' ? <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/65">Ärendet är {detail.status === 'resolved' ? 'löst' : 'avslutat'}. Skapa ett nytt ärende om du behöver mer hjälp.</p> : <>
               <form onSubmit={reply}><label htmlFor="support-reply" className="text-sm font-medium">Skriv ett meddelande</label><textarea id="support-reply" name="message" required maxLength={8000} rows={5} className={fieldClass} /><button disabled={Boolean(busy)} className={`${buttonClass} mt-3`}>{busy === 'reply' ? 'Skickar…' : 'Skicka meddelande'}</button></form>
-              <form onSubmit={upload} className="rounded-xl border border-dashed border-white/15 p-4"><label htmlFor="support-file" className="block text-sm font-medium">Bifoga en fil</label><input id="support-file" name="file" type="file" required accept="application/pdf,image/png,image/jpeg" className="mt-3 block w-full text-sm text-white/65 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white" /><p className="mt-2 text-xs text-white/50">PDF, PNG eller JPEG. Högst 4 MB.</p><button disabled={Boolean(busy)} className="mt-3 rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50">{busy === 'upload' ? 'Skickar bilaga…' : 'Skicka bilaga'}</button></form>
+              <form onSubmit={upload} className="rounded-xl border border-dashed border-white/15 p-4"><label htmlFor="support-file" className="block text-sm font-medium">Bifoga en fil</label><input id="support-file" name="file" type="file" required accept="application/pdf,image/png,image/jpeg" className="mt-3 block w-full text-sm text-white/65 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white" /><p className="mt-2 text-xs text-white/50">PDF, PNG eller JPEG. Högst 4 MB.</p><button disabled={Boolean(busy) || loadingAttachments} className="mt-3 rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50">{busy === 'upload' ? 'Skickar bilaga…' : 'Skicka bilaga'}</button></form>
             </>}
           </div> : <p className="py-8 text-sm text-white/60">Ärendet kunde inte hämtas. Välj ett annat ärende eller uppdatera sidan.</p> : <form onSubmit={createCase} className="space-y-5">
             <h2 className="text-lg font-semibold">Skapa ett ärende</h2>

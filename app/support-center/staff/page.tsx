@@ -36,11 +36,11 @@ export default async function StaffSupportPage({ searchParams }: { searchParams?
   const [listResult, detailResult, notesResult] = await Promise.all([
     listQuery,
     selectedId ? ctx.supabase.from('customer_support_tickets').select(fields).eq('id', selectedId).is('user_id', null).eq('metadata->>source', 'public_kundservice_form').maybeSingle() : Promise.resolve({ data: null, error: null }),
-    selectedId ? ctx.supabase.from('customer_support_messages').select('id,body,created_at,is_internal_note').eq('ticket_id', selectedId).eq('is_internal_note', true).order('created_at', { ascending: true }).limit(100) : Promise.resolve({ data: [], error: null }),
+    selectedId ? ctx.supabase.from('customer_support_messages').select('id,body,created_at,is_internal_note').eq('ticket_id', selectedId).eq('is_internal_note', true).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
   ])
   const tickets = (listResult.data ?? []) as unknown as Prospect[]
   const selected = detailResult.data as unknown as Prospect | null
-  const notes = (notesResult.data ?? []) as unknown as Note[]
+  const notes = ((notesResult.data ?? []) as unknown as Note[]).toReversed()
   const canManage = ctx.permissions.includes('support_tickets.manage')
   const canNote = ctx.permissions.includes('support_tickets.reply')
   const query = (extra: Record<string, string>) => {
@@ -64,7 +64,7 @@ export default async function StaffSupportPage({ searchParams }: { searchParams?
         {canNote && mailLink ? <a href={mailLink} className="inline-flex rounded-lg border border-cyan-300/30 px-4 py-2 text-sm text-cyan-200">Öppna e-post för återkoppling</a> : null}
         <p className="text-xs text-white/50">Interna anteckningar skickas inte till den som kontaktat oss. Registrera eventuell återkoppling efter att den har skickats.</p>
         {canManage ? <div className="flex flex-wrap gap-3"><form action={assignSupportTicketAction}><input type="hidden" name="ticket_id" value={selected.id} /><button className="rounded-lg border border-white/20 px-4 py-2 text-sm">Tilldela mig</button></form><form action={updateSupportTicketStatusAction} className="flex flex-wrap gap-2"><input type="hidden" name="ticket_id" value={selected.id} /><label htmlFor="prospect-new-status" className="sr-only">Ändra status</label><select id="prospect-new-status" name="status" defaultValue={selected.status} className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-sm">{Object.entries(statuses).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><button className="rounded-lg border border-white/20 px-4 py-2 text-sm">Spara status</button></form></div> : null}
-        <div><h3 className="text-sm font-semibold">Interna anteckningar</h3><div className="mt-3 space-y-3">{notes.map((note) => <article key={note.id} className="rounded-xl border border-white/10 bg-black/20 p-4"><time className="text-xs text-white/45" dateTime={note.created_at}>{date(note.created_at)}</time><p className="mt-2 whitespace-pre-wrap break-words text-sm">{note.body}</p></article>)}</div></div>
+        <div><h3 className="text-sm font-semibold">Interna anteckningar</h3>{notes.length === 100 ? <p className="mt-2 text-xs text-white/50">De senaste 100 anteckningarna visas.</p> : null}<div className="mt-3 space-y-3">{notes.map((note) => <article key={note.id} className="rounded-xl border border-white/10 bg-black/20 p-4"><time className="text-xs text-white/45" dateTime={note.created_at}>{date(note.created_at)}</time><p className="mt-2 whitespace-pre-wrap break-words text-sm">{note.body}</p></article>)}</div></div>
         {canNote ? <form action={replyToSupportTicketAction} className="space-y-3"><input type="hidden" name="ticket_id" value={selected.id} /><input type="hidden" name="client_request_id" value={randomUUID()} /><label htmlFor="prospect-note" className="text-sm font-medium">Lägg till intern anteckning</label><textarea id="prospect-note" name="body" required maxLength={4000} rows={4} className="block w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm" /><button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950">Spara anteckning</button></form> : null}
       </div> : <p className="py-8 text-sm text-white/55">Välj en kontaktförfrågan för att läsa och följa upp.</p>}</section>
     </div>
