@@ -9,7 +9,10 @@ export default function AuthSessionSync() {
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient()
-    const { data } = supabase.auth.onAuthStateChange(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      // The server already verified the session for this render. Refreshing on
+      // initial hydration would repeat the entire private page's data loading.
+      if (event === 'INITIAL_SESSION') return
       // Viktigt: App Router + RSC behöver refresh för att SSR-layouts ska revalidera user/role
       router.refresh()
     })

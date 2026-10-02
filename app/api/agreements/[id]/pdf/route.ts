@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { AccessDeniedError } from '@/lib/admin/access'
 import { supabaseService } from '@/lib/supabase/service'
 
 type Context = {
@@ -10,7 +11,13 @@ export async function GET(
   _request: NextRequest,
   context: Context
 ) {
-  await requireAdminServer()
+  try {
+    await requireAdminActionAccess({ allOf: ['agreements.read'] })
+  } catch (error) {
+    return NextResponse.json({ error: 'Behörighet saknas.' }, {
+      status: error instanceof AccessDeniedError ? error.status : 503,
+    })
+  }
 
   const { id } = await context.params
 
@@ -30,6 +37,7 @@ export async function GET(
   return new NextResponse(data, {
     headers: {
       'Content-Type': 'application/pdf',
+      'Cache-Control': 'private, no-store',
     },
   })
 }

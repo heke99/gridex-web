@@ -1,13 +1,13 @@
 'use server'
 
 import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
-import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import { requireAdminActionAccess } from '@/lib/admin/guards'
 
 export async function finalizeAgreementAction(
   agreementId: string
 ): Promise<void> {
   // 🔐 1. Session-bunden auth (RLS enforced)
-  await requireAdminServer()
+  await requireAdminActionAccess({ allOf: ['agreements.write'] })
 
   // 🔎 2. Enkel input-validering
   if (!agreementId || typeof agreementId !== 'string') {

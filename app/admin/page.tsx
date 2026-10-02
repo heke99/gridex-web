@@ -114,33 +114,26 @@ function QuickAction({
 }
 
 export default async function AdminDashboard() {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['admin.access', 'support_tickets.manage'],
-  })
+  const ctx = await requireAdminPageAccess()
 
   const supabase = ctx.supabase
   const permissions = ctx.permissions
 
-  const canAccessCommercial = permissions.includes('admin.access')
-  const canManageSupport = hasAnyPermission(permissions, [
-    'admin.access',
-    'support_tickets.manage',
-  ])
+  const canAccessCommercial = hasAnyPermission(permissions, ['contracts.read', 'contracts.write', 'pricing.read', 'pricing.write'])
+  const canManageSupport = hasAnyPermission(permissions, ['support_tickets.read', 'support_tickets.reply', 'support_tickets.manage'])
   const canAccessPortfolio = hasAnyPermission(permissions, [
     'portfolio.read',
     'portfolio.write',
     'pricing.write',
-    'admin.access',
   ])
   const canAccessSpot = hasAnyPermission(permissions, [
     'spot.read',
     'spot.write',
     'spot.publish',
     'pricing.write',
-    'admin.access',
   ])
 
-  const customersCountP = canAccessCommercial
+  const customersCountP = hasAnyPermission(permissions, ['users.read', 'users.write'])
     ? safeExactCount(
         supabase
           .from('user_roles')

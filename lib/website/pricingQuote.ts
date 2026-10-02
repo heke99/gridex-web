@@ -255,6 +255,9 @@ export function verifyWebsitePricingQuote(
   now = new Date(),
   options: { allowExpired?: boolean } = {},
 ): PricingQuoteVerification {
+  // Retain the caller signature; canonical quotes are validated by OPS.
+  void now;
+  void options;
   const keyring = quoteKeys();
   if (!keyring) return { ok: false, reason: "not_configured" };
   if (!token) return { ok: false, reason: "invalid" };

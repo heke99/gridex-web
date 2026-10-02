@@ -1,5 +1,6 @@
+import { supabaseService } from '@/lib/supabase/service'
 import RBACUserTable from '@/components/admin/RBACUserTable'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { createUserWithRole } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,9 @@ type PermissionRow = {
 type UserPermissionRow = {
   user_id: string
   permission_id: string
+  effect: string | null
+  is_active: boolean | null
+  status: string | null
 }
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
@@ -70,11 +74,11 @@ export default async function AssignmentsPage({
 }: {
   searchParams?: Promise<SearchParams>
 }) {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['rbac.write', 'admin.access'],
+  await requireGlobalAdminPageAccess({
+    anyOf: ['rbac.write'],
   })
 
-  const supabase = ctx.supabase
+  const supabase = supabaseService
   const resolvedSearchParams = searchParams ? await searchParams : {}
 
   const q = resolvedSearchParams.q ?? ''
@@ -141,6 +145,7 @@ export default async function AssignmentsPage({
         .from('user_roles')
         .select('user_id,role,is_active')
         .in('user_id', userIds)
+        .is('company_id', null)
         .returns<UserRoleRow[]>()
     : { data: [], error: null }
 
@@ -153,7 +158,8 @@ export default async function AssignmentsPage({
   const { data: userPermsRaw, error: userPermsError } = hasUsers
     ? await supabase
         .from('user_permissions')
-        .select('user_id,permission_id')
+        .select('user_id,permission_id,effect,is_active,status')
+        .is('company_id', null)
         .in('user_id', userIds)
         .returns<UserPermissionRow[]>()
     : { data: [], error: null }

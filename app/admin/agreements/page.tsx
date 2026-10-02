@@ -28,7 +28,7 @@ export default async function AgreementsPage({
 }: {
   searchParams?: Promise<{ q?: string }>
 }) {
-  const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
+  const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
   const supabase = ctx.supabase
   const resolvedSearchParams = (await searchParams) ?? {}
   const q = resolvedSearchParams.q?.trim() ?? ''

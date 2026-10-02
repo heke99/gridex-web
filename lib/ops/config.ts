@@ -1,4 +1,5 @@
 import { GRIDEX_CANONICAL_OPS_API_URL } from '@/lib/ops/contract'
+import { getOpsCustomerAssertionStatus } from '@/lib/ops/customerAssertion'
 
 const MIN_SIGNING_SECRET_BYTES = 32
 
@@ -87,6 +88,9 @@ export type GridexConfigurationStatus = {
   apiKeyConfigured: boolean
   apiBaseUrlValid: boolean
   signingSecretConfigured: boolean
+  customerAssertionRequired: boolean
+  customerAssertionConfigured: boolean
+  customerAssertionValid: boolean
   missingVariables: string[]
   deprecatedVariablesInUse: string[]
 }
@@ -113,17 +117,24 @@ export function getGridexConfigurationStatus(): GridexConfigurationStatus {
   const signingSecretConfigured = Boolean(
     signingSecret && Buffer.byteLength(signingSecret, 'utf8') >= MIN_SIGNING_SECRET_BYTES,
   )
+  const customerAssertion = getOpsCustomerAssertionStatus()
   const missingVariables = [
     ...(!apiKey.value ? ['GRIDEX_API_KEY'] : []),
     ...(!base.value ? ['GRIDEX_OPS_API_URL'] : []),
     ...(!signingSecretConfigured ? ['GRIDEX_WEBSITE_STATE_SIGNING_SECRET'] : []),
+    ...customerAssertion.missingVariables,
+    ...(!customerAssertion.valid && customerAssertion.missingVariables.length === 0
+      ? ['GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY'] : []),
   ]
 
   return {
-    configured: Boolean(apiKey.value && base.value && signingSecretConfigured),
+    configured: Boolean(apiKey.value && base.value && signingSecretConfigured && customerAssertion.valid),
     apiKeyConfigured: Boolean(apiKey.value),
     apiBaseUrlValid: Boolean(base.value),
     signingSecretConfigured,
+    customerAssertionRequired: customerAssertion.required,
+    customerAssertionConfigured: customerAssertion.configured,
+    customerAssertionValid: customerAssertion.valid,
     missingVariables,
     deprecatedVariablesInUse: apiKey.deprecatedVariablesInUse,
   }

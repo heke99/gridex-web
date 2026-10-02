@@ -28,6 +28,7 @@ export type OpsRequestOptions = {
   cache?: RequestCache
   revalidateSeconds?: number
   tags?: string[]
+  headersForAttempt?: (attempt: number) => HeadersInit | Promise<HeadersInit>
 }
 
 export function env(name: string): string | undefined {
@@ -166,6 +167,7 @@ function safeErrorDetails(payload: unknown, response: Response, path: string) {
         ? root.blockers
         : [],
     details: nested.details ?? root.details ?? null,
+    retry_after: response.headers.get('retry-after'),
     retryable: typeof nested.retryable === 'boolean'
       ? nested.retryable
       : typeof root.retryable === 'boolean'
@@ -186,12 +188,50 @@ function customerSafeMessage(details: ReturnType<typeof safeErrorDetails>): stri
   return message
 }
 
-async function waitBeforeRetry(response: Response | null, attempt: number) {
-  const retryAfter = response?.headers.get('retry-after') ?? ''
-  const seconds = /^\d+$/.test(retryAfter) ? Number(retryAfter) : null
+function retryAfterDelay(response: Response | null): number | null {
+  const value = response?.headers.get('retry-after')?.trim()
+  if (!value) return null
+  if (/^\d+$/.test(value)) return Number(value) * 1000
+  const date = Date.parse(value)
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null
+}
+
+async function waitBeforeRetry(response: Response | null, attempt: number, signal?: AbortSignal | null) {
+  if (signal?.aborted) throw signal.reason
   const exponential = 250 * 2 ** Math.max(0, attempt - 1)
-  const wait = seconds === null ? exponential : seconds * 1_000
-  await new Promise((resolve) => setTimeout(resolve, Math.min(wait + Math.random() * 125, 10_000)))
+  const wait = retryAfterDelay(response) ?? exponential
+  await new Promise<void>((resolve, reject) => {
+    const complete = () => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }
+    const timer = setTimeout(complete, wait + Math.random() * 125)
+    const abort = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      reject(signal?.reason)
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+  })
+}
+
+async function readJsonResponse(response: Response, signal: AbortSignal, path: string): Promise<unknown> {
+  if (signal.aborted) throw signal.reason
+  let abort: () => void = () => {}
+  const aborted = new Promise<never>((_resolve, reject) => {
+    abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+  })
+  try {
+    return await Promise.race([response.json(), aborted])
+  } catch (error) {
+    if (signal.aborted || !(error instanceof SyntaxError)) throw error
+    throw new OpsError('Gridex API returnerade ogiltig JSON.', 502, {
+      code: 'ops_response_json_invalid', endpoint: path, retryable: false,
+    })
+  } finally {
+    signal.removeEventListener('abort', abort)
+  }
 }
 
 function observeVersionHeader(path: string, response: Response): string | null {
@@ -234,90 +274,88 @@ export async function opsRequest(
   const nextOptions: { revalidate?: number; tags?: string[] } = {}
   if (options.revalidateSeconds !== undefined) nextOptions.revalidate = options.revalidateSeconds
   if (options.tags?.length) nextOptions.tags = [...new Set(options.tags)]
-  let response: Response | null = null
-
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const timeout = timeoutSignal(init?.signal)
+    let response: Response | null = null
     try {
+      const attemptHeaders = new Headers(headers)
+      const freshHeaders = await options.headersForAttempt?.(attempt)
+      if (freshHeaders) {
+        new Headers(freshHeaders).forEach((value, key) => attemptHeaders.set(key, value))
+      }
+      attemptHeaders.set('Authorization', `Bearer ${apiKey.value}`)
       response = await fetch(requestUrl, {
         ...init,
-        headers,
+        headers: attemptHeaders,
         signal: timeout.signal,
         redirect: 'manual',
         cache: options.cache ?? 'no-store',
         ...(Object.keys(nextOptions).length === 0 ? {} : { next: nextOptions }),
       })
+
+      if (response.status === 304) {
+        if (options.allowNotModified) {
+          return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
+        }
+        throw new OpsError('Gridex API returnerade 304 för ett anrop som inte tillåter cacheåteranvändning.', 502, {
+          code: 'ops_not_modified_unexpected', endpoint: path, status: response.status, retryable: false,
+        })
+      }
+      if (response.status >= 300 && response.status < 400) {
+        throw new OpsError('Gridex API returnerade en otillåten redirect.', 502, {
+          code: 'ops_redirect_blocked', endpoint: path, status: response.status,
+          location: response.headers.get('location'), retryable: false,
+        })
+      }
+
+      const contractVersion = observeVersionHeader(path, response)
+      const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+      // Return the upstream error when its requested delay exceeds our short
+      // interactive retry window. Never cap Retry-After and retry prematurely.
+      const requestedRetryDelay = retryAfterDelay(response)
+      const canRetryStatus = retryableRequest && RETRYABLE_STATUSES.has(response.status) && attempt < attempts &&
+        (requestedRetryDelay === null || requestedRetryDelay <= 10_000)
+      if (!contentType.includes('application/json')) {
+        if (!canRetryStatus) {
+          throw new OpsError('Gridex API returnerade ett oväntat innehållsformat.', 502, {
+            code: 'ops_response_content_type_invalid', endpoint: path,
+            content_type: contentType || null, retryable: false,
+          })
+        }
+        await response.body?.cancel()
+      } else {
+        // Keep the timeout active through the body read. Receiving headers does
+        // not guarantee the upstream has finished delivering the response.
+        const payload = await readJsonResponse(response, timeout.signal, path)
+        if (response.ok) {
+          return { status: response.status, headers: new Headers(response.headers), payload, contractVersion }
+        }
+        const details = safeErrorDetails(payload, response, path)
+        if (!canRetryStatus || details.retryable === false) {
+          throw new OpsError(customerSafeMessage(details), response.status, details)
+        }
+      }
     } catch (error) {
+      if (error instanceof OpsError) throw error
       const abortedByCaller = init?.signal?.aborted === true
       const retryableNetworkError = !abortedByCaller && (error instanceof TypeError || timeout.signal.aborted)
-      timeout.cleanup()
-      if (retryableNetworkError && attempt < attempts) {
-        await waitBeforeRetry(null, attempt)
-        continue
-      }
       if (abortedByCaller) throw error
-      throw new OpsError(
-        timeout.signal.aborted ? 'Gridex API svarade inte i tid.' : 'Gridex API kunde inte nås.',
-        timeout.signal.aborted ? 504 : 503,
-        {
-          code: timeout.signal.aborted ? 'ops_request_timeout' : 'ops_network_error',
-          endpoint: path,
-          retryable: true,
-        },
-      )
+      if (!retryableNetworkError || attempt === attempts) {
+        throw new OpsError(
+          timeout.signal.aborted ? 'Gridex API svarade inte i tid.' : 'Gridex API kunde inte nås.',
+          timeout.signal.aborted ? 504 : 503,
+          {
+            code: timeout.signal.aborted ? 'ops_request_timeout' : 'ops_network_error',
+            endpoint: path, retryable: true,
+          },
+        )
+      }
+    } finally {
+      timeout.cleanup()
     }
-    timeout.cleanup()
-
-    // 304 Not Modified is a conditional-cache response, not a redirect.
-    // Handle it before the generic 3xx redirect guard so a valid ETag hit can
-    // reuse the already verified local/persistent public-contract snapshot.
-    if (response.status === 304) {
-      if (options.allowNotModified) break
-      throw new OpsError('Gridex API returnerade 304 för ett anrop som inte tillåter cacheåteranvändning.', 502, {
-        code: 'ops_not_modified_unexpected',
-        endpoint: path,
-        status: response.status,
-        retryable: false,
-      })
-    }
-
-    if (response.status >= 300 && response.status < 400) {
-      throw new OpsError('Gridex API returnerade en otillåten redirect.', 502, {
-        code: 'ops_redirect_blocked',
-        endpoint: path,
-        status: response.status,
-        location: response.headers.get('location'),
-        retryable: false,
-      })
-    }
-    if (retryableRequest && RETRYABLE_STATUSES.has(response.status) && attempt < attempts) {
-      await waitBeforeRetry(response, attempt)
-      continue
-    }
-    break
+    await waitBeforeRetry(response, attempt, init?.signal)
   }
-
-  if (!response) throw new OpsError('Gridex API gav inget svar.', 503)
-  if (options.allowNotModified && response.status === 304) {
-    return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
-  }
-
-  const contractVersion = observeVersionHeader(path, response)
-  const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
-  if (!contentType.includes('application/json')) {
-    throw new OpsError('Gridex API returnerade ett oväntat innehållsformat.', 502, {
-      code: 'ops_response_content_type_invalid',
-      endpoint: path,
-      content_type: contentType || null,
-      retryable: false,
-    })
-  }
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) {
-    const details = safeErrorDetails(payload, response, path)
-    throw new OpsError(customerSafeMessage(details), response.status, details)
-  }
-  return { status: response.status, headers: new Headers(response.headers), payload, contractVersion }
+  throw new OpsError('Gridex API gav inget svar.', 503)
 }
 
 export async function opsFetch(path: string, init?: RequestInit): Promise<unknown> {

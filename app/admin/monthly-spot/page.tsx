@@ -1,9 +1,10 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -97,27 +98,16 @@ export default async function AdminMonthlySpotPage({
 }: {
   searchParams?: Promise<SearchParams>
 }) {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write'],
   })
 
   const supabase = ctx.supabase
   const now = new Date()
   const fallback = prevYearMonth(now)
 
-  const isAdmin =
-    ctx.isAdmin ||
-    ctx.roles.includes('admin') ||
-    ctx.permissions.includes('admin.access')
-
-  const canWrite =
-    isAdmin ||
-    ctx.permissions.includes('spot.write') ||
-    ctx.permissions.includes('pricing.write')
-
-  const canPublish =
-    isAdmin ||
-    ctx.permissions.includes('spot.publish')
+  const canWrite = ctx.permissions.includes('spot.write')
+  const canPublish = ctx.permissions.includes('spot.publish')
 
   const { data: cfg, error: cfgError } = await supabase
     .from('gridex_spot_basis_config')
@@ -293,9 +283,7 @@ export default async function AdminMonthlySpotPage({
 
     const { supabase: serverSupabase, user } = await requirePermissionServer(
       'spot.write'
-    ).catch(async () => {
-      return await requirePermissionServer('pricing.write')
-    })
+    )
 
     const year = Number(formData.get('year'))
     const month = Number(formData.get('month'))
@@ -368,9 +356,7 @@ export default async function AdminMonthlySpotPage({
 
     const { supabase: serverSupabase, user } = await requirePermissionServer(
       'spot.publish'
-    ).catch(async () => {
-      return await requirePermissionServer('admin.access')
-    })
+    )
 
     const year = Number(formData.get('year'))
     const month = Number(formData.get('month'))
@@ -416,9 +402,7 @@ export default async function AdminMonthlySpotPage({
 
     const { supabase: serverSupabase, user } = await requirePermissionServer(
       'spot.publish'
-    ).catch(async () => {
-      return await requirePermissionServer('admin.access')
-    })
+    )
 
     const reason = String(formData.get('reason') ?? '').trim() || null
 
@@ -463,6 +447,7 @@ export default async function AdminMonthlySpotPage({
 
   return (
     <div className="space-y-8">
+      <OpsSourceNotice />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Spot-basis (månadsgenomsnitt)</h1>

@@ -31,6 +31,9 @@ type PermissionRow = {
 type UserPermissionRow = {
   user_id: string
   permission_id: string
+  effect: string | null
+  is_active: boolean | null
+  status: string | null
 }
 
 export default function RBACUserTable({
@@ -53,7 +56,9 @@ export default function RBACUserTable({
   )
 
   const overrideSet = new Set(
-    userPerms.map((row) => `${row.user_id}:${row.permission_id}`)
+    userPerms
+      .filter((row) => row.effect !== 'deny' && row.is_active !== false && row.status === 'active')
+      .map((row) => `${row.user_id}:${row.permission_id}`)
   )
 
   return (

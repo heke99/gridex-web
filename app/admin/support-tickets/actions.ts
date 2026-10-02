@@ -1,175 +1,59 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
+import { supportIdempotencyKey } from '@/lib/support/validation'
 
-type TicketLookupRow = {
-  id: string
-  status: string
-}
-
-const ALLOWED_STATUSES = new Set([
-  'open',
-  'waiting_on_internal',
-  'waiting_on_customer',
-  'resolved',
-  'closed',
-])
+const STATUSES = new Set(['open','waiting_on_internal','waiting_on_customer','resolved','closed'])
 
 function pick(formData: FormData, key: string): string {
   const value = formData.get(key)
   return typeof value === 'string' ? value.trim() : ''
 }
-
-async function assertSupportManagePermission() {
-  const supabase = await createSupabaseServerActionClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    throw new Error('Unauthorized')
-  }
-
-  const { data: permissionData, error } = await supabase.rpc(
-    'gridex_get_user_permissions',
-    { p_user_id: user.id }
-  )
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const permissions = Array.isArray(permissionData)
-    ? permissionData.filter((value): value is string => typeof value === 'string')
-    : []
-
-  const allowed =
-    permissions.includes('support_tickets.manage') ||
-    permissions.includes('admin.access')
-
-  if (!allowed) {
-    throw new Error('Forbidden')
-  }
-
-  return { supabase, user }
+function ticketId(formData: FormData): string {
+  const id = pick(formData, 'ticket_id')
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw new Error('Ärendereferensen är ogiltig.')
+  return id
+}
+function revalidate() {
+  revalidatePath('/support-center/staff')
+  revalidatePath('/admin/support-tickets')
 }
 
 export async function assignSupportTicketAction(formData: FormData) {
-  const { supabase, user } = await assertSupportManagePermission()
-
-  const ticketId = pick(formData, 'ticket_id')
-
-  if (!ticketId) {
-    throw new Error('Missing ticket_id')
-  }
-
-  const { error } = await supabase
-    .from('customer_support_tickets')
-    .update({
-      assigned_user_id: user.id,
-      status: 'waiting_on_internal',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', ticketId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  revalidatePath('/admin/support-tickets')
+  const { supabase, userId } = await requireGlobalAdminActionAccess({ allOf: ['support_tickets.read','support_tickets.manage'] })
+  const { data, error } = await supabase.from('customer_support_tickets').update({ assigned_user_id: userId, status: 'waiting_on_internal' })
+    .eq('id', ticketId(formData)).is('user_id', null).eq('metadata->>source','public_kundservice_form').select('id').maybeSingle()
+  if (error || !data) throw new Error('Förfrågan kunde inte tilldelas.')
+  revalidate()
 }
 
 export async function updateSupportTicketStatusAction(formData: FormData) {
-  const { supabase } = await assertSupportManagePermission()
-
-  const ticketId = pick(formData, 'ticket_id')
+  const { supabase } = await requireGlobalAdminActionAccess({ allOf: ['support_tickets.read','support_tickets.manage'] })
   const status = pick(formData, 'status')
-
-  if (!ticketId || !status) {
-    throw new Error('Missing ticket_id or status')
-  }
-
-  if (!ALLOWED_STATUSES.has(status)) {
-    throw new Error('Invalid status')
-  }
-
-  const closedAt =
-    status === 'resolved' || status === 'closed'
-      ? new Date().toISOString()
-      : null
-
-  const { error } = await supabase
-    .from('customer_support_tickets')
-    .update({
-      status,
-      closed_at: closedAt,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', ticketId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  revalidatePath('/admin/support-tickets')
+  if (!STATUSES.has(status)) throw new Error('Statusen är ogiltig.')
+  const { data, error } = await supabase.from('customer_support_tickets').update({ status, closed_at: status === 'resolved' || status === 'closed' ? new Date().toISOString() : null })
+    .eq('id', ticketId(formData)).is('user_id', null).eq('metadata->>source','public_kundservice_form').select('id').maybeSingle()
+  if (error || !data) throw new Error('Förfrågans status kunde inte ändras.')
+  revalidate()
 }
 
 export async function replyToSupportTicketAction(formData: FormData) {
-  const { supabase, user } = await assertSupportManagePermission()
-
-  const ticketId = pick(formData, 'ticket_id')
+  // Local prospect records contain internal follow-up notes. Customer replies are sent from OPS.
+  const { supabase, userId } = await requireGlobalAdminActionAccess({ allOf: ['support_tickets.read','support_tickets.reply'] })
+  const id = ticketId(formData)
   const body = pick(formData, 'body')
-
-  if (!ticketId || !body) {
-    throw new Error('Missing ticket_id or body')
+  const operationId = supportIdempotencyKey(pick(formData, 'client_request_id'))
+  const clientRequestId = `staff-note:${userId}:${operationId}`
+  if (!body || body.length > 4000) throw new Error('Skriv en anteckning på högst 4 000 tecken.')
+  const { data: prospect, error: lookupError } = await supabase.from('customer_support_tickets').select('id')
+    .eq('id', id).is('user_id', null).eq('metadata->>source','public_kundservice_form').maybeSingle()
+  if (lookupError || !prospect) throw new Error('Förfrågan kunde inte hittas.')
+  const { error } = await supabase.from('customer_support_messages').insert({ ticket_id: id, sender_user_id: userId, sender_type: 'agent', body, is_internal_note: true, client_request_id: clientRequestId })
+  if (error) {
+    if (error.code !== '23505') throw new Error('Anteckningen kunde inte sparas.')
+    const { data: previous, error: previousError } = await supabase.from('customer_support_messages').select('ticket_id,body,sender_user_id,is_internal_note').eq('client_request_id',clientRequestId).maybeSingle()
+    if (previousError || !previous || previous.ticket_id !== id || previous.body !== body || previous.sender_user_id !== userId || previous.is_internal_note !== true) throw new Error('Begäran har redan använts med andra uppgifter.')
   }
-
-  const { data: ticket, error: ticketError } = await supabase
-    .from('customer_support_tickets')
-    .select('id,status')
-    .eq('id', ticketId)
-    .maybeSingle<TicketLookupRow>()
-
-  if (ticketError) {
-    throw new Error(ticketError.message)
-  }
-
-  if (!ticket) {
-    throw new Error('Ticket not found')
-  }
-
-  const { error: messageError } = await supabase
-    .from('customer_support_messages')
-    .insert({
-      ticket_id: ticketId,
-      sender_user_id: user.id,
-      sender_type: 'agent',
-      body,
-    })
-
-  if (messageError) {
-    throw new Error(messageError.message)
-  }
-
-  const nextStatus =
-    ticket.status === 'resolved' || ticket.status === 'closed'
-      ? 'resolved'
-      : 'waiting_on_customer'
-
-  const { error: updateError } = await supabase
-    .from('customer_support_tickets')
-    .update({
-      assigned_user_id: user.id,
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', ticketId)
-
-  if (updateError) {
-    throw new Error(updateError.message)
-  }
-
-  revalidatePath('/admin/support-tickets')
+  revalidate()
 }

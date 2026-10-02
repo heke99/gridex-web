@@ -56,6 +56,7 @@ export function customerApiErrorResponse(
   }
 
   if (
+    !isOpsError(error) &&
     error instanceof Error &&
     'status' in error &&
     'code' in error &&
@@ -77,6 +78,7 @@ export function customerApiErrorResponse(
       message: error.message,
       ...details,
     })
+    const retryAfter = record(error.details)?.retry_after
     return webErrorResponse(
       {
         code: details.code ?? 'ops_request_failed',
@@ -91,6 +93,7 @@ export function customerApiErrorResponse(
         retryable: error.retryable,
       },
       error.status || 502,
+      typeof retryAfter === 'string' ? { 'Retry-After': retryAfter } : undefined,
     )
   }
 

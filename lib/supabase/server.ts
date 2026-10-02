@@ -1,5 +1,6 @@
 // lib/supabase/server.ts
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -20,7 +21,7 @@ function getSupabaseAnonKey(): string {
  * Next 15 forbids cookie mutation here.
  * Enterprise: guarantees anon context for public pages while still supporting session cookies when present.
  */
-export async function createSupabaseServerClient(): Promise<SupabaseClient> {
+export const createSupabaseServerClient = cache(async (): Promise<SupabaseClient> => {
   const cookieStore = await cookies()
 
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -33,6 +34,18 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
       remove(): void {},
     },
   })
+})
+
+/**
+ * Share verified authentication between layouts and pages in one React server
+ * render. React discards this cache for the next request, so sessions are never
+ * reused across customers. Mutable action clients deliberately remain uncached.
+ */
+const verifySupabaseUser = cache((supabase: SupabaseClient) => supabase.auth.getUser())
+
+export async function getSupabaseUser(suppliedClient?: SupabaseClient) {
+  const supabase = suppliedClient ?? await createSupabaseServerClient()
+  return verifySupabaseUser(supabase)
 }
 
 /**

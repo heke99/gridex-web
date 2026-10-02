@@ -1,129 +1,63 @@
-import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { supabaseService } from '@/lib/supabase/service'
-import { checkRateLimit } from '@/lib/security/rateLimit'
+import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { hashIp } from '@/lib/ops/client'
+import { privateJsonResponse, readWebJson, webErrorResponse } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-type PublicSupportPayload = {
-  name?: unknown
-  email?: unknown
-  phone?: unknown
-  category?: unknown
-  subject?: unknown
-  message?: unknown
-  website?: unknown
+function inputText(value: unknown, max: number, required = false): string | null {
+  if (value === undefined && !required) return ''
+  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) return null
+  return value.trim()
 }
 
-function asText(value: unknown, maxLength: number): string {
-  return String(value ?? '').trim().slice(0, maxLength)
-}
-
-function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-function clientIp(h: Headers): string | null {
-  const xff = h.get('x-forwarded-for')
-  if (xff) return xff.split(',')[0]?.trim() || null
-  return h.get('x-real-ip')?.trim() || null
-}
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = (await req.json()) as PublicSupportPayload
-    const h = await headers()
-
-    const honeypot = asText(body.website, 200)
-    if (honeypot) {
-      return NextResponse.json({ ok: true })
+    const read = await readWebJson<unknown>(request, { maxBytes: 24 * 1024 })
+    if (!read.ok) return read.response
+    if (!read.value || typeof read.value !== 'object' || Array.isArray(read.value)) {
+      return webErrorResponse({ code: 'validation_error', message: 'Begäran måste vara ett JSON-objekt.', retryable: false }, 400)
     }
-
-    const name = asText(body.name, 120)
-    const email = asText(body.email, 180).toLowerCase()
-    const phone = asText(body.phone, 60)
-    const category = asText(body.category, 80) || 'general'
-    const subject = asText(body.subject, 180)
-    const message = asText(body.message, 4000)
-
-    if (!name || !email || !subject || !message) {
-      return NextResponse.json(
-        { error: 'Fyll i namn, e-post, ämne och meddelande.' },
-        { status: 400 }
-      )
+    const body = read.value as Record<string, unknown>
+    if (Object.keys(body).some((key) => !['name','email','phone','category','subject','message','website'].includes(key))) {
+      return webErrorResponse({ code: 'validation_error', message: 'Begäran innehåller ett otillåtet fält.', retryable: false }, 400)
     }
-
-    if (!isEmail(email)) {
-      return NextResponse.json(
-        { error: 'Ange en giltig e-postadress.' },
-        { status: 400 }
-      )
+    const honeypot = inputText(body.website, 200)
+    if (honeypot) return privateJsonResponse({ ok: true })
+    const requestId = request.headers.get('Idempotency-Key') ?? ''
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+      return webErrorResponse({ code: 'validation_error', message: 'Begäran saknar ett giltigt ID.', retryable: false }, 400)
     }
-
-    const ip = clientIp(h)
-    const rate = await checkRateLimit(`public-support:${ip ?? email}`, {
-      limit: 6,
-      windowMs: 15 * 60 * 1000,
-    })
+    const name = inputText(body.name, 120, true)
+    const email = inputText(body.email, 180, true)?.toLowerCase() ?? null
+    const phone = inputText(body.phone, 60)
+    const category = inputText(body.category ?? 'general', 80, true)
+    const subject = inputText(body.subject, 180, true)
+    const message = inputText(body.message, 4000, true)
+    if (!name || !email || phone === null || !category || !subject || !message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return webErrorResponse({ code: 'validation_error', message: 'Kontrollera namn, e-post, ämne och meddelande.', retryable: false }, 400)
+    }
+    const ip = clientIpFromHeaders(request.headers)
+    const rate = await checkRateLimit(`public-support:${hashIp(ip) ?? 'unknown'}`, { limit: 6, windowMs: 15 * 60 * 1000 })
     if (!rate.allowed) {
-      return NextResponse.json(
-        { error: 'För många meddelanden på kort tid. Vänta en stund och försök igen.' },
-        { status: 429 }
-      )
-    }
-
-    const userAgent = h.get('user-agent')
-    const clientRequestId = `public:${email}:${Date.now()}`
-
-    const { data: ticket, error: ticketError } = await supabaseService
-      .from('customer_support_tickets')
-      .insert({
-        user_id: null,
-        subject,
-        description: message,
-        category,
-        priority: 'normal',
-        status: 'open',
-        metadata: {
-          source: 'public_kundservice_form',
-          customer_name: name,
-          customer_email: email,
-          customer_phone: phone || null,
-          client_request_id: clientRequestId,
-          ip_hash: hashIp(ip),
-          user_agent: userAgent,
-        },
+      return webErrorResponse({ code: 'rate_limited', message: 'För många meddelanden. Vänta en stund och försök igen.', retryable: true }, 429, {
+        'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
       })
-      .select('id')
-      .single<{ id: string }>()
-
-    if (ticketError) {
-      throw new Error(ticketError.message)
     }
-
-    const { error: messageError } = await supabaseService
-      .from('customer_support_messages')
-      .insert({
-        ticket_id: ticket.id,
-        sender_user_id: null,
-        sender_type: 'customer',
-        body: message,
-      })
-
-    if (messageError) {
-      throw new Error(messageError.message)
-    }
-
-    await supabaseService.from('system_emails').insert({
-      to_email: email,
-      subject: 'Vi har tagit emot ditt ärende hos Gridex AB',
-      body: `Hej ${name},\n\nTack för ditt meddelande. Vi har tagit emot ditt ärende och återkommer till dig via e-post.\n\nÄmne: ${subject}\n\nVänliga hälsningar,\nGridex AB`,
+    const { error } = await supabaseService.rpc('gridex_create_public_support_contact', {
+      p_request_id: requestId, p_name: name, p_email: email, p_phone: phone,
+      p_category: category, p_subject: subject, p_message: message, p_ip_hash: hashIp(ip),
     })
-
-    return NextResponse.json({ ok: true, ticketId: ticket.id })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Kunde inte skicka ärendet.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (error) {
+      if (error.code === '22023' && error.message.includes('PUBLIC_SUPPORT_IDEMPOTENCY_CONFLICT')) {
+        return webErrorResponse({ code: 'idempotency_conflict', message: 'Begäran har redan använts med andra uppgifter. Skicka ett nytt meddelande.', retryable: false }, 409)
+      }
+      console.error('[public support] Contact persistence failed', { code: error.code })
+      return webErrorResponse({ code: 'support_unavailable', message: 'Meddelandet kunde inte sparas. Försök igen eller mejla support@gridex.se.', retryable: true }, 503)
+    }
+    return privateJsonResponse({ ok: true, request_id: requestId })
+  } catch {
+    return webErrorResponse({ code: 'support_unavailable', message: 'Meddelandet kunde inte sparas. Försök igen eller mejla support@gridex.se.', retryable: true }, 503)
   }
 }

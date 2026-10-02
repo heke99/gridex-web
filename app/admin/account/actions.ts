@@ -9,7 +9,7 @@ function pick(form: FormData, key: string): string {
 }
 
 export async function updateAccountName(formData: FormData) {
-  const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminActionAccess()
   const supabase = ctx.supabase
 
   const fullName = pick(formData, 'full_name')
@@ -36,7 +36,7 @@ export async function updateAccountName(formData: FormData) {
 }
 
 export async function updateAccountEmail(formData: FormData) {
-  const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminActionAccess()
   const supabase = ctx.supabase
 
   const email = pick(formData, 'email')
@@ -55,7 +55,7 @@ export async function updateAccountEmail(formData: FormData) {
 }
 
 export async function updateAccountPassword(formData: FormData) {
-  const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminActionAccess()
   const supabase = ctx.supabase
 
   const password = pick(formData, 'password')

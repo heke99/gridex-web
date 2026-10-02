@@ -1,7 +1,9 @@
 //app/login/page.tsx
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { loginWithPassword } from './actions'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
+import { isSupportHost } from '@/lib/routing/supportHost'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +22,8 @@ export default async function LoginPage({ searchParams }: Props) {
   const error = readParam(sp.error)
   const reason = readParam(sp.reason)
   const status = readParam(sp.status)
-  const next = safeRedirectPath(readParam(sp.next), '/mina-sidor')
+  const supportLogin = isSupportHost((await headers()).get('host') ?? '')
+  const next = safeRedirectPath(readParam(sp.next), supportLogin ? '/support-center' : '/mina-sidor')
 
   let banner = ''
 
@@ -52,12 +55,13 @@ export default async function LoginPage({ searchParams }: Props) {
             <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
               Logga in till
               <br />
-              Mina sidor
+              {supportLogin ? 'Gridex support' : 'Mina sidor'}
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-relaxed text-gray-300">
-              Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång
-              till din kundportal hos Gridex.
+              {supportLogin
+                ? 'Här kan du skapa och följa dina supportärenden och skicka meddelanden till Gridex kundservice.'
+                : 'Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång till din kundportal hos Gridex.'}
             </p>
           </div>
 

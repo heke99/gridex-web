@@ -85,6 +85,11 @@ export function profilePayload(value: unknown): Record<string, unknown> | null {
     ['language_code', 12],
     ['timezone', 80],
   ])
+  // CustomerProfile accepts strings; an explicit clear is represented by an
+  // empty string rather than a JSON null that violates the OPS contract.
+  for (const [key, value] of Object.entries(result)) {
+    if (value === null) result[key] = ''
+  }
   if (
     typeof result.invoice_email === 'string' &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.invoice_email)
@@ -165,14 +170,24 @@ export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | n
     .slice(0, 20)
 
   if (!documentReference || !acceptedAt || scope.length === 0) return null
+  if (!scope.includes('supplier_switch') || scope.some((item) => !['supplier_switch', 'facility_information_lookup'].includes(item))) {
+    return null
+  }
   if (source.accepted === false) return null
 
   const result: Record<string, unknown> = {
     document_reference: documentReference,
-    scope,
+    scope: [...new Set(scope)],
     accepted: true,
     accepted_at: acceptedAt,
   }
+  Object.assign(result, allowedStrings(source, [
+    ['signer_name', 240],
+    ['signer_identity_number', 40],
+    ['method', 80],
+    ['ip_address', 80],
+    ['user_agent', 1000],
+  ]))
   const reference = text(source.power_of_attorney_reference ?? source.reference, 200)
   if (reference) result.power_of_attorney_reference = reference
   const validFrom = validCalendarDate(source.valid_from)

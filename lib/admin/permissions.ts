@@ -4,7 +4,6 @@ export function hasPermission(
   ctx: AdminContext,
   permission: string
 ): boolean {
-  if (ctx.isAdmin) return true
   return ctx.permissions.includes(permission)
 }
 

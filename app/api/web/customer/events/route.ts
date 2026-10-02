@@ -15,8 +15,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
     return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
   }
   const parsed = await readWebJson<Record<string, unknown>>(req)

@@ -10,7 +10,7 @@ export default async function AdminCustomersPage({
   searchParams?: Promise<{ q?: string }>
 }) {
   await requireAdminPageAccess({
-    anyOf: ['agreements.read', 'agreements.write', 'admin.access'],
+    anyOf: ['agreements.read', 'agreements.write'],
   })
 
   const resolvedSearchParams = (await searchParams) ?? {}

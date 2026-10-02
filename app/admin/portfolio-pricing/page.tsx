@@ -1,5 +1,6 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 import { revalidatePath } from 'next/cache'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
 
@@ -27,11 +28,12 @@ function parseNumber(value: FormDataEntryValue | null): number {
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPortfolioPricingPage() {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['portfolio.read', 'portfolio.write', 'pricing.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['portfolio.read', 'portfolio.write', 'pricing.write'],
   })
 
   const supabase = ctx.supabase
+  const canWrite = ctx.permissions.includes('portfolio.write')
 
   const { data: contracts, error: contractsError } = await supabase
     .from('contract_products')
@@ -111,6 +113,7 @@ export default async function AdminPortfolioPricingPage() {
 
   return (
     <div className="space-y-8">
+      <OpsSourceNotice />
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-3xl font-bold">Portfölj & fastpris</h1>
         <p className="mt-2 text-sm text-white/60">
@@ -136,7 +139,7 @@ export default async function AdminPortfolioPricingPage() {
               </div>
             </div>
 
-            <button className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-black">
+            <button disabled={!canWrite} className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-black">
               Spara
             </button>
           </div>

@@ -27,7 +27,7 @@ export default async function AgreementDetail({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
+  await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
 
   const { data: agreement, error: agreementError } = await supabaseService
     .from('contract_agreements')

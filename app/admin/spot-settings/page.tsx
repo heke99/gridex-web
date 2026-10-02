@@ -1,5 +1,5 @@
 import { revalidatePath } from 'next/cache'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
 import { logPermissionAudit } from '@/lib/auth/audit'
 
@@ -25,17 +25,17 @@ function parseNumber(value: FormDataEntryValue | null): number {
 }
 
 export default async function AdminSpotSettingsPage() {
-  const ctx = await requireAdminPageAccess({
+  const ctx = await requireGlobalAdminPageAccess({
     anyOf: [
       'spot.read',
       'spot.write',
       'spot.publish',
       'pricing.write',
-      'admin.access',
     ],
   })
 
   const supabase = ctx.supabase
+  const canWrite = ctx.permissions.includes('spot.write')
 
   const { data: contracts, error: contractsError } = await supabase
     .from('contract_products')
@@ -133,7 +133,7 @@ export default async function AdminSpotSettingsPage() {
               <div className="text-sm text-gray-500">{contract.slug}</div>
             </div>
 
-            <button className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-black">
+            <button disabled={!canWrite} className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-black">
               Spara
             </button>
           </div>

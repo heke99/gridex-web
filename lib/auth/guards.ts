@@ -1,7 +1,7 @@
 // lib/auth/guards.ts
 
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getSupabaseUser } from '@/lib/supabase/server'
 import { userHasPermission } from './permissions'
 import { userHasRole } from './roles'
 
@@ -9,10 +9,9 @@ export async function requirePermission(
   permission: string,
   fallback: 'dashboard' | 'login' = 'dashboard'
 ) {
-  const supabase = await createSupabaseServerClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getSupabaseUser()
 
   if (!user) {
     redirect('/login?reason=unauthorized')
@@ -35,10 +34,9 @@ export async function requireRole(
   role: string,
   fallback: 'dashboard' | 'login' = 'dashboard'
 ) {
-  const supabase = await createSupabaseServerClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getSupabaseUser()
 
   if (!user) {
     redirect('/login?reason=unauthorized')

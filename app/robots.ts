@@ -31,6 +31,8 @@ export default function robots(): MetadataRoute.Robots {
           '/sign',
           '/sign/',
           '/sign/*',
+          '/support-center',
+          '/support-center/*',
         ],
       },
     ],

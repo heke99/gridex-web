@@ -4,7 +4,7 @@ import { requireAdminPageAccess } from '@/lib/admin/guards'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminCustomerSpecPreviewPage() {
-  await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  await requireAdminPageAccess({ anyOf: ['pricing.read', 'pricing.write'] })
 
   return (
     <div className="space-y-8">

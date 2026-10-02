@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { supabaseService } from '@/lib/supabase/service'
 import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
@@ -28,9 +29,10 @@ export async function updateCustomerProfileAction(formData: FormData) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (authError || !user) {
     throw new Error('Du behöver logga in igen.')
   }
 
@@ -40,9 +42,9 @@ export async function updateCustomerProfileAction(formData: FormData) {
   const languageCode = pick(formData, 'language_code') || 'sv'
 
   const profilePayload = {
-    first_name: firstName || null,
-    last_name: lastName || null,
-    phone: phone || null,
+    first_name: firstName,
+    last_name: lastName,
+    phone,
     language_code: languageCode,
   }
   const operationId = pick(formData, 'client_operation_id')
@@ -67,7 +69,7 @@ export async function updateCustomerProfileAction(formData: FormData) {
   }
 
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const { error } = await supabase.from('customer_profiles').upsert(
+  const { error } = await supabaseService.from('customer_profiles').upsert(
     {
       user_id: user.id,
       email: user.email ?? null,

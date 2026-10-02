@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { fetchOpsIntegrationContext, getOpsClientStatus, isOpsError, probeOpsEndpointAuthorization } from '@/lib/ops/client'
+import { verifiedPortalHeaders } from '@/lib/ops/client/portal'
+import { getOpsCustomerAssertionStatus } from '@/lib/ops/customerAssertion'
 
 export const DEFAULT_CUSTOMER_PORTAL_SCOPES = [
   'customer_profile.read',
@@ -17,6 +19,8 @@ export const DEFAULT_CUSTOMER_PORTAL_SCOPES = [
   'customer_contact.write',
   'customer_facility_data.write',
   'customer_power_of_attorney.write',
+  'customer_support.read',
+  'customer_support.write',
 ] as const
 
 type PortalScopeStatus = 'verified' | 'alternative_verified' | 'missing' | 'unverified'
@@ -87,6 +91,19 @@ function probeDefinitions(): PortalProbe[] {
       body: {},
     },
     {
+      name: 'customer_support.read',
+      scopes: ['customer_support.read'],
+      path: '/api/v1/customer/support/cases',
+      method: 'GET',
+    },
+    {
+      name: 'customer_support.write',
+      scopes: ['customer_support.write'],
+      path: '/api/v1/customer/support/cases',
+      method: 'POST',
+      body: {},
+    },
+    {
       name: 'customer_facility_data.write',
       scopes: ['customer_facility_data.write'],
       path: '/api/v1/customer/move-out',
@@ -104,6 +121,8 @@ async function runProbe(definition: PortalProbe) {
     'X-Gridex-Customer-Portal-User-Id': READINESS_USER_ID,
     'X-Gridex-Auth-User-Id': READINESS_USER_ID,
   })
+  const customerHeaders = await verifiedPortalHeaders({ userId: READINESS_USER_ID, externalCustomerId: READINESS_EXTERNAL_ID })
+  customerHeaders.forEach((value, key) => headers.set(key, value))
   return probeOpsEndpointAuthorization(definition.path, {
     method: definition.method,
     headers,
@@ -117,6 +136,17 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
   const scopeNames = new Set(definitions.flatMap((definition) => [...definition.scopes]))
   const statuses = new Map<string, PortalScopeStatus>([...scopeNames].map((scope) => [scope, 'unverified']))
   const probes: PortalReadiness['probes'] = []
+
+  if (!getOpsCustomerAssertionStatus().valid) {
+    return {
+      ready: false,
+      message: 'Verifieringen av kundinloggningen saknar en giltig serverkonfiguration.',
+      scopes: [...scopeNames].map((scope) => ({ scope, status: 'unverified' })),
+      probes,
+      portalBundleProbe: { ok: false, status: null, code: 'customer_assertion_configuration_invalid' },
+      contextReadiness: null,
+    }
+  }
 
   if (!getOpsClientStatus().configured) {
     return {

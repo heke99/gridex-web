@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import Link from 'next/link'
+import { useRef, useState, type FormEvent } from 'react'
 
 type SubmitState = 'idle' | 'sending' | 'sent' | 'error'
 
@@ -13,9 +14,11 @@ type FaqItem = {
 export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] }) {
   const [state, setState] = useState<SubmitState>('idle')
   const [error, setError] = useState<string | null>(null)
+  const operation = useRef<{ body: string; key: string } | null>(null)
 
   async function submitSupportTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (state === 'sending') return
     setState('sending')
     setError(null)
 
@@ -32,22 +35,25 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
       website: String(formData.get('website') ?? ''),
     }
 
+    const body = JSON.stringify(payload)
+    if (!operation.current || operation.current.body !== body) operation.current = { body, key: crypto.randomUUID() }
     try {
       const response = await fetch('/api/support/public', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': operation.current.key },
+        body,
       })
 
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
+      const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } }
 
       if (!response.ok) {
-        setError(data.error ?? 'Vi kunde inte skicka ärendet just nu. Försök igen om en stund eller mejla kundservice.')
+        setError(data.error?.message ?? 'Vi kunde inte skicka ärendet just nu. Försök igen om en stund eller mejla kundservice.')
         setState('error')
         return
       }
 
       form.reset()
+      operation.current = null
       setState('sent')
     } catch {
       setError('Vi kunde inte skicka ärendet just nu. Försök igen om en stund eller mejla kundservice.')
@@ -65,6 +71,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         <p className="mt-3 max-w-3xl text-gray-400">
           Vi hjälper dig med frågor om elavtal, teckning, startdatum, faktura, flytt, Mina sidor och saknade anläggningsuppgifter. Vanligtvis återkommer vi via e-post så snart vi kan under vardagar.
         </p>
+        <Link href="https://support123.gridex.se" className="mt-5 inline-flex rounded-xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950">Logga in och följ dina ärenden</Link>
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -75,7 +82,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
                 Tack! Ditt ärende har skickats.
               </div>
               <p className="mt-2 text-sm text-emerald-100/80">
-                Vi återkommer via e-post. Om du behöver komplettera ärendet kan du svara på bekräftelsen eller mejla support@gridex.se.
+                Din förfrågan är mottagen. Om du behöver komplettera den kan du mejla support@gridex.se. Inloggade kunder kan följa sina ärenden i supportcentret.
               </p>
             </div>
           ) : (
@@ -109,6 +116,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
                 <textarea
                   id="message"
                   name="message"
+                  maxLength={4000}
                   required
                   rows={6}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
@@ -157,8 +165,8 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
             <div className="text-sm font-semibold text-white">Detta händer efter inskickat ärende</div>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-400">
-              <li>Du får en bekräftelse om ärendet tas emot.</li>
-              <li>Gridex går igenom uppgifterna och kontaktar dig via e-post.</li>
+              <li>Du ser en bekräftelse här när förfrågan har sparats.</li>
+              <li>Gridex går igenom uppgifterna och återkopplar till dig.</li>
               <li>Om något saknas ber vi dig komplettera innan ärendet kan avslutas.</li>
             </ol>
           </div>
@@ -220,6 +228,7 @@ function Field({
         type={type}
         required={required}
         autoComplete={autoComplete}
+        maxLength={name === 'name' ? 120 : name === 'phone' ? 60 : 180}
         className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
       />
     </div>

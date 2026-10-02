@@ -1,6 +1,7 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import {
   createContract,
   setContractActive,
@@ -84,10 +85,11 @@ function contractTypeLabel(type: ContractType) {
 }
 
 export default async function AdminContractsPage() {
-  await requireAdminPageAccess({
-    anyOf: ['contracts.read', 'contracts.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['contracts.read', 'contracts.write'],
   })
 
+  const canWrite = ctx.permissions.includes('contracts.write')
   const service = getServiceClient()
   const nowIso = new Date().toISOString()
 
@@ -158,6 +160,7 @@ export default async function AdminContractsPage() {
 
   return (
     <div className="space-y-10">
+      <OpsSourceNotice />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Elavtal</h1>
@@ -253,7 +256,7 @@ export default async function AdminContractsPage() {
           </div>
 
           <div className="flex justify-end md:col-span-6">
-            <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
+            <button disabled={!canWrite} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
               Skapa avtal
             </button>
           </div>
@@ -423,7 +426,7 @@ export default async function AdminContractsPage() {
                         Prissättning
                       </Link>
 
-                      <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
+                      <button disabled={!canWrite} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
                         Spara metadata
                       </button>
                     </div>
@@ -441,6 +444,7 @@ export default async function AdminContractsPage() {
                       value={contract.is_active ? 'false' : 'true'}
                     />
                     <button
+                      disabled={!canWrite}
                       className={
                         contract.is_active
                           ? 'w-full rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200 hover:bg-rose-500/15'

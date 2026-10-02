@@ -1,6 +1,7 @@
+import { supabaseService } from '@/lib/supabase/service'
 // app/admin/users/page.tsx
 
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { createUser, resetUserPassword, setUserActive, setUserRole, type AdminUserRole } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +15,7 @@ type AuthUserRow = {
 type UserProfileRow = {
   id: string
   full_name: string | null
-  is_active?: boolean | null
+  user_status?: string | null
   created_at: string
 }
 
@@ -24,7 +25,7 @@ type UserRoleRow = {
   is_active: boolean | null
 }
 
-const ROLES: AdminUserRole[] = ['admin', 'support', 'partner', 'customer']
+const ROLES: AdminUserRole[] = ['admin', 'customer_service_agent', 'partner', 'customer']
 
 function fmt(iso: string) {
   try {
@@ -35,19 +36,19 @@ function fmt(iso: string) {
 }
 
 export default async function AdminUsersPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
-  const supabase = ctx.supabase
+  await requireGlobalAdminPageAccess({ anyOf: ['users.read', 'users.write'] })
+  const supabase = supabaseService
 
-  // 1️⃣ Auth users via RPC (admin_list_auth_users)
-  const { data: rawUsers, error: authErr } = await supabase.rpc('admin_list_auth_users')
+  const { data: authData, error: authErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
   if (authErr) throw new Error(authErr.message)
-
-  const authUsers: AuthUserRow[] = Array.isArray(rawUsers) ? (rawUsers as AuthUserRow[]) : []
+  const authUsers: AuthUserRow[] = authData.users.map((user) => ({
+    id: user.id, email: user.email ?? null, created_at: user.created_at,
+  }))
 
   // 2️⃣ Profiles
   const { data: profilesRaw, error: profileErr } = await supabase
     .from('user_profiles')
-    .select('id,full_name,is_active,created_at')
+    .select('id,full_name,user_status,created_at')
 
   if (profileErr) throw new Error(profileErr.message)
   const profiles: UserProfileRow[] = (profilesRaw ?? []) as UserProfileRow[]
@@ -56,6 +57,7 @@ export default async function AdminUsersPage() {
   const { data: rolesRaw, error: roleErr } = await supabase
     .from('user_roles')
     .select('user_id,role,is_active')
+    .is('company_id', null)
 
   if (roleErr) throw new Error(roleErr.message)
   const userRoles: UserRoleRow[] = (rolesRaw ?? []) as UserRoleRow[]
@@ -74,7 +76,7 @@ export default async function AdminUsersPage() {
         <h1 className="text-3xl font-bold">User management</h1>
         <p className="text-gray-400 mt-3">
           Skapa användare (direkt godkända), sätt roller, aktivera/inaktivera och återställ lösenord.
-          Alla admin-writes kör service role men access kontrolleras via <span className="font-mono">admin.access</span>.
+          Behörigheter för användarhantering och rolltilldelning kontrolleras separat.
         </p>
       </div>
 
@@ -162,7 +164,7 @@ export default async function AdminUsersPage() {
             <tbody>
               {authUsers.map((u) => {
                 const profile = profileMap.get(u.id)
-                const isActive = profile?.is_active !== false
+                const isActive = !['disabled', 'suspended', 'pending_deletion'].includes(profile?.user_status ?? 'active')
                 const roles = (roleMap.get(u.id) ?? []).filter((r) => r.is_active !== false)
 
                 return (

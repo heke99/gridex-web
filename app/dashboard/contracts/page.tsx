@@ -1,4 +1,5 @@
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import type { CustomerPortalContract, CustomerPortalEvent, CustomerSite } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 // Import status helper to translate raw status codes
 import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
@@ -25,8 +26,14 @@ function statusLabel(status: string | null | undefined) {
 }
 
 export default async function DashboardContractsPage() {
-  const overview = await getCustomerPortalOverview()
-  const { contracts, sites, events } = overview
+  const [contractResource, siteResource, eventResource] = await Promise.all([
+    getCanonicalCustomerResource('contracts'),
+    getCanonicalCustomerResource('sites'),
+    getCanonicalCustomerResource('events'),
+  ])
+  const contracts = contractResource.data as CustomerPortalContract[]
+  const sites = siteResource.data as CustomerSite[]
+  const events = eventResource.data as CustomerPortalEvent[]
 
   return (
     <div className="space-y-6">
@@ -36,12 +43,6 @@ export default async function DashboardContractsPage() {
           Här ser du dina elavtal, anläggningar och aktuella statusar.
         </p>
       </div>
-
-      {!overview.opsAvailable ? (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
-        </div>
-      ) : null}
 
       <div className="space-y-4">
         {contracts.map((contract) => (

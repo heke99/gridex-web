@@ -9,14 +9,7 @@ export async function setRBACClaims(
 
   const claims = await buildRBACClaims(supabase, userId)
 
-  await supabase.rpc('set_config', {
-    key: 'request.jwt.claims',
-    value: JSON.stringify({
-      roles: claims.roles,
-      permissions: claims.permissions,
-      isAdmin: claims.isAdmin,
-    }),
-  })
-
+  // PostgREST calls run in separate transactions. A set_config call cannot
+  // authorize a later request; RLS derives current grants from database rows.
   return claims
 }

@@ -1,4 +1,5 @@
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import type { CustomerLegalAcceptance, CustomerPowerOfAttorney } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 // Import status helper to translate status codes to customer-friendly labels
 import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
@@ -25,7 +26,12 @@ function statusLabel(status: string | null | undefined) {
 }
 
 export default async function DashboardApprovalsPage() {
-  const overview = await getCustomerPortalOverview()
+  const [acceptanceResource, powerOfAttorneyResource] = await Promise.all([
+    getCanonicalCustomerResource('legal-acceptances'),
+    getCanonicalCustomerResource('powers-of-attorney'),
+  ])
+  const legalAcceptances = acceptanceResource.data as CustomerLegalAcceptance[]
+  const powersOfAttorney = powerOfAttorneyResource.data as CustomerPowerOfAttorney[]
 
   return (
     <div className="space-y-6">
@@ -36,16 +42,10 @@ export default async function DashboardApprovalsPage() {
         </p>
       </div>
 
-      {!overview.opsAvailable ? (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
-        </div>
-      ) : null}
-
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-lg font-semibold">Mina godkännanden</h2>
         <div className="mt-4 space-y-3">
-          {overview.legalAcceptances.map((item) => (
+          {legalAcceptances.map((item) => (
             <div key={item.id} className="rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -60,7 +60,7 @@ export default async function DashboardApprovalsPage() {
               </div>
             </div>
           ))}
-          {overview.legalAcceptances.length === 0 ? (
+          {legalAcceptances.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
               Inga godkännanden visas ännu.
             </div>
@@ -74,7 +74,7 @@ export default async function DashboardApprovalsPage() {
           Fullmakten gör att Gridex kan begära och ta emot uppgifter från elnätsföretaget som behövs för att starta och administrera ditt elavtal.
         </p>
         <div className="mt-4 space-y-3">
-          {overview.powersOfAttorney.map((poa) => (
+          {powersOfAttorney.map((poa) => (
             <div key={poa.id} className="rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -92,7 +92,7 @@ export default async function DashboardApprovalsPage() {
               </div>
             </div>
           ))}
-          {overview.powersOfAttorney.length === 0 ? (
+          {powersOfAttorney.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
               Fullmakt visas när den är kopplad till din kundprofil.
             </div>

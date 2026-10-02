@@ -2,12 +2,15 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, getSupabaseUser } from '@/lib/supabase/server'
 import UserMenu from '@/components/account/UserMenu'
 import DashboardNav from './ui/DashboardNav'
-import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
+import { loadUserPermissionsWithClient, loadUserRolesWithClient } from '@/lib/auth/permissions'
 import { PermissionsProvider } from '@/components/auth/PermissionsProvider'
 import AuthSessionSync from '@/components/auth/AuthSessionSync'
+import { canEnterAdminConsole } from '@/lib/admin/access'
+import { getWebCompanyId } from '@/lib/auth/tenant'
+import { loadGlobalSupportPermissions } from '@/lib/support/staff'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +27,6 @@ type Role =
   | 'support'
   | 'partner'
   | 'customer'
-
-type RoleRow = {
-  role: string
-  is_active: boolean | null
-}
 
 function buildLoginRedirect(nextPath: string) {
   const qs = new URLSearchParams()
@@ -83,33 +81,27 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createSupabaseServerClient()
+  const [supabase, { data: { user }, error: authError }] = await Promise.all([
+    createSupabaseServerClient(),
+    getSupabaseUser(),
+  ])
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  if (authError || !user) {
     redirect(buildLoginRedirect('/dashboard'))
   }
 
-  const [{ data: roleRows }, permissions] = await Promise.all([
-    supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<RoleRow[]>(),
+  const [roleNames, permissions, globalSupportPermissions] = await Promise.all([
+    loadUserRolesWithClient(supabase, user.id),
     loadUserPermissionsWithClient(supabase, user.id),
+    getWebCompanyId() ? loadGlobalSupportPermissions(supabase, user.id) : Promise.resolve(null),
   ])
 
-  const roles: Role[] = (roleRows ?? [])
-    .filter((row) => row.is_active !== false)
-    .map((row) => mapRole(row.role))
+  const roles: Role[] = roleNames
+    .map(mapRole)
     .filter((role): role is Role => role !== null)
 
-  const isAdmin = roles.includes('admin') || roles.includes('super_admin')
-  const isSupport = roles.includes('support')
-  const isPartner = roles.includes('partner')
+  const isAdmin = canEnterAdminConsole(permissions)
+  const isSupport = (globalSupportPermissions ?? permissions).includes('support_tickets.read')
 
   const roleLabel = getUserMenuRoleLabel(roles)
   const roleBadges = getVisibleRoleBadges(roles)
@@ -137,11 +129,9 @@ export default async function DashboardLayout({
                     items={[
                       { label: 'Översikt', href: '/dashboard' },
                       { label: 'Profil', href: '/dashboard/profile' },
-                      ...(isPartner
-                        ? [{ label: 'Partnerpanel', href: '/partner' }]
-                        : []),
+                      { label: 'Support', href: '/dashboard/support' },
                       ...(isSupport
-                        ? [{ label: 'Supportpanel', href: '/support-admin' }]
+                        ? [{ label: 'Supportpanel', href: '/support-center/staff' }]
                         : []),
                     ]}
                   />
@@ -174,8 +164,8 @@ export default async function DashboardLayout({
                 items={[
                   { label: 'Översikt', href: '/dashboard' },
                   { label: 'Profil', href: '/dashboard/profile' },
-                  ...(isPartner ? [{ label: 'Partnerpanel', href: '/partner' }] : []),
-                  ...(isSupport ? [{ label: 'Supportpanel', href: '/support-admin' }] : []),
+                  { label: 'Support', href: '/dashboard/support' },
+                  ...(isSupport ? [{ label: 'Supportpanel', href: '/support-center/staff' }] : []),
                 ]}
               />
             </div>
@@ -184,7 +174,7 @@ export default async function DashboardLayout({
 
         <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-6 px-4 py-6 sm:px-6 md:py-8 md:grid-cols-[280px_1fr]">
           <aside className="md:sticky md:top-[88px] md:h-[calc(100vh-88px-32px)]">
-            <DashboardNav roles={roles} permissions={permissions} />
+            <DashboardNav roles={roles} permissions={permissions} showStaffSupport={isSupport} />
           </aside>
 
           <div className="min-w-0">{children}</div>

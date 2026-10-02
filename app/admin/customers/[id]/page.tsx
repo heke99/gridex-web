@@ -27,7 +27,7 @@ export default async function AdminCustomerDetailPage({
 }) {
   const { id } = await params
   await requireAdminPageAccess({
-    anyOf: ['agreements.read', 'agreements.write', 'admin.access'],
+    anyOf: ['agreements.read', 'agreements.write'],
   })
 
   const detail = await getCustomerAdminDetail(id)

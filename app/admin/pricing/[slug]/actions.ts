@@ -2,17 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
+import { pricingPublishRule } from '@/lib/admin/access'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
-
-type UserRoleRow = {
-  role: string
-  is_active: boolean | null
-}
 
 type ContractLookupRow = {
   id: string
@@ -81,73 +75,8 @@ function parseNumberField(
 }
 
 async function assertAdmin(): Promise<{ userId: string }> {
-  try {
-    const ctx = await requireAdminActionAccess({
-      anyOf: [
-        'pricing.write',
-        'pricing.publish',
-        'pricing.publish_prod',
-        'admin.access',
-      ],
-    })
-
-    return { userId: ctx.userId }
-  } catch {
-    const supabase = await createSupabaseServerClient()
-
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser()
-
-    if (userErr) throw new Error(userErr.message)
-    if (!user) throw new Error('Not authenticated')
-
-    const { data: hasPerm, error: permError } = await supabase.rpc(
-      'gridex_has_permission',
-      {
-        p_user_id: user.id,
-        p_permission: 'admin.access',
-      }
-    )
-
-    if (permError) {
-      throw new Error(permError.message)
-    }
-
-    if (hasPerm === true) {
-      return { userId: user.id }
-    }
-
-    try {
-      await requireAdminRole(supabase)
-      return { userId: user.id }
-    } catch {}
-
-    const { data: roleRows, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<UserRoleRow[]>()
-
-    if (roleError) {
-      throw new Error(roleError.message)
-    }
-
-    const roleNames =
-      roleRows
-        ?.filter((row) => row.is_active !== false)
-        .map((row) => row.role) ?? []
-
-    const isAdmin =
-      roleNames.includes('admin') || roleNames.includes('super_admin')
-
-    if (!isAdmin) {
-      throw new Error('Unauthorized')
-    }
-
-    return { userId: user.id }
-  }
+  const ctx = await requireGlobalAdminActionAccess({ allOf: ['pricing.write'] })
+  return { userId: ctx.userId }
 }
 
 function revalidatePricingPaths(slug?: string | null) {
@@ -204,7 +133,7 @@ async function getVersionOrThrow(
 }
 
 export async function createVersionAction(formData: FormData) {
-  const { userId } = await assertAdmin()
+  await assertAdmin()
   const service = getServiceClient()
 
   const contractId = String(formData.get('contract_id') ?? '').trim()
@@ -235,7 +164,6 @@ export async function createVersionAction(formData: FormData) {
       valid_from: validFrom,
       is_published: false,
       status: 'draft',
-      created_by: userId,
     })
 
   if (insertError) throw new Error(insertError.message)
@@ -255,6 +183,15 @@ export async function savePricingAction(formData: FormData) {
 
   if (!['spot_hourly', 'portfolio_managed', 'fixed'].includes(contractType)) {
     throw new Error('Invalid contract_type')
+  }
+
+  const version = await getVersionOrThrow(service, pricingVersionId)
+  if (version.is_published || (version.status && version.status !== 'draft')) {
+    throw new Error('Published pricing is immutable. Clone the version before editing.')
+  }
+  const contract = await getContractOrThrow(service, version.contract_id)
+  if (contract.contract_type !== contractType) {
+    throw new Error('Pricing type does not match the contract')
   }
 
   const rows = AREAS.map((area) => {
@@ -285,24 +222,18 @@ export async function savePricingAction(formData: FormData) {
     }
   })
 
-  const { error: deleteError } = await service
-    .from('contract_area_pricing')
-    .delete()
-    .eq('pricing_version_id', pricingVersionId)
-
-  if (deleteError) throw new Error(deleteError.message)
-
-  const { error: insertError } = await service
-    .from('contract_area_pricing')
-    .insert(rows)
-
-  if (insertError) throw new Error(insertError.message)
+  const { error: saveError } = await service.rpc('gridex_web_save_draft_pricing', {
+    p_version_id: pricingVersionId, p_rows: rows,
+  })
+  if (saveError) throw new Error(saveError.message)
 
   revalidatePricingPaths(slug)
 }
 
 export async function publishVersionAction(formData: FormData) {
-  const { userId } = await assertAdmin()
+  const { userId } = await requireGlobalAdminActionAccess(pricingPublishRule(
+    process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production',
+  ))
   const service = getServiceClient()
 
   const contractId = String(formData.get('contract_id') ?? '').trim()
@@ -321,53 +252,10 @@ export async function publishVersionAction(formData: FormData) {
     throw new Error('Version does not belong to contract')
   }
 
-  const { error: unpublishError } = await service
-    .from('contract_pricing_versions')
-    .update({
-      is_published: false,
-      status: 'draft',
-      published_at: null,
-      published_by: null,
-    })
-    .eq('contract_id', contractId)
-    .or('is_published.eq.true,status.eq.published')
-
-  if (unpublishError) throw new Error(unpublishError.message)
-
-  const { error: publishError } = await service
-    .from('contract_pricing_versions')
-    .update({
-      is_published: true,
-      status: 'published',
-      published_at: new Date().toISOString(),
-      published_by: userId,
-    })
-    .eq('id', versionId)
-
+  const { error: publishError } = await service.rpc('gridex_web_publish_pricing', {
+    p_contract_id: contractId, p_version_id: versionId, p_actor_id: userId, p_reason: reason,
+  })
   if (publishError) throw new Error(publishError.message)
-
-  const { error: auditError } = await service
-    .from('pricing_version_audit')
-    .insert({
-      contract_id: contractId,
-      version_id: versionId,
-      action: 'publish',
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-  if (auditError) {
-    const fallbackAudit = await service.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: versionId,
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-    if (fallbackAudit.error) throw new Error(fallbackAudit.error.message)
-  }
 
   revalidatePricingPaths(slug ?? contract.slug)
 }
@@ -412,7 +300,6 @@ export async function cloneVersionAction(formData: FormData) {
       valid_from: sourceVersion.valid_from,
       is_published: false,
       status: 'draft',
-      created_by: userId,
     })
     .select('id')
     .single<{ id: string }>()

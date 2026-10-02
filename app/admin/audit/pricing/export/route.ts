@@ -12,7 +12,7 @@ type AuditRow = {
 }
 
 export async function GET() {
-  const ctx = await requireAdminActionAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminActionAccess({ anyOf: ['audit.read'] })
   const supabase = ctx.supabase
 
   const { data, error } = await supabase

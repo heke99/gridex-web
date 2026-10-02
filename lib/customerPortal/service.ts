@@ -1,5 +1,9 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchOpsCustomerSupportTickets, fetchOpsCustomerSupportMessages } from '@/lib/ops/client/support'
+import { createSupabaseServerClient, getSupabaseUser } from '@/lib/supabase/server'
+import { cache } from 'react'
+import { canonicalResourceRows, unwrapOpsData } from './resourceData'
+import { verifyCustomerAccountAccess } from './accountAccess'
 import {
   fetchOpsCustomerPortalBundle,
   fetchOpsCustomerResource,
@@ -47,9 +51,10 @@ export class CustomerPortalAccessError extends Error {
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+    error,
+  } = await getSupabaseUser(supabase)
 
-  if (!user) {
+  if (error || !user) {
     throw new CustomerPortalAccessError()
   }
 
@@ -205,9 +210,9 @@ function mapOpsProfile(
   const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
   const fullName =
-    pick(row, ['display_name']) ??
-    fallback?.full_name ??
-    computedFullName
+    pick(row, ['display_name', 'full_name']) ??
+    computedFullName ??
+    fallback?.full_name ?? null
 
   return {
     user_id: userId,
@@ -216,8 +221,8 @@ function mapOpsProfile(
     last_name: lastName,
     full_name: fullName,
     phone: pick(row, ['phone']) ?? fallback?.phone ?? null,
-    language_code: fallback?.language_code ?? 'sv',
-    timezone: fallback?.timezone ?? 'Europe/Stockholm',
+    language_code: pick(row, ['language_code']) ?? fallback?.language_code ?? 'sv',
+    timezone: pick(row, ['timezone']) ?? fallback?.timezone ?? 'Europe/Stockholm',
     email_verified_at: fallback?.email_verified_at ?? null,
     onboarding_state:
       pick(row, ['onboarding_state', 'onboarding_status', 'status']) ??
@@ -502,11 +507,12 @@ function deriveSwitchStatus(
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
+  await verifyCustomerAccountAccess(user.id)
 
   return { supabase, user }
 }
 
-export async function getCustomerProfile(
+export const getCustomerProfile = cache(async function getCustomerProfile(
   supabase: SupabaseClient,
   userId: string,
   user?: User | null
@@ -556,55 +562,56 @@ export async function getCustomerProfile(
     external_customer_id: null,
     portal_identity_id: null,
   }, user)
-}
+})
 
 export async function getCustomerTickets(
   supabase: SupabaseClient,
   userId: string
 ): Promise<CustomerSupportTicket[]> {
-  const { data } = await supabase
-    .from('customer_support_tickets')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  return (data ?? []) as CustomerSupportTicket[]
+  const user = await getUserOrThrow(supabase)
+  if (user.id !== userId) throw new CustomerPortalAccessError()
+  const result = await fetchOpsCustomerSupportTickets(await getOpsPortalIdentityForUser(supabase, user))
+  return result.data.map((ticket) => ({
+    id: ticket.case_reference,
+    subject: ticket.title,
+    category: 'general',
+    priority: 'normal',
+    status: ticket.status === 'received' ? 'open' : ticket.status === 'in_progress' ? 'waiting_on_internal' : ticket.status,
+    description: ticket.description ?? '',
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    closed_at: ticket.resolved_at,
+  }))
 }
 
 export async function getTicketMessages(
   supabase: SupabaseClient,
   ticketId: string
 ): Promise<CustomerSupportMessage[]> {
-  const { data } = await supabase
-    .from('customer_support_messages')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true })
-
-  return (data ?? []) as CustomerSupportMessage[]
+  const user = await getUserOrThrow(supabase)
+  const result = await fetchOpsCustomerSupportMessages(await getOpsPortalIdentityForUser(supabase, user), ticketId)
+  return result.data.map((message) => ({
+    id: message.message_reference,
+    ticket_id: ticketId,
+    sender_user_id: null,
+    sender_type: message.author_type === 'customer' ? 'customer' : 'agent',
+    body: message.body,
+    attachments: [],
+    is_internal_note: false,
+    created_at: message.created_at,
+  }))
 }
 
 export async function getCustomerNotifications(
   supabase: SupabaseClient,
-  userId: string,
-  profile?: CustomerProfile | null
+  userId: string
 ): Promise<CustomerNotification[]> {
-  let query = supabase
+  const query = supabase
     .from('customer_notifications')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(20)
-
-  const customerNumber = profile?.customer_number ?? profile?.contract_customer_ref
-  const email = profile?.email
-  if (customerNumber || email) {
-    const filters = [`user_id.eq.${userId}`]
-    if (customerNumber) filters.push(`customer_number.eq.${customerNumber}`)
-    if (email) filters.push(`customer_email.eq.${email}`)
-    query = query.or(filters.join(','))
-  } else {
-    query = query.eq('user_id', userId)
-  }
 
   const { data } = await query
   return (data ?? []) as CustomerNotification[]
@@ -637,25 +644,12 @@ export async function getOpsPortalIdentityForUser(
   supabase: SupabaseClient,
   user: User
 ): Promise<OpsPortalIdentity> {
+  await verifyCustomerAccountAccess(user.id)
   const profile = await getCustomerProfile(supabase, user.id, user)
   return portalIdentityFromProfile(user, profile)
 }
 
-function unwrapOpsData(payload: unknown): unknown {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload
-  const row = payload as Record<string, unknown>
-  return Object.prototype.hasOwnProperty.call(row, 'data') ? row.data : payload
-}
-
-function canonicalResourceRows(value: unknown, key: string): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.map(asRecord).filter((row) => Object.keys(row).length > 0)
-  const row = asRecord(value)
-  const nested = row[key] ?? row.items
-  if (Array.isArray(nested)) return nested.map(asRecord).filter((item) => Object.keys(item).length > 0)
-  return Object.keys(row).length > 0 ? [row] : []
-}
-
-function normalizeCanonicalCustomerResource(
+export function normalizeCanonicalCustomerResource(
   resource: OpsCustomerReadResource,
   value: unknown,
   input: { localProfile: CustomerProfile | null; user: User; detail: boolean },
@@ -724,10 +718,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, localProfile)
 
-  const [tickets, bundle] = await Promise.all([
-    getCustomerTickets(supabase, user.id),
-    fetchOpsCustomerPortalBundle(identity),
-  ])
+  // Support has its own lazy, paginated page; the overview does not display cases.
+  const bundle = await fetchOpsCustomerPortalBundle(identity)
 
   if (!bundle.profile) {
     throw new Error('OPS portal-bundle saknar den auktoritativa kundprofilen.')
@@ -770,7 +762,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     switchStatus,
     meteringValues: bundle.meteringValues.map(mapOpsMeteringValue),
     events: bundle.events.map(mapOpsEvent),
-    tickets,
+    tickets: [],
     notifications: bundle.notifications.map(mapOpsNotification),
     opsAvailable: true,
     opsError: null,
@@ -792,18 +784,12 @@ export async function markCustomerNotificationsRead(input: {
   if (ids.length === 0) throw new Error('Minst en notis måste anges.')
   const operationId = input.operationId?.trim()
   if (!operationId) throw new Error('client_operation_id krävs för skrivoperationer.')
-  const readAt = new Date().toISOString()
   await markOpsCustomerNotificationsRead(identity, {
     notificationIds: ids,
     operationId,
   })
 
-  let localQuery = supabase
-    .from('customer_notifications')
-    .update({ is_read: true, read_at: readAt })
-    .eq('user_id', user.id)
-  localQuery = localQuery.in('id', ids)
-  const { error: localError } = await localQuery
-
-  return { ok: true, opsSynced: true, localSynced: !localError, queued: false }
+  // Canonical notification references are opaque OPS identities. Local webhook
+  // notifications have independent UUIDs and cannot be updated by these ids.
+  return { ok: true, opsSynced: true, localSynced: false, queued: false }
 }

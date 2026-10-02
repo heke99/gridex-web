@@ -10,7 +10,7 @@ function normalizePostal(input: string): string {
 }
 
 export default async function AdminPostalAreasPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminPageAccess({ anyOf: ['pricing.read', 'pricing.write'] })
   const supabase = ctx.supabase
 
   const { data: recent } = await supabase
@@ -21,7 +21,7 @@ export default async function AdminPostalAreasPage() {
 
   async function upsertSingleAction(formData: FormData) {
     'use server'
-    await requireAdminActionAccess({ anyOf: ['admin.access'] })
+    await requireAdminActionAccess({ allOf: ['pricing.write'] })
     const supabase = await createSupabaseServerClient()
 
     const postal = normalizePostal(String(formData.get('postal_code') ?? ''))
