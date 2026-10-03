@@ -1,4 +1,6 @@
 'use client'
+import { globalOverrideStates } from '@/lib/admin/permissionOverrides'
+import { isActiveRoleAssignment, roleAssignmentMatches, type RegisteredRole, type UserRoleAssignment } from '@/lib/admin/roleAssignmentState'
 
 import {
   setUserPermissionOverride,
@@ -12,17 +14,6 @@ type UserProfileRow = {
   full_name: string | null
 }
 
-type UserRoleRow = {
-  user_id: string
-  role: string
-  is_active: boolean | null
-}
-
-type RoleRow = {
-  id: string
-  name: string
-}
-
 type PermissionRow = {
   id: string
   name: string
@@ -31,6 +22,9 @@ type PermissionRow = {
 type UserPermissionRow = {
   user_id: string
   permission_id: string
+  effect: string | null
+  is_active: boolean | null
+  status: string | null
 }
 
 export default function RBACUserTable({
@@ -41,20 +35,13 @@ export default function RBACUserTable({
   userPerms,
 }: {
   users: UserProfileRow[]
-  roles: RoleRow[]
+  roles: RegisteredRole[]
   perms: PermissionRow[]
-  userRoles: UserRoleRow[]
+  userRoles: UserRoleAssignment[]
   userPerms: UserPermissionRow[]
 }) {
-  const activeRoleSet = new Set(
-    userRoles
-      .filter((row) => row.is_active !== false)
-      .map((row) => `${row.user_id}:${row.role}`)
-  )
-
-  const overrideSet = new Set(
-    userPerms.map((row) => `${row.user_id}:${row.permission_id}`)
-  )
+  const activeAssignments = userRoles.filter(isActiveRoleAssignment)
+  const overrideStates = globalOverrideStates(userPerms)
 
   return (
     <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-950">
@@ -87,19 +74,20 @@ export default function RBACUserTable({
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
                     {roles.map((role) => {
-                      const key = `${user.id}:${role.name}`
-                      const enabled = activeRoleSet.has(key)
+                      const key = `${user.id}:${role.id}`
+                      const enabled = activeAssignments.some((row) => row.user_id === user.id && roleAssignmentMatches(row, role))
 
                       return (
                         <form key={key} action={setUserRoleActive}>
                           <input type="hidden" name="user_id" value={user.id} />
-                          <input type="hidden" name="role" value={role.name} />
+                          <input type="hidden" name="role" value={role.key || role.name} />
                           <input
                             type="hidden"
                             name="active"
                             value={enabled ? 'false' : 'true'}
                           />
                           <button
+                            disabled={role.is_active === false && !enabled}
                             className={[
                               'rounded-full border px-2 py-1 text-[11px] transition',
                               enabled
@@ -119,7 +107,8 @@ export default function RBACUserTable({
                   <div className="flex flex-wrap gap-2">
                     {perms.map((perm) => {
                       const key = `${user.id}:${perm.id}`
-                      const enabled = overrideSet.has(key)
+                      const effect = overrideStates.get(key) ?? null
+                      const enabled = effect === 'allow'
 
                       return (
                         <form key={key} action={setUserPermissionOverride}>
@@ -135,14 +124,17 @@ export default function RBACUserTable({
                             value={enabled ? 'false' : 'true'}
                           />
                           <button
+                            title={effect === 'deny' ? 'Globalt nekad' : enabled ? 'Globalt tillåten' : 'Inget globalt undantag'}
                             className={[
                               'rounded-full border px-2 py-1 text-[11px] transition',
-                              enabled
+                              effect === 'deny'
+                                ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                                : enabled
                                 ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
                                 : 'border-white/10 bg-white/5 text-white/60',
                             ].join(' ')}
                           >
-                            {perm.name}
+                            {perm.name}{effect === 'deny' ? ' · Nekad' : enabled ? ' · Tillåten' : ''}
                           </button>
                         </form>
                       )

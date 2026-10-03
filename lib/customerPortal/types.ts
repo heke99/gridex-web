@@ -1,3 +1,11 @@
+export type CustomerResourcePage = {
+  limit: number
+  offset: number
+  returned: number
+  has_more: boolean
+  next_cursor: string | null
+}
+
 export type CustomerProfile = {
   user_id: string
   email: string | null
@@ -49,6 +57,7 @@ export type CustomerPortalContract = {
 export type CustomerSite = {
   id: string
   site_reference: string
+  facility_reference: string
   address: string | null
   postal_code: string | null
   city: string | null
@@ -228,4 +237,5 @@ export type CustomerPortalOverview = {
   readOnly: boolean
   dataFreshness: 'live'
   dataFreshnessMessage: string | null
+  unavailableSections: string[]
 }

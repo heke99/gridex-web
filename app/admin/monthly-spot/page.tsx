@@ -1,9 +1,9 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 import Link from 'next/link'
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { requirePermissionServer } from '@/lib/auth/requirePermissionServer'
-import { logPermissionAudit } from '@/lib/auth/audit'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { publishActiveAction, rollbackAction, savePricesAction } from './actions'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
+import { supabaseService } from '@/lib/supabase/service'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
@@ -41,7 +41,7 @@ function ymLabel(year: number, month: number) {
 }
 
 function isValidYM(year: number, month: number) {
-  return Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 && Number.isInteger(month) && month >= 1 && month <= 12
 }
 
 function prevYearMonth(now: Date): { year: number; month: number } {
@@ -57,13 +57,6 @@ function shiftMonth(
   const d = new Date(Date.UTC(ym.year, ym.month - 1, 1))
   d.setUTCMonth(d.getUTCMonth() + delta)
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 }
-}
-
-function parseNumber(value: FormDataEntryValue | null): number {
-  if (value == null) return Number.NaN
-  const cleaned = String(value).trim().replace(/\s+/g, '').replace(',', '.')
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : Number.NaN
 }
 
 function buildYearList(
@@ -97,27 +90,18 @@ export default async function AdminMonthlySpotPage({
 }: {
   searchParams?: Promise<SearchParams>
 }) {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['spot.read', 'spot.write', 'spot.publish', 'pricing.write'],
   })
 
-  const supabase = ctx.supabase
+  // The current database policies use server-only permission helpers. Read
+  // this global administration view only after its explicit global guard.
+  const supabase = supabaseService
   const now = new Date()
   const fallback = prevYearMonth(now)
 
-  const isAdmin =
-    ctx.isAdmin ||
-    ctx.roles.includes('admin') ||
-    ctx.permissions.includes('admin.access')
-
-  const canWrite =
-    isAdmin ||
-    ctx.permissions.includes('spot.write') ||
-    ctx.permissions.includes('pricing.write')
-
-  const canPublish =
-    isAdmin ||
-    ctx.permissions.includes('spot.publish')
+  const canWrite = ctx.permissions.includes('spot.write')
+  const canPublish = ctx.permissions.includes('spot.publish')
 
   const { data: cfg, error: cfgError } = await supabase
     .from('gridex_spot_basis_config')
@@ -179,7 +163,7 @@ export default async function AdminMonthlySpotPage({
   ;(publicExpectedRows ?? []).forEach((row: { price_area: string; avg_spot_ore: number }) => {
     const area = row.price_area as PriceArea
     const value = Number(row.avg_spot_ore)
-    if (AREAS.includes(area) && Number.isFinite(value) && value > 0) {
+    if (AREAS.includes(area) && Number.isFinite(value)) {
       publicExpectedByArea.set(area, value)
     }
   })
@@ -288,169 +272,6 @@ export default async function AdminMonthlySpotPage({
     redirect(`/admin/monthly-spot?year=${next.year}&month=${next.month}`)
   }
 
-  async function savePricesAction(formData: FormData) {
-    'use server'
-
-    const { supabase: serverSupabase, user } = await requirePermissionServer(
-      'spot.write'
-    ).catch(async () => {
-      return await requirePermissionServer('pricing.write')
-    })
-
-    const year = Number(formData.get('year'))
-    const month = Number(formData.get('month'))
-
-    if (!isValidYM(year, month)) {
-      throw new Error('Ogiltigt year/month')
-    }
-
-    const payload: Array<{
-      price_area: PriceArea
-      year: number
-      month: number
-      avg_spot_ore: number
-    }> = []
-
-    for (const area of AREAS) {
-      const value = parseNumber(formData.get(`${area}_avg_spot_ore`))
-      if (!Number.isFinite(value)) {
-        throw new Error(`Ogiltigt värde för ${area}`)
-      }
-
-      payload.push({
-        price_area: area,
-        year,
-        month,
-        avg_spot_ore: value,
-      })
-    }
-
-    const { error } = await serverSupabase
-      .from('gridex_monthly_spot_prices')
-      .upsert(payload, {
-        onConflict: 'price_area,year,month',
-      })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'spot.monthly_prices.upsert',
-      metadata: {
-        year,
-        month,
-        values: payload.map((row) => ({
-          area: row.price_area,
-          avg_spot_ore: row.avg_spot_ore,
-        })),
-      },
-    }).catch(() => null)
-
-    revalidatePath('/admin')
-    revalidatePath('/admin/monthly-spot')
-    revalidatePath('/admin/pricing')
-    revalidatePath('/admin/calculator')
-    revalidatePath('/admin/customer-spec')
-    revalidatePath('/avtal')
-  revalidatePath('/elavtal')
-    revalidatePath('/teckna')
-  revalidatePath('/teckna-avtal')
-    revalidatePath('/elpris')
-    revalidatePath('/api/web/market-price/current')
-
-    redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
-  }
-
-  async function publishActiveAction(formData: FormData) {
-    'use server'
-
-    const { supabase: serverSupabase, user } = await requirePermissionServer(
-      'spot.publish'
-    ).catch(async () => {
-      return await requirePermissionServer('admin.access')
-    })
-
-    const year = Number(formData.get('year'))
-    const month = Number(formData.get('month'))
-    const reason = String(formData.get('reason') ?? '').trim() || null
-
-    if (!isValidYM(year, month)) {
-      throw new Error('Ogiltigt year/month')
-    }
-
-    const { error } = await serverSupabase.rpc('gridex_spot_publish_active_basis', {
-      p_year: year,
-      p_month: month,
-      p_reason: reason,
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'spot.basis.publish_active',
-      metadata: { year, month, reason },
-    }).catch(() => null)
-
-    revalidatePath('/admin')
-    revalidatePath('/admin/monthly-spot')
-    revalidatePath('/admin/pricing')
-    revalidatePath('/admin/calculator')
-    revalidatePath('/admin/customer-spec')
-    revalidatePath('/avtal')
-  revalidatePath('/elavtal')
-    revalidatePath('/teckna')
-  revalidatePath('/teckna-avtal')
-    revalidatePath('/elpris')
-    revalidatePath('/api/web/market-price/current')
-
-    redirect(`/admin/monthly-spot?year=${year}&month=${month}`)
-  }
-
-  async function rollbackAction(formData: FormData) {
-    'use server'
-
-    const { supabase: serverSupabase, user } = await requirePermissionServer(
-      'spot.publish'
-    ).catch(async () => {
-      return await requirePermissionServer('admin.access')
-    })
-
-    const reason = String(formData.get('reason') ?? '').trim() || null
-
-    const { error } = await serverSupabase.rpc('gridex_spot_rollback_last_publish', {
-      p_reason: reason,
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    await logPermissionAudit({
-      actorId: user.id,
-      action: 'spot.basis.rollback',
-      metadata: { reason },
-    }).catch(() => null)
-
-    revalidatePath('/admin')
-    revalidatePath('/admin/monthly-spot')
-    revalidatePath('/admin/pricing')
-    revalidatePath('/admin/calculator')
-    revalidatePath('/admin/customer-spec')
-    revalidatePath('/avtal')
-  revalidatePath('/elavtal')
-    revalidatePath('/teckna')
-  revalidatePath('/teckna-avtal')
-    revalidatePath('/elpris')
-    revalidatePath('/api/web/market-price/current')
-
-    redirect('/admin/monthly-spot')
-  }
-
   const defaultKwh = 2000
   const defaultCustomersPerArea = 250
 
@@ -463,6 +284,7 @@ export default async function AdminMonthlySpotPage({
 
   return (
     <div className="space-y-8">
+      <OpsSourceNotice />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Spot-basis (månadsgenomsnitt)</h1>

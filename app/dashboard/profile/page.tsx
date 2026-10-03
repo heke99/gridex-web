@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { randomUUID } from 'node:crypto'
 import Link from 'next/link'
-import { getCustomerProfile, getPortalSession } from '@/lib/customerPortal/service'
+import { getCanonicalCustomerResource, getPortalSession } from '@/lib/customerPortal/service'
+import type { CustomerProfile } from '@/lib/customerPortal/types'
 import {
   updateCustomerEmailAction,
   updateCustomerPasswordAction,
@@ -22,6 +23,10 @@ function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
       return 'Dina kontaktuppgifter har sparats och synkats.'
+    case 'profile-queued':
+      return 'Svaret på din ändring kunde inte bekräftas. Samma åtgärd är sparad och kontrolleras automatiskt; du behöver inte skicka den igen.'
+    case 'profile-received':
+      return 'Dina kontaktuppgifter är mottagna för behandling. Uppgifterna visas som uppdaterade när ändringen har bekräftats.'
     case 'profile-sync-failed':
       return 'Kontaktuppgifterna kunde inte uppdateras just nu. Inga lokala ändringar har behandlats som genomförda.'
     case 'email-updated':
@@ -34,10 +39,15 @@ function statusMessage(status?: string) {
 }
 
 export default async function DashboardProfilePage({ searchParams }: Props) {
-  const { supabase, user } = await getPortalSession()
-  const profile = await getCustomerProfile(supabase, user.id, user)
-  const params = (await searchParams) ?? {}
+  const [{ user }, profileResource, resolvedSearchParams] = await Promise.all([
+    getPortalSession(),
+    getCanonicalCustomerResource('me'),
+    searchParams,
+  ])
+  const profile = profileResource.data as CustomerProfile | null
+  const params = resolvedSearchParams ?? {}
   const message = statusMessage(params.status)
+  const profileSyncFailed = params.status === 'profile-sync-failed'
   const profileOperationId = `profile-update:${randomUUID()}`
 
   return (
@@ -50,7 +60,10 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
       </div>
 
       {message ? (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" aria-live="polite">
+        <div
+          className={`rounded-2xl border p-4 text-sm ${profileSyncFailed ? 'border-rose-500/30 bg-rose-500/10 text-rose-100' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'}`}
+          role={profileSyncFailed ? 'alert' : 'status'}
+        >
           {message}
         </div>
       ) : null}

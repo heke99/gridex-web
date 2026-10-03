@@ -1,20 +1,20 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { logPermissionAudit } from '@/lib/auth/audit'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
+import { supabaseService } from '@/lib/supabase/service'
 
 function str(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
 async function requireRbacWrite() {
-  const ctx = await requireAdminActionAccess({
-    anyOf: ['rbac.write', 'admin.access'],
+  const ctx = await requireGlobalAdminActionAccess({
+    anyOf: ['rbac.write'],
   })
 
-  const supabase = await createSupabaseServerClient()
+  const supabase = supabaseService
 
   return { ctx, supabase }
 }

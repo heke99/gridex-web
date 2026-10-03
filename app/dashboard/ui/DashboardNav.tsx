@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoutForm from '@/components/account/LogoutForm'
+import { canEnterAdminConsole } from '@/lib/admin/access'
 
 type Role =
   | 'admin'
@@ -18,13 +19,12 @@ type NavItem = {
   label: string
   href: string
   description?: string
-  roles?: Role[]
-  permissions?: string[]
 }
 
 type Props = {
   roles?: Role[]
   permissions?: string[]
+  showStaffSupport?: boolean
 }
 
 const BASE_NAV: NavItem[] = [
@@ -54,33 +54,27 @@ const BASE_NAV: NavItem[] = [
     description: 'Villkor och fullmakt',
   },
   {
+    label: 'Support',
+    href: '/dashboard/support',
+    description: 'Ärenden och meddelanden',
+  },
+  {
     label: 'Profil',
     href: '/dashboard/profile',
     description: 'Konto och kontaktuppgifter',
   },
 ]
 
-const ROLE_NAV: NavItem[] = [
+const STAFF_NAV: NavItem[] = [
   {
     label: 'Adminpanel',
     href: '/admin',
     description: 'Administration',
-    roles: ['admin', 'super_admin'],
-    permissions: ['admin.access'],
   },
   {
     label: 'Supportpanel',
-    href: '/support-admin',
+    href: '/support-center/staff',
     description: 'Kundärenden',
-    roles: ['support', 'admin', 'super_admin'],
-    permissions: ['support.access'],
-  },
-  {
-    label: 'Partnerpanel',
-    href: '/partner',
-    description: 'Partneröversikt',
-    roles: ['partner', 'admin', 'super_admin'],
-    permissions: ['partner.access'],
   },
 ]
 
@@ -90,43 +84,6 @@ function isActive(pathname: string, href: string) {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`)
-}
-
-function roleOk(item: NavItem, roles: Role[]) {
-  if (!item.roles || item.roles.length === 0) {
-    return true
-  }
-
-  return item.roles.some((role) => roles.includes(role))
-}
-
-function permissionOk(item: NavItem, permissions: string[]) {
-  if (!item.permissions || item.permissions.length === 0) {
-    return true
-  }
-
-  return item.permissions.some((permission) => permissions.includes(permission))
-}
-
-function shouldShowItem(item: NavItem, roles: Role[], permissions: string[]) {
-  const hasRoleRestriction = Boolean(item.roles && item.roles.length > 0)
-  const hasPermissionRestriction = Boolean(
-    item.permissions && item.permissions.length > 0
-  )
-
-  if (!hasRoleRestriction && !hasPermissionRestriction) {
-    return true
-  }
-
-  if (hasRoleRestriction && roleOk(item, roles)) {
-    return true
-  }
-
-  if (hasPermissionRestriction && permissionOk(item, permissions)) {
-    return true
-  }
-
-  return false
 }
 
 function getRoleSummary(roles: Role[]): string | null {
@@ -148,14 +105,17 @@ function getRoleSummary(roles: Role[]): string | null {
 export default function DashboardNav({
   roles = [],
   permissions = [],
+  showStaffSupport = false,
 }: Props) {
   const pathname = usePathname()
 
-  const filteredRoleNav = ROLE_NAV.filter((item) =>
-    shouldShowItem(item, roles, permissions)
+  const filteredStaffNav = STAFF_NAV.filter((item) =>
+    item.href === '/admin'
+      ? canEnterAdminConsole(permissions)
+      : showStaffSupport
   )
 
-  const fullNav = [...BASE_NAV, ...filteredRoleNav]
+  const fullNav = [...BASE_NAV, ...filteredStaffNav]
   const roleSummary = getRoleSummary(roles)
 
   return (

@@ -1,6 +1,10 @@
+import { supabaseService } from '@/lib/supabase/service'
 import RBACUserTable from '@/components/admin/RBACUserTable'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { createUserWithRole } from './actions'
+import { globalPermissionOverrideRows } from '@/lib/admin/permissionOverrides'
+import type { RegisteredRole } from '@/lib/admin/roleAssignmentState'
+import { loadGlobalRbacDirectory } from '@/lib/admin/assignmentDirectory'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,32 +16,10 @@ type SearchParams = {
   per_page?: string
 }
 
-type UserProfileRow = {
-  id: string
-  email: string | null
-  full_name: string | null
-  created_at: string
-}
-
-type UserRoleRow = {
-  user_id: string
-  role: string
-  is_active: boolean | null
-}
-
-type RoleRow = {
-  id: string
-  name: string
-}
-
 type PermissionRow = {
   id: string
   name: string
-}
-
-type UserPermissionRow = {
-  user_id: string
-  permission_id: string
+  key: string | null
 }
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
@@ -70,50 +52,26 @@ export default async function AssignmentsPage({
 }: {
   searchParams?: Promise<SearchParams>
 }) {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['rbac.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['rbac.write'],
   })
 
-  const supabase = ctx.supabase
+  const supabase = supabaseService
   const resolvedSearchParams = searchParams ? await searchParams : {}
 
-  const q = resolvedSearchParams.q ?? ''
-  const filterRole = resolvedSearchParams.role ?? ''
-  const filterActive = resolvedSearchParams.active ?? ''
+  const q = typeof resolvedSearchParams.q === 'string' ? resolvedSearchParams.q.trim().slice(0, 200) : ''
+  const filterRole = typeof resolvedSearchParams.role === 'string' ? resolvedSearchParams.role : ''
+  const filterActive = resolvedSearchParams.active === 'true' ? true : resolvedSearchParams.active === 'false' ? false : null
 
   const perPage = clampInt(resolvedSearchParams.per_page, 50, 10, 200)
   const page = clampInt(resolvedSearchParams.page, 1, 1, 1000000)
 
   const from = (page - 1) * perPage
-  const to = from + perPage - 1
-
-  let userQuery = supabase
-    .from('user_profiles')
-    .select('id,email,full_name,created_at', { count: 'exact' })
-    .order('created_at', { ascending: false })
-
-  if (q) {
-    userQuery = userQuery.or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
-  }
-
-  const {
-    data: usersRaw,
-    error: usersError,
-    count,
-  } = await userQuery.range(from, to).returns<UserProfileRow[]>()
-
-  if (usersError) {
-    throw new Error(usersError.message)
-  }
-
-  const users = usersRaw ?? []
-  const total = typeof count === 'number' ? count : null
-
-  const { data: rolesRaw, error: rolesError } = await supabase
-    .from('roles')
-    .select('id,name')
-    .order('name', { ascending: true })
-    .returns<RoleRow[]>()
+  const [roleResult, permissionResult] = await Promise.all([
+    supabase.from('roles').select('id,name,key,is_active').order('name', { ascending: true }).returns<RegisteredRole[]>(),
+    supabase.from('permissions').select('id,name,key').order('name', { ascending: true }).returns<PermissionRow[]>(),
+  ])
+  const { data: rolesRaw, error: rolesError } = roleResult
 
   if (rolesError) {
     throw new Error(rolesError.message)
@@ -121,11 +79,7 @@ export default async function AssignmentsPage({
 
   const roles = rolesRaw ?? []
 
-  const { data: permsRaw, error: permsError } = await supabase
-    .from('permissions')
-    .select('id,name')
-    .order('name', { ascending: true })
-    .returns<PermissionRow[]>()
+  const { data: permsRaw, error: permsError } = permissionResult
 
   if (permsError) {
     throw new Error(permsError.message)
@@ -133,67 +87,23 @@ export default async function AssignmentsPage({
 
   const perms = permsRaw ?? []
 
-  const userIds = users.map((user) => user.id)
-  const hasUsers = userIds.length > 0
-
-  const { data: userRolesRaw, error: userRolesError } = hasUsers
-    ? await supabase
-        .from('user_roles')
-        .select('user_id,role,is_active')
-        .in('user_id', userIds)
-        .returns<UserRoleRow[]>()
-    : { data: [], error: null }
-
-  if (userRolesError) {
-    throw new Error(userRolesError.message)
-  }
-
-  const userRoles = userRolesRaw ?? []
-
-  const { data: userPermsRaw, error: userPermsError } = hasUsers
-    ? await supabase
-        .from('user_permissions')
-        .select('user_id,permission_id')
-        .in('user_id', userIds)
-        .returns<UserPermissionRow[]>()
-    : { data: [], error: null }
-
-  if (userPermsError) {
-    throw new Error(userPermsError.message)
-  }
-
-  const userPerms = userPermsRaw ?? []
-
-  const filteredUsers = users.filter((user) => {
-    const rolesForUser = userRoles.filter((row) => row.user_id === user.id)
-
-    if (filterRole) {
-      const hasRole = rolesForUser.some(
-        (row) => row.role === filterRole && row.is_active !== false
-      )
-      if (!hasRole) return false
-    }
-
-    if (filterActive === 'true') {
-      if (!rolesForUser.some((row) => row.is_active !== false)) {
-        return false
-      }
-    }
-
-    if (filterActive === 'false') {
-      if (rolesForUser.some((row) => row.is_active !== false)) {
-        return false
-      }
-    }
-
-    return true
-  })
+  const legacyMatches = filterRole ? roles.filter((role) => (role.key || role.name) === filterRole || role.name === filterRole) : []
+  const registered = filterRole
+    ? roles.find((role) => role.id === filterRole) ?? (legacyMatches.length === 1 ? legacyMatches[0] : undefined)
+    : undefined
+  const directory = filterRole && !registered
+    ? { users: [], total: 0, userRoles: [], userPermissions: [], overrides: [] }
+    : await loadGlobalRbacDirectory(supabase, {
+      actorId: ctx.userId, query: q || null, roleId: registered?.id ?? null,
+      active: filterActive, limit: perPage, offset: from,
+    })
+  const { users, total, userRoles } = directory
+  const userPerms = globalPermissionOverrideRows(perms, directory.userPermissions, directory.overrides)
 
   const showingFrom = users.length > 0 ? from + 1 : 0
-  const showingTo = from + filteredUsers.length
+  const showingTo = users.length > 0 ? from + users.length : 0
   const hasPrev = page > 1
-  const hasNext =
-    total !== null ? to + 1 < total : users.length === perPage
+  const hasNext = from + users.length < total
 
   const prevHref = buildHref('/admin/rbac/assignments', resolvedSearchParams, {
     page: String(page - 1),
@@ -218,6 +128,7 @@ export default async function AssignmentsPage({
         <form className="grid gap-4 md:grid-cols-6">
           <input
             name="q"
+            maxLength={200}
             placeholder="Sök email eller namn"
             defaultValue={q}
             className="rounded bg-black p-2 border border-gray-700 md:col-span-2"
@@ -225,12 +136,12 @@ export default async function AssignmentsPage({
 
           <select
             name="role"
-            defaultValue={filterRole}
+            defaultValue={registered?.id ?? filterRole}
             className="rounded border border-gray-700 bg-black p-2"
           >
             <option value="">Alla roller</option>
             {roles.map((role) => (
-              <option key={role.id} value={role.name}>
+              <option key={role.id} value={role.id}>
                 {role.name}
               </option>
             ))}
@@ -238,12 +149,12 @@ export default async function AssignmentsPage({
 
           <select
             name="active"
-            defaultValue={filterActive}
+            defaultValue={filterActive === null ? '' : String(filterActive)}
             className="rounded border border-gray-700 bg-black p-2"
           >
             <option value="">Alla</option>
-            <option value="true">Aktiva</option>
-            <option value="false">Inaktiva</option>
+            <option value="true">Med aktiva globala roller</option>
+            <option value="false">Utan aktiva globala roller</option>
           </select>
 
           <select
@@ -296,7 +207,7 @@ export default async function AssignmentsPage({
             className="rounded border border-gray-700 bg-black p-2"
           >
             {roles.map((role) => (
-              <option key={role.id} value={role.name}>
+              <option key={role.id} value={role.key || role.name} disabled={role.is_active === false}>
                 {role.name}
               </option>
             ))}
@@ -358,7 +269,7 @@ export default async function AssignmentsPage({
       </div>
 
       <RBACUserTable
-        users={filteredUsers.map((user) => ({
+        users={users.map((user) => ({
           id: user.id,
           email: user.email,
           full_name: user.full_name,

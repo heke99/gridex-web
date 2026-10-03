@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
-import { syncFacilityData } from '@/lib/customerPortal/writeValidation'
+import { facilityUpdatePayload, syncFacilityData } from '@/lib/customerPortal/writeValidation'
+import { customerEventOccurredAt } from '@/lib/customerPortal/eventEvidence'
+import { verifyPortalOutboxEligibility } from '@/lib/customerPortal/outboxEligibility'
 import {
   isOpsError,
+  OpsError,
   markOpsCustomerNotificationsRead,
   sendOpsCustomerEvent,
   submitOpsCustomerMoveOut,
@@ -93,6 +96,11 @@ export async function enqueuePortalWrite(input: {
   identity: OpsPortalIdentity
   payload: Record<string, unknown>
 }): Promise<void> {
+  if (input.operationType === 'customer_event' && !customerEventOccurredAt(input.payload.occurred_at)) {
+    throw new OpsError('Kundhändelsen saknar ett giltigt händelsedatum.', 400, {
+      code: 'validation_error', field: 'occurred_at', retryable: false,
+    })
+  }
   const supabase = serviceClient()
   const row = {
     user_id: input.userId,
@@ -124,16 +132,44 @@ export async function enqueuePortalWrite(input: {
   if (!sameOperation) throw new PortalOutboxConflictError()
 }
 
+function requireAcceptedOutcome(result: unknown, operation: PortalOutboxOperation): void {
+  const receipt = recordPayload(result)
+  const synced = recordPayload(receipt?.synced)
+  const accepted = receipt?.ok === true && (
+    operation !== 'customer_portal_sync' || (
+      receipt.status === 'linked' && synced?.access_granted === true && synced.portal_role === 'owner'
+    )
+  )
+  if (accepted) return
+  throw new OpsError('Gridex har inte bekräftat den köade åtgärden; operationen kräver granskning.', 409, {
+    code: 'portal_outbox_business_outcome_rejected',
+    operation_type: operation,
+    operation_status: typeof receipt?.status === 'string' ? receipt.status : null,
+    request_id: typeof receipt?.requestId === 'string' ? receipt.requestId : null,
+    correlation_id: typeof receipt?.correlationId === 'string' ? receipt.correlationId : null,
+    retryable: false,
+  })
+}
+
 async function dispatch(row: OutboxRow): Promise<void> {
   const operationId = typeof row.payload.operation_id === 'string'
     ? row.payload.operation_id
     : row.idempotency_key
 
   if (row.operation_type === 'customer_event') {
+    const occurredAt = customerEventOccurredAt(row.payload.occurred_at)
+    // Historical attempts did not retain their wire timestamp. Guessing one
+    // would replay a different body under the original idempotency key.
+    if (!occurredAt) {
+      throw new OpsError('Kundhändelsens ursprungliga tidpunkt saknas; automatisk återkörning är blockerad.', 409, {
+        code: 'customer_event_replay_evidence_missing', field: 'occurred_at', retryable: false,
+      })
+    }
     const eventType = typeof row.payload.event_type === 'string' ? row.payload.event_type : ''
     await sendOpsCustomerEvent(row.identity, {
       event_type: eventType,
       source: 'gridex_website',
+      occurred_at: occurredAt,
       entity_type: typeof row.payload.entity_type === 'string' ? row.payload.entity_type : null,
       entity_id: typeof row.payload.entity_id === 'string' ? row.payload.entity_id : null,
       idempotency_key: operationId,
@@ -149,18 +185,26 @@ async function dispatch(row: OutboxRow): Promise<void> {
     const profile = row.payload.profile && typeof row.payload.profile === 'object' && !Array.isArray(row.payload.profile)
       ? (row.payload.profile as Record<string, unknown>)
       : null
-    if (!profile) throw new Error('Queued profile update has no valid profile payload.')
-    await submitOpsCustomerProfileUpdate({
+    const facilityData = facilityUpdatePayload(row.payload.facility_data)
+    if (row.payload.facility_data !== undefined && !facilityData) {
+      throw new OpsError('Anläggningens köade adressuppgifter är ogiltiga.', 400, {
+        code: 'validation_error', field: 'facility_data', retryable: false,
+      })
+    }
+    if (!profile && !facilityData) throw new Error('Queued profile update has no valid profile or facility payload.')
+    const result = await submitOpsCustomerProfileUpdate({
       identity: row.identity,
       idempotencyKey: operationId,
       profile,
+      facilityData,
       metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_profile_outbox' },
     })
+    requireAcceptedOutcome(result, row.operation_type)
     return
   }
 
   if (row.operation_type === 'customer_sync' || row.operation_type === 'facility_data_update') {
-    await submitOpsCustomerSync({
+    const result = await submitOpsCustomerSync({
       identity: row.identity,
       idempotencyKey: operationId,
       powerOfAttorney: recordPayload(row.payload.power_of_attorney),
@@ -170,11 +214,12 @@ async function dispatch(row: OutboxRow): Promise<void> {
       profile: recordPayload(row.payload.profile),
       metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_customer_sync_outbox' },
     })
+    requireAcceptedOutcome(result, row.operation_type)
     return
   }
 
   if (row.operation_type === 'customer_portal_sync') {
-    await submitOpsCustomerPortalSync({
+    const result = await submitOpsCustomerPortalSync({
       identity: row.identity,
       idempotencyKey: operationId,
       customerNumber: typeof row.payload.customer_number === 'string' ? row.payload.customer_number : null,
@@ -182,28 +227,31 @@ async function dispatch(row: OutboxRow): Promise<void> {
       email: typeof row.payload.email === 'string' ? row.payload.email : null,
       metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_customer_portal_sync_outbox' },
     })
+    requireAcceptedOutcome(result, row.operation_type)
     return
   }
 
   if (row.operation_type === 'move_out') {
     const moveOut = recordPayload(row.payload.move_out)
     if (!moveOut) throw new Error('Queued move-out has no valid payload.')
-    await submitOpsCustomerMoveOut({
+    const result = await submitOpsCustomerMoveOut({
       identity: row.identity,
       idempotencyKey: operationId,
       moveOut,
       metadata: recordPayload(row.payload.metadata) ?? { source: 'gridex_web_move_out_outbox' },
     })
+    requireAcceptedOutcome(result, row.operation_type)
     return
   }
 
   const ids = Array.isArray(row.payload.notification_ids)
     ? row.payload.notification_ids.map(String).filter(Boolean)
     : []
-  await markOpsCustomerNotificationsRead(row.identity, {
+  const result = await markOpsCustomerNotificationsRead(row.identity, {
     notificationIds: ids,
     operationId,
   })
+  requireAcceptedOutcome(result, row.operation_type)
 }
 
 function recordPayload(value: unknown): Record<string, unknown> | null {
@@ -247,10 +295,12 @@ export async function processPortalWriteOutbox(limit = 50) {
   let failed = 0
   for (const row of data ?? []) {
     const attempt = (row.attempt_count ?? 0) + 1
+    const claimedAt = new Date().toISOString()
     const claimed = await supabase
       .from('customer_portal_write_outbox')
-      .update({ status: 'processing', attempt_count: attempt, last_attempt_at: now, updated_at: now })
+      .update({ status: 'processing', attempt_count: attempt, last_attempt_at: claimedAt, updated_at: claimedAt })
       .eq('id', row.id)
+      .eq('attempt_count', row.attempt_count)
       .in('status', ['pending', 'failed'])
       .select('id')
       .maybeSingle()
@@ -258,6 +308,7 @@ export async function processPortalWriteOutbox(limit = 50) {
     if (!claimed.data) continue
 
     try {
+      await verifyPortalOutboxEligibility(supabase, row.user_id, row.identity)
       await dispatch({ ...row, attempt_count: attempt })
       const { data: completedRow, error: completeError } = await supabase
         .from('customer_portal_write_outbox')
@@ -270,6 +321,8 @@ export async function processPortalWriteOutbox(limit = 50) {
         })
         .eq('id', row.id)
         .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+        .eq('last_attempt_at', claimedAt)
         .select('id')
         .maybeSingle<{ id: string }>()
       if (completeError) throw new Error(completeError.message)
@@ -277,7 +330,7 @@ export async function processPortalWriteOutbox(limit = 50) {
       completed += 1
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)
-      const permanent = isOpsError(dispatchError) && dispatchError.status < 500 && dispatchError.status !== 408 && dispatchError.status !== 429
+      const permanent = isOpsError(dispatchError) && !dispatchError.retryable
       const maxAttempts = Math.max(1, row.max_attempts ?? 10)
       const deadLetter = permanent || attempt >= maxAttempts
       const failedAt = new Date().toISOString()
@@ -296,6 +349,8 @@ export async function processPortalWriteOutbox(limit = 50) {
         })
         .eq('id', row.id)
         .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+        .eq('last_attempt_at', claimedAt)
         .select('id')
         .maybeSingle<{ id: string }>()
       if (failureStateError) throw new Error(failureStateError.message)

@@ -4,6 +4,7 @@ import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
 import { customerResourceResponse } from '@/lib/customerPortal/resourceRoute'
 import { clientOperationId, object, text } from '@/lib/customerPortal/writeValidation'
+import { customerEventOccurredAt } from '@/lib/customerPortal/eventEvidence'
 import { privateJsonResponse, readWebJson, webErrorResponse } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
@@ -15,8 +16,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
     return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
   }
   const parsed = await readWebJson<Record<string, unknown>>(req)
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
   }
   const operationId = clientOperationId(body.client_operation_id)
   if (!operationId) return validationError('client_operation_id krävs.', 'client_operation_id')
+  const occurredAt = customerEventOccurredAt(body.occurred_at)
+  if (!occurredAt) return validationError('occurred_at måste ange händelsens tidpunkt.', 'occurred_at')
   const rawMetadata = object(body.metadata) ?? {}
   const metadata = Object.fromEntries(Object.entries(rawMetadata).slice(0, 50))
 
@@ -37,6 +40,7 @@ export async function POST(req: Request) {
     await sendOpsCustomerEvent(identity, {
       event_type: eventType,
       source: 'gridex_website',
+      occurred_at: occurredAt,
       entity_type: text(body.entity_type, 160),
       entity_id: text(body.entity_id, 240),
       idempotency_key: operationId,

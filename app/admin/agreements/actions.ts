@@ -1,21 +1,23 @@
 'use server'
 
 import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
-import { requireAdminServer } from '@/lib/auth/requireAdminServer'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
+import { revalidatePath } from 'next/cache'
 
 export async function finalizeAgreementAction(
   agreementId: string
 ): Promise<void> {
-  // 🔐 1. Session-bunden auth (RLS enforced)
-  await requireAdminServer()
+  // Legacy agreements are a global directory; the finalizer uses service_role.
+  const { userId } = await requireGlobalAdminActionAccess({ allOf: ['agreements.write'] })
 
   // 🔎 2. Enkel input-validering
   if (!agreementId || typeof agreementId !== 'string') {
     throw new Error('Invalid agreement id')
   }
 
-  // 🛡 3. Kör finalize (service role används internt endast för storage)
-  await finalizeAgreement(agreementId)
-
-  // (Valfritt) här kan vi lägga extra audit om du vill logga actor explicit
+  // Authorize before the privileged PDF and agreement mutation.
+  await finalizeAgreement(agreementId, userId)
+  revalidatePath(`/admin/agreements/${agreementId}`)
+  revalidatePath('/admin/agreements')
+  revalidatePath('/admin/customers')
 }

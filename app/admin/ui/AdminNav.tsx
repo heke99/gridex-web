@@ -3,30 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-type AccessRule = {
-  anyOf?: string[]
-  allOf?: string[]
-}
+import { canAccessByRule, type AccessRule } from '@/lib/admin/access'
 
 type NavItemConfig = {
   href: string
   label: string
   subtitle: string
   rule?: AccessRule
-}
-
-function canAccess(permissions: string[], rule?: AccessRule): boolean {
-  if (!rule) return true
-
-  if (rule.allOf && !rule.allOf.every((permission) => permissions.includes(permission))) {
-    return false
-  }
-
-  if (rule.anyOf && !rule.anyOf.some((permission) => permissions.includes(permission))) {
-    return false
-  }
-
-  return true
 }
 
 function isItemActive(pathname: string, href: string) {
@@ -88,13 +71,12 @@ export default function AdminNav({
       href: '/admin',
       label: 'Dashboard',
       subtitle: 'Översikt, KPI:er och status',
-      rule: { anyOf: ['admin.access', 'support_tickets.manage'] },
     },
     {
       href: '/admin/contracts',
       label: 'Avtal',
       subtitle: 'contract_products, publish, sortering',
-      rule: { anyOf: ['contracts.read', 'contracts.write', 'admin.access'] },
+      rule: { anyOf: ['contracts.read', 'contracts.write'] },
     },
     {
       href: '/admin/pricing',
@@ -106,7 +88,6 @@ export default function AdminNav({
           'pricing.write',
           'pricing.publish',
           'pricing.publish_prod',
-          'admin.access',
         ],
       },
     },
@@ -120,7 +101,6 @@ export default function AdminNav({
           'spot.write',
           'spot.publish',
           'pricing.write',
-          'admin.access',
         ],
       },
     },
@@ -134,7 +114,6 @@ export default function AdminNav({
           'spot.write',
           'spot.publish',
           'pricing.write',
-          'admin.access',
         ],
       },
     },
@@ -147,7 +126,6 @@ export default function AdminNav({
           'portfolio.read',
           'portfolio.write',
           'pricing.write',
-          'admin.access',
         ],
       },
     },
@@ -155,42 +133,42 @@ export default function AdminNav({
       href: '/admin/calculator',
       label: 'Kalkylator',
       subtitle: 'preview och validering',
-      rule: { anyOf: ['admin.access'] },
+      rule: { anyOf: ['pricing.read', 'pricing.write'] },
     },
     {
       href: '/admin/customer-spec',
       label: 'Kundspec-preview',
       subtitle: 'kontroll av kundens prisrad',
-      rule: { anyOf: ['admin.access'] },
+      rule: { anyOf: ['pricing.read', 'pricing.write'] },
     },
     {
       href: '/admin/rbac/roles',
       label: 'RBAC • Roller',
       subtitle: 'roller och role_permissions',
-      rule: { anyOf: ['rbac.write', 'admin.access'] },
+      rule: { anyOf: ['rbac.write'] },
     },
     {
       href: '/admin/rbac/permissions',
       label: 'RBAC • Permissions',
       subtitle: 'registry för access control',
-      rule: { anyOf: ['rbac.write', 'admin.access'] },
+      rule: { anyOf: ['rbac.write'] },
     },
     {
-      href: '/admin/support-tickets',
+      href: '/support-center/staff',
       label: 'Supportärenden',
       subtitle: 'tilldelning, status, svar',
-      rule: { anyOf: ['admin.access', 'support_tickets.manage'] },
+      rule: { allOf: ['support_tickets.read'] },
     },
     {
       href: '/admin/billing',
       label: 'Fakturering',
-      subtitle: 'betalningar, ekonomi och CIS-flöden',
-      rule: { anyOf: ['admin.access'] },
+      subtitle: 'betalningar och ekonomi',
+      rule: { anyOf: ['billing.read'] },
     },
   ]
 
   const visibleOperations = operationsItems.filter((item) =>
-    canAccess(permissions, item.rule)
+    canAccessByRule(permissions, item.rule)
   )
 
   return (

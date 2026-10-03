@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +28,7 @@ export default async function AgreementsPage({
 }: {
   searchParams?: Promise<{ q?: string }>
 }) {
-  const ctx = await requireAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write', 'admin.access'] })
+  const ctx = await requireGlobalAdminPageAccess({ anyOf: ['agreements.read', 'agreements.write'] })
   const supabase = ctx.supabase
   const resolvedSearchParams = (await searchParams) ?? {}
   const q = resolvedSearchParams.q?.trim() ?? ''
@@ -134,6 +134,7 @@ export default async function AgreementsPage({
 
           <a
             href="/api/admin/agreements/export"
+            download
             className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs hover:bg-white/10 transition"
           >
             Exportera CSV

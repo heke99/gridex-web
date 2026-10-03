@@ -3,7 +3,7 @@ import { requireAdminPageAccess } from '@/lib/admin/guards'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminBillingPage() {
-  await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  await requireAdminPageAccess({ anyOf: ['billing.read'] })
 
   return (
     <div className="space-y-8">

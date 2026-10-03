@@ -1,6 +1,7 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 // app/admin/pricing/page.tsx
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,13 +57,12 @@ function classifyVersion(
 }
 
 export default async function AdminPricingIndexPage() {
-  const ctx = await requireAdminPageAccess({
+  const ctx = await requireGlobalAdminPageAccess({
     anyOf: [
       'pricing.read',
       'pricing.write',
       'pricing.publish',
       'pricing.publish_prod',
-      'admin.access',
     ],
   })
 
@@ -146,6 +146,7 @@ export default async function AdminPricingIndexPage() {
 
   return (
     <div className="space-y-6">
+      <OpsSourceNotice />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Prishantering</h1>

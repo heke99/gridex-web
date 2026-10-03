@@ -43,12 +43,11 @@ export async function requireAdminRole(
     throw new Error(error.message)
   }
 
-  if (!data || data.is_active === false) {
+  if (!data || data.is_active === false || (data.role !== 'admin' && data.role !== 'editor')) {
     throw new Error('Forbidden')
   }
 
-  const role: AdminRole =
-    data.role === 'admin' || data.role === 'editor' ? data.role : 'editor'
+  const role: AdminRole = data.role
 
   return { user, role }
 }

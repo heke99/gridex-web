@@ -1,4 +1,6 @@
 import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { supabaseService } from '@/lib/supabase/service'
+import { getWebCompanyId } from '@/lib/auth/tenant'
 import { updateAccountEmail, updateAccountName, updateAccountPassword } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -8,20 +10,16 @@ type ProfileRow = {
   full_name: string | null
 }
 
-type RoleRow = {
-  role: string
-  is_active: boolean | null
-}
-
 type OverrideRow = {
-  permission_id: string
-  enabled: boolean | null
-  reason: string | null
-  created_at: string
+  permission_key: string
+  effect: string
+  valid_from: string | null
+  valid_to: string | null
+  is_active: boolean
 }
 
 export default async function AdminAccountPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminPageAccess()
   const supabase = ctx.supabase
 
   const { data: profile } = await supabase
@@ -30,24 +28,12 @@ export default async function AdminAccountPage() {
     .eq('id', ctx.userId)
     .maybeSingle<ProfileRow>()
 
-  const { data: roleRows } = await supabase
-    .from('user_roles')
-    .select('role, is_active')
-    .eq('user_id', ctx.userId)
-    .returns<RoleRow[]>()
-
-  const activeRoles =
-    (roleRows ?? [])
-      .filter((r) => r.is_active !== false)
-      .map((r) => String(r.role)) ?? []
-
-  const { data: overridesRaw } = await supabase
-    .from('user_permissions')
-    .select('permission_id, enabled, reason, created_at')
-    .eq('user_id', ctx.userId)
-    .returns<OverrideRow[]>()
-
-  const overrides = overridesRaw ?? []
+  const activeRoles = ctx.roles
+  const { data: overridesRaw, error: overridesError } = await supabaseService.rpc('gridex_get_user_permission_overrides', {
+    p_user_id: ctx.userId, p_company_id: getWebCompanyId(),
+  })
+  if (overridesError) throw new Error('Kunde inte läsa behörighetsundantag.')
+  const overrides = (overridesRaw ?? []) as OverrideRow[]
 
   return (
     <div className="space-y-10">
@@ -173,10 +159,10 @@ export default async function AdminAccountPage() {
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-gray-400 border-b border-gray-800">
               <tr>
-                <th className="p-4">permission_id</th>
-                <th className="p-4">enabled</th>
-                <th className="p-4">reason</th>
-                <th className="p-4">created_at</th>
+                <th className="p-4">behörighet</th>
+                <th className="p-4">effekt</th>
+                <th className="p-4">aktiv</th>
+                <th className="p-4">giltighet</th>
               </tr>
             </thead>
 
@@ -184,27 +170,23 @@ export default async function AdminAccountPage() {
               {overrides.length ? (
                 overrides.map((o) => (
                   <tr
-                    key={o.permission_id + o.created_at}
+                    key={o.permission_key + (o.valid_from ?? "")}
                     className="border-t border-gray-800"
                   >
                     <td className="p-4 font-mono text-gray-200">
-                      {o.permission_id}
+                      {o.permission_key}
                     </td>
 
                     <td className="p-4 text-gray-200">
-                      {o.enabled === null
-                        ? '—'
-                        : o.enabled
-                        ? 'true'
-                        : 'false'}
+                      {o.effect}
                     </td>
 
                     <td className="p-4 text-gray-300">
-                      {o.reason ?? '—'}
+                      {o.is_active ? 'Ja' : 'Nej'}
                     </td>
 
                     <td className="p-4 text-gray-400">
-                      {o.created_at}
+                      {o.valid_from ?? 'Från nu'} – {o.valid_to ?? 'Tills vidare'}
                     </td>
                   </tr>
                 ))

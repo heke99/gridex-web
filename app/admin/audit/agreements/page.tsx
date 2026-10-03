@@ -43,7 +43,7 @@ function acceptanceTypeOf(row: {
 }
 
 export default async function AgreementsAuditPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['compliance.read', 'admin.access'] })
+  const ctx = await requireAdminPageAccess({ anyOf: ['compliance.read'] })
   const supabase = ctx.supabase
 
   const { data, error } = await supabase

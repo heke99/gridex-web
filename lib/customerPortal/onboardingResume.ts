@@ -1,6 +1,7 @@
 import type { PortalOnboardingInput } from '@/lib/customerPortal/onboarding'
 import { resumePortalOnboardingForConfirmedUser } from '@/lib/customerPortal/onboarding'
 import { supabaseService } from '@/lib/supabase/service'
+import { stablePortalCustomerIdentityMatches } from '@/lib/customerPortal/stableIdentity'
 
 type PortalOnboardingJobCandidate = {
   id: string
@@ -28,25 +29,6 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function escapeIlikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`)
-}
-
-function stableProfileMatchesApplication(
-  profile: ExistingProfile | null,
-  input: PortalOnboardingInput,
-): boolean {
-  if (!profile) return false
-  const appExternal = input.application.external_customer_id?.trim() || null
-  const appCustomerNumber = input.application.customer_number?.trim() || null
-
-  return Boolean(
-    (appExternal && profile.external_customer_id === appExternal) ||
-      (appCustomerNumber &&
-        (profile.customer_number === appCustomerNumber ||
-          profile.contract_customer_ref === appCustomerNumber)),
-  )
-}
 
 export function portalOnboardingCandidateHasStableIdentity(
   job: Pick<PortalOnboardingJobCandidate, 'auth_user_id' | 'payload'>,
@@ -55,7 +37,7 @@ export function portalOnboardingCandidateHasStableIdentity(
 ): boolean {
   if (job.auth_user_id === userId) return true
   if (job.auth_user_id && job.auth_user_id !== userId) return false
-  return stableProfileMatchesApplication(profile, job.payload)
+  return Boolean(profile && stablePortalCustomerIdentityMatches(profile, job.payload.application))
 }
 
 async function markBlocked(jobId: string): Promise<void> {
@@ -129,9 +111,10 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
 
   const result = await resumePortalOnboardingForConfirmedUser({
     userId: input.userId,
-    // The legacy helper uses ILIKE. Escape wildcard characters so this remains
-    // an exact normalized-email lookup while the helper is retained.
-    email: escapeIlikePattern(email),
+    email,
+    // Freeze the validated set so a same-email job queued between discovery and
+    // resume cannot gain an authenticated UUID without identity checks.
+    jobIds: jobs.map((job) => job.id),
   })
 
   return { ...result, blocked: 0 }

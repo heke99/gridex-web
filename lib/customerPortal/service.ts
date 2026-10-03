@@ -1,5 +1,9 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchOpsCustomerSupportTickets, fetchOpsCustomerSupportMessages } from '@/lib/ops/client/support'
+import { createSupabaseServerClient, getSupabaseUser } from '@/lib/supabase/server'
+import { cache } from 'react'
+import { canonicalResourcePage, canonicalResourceRows, unwrapOpsData } from './resourceData'
+import { verifyCustomerAccountAccess } from './accountAccess'
 import {
   fetchOpsCustomerPortalBundle,
   fetchOpsCustomerResource,
@@ -19,6 +23,7 @@ import type {
   CustomerPortalOverview,
   CustomerPowerOfAttorney,
   CustomerProfile,
+  CustomerResourcePage,
   CustomerSite,
   CustomerStatus,
   CustomerSwitchStatus,
@@ -47,9 +52,10 @@ export class CustomerPortalAccessError extends Error {
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+    error,
+  } = await getSupabaseUser(supabase)
 
-  if (!user) {
+  if (error || !user) {
     throw new CustomerPortalAccessError()
   }
 
@@ -155,7 +161,7 @@ function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
 
 function requiredCanonicalReference(
   row: Record<string, unknown>,
-  field: 'contract_reference' | 'invoice_reference' | 'site_reference' | 'document_reference' | 'notification_reference',
+  field: 'contract_reference' | 'invoice_reference' | 'facility_reference' | 'document_reference' | 'notification_reference',
   code:
     | 'PORTAL_CONTRACT_REFERENCE_MISSING'
     | 'PORTAL_INVOICE_REFERENCE_MISSING'
@@ -205,9 +211,9 @@ function mapOpsProfile(
   const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
   const fullName =
-    pick(row, ['display_name']) ??
-    fallback?.full_name ??
-    computedFullName
+    pick(row, ['display_name', 'full_name']) ??
+    computedFullName ??
+    fallback?.full_name ?? null
 
   return {
     user_id: userId,
@@ -216,8 +222,8 @@ function mapOpsProfile(
     last_name: lastName,
     full_name: fullName,
     phone: pick(row, ['phone']) ?? fallback?.phone ?? null,
-    language_code: fallback?.language_code ?? 'sv',
-    timezone: fallback?.timezone ?? 'Europe/Stockholm',
+    language_code: pick(row, ['language_code']) ?? fallback?.language_code ?? 'sv',
+    timezone: pick(row, ['timezone']) ?? fallback?.timezone ?? 'Europe/Stockholm',
     email_verified_at: fallback?.email_verified_at ?? null,
     onboarding_state:
       pick(row, ['onboarding_state', 'onboarding_status', 'status']) ??
@@ -276,20 +282,23 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
   }
 }
 
-function mapOpsSite(row: Record<string, unknown>): CustomerSite {
-  const id = requiredCanonicalReference(row, 'site_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+function mapOpsSite(row: Record<string, unknown>, meteringPoints: Record<string, unknown>[] = []): CustomerSite {
+  const id = requiredCanonicalReference(row, 'facility_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+  const address = asRecord(row.address)
+  const meteringPoint = meteringPoints.find((point) => point.facility_reference === id)
   return {
     id,
     site_reference: id,
-    address: pick(row, ['address']),
-    postal_code: pick(row, ['postal_code']),
-    city: pick(row, ['city']),
+    facility_reference: id,
+    address: pick(address, ['street']),
+    postal_code: pick(address, ['postal_code']),
+    city: pick(address, ['city']),
     facility_id: pick(row, ['facility_id']),
-    metering_point_id: pick(row, ['metering_point_id']),
+    metering_point_id: meteringPoint ? pick(meteringPoint, ['metering_point_id']) : null,
     grid_area_code: pick(row, ['grid_area_code']),
     price_area: pick(row, ['price_area']),
     grid_owner_name: null,
-    verification_status: null,
+    verification_status: meteringPoint ? pick(meteringPoint, ['verification_status']) : null,
     onboarding_status: null,
     data_quality_status: null,
     resolution_status: null,
@@ -344,9 +353,17 @@ function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
     status: pick(row, ['status']),
     created_at: pickDate(row, ['created_at']),
     file_url: null,
-    download_url: pick(row, ['download_url']),
-    version: null,
+    download_url: safeDocumentUrl(row.secure_url),
+    version: pick(row, ['version']),
   }
+}
+
+function safeDocumentUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password ? value : null
+  } catch { return null }
 }
 
 function acceptanceTitle(type: string) {
@@ -375,8 +392,8 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
     id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
-    version: pick(row, ['version', 'legal_version', 'version_key']),
-    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    version: pick(row, ['document_version']),
+    accepted_at: pickDate(row, ['accepted_at']),
     source: pick(row, ['source', 'accepted_source']),
     status: pick(row, ['status']) ?? 'accepted',
   }
@@ -404,9 +421,9 @@ function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAtt
     id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id']),
     status: pick(row, ['status']) ?? 'active',
     scopes,
-    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    accepted_at: pickDate(row, ['accepted_at', 'signed_at']),
     revoked_at: pickDate(row, ['revoked_at']),
-    valid_until: pickDate(row, ['valid_until', 'expires_at']),
+    valid_until: pickDate(row, ['valid_to']),
     title: pick(row, ['title', 'name']) ?? poaScopeLabel(scopes),
     version: pick(row, ['version', 'legal_version', 'power_of_attorney_version']),
   }
@@ -466,16 +483,16 @@ function mapOpsNotification(row: Record<string, unknown>): CustomerNotification 
   return {
     id,
     notification_reference: id,
-    category: pick(row, ['category']) ?? 'portal',
+    category: pick(row, ['type']) ?? 'portal',
     title: pick(row, ['title']) ?? 'Meddelande från Gridex',
-    body: pick(row, ['body']) ?? '',
-    is_read: Boolean(row.is_read),
-    read_at: null,
+    body: pick(row, ['message']) ?? '',
+    is_read: Boolean(pickDate(row, ['read_at'])) || row.status === 'read',
+    read_at: pickDate(row, ['read_at']),
     created_at: pickDate(row, ['created_at']) ?? new Date().toISOString(),
     related_entity_type: null,
     related_entity_id: null,
     link_href: null,
-    priority: null,
+    priority: pick(row, ['severity']),
   }
 }
 
@@ -502,11 +519,12 @@ function deriveSwitchStatus(
 export async function getPortalSession() {
   const supabase = await createSupabaseServerClient()
   const user = await getUserOrThrow(supabase)
+  await verifyCustomerAccountAccess(user.id)
 
   return { supabase, user }
 }
 
-export async function getCustomerProfile(
+export const getCustomerProfile = cache(async function getCustomerProfile(
   supabase: SupabaseClient,
   userId: string,
   user?: User | null
@@ -556,55 +574,56 @@ export async function getCustomerProfile(
     external_customer_id: null,
     portal_identity_id: null,
   }, user)
-}
+})
 
 export async function getCustomerTickets(
   supabase: SupabaseClient,
   userId: string
 ): Promise<CustomerSupportTicket[]> {
-  const { data } = await supabase
-    .from('customer_support_tickets')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  return (data ?? []) as CustomerSupportTicket[]
+  const user = await getUserOrThrow(supabase)
+  if (user.id !== userId) throw new CustomerPortalAccessError()
+  const result = await fetchOpsCustomerSupportTickets(await getOpsPortalIdentityForUser(supabase, user))
+  return result.data.map((ticket) => ({
+    id: ticket.case_reference,
+    subject: ticket.title,
+    category: 'general',
+    priority: 'normal',
+    status: ticket.status === 'received' ? 'open' : ticket.status === 'in_progress' ? 'waiting_on_internal' : ticket.status,
+    description: ticket.description ?? '',
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    closed_at: ticket.resolved_at,
+  }))
 }
 
 export async function getTicketMessages(
   supabase: SupabaseClient,
   ticketId: string
 ): Promise<CustomerSupportMessage[]> {
-  const { data } = await supabase
-    .from('customer_support_messages')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true })
-
-  return (data ?? []) as CustomerSupportMessage[]
+  const user = await getUserOrThrow(supabase)
+  const result = await fetchOpsCustomerSupportMessages(await getOpsPortalIdentityForUser(supabase, user), ticketId)
+  return result.data.map((message) => ({
+    id: message.message_reference,
+    ticket_id: ticketId,
+    sender_user_id: null,
+    sender_type: message.author_type === 'customer' ? 'customer' : 'agent',
+    body: message.body,
+    attachments: [],
+    is_internal_note: false,
+    created_at: message.created_at,
+  }))
 }
 
 export async function getCustomerNotifications(
   supabase: SupabaseClient,
-  userId: string,
-  profile?: CustomerProfile | null
+  userId: string
 ): Promise<CustomerNotification[]> {
-  let query = supabase
+  const query = supabase
     .from('customer_notifications')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(20)
-
-  const customerNumber = profile?.customer_number ?? profile?.contract_customer_ref
-  const email = profile?.email
-  if (customerNumber || email) {
-    const filters = [`user_id.eq.${userId}`]
-    if (customerNumber) filters.push(`customer_number.eq.${customerNumber}`)
-    if (email) filters.push(`customer_email.eq.${email}`)
-    query = query.or(filters.join(','))
-  } else {
-    query = query.eq('user_id', userId)
-  }
 
   const { data } = await query
   return (data ?? []) as CustomerNotification[]
@@ -637,25 +656,12 @@ export async function getOpsPortalIdentityForUser(
   supabase: SupabaseClient,
   user: User
 ): Promise<OpsPortalIdentity> {
+  await verifyCustomerAccountAccess(user.id)
   const profile = await getCustomerProfile(supabase, user.id, user)
   return portalIdentityFromProfile(user, profile)
 }
 
-function unwrapOpsData(payload: unknown): unknown {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload
-  const row = payload as Record<string, unknown>
-  return Object.prototype.hasOwnProperty.call(row, 'data') ? row.data : payload
-}
-
-function canonicalResourceRows(value: unknown, key: string): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.map(asRecord).filter((row) => Object.keys(row).length > 0)
-  const row = asRecord(value)
-  const nested = row[key] ?? row.items
-  if (Array.isArray(nested)) return nested.map(asRecord).filter((item) => Object.keys(item).length > 0)
-  return Object.keys(row).length > 0 ? [row] : []
-}
-
-function normalizeCanonicalCustomerResource(
+export function normalizeCanonicalCustomerResource(
   resource: OpsCustomerReadResource,
   value: unknown,
   input: { localProfile: CustomerProfile | null; user: User; detail: boolean },
@@ -680,7 +686,7 @@ function normalizeCanonicalCustomerResource(
   const mapped = rows.map((row) => {
     switch (resource) {
       case 'contracts': return mapOpsContract(row)
-      case 'sites': return mapOpsSite(row)
+      case 'sites': return mapOpsSite(row, canonicalResourceRows(asRecord(value).metering_points, 'metering_points'))
       case 'invoices': return mapOpsInvoice(row)
       case 'documents': return mapOpsDocument(row)
       case 'legal-acceptances': return mapOpsLegalAcceptance(row)
@@ -701,6 +707,7 @@ export async function getCanonicalCustomerResource(
   authoritative: true
   read_only: false
   data_freshness: 'live'
+  page: CustomerResourcePage | null
 }> {
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
@@ -713,6 +720,9 @@ export async function getCanonicalCustomerResource(
   })
   return {
     data: canonicalData,
+    page: opaqueId || resource === 'me'
+      ? null
+      : canonicalResourcePage(payload, resource.replace(/-/g, '_'), Array.isArray(canonicalData) ? canonicalData.length : 0),
     authoritative: true,
     read_only: false,
     data_freshness: 'live',
@@ -724,10 +734,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, localProfile)
 
-  const [tickets, bundle] = await Promise.all([
-    getCustomerTickets(supabase, user.id),
-    fetchOpsCustomerPortalBundle(identity),
-  ])
+  // Support has its own lazy, paginated page; the overview does not display cases.
+  const bundle = await fetchOpsCustomerPortalBundle(identity)
 
   if (!bundle.profile) {
     throw new Error('OPS portal-bundle saknar den auktoritativa kundprofilen.')
@@ -735,7 +743,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
 
   const profile = mapOpsProfile(bundle.profile, localProfile, user.id, user.email ?? null)
   const contracts = bundle.contracts.map(mapOpsContract)
-  const sites = bundle.sites.map(mapOpsSite)
+  const sites = bundle.sites.map((row) => mapOpsSite(row, bundle.meteringPoints))
   const invoices = bundle.invoices.map(mapOpsInvoice)
   const documents = bundle.documents.map(mapOpsDocument)
   const legalAcceptances = bundle.legalAcceptances.map(mapOpsLegalAcceptance)
@@ -770,14 +778,17 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     switchStatus,
     meteringValues: bundle.meteringValues.map(mapOpsMeteringValue),
     events: bundle.events.map(mapOpsEvent),
-    tickets,
+    tickets: [],
     notifications: bundle.notifications.map(mapOpsNotification),
     opsAvailable: true,
     opsError: null,
     authoritative: true,
     readOnly: false,
     dataFreshness: 'live',
-    dataFreshnessMessage: null,
+    dataFreshnessMessage: bundle.unavailableSections.length
+      ? 'Vissa kunduppgifter kunde inte hämtas just nu. Öppna respektive sida eller försök igen senare.'
+      : null,
+    unavailableSections: bundle.unavailableSections,
   }
 }
 
@@ -792,18 +803,12 @@ export async function markCustomerNotificationsRead(input: {
   if (ids.length === 0) throw new Error('Minst en notis måste anges.')
   const operationId = input.operationId?.trim()
   if (!operationId) throw new Error('client_operation_id krävs för skrivoperationer.')
-  const readAt = new Date().toISOString()
   await markOpsCustomerNotificationsRead(identity, {
     notificationIds: ids,
     operationId,
   })
 
-  let localQuery = supabase
-    .from('customer_notifications')
-    .update({ is_read: true, read_at: readAt })
-    .eq('user_id', user.id)
-  localQuery = localQuery.in('id', ids)
-  const { error: localError } = await localQuery
-
-  return { ok: true, opsSynced: true, localSynced: !localError, queued: false }
+  // Canonical notification references are opaque OPS identities. Local webhook
+  // notifications have independent UUIDs and cannot be updated by these ids.
+  return { ok: true, opsSynced: true, localSynced: false, queued: false }
 }

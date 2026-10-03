@@ -85,6 +85,11 @@ export function profilePayload(value: unknown): Record<string, unknown> | null {
     ['language_code', 12],
     ['timezone', 80],
   ])
+  // CustomerProfile accepts strings; an explicit clear is represented by an
+  // empty string rather than a JSON null that violates the OPS contract.
+  for (const [key, value] of Object.entries(result)) {
+    if (value === null) result[key] = ''
+  }
   if (
     typeof result.invoice_email === 'string' &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.invoice_email)
@@ -108,6 +113,25 @@ function canonicalAddress(value: unknown): Record<string, unknown> | null {
   const legacyCountry = limitedString(source.country_code, 2)
   if (!result.country && legacyCountry) result.country = legacyCountry
   return Object.keys(result).length ? result : null
+}
+
+export function facilityUpdatePayload(value: unknown): Record<string, unknown> | null {
+  const source = object(value)
+  if (!source || Object.keys(source).some((key) => !['facility_reference', 'address', 'external_request_id'].includes(key))) return null
+  const facilityReference = text(source.facility_reference, 200)
+  const addressSource = object(source.address)
+  const fields: Array<[string, number]> = [
+    ['street', 180], ['postal_code', 20], ['city', 120], ['country', 80],
+    ['care_of', 120], ['apartment_number', 40],
+  ]
+  if (!facilityReference || !addressSource || Object.keys(addressSource).some((key) => !fields.some(([field]) => field === key))) return null
+  if (Object.values(addressSource).some((value) => typeof value !== 'string' && value !== null)) return null
+  if (source.external_request_id !== undefined && typeof source.external_request_id !== 'string') return null
+  const address = allowedStrings(addressSource, fields)
+  if (!Object.keys(address).length) return null
+  for (const [key, value] of Object.entries(address)) if (value === null) address[key] = ''
+  const externalRequestId = text(source.external_request_id, 200)
+  return { facility_reference: facilityReference, address, ...(externalRequestId ? { external_request_id: externalRequestId } : {}) }
 }
 
 export function moveOutPayload(value: unknown): Record<string, unknown> | null {
@@ -165,14 +189,24 @@ export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | n
     .slice(0, 20)
 
   if (!documentReference || !acceptedAt || scope.length === 0) return null
+  if (!scope.includes('supplier_switch') || scope.some((item) => !['supplier_switch', 'facility_information_lookup'].includes(item))) {
+    return null
+  }
   if (source.accepted === false) return null
 
   const result: Record<string, unknown> = {
     document_reference: documentReference,
-    scope,
+    scope: [...new Set(scope)],
     accepted: true,
     accepted_at: acceptedAt,
   }
+  Object.assign(result, allowedStrings(source, [
+    ['signer_name', 240],
+    ['signer_identity_number', 40],
+    ['method', 80],
+    ['ip_address', 80],
+    ['user_agent', 1000],
+  ]))
   const reference = text(source.power_of_attorney_reference ?? source.reference, 200)
   if (reference) result.power_of_attorney_reference = reference
   const validFrom = validCalendarDate(source.valid_from)

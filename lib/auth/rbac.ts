@@ -10,24 +10,15 @@ export type AdminUserRow = {
 }
 
 async function readAdminUserRow(supabase: SupabaseClient, userId: string) {
-  // Tolerant läsning: vissa projekt har is_active, andra inte.
-  // Vi försöker med is_active först, faller tillbaka annars.
   const withActive = await supabase
     .from('admin_users')
     .select('user_id, role, is_active')
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (!withActive.error) return withActive.data as AdminUserRow | null
-
-  const basic = await supabase
-    .from('admin_users')
-    .select('user_id, role')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (basic.error) return null
-  return basic.data as AdminUserRow | null
+  // A failed status check must not be retried without the status column.
+  if (withActive.error) return null
+  return withActive.data as AdminUserRow | null
 }
 
 export async function requireUser(supabase: SupabaseClient) {

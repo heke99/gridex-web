@@ -64,12 +64,18 @@ export async function POST(request: Request) {
   }
 
   const eventId = header(request.headers, ['x-gridex-event-id', 'x-event-id'])
-  const eventType = header(request.headers, ['x-gridex-event-type', 'x-event-type'])
+  const eventTypeHeader = header(request.headers, ['x-gridex-event-type', 'x-event-type'])
+  // The published callback contract signs event_type in the body; its extra
+  // legacy header is optional, and must agree whenever a sender supplies it.
+  const eventType = event.event_type
   const deliveryId = header(request.headers, ['x-gridex-delivery-id', 'x-delivery-id'])
-  if (!eventId || !eventType || !deliveryId) {
+  if (!eventId || !deliveryId) {
     return error('missing_webhook_identity', 'Signed webhook identity headers are required.', 400)
   }
-  if (event.event_id !== eventId || event.event_type !== eventType) {
+  if (event.event_id !== eventId ||
+    (eventTypeHeader && eventTypeHeader !== eventType) ||
+    (!eventTypeHeader && (request.headers.has('x-gridex-event-type') || request.headers.has('x-event-type')))
+  ) {
     return error('webhook_identity_mismatch', 'Signed webhook identifiers do not match the body.', 400)
   }
   if (event.delivery_id && event.delivery_id !== deliveryId) {

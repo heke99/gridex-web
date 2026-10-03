@@ -47,6 +47,8 @@ import { annualToMonthlyKwh } from '@/lib/website/consumptionEstimator'
 import type { components as WebsiteApiComponents } from '@/lib/ops/generated/website-api';
 import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
+import { createOpsCustomerAssertion } from '@/lib/ops/customerAssertion'
+import { customerEventOccurredAt } from '@/lib/customerPortal/eventEvidence'
 import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
 import {
   CONTRACT_PARSER_VERSION,
@@ -95,7 +97,8 @@ export type OpsCustomerSyncResult = {
 export type OpsCustomerProfileUpdateInput = {
   identity: OpsPortalIdentity;
   idempotencyKey?: string | null;
-  profile: Record<string, unknown>;
+  profile?: Record<string, unknown> | null;
+  facilityData?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
 };
 
@@ -122,6 +125,7 @@ export type OpsCustomerEventType =
   | "customer.downloaded_document";
 
 export type OpsCustomerEventResult = {
+  eventResourceReference: string | null;
   eventId: string | null;
   customerEventId: string | null;
   eventReference: string;
@@ -146,8 +150,10 @@ export type OpsPortalBundle = {
   profile: Record<string, unknown> | null;
   customerStatus: Record<string, unknown> | null;
   dataQuality: Record<string, unknown> | null;
+  unavailableSections: string[];
   contracts: Record<string, unknown>[];
   sites: Record<string, unknown>[];
+  meteringPoints: Record<string, unknown>[];
   invoices: Record<string, unknown>[];
   documents: Record<string, unknown>[];
   legalAcceptances: Record<string, unknown>[];
@@ -193,6 +199,13 @@ export function portalHeaders(identity: OpsPortalIdentity): Headers {
   return headers;
 }
 
+export async function verifiedPortalHeaders(identity: OpsPortalIdentity): Promise<Headers> {
+  const headers = portalHeaders(identity)
+  const assertion = createOpsCustomerAssertion(identity.userId)
+  if (assertion) headers.set('x-gridex-customer-assertion', assertion)
+  return headers
+}
+
 export function portalIdentityPayload(identity: OpsPortalIdentity): Record<string, string> {
   const email = normalizeText(identity.email)?.toLowerCase() ?? null;
   const customerNumber = normalizeText(identity.customerNumber);
@@ -217,7 +230,15 @@ export async function opsCustomerFetch(
   init?: RequestInit,
 ): Promise<unknown> {
   const headers = new Headers(init?.headers)
-  portalHeaders(identity).forEach((value, key) => headers.set(key, value))
+  // All identity and login evidence is derived here. Never forward a caller's
+  // customer assertion, including when this tenant has no assertion key.
+  for (const name of [
+    'x-gridex-customer-assertion', 'x-gridex-customer-portal-user-id',
+    'x-gridex-auth-user-id', 'x-gridex-external-customer-id',
+    'x-gridex-customer-number', 'x-gridex-customer-email',
+  ]) headers.delete(name)
+  const verifiedHeaders = await verifiedPortalHeaders(identity)
+  verifiedHeaders.forEach((value, key) => headers.set(key, value))
   const requestInit = { ...init, headers }
   const method = (requestInit.method ?? 'GET').toLowerCase() as
     | 'get' | 'post' | 'put' | 'patch' | 'delete' | 'head' | 'options'
@@ -230,7 +251,9 @@ export async function opsCustomerFetch(
     })
   }
   assertCustomerPortalOperationRequest(path, method, jsonRequestBody(requestInit), headers)
-  const response = await opsRequest(path, requestInit)
+  const response = await opsRequest(path, requestInit, {
+    headersForAttempt: async (attempt) => attempt === 1 ? verifiedHeaders : verifiedPortalHeaders(identity),
+  })
   observeRuntimeSchemaValidation({
     endpoint: path.split('?', 1)[0],
     schema: 'customer-portal-operation-response',
@@ -320,8 +343,13 @@ export function normalizePortalBundle(payload: unknown): OpsPortalBundle {
       recordValue(data.customer_status),
     dataQuality:
       recordValue(data.data_quality),
+    unavailableSections: (() => {
+      const sections = recordValue(data.bundle_status)?.unavailable_sections;
+      return Array.isArray(sections) ? sections.filter((item): item is string => typeof item === 'string') : [];
+    })(),
     contracts: nestedArray(data, ["contracts"]),
     sites: nestedArray(data, ["sites"]),
+    meteringPoints: nestedArray(data, ["metering_points"]),
     invoices: nestedArray(data, ["invoices"]),
     documents: nestedArray(data, ["documents"]),
     legalAcceptances: nestedArray(data, ["legal_acceptances"]),
@@ -344,8 +372,7 @@ export async function fetchOpsCustomerPortalBundle(
 ): Promise<OpsPortalBundle> {
   return normalizePortalBundle(
     await opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {
-      method: "POST",
-      body: JSON.stringify(portalIdentityPayload(identity)),
+      method: "GET",
     }),
   );
 }
@@ -353,7 +380,14 @@ export async function fetchOpsCustomerPortalBundle(
 export async function markOpsCustomerNotificationsRead(
   identity: OpsPortalIdentity,
   input: { notificationIds: string[]; operationId: string },
-): Promise<void> {
+): Promise<{
+  ok: true;
+  updatedCount: number;
+  notificationReferences: string[];
+  readAt: string;
+  requestId: string | null;
+  correlationId: string | null;
+}> {
   const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))];
   if (ids.length === 0) {
     throw new OpsError("Minst en notis måste anges.", 400, {
@@ -367,11 +401,33 @@ export async function markOpsCustomerNotificationsRead(
     `notification-read:${identity.userId}:${input.operationId}`,
   );
 
-  await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
+  const payload = await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
     method: "POST",
     headers,
-    body: JSON.stringify({ notification_ids: ids }),
+    body: JSON.stringify({ notification_references: ids }),
   });
+  const root = responseObject(payload);
+  const data = recordValue(root.data);
+  const references = Array.isArray(data?.notification_references)
+    ? data.notification_references.filter((value): value is string => typeof value === 'string')
+    : [];
+  const updatedCount = data?.updated_count;
+  const readAt = normalizeText(data?.read_at);
+  if (!Number.isInteger(updatedCount) || Number(updatedCount) < 0 || Number(updatedCount) > ids.length || !readAt ||
+    references.length !== ids.length || new Set(references).size !== ids.length || references.some((reference) => !ids.includes(reference))) {
+    throw new OpsError('OPS kvitto matchar inte de notiser som markerades som lästa.', 502, {
+      code: 'ops_notification_read_receipt_invalid', field: 'notification_references',
+      request_id: normalizeText(root.request_id), correlation_id: normalizeText(root.correlation_id), retryable: false,
+    });
+  }
+  return {
+    ok: true,
+    updatedCount: Number(updatedCount),
+    notificationReferences: references,
+    readAt,
+    requestId: normalizeText(root.request_id),
+    correlationId: normalizeText(root.correlation_id),
+  };
 }
 
 export function normalizeWarnings(row: Record<string, unknown>): string[] {
@@ -380,8 +436,9 @@ export function normalizeWarnings(row: Record<string, unknown>): string[] {
 }
 
 export function responseObject(payload: unknown): Record<string, unknown> {
-  const row = extractObject(payload);
-  return row && typeof row === "object" ? row : {};
+  // Write mappers consume data and request metadata from the same envelope.
+  // extractObject unwraps data and would discard both the result and its trace.
+  return recordValue(payload) ?? {};
 }
 
 export async function submitOpsCustomerSync(
@@ -471,7 +528,7 @@ export async function submitOpsCustomerPortalSync(
   const data = recordValue(row.data);
   const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: status === 'linked' || (status === 'pending_review' && data?.access_granted === true),
+    ok: status === 'linked' && data?.access_granted === true,
     status,
     synced: data,
     warnings: data ? normalizeWarnings(data) : [],
@@ -498,7 +555,10 @@ export function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult
   const data = recordValue(row.data);
   const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: Boolean(data),
+    // A completion object is not itself a successful business outcome. Profile
+    // updates may be accepted/applied or submitted for review; rejected and
+    // unknown future statuses must never be displayed as completed writes.
+    ok: status === 'accepted' || status === 'submitted',
     status,
     data,
     warnings: data ? normalizeWarnings(data) : [],
@@ -514,8 +574,8 @@ export async function submitOpsCustomerProfileUpdate(
 ): Promise<OpsCustomerWriteResult> {
   const headers = portalHeaders(input.identity);
   const body = {
-    ...portalIdentityPayload(input.identity),
-    profile: input.profile,
+    ...(input.profile ? { profile: input.profile } : {}),
+    ...(input.facilityData ? { facility_data: input.facilityData } : {}),
     metadata: input.metadata ?? {},
   };
 
@@ -588,22 +648,22 @@ export function createCustomerEventIdempotencyKey(
   identity: OpsPortalIdentity,
   event: {
     event_type: string;
+    occurred_at: string;
     entity_type?: string | null;
     entity_id?: string | null;
     metadata?: Record<string, unknown>;
   },
 ): string {
-  const bucket = Math.floor(Date.now() / 60_000);
   return canonicalSha256({
     scope: 'customer_event',
     user: identity.userId,
     customer_number: identity.customerNumber ?? null,
     external_customer_id: stableExternalCustomerId(identity),
     event_type: event.event_type,
+    occurred_at: event.occurred_at,
     entity_type: event.entity_type ?? null,
     entity_id: event.entity_id ?? null,
     metadata: event.metadata ?? {},
-    bucket,
   });
 }
 
@@ -612,6 +672,7 @@ export async function sendOpsCustomerEvent(
   event: {
     event_type: string;
     source: "gridex_website";
+    occurred_at: string;
     entity_type?: string | null;
     entity_id?: string | null;
     idempotency_key?: string | null;
@@ -624,7 +685,14 @@ export async function sendOpsCustomerEvent(
     });
   }
 
-  const headers = portalHeaders(identity);
+  const occurredAt = customerEventOccurredAt(event.occurred_at)
+  if (!occurredAt) {
+    throw new OpsError('Kundhändelsen saknar ett giltigt händelsedatum.', 400, {
+      code: 'validation_error', field: 'occurred_at', retryable: false,
+    })
+  }
+
+  const headers = await verifiedPortalHeaders(identity);
   const operationId =
     normalizeText(event.idempotency_key) ??
     createCustomerEventIdempotencyKey(identity, event);
@@ -639,7 +707,7 @@ export async function sendOpsCustomerEvent(
     body: JSON.stringify({
       event_type: event.event_type,
       event_reference: operationId,
-      occurred_at: new Date().toISOString(),
+      occurred_at: occurredAt,
       customer: {
         ...portalIdentityPayload(identity),
         customer_portal_user_id: identity.userId,
@@ -683,8 +751,9 @@ export async function sendOpsCustomerEvent(
     })
   }
   return {
-    eventId: normalizeText(data.event_id),
-    customerEventId: normalizeText(data.customer_event_id),
+    eventResourceReference: normalizeText(data.event_resource_reference),
+    eventId: normalizeText(data.event_resource_reference),
+    customerEventId: null,
     eventReference,
     eventType,
     customerReference: normalizeText(data.customer_reference),

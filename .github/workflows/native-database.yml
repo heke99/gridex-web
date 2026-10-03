@@ -1,0 +1,57 @@
+name: Gridex Web native database gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'remediation/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-database:
+    name: Native database PostgreSQL ${{ matrix.postgres }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - postgres: '16.15'
+            image: postgres:16.15-bookworm@sha256:efedf3595f1d6f415c08568ba171029bf54052e754cc9f030e3f2412b21f3d67
+          # Match gridex-prod's major/minor as well as the PostgreSQL 16 baseline.
+          - postgres: '17.6'
+            image: postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    services:
+      postgres:
+        image: ${{ matrix.image }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: native-ci-fixture-only
+          POSTGRES_DB: gridex_pricing_security_20261002
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      GRIDEX_NATIVE_DATABASE_TEST: '1'
+      GRIDEX_NATIVE_POSTGRES_VERSION: ${{ matrix.postgres }}
+      PGHOST: 127.0.0.1
+      PGPORT: '55432'
+      PGUSER: postgres
+      PGPASSWORD: native-ci-fixture-only
+      PGDATABASE: gridex_pricing_security_20261002
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Replay migrations and prove native database behavior
+        run: python3 -B scripts/run-native-database-tests.py

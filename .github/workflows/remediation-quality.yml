@@ -44,3 +44,5 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Built staff host and native-action boundary
+        run: npm run test:staff:http

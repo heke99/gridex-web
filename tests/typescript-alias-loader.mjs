@@ -27,8 +27,8 @@ export async function resolve(specifier, context, nextResolve) {
   // Next's package subpath is resolved by the framework/bundler in production,
   // while direct Node ESM execution used by the launch tests requires the
   // concrete .js entrypoint.
-  if (specifier === 'next/server') {
-    return nextResolve('next/server.js', context)
+  if (['next/server', 'next/headers', 'next/navigation'].includes(specifier)) {
+    return nextResolve(`${specifier}.js`, context)
   }
 
   return nextResolve(specifier, context)

@@ -1,13 +1,15 @@
 import { markCustomerNotificationsRead } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
-import { privateJsonResponse } from '@/lib/api/webBoundary'
+import { privateJsonResponse, readWebJson } from '@/lib/api/webBoundary'
 import { clientOperationId, object } from '@/lib/customerPortal/writeValidation'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
-  const body = object(await request.json().catch(() => null))
+  const parsed = await readWebJson<unknown>(request)
+  if (!parsed.ok) return parsed.response
+  const body = object(parsed.value)
   if (!body) return validationError('Ogiltig request-body.')
   if (!Array.isArray(body.notification_ids)) {
     return validationError('Ange notification_ids.', 'notification_ids')

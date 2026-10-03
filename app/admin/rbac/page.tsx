@@ -1,17 +1,18 @@
+import { supabaseService } from '@/lib/supabase/service'
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
 
 export default async function RbacOverviewPage() {
-  const ctx = await requireAdminPageAccess({
-    anyOf: ['rbac.read', 'rbac.write', 'admin.access'],
+  const ctx = await requireGlobalAdminPageAccess({
+    anyOf: ['rbac.read', 'rbac.write'],
   })
 
-  const supabase = ctx.supabase
+  const supabase = supabaseService
 
   const { data: perms, error } = await supabase.rpc('gridex_get_user_permissions', {
-    p_user_id: ctx.userId,
+    p_user_id: ctx.userId, p_company_id: null,
   })
 
   if (error) {

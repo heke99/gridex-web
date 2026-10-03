@@ -1,4 +1,6 @@
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import CustomerHistoryNotice from '@/components/customer/CustomerHistoryNotice'
+import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import type { CustomerPortalContract, CustomerPortalEvent, CustomerSite } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 // Import status helper to translate raw status codes
 import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
@@ -25,8 +27,14 @@ function statusLabel(status: string | null | undefined) {
 }
 
 export default async function DashboardContractsPage() {
-  const overview = await getCustomerPortalOverview()
-  const { contracts, sites, events } = overview
+  const [contractResource, siteResource, eventResource] = await Promise.all([
+    getCanonicalCustomerResource('contracts'),
+    getCanonicalCustomerResource('sites'),
+    getCanonicalCustomerResource('events'),
+  ])
+  const contracts = contractResource.data as CustomerPortalContract[]
+  const sites = siteResource.data as CustomerSite[]
+  const events = eventResource.data as CustomerPortalEvent[]
 
   return (
     <div className="space-y-6">
@@ -37,11 +45,7 @@ export default async function DashboardContractsPage() {
         </p>
       </div>
 
-      {!overview.opsAvailable ? (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-          Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
-        </div>
-      ) : null}
+      <CustomerHistoryNotice page={contractResource.page} label="avtalen" />
 
       <div className="space-y-4">
         {contracts.map((contract) => (
@@ -83,6 +87,7 @@ export default async function DashboardContractsPage() {
         </p>
 
         <div className="mt-4 space-y-3">
+          <CustomerHistoryNotice page={siteResource.page} label="anläggningarna" />
           {sites.map((site) => (
             <div key={site.id} className="rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -118,6 +123,7 @@ export default async function DashboardContractsPage() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-lg font-semibold">Senaste händelser</h2>
           <div className="mt-4 space-y-3">
+            <CustomerHistoryNotice page={eventResource.page} label="händelserna" displayedCount={Math.min(events.length, 8)} />
             {events.slice(0, 8).map((event) => (
               <div key={event.id} className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm">
                 <div className="text-white/85">{event.title || event.summary || statusLabel(event.event_type)}</div>

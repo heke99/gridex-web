@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
+import { AccessDeniedError } from '@/lib/admin/access'
 import { logPermissionAudit } from '@/lib/auth/audit'
 import type { ContractAgreement } from '@/lib/types/contracts'
 
@@ -39,8 +40,8 @@ function csvResponse(rows: ContractAgreement[]): NextResponse {
 
 export async function GET() {
   try {
-    const ctx = await requireAdminActionAccess({
-      anyOf: ['agreements.export', 'agreements.read', 'admin.access'],
+    const ctx = await requireGlobalAdminActionAccess({
+      allOf: ['agreements.export'],
     })
 
     const { data, error } = await ctx.supabase
@@ -67,7 +68,10 @@ export async function GET() {
 
     return csvResponse((data ?? []) as ContractAgreement[])
   } catch (error) {
+    if (error instanceof AccessDeniedError) {
+      return NextResponse.json({ error: 'Behörighet saknas.' }, { status: error.status })
+    }
     console.error('[admin.agreements.export] denied', error)
-    return NextResponse.json({ error: 'Behörighet saknas.' }, { status: 403 })
+    return NextResponse.json({ error: 'Kunde inte verifiera behörighet.' }, { status: 503 })
   }
 }

@@ -2,7 +2,7 @@ import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { submitOpsCustomerSync } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
-import { privateJsonResponse, webErrorResponse } from '@/lib/api/webBoundary'
+import { privateJsonResponse, readWebJson, webErrorResponse } from '@/lib/api/webBoundary'
 import {
   clientOperationId,
   object,
@@ -18,10 +18,12 @@ export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return webErrorResponse({ code: 'unauthorized', message: 'Du behöver logga in.', retryable: false }, 401)
 
-  const body = object(await req.json().catch(() => null))
+  const parsed = await readWebJson<unknown>(req)
+  if (!parsed.ok) return parsed.response
+  const body = object(parsed.value)
   if (!body) return validationError('Ogiltig request-body.')
   const powerOfAttorney = syncPowerOfAttorney(body.power_of_attorney)
   const legalAcceptances = syncLegalAcceptances(body.legal_acceptances)

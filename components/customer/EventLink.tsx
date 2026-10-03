@@ -23,6 +23,7 @@ export default function EventLink({
       entity_type: entityType ?? null,
       entity_id: entityId ?? null,
       client_operation_id: `customer-event:${crypto.randomUUID()}`,
+      occurred_at: new Date().toISOString(),
     })
 
     if (navigator.sendBeacon) {

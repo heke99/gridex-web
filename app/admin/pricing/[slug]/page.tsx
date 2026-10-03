@@ -1,6 +1,8 @@
+import OpsSourceNotice from '@/app/admin/ui/OpsSourceNotice'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
+import { canAccessByRule, pricingPublishRule } from '@/lib/admin/access'
 import { computeCustomerSpec, type PriceArea } from '@/lib/gridex/previewEngine'
 import { stockholmCalendarDate } from '@/lib/website/businessDate'
 import { unpublishPricingForContract } from '../actions'
@@ -105,34 +107,22 @@ export default async function AdminPricingContractPage({
   const { slug } = await params
   const sp = searchParams ? await searchParams : undefined
 
-  const ctx = await requireAdminPageAccess({
+  const ctx = await requireGlobalAdminPageAccess({
     anyOf: [
       'pricing.read',
       'pricing.write',
       'pricing.publish',
       'pricing.publish_prod',
-      'admin.access',
     ],
   })
 
   const supabase = ctx.supabase
   const nowIso = new Date().toISOString()
 
-  const isAdmin =
-    ctx.isAdmin ||
-    ctx.roles.includes('admin') ||
-    ctx.permissions.includes('admin.access')
-
-  const canWrite =
-    isAdmin ||
-    ctx.permissions.includes('pricing.write') ||
-    ctx.permissions.includes('pricing.publish') ||
-    ctx.permissions.includes('pricing.publish_prod')
-
-  const canPublish =
-    isAdmin ||
-    ctx.permissions.includes('pricing.publish') ||
-    ctx.permissions.includes('pricing.publish_prod')
+  const canWrite = ctx.permissions.includes('pricing.write')
+  const canPublish = canAccessByRule(ctx, pricingPublishRule(
+    process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production',
+  ))
 
   const { data: contract, error: contractError } = await supabase
     .from('contract_products')
@@ -183,6 +173,8 @@ export default async function AdminPricingContractPage({
 
   const selectedVersion =
     versions.find((version) => version.id === previewVersionId) ?? null
+  const canWriteDraft = canWrite && Boolean(selectedVersion) &&
+    !selectedVersion?.is_published && (!selectedVersion?.status || selectedVersion.status === 'draft')
 
   const previewSpec = previewVersionId
     ? await computeCustomerSpec({
@@ -249,6 +241,7 @@ export default async function AdminPricingContractPage({
 
   return (
     <div className="space-y-8">
+      <OpsSourceNotice />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="text-xs text-gray-500">Prishantering</div>
@@ -684,7 +677,7 @@ export default async function AdminPricingContractPage({
                         name={`${area}_markup_ore`}
                         defaultValue={defaultVal(area, 'markup_ore')}
                         className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                        disabled={!canWrite}
+                        disabled={!canWriteDraft}
                       />
                     </div>
                   ) : (
@@ -696,7 +689,7 @@ export default async function AdminPricingContractPage({
                         name={`${area}_price_per_kwh_ore`}
                         defaultValue={defaultVal(area, 'price_per_kwh_ore')}
                         className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                        disabled={!canWrite}
+                        disabled={!canWriteDraft}
                       />
                     </div>
                   )}
@@ -709,7 +702,7 @@ export default async function AdminPricingContractPage({
                       name={`${area}_variable_fee_ore`}
                       defaultValue={defaultVal(area, 'variable_fee_ore')}
                       className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                      disabled={!canWrite}
+                      disabled={!canWriteDraft}
                     />
                   </div>
 
@@ -721,7 +714,7 @@ export default async function AdminPricingContractPage({
                       name={`${area}_elcert_ore`}
                       defaultValue={defaultVal(area, 'elcert_ore')}
                       className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                      disabled={!canWrite}
+                      disabled={!canWriteDraft}
                     />
                   </div>
 
@@ -733,7 +726,7 @@ export default async function AdminPricingContractPage({
                       name={`${area}_monthly_fee_sek`}
                       defaultValue={defaultVal(area, 'monthly_fee_sek')}
                       className="h-10 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-sm"
-                      disabled={!canWrite}
+                      disabled={!canWriteDraft}
                     />
                   </div>
                 </div>
@@ -741,7 +734,7 @@ export default async function AdminPricingContractPage({
             </div>
 
             <button
-              disabled={!canWrite}
+              disabled={!canWriteDraft}
               className="h-11 w-full rounded-xl bg-white font-semibold text-black hover:bg-white/90 disabled:opacity-60"
             >
               Spara priser

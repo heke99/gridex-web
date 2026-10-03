@@ -2,16 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
 import { logPermissionAudit } from '@/lib/auth/audit'
+import { setGlobalUserRole } from '@/lib/admin/roleAssignments'
 
-export type AdminUserRole = 'admin' | 'support' | 'partner' | 'customer'
+export type AdminUserRole = 'admin' | 'customer_service_agent' | 'partner' | 'customer'
 
 function normRole(v: unknown): AdminUserRole {
   const s = String(v ?? '').trim()
-  if (s === 'admin' || s === 'support' || s === 'partner' || s === 'customer') return s
-  return 'customer'
+  if (s === 'admin' || s === 'customer_service_agent' || s === 'partner' || s === 'customer') return s
+  throw new Error('Unknown role')
 }
 
 function getServiceClient() {
@@ -22,29 +22,9 @@ function getServiceClient() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
-async function requireAdminAccess() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) throw new Error('Unauthorized')
-
-  // Legacy: admin_users
-  const legacy = await requireAdminRole(supabase).catch(() => null)
-  if (legacy?.role === 'admin') return { user, supabase, mode: 'legacy' as const }
-
-  // New: permission admin.access
-  const { data: ok, error } = await supabase.rpc('gridex_has_permission', {
-    p_user_id: user.id,
-    p_permission: 'admin.access',
-  })
-
-  if (error || ok !== true) {
-    throw new Error('Forbidden: missing admin.access')
-  }
-
-  return { user, supabase, mode: 'permission' as const }
+async function requireUserManagement(permissions = ['users.write']) {
+  const ctx = await requireGlobalAdminActionAccess({ allOf: permissions })
+  return { actorId: ctx.userId }
 }
 
 /**
@@ -55,7 +35,7 @@ async function requireAdminAccess() {
  * - Audit log (permission_audit)
  */
 export async function createUser(formData: FormData) {
-  const { user: actor } = await requireAdminAccess()
+  const { actorId } = await requireUserManagement(['users.write', 'rbac.write'])
   const service = getServiceClient()
 
   const fullName = String(formData.get('full_name') ?? '').trim()
@@ -78,33 +58,24 @@ export async function createUser(formData: FormData) {
   const newUser = created.user
   if (!newUser) throw new Error('Failed to create auth user')
 
-  // 2) Upsert profile (if table exists/columns exist)
-  // Keep it safe: try insert/update, ignore missing-column errors.
-  await service
+  // Keep profile and grant setup failures visible to the administrator.
+  const { error: profileError } = await service
     .from('user_profiles')
     .upsert(
       {
         id: newUser.id,
         full_name: fullName || null,
-        is_active: true,
+        user_status: 'active',
       },
       { onConflict: 'id' }
     )
+  if (profileError) throw new Error(profileError.message)
 
   // 3) Role assignment (user_roles)
-  if (role) {
-    await service.from('user_roles').upsert(
-      {
-        user_id: newUser.id,
-        role,
-        is_active: true,
-      },
-      { onConflict: 'user_id,role' }
-    )
-  }
+  await setGlobalUserRole(service, { userId: newUser.id, role, active: true, actorId })
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId,
     action: 'admin.user.create',
     targetUserId: newUser.id,
     metadata: { email, fullName, role },
@@ -117,7 +88,7 @@ export async function createUser(formData: FormData) {
  * Toggle active (profile + user_roles rows remain)
  */
 export async function setUserActive(formData: FormData) {
-  const { user: actor } = await requireAdminAccess()
+  const { actorId } = await requireUserManagement()
   const service = getServiceClient()
 
   const userId = String(formData.get('user_id') || '')
@@ -126,13 +97,14 @@ export async function setUserActive(formData: FormData) {
 
   if (!userId) throw new Error('Missing user_id')
 
-  await service.from('user_profiles').upsert(
-    { id: userId, is_active },
+  const { error } = await service.from('user_profiles').upsert(
+    { id: userId, user_status: is_active ? 'active' : 'disabled' },
     { onConflict: 'id' }
   )
+  if (error) throw new Error(error.message)
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId,
     action: 'admin.user.set_active',
     targetUserId: userId,
     metadata: { is_active },
@@ -146,7 +118,7 @@ export async function setUserActive(formData: FormData) {
  * This does NOT delete other roles — enterprise safe.
  */
 export async function setUserRole(formData: FormData) {
-  const { user: actor } = await requireAdminAccess()
+  const { actorId } = await requireUserManagement(['rbac.write'])
   const service = getServiceClient()
 
   const userId = String(formData.get('user_id') || '')
@@ -156,15 +128,10 @@ export async function setUserRole(formData: FormData) {
 
   if (!userId) throw new Error('Missing user_id')
 
-  const { error } = await service.from('user_roles').upsert(
-    { user_id: userId, role, is_active },
-    { onConflict: 'user_id,role' }
-  )
-
-  if (error) throw new Error(error.message)
+  await setGlobalUserRole(service, { userId, role, active: is_active, actorId })
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId,
     action: 'admin.user.set_role',
     targetUserId: userId,
     metadata: { role, is_active },
@@ -178,7 +145,7 @@ export async function setUserRole(formData: FormData) {
  * - User can still use "Forgot password" later
  */
 export async function resetUserPassword(formData: FormData) {
-  const { user: actor } = await requireAdminAccess()
+  const { actorId } = await requireUserManagement()
   const service = getServiceClient()
 
   const userId = String(formData.get('user_id') || '')
@@ -191,7 +158,7 @@ export async function resetUserPassword(formData: FormData) {
   if (error) throw new Error(error.message)
 
   await logPermissionAudit({
-    actorId: actor.id,
+    actorId,
     action: 'admin.user.reset_password',
     targetUserId: userId,
     metadata: { via: 'admin' },

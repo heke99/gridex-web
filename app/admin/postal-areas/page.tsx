@@ -1,16 +1,11 @@
-import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminActionAccess, requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
+import { bulkPasteAction, upsertSingleAction } from './actions'
 
 type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
-function normalizePostal(input: string): string {
-  return input.replace(/\s/g, '').trim()
-}
-
 export default async function AdminPostalAreasPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireGlobalAdminPageAccess({ anyOf: ['pricing.read', 'pricing.write'] })
   const supabase = ctx.supabase
 
   const { data: recent } = await supabase
@@ -18,60 +13,6 @@ export default async function AdminPostalAreasPage() {
     .select('postal_code,price_area,source,updated_at')
     .order('updated_at', { ascending: false })
     .limit(50)
-
-  async function upsertSingleAction(formData: FormData) {
-    'use server'
-    await requireAdminActionAccess({ anyOf: ['admin.access'] })
-    const supabase = await createSupabaseServerClient()
-
-    const postal = normalizePostal(String(formData.get('postal_code') ?? ''))
-    const area = String(formData.get('price_area') ?? '') as PriceArea
-
-    if (postal.length !== 5) throw new Error('Postnummer måste vara 5 siffror.')
-    if (!AREAS.includes(area)) throw new Error('Ogiltigt elområde.')
-
-    const { error } = await supabase
-      .from('gridex_postal_code_price_area')
-      .upsert(
-        { postal_code: postal, price_area: area, source: 'admin' },
-        { onConflict: 'postal_code' }
-      )
-
-    if (error) throw new Error(error.message)
-    revalidatePath('/admin/postal-areas')
-  }
-
-  async function bulkPasteAction(formData: FormData) {
-    'use server'
-    const supabase = await createSupabaseServerClient()
-
-    const raw = String(formData.get('bulk') ?? '').trim()
-    if (!raw) throw new Error('Klistra in rader först.')
-
-    // Format per rad: 11122,SE3
-    const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
-
-    const payload: Array<{ postal_code: string; price_area: PriceArea; source: string }> = []
-
-    for (const line of lines) {
-      const [p0, a0] = line.split(',').map((x) => x?.trim())
-      if (!p0 || !a0) continue
-      const postal = normalizePostal(p0)
-      const area = a0 as PriceArea
-      if (postal.length !== 5) continue
-      if (!AREAS.includes(area)) continue
-      payload.push({ postal_code: postal, price_area: area, source: 'admin' })
-    }
-
-    if (payload.length === 0) throw new Error('Inga giltiga rader. Format: 11122,SE3')
-
-    const { error } = await supabase
-      .from('gridex_postal_code_price_area')
-      .upsert(payload, { onConflict: 'postal_code' })
-
-    if (error) throw new Error(error.message)
-    revalidatePath('/admin/postal-areas')
-  }
 
   return (
     <div className="space-y-8">

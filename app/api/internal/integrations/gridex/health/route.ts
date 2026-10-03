@@ -60,7 +60,7 @@ function safeOpsError(error: unknown) {
 
 export async function GET(request: Request) {
   const ctx = await getAdminContext()
-  const authorized = ctx.isAdmin || ctx.permissions.includes('integrations.read') || ctx.permissions.includes('admin.access')
+  const authorized = ctx.permissions.includes('integrations.read')
   if (!ctx.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!authorized) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

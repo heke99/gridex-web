@@ -3,7 +3,10 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
+import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
+import { canEnterAdminConsole } from '@/lib/admin/access'
 import { resumePortalOnboardingForConfirmedUserSafely } from '@/lib/customerPortal/onboardingResume'
+import { requireCustomerAuthHost } from '@/lib/auth/customerHostBoundary'
 
 function normalizeEmail(v: string): string {
   return v.trim().toLowerCase()
@@ -13,16 +16,8 @@ function looksLikeEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
-type RoleRow = {
-  role: string
-  is_active: boolean | null
-}
-
-function isAdminRole(role: string): boolean {
-  return role === 'admin' || role === 'super_admin'
-}
-
 export async function loginWithPassword(formData: FormData) {
+  await requireCustomerAuthHost()
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
   const next = safeRedirectPath(String(formData.get('next') || ''), '/mina-sidor')
@@ -56,44 +51,16 @@ export async function loginWithPassword(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera sessionen')}`)
   }
 
-  const [permissionsResult, rolesResult] = await Promise.allSettled([
-    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
-    supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<RoleRow[]>(),
-  ])
-
-  const permissionsData =
-    permissionsResult.status === 'fulfilled' && !permissionsResult.value.error
-      ? permissionsResult.value.data
-      : []
-  const rolesData =
-    rolesResult.status === 'fulfilled' && !rolesResult.value.error
-      ? rolesResult.value.data
-      : []
-
-  if (
-    next.startsWith('/admin') &&
-    ((permissionsResult.status === 'fulfilled' && permissionsResult.value.error) ||
-      (rolesResult.status === 'fulfilled' && rolesResult.value.error) ||
-      permissionsResult.status === 'rejected' ||
-      rolesResult.status === 'rejected')
-  ) {
-    await supabase.auth.signOut()
-    redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera adminbehörighet')}`)
+  let permissions: string[] = []
+  try {
+    permissions = await loadUserPermissionsWithClient(supabase, user.id)
+  } catch {
+    if (next.startsWith('/admin')) {
+      await supabase.auth.signOut()
+      redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera adminbehörighet')}`)
+    }
   }
-
-  const permissions = Array.isArray(permissionsData)
-    ? permissionsData.filter((v): v is string => typeof v === 'string')
-    : []
-
-  const roles = Array.isArray(rolesData)
-    ? rolesData.filter((row) => row.is_active !== false && typeof row.role === 'string').map((row) => row.role)
-    : []
-
-  const isAdmin = permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
+  const isAdmin = canEnterAdminConsole(permissions)
 
   try {
     await supabase.rpc('gridex_log_customer_login', { p_user_id: user.id })

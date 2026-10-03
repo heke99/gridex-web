@@ -1,10 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseService } from '@/lib/supabase/service'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
 import { logPermissionAudit } from '@/lib/auth/audit'
+import { setGlobalUserRole } from '@/lib/admin/roleAssignments'
 
 type RoleForm = {
   user_id: string
@@ -25,18 +25,13 @@ type CreateUserForm = {
   role: string
 }
 
-type ExistingUserRoleRow = {
-  user_id: string
-  role: string
-}
-
 function str(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
 async function requireAssignmentsWrite() {
-  const ctx = await requireAdminActionAccess({
-    anyOf: ['rbac.write', 'admin.access'],
+  const ctx = await requireGlobalAdminActionAccess({
+    anyOf: ['rbac.write'],
   })
 
   return ctx
@@ -47,7 +42,7 @@ async function requireAssignmentsWrite() {
 ------------------------------------------ */
 
 export async function createUserWithRole(formData: FormData) {
-  const ctx = await requireAssignmentsWrite()
+  const ctx = await requireGlobalAdminActionAccess({ allOf: ['rbac.write', 'users.write'] })
 
   const payload: CreateUserForm = {
     email: str(formData.get('email')),
@@ -87,17 +82,9 @@ export async function createUserWithRole(formData: FormData) {
     throw new Error(profileError.message)
   }
 
-  const { error: roleError } = await supabaseService
-    .from('user_roles')
-    .upsert({
-      user_id: userId,
-      role: payload.role,
-      is_active: true,
-    })
-
-  if (roleError) {
-    throw new Error(roleError.message)
-  }
+  await setGlobalUserRole(supabaseService, {
+    userId, role: payload.role, active: true, actorId: ctx.userId,
+  })
 
   await logPermissionAudit({
     actorId: ctx.userId,
@@ -121,7 +108,7 @@ export async function createUserWithRole(formData: FormData) {
 
 export async function deactivateUser(formData: FormData) {
   const ctx = await requireAssignmentsWrite()
-  const supabase = await createSupabaseServerClient()
+  const supabase = supabaseService
 
   const userId = str(formData.get('user_id'))
 
@@ -133,6 +120,7 @@ export async function deactivateUser(formData: FormData) {
     .from('user_roles')
     .update({ is_active: false })
     .eq('user_id', userId)
+    .is('company_id', null)
 
   if (error) {
     throw new Error(error.message)
@@ -157,7 +145,7 @@ export async function deactivateUser(formData: FormData) {
 
 export async function setUserRoleActive(formData: FormData) {
   const ctx = await requireAssignmentsWrite()
-  const supabase = await createSupabaseServerClient()
+  const supabase = supabaseService
 
   const payload: RoleForm = {
     user_id: str(formData.get('user_id')),
@@ -171,40 +159,9 @@ export async function setUserRoleActive(formData: FormData) {
 
   const isActive = payload.active === 'true'
 
-  const { data: existing, error: readError } = await supabase
-    .from('user_roles')
-    .select('user_id,role')
-    .eq('user_id', payload.user_id)
-    .eq('role', payload.role)
-    .maybeSingle<ExistingUserRoleRow>()
-
-  if (readError) {
-    throw new Error(readError.message)
-  }
-
-  if (existing) {
-    const { error } = await supabase
-      .from('user_roles')
-      .update({ is_active: isActive })
-      .eq('user_id', payload.user_id)
-      .eq('role', payload.role)
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  } else {
-    const { error } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: payload.user_id,
-        role: payload.role,
-        is_active: isActive,
-      })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  }
+  await setGlobalUserRole(supabase, {
+    userId: payload.user_id, role: payload.role, active: isActive, actorId: ctx.userId,
+  })
 
   await logPermissionAudit({
     actorId: ctx.userId,
@@ -226,7 +183,7 @@ export async function setUserRoleActive(formData: FormData) {
 
 export async function setUserPermissionOverride(formData: FormData) {
   const ctx = await requireAssignmentsWrite()
-  const supabase = await createSupabaseServerClient()
+  const supabase = supabaseService
 
   const payload: PermissionForm = {
     user_id: str(formData.get('user_id')),
@@ -240,28 +197,16 @@ export async function setUserPermissionOverride(formData: FormData) {
 
   const isEnabled = payload.enabled === 'true'
 
-  if (isEnabled) {
-    const { error } = await supabase
-      .from('user_permissions')
-      .upsert({
-        user_id: payload.user_id,
-        permission_id: payload.permission_id,
-      })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  } else {
-    const { error } = await supabase
-      .from('user_permissions')
-      .delete()
-      .eq('user_id', payload.user_id)
-      .eq('permission_id', payload.permission_id)
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  }
+  // The direct-grant PK omits company_id. A NULL-scope upsert would overwrite
+  // an existing company grant. The RPC preserves scoped rows and serializes
+  // canonical global overrides, including superseding a legacy global deny.
+  const { error } = await supabase.rpc('gridex_web_set_global_permission_override', {
+    p_actor_id: ctx.userId,
+    p_user_id: payload.user_id,
+    p_permission_id: payload.permission_id,
+    p_effect: isEnabled ? 'allow' : 'deny',
+  })
+  if (error) throw new Error(error.message)
 
   await logPermissionAudit({
     actorId: ctx.userId,

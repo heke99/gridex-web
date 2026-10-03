@@ -94,15 +94,27 @@ assert.deepEqual(moveOutPayload({
 
 assert.deepEqual(syncPowerOfAttorney({
   document_reference: 'poa_doc_1',
-  scope: ['request_grid_data'],
+  scope: ['supplier_switch', 'facility_information_lookup'],
   accepted: true,
   accepted_at: '2026-08-01T18:00:00.000Z',
+  signer_name: 'Test Kund',
+  signer_identity_number: '199001011234',
+  method: 'web',
 }), {
+  document_reference: 'poa_doc_1',
+  scope: ['supplier_switch', 'facility_information_lookup'],
+  accepted: true,
+  accepted_at: '2026-08-01T18:00:00.000Z',
+  signer_name: 'Test Kund',
+  signer_identity_number: '199001011234',
+  method: 'web',
+})
+assert.equal(syncPowerOfAttorney({
   document_reference: 'poa_doc_1',
   scope: ['request_grid_data'],
   accepted: true,
   accepted_at: '2026-08-01T18:00:00.000Z',
-})
+}), null, 'obsolete or unsupported fullmakt scopes must not be submitted to OPS')
 
 assert.equal(syncLegalAcceptances([{
   document_reference: 'terms_doc_1',

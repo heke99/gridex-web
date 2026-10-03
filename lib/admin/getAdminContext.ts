@@ -1,5 +1,9 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { cache } from 'react'
+import { createSupabaseServerClient, getSupabaseUser } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { supabaseService } from '@/lib/supabase/service'
+import { canEnterAdminConsole, normalizePermissions } from './access'
+import { getWebCompanyId } from '@/lib/auth/tenant'
 
 export type AdminContext = {
   userId: string
@@ -11,23 +15,19 @@ export type AdminContext = {
 }
 
 type RoleRow = {
-  role: string
-  is_active: boolean | null
+  role_key?: string
+  key?: string
+  name?: string
 }
-
-const ADMIN_CONSOLE_PERMISSIONS = new Set<string>([
-  'admin.access',
-  'support_tickets.manage',
-])
-
-export async function getAdminContext(): Promise<AdminContext> {
+export const getAdminContext = cache(async (): Promise<AdminContext> => {
   const supabase = await createSupabaseServerClient()
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+    error: authError,
+  } = await getSupabaseUser()
 
-  if (!user) {
+  if (authError || !user) {
     return {
       userId: '',
       email: null,
@@ -37,17 +37,14 @@ export async function getAdminContext(): Promise<AdminContext> {
       supabase,
     }
   }
+  const companyId = getWebCompanyId()
 
   const [
     { data: permissionData, error: permissionError },
     { data: roleData, error: roleError },
   ] = await Promise.all([
-    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
-    supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<RoleRow[]>(),
+    supabaseService.rpc('gridex_get_user_permissions', { p_user_id: user.id, p_company_id: companyId }),
+    supabaseService.rpc('gridex_get_user_roles', { p_user_id: user.id, p_company_id: companyId }),
   ])
 
   if (permissionError) {
@@ -58,32 +55,19 @@ export async function getAdminContext(): Promise<AdminContext> {
     throw new Error(roleError.message)
   }
 
-  const permissions = Array.isArray(permissionData)
-    ? Array.from(
-        new Set(
-          permissionData.filter((value): value is string => typeof value === 'string')
-        )
-      )
-    : []
+  const permissions = normalizePermissions(permissionData)
 
   const roles = Array.isArray(roleData)
     ? Array.from(
         new Set(
-          roleData
-            .filter(
-              (row): row is RoleRow =>
-                row.is_active !== false && typeof row.role === 'string'
-            )
-            .map((row) => row.role)
+          (roleData as RoleRow[])
+            .map((row) => row.role_key ?? row.key ?? row.name)
+            .filter((role): role is string => typeof role === 'string')
         )
       )
     : []
 
-  const isAdmin =
-    roles.includes('admin') ||
-    permissions.some((permission) =>
-      ADMIN_CONSOLE_PERMISSIONS.has(permission)
-    )
+  const isAdmin = canEnterAdminConsole(permissions)
 
   return {
     userId: user.id,
@@ -93,4 +77,4 @@ export async function getAdminContext(): Promise<AdminContext> {
     isAdmin,
     supabase,
   }
-}
+})

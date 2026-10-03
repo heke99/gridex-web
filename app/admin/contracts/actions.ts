@@ -2,16 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requireAdminRole } from '@/lib/auth/admin'
-import { requireAdminActionAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminActionAccess } from '@/lib/admin/guards'
 
 type ContractType = 'spot_hourly' | 'portfolio_managed' | 'fixed'
-
-type UserRoleRow = {
-  role: string
-  is_active: boolean | null
-}
 
 type ContractInsertResult = {
   id: string
@@ -66,68 +59,8 @@ function toNullableInteger(value: FormDataEntryValue | null): number | null {
 }
 
 async function assertAdmin(): Promise<{ userId: string }> {
-  try {
-    const ctx = await requireAdminActionAccess({
-      anyOf: ['contracts.write', 'admin.access'],
-    })
-
-    return { userId: ctx.userId }
-  } catch {
-    const supabase = await createSupabaseServerClient()
-
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser()
-
-    if (userErr) throw new Error(userErr.message)
-    if (!user) throw new Error('Not authenticated')
-
-    const { data: hasPerm, error: permError } = await supabase.rpc(
-      'gridex_has_permission',
-      {
-        p_user_id: user.id,
-        p_permission: 'admin.access',
-      }
-    )
-
-    if (permError) {
-      throw new Error(permError.message)
-    }
-
-    if (hasPerm === true) {
-      return { userId: user.id }
-    }
-
-    try {
-      await requireAdminRole(supabase)
-      return { userId: user.id }
-    } catch {}
-
-    const { data: roleRows, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<UserRoleRow[]>()
-
-    if (roleError) {
-      throw new Error(roleError.message)
-    }
-
-    const roleNames =
-      roleRows
-        ?.filter((row) => row.is_active !== false)
-        .map((row) => row.role) ?? []
-
-    const isAdmin =
-      roleNames.includes('admin') || roleNames.includes('super_admin')
-
-    if (!isAdmin) {
-      throw new Error('Unauthorized')
-    }
-
-    return { userId: user.id }
-  }
+  const ctx = await requireGlobalAdminActionAccess({ allOf: ['contracts.write'] })
+  return { userId: ctx.userId }
 }
 
 function revalidateContractPaths() {

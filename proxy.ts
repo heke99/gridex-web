@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
+import { isPathWithin, isProtectedPage, isPublicAssetPath, isSupportHost, supportRewritePath } from '@/lib/routing/supportHost'
 
 const PRODUCTION_HOST = 'gridex.se'
 const WWW_HOST = 'www.gridex.se'
@@ -16,10 +17,6 @@ function getSupabaseAnonKey(): string {
   return v
 }
 
-function isProtectedPath(pathname: string) {
-  return pathname.startsWith('/admin') || pathname.startsWith('/dashboard') || pathname === '/mina-sidor'
-}
-
 function isPreviewHost(host: string) {
   const normalized = host.toLowerCase().split(':')[0] ?? ''
   return normalized.endsWith('.vercel.app') && normalized !== PRODUCTION_HOST
@@ -27,21 +24,56 @@ function isPreviewHost(host: string) {
 
 function withPreviewNoindex(req: NextRequest, res: NextResponse) {
   const host = req.headers.get('host') ?? ''
-  if (isPreviewHost(host)) {
+  if (isPreviewHost(host) || isSupportHost(host)) {
     res.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
   }
   return res
 }
 
-function buildLoginRedirect(req: NextRequest): NextResponse {
+function buildLoginRedirect(req: NextRequest, source: NextResponse): NextResponse {
   const loginUrl = req.nextUrl.clone()
   loginUrl.pathname = '/login'
   loginUrl.searchParams.set('next', req.nextUrl.pathname + req.nextUrl.search)
-  return withPreviewNoindex(req, NextResponse.redirect(loginUrl))
+  const redirect = withPreviewNoindex(req, NextResponse.redirect(loginUrl))
+  redirect.headers.set('Cache-Control', 'private, no-store')
+  for (const cookie of source.cookies.getAll()) redirect.cookies.set(cookie)
+  return redirect
 }
 
 export async function proxy(req: NextRequest) {
   const host = (req.headers.get('host') ?? '').toLowerCase().split(':')[0] ?? ''
+  const requestHeaders = new Headers(req.headers)
+  // No caller can select a staff shell or claim authenticated routing state.
+  for (const key of [...requestHeaders.keys()]) {
+    if (/^x-(?:gridex-)?(?:staff|support)-(?:host|mode|route|authenticated)$/.test(key)) requestHeaders.delete(key)
+  }
+
+  // Staff pages and BFFs never enter Web's customer Auth/session path. Block
+  // server-action POSTs before they could select a customer login action.
+  if (isSupportHost(host)) {
+    if (!['GET', 'HEAD'].includes(req.method) && !isPathWithin(req.nextUrl.pathname, '/api/staff')) {
+      return withPreviewNoindex(req, NextResponse.json({ error: { code: 'staff_route_forbidden',
+        message: 'Använd personalportalens inloggning.', retryable: false } }, {
+        status: 403, headers: { 'Cache-Control': 'private, no-store' },
+      }))
+    }
+    if (['GET', 'HEAD'].includes(req.method) && isPublicAssetPath(req.nextUrl.pathname)) {
+      return withPreviewNoindex(req, NextResponse.next({ request: { headers: requestHeaders } }))
+    }
+    const rewrittenPath = supportRewritePath(host, req.nextUrl.pathname)
+    const url = req.nextUrl.clone()
+    if (rewrittenPath) { url.pathname = rewrittenPath; url.search = '' }
+    const response = withPreviewNoindex(req, rewrittenPath
+      ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+      : NextResponse.next({ request: { headers: requestHeaders } }))
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
+  }
+  if (isPathWithin(req.nextUrl.pathname, '/staff') || isPathWithin(req.nextUrl.pathname, '/api/staff')) {
+    return NextResponse.json({ error: { code: 'staff_host_required', message: 'Personalportalen finns på supportdomänen.', retryable: false } }, {
+      status: 404, headers: { 'Cache-Control': 'private, no-store' },
+    })
+  }
 
   if (host === WWW_HOST) {
     const url = req.nextUrl.clone()
@@ -49,22 +81,28 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url, 308)
   }
 
-  const res = withPreviewNoindex(req, NextResponse.next())
+  const effectivePath = req.nextUrl.pathname
+  const createResponse = () => withPreviewNoindex(req,
+    NextResponse.next({ request: { headers: requestHeaders } }))
+  let res = createResponse()
 
-  if (!isProtectedPath(req.nextUrl.pathname)) {
+  if (!isProtectedPage(effectivePath)) {
     return res
   }
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
-      get(name: string): string | undefined {
-        return req.cookies.get(name)?.value
+      getAll() {
+        return req.cookies.getAll()
       },
-      set(name: string, value: string, options: CookieOptions): void {
-        res.cookies.set({ name, value, ...options })
-      },
-      remove(name: string, options: CookieOptions): void {
-        res.cookies.set({ name, value: '', ...options })
+      setAll(cookiesToSet) {
+        const previousCookies = res.cookies.getAll()
+        for (const { name, value } of cookiesToSet) {
+          req.cookies.set(name, value)
+        }
+        res = createResponse()
+        for (const cookie of previousCookies) res.cookies.set(cookie)
+        for (const { name, value, options } of cookiesToSet) res.cookies.set(name, value, options)
       },
     },
   })
@@ -73,39 +111,18 @@ export async function proxy(req: NextRequest) {
   const user = data.user
 
   // Dashboard kräver bara session.
-  if (req.nextUrl.pathname.startsWith('/dashboard') || req.nextUrl.pathname === '/mina-sidor') {
-    if (!user) return buildLoginRedirect(req)
+  if (isPathWithin(effectivePath, '/dashboard') || isPathWithin(effectivePath, '/support-center') || effectivePath === '/mina-sidor') {
+    if (!user) return buildLoginRedirect(req, res)
+    res.headers.set('Cache-Control', 'private, no-store')
     return res
   }
 
-  // Admin kräver session + (legacy admin_users OR permission admin.access).
-  if (req.nextUrl.pathname.startsWith('/admin')) {
-    if (!user) return buildLoginRedirect(req)
-
-    // Legacy admin_users (behåll exakt).
-    const { data: adminRow, error: adminErr } = await supabase
-      .from('admin_users')
-      .select('user_id, is_active')
-      .eq('user_id', user.id)
-      .maybeSingle<{ user_id: string; is_active: boolean | null }>()
-
-    const legacyAllowed = !!adminRow && adminRow.is_active !== false && !adminErr
-
-    // New permission system.
-    const { data: hasPerm, error: permErr } = await supabase.rpc(
-      'gridex_has_permission',
-      { p_user_id: user.id, p_permission: 'admin.access' },
-    )
-
-    const permAllowed = !permErr && hasPerm === true
-
-    if (!legacyAllowed && !permAllowed) {
-      const loginUrl = req.nextUrl.clone()
-      loginUrl.pathname = '/login'
-      loginUrl.searchParams.set('reason', 'forbidden')
-      return withPreviewNoindex(req, NextResponse.redirect(loginUrl))
-    }
-
+  // Admin permissions are checked by the server layout and operation guards.
+  if (isPathWithin(effectivePath, '/admin')) {
+    if (!user) return buildLoginRedirect(req, res)
+    // The server layout and each mutation enforce current, scoped permissions.
+    // Avoid a second broad or stale permission gate in the routing layer.
+    res.headers.set('Cache-Control', 'private, no-store')
     return res
   }
 
@@ -113,7 +130,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|brand/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)).*)',
-  ],
+  // Server Actions can be selected on an extension-looking or missing asset
+  // path. Every path/method must pass the host mutation boundary first.
+  matcher: ['/:path*'],
 }

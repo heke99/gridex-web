@@ -38,7 +38,7 @@ export default async function PricingAuditPage({
 }: {
   searchParams?: Promise<Search>
 }) {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminPageAccess({ anyOf: ['audit.read', 'compliance.read'] })
   const supabase = ctx.supabase
 
   const sp = (await searchParams) || {}

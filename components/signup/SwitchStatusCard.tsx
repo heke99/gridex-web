@@ -34,28 +34,43 @@ export default function SwitchStatusCard({
   useEffect(() => {
     let stopped = false
     let timer: ReturnType<typeof setTimeout> | null = null
+    let pollsWithoutChange = 0
+    let lastStatus = initialStatus ?? null
     const load = async () => {
+      let retryAfterMs = 0
       try {
         const response = await fetch(`/api/checkout/switch-status?result_token=${encodeURIComponent(resultToken)}`, {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
         })
+        const retryAfter = response.headers.get('Retry-After')
+        if (retryAfter) {
+          const seconds = Number(retryAfter)
+          const requestedDelay = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(retryAfter) - Date.now()
+          if (Number.isFinite(requestedDelay)) retryAfterMs = Math.max(0, requestedDelay)
+        }
         const payload = await response.json().catch(() => null) as { data?: SwitchStatus } | null
         if (!stopped && response.ok && payload?.data) {
           setStatus(payload.data)
           if (payload.data.terminal) return
+          if (payload.data.status !== lastStatus) pollsWithoutChange = 0
+          lastStatus = payload.data.status
         }
       } catch {
         // The receipt remains valid even if a status refresh is temporarily unavailable.
       }
-      if (!stopped) timer = setTimeout(load, 30_000)
+      if (!stopped) {
+        const delay = Math.max(Math.min(30_000 * 2 ** pollsWithoutChange, 300_000), retryAfterMs)
+        pollsWithoutChange = Math.min(pollsWithoutChange + 1, 4)
+        timer = setTimeout(load, delay)
+      }
     }
     void load()
     return () => {
       stopped = true
       if (timer) clearTimeout(timer)
     }
-  }, [resultToken])
+  }, [resultToken, initialStatus])
 
   if (!status) return null
   const updatedAt = timestamp(status.updated_at)

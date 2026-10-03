@@ -54,7 +54,7 @@ function formatDate(value: string | null | undefined) {
 export default async function AdminIntegrationsPage() {
   const gridexConfiguration = getGridexConfigurationStatus()
   const ctx = await requireAdminPageAccess({
-    anyOf: ['integrations.read', 'cis.sync.write', 'admin.access'],
+    anyOf: ['integrations.read', 'cis.sync.write'],
   })
 
   const [jobsRes, cisRes, outboxRes, opsReadiness, portalReadiness, publicContractDiagnostics] = await Promise.all([

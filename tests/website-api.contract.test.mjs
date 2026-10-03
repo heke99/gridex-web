@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildOpsCustomerApplicationPayload } from '../lib/ops/client.ts'
+import { buildOpsCustomerApplicationPayload, fetchOpsCustomerPortalBundle } from '../lib/ops/client.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8')
@@ -203,8 +203,12 @@ assert.ok(ops.includes('capabilities: {'))
 assert.ok(ops.includes('facility_lookup_ready: row.capabilities.facility_lookup_ready'))
 assert.ok(readiness.includes('website_quotes.write'))
 assert.ok(ops.includes('opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {'))
-assert.ok(ops.includes('method: "POST"'))
-assert.ok(ops.includes('body: JSON.stringify(portalIdentityPayload(identity))'))
+const bundleFetchSection = ops.slice(
+  ops.indexOf('export async function fetchOpsCustomerPortalBundle'),
+  ops.indexOf('export async function markOpsCustomerNotificationsRead'),
+)
+assert.ok(bundleFetchSection.includes('method: "GET"'))
+assert.ok(!bundleFetchSection.includes('body:'), 'a canonical GET must carry verified identity in headers only')
 assert.ok(!portalReadiness.includes("scopes: ['customer_portal.read']"))
 assert.ok(portalReadiness.includes("'customer_power_of_attorney.write'"))
 for (const scope of [
@@ -361,5 +365,36 @@ assert.throws(
   }),
   (error) => error?.code === 'customer_portal_identity_invalid',
 )
+
+const originalFetch = globalThis.fetch
+const runtimeEnvironmentNames = ['GRIDEX_API_KEY', 'GRIDEX_OPS_API_URL', 'VERCEL_ENV']
+const previousEnvironment = runtimeEnvironmentNames.map((name) => process.env[name])
+process.env.GRIDEX_API_KEY = 'gridex_live_bundle_contract_fixture'
+process.env.GRIDEX_OPS_API_URL = 'https://app.gridex.se/api/v1'
+process.env.VERCEL_ENV = 'production'
+try {
+  let request
+  globalThis.fetch = async (url, init) => {
+    request = { url: String(url), init }
+    return new Response(JSON.stringify({
+      data: { profile: { customer_number: 'DX-123' }, contracts: [], sites: [] },
+      request_id: 'request_bundle_contract', contract_schema_version: contractVersion,
+    }), { headers: { 'content-type': 'application/json', 'X-Gridex-Contract-Version': contractVersion } })
+  }
+  const userId = '11111111-1111-4111-8111-111111111111'
+  const bundle = await fetchOpsCustomerPortalBundle({ userId })
+  assert.equal(request.url, 'https://app.gridex.se/api/v1/customer/portal-bundle')
+  assert.equal(request.init.method, 'GET')
+  assert.equal(request.init.body, undefined)
+  assert.equal(new Headers(request.init.headers).get('x-gridex-customer-portal-user-id'), userId)
+  assert.equal(new Headers(request.init.headers).get('x-gridex-auth-user-id'), userId)
+  assert.equal(bundle.profile.customer_number, 'DX-123')
+} finally {
+  globalThis.fetch = originalFetch
+  runtimeEnvironmentNames.forEach((name, index) => {
+    if (previousEnvironment[index] === undefined) delete process.env[name]
+    else process.env[name] = previousEnvironment[index]
+  })
+}
 
 console.log(`Website API contract tests passed (${contractVersion})`)

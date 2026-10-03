@@ -99,6 +99,9 @@ export default async function MinaSidorPage() {
             Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
           </div>
         ) : null}
+        {overview.dataFreshnessMessage ? (
+          <p role="status" className="mt-6 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">{overview.dataFreshnessMessage}</p>
+        ) : null}
 
 
         {portalLinkPending ? (
@@ -246,7 +249,7 @@ export default async function MinaSidorPage() {
                   badge={statusLabel(invoice.status)}
                 />
               ))}
-              {overview.invoices.length === 0 ? <EmptyText>Inga fakturor visas ännu.</EmptyText> : null}
+              {overview.invoices.length === 0 ? <EmptyText>{overview.unavailableSections.includes('invoices') ? 'Fakturorna kunde inte hämtas just nu.' : 'Inga fakturor visas ännu.'}</EmptyText> : null}
             </div>
           </section>
 
@@ -264,7 +267,7 @@ export default async function MinaSidorPage() {
                   badge={statusLabel(doc.status)}
                 />
               ))}
-              {overview.documents.length === 0 ? <EmptyText>Inga dokument visas ännu.</EmptyText> : null}
+              {overview.documents.length === 0 ? <EmptyText>{overview.unavailableSections.includes('documents') ? 'Dokumenten kunde inte hämtas just nu.' : 'Inga dokument visas ännu.'}</EmptyText> : null}
             </div>
           </section>
         </div>

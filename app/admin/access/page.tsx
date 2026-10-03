@@ -1,4 +1,5 @@
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
+import { supabaseService } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +11,8 @@ type AdminUserRow = {
 }
 
 export default async function AdminAccessPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
-  const supabase = ctx.supabase
+  await requireGlobalAdminPageAccess({ allOf: ['rbac.read'] })
+  const supabase = supabaseService
 
   // Read-only visning
   const { data, error } = await supabase
@@ -26,8 +27,7 @@ export default async function AdminAccessPage() {
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <div className="text-xl font-semibold">RBAC • Admin Users</div>
         <p className="mt-2 text-sm leading-6 text-white/70">
-          Behörigheter styrs via <code className="text-white/80">admin_users</code>. Den här vyn är read-only (säker baseline).
-          Senare kan vi lägga till CRUD + audit log utan att riskera pricing/publish-logiken.
+          Historiska administratörsposter. Aktuell åtkomst styrs av aktiva roller och effektiva behörigheter i RBAC.
         </p>
       </div>
 

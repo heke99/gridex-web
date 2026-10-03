@@ -56,8 +56,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-relaxed text-gray-300">
-              Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång
-              till din kundportal hos Gridex.
+              Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång till din kundportal hos Gridex.
             </p>
           </div>
 

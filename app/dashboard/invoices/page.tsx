@@ -1,4 +1,5 @@
 import EventLink from '@/components/customer/EventLink'
+import CustomerHistoryNotice from '@/components/customer/CustomerHistoryNotice'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerInvoice } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
@@ -57,6 +58,8 @@ export default async function DashboardInvoicesPage() {
           Här ser du fakturor, belopp, förfallodatum och tillgängliga underlag.
         </p>
       </div>
+
+      <CustomerHistoryNotice page={resource.page} label="fakturorna" />
 
       {invoices.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/60 sm:p-6">

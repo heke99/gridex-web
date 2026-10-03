@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local Supabase CLI runtime metadata
+supabase/.temp/
+
+# Native SQL test runner bytecode
+__pycache__/
+*.py[cod]

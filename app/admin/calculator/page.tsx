@@ -160,7 +160,7 @@ export default async function AdminCalculatorPreviewPage({
 }: {
   searchParams?: Promise<CalculatorSearchParams>
 }) {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const ctx = await requireAdminPageAccess({ anyOf: ['pricing.read', 'pricing.write'] })
   const db = ctx.supabase
 
   const resolvedSearchParams = (await searchParams) ?? {}

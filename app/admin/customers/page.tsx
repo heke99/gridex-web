@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { requireGlobalAdminPageAccess } from '@/lib/admin/guards'
 import { getCustomerAdminOverview } from '@/lib/admin/customerAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -9,8 +9,8 @@ export default async function AdminCustomersPage({
 }: {
   searchParams?: Promise<{ q?: string }>
 }) {
-  await requireAdminPageAccess({
-    anyOf: ['agreements.read', 'agreements.write', 'admin.access'],
+  await requireGlobalAdminPageAccess({
+    anyOf: ['agreements.read', 'agreements.write'],
   })
 
   const resolvedSearchParams = (await searchParams) ?? {}
