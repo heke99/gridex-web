@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { cache } from 'react'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { requireCustomerAuthHost } from '@/lib/auth/customerHostBoundary'
 
 function getSupabaseUrl(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -22,6 +23,7 @@ function getSupabaseAnonKey(): string {
  * Enterprise: guarantees anon context for public pages while still supporting session cookies when present.
  */
 export const createSupabaseServerClient = cache(async (): Promise<SupabaseClient> => {
+  await requireCustomerAuthHost()
   const cookieStore = await cookies()
 
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -53,6 +55,7 @@ export async function getSupabaseUser(suppliedClient?: SupabaseClient) {
  * Use this when calling auth signIn/signOut server-side.
  */
 export async function createSupabaseServerActionClient(): Promise<SupabaseClient> {
+  await requireCustomerAuthHost()
   const cookieStore = await cookies()
 
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { isPathWithin, isProtectedPage, isSupportHost, supportRewritePath } from '@/lib/routing/supportHost'
+import { isPathWithin, isProtectedPage, isPublicAssetPath, isSupportHost, supportRewritePath } from '@/lib/routing/supportHost'
 
 const PRODUCTION_HOST = 'gridex.se'
 const WWW_HOST = 'www.gridex.se'
@@ -56,6 +56,9 @@ export async function proxy(req: NextRequest) {
         message: 'Använd personalportalens inloggning.', retryable: false } }, {
         status: 403, headers: { 'Cache-Control': 'private, no-store' },
       }))
+    }
+    if (['GET', 'HEAD'].includes(req.method) && isPublicAssetPath(req.nextUrl.pathname)) {
+      return withPreviewNoindex(req, NextResponse.next({ request: { headers: requestHeaders } }))
     }
     const rewrittenPath = supportRewritePath(host, req.nextUrl.pathname)
     const url = req.nextUrl.clone()
@@ -127,7 +130,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|brand/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)).*)',
-  ],
+  // Server Actions can be selected on an extension-looking or missing asset
+  // path. Every path/method must pass the host mutation boundary first.
+  matcher: ['/:path*'],
 }

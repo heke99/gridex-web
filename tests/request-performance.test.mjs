@@ -16,7 +16,7 @@ const moduleUrl = (source) => `data:text/javascript,${encodeURIComponent(source)
 const headersMock = moduleUrl(`export async function cookies() {
   const id = globalThis.__gridexRequestPerformanceTest.userId
   return { get: () => ({ value: id }), set: () => {} }
-}`)
+} export async function headers() { return new Headers({host:'gridex.se'}) }`)
 const ssrMock = moduleUrl(`export function createServerClient(_url, _key, options) {
   const state = globalThis.__gridexRequestPerformanceTest
   state.factories += 1
@@ -67,6 +67,8 @@ const hooks = registerHooks({
     if (specifier === '@/lib/supabase/server') {
       return nextResolve(new URL('../lib/supabase/server.ts', import.meta.url).href, context)
     }
+    if (specifier === '@/lib/auth/customerHostBoundary') return nextResolve(new URL('../lib/auth/customerHostBoundary.ts', import.meta.url).href, context)
+    if (specifier === '@/lib/routing/supportHost') return nextResolve(new URL('../lib/routing/supportHost.ts', import.meta.url).href, context)
     if (specifier === '@/lib/customerPortal/outbox') {
       return { url: moduleUrl('export const enqueuePortalWrite = async () => { throw new Error("Unexpected enqueue") }'), shortCircuit: true }
     }

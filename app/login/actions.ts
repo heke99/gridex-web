@@ -6,6 +6,7 @@ import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
 import { canEnterAdminConsole } from '@/lib/admin/access'
 import { resumePortalOnboardingForConfirmedUserSafely } from '@/lib/customerPortal/onboardingResume'
+import { requireCustomerAuthHost } from '@/lib/auth/customerHostBoundary'
 
 function normalizeEmail(v: string): string {
   return v.trim().toLowerCase()
@@ -16,6 +17,7 @@ function looksLikeEmail(v: string): boolean {
 }
 
 export async function loginWithPassword(formData: FormData) {
+  await requireCustomerAuthHost()
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
   const next = safeRedirectPath(String(formData.get('next') || ''), '/mina-sidor')

@@ -50,7 +50,7 @@
     "api:staff:check:local": "node scripts/check-staff-openapi.mjs --local-only",
     "api:staff:check:live": "node scripts/check-staff-openapi.mjs",
     "api:staff:sync": "node scripts/sync-staff-openapi.mjs",
-    "test:staff": "npm run api:staff:check:local && node --experimental-strip-types tests/staff-session-boundary-runtime.test.mjs && node --experimental-strip-types tests/staff-bff-runtime.test.mjs && node --experimental-strip-types tests/staff-workspace-ui-runtime.test.mjs",
+    "test:staff": "npm run api:staff:check:local && node --experimental-strip-types tests/customer-auth-host-boundary.test.mjs && node --experimental-strip-types tests/staff-session-boundary-runtime.test.mjs && node --experimental-strip-types tests/staff-bff-runtime.test.mjs && node --experimental-strip-types tests/staff-workspace-ui-runtime.test.mjs",
     "test:staff:http": "node tests/staff-host-http.test.mjs"
   },
   "dependencies": {

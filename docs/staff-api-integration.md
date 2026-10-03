@@ -77,6 +77,14 @@ Alla mutationer, inklusive login/recovery, kräver exakt
 personal eller organisation. Resursskrivningar och konsumerande authsteg
 använder dokumenterad Idempotency-Key. Ändrat innehåll får en ny nyckel.
 
+Proxy-matchern omfattar alla vägar och metoder. Filändelser och saknade filer
+kan fortfarande väljas för Next Server Actions; `.js`, `.css`, ikon-, brand-
+och frameworkvägar får därför aldrig undantas från skrivspärren. Endast
+GET/HEAD för uttryckliga publika tillgångar släpps igenom efter hostkontrollen.
+Den native kundinloggningen och de gemensamma native Auth-klientfabrikerna
+nekar dessutom personalhosten, även vid intern action-forwarding, före
+argumentvalidering, cookieläsning och providerkonstruktion.
+
 OPS verifierar native session under exklusiv lease. Endast säkra GET kan
 återförsökas högst åtta gånger när exakt `409 staff_session_busy` är retryable
 och har giltig Retry-After, inom en gemensam deadline. Mutationer skickas
@@ -108,3 +116,7 @@ sidmetadata, samtidiga läsningar/förnyelse, exakt replay, safe errors,
 bilagor och logoutfel. Host/proxytestet kör verklig NextRequest/NextResponse;
 build och HTTP/browserkontroll måste dessutom visa att personalsidorna
 saknar huvudsidans footer, tracking och kundregistrering.
+`test:staff:http` använder den byggda serverns verkliga login-action-ID och
+React encodeReply med ett tomt formulär: alla extension-/assetvägar ger 403
+utan native redirect, medan huvudsidans tomma login ger sin ursprungliga
+valideringsredirect och verkliga ikontillgångar fortfarande går att läsa.

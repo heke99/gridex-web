@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
-import { NextRequest } from 'next/server.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { isSupportHost, supportRewritePath, isProtectedPage } from '../lib/routing/supportHost.ts'
 
 assert.equal(isSupportHost('SUPPORT123.gridex.se:443'), true)
@@ -22,6 +22,9 @@ for (const pathname of ['/administrator', '/dashboarding', '/support-center-info
   assert.equal(isProtectedPage(pathname), false)
 }
 const state = globalThis.__gridexStaffHost = { authReads: 0, user: null }
+globalThis.AsyncLocalStorage ??= AsyncLocalStorage
+const { NextRequest } = await import('next/server.js')
+const { unstable_doesMiddlewareMatch } = await import('next/experimental/testing/server.js')
 const ssr = `data:text/javascript,${encodeURIComponent(`export function createServerClient() { return {auth:{getUser:async()=>{ const state=globalThis.__gridexStaffHost; state.authReads++; return {data:{user:state.user}} }}} }`)}`
 const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
   if (specifier === '@supabase/ssr') return { url: ssr, shortCircuit: true }
@@ -30,7 +33,7 @@ const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier, context)
 } })
 try {
-  const { proxy } = await import('../proxy.ts')
+  const { proxy, config } = await import('../proxy.ts')
   const request = (host, path, method = 'GET') => new NextRequest(`https://${host}${path}`, {
     method, headers: { host, cookie: 'customer_session=must-not-use', 'x-gridex-staff-mode': 'authenticated' },
     ...(method === 'POST' ? { body: 'email=customer&password=must-not-use' } : {}),
@@ -48,6 +51,14 @@ try {
     assert.equal(post.status, 403, 'Customer/server-action writes are blocked before rendering/Auth')
   }
   assert.equal((await proxy(request('support123.gridex.se', '/api/staff/session/login', 'POST'))).headers.get('x-middleware-next'), '1')
+  for (const path of ['/login.js', '/staff/login.js', '/missing.css', '/favicon.ico', '/favicon.ico/extra', '/icon.svg/extra',
+    '/_next/static/missing.js', '/_next/staticevil', '/_next/image', '/_next/image/evil', '/brand/missing', '/brand/missing.svg']) {
+    assert.equal(unstable_doesMiddlewareMatch({ config, url: `https://support123.gridex.se${path}` }), true, 'Actual matcher covers every action-capable path')
+    for (const method of ['POST', 'PUT', 'DELETE']) assert.equal((await proxy(request('support123.gridex.se', path, method))).status, 403, 'Asset-looking mutation cannot skip staff boundary')
+  }
+  for (const path of ['/_next/static/chunks/app.js', '/_next/image?url=%2Ficon.png&w=64&q=75', '/icon.svg', '/icon.png', '/brand/gridex-mark.svg']) {
+    for (const method of ['GET', 'HEAD']) assert.equal((await proxy(request('support123.gridex.se', path, method))).headers.get('x-middleware-next'), '1', 'Real read-only assets remain available')
+  }
   assert.equal(state.authReads, 0, 'Staff host never enters Web customer authentication')
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'synthetic'
