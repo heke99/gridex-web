@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readWebJson } from '../lib/api/webBoundary.ts'
 
-const url = 'https://support123.gridex.se/api/web/customer/support/cases'
+const url = 'https://gridex.se/api/web/customer/support/cases'
 const request = (headers = {}, body = '{}') => new Request(url, {
   method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body,
 })
@@ -11,7 +11,7 @@ for (const origin of ['null', 'not a url', 'https://evil.example', 'https://supp
   assert.equal(result.response.status, 403)
   assert.equal(result.response.headers.get('cache-control'), 'private, no-store')
 }
-assert.equal((await readWebJson(request({ origin: 'https://support123.gridex.se' }))).ok, true)
+assert.equal((await readWebJson(request({ origin: 'https://gridex.se' }))).ok, true)
 assert.equal((await readWebJson(request({ 'sec-fetch-site': 'cross-site' }))).response.status, 403)
 assert.equal((await readWebJson(request({ 'content-type': 'application/jsonp' }))).response.status, 415)
 assert.equal((await readWebJson(request({}, '{invalid'))).response.status, 400)

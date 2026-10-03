@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-const targets = [
+const targets = process.argv.includes('--staff-only') ? [
+  ['docs/openapi/staff-support-v1.json', 'lib/staff/generated/staff-api.d.ts'],
+] : [
   ['docs/openapi/website-integration-v1.json', 'lib/ops/generated/website-api.d.ts'],
   ['docs/openapi/customer-portal-v1.json', 'lib/ops/generated/customer-portal-api.d.ts'],
 ]

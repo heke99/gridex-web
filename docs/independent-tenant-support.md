@@ -34,16 +34,29 @@ bilagor. OPS filtrerar kundsynliga meddelanden; Web väljer dessutom uttryckliga
 publika fält. Interna anteckningar och personalidentiteter får inte exponeras.
 Uppladdningar begränsas till PDF, PNG och JPEG på högst 4 MiB.
 
-På exakt värdnamnet `support123.gridex.se` skrivs `/` internt om till
-`/support-center` och `/staff` till `/support-center/staff`. API-, inloggnings-
-och callbackvägar behåller sina adresser. Supportvärden skickar `noindex`.
-Inloggning sker på den aktuella värden, med värdbundna sessionscookies.
+På exakt värdnamnet `support123.gridex.se` visas endast personalens separata
+Web-arbetsyta. `/` skrivs internt om till `/staff`; `/login` och andra
+publika/kundvägar går till personalinloggningen. `/login/recovery` använder
+personalens återställningsflöde. Kundsupport finns kvar på huvuddomänens
+`/support-center` och `/dashboard/support`; kundserviceknappen går dit.
+Personalvärden saknar marknadsföringsfooter, annonseringsscript, kundregistrering
+och Supabase-kundsession. Serverns routeslot väljer det tomma skalet; det döljs
+inte först i klienten. Värden skickar `noindex`, privata svar `no-store`.
 
-OPS har ett kund-API för support, men inget externt handläggar-API i denna
-release. Handläggarnas kundärenden behandlas därför i OPS befintliga
-behörighetsskyddade supportpanel. Webs personalsida länkar dit och hanterar
-separat de anonyma förfrågningarna från `/kundservice`. Sådana förfrågningar
-skapar inte en andra kopia av en kunds OPS-ärende.
+Personalens identitet, aktuella behörigheter, kunduppgifter, ärenden och bilagor
+kommer endast genom OPS fristående `staff-support-v1`, version `2026-10-03.1`.
+Web använder en separat maskinnyckel och OPS personliga kortlivade bevis;
+OPS sköter Auth, MFA, återställning, sessionsrotation och auktorisation.
+Åtkomst- och förnyelsebevis finns endast i en krypterad, Secure/HttpOnly,
+värdbunden `__Host-gridex_staff_session`-cookie. Alla skrivningar, även login
+och återställning, kräver exakt Origin och sessionsbundet CSRF-värde. Ingen
+personalvy ansluter direkt till Webs eller OPS kunddatabas eller Auth-SDK.
+Källor, operationsmatris och publiceringskontroller finns i
+[`staff-api-integration.md`](staff-api-integration.md).
+
+Webs äldre personalpanel på huvuddomänen hanterar separat de anonyma
+förfrågningarna från `/kundservice`. Den är inte supportdomänens personalyta
+och skapar inte en andra kopia av en kunds OPS-ärende.
 
 Det anonyma formuläret sparar kontakt och första meddelande i en transaktion.
 Den tidigare koden försökte skriva till en obefintlig `system_emails`-tabell.
@@ -218,11 +231,16 @@ inte native PostgreSQL 16.15/17.6 eller fleranslutningsproven.
 5. Lägg till `support123.gridex.se` i samma Vercel-projekt som `gridex.se`
    (`prj_M9CISqPbBmmX7L83lvqiAJDJfhGS`) och följ Vercels visade DNS-krav.
    Använd inte en gissad CNAME. Kontrollera domänverifiering och TLS.
-6. Kontrollera att Supabase Auths tillåtna redirectadresser inkluderar
-   `https://support123.gridex.se/auth/confirm` och det återställningsflöde som
-   faktiskt används. Behåll även befintliga huvuddomänadresser.
+6. Konfigurera personalens separata servervariabler `GRIDEX_STAFF_OPS_API_URL`,
+   `GRIDEX_STAFF_API_KEY` och `GRIDEX_STAFF_SESSION_COOKIE_SECRET` (kanonisk
+   base64 av exakt 32 slumpbyte). Använd inte kundnyckeln som reserv.
+   OPS måste ha kvalificerad personalrelease, uttryckliga staff-scopes och
+   fast återställningsorigin `https://support123.gridex.se`. Personalens Auth
+   använder inte Webs Supabase-redirectlista. Behåll kundernas befintliga
+   huvuddomänadresser.
 7. Verifiera på den publicerade kandidaten med två riktiga testkunder från
-   olika tenants och separat supportpersonal: kundkoppling, läsningar,
+   olika tenants på huvuddomänen och separat OPS-supportpersonal på
+   supportdomänen: kundkoppling, läsningar,
    skriva/svara, filuppladdning/nedladdning, stängda ärenden, återförsök,
    förbjuden åtkomst, avaktiverade roller och prispublicering.
 

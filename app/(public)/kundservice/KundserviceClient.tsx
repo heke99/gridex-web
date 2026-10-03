@@ -71,7 +71,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         <p className="mt-3 max-w-3xl text-gray-400">
           Vi hjälper dig med frågor om elavtal, teckning, startdatum, faktura, flytt, Mina sidor och saknade anläggningsuppgifter. Vanligtvis återkommer vi via e-post så snart vi kan under vardagar.
         </p>
-        <Link href="https://support123.gridex.se" className="mt-5 inline-flex rounded-xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950">Logga in och följ dina ärenden</Link>
+        <Link href="/support-center" className="mt-5 inline-flex rounded-xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950">Logga in och följ dina ärenden</Link>
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">

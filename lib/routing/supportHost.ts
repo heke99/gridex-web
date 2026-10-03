@@ -8,12 +8,13 @@ export function isSupportHost(host: string): boolean {
   return normalizedHostname(host) === GRIDEX_SUPPORT_HOST
 }
 
-/** Keep authentication, APIs and assets on their original paths. */
+/** Staff pages use their own shell and authentication; APIs keep exact paths. */
 export function supportRewritePath(host: string, pathname: string): string | null {
-  if (!isSupportHost(host)) return null
-  if (pathname === '/') return '/support-center'
-  if (pathname === '/staff') return '/support-center/staff'
-  return null
+  if (!isSupportHost(host) || isPathWithin(pathname, '/api/staff') || ['/staff', '/staff/login', '/staff/recovery', '/staff/verify'].includes(pathname)) return null
+  if (pathname === '/') return '/staff'
+  if (pathname === '/login/recovery') return '/staff/recovery'
+  if (pathname === '/login/verify') return '/staff/verify'
+  return '/staff/login'
 }
 
 export function isPathWithin(pathname: string, root: string): boolean {

@@ -12,7 +12,7 @@ const state = globalThis.__gridexSupportUi = { context: null, rules: [] }
 const mocks = {
   'next/link': fixture(`export default 'a';`),
   '@/lib/admin/guards': fixture(`export const requireGlobalAdminPageAccess = async (rule) => { globalThis.__gridexSupportUi.rules.push(rule); return globalThis.__gridexSupportUi.context; };`),
-  '@/lib/support/staff': fixture(`export const opsStaffSupportUrl = () => 'https://app.gridex.se/admin/support';`),
+  '@/lib/support/staff': fixture(`export const opsStaffSupportUrl = () => 'https://app.gridex.se/admin/customer-cases';`),
   '@/app/admin/support-tickets/actions': fixture(`export const assignSupportTicketAction = () => {}; export const replyToSupportTicketAction = () => {}; export const updateSupportTicketStatusAction = () => {};`),
 }
 registerHooks({

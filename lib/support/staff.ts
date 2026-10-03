@@ -19,5 +19,5 @@ export function opsStaffSupportUrl(): string {
       if (url.protocol === 'https:' && !url.username && !url.password) return url.toString()
     } catch { /* use the configured public OPS application default */ }
   }
-  return 'https://app.gridex.se/admin/support'
+  return 'https://app.gridex.se/admin/customer-cases'
 }

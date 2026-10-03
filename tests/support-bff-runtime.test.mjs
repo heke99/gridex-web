@@ -80,18 +80,18 @@ const actions = await import('../app/admin/support-tickets/actions.ts')
 const caseRef = 'support_case_123456789012345678901234'
 const key = 'a1234567-1234-4123-8123-123456789012'
 function request(body, options = {}) {
-  return new Request('https://support123.gridex.se/api/web/customer/support/cases', {
-    method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': key, origin: 'https://support123.gridex.se', ...options.headers },
+  return new Request('https://gridex.se/api/web/customer/support/cases', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': key, origin: 'https://gridex.se', ...options.headers },
     body: JSON.stringify(body), ...options,
   })
 }
 
 state.authenticated = false
-assert.equal((await routes.supportCasesGET(new Request('https://support123.gridex.se/api/web/customer/support/cases'))).status, 401)
+assert.equal((await routes.supportCasesGET(new Request('https://gridex.se/api/web/customer/support/cases'))).status, 401)
 assert.equal((await routes.supportCasesPOST(request({ title: 'Hej', message: 'Text' }))).status, 401)
 assert.equal(state.calls.length, 0, 'anonymous portal calls never reach OPS support')
 state.authenticated = true
-const created = await routes.supportCasesPOST(request({ title: 'Hej', message: 'Text' }, { headers: { 'content-type': 'application/json', 'Idempotency-Key': key, origin: 'https://support123.gridex.se', 'x-gridex-auth-user-id': 'attacker', 'x-gridex-customer-number': 'DX-ATTACKER' } }))
+const created = await routes.supportCasesPOST(request({ title: 'Hej', message: 'Text' }, { headers: { 'content-type': 'application/json', 'Idempotency-Key': key, origin: 'https://gridex.se', 'x-gridex-auth-user-id': 'attacker', 'x-gridex-customer-number': 'DX-ATTACKER' } }))
 assert.equal(created.status, 201)
 assert.equal(created.headers.get('cache-control'), 'private, no-store')
 assert.deepEqual(state.calls.at(-1), { kind: 'create', args: [{ userId: state.userId, email: 'verified@example.test' }, { title: 'Hej', message: 'Text' }, key] })
@@ -101,7 +101,7 @@ for (const extra of ['user_id','customer_number','external_customer_id','company
   assert.equal((await routes.supportCasesPOST(request({ title: 'Hej', message: 'Text', [extra]: 'attacker' }))).status, 400)
 }
 assert.equal(state.calls.length, calls)
-assert.equal((await routes.supportCasesGET(new Request('https://support123.gridex.se/api/web/customer/support/cases?customer_number=DX-ATTACKER'))).status, 400)
+assert.equal((await routes.supportCasesGET(new Request('https://gridex.se/api/web/customer/support/cases?customer_number=DX-ATTACKER'))).status, 400)
 const reply = await routes.supportMessagesPOST(request({ message: 'Svar' }), caseRef)
 assert.equal(reply.status, 201)
 assert.equal(state.calls.at(-1).kind, 'reply')
@@ -109,7 +109,7 @@ assert.equal(state.calls.at(-1).args[0].userId, state.userId)
 calls = state.calls.length
 for (const origin of ['https://attacker.invalid', 'null', 'malformed origin', 'https://support123.gridex.se.evil.invalid']) {
   assert.equal((await routes.supportCasesPOST(request({ title: 'Hej', message: 'Text' }, { headers: { 'content-type': 'application/json', 'Idempotency-Key': key, origin } }))).status, 403)
-  const upload = new Request('https://support123.gridex.se/api/web/customer/support/cases/ref/attachments', { method: 'POST', headers: { 'content-type': 'application/pdf', 'Idempotency-Key': key, origin }, body: '%PDF-1.7' })
+  const upload = new Request('https://gridex.se/api/web/customer/support/cases/ref/attachments', { method: 'POST', headers: { 'content-type': 'application/pdf', 'Idempotency-Key': key, origin }, body: '%PDF-1.7' })
   assert.equal((await routes.supportAttachmentsPOST(upload, caseRef)).status, 403)
 }
 assert.equal(state.calls.length, calls, 'malformed and cross-site origins fail before OPS writes')

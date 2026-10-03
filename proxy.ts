@@ -42,6 +42,35 @@ function buildLoginRedirect(req: NextRequest, source: NextResponse): NextRespons
 
 export async function proxy(req: NextRequest) {
   const host = (req.headers.get('host') ?? '').toLowerCase().split(':')[0] ?? ''
+  const requestHeaders = new Headers(req.headers)
+  // No caller can select a staff shell or claim authenticated routing state.
+  for (const key of [...requestHeaders.keys()]) {
+    if (/^x-(?:gridex-)?(?:staff|support)-(?:host|mode|route|authenticated)$/.test(key)) requestHeaders.delete(key)
+  }
+
+  // Staff pages and BFFs never enter Web's customer Auth/session path. Block
+  // server-action POSTs before they could select a customer login action.
+  if (isSupportHost(host)) {
+    if (!['GET', 'HEAD'].includes(req.method) && !isPathWithin(req.nextUrl.pathname, '/api/staff')) {
+      return withPreviewNoindex(req, NextResponse.json({ error: { code: 'staff_route_forbidden',
+        message: 'Använd personalportalens inloggning.', retryable: false } }, {
+        status: 403, headers: { 'Cache-Control': 'private, no-store' },
+      }))
+    }
+    const rewrittenPath = supportRewritePath(host, req.nextUrl.pathname)
+    const url = req.nextUrl.clone()
+    if (rewrittenPath) { url.pathname = rewrittenPath; url.search = '' }
+    const response = withPreviewNoindex(req, rewrittenPath
+      ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+      : NextResponse.next({ request: { headers: requestHeaders } }))
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
+  }
+  if (isPathWithin(req.nextUrl.pathname, '/staff') || isPathWithin(req.nextUrl.pathname, '/api/staff')) {
+    return NextResponse.json({ error: { code: 'staff_host_required', message: 'Personalportalen finns på supportdomänen.', retryable: false } }, {
+      status: 404, headers: { 'Cache-Control': 'private, no-store' },
+    })
+  }
 
   if (host === WWW_HOST) {
     const url = req.nextUrl.clone()
@@ -49,13 +78,9 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url, 308)
   }
 
-  const rewrittenPath = supportRewritePath(host, req.nextUrl.pathname)
-  const effectivePath = rewrittenPath ?? req.nextUrl.pathname
-  const rewriteUrl = req.nextUrl.clone()
-  rewriteUrl.pathname = effectivePath
-  const createResponse = () => withPreviewNoindex(req, rewrittenPath
-    ? NextResponse.rewrite(rewriteUrl, { request: { headers: req.headers } })
-    : NextResponse.next({ request: { headers: req.headers } }))
+  const effectivePath = req.nextUrl.pathname
+  const createResponse = () => withPreviewNoindex(req,
+    NextResponse.next({ request: { headers: requestHeaders } }))
   let res = createResponse()
 
   if (!isProtectedPage(effectivePath)) {
