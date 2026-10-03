@@ -1,4 +1,5 @@
 import EventLink from '@/components/customer/EventLink'
+import CustomerHistoryNotice from '@/components/customer/CustomerHistoryNotice'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerDocument } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
@@ -45,6 +46,8 @@ export default async function DashboardDocumentsPage() {
           Här visas avtal, fullmakter, villkor, ångerrättsinformation och andra dokument som är kopplade till din kundprofil.
         </p>
       </div>
+
+      <CustomerHistoryNotice page={resource.page} label="dokumenten" />
 
       <div className="space-y-4">
         {documents.map((doc) => (

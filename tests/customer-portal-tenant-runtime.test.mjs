@@ -178,6 +178,22 @@ try {
   assert.equal(observedHeaders.get('x-gridex-external-customer-id'), null)
   assert.equal(observedHeaders.get('x-gridex-customer-assertion'), null)
 
+  // The released handlers add top-level page metadata to the otherwise closed
+  // resource envelope. Keep the actual transport's additive compatibility path
+  // compatible with that producer, without adding undocumented query inputs.
+  const resourcePage = { limit: 50, offset: 0, returned: 1, has_more: true, next_cursor: 'opaque_encrypted_cursor' }
+  for (const [path, data, page] of [
+    ['/api/v1/customer/invoices', [{ invoice_reference: 'invoice_canonical' }], resourcePage],
+    ['/api/v1/customer/sites', { sites: [siteDto], metering_points: [meterDto] }, { sites: resourcePage }],
+  ]) {
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).search, '', 'advisory response metadata does not invent request parameters')
+      return jsonResponse({ ...envelope(data), page })
+    }
+    const result = await opsCustomerFetch(path, { userId, email: user.email })
+    assert.deepEqual(result.page, page, 'released top-level metadata survives actual transport schema compatibility')
+  }
+
   for (const [status, accessGranted, expected] of [
     ['linked', true, true], ['linked', false, false], ['pending_review', true, false], ['rejected', true, false],
   ]) {

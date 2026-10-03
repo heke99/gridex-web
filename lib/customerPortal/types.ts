@@ -1,3 +1,11 @@
+export type CustomerResourcePage = {
+  limit: number
+  offset: number
+  returned: number
+  has_more: boolean
+  next_cursor: string | null
+}
+
 export type CustomerProfile = {
   user_id: string
   email: string | null

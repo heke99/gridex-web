@@ -1,3 +1,4 @@
+import CustomerHistoryNotice from '@/components/customer/CustomerHistoryNotice'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerLegalAcceptance, CustomerPowerOfAttorney } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
@@ -45,6 +46,7 @@ export default async function DashboardApprovalsPage() {
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-lg font-semibold">Mina godkännanden</h2>
         <div className="mt-4 space-y-3">
+          <CustomerHistoryNotice page={acceptanceResource.page} label="godkännandena" />
           {legalAcceptances.map((item) => (
             <div key={item.id} className="rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -74,6 +76,7 @@ export default async function DashboardApprovalsPage() {
           Fullmakten gör att Gridex kan begära och ta emot uppgifter från elnätsföretaget som behövs för att starta och administrera ditt elavtal.
         </p>
         <div className="mt-4 space-y-3">
+          <CustomerHistoryNotice page={powerOfAttorneyResource.page} label="fullmakterna" />
           {powersOfAttorney.map((poa) => (
             <div key={poa.id} className="rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

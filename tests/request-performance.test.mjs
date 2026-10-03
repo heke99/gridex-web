@@ -49,6 +49,9 @@ const hooks = registerHooks({
     if (specifier === '@/lib/customerPortal/statusHelper') {
       return nextResolve(new URL('../lib/customerPortal/statusHelper.ts', import.meta.url).href, context)
     }
+    if (specifier === '@/components/customer/CustomerHistoryNotice') {
+      return nextResolve(new URL('../components/customer/CustomerHistoryNotice.tsx', import.meta.url).href, context)
+    }
     if (specifier === 'next/link') {
       return { url: moduleUrl('export default function Link() { return null }'), shortCircuit: true }
     }

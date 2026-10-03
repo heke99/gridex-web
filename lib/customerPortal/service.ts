@@ -2,7 +2,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { fetchOpsCustomerSupportTickets, fetchOpsCustomerSupportMessages } from '@/lib/ops/client/support'
 import { createSupabaseServerClient, getSupabaseUser } from '@/lib/supabase/server'
 import { cache } from 'react'
-import { canonicalResourceRows, unwrapOpsData } from './resourceData'
+import { canonicalResourcePage, canonicalResourceRows, unwrapOpsData } from './resourceData'
 import { verifyCustomerAccountAccess } from './accountAccess'
 import {
   fetchOpsCustomerPortalBundle,
@@ -23,6 +23,7 @@ import type {
   CustomerPortalOverview,
   CustomerPowerOfAttorney,
   CustomerProfile,
+  CustomerResourcePage,
   CustomerSite,
   CustomerStatus,
   CustomerSwitchStatus,
@@ -706,6 +707,7 @@ export async function getCanonicalCustomerResource(
   authoritative: true
   read_only: false
   data_freshness: 'live'
+  page: CustomerResourcePage | null
 }> {
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
@@ -718,6 +720,9 @@ export async function getCanonicalCustomerResource(
   })
   return {
     data: canonicalData,
+    page: opaqueId || resource === 'me'
+      ? null
+      : canonicalResourcePage(payload, resource.replace(/-/g, '_'), Array.isArray(canonicalData) ? canonicalData.length : 0),
     authoritative: true,
     read_only: false,
     data_freshness: 'live',
