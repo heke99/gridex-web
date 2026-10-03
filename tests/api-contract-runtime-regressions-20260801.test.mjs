@@ -46,7 +46,7 @@ assert.throws(() => assertWebsiteRequest(
 ))
 
 const portalHeaders = new Headers({
-  'x-gridex-customer-portal-user-id': '11111111-1111-4111-8111-111111111111',
+  'x-gridex-customer-portal-user-id': '22222222-2222-4222-8222-222222222222',
   'x-gridex-auth-user-id': '22222222-2222-4222-8222-222222222222',
   'Idempotency-Key': 'runtime-contract-regression-20260803',
 })
@@ -63,6 +63,9 @@ const syncBody = {
     scope: ['supplier_switch', 'facility_information_lookup'],
     accepted: true,
     accepted_at: '2026-08-01T18:00:00.000Z',
+    signer_name: 'Test Kund',
+    signer_identity_number: '199001011234',
+    method: 'web',
   },
   legal_acceptances: [{
     document_reference: 'terms_doc_1',
