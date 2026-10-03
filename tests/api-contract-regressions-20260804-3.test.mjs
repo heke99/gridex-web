@@ -1,5 +1,6 @@
 import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
+import { compareContractVersions } from '../lib/ops/contractCompatibility.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
@@ -23,7 +24,13 @@ const migration = read('supabase/migrations/20260804190000_price_area_assurance_
 
 assert.equal(website.info.version, release.release_version)
 assert.equal(portal.info.version, release.release_version)
-assert.equal(release.minimum_tenant_integration_version, release.release_version)
+const minimumVersion = compareContractVersions(release.release_version, release.minimum_tenant_integration_version)
+assert.equal(minimumVersion.parseable, true)
+assert.equal(minimumVersion.newerThanLocal, false, 'a backward-compatible release can retain an older tenant floor')
+for (const spec of [website, portal]) {
+  assert.equal(spec.components.schemas.OpenApiReleaseManifest.properties.minimum_tenant_integration_version.const,
+    release.minimum_tenant_integration_version)
+}
 assert.equal(sha256(websiteRaw), release.specifications.website.sha256)
 assert.equal(sha256(portalRaw), release.specifications.customer_portal.sha256)
 assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.release_version}'`))

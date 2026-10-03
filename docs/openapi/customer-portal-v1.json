@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Customer Portal API",
-    "version": "2026-08-22.2",
+    "version": "2026-10-02.4",
     "description": "Production API for customer portals. Access is organization-scoped by the server-side API credential and customer data is limited to the verified linked customer identity."
   },
   "servers": [
@@ -155,7 +155,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -429,6 +429,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -525,7 +536,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -720,6 +731,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -805,7 +827,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -1000,6 +1022,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -1085,7 +1118,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -1280,6 +1313,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -1365,7 +1409,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -1569,6 +1613,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -1654,7 +1709,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -1849,6 +1904,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -1934,7 +2000,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -2129,6 +2195,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -2214,7 +2291,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -2409,6 +2486,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -2494,7 +2582,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -2692,6 +2780,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "requestBody": {
@@ -2732,7 +2831,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -2783,7 +2882,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -2862,7 +2961,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -3057,6 +3156,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -3142,7 +3252,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -3340,6 +3450,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "requestBody": {
@@ -3380,7 +3501,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -3459,7 +3580,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -3672,6 +3793,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -3757,7 +3889,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -3968,6 +4100,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "requestBody": {
@@ -4063,7 +4206,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -4258,6 +4401,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -4343,7 +4497,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -4547,6 +4701,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "requestBody": {
@@ -4587,7 +4752,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -4666,7 +4831,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -4871,6 +5036,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "responses": {
@@ -4956,7 +5132,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -5154,6 +5330,17 @@
               "format": "uuid",
               "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
             }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
           }
         ],
         "requestBody": {
@@ -5194,7 +5381,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -5273,7 +5460,7 @@
             }
           },
           "403": {
-            "description": "Scope, IP eller origin tillåts inte.",
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
             "headers": {
               "X-Gridex-Contract-Version": {
                 "$ref": "#/components/headers/GridexContractVersion"
@@ -5513,7 +5700,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -5799,7 +5986,7 @@
                     },
                     "contract_schema_version": {
                       "type": "string",
-                      "const": "2026-08-22.2"
+                      "const": "2026-10-02.4"
                     }
                   }
                 }
@@ -6228,7 +6415,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6262,7 +6453,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-02.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6304,7 +6499,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6338,7 +6537,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-03.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6380,7 +6583,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6423,7 +6630,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6474,7 +6685,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6508,7 +6723,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.3"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6550,7 +6769,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6593,7 +6816,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-04.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6644,7 +6871,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6678,7 +6909,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6720,7 +6955,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6754,7 +6993,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-05.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6796,7 +7039,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6830,7 +7077,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-10.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6872,7 +7123,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6915,7 +7170,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-14.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -6966,7 +7225,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7009,7 +7272,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7060,7 +7327,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7103,7 +7374,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-19.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7154,7 +7429,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7197,7 +7476,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.1"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7248,7 +7531,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7282,7 +7569,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-20.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7324,7 +7615,11 @@
             "description": "Versionerad OpenAPI JSON",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7358,7 +7653,11 @@
             "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
             "headers": {
               "X-Gridex-Contract-Version": {
-                "$ref": "#/components/headers/GridexContractVersion"
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-08-22.2"
+                }
               },
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
@@ -7383,6 +7682,3314 @@
         },
         "x-required-scopes": [],
         "operationId": "getApiV1Openapi202608222CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-01.1",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-01.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-01.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610011CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-02.1",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-02.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610021CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-02.2",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-02.2.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.2"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610022CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-02.3",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-02.3.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.3"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610023CustomerPortalV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/customer/support/cases": {
+      "get": {
+        "operationId": "getApiV1CustomerSupportCases",
+        "summary": "List the customer’s support cases",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.read"
+        ],
+        "x-idempotency-required": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque cursor from page.next_cursor; bound to the customer and resource."
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version",
+                    "page"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerSupportCase"
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    },
+                    "page": {
+                      "$ref": "#/components/schemas/PortalPage"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Lists support cases of the verified customer, newest first, filtered in the database before pagination. Requires an actively linked portal user. Internal notes, phone logs and technical case events are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      },
+      "post": {
+        "operationId": "postApiV1CustomerSupportCases",
+        "summary": "Open a support case",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.write"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.write"
+        ],
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSupportCaseCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerSupportCase"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Opens a support case with the customer’s first message. The same Idempotency-Key and payload replay the same case; a different payload is rejected with 409. Requires an actively linked portal user. Internal notes, phone logs and technical case events are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      }
+    },
+    "/api/v1/customer/support/cases/{reference}": {
+      "get": {
+        "operationId": "getApiV1CustomerSupportCasesReference",
+        "summary": "Retrieve a support case with its customer-visible messages",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.read"
+        ],
+        "x-idempotency-required": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerSupportCaseDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires an actively linked portal user. Internal notes, phone logs and technical case events are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      }
+    },
+    "/api/v1/customer/support/cases/{reference}/messages": {
+      "get": {
+        "operationId": "getApiV1CustomerSupportCasesReferenceMessages",
+        "summary": "List customer-visible messages of a support case",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.read"
+        ],
+        "x-idempotency-required": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerSupportMessage"
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires an actively linked portal user. Internal notes, phone logs and technical case events are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      },
+      "post": {
+        "operationId": "postApiV1CustomerSupportCasesReferenceMessages",
+        "summary": "Add a customer message to an open support case",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.write"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.write"
+        ],
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSupportMessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerSupportMessage"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Closed cases reject new messages with 409. Requires an actively linked portal user. Internal notes, phone logs and technical case events are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      }
+    },
+    "/api/v1/customer/support/cases/{reference}/attachments": {
+      "get": {
+        "operationId": "getApiV1CustomerSupportCasesReferenceAttachments",
+        "summary": "List released attachments of a support case",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.read"
+        ],
+        "x-idempotency-required": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerSupportAttachment"
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires an actively linked portal user. Only released (content-checked), customer-visible attachments are ever listed or served; internal staff files are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      },
+      "post": {
+        "operationId": "postApiV1CustomerSupportCasesReferenceAttachments",
+        "summary": "Upload an attachment to an open support case",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.write"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.write"
+        ],
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "X-File-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "URL-encoded original file name. Informational only: it is sanitized and its extension is replaced by the detected type."
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 4194304
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 4194304
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 4194304
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lyckat svar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "request_id",
+                    "contract_schema_version"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerSupportAttachment"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "correlation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_schema_version": {
+                      "type": "string",
+                      "const": "2026-10-02.4"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Filen är större än 4 MB.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type måste vara application/pdf, image/png eller image/jpeg.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Send the raw file as the request body with Content-Type application/pdf, image/png or image/jpeg (at most 4 MB) and an optional URL-encoded X-File-Name header. The file is stored in quarantine and released only after a content check (real type from the bytes, no active PDF content such as JavaScript, launch actions or embedded files). Rejected files return 422 and are never served. Closed cases return 409. At most 20 attachments per customer per 24 hours (429). The same Idempotency-Key with the same bytes replays the result. Requires an actively linked portal user. Only released (content-checked), customer-visible attachments are ever listed or served; internal staff files are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "write",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      }
+    },
+    "/api/v1/customer/support/cases/{reference}/attachments/{attachmentReference}": {
+      "get": {
+        "operationId": "getApiV1CustomerSupportCasesReferenceAttachmentsAttachmentReference",
+        "summary": "Download a released attachment",
+        "security": [
+          {
+            "bearerAuth": [
+              "customer_support.read"
+            ]
+          },
+          {
+            "legacyApiKeyAuth": []
+          }
+        ],
+        "x-required-scopes": [
+          "customer_support.read"
+        ],
+        "x-idempotency-required": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public case reference returned by this API. Lookups are always bounded to the verified customer."
+          },
+          {
+            "name": "attachmentReference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+            },
+            "description": "Public attachment reference returned by this API. Lookups are bounded to the verified customer and case."
+          },
+          {
+            "$ref": "#/components/parameters/ExternalCustomerId"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerNumber"
+          },
+          {
+            "$ref": "#/components/parameters/CustomerEmail"
+          },
+          {
+            "name": "x-gridex-customer-portal-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-auth-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional verified organization-portal user UUID. Must be supplied together with auth_user_id and must match it."
+            }
+          },
+          {
+            "name": "x-gridex-customer-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            },
+            "description": "Signed proof of the end customer's own login, forwarded by the tenant server. Compact JWS signed with RS256, PS256 or ES256 (none and HS* are rejected). Claims: iss and aud as configured for the tenant in OPS (own-login keys use iss=gridex-tenant:<organization> and aud=gridex-customer-api:<organization>), sub = the linked portal user id, exp at most 15 minutes after iat, and a unique jti (each assertion is accepted once). Required only when the tenant has enabled \"require verified customer\"; in report mode a missing or invalid assertion is logged but the call proceeds; tenants without a configuration are unaffected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attachment bytes.",
+            "headers": {
+              "X-Gridex-Sha256": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ogiltig JSON eller validering.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token saknas eller är ogiltig.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope, IP eller origin tillåts inte. When the tenant requires a verified customer login: customer_assertion_required (header missing) or customer_assertion_invalid (signature, issuer, audience, subject, lifetime or replay check failed).",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ärendet hittades inte för den verifierade kunden.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tvetydig matchning eller idempotenskonflikt.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Affärsvalidering misslyckades.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "API-klientens trafikgräns har överskridits.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internt fel utan databasdetaljer.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "$ref": "#/components/headers/GridexContractVersion"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "description": "Returns the file bytes as an attachment download (Content-Disposition: attachment, X-Content-Type-Options: nosniff, sandboxing Content-Security-Policy). X-Gridex-Sha256 carries the verified SHA-256. A file whose bytes no longer match its recorded hash, or that is not released, is refused with 409. Requires an actively linked portal user. Only released (content-checked), customer-visible attachments are ever listed or served; internal staff files are never returned.",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-cache-policy": "no-store",
+        "x-public-id-policy": "opaque-references"
+      }
+    },
+    "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json": {
+      "get": {
+        "summary": "Immutable Customer Portal OpenAPI release 2026-10-02.4",
+        "description": "Immutable Customer Portal OpenAPI release 2026-10-02.4.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Contract version of this immutable OpenAPI document.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-10-02.4"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610024CustomerPortalV1Json",
         "x-scope-mode": "all",
         "x-rate-limit-class": "read",
         "x-idempotency-required": false,
@@ -8216,7 +11823,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -8761,7 +12368,7 @@
             "const": "api_key"
           },
           "contract_version": {
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           },
           "configuration": {
             "type": "object",
@@ -9008,7 +12615,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9183,7 +12790,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -9716,7 +13323,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -9789,7 +13396,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -10214,7 +13821,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-08-22.2"
+            "const": "2026-10-02.4"
           }
         }
       },
@@ -10223,6 +13830,468 @@
         "items": {
           "$ref": "#/components/schemas/PublicDomainEvent"
         }
+      },
+      "CustomerSupportCase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_reference",
+          "title",
+          "description",
+          "status",
+          "channel",
+          "created_at",
+          "updated_at",
+          "resolved_at"
+        ],
+        "properties": {
+          "case_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque public reference. It identifies the case but grants no access on its own."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 180
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only text the customer wrote when opening the case; null for staff-created cases."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "in_progress",
+              "resolved",
+              "closed"
+            ],
+            "description": "Customer-visible status. Internal working states are not exposed."
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "api",
+              "customer_portal",
+              "admin",
+              "phone",
+              "operations_automation",
+              null
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "CustomerSupportMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message_reference",
+          "author_type",
+          "kind",
+          "body",
+          "created_at"
+        ],
+        "properties": {
+          "message_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$"
+          },
+          "author_type": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff"
+            ],
+            "description": "staff = a named employee of the organization; the employee identity is not exposed."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "message",
+              "phone_summary"
+            ],
+            "description": "phone_summary = a call summary explicitly published by staff; never an authenticated customer message."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 8000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CustomerSupportCaseDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_reference",
+          "title",
+          "description",
+          "status",
+          "channel",
+          "created_at",
+          "updated_at",
+          "resolved_at",
+          "messages"
+        ],
+        "properties": {
+          "case_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque public reference. It identifies the case but grants no access on its own."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 180
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only text the customer wrote when opening the case; null for staff-created cases."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "in_progress",
+              "resolved",
+              "closed"
+            ],
+            "description": "Customer-visible status. Internal working states are not exposed."
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "api",
+              "customer_portal",
+              "admin",
+              "phone",
+              "operations_automation",
+              null
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerSupportMessage"
+            }
+          }
+        }
+      },
+      "CustomerSupportCaseCreateRequest": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "title",
+          "message"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 120
+          }
+        }
+      },
+      "CustomerSupportMessageCreateRequest": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        }
+      },
+      "PortalPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "offset",
+          "returned",
+          "has_more",
+          "next_cursor"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CustomerSupportAttachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attachment_reference",
+          "file_name",
+          "mime_type",
+          "byte_size",
+          "sha256",
+          "uploaded_by",
+          "created_at"
+        ],
+        "properties": {
+          "attachment_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque public reference. It identifies the attachment but grants no access on its own."
+          },
+          "file_name": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "Sanitized file name; the extension always matches the detected type."
+          },
+          "mime_type": {
+            "type": "string",
+            "enum": [
+              "application/pdf",
+              "image/png",
+              "image/jpeg"
+            ],
+            "description": "Type detected from the file content, never the declared type."
+          },
+          "byte_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10485760
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 of the stored bytes; re-verified on every download."
+          },
+          "uploaded_by": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OpenApiReleaseManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "release_version",
+          "website_openapi_version",
+          "customer_portal_openapi_version",
+          "runtime_contract_version",
+          "guide_version",
+          "released_at",
+          "generated_at",
+          "build_commit",
+          "compatibility_classification",
+          "deprecated_features",
+          "minimum_tenant_integration_version",
+          "specifications"
+        ],
+        "properties": {
+          "release_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "website_openapi_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "customer_portal_openapi_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "runtime_contract_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "guide_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "released_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "build_commit": {
+            "type": "string"
+          },
+          "compatibility_classification": {
+            "type": "string",
+            "enum": [
+              "backward-compatible",
+              "breaking-client-update-required",
+              "breaking"
+            ]
+          },
+          "deprecated_features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "feature",
+                "replacement",
+                "sunset_at"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "replacement": {
+                  "type": "string"
+                },
+                "sunset_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "minimum_tenant_integration_version": {
+            "type": "string",
+            "const": "2026-10-02.3"
+          },
+          "specifications": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "website",
+              "customer_portal"
+            ],
+            "properties": {
+              "website": {
+                "$ref": "#/components/schemas/OpenApiReleaseSpecification"
+              },
+              "customer_portal": {
+                "$ref": "#/components/schemas/OpenApiReleaseSpecification"
+              }
+            }
+          }
+        }
+      },
+      "OpenApiReleaseSpecification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contract_name",
+          "contract_version",
+          "url",
+          "immutable_url",
+          "sha256",
+          "compatibility"
+        ],
+        "properties": {
+          "contract_name": {
+            "type": "string"
+          },
+          "contract_version": {
+            "type": "string",
+            "const": "2026-10-02.4"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "immutable_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "backward-compatible",
+              "breaking-client-update-required",
+              "breaking"
+            ]
+          }
+        }
       }
     },
     "headers": {
@@ -10230,7 +14299,7 @@
         "description": "Canonical contract version used for this response.",
         "schema": {
           "type": "string",
-          "const": "2026-08-22.2"
+          "const": "2026-10-02.4"
         }
       },
       "RequestId": {
@@ -10295,7 +14364,7 @@
       }
     }
   },
-  "x-contract-schema-version": "2026-08-22.2",
+  "x-contract-schema-version": "2026-10-02.4",
   "x-gridex-organization-setup": {
     "required_environment_variables": [
       "GRIDEX_API_KEY"
@@ -10313,7 +14382,7 @@
       "description": "Verifiera API-nyckelns tenantkontext, fasta base URL och one-secret readiness."
     }
   ],
-  "x-gridex-release-version": "2026-08-22.2",
+  "x-gridex-release-version": "2026-10-02.4",
   "x-error-codes": [
     "missing_api_token",
     "invalid_api_token",
