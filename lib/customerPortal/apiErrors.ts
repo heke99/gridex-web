@@ -9,6 +9,7 @@ type ErrorDetails = {
   hint: string | null
   action: string | null
   requestId: string | null
+  blockers: unknown[]
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -28,7 +29,7 @@ function text(row: Record<string, unknown> | null, keys: string[]): string | nul
 
 export function opsErrorDetails(error: unknown): ErrorDetails {
   if (!isOpsError(error)) {
-    return { code: null, stage: null, field: null, hint: null, action: null, requestId: null }
+    return { code: null, stage: null, field: null, hint: null, action: null, requestId: null, blockers: [] }
   }
   const root = record(error.details)
   const nested = record(root?.error)
@@ -41,6 +42,7 @@ export function opsErrorDetails(error: unknown): ErrorDetails {
     action: text(root, ['action']) ?? text(nested, ['action']) ?? text(details, ['action']),
     requestId:
       text(root, ['request_id', 'requestId']) ?? text(nested, ['request_id', 'requestId']),
+    blockers: Array.isArray(nested?.blockers) ? nested.blockers : Array.isArray(root?.blockers) ? root.blockers : [],
   }
 }
 
@@ -91,6 +93,7 @@ export function customerApiErrorResponse(
         correlationId: error.correlationId,
         upstreamStatus: error.status,
         retryable: error.retryable,
+        blockers: details.blockers,
       },
       error.status || 502,
       typeof retryAfter === 'string' ? { 'Retry-After': retryAfter } : undefined,

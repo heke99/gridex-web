@@ -49,6 +49,7 @@ export type CustomerPortalContract = {
 export type CustomerSite = {
   id: string
   site_reference: string
+  facility_reference: string
   address: string | null
   postal_code: string | null
   city: string | null
@@ -228,4 +229,5 @@ export type CustomerPortalOverview = {
   readOnly: boolean
   dataFreshness: 'live'
   dataFreshnessMessage: string | null
+  unavailableSections: string[]
 }

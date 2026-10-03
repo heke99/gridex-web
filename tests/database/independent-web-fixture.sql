@@ -155,6 +155,9 @@ create table public.customer_support_messages (
   client_request_id text
 );
 alter table public.roles add primary key(id),add unique(name);
+-- Production has uniqueness for non-null keys as well as role names. These
+-- independent indexes still permit key/name and case-insensitive collisions.
+create unique index roles_key_unique_idx on public.roles(key) where key is not null;
 alter table public.permissions add primary key(id),add unique(name);
 alter table public.role_permissions add primary key(role_id,permission_id);
 alter table public.user_permissions add primary key(user_id,permission_id);

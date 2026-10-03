@@ -1,8 +1,12 @@
 import type { User } from '@supabase/supabase-js'
 import {
   submitOpsCustomerPortalSync,
+  isOpsError,
+  OpsError,
   type OpsCustomerApplicationResult,
 } from '@/lib/ops/client'
+import { stablePortalCustomerIdentityMatches } from '@/lib/customerPortal/stableIdentity'
+import { assertPortalAuthUserEligibility, verifyPortalOutboxEligibility } from '@/lib/customerPortal/outboxEligibility'
 
 type SupabaseServiceClient = Awaited<typeof import('@/lib/supabase/service')>['supabaseService']
 
@@ -94,16 +98,6 @@ async function loadServiceClient(): Promise<SupabaseServiceClient> {
   return supabaseService
 }
 
-function stableProfileMatchesApplication(profile: ExistingProfile, input: PortalOnboardingInput): boolean {
-  const appExternal = input.application.external_customer_id?.trim() || null
-  const appCustomerNumber = input.application.customer_number?.trim() || null
-  return Boolean(
-    (appExternal && profile.external_customer_id === appExternal) ||
-      (appCustomerNumber &&
-        (profile.customer_number === appCustomerNumber ||
-          profile.contract_customer_ref === appCustomerNumber)),
-  )
-}
 
 async function findSafelyLinkedProfile(
   supabase: SupabaseServiceClient,
@@ -112,13 +106,13 @@ async function findSafelyLinkedProfile(
   const { data, error } = await supabase
     .from('customer_profiles')
     .select('user_id,email,customer_number,contract_customer_ref,external_customer_id')
-    .ilike('email', normalizeEmail(input.email))
+    .eq('email', normalizeEmail(input.email))
     .limit(3)
     .returns<ExistingProfile[]>()
   if (error) throw new Error(error.message)
   const rows = data ?? []
   if (rows.length !== 1) return null
-  return stableProfileMatchesApplication(rows[0], input) ? rows[0] : null
+  return stablePortalCustomerIdentityMatches(rows[0], input.application) ? rows[0] : null
 }
 
 function profilePayload(
@@ -247,26 +241,13 @@ function syncedText(row: Record<string, unknown> | null | undefined, keys: strin
   return null
 }
 
-async function updateJob(
-  supabase: SupabaseServiceClient,
-  id: string,
-  patch: Record<string, unknown>,
-): Promise<void> {
-  const { data, error } = await supabase
-    .from('portal_onboarding_jobs')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select('id')
-    .maybeSingle<{ id: string }>()
-  if (error) throw new Error(`Portal onboarding job update failed: ${error.message}`)
-  if (!data) throw new Error('Portal onboarding job update failed: job not found.')
-}
 
 
 async function updateClaimedJob(
   supabase: SupabaseServiceClient,
   id: string,
   attempt: number,
+  lockedAt: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
   const { data, error } = await supabase
@@ -275,6 +256,7 @@ async function updateClaimedJob(
     .eq('id', id)
     .eq('status', 'processing')
     .eq('attempt_count', attempt)
+    .eq('locked_at', lockedAt)
     .select('id')
     .maybeSingle<{ id: string }>()
   if (error) throw new Error(`Portal onboarding claimed update failed: ${error.message}`)
@@ -284,15 +266,16 @@ async function updateClaimedJob(
 async function claimJob(
   supabase: SupabaseServiceClient,
   job: PortalOnboardingJob,
-): Promise<number | null> {
+): Promise<{ attempt: number; lockedAt: string } | null> {
   const attempt = job.attempt_count + 1
+  const lockedAt = new Date().toISOString()
   const { data, error } = await supabase
     .from('portal_onboarding_jobs')
     .update({
       status: 'processing',
       attempt_count: attempt,
-      locked_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      locked_at: lockedAt,
+      updated_at: lockedAt,
     })
     .eq('id', job.id)
     .eq('attempt_count', job.attempt_count)
@@ -300,7 +283,7 @@ async function claimJob(
     .select('id')
     .maybeSingle<{ id: string }>()
   if (error) throw new Error(`Portal onboarding job claim failed: ${error.message}`)
-  return data ? attempt : null
+  return data ? { attempt, lockedAt } : null
 }
 
 function retryAt(attempt: number): string {
@@ -378,19 +361,18 @@ async function processJob(
   if (job.status === 'completed') return { status: 'profile_linked', userId: job.auth_user_id }
 
   const input = job.payload
-  const attempt = await claimJob(supabase, job)
-  if (attempt === null) {
+  const claim = await claimJob(supabase, job)
+  if (claim === null) {
     return { status: 'pending', message: 'Portal onboarding is already being processed.' }
   }
 
+  const { attempt, lockedAt } = claim
   try {
     let userId = input.authenticatedUserId?.trim() || job.auth_user_id
-    let authenticatedNow = Boolean(input.authenticatedUserId?.trim())
 
     if (!userId) {
       const safelyLinked = await findSafelyLinkedProfile(supabase, input)
       userId = safelyLinked?.user_id ?? null
-      authenticatedNow = false
     }
 
     if (!userId) {
@@ -409,7 +391,7 @@ async function processJob(
         if (!isExistingAuthUserInviteError(error)) {
           throw new Error(`Supabase invite failed: ${error.message}`)
         }
-        await updateClaimedJob(supabase, job.id, attempt, {
+        await updateClaimedJob(supabase, job.id, attempt, lockedAt, {
           status: 'manual_review',
           last_error: 'existing_auth_user_requires_login',
           next_attempt_at: null,
@@ -422,22 +404,23 @@ async function processJob(
       }
       userId = data.user?.id ?? null
       if (!userId) throw new Error('Supabase invite returned no user id.')
-      await updateClaimedJob(supabase, job.id, attempt, { auth_user_id: userId })
+      await updateClaimedJob(supabase, job.id, attempt, lockedAt, { auth_user_id: userId })
     }
 
     const { data: authData, error: authError } = await supabase.auth.admin.getUserById(userId)
-    if (authError) throw new Error(`Auth user verification failed: ${authError.message}`)
-    const isConfirmed = authenticatedNow || confirmed(authData.user)
-
-    await upsertLocalPortalRows(
-      supabase,
-      input,
-      userId,
-      isConfirmed ? 'portal_existing_customer_linked' : 'portal_email_confirmation_sent',
-    )
+    if (authError) {
+      throw new OpsError('Auth user verification failed.', authError.status === 404 ? 403 : 503, {
+        code: 'portal_onboarding_auth_verification_failed', retryable: authError.status !== 404,
+      })
+    }
+    assertPortalAuthUserEligibility(userId, authData.user, false)
+    // A durable payload records which account created checkout; it is not fresh
+    // proof of email confirmation when this worker retries later.
+    const isConfirmed = confirmed(authData.user)
 
     if (!isConfirmed) {
-      await updateClaimedJob(supabase, job.id, attempt, {
+      await upsertLocalPortalRows(supabase, input, userId, 'portal_email_confirmation_sent')
+      await updateClaimedJob(supabase, job.id, attempt, lockedAt, {
         status: 'pending',
         auth_user_id: userId,
         // Waiting for the customer to confirm their email is not a technical
@@ -450,10 +433,15 @@ async function processJob(
       return { status: 'email_confirmation_sent', userId }
     }
 
+    // Durable checkout identity cannot authorize a fresh OPS assertion after
+    // the account has been deleted, banned or disabled since it was queued.
+    await verifyPortalOutboxEligibility(supabase, userId, { userId })
+    await upsertLocalPortalRows(supabase, input, userId, 'portal_existing_customer_linked')
+
     const externalCustomerId =
       input.application.external_customer_id ?? input.application.external_customer_reference ?? null
     if (!externalCustomerId) {
-      await updateClaimedJob(supabase, job.id, attempt, {
+      await updateClaimedJob(supabase, job.id, attempt, lockedAt, {
         status: 'manual_review',
         auth_user_id: userId,
         next_attempt_at: null,
@@ -495,7 +483,7 @@ async function processJob(
 
     const portalIdentityId = syncedText(sync.synced, ['identity_id', 'portal_identity_id', 'customer_portal_user_id'])
     await upsertLocalPortalRows(supabase, input, userId, 'verified', portalIdentityId ?? userId)
-    await updateClaimedJob(supabase, job.id, attempt, {
+    await updateClaimedJob(supabase, job.id, attempt, lockedAt, {
       status: 'completed',
       auth_user_id: userId,
       last_error: null,
@@ -506,8 +494,9 @@ async function processJob(
     return { status: 'profile_linked', userId }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const exhausted = attempt >= job.max_attempts
-    await updateClaimedJob(supabase, job.id, attempt, {
+    const permanent = isOpsError(error) && !error.retryable
+    const exhausted = permanent || attempt >= job.max_attempts
+    await updateClaimedJob(supabase, job.id, attempt, lockedAt, {
       status: exhausted ? 'manual_review' : 'retryable_failure',
       last_error: message.slice(0, 2000),
       next_attempt_at: exhausted ? null : retryAt(attempt),
@@ -569,13 +558,15 @@ export async function processPortalOnboardingJobs(limit = 25): Promise<{
 export async function resumePortalOnboardingForConfirmedUser(input: {
   userId: string
   email: string | null
+  jobIds: string[]
 }): Promise<{ processed: number; completed: number }> {
-  if (!input.email) return { processed: 0, completed: 0 }
+  if (!input.email || input.jobIds.length === 0) return { processed: 0, completed: 0 }
   const supabase = await loadServiceClient()
   const { data, error } = await supabase
     .from('portal_onboarding_jobs')
     .select('id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts')
-    .ilike('email', normalizeEmail(input.email))
+    .eq('email', normalizeEmail(input.email))
+    .in('id', input.jobIds)
     .in('status', ['pending', 'retryable_failure', 'manual_review'])
     .limit(10)
     .returns<PortalOnboardingJob[]>()
@@ -584,15 +575,25 @@ export async function resumePortalOnboardingForConfirmedUser(input: {
   let completed = 0
   for (const job of data ?? []) {
     const payload = { ...job.payload, authenticatedUserId: input.userId }
-    await updateJob(supabase, job.id, {
-      auth_user_id: input.userId,
-      payload,
-      status: 'pending',
-      attempt_count: 0,
-      next_attempt_at: new Date().toISOString(),
-      last_error: null,
-      locked_at: null,
-    })
+    const { data: resumed, error: resumeError } = await supabase
+      .from('portal_onboarding_jobs')
+      .update({
+        auth_user_id: input.userId,
+        payload,
+        status: 'pending',
+        attempt_count: 0,
+        next_attempt_at: new Date().toISOString(),
+        last_error: null,
+        locked_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', job.id)
+      .eq('status', job.status)
+      .eq('attempt_count', job.attempt_count)
+      .select('id')
+      .maybeSingle<{ id: string }>()
+    if (resumeError) throw new Error(`Portal onboarding resume claim failed: ${resumeError.message}`)
+    if (!resumed) continue
     const result = await processJob(supabase, {
       ...job,
       payload,

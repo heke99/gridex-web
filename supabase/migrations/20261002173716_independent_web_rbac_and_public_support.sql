@@ -2,8 +2,16 @@
 -- these local support tables retain historical records and anonymous enquiries.
 -- Keep all arbitrary-user authorization RPCs server-only.
 
-create or replace function public.gridex_get_user_roles(p_user_id uuid, p_company_id uuid)
-returns table(role_key text, key text, code text, name text)
+create schema if not exists gridex_web_private;
+revoke all on schema gridex_web_private from public, anon;
+grant usage on schema gridex_web_private to authenticated, service_role;
+
+-- Carry the assigned role ID through authorization. Display keys can collide
+-- with another role's legacy name even when roles.key and roles.name are unique.
+-- A legacy text assignment is accepted only when its canonical match is unique,
+-- including inactive matches, so catalog ambiguity never widens access.
+create or replace function gridex_web_private.assigned_roles(p_user_id uuid, p_company_id uuid)
+returns table(role_id uuid, role_key text, role_name text)
 language sql stable security definer set search_path = ''
 as $$
   with scope as (
@@ -12,26 +20,39 @@ as $$
     where p_company_id is not null and cm.company_id = p_company_id and cm.user_id = p_user_id
       and coalesce(cm.is_active, true) and coalesce(cm.status, 'active') = 'active'
       and coalesce(c.is_active, true) and coalesce(c.status, 'active') in ('active', 'onboarding')
-  ), assigned as (
-    select coalesce(nullif(r.key, ''), nullif(r.name, ''), nullif(ur.role, '')) as role_key,
-      coalesce(nullif(r.name, ''), nullif(r.key, ''), nullif(ur.role, '')) as name
+  ), assignments as (
+    select ur.role_id, nullif(ur.role, '') as legacy_role
     from public.user_roles ur
-    join public.roles r on r.id = ur.role_id or
-      (ur.role_id is null and lower(coalesce(r.key, r.name, '')) = lower(ur.role))
     where ur.user_id = p_user_id and coalesce(ur.is_active, true)
-      and not exists (select 1 from public.user_profiles up where (up.user_id = p_user_id or up.id = p_user_id)
-        and coalesce(up.user_status, 'active') <> 'active')
-      and coalesce(ur.status, 'active') = 'active' and r.is_active
+      and coalesce(ur.status, 'active') = 'active'
       and (ur.company_id is null or (ur.company_id = p_company_id and exists(select 1 from scope)))
-    union
-    select coalesce(nullif(r.key, ''), nullif(r.name, '')),
-      coalesce(nullif(r.name, ''), nullif(r.key, ''))
-    from scope s join public.roles r
-      on r.id = s.role_id or (s.role_id is null and lower(coalesce(r.key, r.name, '')) =
-        lower(coalesce(nullif(s.role_key, ''), nullif(nullif(s.membership_role, ''),'member'),nullif(s.role,''),s.membership_role)))
-    where r.is_active and not exists (select 1 from public.user_profiles up where (up.user_id = p_user_id or up.id = p_user_id)
-      and coalesce(up.user_status, 'active') <> 'active')
-  ) select distinct a.role_key, a.role_key, a.role_key, a.name from assigned a where a.role_key is not null;
+    union all
+    select s.role_id,
+      coalesce(nullif(s.role_key, ''), nullif(nullif(s.membership_role, ''),'member'),nullif(s.role,''),s.membership_role)
+    from scope s
+  )
+  select distinct r.id, coalesce(nullif(r.key, ''), nullif(r.name, '')),
+    coalesce(nullif(r.name, ''), nullif(r.key, ''))
+  from assignments a join public.roles r on r.id = a.role_id or (
+    a.role_id is null and lower(coalesce(nullif(r.key, ''), nullif(r.name, ''))) = lower(a.legacy_role)
+    and not exists (
+      select 1 from public.roles other where other.id <> r.id
+        and lower(coalesce(nullif(other.key, ''), nullif(other.name, ''))) = lower(a.legacy_role)
+    )
+  )
+  where r.is_active and coalesce(nullif(r.key, ''), nullif(r.name, '')) is not null
+    and not exists (select 1 from public.user_profiles up where (up.user_id = p_user_id or up.id = p_user_id)
+      and coalesce(up.user_status, 'active') <> 'active');
+$$;
+revoke all on function gridex_web_private.assigned_roles(uuid,uuid) from public,anon,authenticated;
+grant execute on function gridex_web_private.assigned_roles(uuid,uuid) to service_role;
+
+create or replace function public.gridex_get_user_roles(p_user_id uuid, p_company_id uuid)
+returns table(role_key text, key text, code text, name text)
+language sql stable security definer set search_path = ''
+as $$
+  select distinct a.role_key, a.role_key, a.role_key, a.role_name
+  from gridex_web_private.assigned_roles(p_user_id, p_company_id) a;
 $$;
 
 create or replace function public.gridex_get_user_roles(p_user_id uuid)
@@ -77,10 +98,9 @@ create or replace function public.gridex_get_user_permissions(p_user_id uuid, p_
 returns text[] language sql volatile security definer set search_path = ''
 as $$
   with role_grants as (
-    select coalesce(p.key, p.name) as permission_key
-    from public.gridex_get_user_roles(p_user_id, p_company_id) u
-    join public.roles r on coalesce(r.key, r.name) = u.role_key
-    join public.role_permissions rp on rp.role_id = r.id
+    select coalesce(nullif(p.key, ''), p.name) as permission_key
+    from gridex_web_private.assigned_roles(p_user_id, p_company_id) u
+    join public.role_permissions rp on rp.role_id = u.role_id
     join public.permissions p on p.id = rp.permission_id
   ), overrides as (
     select * from public.gridex_get_user_permission_overrides(p_user_id, p_company_id)
@@ -144,10 +164,7 @@ join public.permissions p on coalesce(p.key,p.name) = a.permission_key
 on conflict (role_id,permission_id) do nothing;
 
 -- Only a caller's own global Web permissions are used by local prospect RLS.
--- This schema is not exposed through PostgREST; the helper accepts no user ID.
-create schema if not exists gridex_web_private;
-revoke all on schema gridex_web_private from public, anon;
-grant usage on schema gridex_web_private to authenticated, service_role;
+-- This schema is not exposed through PostgREST; browser-callable helpers accept no user ID.
 create or replace function gridex_web_private.can(p_permission text)
 returns boolean language sql volatile security definer set search_path = ''
 as $$ select auth.uid() is not null and p_permission = any(public.gridex_get_user_permissions(auth.uid(),null::uuid)); $$;
@@ -170,11 +187,8 @@ returns boolean language sql stable security definer set search_path = ''
 as $$ select gridex_web_private.active_user() and (
   exists(select 1 from public.admin_users a where a.user_id=auth.uid() and coalesce(a.is_active,true)
     and lower(coalesce(a.role,'')) in('super_admin','superadmin','platform_admin'))
-  or exists(select 1 from public.user_roles u join public.roles r on r.id=u.role_id or
-    (u.role_id is null and lower(coalesce(r.key,r.name,''))=lower(u.role))
-    where u.user_id=auth.uid() and u.company_id is null and coalesce(u.is_active,true)
-      and coalesce(u.status,'active')='active' and r.is_active
-      and lower(coalesce(r.key,r.name,'')) in('super_admin','superadmin','platform_admin'))
+  or exists(select 1 from gridex_web_private.assigned_roles(auth.uid(),null::uuid) r
+    where lower(r.role_key) in('super_admin','superadmin','platform_admin'))
 ); $$;
 create or replace function public.gridex_user_company_ids()
 returns setof uuid language sql stable security definer set search_path = ''
@@ -197,9 +211,11 @@ create or replace function public.gridex_user_has_role_key(p_role_key text)
 returns boolean language sql stable security definer set search_path = ''
 as $$ select gridex_web_private.active_user() and p_role_key is not null and exists(
   select 1 from public.user_roles u join public.roles r on r.id=u.role_id or
-    (u.role_id is null and lower(coalesce(r.key,r.name,''))=lower(u.role))
+    (u.role_id is null and lower(coalesce(nullif(r.key,''),r.name,''))=lower(u.role)
+      and not exists(select 1 from public.roles other where other.id<>r.id
+        and lower(coalesce(nullif(other.key,''),other.name,''))=lower(u.role)))
   where u.user_id=auth.uid() and coalesce(u.is_active,true) and coalesce(u.status,'active')='active' and r.is_active
-    and lower(coalesce(r.key,r.name,''))=lower(p_role_key)
+    and lower(coalesce(nullif(r.key,''),r.name,''))=lower(p_role_key)
     and (u.company_id is null or u.company_id in(select public.gridex_user_company_ids()))
 ); $$;
 revoke all on function public.gridex_user_is_platform_admin(), public.gridex_user_company_ids(),

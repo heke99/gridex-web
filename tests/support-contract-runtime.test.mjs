@@ -11,6 +11,7 @@ import {
   downloadOpsCustomerSupportAttachment, readBoundedSupportBytes,
 } from '../lib/ops/client/support.ts'
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION as version } from '../lib/ops/contract.ts'
+import { customerApiErrorResponse } from '../lib/customerPortal/apiErrors.ts'
 
 const userId = '11111111-1111-4111-8111-111111111111'
 const identity = { userId, email: 'verified@example.test' }
@@ -105,6 +106,39 @@ try {
   assert.deepEqual((await downloadOpsCustomerSupportAttachment(identity, caseReference, attachmentReference)).bytes, bytes)
   assert.equal(calls.at(-1).init.redirect, 'manual')
   assert.equal(calls.at(-1).init.cache, 'no-store')
+  const blockers = [{ code: 'attachment_not_released', message: 'Bilagan inväntar kontroll.', field: null, recommended_action: 'contact_support' }]
+  let errorCalls = 0
+  globalThis.fetch = async () => {
+    errorCalls++
+    return new Response(JSON.stringify({
+      error: { code: 'attachment_not_released', message: 'Bilagan inväntar kontroll.', retryable: false, field: null, blockers },
+      request_id: 'download-payload-request', correlation_id: 'download-payload-correlation', contract_schema_version: version,
+    }), { status: 503, headers: { 'content-type': 'application/json', 'Retry-After': '45' } })
+  }
+  let downloadError
+  try { await downloadOpsCustomerSupportAttachment(identity, caseReference, attachmentReference) }
+  catch (error) { downloadError = error }
+  assert.equal(downloadError.status, 503)
+  assert.equal(downloadError.retryable, false, 'binary download honors the canonical non-retryable decision even on HTTP 503')
+  assert.equal(downloadError.requestId, 'download-payload-request', 'canonical envelope request ID survives without HTTP ID headers')
+  assert.equal(downloadError.correlationId, 'download-payload-correlation')
+  assert.deepEqual(downloadError.details.blockers, blockers)
+  assert.equal(errorCalls, 1, 'download never silently repeats a single-use assertion')
+  const downloadErrorResponse = customerApiErrorResponse(downloadError, { logLabel: 'support-download-regression', fallbackMessage: 'Fel' })
+  const downloadErrorBody = await downloadErrorResponse.json()
+  assert.equal(downloadErrorResponse.headers.get('retry-after'), '45')
+  assert.equal(downloadErrorBody.error.request_id, 'download-payload-request')
+  assert.equal(downloadErrorBody.error.correlation_id, 'download-payload-correlation')
+  assert.equal(downloadErrorBody.error.retryable, false)
+  assert.deepEqual(downloadErrorBody.error.blockers, blockers)
+
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    error: { code: 'rate_limited', message: 'Vänta innan du försöker igen.', retryable: true, blockers: [] },
+    request_id: 'payload-request', correlation_id: 'payload-correlation',
+  }), { status: 429, headers: { 'content-type': 'application/json', 'Retry-After': '60', 'X-Request-Id': 'header-request', 'X-Correlation-Id': 'header-correlation' } })
+  await assert.rejects(() => downloadOpsCustomerSupportAttachment(identity, caseReference, attachmentReference), (error) =>
+    error.retryable && error.requestId === 'header-request' && error.correlationId === 'header-correlation' && error.details.retry_after === '60')
+
   globalThis.fetch = async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'X-Gridex-Sha256': 'f'.repeat(64) } })
   await assert.rejects(() => downloadOpsCustomerSupportAttachment(identity, caseReference, attachmentReference), (error) => error.code === 'attachment_integrity_failed')
   globalThis.fetch = async () => new Response('<script>alert(1)</script>', { headers: { 'Content-Type': 'text/html', 'X-Gridex-Sha256': hash } })

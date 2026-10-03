@@ -41,7 +41,7 @@ const hooks = registerHooks({
     if (specifier === '@supabase/ssr') return { url: ssrMock, shortCircuit: true }
     if (specifier === '@/lib/customerPortal/service') return { url: portalMock, shortCircuit: true }
     if (specifier === '@/lib/ops/client') {
-      return { url: moduleUrl('export async function submitOpsCustomerProfileUpdate(input) { const state = globalThis.__gridexRequestPerformanceTest; state.profileMutation = input; if (state.opsFailure) throw new Error("synthetic upstream failure") }'), shortCircuit: true }
+      return { url: moduleUrl('export const isOpsError = () => false; export async function submitOpsCustomerProfileUpdate(input) { const state = globalThis.__gridexRequestPerformanceTest; state.profileMutation = input; if (state.opsFailure) throw new Error("synthetic upstream failure"); return {ok:true,status:"submitted",data:{profile_updated:true}} }'), shortCircuit: true }
     }
     if (specifier === 'next/cache') {
       return { url: moduleUrl('export function revalidatePath() {}'), shortCircuit: true }
@@ -63,6 +63,9 @@ const hooks = registerHooks({
     }
     if (specifier === '@/lib/supabase/server') {
       return nextResolve(new URL('../lib/supabase/server.ts', import.meta.url).href, context)
+    }
+    if (specifier === '@/lib/customerPortal/outbox') {
+      return { url: moduleUrl('export const enqueuePortalWrite = async () => { throw new Error("Unexpected enqueue") }'), shortCircuit: true }
     }
     if (specifier === '@/lib/supabase/service') {
       return { url: moduleUrl('export const supabaseService = { from: () => ({ upsert: async (row) => { globalThis.__gridexRequestPerformanceTest.profileProjection = row; return { error: null } } }) }'), shortCircuit: true }
@@ -209,7 +212,7 @@ try {
   await assert.rejects(updateCustomerProfileAction(profileForm), /REDIRECT/)
   assert.deepEqual(state.profileMutation.profile, { first_name: '', last_name: '', phone: '', language_code: 'sv' }, 'Cleared fields remain API-compatible strings')
   assert.equal(state.redirect, '/dashboard/profile?status=profile-updated')
-  assert.equal(state.profileProjection.user_id, 'customer-d', 'The protected projection writer uses the verified caller identity')
+  assert.equal(state.profileProjection ?? null, null, 'Submitted browser values are never stamped as a canonical local projection')
   state.profileMutation = null
   state.profileProjection = null
   state.authFailure = true

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-02T20:42:29.182Z",
-  "migration_count": 46,
+  "generated_at": "2026-10-03T18:17:29.845Z",
+  "migration_count": 48,
   "version_collisions": [],
   "migrations": [
     {
@@ -197,7 +197,7 @@
     {
       "file": "20261002173716_independent_web_rbac_and_public_support.sql",
       "version": "20261002173716",
-      "sha256": "acadd5562c56eb26c6815094003935783c16c6934c7dea91c4135fd132ae7866"
+      "sha256": "39a24b58fa17aee336ca0bfe29e9df8dca9b1c49005eb04a93f26423d395eba3"
     },
     {
       "file": "20261002175651_gridex_web_atomic_pricing.sql",
@@ -233,6 +233,16 @@
       "file": "20261002202617_gridex_web_agreement_projection_trigger.sql",
       "version": "20261002202617",
       "sha256": "87cde33e3ac6e9225d035f6b3c6ecfad7cdeb9a5f4fa31299dcbb950bc2a01fe"
+    },
+    {
+      "file": "20261003175858_gridex_web_stable_webhook_identity.sql",
+      "version": "20261003175858",
+      "sha256": "ae8416053a2207a6d0f2bd2dd299c05931b8fed91d05fc5b5fcfad1c73e6b47c"
+    },
+    {
+      "file": "20261003180510_gridex_web_global_rbac_directory.sql",
+      "version": "20261003180510",
+      "sha256": "0007c9b9a6453dfbfa13e087a3ebcc48f4b719bc9fb4e51acd8f00bfa5f7de44"
     }
   ]
 }

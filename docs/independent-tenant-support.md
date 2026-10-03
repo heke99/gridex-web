@@ -57,7 +57,9 @@ användare eller ändra RBAC. Varje serveråtgärd kontrollerar sin uttryckliga
 behörighet; personalroll i UI är inte en auktorisationskälla.
 
 Effektiva rättigheter tar hänsyn till aktiva roller, medlemskap, giltighetstid
-och nekande undantag. Globala rättigheter och bolagsrättigheter skiljs åt.
+och nekande undantag. Tilldelningar behåller exakt roll-ID; en äldre tvetydig
+rolltext ger inga rättigheter och en inaktiv roll kan inte bidra via en
+kolliderande nyckel eller ett namn. Globala rättigheter och bolagsrättigheter skiljs åt.
 `GRIDEX_WEB_COMPANY_ID` är ett valfritt **lokalt** authbolag, inte OPS interna
 bolags-ID eller opaka API-referens. Utan det räknas bara globala rättigheter.
 Global användar-/rolladministration kräver globala administrationsrättigheter.
@@ -157,11 +159,25 @@ en utgången rättighet giltig efter låsväntan. Native CI kör paketet på bå
 PostgreSQL 16.15 och 17.6 med isolerade fixturedata, rollbackprov och riktiga
 fleranslutningsprov. Det kör inga fixtures mot produktionsdatabasen.
 
+Två nya framåtriktade migrationer ingår i den granskade kandidaten:
+
+| Migration | Ändring |
+| --- | --- |
+| `20261003175858_gridex_web_stable_webhook_identity.sql` | Kopplar webhookprojektioner via stabila kund-/Auth-identifierare, avvisar motsägelser och använder inte kontaktmejl som ägarbevis. |
+| `20261003180510_gridex_web_global_rbac_directory.sql` | Serverägd global rolldirectory med aktuell global `rbac.write`, filtrering före sidindelning och korrekta totalsiffror. |
+
+Den ändrade RBAC-funktionen och dessa två migrationer kräver nytt native CI
+på den exakta kandidatrevisionen. Äldre gröna åttamigrationsprov bevisar inte
+det utökade paketet. Runnern skiljer de tio kandidatmigrationerna från en
+historisk webhookmigration som endast används som testfixtur. Isolerade
+enskilda sessionsprov på PostgreSQL 17.5 via PGlite passerade; de ersätter
+inte native PostgreSQL 16.15/17.6 eller fleranslutningsproven.
+
 ## Driftsättning och verklig verifiering
 
-1. Förbered Web-kandidaten, verifiera alla åtta migrationers lokala
+1. Förbered Web-kandidaten, verifiera alla tio kandidatmigrationers native
    PostgreSQL-regressioner på båda versionerna och kör
-   `npm run db:migrations:check` (46 filer).
+   `npm run db:migrations:check` (48 filer).
    Den rena ACL-migrationen är redan tillämpad separat i Gridex Prod: basens Web
    (`9ae3736`) saknar browserfunktioner för bolag/medlemskap/overrides;
    övriga berörda sessionsskrivningar var redan blockerade av RLS/helpergrants.
@@ -170,7 +186,7 @@ fleranslutningsprov. Det kör inga fixtures mot produktionsdatabasen.
    ACL-efterkontrollen passerade med oförändrad läsåtkomst och policyer.
    Faktisk historikversion är `20261002192814` från 2026-10-02.
    Produktions-DDL går enbart via `apply_migration`.
-   **Håll samtliga sju återstående migrationer tills deployment, servermiljö
+   **Håll samtliga nio återstående migrationer tills deployment, servermiljö
    och domänåtkomst är bekräftade och kandidaten kan tas i drift samordnat.**
    Basens fungerande postnummer- och avtalsoperationer använder fortfarande
    sessionsklienten; nya ACL-spärrar måste därför införas tillsammans med
@@ -178,8 +194,9 @@ fleranslutningsprov. Det kör inga fixtures mot produktionsdatabasen.
    Pausa berörda administrativa skrivningar under databas-/Web-bytet.
    Vid Web-driftsättning tillämpas eventuella återstående migrationer i
    beroendeordning: RBAC/support, pris/RLS, global setter, postnummer,
-   månadsspot, avtals-PDF och projektionstrigger. RBAC-ACL-spärren är redan
-   tillämpad och ska inte tillämpas på nytt. Kör paketets nio katalog- och
+   månadsspot, avtals-PDF, projektionstrigger, stabil webhookidentitet och
+   global RBAC-directory. RBAC-ACL-spärren är redan
+   tillämpad och ska inte tillämpas på nytt. Kör paketets tio katalog- och
    efterkontrollfiler, inklusive kontrollen av RPC-signaturer.
    Ta därefter den testade Web-revisionen i drift, kontrollera sidor och
    skrivflöden och återöppna de administrativa operationerna.

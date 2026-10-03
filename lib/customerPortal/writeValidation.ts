@@ -115,6 +115,25 @@ function canonicalAddress(value: unknown): Record<string, unknown> | null {
   return Object.keys(result).length ? result : null
 }
 
+export function facilityUpdatePayload(value: unknown): Record<string, unknown> | null {
+  const source = object(value)
+  if (!source || Object.keys(source).some((key) => !['facility_reference', 'address', 'external_request_id'].includes(key))) return null
+  const facilityReference = text(source.facility_reference, 200)
+  const addressSource = object(source.address)
+  const fields: Array<[string, number]> = [
+    ['street', 180], ['postal_code', 20], ['city', 120], ['country', 80],
+    ['care_of', 120], ['apartment_number', 40],
+  ]
+  if (!facilityReference || !addressSource || Object.keys(addressSource).some((key) => !fields.some(([field]) => field === key))) return null
+  if (Object.values(addressSource).some((value) => typeof value !== 'string' && value !== null)) return null
+  if (source.external_request_id !== undefined && typeof source.external_request_id !== 'string') return null
+  const address = allowedStrings(addressSource, fields)
+  if (!Object.keys(address).length) return null
+  for (const [key, value] of Object.entries(address)) if (value === null) address[key] = ''
+  const externalRequestId = text(source.external_request_id, 200)
+  return { facility_reference: facilityReference, address, ...(externalRequestId ? { external_request_id: externalRequestId } : {}) }
+}
+
 export function moveOutPayload(value: unknown): Record<string, unknown> | null {
   const source = object(value)
   if (!source) return null

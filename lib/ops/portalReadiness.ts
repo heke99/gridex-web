@@ -35,6 +35,7 @@ type PortalProbe = {
 
 export type PortalReadiness = {
   ready: boolean
+  authenticatedCustomerFlowVerified: false
   message: string
   scopes: Array<{ scope: string; status: PortalScopeStatus }>
   probes: Array<{ name: string; ok: boolean; status: number | null; code: string | null }>
@@ -140,6 +141,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
   if (!getOpsCustomerAssertionStatus().valid) {
     return {
       ready: false,
+      authenticatedCustomerFlowVerified: false,
       message: 'Verifieringen av kundinloggningen saknar en giltig serverkonfiguration.',
       scopes: [...scopeNames].map((scope) => ({ scope, status: 'unverified' })),
       probes,
@@ -151,6 +153,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
   if (!getOpsClientStatus().configured) {
     return {
       ready: false,
+      authenticatedCustomerFlowVerified: false,
       message: 'Mina sidor kan inte verifieras innan GRIDEX_API_KEY är konfigurerad.',
       scopes: [...scopeNames].map((scope) => ({ scope, status: 'unverified' })),
       probes,
@@ -160,6 +163,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
   }
 
   let contextReadiness: PortalReadiness['contextReadiness'] = null
+  const missingContextScopes = new Set<string>()
   try {
     const context = await fetchOpsIntegrationContext(true)
     contextReadiness = {
@@ -170,6 +174,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     for (const scope of context.capabilities.required_customer_portal_scopes) scopeNames.add(scope)
     for (const scope of context.capabilities.missing_customer_portal_scopes) {
       scopeNames.add(scope)
+      missingContextScopes.add(scope)
       statuses.set(scope, 'missing')
     }
   } catch {
@@ -183,14 +188,16 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
       const result = settled.value
       probes.push({ name: definition.name, ok: result.ok, status: result.status, code: result.code })
       for (const scope of definition.scopes) {
-        statuses.set(scope, result.ok ? (definition.alternative ? 'alternative_verified' : 'verified') : 'missing')
+        statuses.set(scope, missingContextScopes.has(scope) ? 'missing'
+          : result.ok ? (definition.alternative ? 'alternative_verified' : 'verified') : 'missing')
       }
       return
     }
 
     const status = isOpsError(settled.reason) ? settled.reason.status : null
     probes.push({ name: definition.name, ok: false, status, code: 'portal_probe_failed' })
-    for (const scope of definition.scopes) statuses.set(scope, status === 403 ? 'missing' : 'unverified')
+    for (const scope of definition.scopes) statuses.set(scope,
+      missingContextScopes.has(scope) || status === 403 ? 'missing' : 'unverified')
   })
 
   const portalBundle = probes.find((probe) => probe.name === 'customer_portal.bundle.read') ?? {
@@ -198,11 +205,13 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     status: null,
     code: 'portal_bundle_probe_missing',
   }
-  const ready = probes.length === definitions.length && probes.every((probe) => probe.ok) && contextReadiness?.customerPortalReady !== false
+  const ready = probes.length === definitions.length && probes.every((probe) => probe.ok)
+    && contextReadiness?.customerPortalReady === true && missingContextScopes.size === 0
   return {
     ready,
+    authenticatedCustomerFlowVerified: false,
     message: ready
-      ? 'Mina sidor-endpoints och behörigheter har verifierats direkt mot API:t.'
+      ? 'Tenantkontext och endpointbehörigheter är verifierade. Inloggade kundflöden återstår att verifiera.'
       : 'Mina sidor har minst en endpoint- eller behörighetsblockerare.',
     scopes: [...scopeNames].map((scope) => ({ scope, status: statuses.get(scope) ?? 'unverified' })),
     probes,

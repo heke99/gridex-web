@@ -76,7 +76,7 @@ function normalizeSignature(value: string | null): string | null {
 }
 
 function safeEqualHex(a: string, b: string): boolean {
-  if (!/^[a-f0-9]+$/i.test(a) || !/^[a-f0-9]+$/i.test(b)) return false
+  if (!/^[a-f0-9]{64}$/i.test(a) || !/^[a-f0-9]{64}$/i.test(b)) return false
   const left = Buffer.from(a, 'hex')
   const right = Buffer.from(b, 'hex')
   if (left.length !== right.length) return false
@@ -162,7 +162,8 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
     delivery_id: text(root.delivery_id) ?? text(root.deliveryId),
     company_id: text(root.company_id) ?? text(data.company_id) ?? text(customer.company_id),
     customer_id:
-      text(root.customer_id) ?? text(data.customer_id) ??
+      text(root.customer_id) ?? text(root.customer_reference) ??
+      text(data.customer_id) ?? text(data.customer_reference) ??
       text(customer.customer_id) ?? text(customer.customer_reference) ?? text(customer.id),
     customer_number:
       text(root.customer_number) ?? text(data.customer_number) ??
@@ -197,7 +198,8 @@ export function parseOpsWebhookEnvelope(payload: unknown): OpsWebhookEvent | nul
       text(root.entity_type) ?? text(data.entity_type) ?? text(entity.type) ?? text(aggregate.type) ??
       (eventType.startsWith('invoice.') ? 'invoice' : eventType.startsWith('supply.') ? 'supply' : null),
     related_entity_id:
-      text(root.entity_id) ?? text(data.entity_id) ?? text(entity.id) ?? text(aggregate.reference) ??
+      text(root.entity_id) ?? text(root.subject_reference) ?? text(data.entity_id) ??
+      text(entity.id) ?? text(aggregate.reference) ??
       text(data.invoice_id) ?? text(data.invoice_number) ??
       text(data.contract_id) ?? text(data.application_id) ?? text(data.facility_id),
     metadata: object(root.metadata ?? data.metadata ?? data),

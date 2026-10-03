@@ -39,10 +39,10 @@ export default function OverviewCards({
           Fakturor
         </div>
         <div className="mt-3 text-3xl font-semibold">
-          {overview.invoices.length}
+          {overview.unavailableSections.includes('invoices') ? 'Ej tillgängligt' : overview.invoices.length}
         </div>
         <div className="mt-2 text-xs text-white/60">
-          Senaste fakturadatum: {formatDate(latestInvoice?.issued_at ?? null)}
+          {overview.unavailableSections.includes('invoices') ? 'Fakturorna kunde inte hämtas just nu.' : `Senaste fakturadatum: ${formatDate(latestInvoice?.issued_at ?? null)}`}
         </div>
       </div>
 
@@ -50,7 +50,7 @@ export default function OverviewCards({
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
           Dokument
         </div>
-        <div className="mt-3 text-3xl font-semibold">{overview.documents.length}</div>
+        <div className="mt-3 text-3xl font-semibold">{overview.unavailableSections.includes('documents') ? 'Ej tillgängligt' : overview.documents.length}</div>
         <div className="mt-2 text-xs text-white/60">
           Avtal, villkor, fullmakter och andra underlag.
         </div>
@@ -60,7 +60,7 @@ export default function OverviewCards({
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
           Nya meddelanden
         </div>
-        <div className="mt-3 text-3xl font-semibold">{unreadNotifications}</div>
+        <div className="mt-3 text-3xl font-semibold">{overview.unavailableSections.includes('notifications') ? 'Ej tillgängligt' : unreadNotifications}</div>
         <div className="mt-2 text-xs text-white/60">
           Olästa notiser och uppdateringar på Mina sidor.
         </div>

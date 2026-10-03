@@ -90,6 +90,9 @@ export default async function DashboardPage() {
           Vissa uppgifter kan visas igen när anslutningen är tillbaka.
         </div>
       ) : null}
+      {overview.dataFreshnessMessage ? (
+        <p role="status" className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">{overview.dataFreshnessMessage}</p>
+      ) : null}
 
 
       {overview.customerStatus ? (
@@ -162,7 +165,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-              Inga meddelanden ännu.
+              {overview.unavailableSections.includes('notifications') ? 'Meddelandena kunde inte hämtas just nu.' : 'Inga meddelanden ännu.'}
             </div>
           )}
         </section>
@@ -175,6 +178,9 @@ export default async function DashboardPage() {
           meteringPointId: latestSite.metering_point_id,
           gridAreaCode: latestSite.grid_area_code,
           priceAreaCode: latestSite.price_area,
+          address: latestSite.address,
+          postalCode: latestSite.postal_code,
+          city: latestSite.city,
         } : null}
         latestUnreadNotificationId={overview.notifications.find((notification) => !notification.is_read)?.id ?? null}
       />

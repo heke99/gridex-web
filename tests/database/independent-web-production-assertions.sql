@@ -15,6 +15,9 @@ begin
     raise exception 'Own account name editing was removed';
   end if;
   if has_function_privilege('authenticated','public.gridex_get_user_permissions(uuid,uuid)','EXECUTE')
+    or has_function_privilege('authenticated','gridex_web_private.assigned_roles(uuid,uuid)','EXECUTE')
+    or has_function_privilege('anon','gridex_web_private.assigned_roles(uuid,uuid)','EXECUTE')
+    or not has_function_privilege('service_role','gridex_web_private.assigned_roles(uuid,uuid)','EXECUTE')
     or has_function_privilege('anon','public.gridex_get_user_roles(uuid,uuid)','EXECUTE')
     or has_function_privilege('authenticated','public.gridex_create_public_support_contact(uuid,text,text,text,text,text,text,text)','EXECUTE')
     or not has_function_privilege('service_role','public.gridex_create_public_support_contact(uuid,text,text,text,text,text,text,text)','EXECUTE') then

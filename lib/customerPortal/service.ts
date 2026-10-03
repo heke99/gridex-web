@@ -160,7 +160,7 @@ function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
 
 function requiredCanonicalReference(
   row: Record<string, unknown>,
-  field: 'contract_reference' | 'invoice_reference' | 'site_reference' | 'document_reference' | 'notification_reference',
+  field: 'contract_reference' | 'invoice_reference' | 'facility_reference' | 'document_reference' | 'notification_reference',
   code:
     | 'PORTAL_CONTRACT_REFERENCE_MISSING'
     | 'PORTAL_INVOICE_REFERENCE_MISSING'
@@ -281,20 +281,23 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
   }
 }
 
-function mapOpsSite(row: Record<string, unknown>): CustomerSite {
-  const id = requiredCanonicalReference(row, 'site_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+function mapOpsSite(row: Record<string, unknown>, meteringPoints: Record<string, unknown>[] = []): CustomerSite {
+  const id = requiredCanonicalReference(row, 'facility_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+  const address = asRecord(row.address)
+  const meteringPoint = meteringPoints.find((point) => point.facility_reference === id)
   return {
     id,
     site_reference: id,
-    address: pick(row, ['address']),
-    postal_code: pick(row, ['postal_code']),
-    city: pick(row, ['city']),
+    facility_reference: id,
+    address: pick(address, ['street']),
+    postal_code: pick(address, ['postal_code']),
+    city: pick(address, ['city']),
     facility_id: pick(row, ['facility_id']),
-    metering_point_id: pick(row, ['metering_point_id']),
+    metering_point_id: meteringPoint ? pick(meteringPoint, ['metering_point_id']) : null,
     grid_area_code: pick(row, ['grid_area_code']),
     price_area: pick(row, ['price_area']),
     grid_owner_name: null,
-    verification_status: null,
+    verification_status: meteringPoint ? pick(meteringPoint, ['verification_status']) : null,
     onboarding_status: null,
     data_quality_status: null,
     resolution_status: null,
@@ -349,9 +352,17 @@ function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
     status: pick(row, ['status']),
     created_at: pickDate(row, ['created_at']),
     file_url: null,
-    download_url: pick(row, ['download_url']),
-    version: null,
+    download_url: safeDocumentUrl(row.secure_url),
+    version: pick(row, ['version']),
   }
+}
+
+function safeDocumentUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password ? value : null
+  } catch { return null }
 }
 
 function acceptanceTitle(type: string) {
@@ -380,8 +391,8 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
     id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
-    version: pick(row, ['version', 'legal_version', 'version_key']),
-    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    version: pick(row, ['document_version']),
+    accepted_at: pickDate(row, ['accepted_at']),
     source: pick(row, ['source', 'accepted_source']),
     status: pick(row, ['status']) ?? 'accepted',
   }
@@ -409,9 +420,9 @@ function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAtt
     id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id']),
     status: pick(row, ['status']) ?? 'active',
     scopes,
-    accepted_at: pickDate(row, ['accepted_at', 'created_at']),
+    accepted_at: pickDate(row, ['accepted_at', 'signed_at']),
     revoked_at: pickDate(row, ['revoked_at']),
-    valid_until: pickDate(row, ['valid_until', 'expires_at']),
+    valid_until: pickDate(row, ['valid_to']),
     title: pick(row, ['title', 'name']) ?? poaScopeLabel(scopes),
     version: pick(row, ['version', 'legal_version', 'power_of_attorney_version']),
   }
@@ -471,16 +482,16 @@ function mapOpsNotification(row: Record<string, unknown>): CustomerNotification 
   return {
     id,
     notification_reference: id,
-    category: pick(row, ['category']) ?? 'portal',
+    category: pick(row, ['type']) ?? 'portal',
     title: pick(row, ['title']) ?? 'Meddelande från Gridex',
-    body: pick(row, ['body']) ?? '',
-    is_read: Boolean(row.is_read),
-    read_at: null,
+    body: pick(row, ['message']) ?? '',
+    is_read: Boolean(pickDate(row, ['read_at'])) || row.status === 'read',
+    read_at: pickDate(row, ['read_at']),
     created_at: pickDate(row, ['created_at']) ?? new Date().toISOString(),
     related_entity_type: null,
     related_entity_id: null,
     link_href: null,
-    priority: null,
+    priority: pick(row, ['severity']),
   }
 }
 
@@ -674,7 +685,7 @@ export function normalizeCanonicalCustomerResource(
   const mapped = rows.map((row) => {
     switch (resource) {
       case 'contracts': return mapOpsContract(row)
-      case 'sites': return mapOpsSite(row)
+      case 'sites': return mapOpsSite(row, canonicalResourceRows(asRecord(value).metering_points, 'metering_points'))
       case 'invoices': return mapOpsInvoice(row)
       case 'documents': return mapOpsDocument(row)
       case 'legal-acceptances': return mapOpsLegalAcceptance(row)
@@ -727,7 +738,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
 
   const profile = mapOpsProfile(bundle.profile, localProfile, user.id, user.email ?? null)
   const contracts = bundle.contracts.map(mapOpsContract)
-  const sites = bundle.sites.map(mapOpsSite)
+  const sites = bundle.sites.map((row) => mapOpsSite(row, bundle.meteringPoints))
   const invoices = bundle.invoices.map(mapOpsInvoice)
   const documents = bundle.documents.map(mapOpsDocument)
   const legalAcceptances = bundle.legalAcceptances.map(mapOpsLegalAcceptance)
@@ -769,7 +780,10 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     authoritative: true,
     readOnly: false,
     dataFreshness: 'live',
-    dataFreshnessMessage: null,
+    dataFreshnessMessage: bundle.unavailableSections.length
+      ? 'Vissa kunduppgifter kunde inte hämtas just nu. Öppna respektive sida eller försök igen senare.'
+      : null,
+    unavailableSections: bundle.unavailableSections,
   }
 }
 

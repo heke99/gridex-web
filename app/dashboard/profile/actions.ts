@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { supabaseService } from '@/lib/supabase/service'
-import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
+import { enqueuePortalWrite } from '@/lib/customerPortal/outbox'
+import { isOpsError, submitOpsCustomerProfileUpdate, type OpsPortalIdentity } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 function pick(formData: FormData, key: string): string {
@@ -51,9 +51,12 @@ export async function updateCustomerProfileAction(formData: FormData) {
   if (!/^[0-9a-zA-Z:_-]{8,240}$/.test(operationId)) {
     throw new Error('Åtgärds-ID saknas. Ladda om sidan och försök igen.')
   }
+  let result: Awaited<ReturnType<typeof submitOpsCustomerProfileUpdate>>
+  let identity: OpsPortalIdentity | null = null
+  let queued = false
   try {
-    const identity = await getOpsPortalIdentityForUser(supabase, user)
-    await submitOpsCustomerProfileUpdate({
+    identity = await getOpsPortalIdentityForUser(supabase, user)
+    result = await submitOpsCustomerProfileUpdate({
       identity,
       idempotencyKey: operationId,
       profile: profilePayload,
@@ -63,30 +66,42 @@ export async function updateCustomerProfileAction(formData: FormData) {
     console.error('[customer profile] canonical update failed', {
       message: syncError instanceof Error ? syncError.message : 'unknown_error',
     })
+    if (identity && isOpsError(syncError) && syncError.retryable !== false &&
+      (syncError.status >= 500 || syncError.status === 408 || syncError.status === 429)
+    ) {
+      try {
+        await enqueuePortalWrite({
+          userId: user.id, operationType: 'profile_update',
+          idempotencyKey: `profile-update:${user.id}:${operationId}`,
+          identity,
+          payload: { operation_id: operationId, profile: profilePayload,
+            metadata: { source: 'customer_profile_action' } },
+        })
+        queued = true
+      } catch (queueError) {
+        console.error('[customer profile] exact retry could not be retained', {
+          message: queueError instanceof Error ? queueError.message : 'unknown_error',
+        })
+      }
+    }
     revalidatePath('/dashboard/profile')
     revalidatePath('/dashboard')
-    redirect('/dashboard/profile?status=profile-sync-failed')
+    redirect(`/dashboard/profile?status=${queued ? 'profile-queued' : 'profile-sync-failed'}`)
   }
 
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const { error } = await supabaseService.from('customer_profiles').upsert(
-    {
-      user_id: user.id,
-      email: user.email ?? null,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      full_name: fullName,
-      phone: phone || null,
-      language_code: languageCode,
-      source: 'ops',
-      synced_at: new Date().toISOString(),
-      projection_status: 'current',
-    },
-    { onConflict: 'user_id' }
-  )
-  if (error) {
-    console.error('[customer profile] local projection update failed', { code: error.code })
+  // A successful HTTP response may only confirm staff intake. The explicit
+  // application flag decides whether OPS has confirmed the profile change.
+  if (!result.ok || !['accepted', 'submitted'].includes(result.status ?? '')) {
+    revalidatePath('/dashboard/profile')
+    redirect('/dashboard/profile?status=profile-sync-failed')
   }
+  if (result.data?.profile_updated !== true) {
+    revalidatePath('/dashboard/profile')
+    redirect('/dashboard/profile?status=profile-received')
+  }
+
+  // OPS owns the profile. Submitted browser values are not a canonical readback
+  // and must never be written as a current local OPS projection.
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')

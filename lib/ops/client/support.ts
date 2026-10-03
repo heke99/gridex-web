@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { opsCustomerFetch, verifiedPortalHeaders, type OpsPortalIdentity } from './portal'
-import { opsRequest, getOpsApiBaseUrl, getOpsApiKey } from '@/lib/ops/transport'
+import { opsRequest, getOpsApiBaseUrl, getOpsApiKey, safeErrorDetails, customerSafeMessage } from '@/lib/ops/transport'
 import { OpsError } from '@/lib/ops/errors'
 import {
   assertCustomerPortalOperationRequest,
@@ -244,14 +244,15 @@ export async function downloadOpsCustomerSupportAttachment(identity: OpsPortalId
   try {
     // A single attempt prevents reuse of single-use customer assertions.
     upstream = await fetch(`${getOpsApiBaseUrl()}${path.replace(/^\/api\/v1/, '')}`, { headers, cache: 'no-store', redirect: 'manual', signal: timeout })
+    if (upstream.status >= 300 && upstream.status < 400) {
+      await upstream.body?.cancel()
+      throw new OpsError('Bilagan kunde inte hämtas.', 502, { code: 'ops_redirect_received', retryable: false, endpoint: path })
+    }
     if (!upstream.ok) {
       const payload = await upstream.json().catch(() => null)
-      const root = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
-      const detail = root.error && typeof root.error === 'object' ? root.error as Record<string, unknown> : root
-      throw new OpsError('Bilagan kunde inte hämtas.', upstream.status >= 300 && upstream.status < 400 ? 502 : upstream.status, {
-        code: typeof detail.code === 'string' ? detail.code : 'attachment_download_failed',
-        request_id: upstream.headers.get('x-request-id'),
-        retryable: upstream.status === 429 || upstream.status >= 500,
+      const details = safeErrorDetails(payload, upstream, path)
+      throw new OpsError(customerSafeMessage(details), upstream.status, {
+        ...details, code: details.code ?? 'attachment_download_failed',
       })
     }
     const contentType = upstream.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() ?? ''

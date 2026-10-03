@@ -48,6 +48,7 @@ import type { components as WebsiteApiComponents } from '@/lib/ops/generated/web
 import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
 import { createOpsCustomerAssertion } from '@/lib/ops/customerAssertion'
+import { customerEventOccurredAt } from '@/lib/customerPortal/eventEvidence'
 import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
 import {
   CONTRACT_PARSER_VERSION,
@@ -96,7 +97,8 @@ export type OpsCustomerSyncResult = {
 export type OpsCustomerProfileUpdateInput = {
   identity: OpsPortalIdentity;
   idempotencyKey?: string | null;
-  profile: Record<string, unknown>;
+  profile?: Record<string, unknown> | null;
+  facilityData?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
 };
 
@@ -148,8 +150,10 @@ export type OpsPortalBundle = {
   profile: Record<string, unknown> | null;
   customerStatus: Record<string, unknown> | null;
   dataQuality: Record<string, unknown> | null;
+  unavailableSections: string[];
   contracts: Record<string, unknown>[];
   sites: Record<string, unknown>[];
+  meteringPoints: Record<string, unknown>[];
   invoices: Record<string, unknown>[];
   documents: Record<string, unknown>[];
   legalAcceptances: Record<string, unknown>[];
@@ -339,8 +343,13 @@ export function normalizePortalBundle(payload: unknown): OpsPortalBundle {
       recordValue(data.customer_status),
     dataQuality:
       recordValue(data.data_quality),
+    unavailableSections: (() => {
+      const sections = recordValue(data.bundle_status)?.unavailable_sections;
+      return Array.isArray(sections) ? sections.filter((item): item is string => typeof item === 'string') : [];
+    })(),
     contracts: nestedArray(data, ["contracts"]),
     sites: nestedArray(data, ["sites"]),
+    meteringPoints: nestedArray(data, ["metering_points"]),
     invoices: nestedArray(data, ["invoices"]),
     documents: nestedArray(data, ["documents"]),
     legalAcceptances: nestedArray(data, ["legal_acceptances"]),
@@ -371,7 +380,14 @@ export async function fetchOpsCustomerPortalBundle(
 export async function markOpsCustomerNotificationsRead(
   identity: OpsPortalIdentity,
   input: { notificationIds: string[]; operationId: string },
-): Promise<void> {
+): Promise<{
+  ok: true;
+  updatedCount: number;
+  notificationReferences: string[];
+  readAt: string;
+  requestId: string | null;
+  correlationId: string | null;
+}> {
   const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))];
   if (ids.length === 0) {
     throw new OpsError("Minst en notis måste anges.", 400, {
@@ -385,11 +401,33 @@ export async function markOpsCustomerNotificationsRead(
     `notification-read:${identity.userId}:${input.operationId}`,
   );
 
-  await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
+  const payload = await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
     method: "POST",
     headers,
     body: JSON.stringify({ notification_references: ids }),
   });
+  const root = responseObject(payload);
+  const data = recordValue(root.data);
+  const references = Array.isArray(data?.notification_references)
+    ? data.notification_references.filter((value): value is string => typeof value === 'string')
+    : [];
+  const updatedCount = data?.updated_count;
+  const readAt = normalizeText(data?.read_at);
+  if (!Number.isInteger(updatedCount) || Number(updatedCount) < 0 || Number(updatedCount) > ids.length || !readAt ||
+    references.length !== ids.length || new Set(references).size !== ids.length || references.some((reference) => !ids.includes(reference))) {
+    throw new OpsError('OPS kvitto matchar inte de notiser som markerades som lästa.', 502, {
+      code: 'ops_notification_read_receipt_invalid', field: 'notification_references',
+      request_id: normalizeText(root.request_id), correlation_id: normalizeText(root.correlation_id), retryable: false,
+    });
+  }
+  return {
+    ok: true,
+    updatedCount: Number(updatedCount),
+    notificationReferences: references,
+    readAt,
+    requestId: normalizeText(root.request_id),
+    correlationId: normalizeText(root.correlation_id),
+  };
 }
 
 export function normalizeWarnings(row: Record<string, unknown>): string[] {
@@ -517,7 +555,10 @@ export function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult
   const data = recordValue(row.data);
   const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: Boolean(data),
+    // A completion object is not itself a successful business outcome. Profile
+    // updates may be accepted/applied or submitted for review; rejected and
+    // unknown future statuses must never be displayed as completed writes.
+    ok: status === 'accepted' || status === 'submitted',
     status,
     data,
     warnings: data ? normalizeWarnings(data) : [],
@@ -533,7 +574,8 @@ export async function submitOpsCustomerProfileUpdate(
 ): Promise<OpsCustomerWriteResult> {
   const headers = portalHeaders(input.identity);
   const body = {
-    profile: input.profile,
+    ...(input.profile ? { profile: input.profile } : {}),
+    ...(input.facilityData ? { facility_data: input.facilityData } : {}),
     metadata: input.metadata ?? {},
   };
 
@@ -606,22 +648,22 @@ export function createCustomerEventIdempotencyKey(
   identity: OpsPortalIdentity,
   event: {
     event_type: string;
+    occurred_at: string;
     entity_type?: string | null;
     entity_id?: string | null;
     metadata?: Record<string, unknown>;
   },
 ): string {
-  const bucket = Math.floor(Date.now() / 60_000);
   return canonicalSha256({
     scope: 'customer_event',
     user: identity.userId,
     customer_number: identity.customerNumber ?? null,
     external_customer_id: stableExternalCustomerId(identity),
     event_type: event.event_type,
+    occurred_at: event.occurred_at,
     entity_type: event.entity_type ?? null,
     entity_id: event.entity_id ?? null,
     metadata: event.metadata ?? {},
-    bucket,
   });
 }
 
@@ -630,6 +672,7 @@ export async function sendOpsCustomerEvent(
   event: {
     event_type: string;
     source: "gridex_website";
+    occurred_at: string;
     entity_type?: string | null;
     entity_id?: string | null;
     idempotency_key?: string | null;
@@ -640,6 +683,13 @@ export async function sendOpsCustomerEvent(
     throw new OpsError("Kundhändelsen stöds inte av OPS-kontraktet.", 400, {
       event_type: event.event_type,
     });
+  }
+
+  const occurredAt = customerEventOccurredAt(event.occurred_at)
+  if (!occurredAt) {
+    throw new OpsError('Kundhändelsen saknar ett giltigt händelsedatum.', 400, {
+      code: 'validation_error', field: 'occurred_at', retryable: false,
+    })
   }
 
   const headers = await verifiedPortalHeaders(identity);
@@ -657,7 +707,7 @@ export async function sendOpsCustomerEvent(
     body: JSON.stringify({
       event_type: event.event_type,
       event_reference: operationId,
-      occurred_at: new Date().toISOString(),
+      occurred_at: occurredAt,
       customer: {
         ...portalIdentityPayload(identity),
         customer_portal_user_id: identity.userId,

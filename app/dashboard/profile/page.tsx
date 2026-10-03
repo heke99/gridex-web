@@ -23,6 +23,10 @@ function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
       return 'Dina kontaktuppgifter har sparats och synkats.'
+    case 'profile-queued':
+      return 'Svaret på din ändring kunde inte bekräftas. Samma åtgärd är sparad och kontrolleras automatiskt; du behöver inte skicka den igen.'
+    case 'profile-received':
+      return 'Dina kontaktuppgifter är mottagna för behandling. Uppgifterna visas som uppdaterade när ändringen har bekräftats.'
     case 'profile-sync-failed':
       return 'Kontaktuppgifterna kunde inte uppdateras just nu. Inga lokala ändringar har behandlats som genomförda.'
     case 'email-updated':

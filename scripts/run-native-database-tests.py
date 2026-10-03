@@ -45,6 +45,11 @@ SETUP = [
     "tests/database/agreement-projection-trigger-red.sql",
     "supabase/migrations/20261002202211_gridex_web_atomic_agreement_pdf.sql",
     "supabase/migrations/20261002202617_gridex_web_agreement_projection_trigger.sql",
+    "supabase/migrations/20261003180510_gridex_web_global_rbac_directory.sql",
+    "tests/database/webhook-identity-fixture.sql",
+    "supabase/migrations/20260819194500_ops_domain_webhook_organization_reference.sql",
+    "tests/database/webhook-identity-red.sql",
+    "supabase/migrations/20261003175858_gridex_web_stable_webhook_identity.sql",
 ]
 ASSERTIONS = [
     "tests/database/independent-web-function-preflight.sql",
@@ -56,9 +61,12 @@ ASSERTIONS = [
     "tests/database/server-owned-monthly-spot-deployment-assertions.sql",
     "tests/database/agreement-pdf-deployment-assertions.sql",
     "tests/database/agreement-projection-trigger-deployment-assertions.sql",
+    "tests/database/global-rbac-directory-deployment-assertions.sql",
 ]
 BEHAVIOR = [
     "tests/database/independent-web-security.sql",
+    "tests/database/exact-role-resolution.sql",
+    "tests/database/global-rbac-directory.sql",
     "tests/database/atomic-pricing.sql",
     "tests/database/server-owned-rbac.sql",
     "tests/database/server-owned-rbac-overrides.sql",
@@ -66,6 +74,7 @@ BEHAVIOR = [
     "tests/database/server-owned-monthly-spot.sql",
     "tests/database/agreement-pdf.sql",
     "tests/database/agreement-projection-trigger.sql",
+    "tests/database/webhook-identity.sql",
 ]
 CONCURRENCY_SETUP = ["tests/database/pricing-concurrency.sql"]
 CONCURRENCY = [
@@ -76,6 +85,25 @@ CONCURRENCY = [
     "tests/database/agreement-pdf-concurrency.py",
     "tests/database/timed-permission-concurrency.py",
 ]
+
+# The historical webhook function is a pre-change fixture, not part of the
+# deployment candidate. Keep its hash in the package evidence separately.
+HISTORICAL_SETUP_MIGRATIONS = [
+    "supabase/migrations/20260819194500_ops_domain_webhook_organization_reference.sql",
+]
+CANDIDATE_MIGRATIONS = [relative for relative in SETUP
+                        if relative.startswith("supabase/migrations/")
+                        and relative not in HISTORICAL_SETUP_MIGRATIONS]
+# Read-only production inspection recorded this ACL as already applied. The
+# native runner replays it into its empty fixture, but never reapplies it to
+# production or discovers live production state. Counts below name that scope.
+RECORDED_PRODUCTION_APPLIED_MIGRATIONS = [
+    "supabase/migrations/20261002192814_gridex_web_server_owned_rbac.sql",
+]
+if not set(HISTORICAL_SETUP_MIGRATIONS).issubset(SETUP):
+    raise SystemExit("Historical migration classification contains an unselected file")
+if not set(RECORDED_PRODUCTION_APPLIED_MIGRATIONS).issubset(CANDIDATE_MIGRATIONS):
+    raise SystemExit("Recorded applied migration is not part of the selected candidate")
 
 
 def sql_file(relative):
@@ -120,7 +148,9 @@ def file_hashes():
 HASHES = file_hashes()
 PACKAGE_HASH = hashlib.sha256(json.dumps(HASHES, sort_keys=True).encode()).hexdigest()
 print(json.dumps({"native_package_sha256": PACKAGE_HASH, "migration_sha256": {
-    relative: HASHES[relative] for relative in SETUP if relative.startswith("supabase/migrations/")
+    relative: HASHES[relative] for relative in CANDIDATE_MIGRATIONS
+}, "historical_setup_migration_sha256": {
+    relative: HASHES[relative] for relative in HISTORICAL_SETUP_MIGRATIONS
 }}), flush=True)
 PSQL, ENV, MAJOR = common.connection()
 
@@ -145,7 +175,10 @@ if changed:
 print(json.dumps({
     "native_package_sha256": PACKAGE_HASH,
     "postgres_major": int(MAJOR),
-    "forward_migrations": sum(relative.startswith("supabase/migrations/") for relative in SETUP),
+    "forward_migrations": len(CANDIDATE_MIGRATIONS),
+    "historical_setup_migrations": len(HISTORICAL_SETUP_MIGRATIONS),
+    "recorded_production_applied_candidate_migrations": len(RECORDED_PRODUCTION_APPLIED_MIGRATIONS),
+    "recorded_production_pending_candidate_migrations": len(CANDIDATE_MIGRATIONS) - len(RECORDED_PRODUCTION_APPLIED_MIGRATIONS),
     "deployment_assertion_files": len(ASSERTIONS),
     "rollback_behavior_files": len(BEHAVIOR),
     "concurrency_programs": len(CONCURRENCY),

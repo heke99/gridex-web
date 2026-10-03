@@ -8,6 +8,7 @@ export type WebApiErrorInput = {
   hint?: string | null
   action?: string | null
   retryable?: boolean
+  blockers?: unknown[]
   requestId?: string | null
   correlationId?: string | null
   upstreamStatus?: number | null
@@ -40,6 +41,7 @@ export function webErrorResponse(input: WebApiErrorInput, status: number, header
         hint: input.hint ?? null,
         action: input.action ?? null,
         retryable: input.retryable ?? (status === 429 || status >= 500),
+        blockers: input.blockers ?? [],
         request_id: requestId,
         correlation_id: input.correlationId ?? null,
         upstream_status: input.upstreamStatus ?? null,

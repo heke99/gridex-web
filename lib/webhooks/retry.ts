@@ -74,6 +74,9 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       !isSupportedOpsWebhookEventType(event.event_type) ||
       event.event_id !== row.event_id ||
       event.event_type !== row.event_type ||
+      event.organization_reference !== row.organization_reference ||
+      (event.delivery_id && event.delivery_id !== row.delivery_id) ||
+      Date.parse(event.occurred_at) !== Date.parse(row.occurred_at ?? '') ||
       !row.delivery_id ||
       !row.organization_reference ||
       !row.occurred_at ||

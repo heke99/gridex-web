@@ -117,7 +117,7 @@ export function shouldObserveOpsContractVersion(path: string): boolean {
   )
 }
 
-function safeErrorDetails(payload: unknown, response: Response, path: string) {
+export function safeErrorDetails(payload: unknown, response: Response, path: string) {
   const root = payload && typeof payload === 'object' && !Array.isArray(payload)
     ? payload as Record<string, unknown>
     : {}
@@ -177,7 +177,7 @@ function safeErrorDetails(payload: unknown, response: Response, path: string) {
   }
 }
 
-function customerSafeMessage(details: ReturnType<typeof safeErrorDetails>): string {
+export function customerSafeMessage(details: ReturnType<typeof safeErrorDetails>): string {
   const message = details.message?.trim()
   if (
     !message ||

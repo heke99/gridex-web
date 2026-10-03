@@ -1,5 +1,6 @@
 'use client'
 import { globalOverrideStates } from '@/lib/admin/permissionOverrides'
+import { isActiveRoleAssignment, roleAssignmentMatches, type RegisteredRole, type UserRoleAssignment } from '@/lib/admin/roleAssignmentState'
 
 import {
   setUserPermissionOverride,
@@ -11,17 +12,6 @@ type UserProfileRow = {
   id: string
   email: string | null
   full_name: string | null
-}
-
-type UserRoleRow = {
-  user_id: string
-  role: string
-  is_active: boolean | null
-}
-
-type RoleRow = {
-  id: string
-  name: string
 }
 
 type PermissionRow = {
@@ -45,16 +35,12 @@ export default function RBACUserTable({
   userPerms,
 }: {
   users: UserProfileRow[]
-  roles: RoleRow[]
+  roles: RegisteredRole[]
   perms: PermissionRow[]
-  userRoles: UserRoleRow[]
+  userRoles: UserRoleAssignment[]
   userPerms: UserPermissionRow[]
 }) {
-  const activeRoleSet = new Set(
-    userRoles
-      .filter((row) => row.is_active !== false)
-      .map((row) => `${row.user_id}:${row.role}`)
-  )
+  const activeAssignments = userRoles.filter(isActiveRoleAssignment)
   const overrideStates = globalOverrideStates(userPerms)
 
   return (
@@ -88,19 +74,20 @@ export default function RBACUserTable({
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
                     {roles.map((role) => {
-                      const key = `${user.id}:${role.name}`
-                      const enabled = activeRoleSet.has(key)
+                      const key = `${user.id}:${role.id}`
+                      const enabled = activeAssignments.some((row) => row.user_id === user.id && roleAssignmentMatches(row, role))
 
                       return (
                         <form key={key} action={setUserRoleActive}>
                           <input type="hidden" name="user_id" value={user.id} />
-                          <input type="hidden" name="role" value={role.name} />
+                          <input type="hidden" name="role" value={role.key || role.name} />
                           <input
                             type="hidden"
                             name="active"
                             value={enabled ? 'false' : 'true'}
                           />
                           <button
+                            disabled={role.is_active === false && !enabled}
                             className={[
                               'rounded-full border px-2 py-1 text-[11px] transition',
                               enabled
