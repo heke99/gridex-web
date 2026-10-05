@@ -7,6 +7,8 @@ import { signStaffAssertion, signLocalStaffAssertion } from '../lib/staff-api/as
 import { createSupportAuthClient, requireSupportSession } from '../apps/support/lib/session.ts'
 import { createCase, caseCommand, customerContact, inviteUser, userCommand } from '../apps/support/app/actions.ts'
 import { signIn, signOut, updatePassword } from '../apps/support/app/login/actions.ts'
+import NewCase from '../apps/support/app/(workspace)/cases/new/page.tsx'
+import staffContract from '../lib/staff-api/contract.json'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const config = { opsProjectRef: FIXTURE_OPS_PROJECT_REF, apiKey: 'support-test-dedicated-key-1234567890', companyId: FIXTURE_COMPANY, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'offline-support-key', privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(), timeoutMs: 1000 }
@@ -32,6 +34,91 @@ function setup(t, actor = FIXTURE_ADMIN) {
 const staff = runtime => runtime.state.traffic.filter(call => call.boundary === 'staff')
 const commands = runtime => staff(runtime).filter(call => call.method !== 'GET')
 const redirect = path => error => error.location === path
+
+function pageElements(node, predicate) {
+  if (Array.isArray(node)) return node.flatMap(child => pageElements(child, predicate))
+  if (!node || typeof node !== 'object' || !node.props) return []
+  return [...(predicate(node) ? [node] : []), ...pageElements(node.props.children, predicate)]
+}
+function customerSelection(page) {
+  return pageElements(page, node => node.type === 'select' && node.props.name === 'customer_reference')[0]
+}
+function syntheticSearchPage(runtime, includeSelected = false) {
+  // Only the search response DTO is replaced after real RSA/Auth/tenant checks.
+  // Detail lookup, session, API schema validation and request attestation stay real.
+  const keys = staffContract.components.schemas.StaffCustomerSummary.required
+  const summary = Object.fromEntries(keys.map(key => [key, runtime.state.customer[key]]))
+  const rows = Array.from({ length: 50 }, (_, index) => ({ ...summary,
+    customer_reference: 'customer_' + String(index + 1).padStart(24, '0'),
+    customer_number: 'OTHER-' + (index + 1), display_name: 'Annan syntetisk kund ' + (index + 1),
+  }))
+  if (includeSelected) rows[0] = summary
+  globalThis.fetch = async (input, init) => {
+    const response = await runtime.fetch(input, init)
+    const url = new URL(String(input))
+    if (url.pathname !== '/api/v1/staff/customers' || !response.ok) return response
+    const payload = await response.json()
+    payload.data.customers = rows
+    payload.data.pagination = { page: 1, page_size: 50, total: 51, total_pages: 2 }
+    return new Response(JSON.stringify(payload), { status: response.status, headers: response.headers })
+  }
+}
+
+test('actual new-case page selects a scoped customer absent from its first50 search rows', async t => {
+  const runtime = setup(t); syntheticSearchPage(runtime)
+  const page = await NewCase({ searchParams: Promise.resolve({ customer: FIXTURE_CUSTOMER }) })
+  const select = customerSelection(page)
+  assert.equal(select.props.defaultValue, FIXTURE_CUSTOMER)
+  assert.equal(pageElements(select, node => node.type === 'option' && node.props.value === FIXTURE_CUSTOMER).length, 1)
+  assert.ok(staff(runtime).some(call => call.path === '/customers/' + FIXTURE_CUSTOMER))
+  assert.ok(staff(runtime).every(call => call.method === 'GET' && call.actor === FIXTURE_ADMIN && call.company === FIXTURE_COMPANY))
+  assert.equal(commands(runtime).length, 0)
+})
+
+test('actual new-case search preserves its verified selection on the next GET render', async t => {
+  const runtime = setup(t); syntheticSearchPage(runtime)
+  const page = await NewCase({ searchParams: Promise.resolve({ q: 'annan kund', customer: FIXTURE_CUSTOMER }) })
+  const searchForm = pageElements(page, node => node.type === 'form' && node.props.className === 'filters')[0]
+  const retained = pageElements(searchForm, node => node.type === 'input' && node.props.type === 'hidden' && node.props.name === 'customer')[0]
+  assert.equal(retained?.props.value, FIXTURE_CUSTOMER)
+  const nextPage = await NewCase({ searchParams: Promise.resolve({ q: 'ny sökning', customer: retained.props.value }) })
+  assert.equal(customerSelection(nextPage).props.defaultValue, FIXTURE_CUSTOMER)
+  assert.equal(commands(runtime).length, 0)
+})
+
+test('actual new-case options deduplicate an already-listed selected customer', async t => {
+  const runtime = setup(t); syntheticSearchPage(runtime, true)
+  const page = await NewCase({ searchParams: Promise.resolve({ customer: FIXTURE_CUSTOMER }) })
+  const select = customerSelection(page)
+  assert.equal(select.props.defaultValue, FIXTURE_CUSTOMER)
+  assert.equal(pageElements(select, node => node.type === 'option' && node.props.value === FIXTURE_CUSTOMER).length, 1)
+  assert.equal(commands(runtime).length, 0)
+})
+
+test('actual new-case without selected customer keeps the normal search and empty default', async t => {
+  const runtime = setup(t)
+  const page = await NewCase({ searchParams: Promise.resolve({ q: 'Anna' }) })
+  assert.equal(customerSelection(page).props.defaultValue, '')
+  assert.equal(staff(runtime).filter(call => call.path.startsWith('/customers/')).length, 0)
+  assert.equal(commands(runtime).length, 0)
+})
+
+for (const [reference, status] of [['customer_bbbbbbbbbbbbbbbbbbbbbbbb', 404], ['../../customers/foreign', 422]]) {
+  test('actual new-case refuses an unverified selected reference: ' + status, async t => {
+    const runtime = setup(t)
+    await assert.rejects(() => NewCase({ searchParams: Promise.resolve({ customer: reference }) }),
+      error => error instanceof StaffApiError && error.status === status)
+    assert.equal(commands(runtime).length, 0)
+    assert.ok(staff(runtime).every(call => call.company === FIXTURE_COMPANY))
+  })
+}
+
+test('actual new-case selected reference cannot bypass a foreign staff session', async t => {
+  const runtime = setup(t, FIXTURE_FOREIGN)
+  await assert.rejects(() => NewCase({ searchParams: Promise.resolve({ customer: FIXTURE_CUSTOMER }) }), redirect('/login?reason=access_denied'))
+  assert.equal(staff(runtime).length, 0)
+  assert.equal(commands(runtime).length, 0)
+})
 
 test('offline fixture serves all actual read DTOs, history cursor continuation and verified attachment bytes', async t => {
   const runtime = setup(t)
