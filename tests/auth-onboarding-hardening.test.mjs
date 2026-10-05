@@ -23,6 +23,18 @@ const matchingProfile = {
   external_customer_id: 'customer-ops-1',
 }
 
+for (const auth_user_id of [null, 'auth-user-1']) {
+  assert.equal(
+    portalOnboardingCandidateHasStableIdentity(
+      { auth_user_id, payload: payload() },
+      { ...matchingProfile, external_customer_id: 'conflicting-customer' },
+      'auth-user-1',
+    ),
+    false,
+    'matching customer number or Auth UUID cannot hide a conflicting stable identifier',
+  )
+}
+
 assert.equal(
   portalOnboardingCandidateHasStableIdentity(
     { auth_user_id: 'auth-user-1', payload: payload() },
