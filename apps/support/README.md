@@ -63,6 +63,30 @@ Every write requires a stable idempotency key. Writes are never automatically
 retried. Contact changes include the server-provided optimistic version; a 409
 requires the employee to reload before changing the current value.
 
+## Independent staff invitations
+
+Register the dedicated client's `metadata.staff_onboarding_origin` as
+`https://support123.gridex.se` and include that exact origin in its
+`allowed_origins` column. Supabase Auth must separately allow the portal's
+`/auth/invitation` callback; otherwise email delivery may fall back to its
+global Site URL. Qualify the actual callback destination before enabling real
+invitations. These settings have not been changed in production.
+
+The existing leased OPS worker delivers the Auth email to this own callback.
+GET displays a password form and creates no membership. The employee explicitly
+submits a new password, verified against this portal's own Prod Auth session,
+before the server requests canonical acceptance through the separately
+versioned `POST /api/v1/staff-onboarding/invitations/accept` contract
+(`2026-10-05.1`). This additive contract does not modify the frozen Staff release.
+Acceptance verifies the real Auth identity, fresh staff assertion, original
+invitation/client binding and current native authority before granting access.
+The legacy OPS acceptance page rejects invitations created through the Staff API.
+
+The `must_change_password` user metadata is an advisory UX hint. It is editable
+by the account and does not enforce a native password-rotation policy or grant
+tenant access. The invitation form's successful password update precedes the
+membership grant; a failed update makes no onboarding API request.
+
 ## Deployment status and remaining prerequisites
 
 The checked source provides login, cases, customer search/detail/contact
@@ -87,7 +111,7 @@ Before assigning the domain, qualify the actual production-shaped dependency
 closure with native SQL, register the correct Gridex company/admin, install the
 reviewed additive code, and provision the dedicated client/staff provider. The
 independent invitation callback and explicit canonical acceptance must also
-pass their own checks before real staff invitations are enabled. Never replay
+pass native SQL and hosted delivery checks before real staff invitations are enabled. Never replay
 the entire historical OPS migration directory into this different baseline,
 write a fake readiness row, change the global OPS callback URL, or copy live
 tenant data without an explicit data mapping.
@@ -97,3 +121,7 @@ environment. The marketing project continues to serve `gridex.se` and
 `www.gridex.se`. This source alone does not change the current DNS/domain
 assignment. Legacy marketing support-ticket storage has not been merged into
 the canonical Personal API case store.
+
+The original offline receipt and its immutable evidence remain in
+`quality/support123/verification-20261005.md`. The final invitation addition is
+recorded separately; local browser fixtures are not native or hosted acceptance.

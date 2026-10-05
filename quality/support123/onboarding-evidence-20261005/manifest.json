@@ -1,0 +1,41 @@
+{
+  "status": "PASS_CODE_AND_OFFLINE_PORTAL_CHECKS_PROD_ACTIVATION_BLOCKED",
+  "date": "2026-10-05",
+  "database_project": "ayiuxjlfazkjmmtlvhsl",
+  "production_data": false,
+  "results": {
+    "portal_tests": 56,
+    "onboarding_tests": 8,
+    "chromium_checks": 17,
+    "browser_errors": 0,
+    "types": "PASS",
+    "lint": "PASS_ZERO_WARNINGS",
+    "support_production_build": "PASS"
+  },
+  "files": {
+    "portal-tests.log": "ce6cb95add718379495160e5398a0b65c764f3cafe94e94cda38e5dc41f198da",
+    "portal-types.log": "deb0560c1df69e18f0004e9fe97885eee0060856f76c4a20edcba1f3bf8e0e3d",
+    "portal-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "portal-build.log": "b29bff15aaf539a00f5a1045fc4daacd9d1927058f0940f39a2b2b9c21191f74",
+    "browser-verification.json": "06288310ccc6850481be119bc341db971253f5dfa3e92d75e3dcd0ae15e1aa5a",
+    "browser-run.log": "6a6786527958e4fb53a5c60a6e0eb24e8ed129c53da43b921f715af2b5310ca8"
+  },
+  "source_sha256": {
+    "apps/support/components/InvitationForm.tsx": "be473346c338b6e0bd38b45abf9f22dc1f9e46c6842931a80752b59047b81421",
+    "apps/support/lib/invitation.ts": "05c01a56758de585df63e3611631afc594594821be68fdb555a295ef504f7d14",
+    "apps/support/app/auth/invitation/page.tsx": "7fa5f9542c00a4303d108e7b37c04adc34d2e9f711f1472da65f6ceb50482032",
+    "apps/support/app/auth/invitation/actions.ts": "2b9aa84f338b44d9f1641fb2dabbb18312a720db48f7a73adad343cc52e804ac",
+    "tests/support-onboarding.test.mjs": "6535aa653c052734d7ffb3cdd83c309334901dc6f9e86c560e5d86216214363c",
+    "tests/support-browser.mjs": "d6eaa5bd19c3c9a50aa1b03022bb5141c051bd038590b0d287e78cb2fb8c7005",
+    "tests/run-support-browser.mjs": "65c6d6556c68ee7789fb7eaf5d87fcd6b513bb307058b4f4d074fe92ea494c6e",
+    "tests/fixtures/support-runtime.mjs": "7f69c5c685d39bcbec3119ca320a770f8850995f2e02777ca17e7786cbb2f2c6",
+    "package.json": "aea742c0fa196b4c55e1e7401154d08b7059f47935d1a12b63f39ce74ed60ccf"
+  },
+  "limitations": [
+    "No native or hosted production SQL acceptance",
+    "No real invitation email or production registration",
+    "Browser callback checks cover GET fragment capture and invalid-link handling; explicit POST is covered by separate Auth/API action tests",
+    "user_metadata.must_change_password remains advisory, not a native password-rotation policy",
+    "No domain reassignment"
+  ]
+}
