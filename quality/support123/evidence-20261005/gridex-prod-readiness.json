@@ -1,0 +1,1086 @@
+{
+  "status": "GRIDEX_PROD_STAFF_API_NOT_READY_ALIGNMENT_REQUIRED",
+  "scope": "Two BEGIN READ ONLY catalog/migration-ledger transactions on confirmed gridex-prod; no application/Auth rows, secret columns, database mutations or portal enrollment.",
+  "project": {
+    "name": "gridex-prod",
+    "ref": "ayiuxjlfazkjmmtlvhsl",
+    "account_link": "link_6abfe8a022548191be4c4495dee62966"
+  },
+  "inspected_at": "2026-10-05T09:28:46.492292+00:00",
+  "source": {
+    "commit": "985724f58ef15e222cf4d3b2e1c643c674852106",
+    "tree": "0b8ad8d2272f77a346781a13b909aa0cdcc9b8d1",
+    "files": [
+      {
+        "path": "supabase/migrations/20261004083640_staff_user_commands.sql",
+        "sha256": "0cf1911c72cdb954f27eef54e7604c2008868ec293e33425a57e0e7f0e25147b"
+      },
+      {
+        "path": "supabase/migrations/20261004083735_staff_identity_provider_purpose.sql",
+        "sha256": "0bf0beed5002d287b9682675817300048271a3eeab59d88ec66f2a956ab2e578"
+      },
+      {
+        "path": "supabase/migrations/20261004083809_staff_api_integration_auth.sql",
+        "sha256": "7c065eefafb20c7b4481ac2e1b828426b4213974050432e7f2c84deb377e609a"
+      },
+      {
+        "path": "supabase/migrations/20261004084204_staff_customer_write_attribution.sql",
+        "sha256": "5b908b97c47394197a558e0d77353edd2cc2ebf8fb44cc45782a5e5a2e08f2ee"
+      },
+      {
+        "path": "supabase/migrations/20261004084206_staff_case_write_attribution.sql",
+        "sha256": "decacb983975fabcd5b0d36a63cdcaa9f4652c142c248302b4bc06514c4ca33c"
+      },
+      {
+        "path": "supabase/migrations/20261004085008_staff_active_membership.sql",
+        "sha256": "a740c68886993e2349d129c784491891a856ad1b4c02a064d3c4223cbbb24749"
+      },
+      {
+        "path": "supabase/migrations/20261004085710_staff_support_create_atomic.sql",
+        "sha256": "b507f05c68f4796990d4cf2639cbc4f7756caeec6ac4d7a7c4502fccef0f6666"
+      },
+      {
+        "path": "supabase/migrations/20261004090602_staff_case_events_api_auth.sql",
+        "sha256": "7056422a92a27d6b2f7a5fde4086daebae4b9fa38a98fecf628c8d3dc30741a0"
+      },
+      {
+        "path": "supabase/migrations/20261004093111_staff_write_actor_guard.sql",
+        "sha256": "242b43bd4b41aa708dd4fb88558478f3c9c986842010eb4c80d1838fda2bee60"
+      },
+      {
+        "path": "supabase/migrations/20261004094344_staff_user_client_guard.sql",
+        "sha256": "9f59e109c599911c6c060e1c4edb8beed461dfa9d942e22d5b73e67852ad8801"
+      },
+      {
+        "path": "supabase/migrations/20261004095500_staff_user_actor_guard.sql",
+        "sha256": "c43a3a4849a0fe3a99b961af11ea94396d27d578e2ecf75aadd32a975fabab3b"
+      },
+      {
+        "path": "supabase/migrations/20261004100320_staff_assertion_replay_least_privilege.sql",
+        "sha256": "f01b39a54b4939ae82fe13faaf313538da8ab15d553d3f1fe73779fc6877f670"
+      },
+      {
+        "path": "supabase/migrations/20261004100849_staff_case_assignee_eligibility.sql",
+        "sha256": "6250de6182acf2899da621709f034cde494a40ee4398c9743c4bd62b8e2c764e"
+      },
+      {
+        "path": "supabase/migrations/20261004100918_staff_user_lock_order.sql",
+        "sha256": "e90524bec4766b4eab68c0dc04836e95dc7e7bd8938ce7b602044c441b261e68"
+      },
+      {
+        "path": "supabase/migrations/20261004114944_staff_contact_profile_authority.sql",
+        "sha256": "549fcda905f17ee9f3ed562bd7ecb8de13b99ab475ada307ab5e3d9ddf9a83aa"
+      },
+      {
+        "path": "supabase/migrations/20261004115007_staff_case_status_actor_compatibility.sql",
+        "sha256": "1a60f96140f8c8bc151d26b4cd6058b36f48b693ebc0ffbae75e72f1d57df492"
+      },
+      {
+        "path": "supabase/migrations/20261004132630_staff_invitation_domain_columns.sql",
+        "sha256": "c31a729085170cac6801f66015d69c5005f16f9f138202d1b3b98f79d79b073c"
+      },
+      {
+        "path": "supabase/migrations/20261004165620_staff_user_role_id_nullability.sql",
+        "sha256": "efdc9d67fcb6e3edd6d77e97de0b5c79978a2b3673d6bad1607880b5cbe98510"
+      },
+      {
+        "path": "supabase/migrations/20261004205603_staff_customer_retention_read_prerequisite.sql",
+        "sha256": "13f9d5671867fc498a425726bff7684ac8e73c1b00cfeda6f1d9fe18ad543cf1"
+      },
+      {
+        "path": "supabase/migrations/20261004205816_support_attachment_quarantine_carrier.sql",
+        "sha256": "6d9be86a3706328aa9d217db2a596b1f3a8e5337130f6e224d9757e93882d594"
+      },
+      {
+        "path": "supabase/migrations/20261005004623_customer_contact_version_conflict_http409.sql",
+        "sha256": "9adcd287c2e33beeb748b02a30fa8ee38d8e4f474bb11043dde98248a95db89d"
+      },
+      {
+        "path": "supabase/migrations/20261005010327_customer_identity_version_conflict_http409.sql",
+        "sha256": "936d3487a9ad411ff4282f6395adef8f2a4d698553f9dd6ecdfce9b3626b292b"
+      }
+    ],
+    "defined_function_names": [
+      "authenticate_integration_request_v1",
+      "canonical_change_tenant_user_access",
+      "canonical_change_tenant_user_access_v1_unchecked",
+      "canonical_change_tenant_user_access_v2_unmapped",
+      "canonical_create_tenant_invitation",
+      "ediel_customer_record_tombstones_v1",
+      "gridex_assert_staff_command_v1",
+      "gridex_assign_customer_case",
+      "gridex_audit_staff_identity_request_v1",
+      "gridex_audit_staff_support_attachment_v1",
+      "gridex_create_staff_support_case_v1",
+      "gridex_customer_contact_change_v1",
+      "gridex_decide_customer_identity_change_v1",
+      "gridex_identity_request_staff_origin_immutable_v1",
+      "gridex_staff_active_membership_v1",
+      "gridex_staff_actor_permissions_v1",
+      "gridex_staff_assert_write_actor_v1",
+      "gridex_staff_customer_id_for_reference_v1",
+      "gridex_staff_customer_search_v1",
+      "gridex_staff_normalize_role_v1",
+      "gridex_staff_permission_overrides_v1",
+      "gridex_staff_role_profile_v1",
+      "gridex_staff_support_event",
+      "gridex_staff_update_customer_case_status",
+      "gridex_update_customer_case_status",
+      "gridex_update_customer_case_status_with_actor_v1"
+    ]
+  },
+  "facts": {
+    "server_version": "17.6",
+    "public_table_count": 136,
+    "selected_real_relations": {
+      "checked": 34,
+      "present": 17,
+      "absent": 17,
+      "relations": [
+        {
+          "name": "gridex_ediel_retention.record_class_catalog",
+          "present": false
+        },
+        {
+          "name": "gridex_ediel_retention.record_decisions",
+          "present": false
+        },
+        {
+          "name": "gridex_ediel_retention.record_reviews",
+          "present": false
+        },
+        {
+          "name": "gridex_ediel_retention.record_tombstones",
+          "present": false
+        },
+        {
+          "name": "public.companies",
+          "present": true
+        },
+        {
+          "name": "public.company_invitations",
+          "present": true
+        },
+        {
+          "name": "public.company_memberships",
+          "present": true
+        },
+        {
+          "name": "public.customer_addresses",
+          "present": true
+        },
+        {
+          "name": "public.customer_case_events",
+          "present": false
+        },
+        {
+          "name": "public.customer_cases",
+          "present": false
+        },
+        {
+          "name": "public.customer_contacts",
+          "present": true
+        },
+        {
+          "name": "public.customer_identity_change_events",
+          "present": false
+        },
+        {
+          "name": "public.customer_identity_change_requests",
+          "present": false
+        },
+        {
+          "name": "public.customers",
+          "present": true
+        },
+        {
+          "name": "public.integration_api_clients",
+          "present": false
+        },
+        {
+          "name": "public.permissions",
+          "present": true
+        },
+        {
+          "name": "public.roles",
+          "present": true
+        },
+        {
+          "name": "public.tenant_customer_identity_providers",
+          "present": false
+        },
+        {
+          "name": "public.tenant_staff_assertion_replays",
+          "present": false
+        },
+        {
+          "name": "public.user_permission_overrides",
+          "present": true
+        },
+        {
+          "name": "public.user_profiles",
+          "present": true
+        },
+        {
+          "name": "public.user_roles",
+          "present": true
+        },
+        {
+          "name": "storage.buckets",
+          "present": true
+        },
+        {
+          "name": "supabase_migrations.schema_migrations",
+          "present": true
+        },
+        {
+          "name": "public.audit_logs",
+          "present": true
+        },
+        {
+          "name": "public.customer_case_attachments",
+          "present": false
+        },
+        {
+          "name": "public.customer_contracts",
+          "present": true
+        },
+        {
+          "name": "public.customer_sites",
+          "present": true
+        },
+        {
+          "name": "public.domain_events",
+          "present": false
+        },
+        {
+          "name": "public.event_outbox",
+          "present": false
+        },
+        {
+          "name": "public.integration_api_rate_limit_events",
+          "present": false
+        },
+        {
+          "name": "public.integration_api_requests",
+          "present": false
+        },
+        {
+          "name": "public.integration_api_write_idempotency",
+          "present": false
+        },
+        {
+          "name": "public.metering_points",
+          "present": true
+        }
+      ]
+    },
+    "functions": {
+      "declared_by_frozen_22_forwards": 26,
+      "present": 0,
+      "absent": [
+        "authenticate_integration_request_v1",
+        "canonical_change_tenant_user_access",
+        "canonical_change_tenant_user_access_v1_unchecked",
+        "canonical_change_tenant_user_access_v2_unmapped",
+        "canonical_create_tenant_invitation",
+        "ediel_customer_record_tombstones_v1",
+        "gridex_assert_staff_command_v1",
+        "gridex_assign_customer_case",
+        "gridex_audit_staff_identity_request_v1",
+        "gridex_audit_staff_support_attachment_v1",
+        "gridex_create_staff_support_case_v1",
+        "gridex_customer_contact_change_v1",
+        "gridex_decide_customer_identity_change_v1",
+        "gridex_identity_request_staff_origin_immutable_v1",
+        "gridex_staff_active_membership_v1",
+        "gridex_staff_actor_permissions_v1",
+        "gridex_staff_assert_write_actor_v1",
+        "gridex_staff_customer_id_for_reference_v1",
+        "gridex_staff_customer_search_v1",
+        "gridex_staff_normalize_role_v1",
+        "gridex_staff_permission_overrides_v1",
+        "gridex_staff_role_profile_v1",
+        "gridex_staff_support_event",
+        "gridex_staff_update_customer_case_status",
+        "gridex_update_customer_case_status",
+        "gridex_update_customer_case_status_with_actor_v1"
+      ],
+      "limit": "Presence established by exact-name catalog lookup in public; not an exhaustive analysis of every transitive helper."
+    },
+    "migration_ledger": {
+      "count": 6,
+      "last_version": "20261002192814",
+      "first_version": "20260814090917"
+    },
+    "staff_forwards": [
+      {
+        "file": "20261004083640_staff_user_commands.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004083735_staff_identity_provider_purpose.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004083809_staff_api_integration_auth.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004084204_staff_customer_write_attribution.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004084206_staff_case_write_attribution.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004085008_staff_active_membership.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004085710_staff_support_create_atomic.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004090602_staff_case_events_api_auth.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004093111_staff_write_actor_guard.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004094344_staff_user_client_guard.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004095500_staff_user_actor_guard.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004100320_staff_assertion_replay_least_privilege.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004100849_staff_case_assignee_eligibility.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004100918_staff_user_lock_order.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004114944_staff_contact_profile_authority.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004115007_staff_case_status_actor_compatibility.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004132630_staff_invitation_domain_columns.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004165620_staff_user_role_id_nullability.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004205603_staff_customer_retention_read_prerequisite.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261004205816_support_attachment_quarantine_carrier.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261005004623_customer_contact_version_conflict_http409.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261005010327_customer_identity_version_conflict_http409.sql",
+        "name_present": false,
+        "version_present": false
+      }
+    ],
+    "staff_forwards_any_exact_version_or_name_present": 0,
+    "staff_named_ledger_rows": [],
+    "sampled_foundation_ledger": [
+      {
+        "file": "20260520_batch_5_cases_audit_email_ux.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20260531111600_system_readiness_foundation.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20260804200732_usage_event_identity_and_integration_write_idempotency.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20260810193450_canonical_access_provisioning_runtime_v1.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261002080000_tenant_customer_identity_providers.sql",
+        "name_present": false,
+        "version_present": false
+      },
+      {
+        "file": "20261002120000_customer_identity_change_requests.sql",
+        "name_present": false,
+        "version_present": false
+      }
+    ],
+    "support_bucket": [],
+    "user_roles_role_id": [
+      {
+        "type": "uuid",
+        "column": "role_id",
+        "not_null": false,
+        "has_default": false
+      }
+    ],
+    "user_roles_foreign_keys": [
+      {
+        "name": "user_roles_user_id_fkey",
+        "validated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      }
+    ],
+    "company_invitation_forward_columns_missing": [
+      "token"
+    ],
+    "company_invitation_canonical_idempotency_key_present": false,
+    "selected_table_columns": [
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "company_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "email",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "role",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "role_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "status",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "invitation_token",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "expires_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "accepted_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "cancelled_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "jsonb",
+        "table": "company_invitations",
+        "column": "metadata",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "created_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "updated_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "full_name",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "membership_role",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "role_key",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "invited_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_invitations",
+        "column": "invited_user_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "revoked_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "accept_token_hash",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "temporary_password_issued_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_invitations",
+        "column": "temporary_password_expires_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_invitations",
+        "column": "invited_email",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "company_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "role",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "role_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "status",
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "company_memberships",
+        "column": "is_active",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "invited_email",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "invited_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "joined_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "created_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "updated_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "membership_role",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "role_key",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "invited_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "accepted_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "disabled_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "disabled_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "company_memberships",
+        "column": "removed_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "company_memberships",
+        "column": "removed_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "company_memberships",
+        "column": "status_reason",
+        "nullable": "YES"
+      },
+      {
+        "type": "jsonb",
+        "table": "company_memberships",
+        "column": "metadata",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_permission_overrides",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "user_permission_overrides",
+        "column": "company_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_permission_overrides",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_permission_overrides",
+        "column": "permission_key",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_permission_overrides",
+        "column": "effect",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_permission_overrides",
+        "column": "reason",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_permission_overrides",
+        "column": "valid_from",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_permission_overrides",
+        "column": "valid_to",
+        "nullable": "YES"
+      },
+      {
+        "type": "boolean",
+        "table": "user_permission_overrides",
+        "column": "is_active",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_permission_overrides",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_permission_overrides",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "user_permission_overrides",
+        "column": "created_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_permission_overrides",
+        "column": "updated_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_profiles",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "full_name",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "personal_number",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "phone",
+        "nullable": "YES"
+      },
+      {
+        "type": "boolean",
+        "table": "user_profiles",
+        "column": "bankid_verified",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_profiles",
+        "column": "created_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "email",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_profiles",
+        "column": "user_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_profiles",
+        "column": "updated_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_profiles",
+        "column": "active_company_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "user_status",
+        "nullable": "YES"
+      },
+      {
+        "type": "boolean",
+        "table": "user_profiles",
+        "column": "must_change_password",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "last_auth_email_action",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_profiles",
+        "column": "last_auth_email_action_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_profiles",
+        "column": "temporary_password_set_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_profiles",
+        "column": "temporary_password_expires_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_profiles",
+        "column": "temporary_password_set_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_profiles",
+        "column": "temporary_password_company_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_profiles",
+        "column": "temporary_password_company_name",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_roles",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "user_roles",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "user_roles",
+        "column": "role",
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "user_roles",
+        "column": "is_active",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_roles",
+        "column": "created_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_roles",
+        "column": "role_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_roles",
+        "column": "company_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_roles",
+        "column": "status",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_roles",
+        "column": "updated_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "user_roles",
+        "column": "disabled_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "user_roles",
+        "column": "disabled_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "user_roles",
+        "column": "status_reason",
+        "nullable": "YES"
+      }
+    ]
+  },
+  "source_implications": [
+    {
+      "stage": "S1",
+      "blocker": "No integration_api_clients, provider registry, assertion replays, API rate-limit/request tables or integration/membership/override RPCs; key/provider enrollment alone cannot authenticate current Staff API."
+    },
+    {
+      "stage": "S2",
+      "blocker": "Canonical staff command functions absent; base user/membership tables exist but invitation token/idempotency columns and user_roles role_id FK differ from qualified source."
+    },
+    {
+      "stage": "S3",
+      "blocker": "Staff customer/reference/search/contact/identity functions and identity requests/events absent; private retention reader/four catalog relations absent."
+    },
+    {
+      "stage": "S4",
+      "blocker": "Cases/events/attachment metadata functions and relations absent; private quarantine/released-download bucket absent."
+    },
+    {
+      "stage": "S5",
+      "finding": "Frozen public contract/source evidence remains valid as source documentation; it is not gridex-prod runtime acceptance."
+    }
+  ],
+  "alignment_requirements": [
+    "Keep independent portal enrollment and runtime write activation blocked until the API runtime service URL is independently bound to gridex-prod. Expected-project request protection must use exactly the URL that constructs the service client and refuse before authentication/audit/rate-limit/handler writes.",
+    "Build a catalog-based dependency closure for current Staff API against the real production baseline: tables/columns/indexes/FKs/triggers/functions with source hashes, role ownership/RLS/grants, Auth reference privileges, canonical tenant context and existing migration statements. A six-entry ledger is not proof that every older source migration is unapplied.",
+    "Prepare bounded additive/guarded alignment SQL for the verified missing closure. Preserve existing rows, Auth identities, company scope and unrelated product objects; do not send the entire source migration directory or only the22 Staff forwards to this divergent database.",
+    "Qualify exact proposed bytes on an isolated production-shaped baseline with native PostgreSQL17, wrong-state/atomic/idempotent guards and source S1-S5 tests. The conflict forwards require exact predecessor bodies; the quarantine forward requires an existing exact private10MiB bucket; neither can serve as a foundation bootstrap.",
+    "After root-authorized alignment, require read-only postapply catalog/source/ACL validation, actual production-target deployment evidence and dedicated Gridex-scoped provider/client enrollment before isolated production API acceptance. Provider/invitation or contracted-approval email delivery remains unverified until separately exercised."
+  ],
+  "historical_evidence": {
+    "prior_project_ref": "piidsfebjqjmnepdpnas",
+    "actual_project_name": "gridex-ops-dev",
+    "correction": "Earlier hosted app.gridex.se API/cleanup receipts must retain their original bytes and be explicitly attributed to gridex-ops-dev. They do not qualify gridex-prod.",
+    "qualified_clean_native_source_proof": "Remains source/CI evidence; not a production catalog or deployment-ledger claim.",
+    "fresh_gridex_prod_api_acceptance": "NOT_RUN",
+    "portal_enrollment": "NOT_RUN"
+  },
+  "limits": [
+    "Metadata-only sampled prerequisite assessment, not an exhaustive production schema/data migration plan or absence claim about all136 public tables.",
+    "Existing data was not inspected. Null role_id may be intentional legacy design; missing FK is a source-baseline difference requiring alignment review, not proof of corrupt rows.",
+    "Initial exploratory inventory included four guessed relation names; final selected-real-relations counts exclude them. Actual attachment and idempotency names are customer_case_attachments and integration_api_write_idempotency.",
+    "No live/API/CI/native replay/test execution or database writes performed."
+  ]
+}

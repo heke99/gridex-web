@@ -1,3 +1,4 @@
+import type { OpsCustomerSupportCase, OpsCustomerSupportMessage } from '@/lib/ops/client/customerSupport'
 export type CustomerProfile = {
   user_id: string
   email: string | null
@@ -106,33 +107,9 @@ export type CustomerPortalEvent = {
   metadata: Record<string, unknown>
 }
 
-export type CustomerSupportTicket = {
-  id: string
-  subject: string
-  category: string
-  priority: 'low' | 'normal' | 'high' | 'urgent'
-  status:
-    | 'open'
-    | 'waiting_on_customer'
-    | 'waiting_on_internal'
-    | 'resolved'
-    | 'closed'
-  description: string
-  created_at: string
-  updated_at: string
-  closed_at: string | null
-}
-
-export type CustomerSupportMessage = {
-  id: string
-  ticket_id: string
-  sender_user_id: string | null
-  sender_type: 'customer' | 'agent' | 'system' | 'integration'
-  body: string
-  attachments: unknown[]
-  is_internal_note: boolean
-  created_at: string
-}
+/** Canonical OPS support records; tenant-local Auth remains independent. */
+export type CustomerSupportTicket = OpsCustomerSupportCase
+export type CustomerSupportMessage = OpsCustomerSupportMessage
 
 export type CustomerNotification = {
   id: string

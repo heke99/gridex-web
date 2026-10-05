@@ -1,0 +1,92 @@
+{
+  "status": "LOCAL_FINAL_SOURCE_PASS_REMOTE_CI_PENDING",
+  "created_at_utc": "2026-10-05T14:38:50.831435+00:00",
+  "base_head": "f792aedfc557e66251cfd581c5d3887ac8992129",
+  "central_ops_runtime_head": "e545c9f4ebc98119ba7e256180ba94d856171405",
+  "architecture": {
+    "gridex_is_ordinary_ops_tenant": true,
+    "own_auth_and_anonymous_contacts": "gridex-prod ayiuxjlfazkjmmtlvhsl",
+    "canonical_customer_cases_staff_rbac_audit": "company-scoped OPS API",
+    "authenticated_customer_support_uses": "frozen Customer API 2026-10-04.1",
+    "staff_support_uses": "frozen Staff API with central actor and explicit local binding"
+  },
+  "source_sha256": {
+    ".github/workflows/support-quality.yml": "a01a8f55733d295b2d62ec04174beb1f199bc55d6de05cd7fe33fdd7865ed52a",
+    "app/dashboard/support/actions.ts": "0a92a8a657bc88fb279baeb3bf9080ac97e8c0e146e0d0062b067bf427f57393",
+    "app/dashboard/support/page.tsx": "610341f995ff3b74c93ac1bfe40728e96b2f079d5146719c5e6d7989d4e052e6",
+    "apps/support/README.md": "b3c3b9d0623bded468ce3be587ba8cb4f823c9931e5c0aeaa50e5589102c6e5e",
+    "apps/support/app/(workspace)/contact-requests/[id]/page.tsx": "078aac7135c262f4252c85a404624c088c3342a59b8938fcf14858e91d46d947",
+    "apps/support/app/(workspace)/contact-requests/page.tsx": "00b5a3670f56cb52f32956eb0dd57aaa222044304f98b9498af54b9825602a43",
+    "apps/support/app/(workspace)/layout.tsx": "7159dab9d510900ed6a732bd47fa2c77a8ff898828612800e4aaab263b5a6a33",
+    "apps/support/lib/public-inquiries.ts": "255571511894b92a3b641e21ef3921cec2749fd12bd07588aa84edf78c855a07",
+    "lib/customerPortal/service.ts": "4bfbd26ecf451868476f4e702e4ea5288ef90ada9f475c08c5eb8a89590988de",
+    "lib/customerPortal/types.ts": "3445f99157656a2a8b68bac69f73414f9ac38e91de2fe2126c2414e311b58cf0",
+    "lib/ops/client/customerSupport.ts": "71c6363d8a01c478df4ffb7f6dc04915ee52fb8e1501dc9d957aaae04d457fda",
+    "package.json": "84e36d04856f49e9fac53de75b0b0dd1bb3b0e6ad1cff2a92ab360c9ae351a62",
+    "tests/customer-support-api.test.mjs": "3b5ff4480bf3bbe6a4b7b9be1bac5f6fdba6f9af1a32b4485fd2bee1afa5cec6",
+    "tests/customer-support-handoff-loader.mjs": "21b348a7b1c04dee5797c1fe89486c9d76692182db279d775fc5f94760d3c33d",
+    "tests/customer-support-handoff.test.mjs": "7401e3d16951e370dbe622735d67d044b6c01467376bb0bda3befade9e096ee3",
+    "tests/fixtures/support-runtime.mjs": "5c2cdaa03cff87c8a6c54a3a41bde103cba55e86a4b1c1a439a2c9b61b521bfd",
+    "tests/run-support-browser.mjs": "cf626fb926f9af31a9b0da0652f63bd53f79e9000958beaf40de7723fad3c192",
+    "tests/support-browser.mjs": "ed79a30bd6c188014a0c57cccd11725d910ada83658909a8b32a7bb51d850839",
+    "tests/support-public-inquiries-loader.mjs": "ef9ce7f62db3ec28fc1830951a93114dcf866399dd971d081d0de1b33ae33d2e",
+    "tests/support-public-inquiries.test.mjs": "a10ef82ce0086e907d6ca844a6e7e076f8be110c7966272cd7889132de10bee3"
+  },
+  "receipt_sha256": {
+    "customer-support-api-qualification.json": "26636811eb9d7f65994eb23eb30a211c65ee0f7f4b707cacd59bfc427671b8c9",
+    "customer-support-handoff-qualification.json": "d9b7798d317a77e1a714c175b8efbb3a1d16a36a6b29cb9020ec7cf955aa0f20",
+    "support-public-inquiries-qualified-source.json": "918e2d1b39d7501bbf8afc9c0e6dc19d9c0e52a085a1523b58e829cb1913d41b",
+    "customer-support-public-browser-fixture-qualification.json": "a72e57c3ebf291bd855c52190f23d9991e032b51d09f43c9097a9faf99c57af7",
+    "support-customer-handoff-inquiries-independent-source-review-20261005.json": "c786b24e478eeb4c6bd53ab5d29a71939849a8b94af16beebe2e826cbcaa1105"
+  },
+  "uncompressed_log_sha256": {
+    "customer-handoff-final-support-tests.log": "4374bf3cbfb470a9476d3d6beafcd2cca2a097f9436a4801b866ad041fa5f74f",
+    "customer-handoff-web-types.log": "6f032a49a28319b4d58a5c3b2cf90f3bc12e4fb2b5ffb93b82101d417deb3a26",
+    "customer-handoff-support-types.log": "0a4d13db8f4259dc4ab2329009e25d857dd0552bc0ea260b91b3f101453ee2ca",
+    "customer-handoff-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "customer-handoff-full-lint.log": "b6c9b938fcdc97aa248f9b7783aa84d2f1fe4216b55aa1dd652e650bd7aa6db9",
+    "customer-handoff-launch.log": "96d12a429f1a81f8b9e34e694270bac20fd97f31ce0570f08cd76ec41e55125c",
+    "customer-handoff-web-build.log": "37f3ff820542bd1b5f3f409eb313a8fe44dcd8ade4d664fabcfbf75603403254",
+    "customer-handoff-web-webpack-build.log": "c8dbfaa4c00c7c6b18c8eddce773c160920fc96f65fd83616affe8e173950b7d",
+    "customer-handoff-support-build.log": "3ce2a71c5981f6bd06e1c111573a61d5d148210e583726ee804d7f717edc1236",
+    "customer-handoff-browser.log": "0ef1ae9e5921688d0f2097de09de5dcede15034e16a852a97ca60c91af0871b3",
+    "customer-handoff-api-drift.log": "aa53460e1767afc08c1c3a6ffc5703ff9d6f40e504cdad9928dcb8e384e15957",
+    "customer-handoff-migration.log": "72b63e7799316ea62381bfe475a8a80b80f6db0aa0b1f33bf7122047de59d20c"
+  },
+  "checks": {
+    "signed_staff_auth_actions_onboarding_delivery_and_tenant_sql": 75,
+    "real_customer_helper": 27,
+    "real_dashboard_actions_service_customer_to_staff_joined_handoff": 8,
+    "read_only_public_inquiries": 10,
+    "total_support_tests_pass": 120,
+    "full_web_types": "PASS",
+    "support_types": "PASS",
+    "scoped_lint": "PASS0warnings",
+    "full_project_lint": "PASS0errors;2existingpricingQuoteunused-variablewarnings",
+    "marketing_launch_regressions": "PASS",
+    "marketing_production_build": "PASSwebpack;defaultTurbopacklocalPostCSSsocketbindEPERMrecorded",
+    "independent_support_production_build": "PASS14dynamicroutes",
+    "browser_offline": {
+      "pass": 23,
+      "errors": 0
+    },
+    "frozen_api_local_drift": "PASS2026-10-04.1unchanged",
+    "tenant_migration_integrity": "PASS39files"
+  },
+  "limits": [
+    "Synthetic offline backend is not hosted or full native Customer API proof",
+    "Own Customer client needs read/write support scopes and linked central customer identity",
+    "Existing Customer transport has no customer assertion signer; configured enforce provider needs separate integration before activation",
+    "Anonymous inbox read-only, no automatic customer matching or case copy",
+    "Legacy local authenticated tickets not migrated",
+    "No custom role-definition creation or attachment upload UI added",
+    "Historical owner receipts preserved; later fixture fidelity correction is separately bound in public-browser-fixture receipt",
+    "No hosted migrations, accounts, email, environment, domain or deployment changes"
+  ],
+  "hosted_writes": 0,
+  "pending": [
+    "New published WEB source required3CIchecks",
+    "Central native clean/upgrade and repaired unit fixture CI",
+    "Trusted real enrollment and independent support deployment/domain assignment"
+  ]
+}

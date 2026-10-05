@@ -76,3 +76,44 @@ Independent requalification: ops_packet_pr_merge_review confirmed the exact corr
 - No private project/client/provider inventory, key, token, signed assertion or deployment target is included here.
 
 No commit, remote publication, branch update, merge or hosted change has been performed by this lane. Root owns publication and actual current-head qualification. Final exact eight-file ownership, unchanged baseline lockfile, whitespace and no auto-reset/token-code checks: PASS. Original main/review worktrees remained clean in the final local observation.
+
+## Published source and normal current-main integration, 2026-10-05
+
+Root published the bounded eight-path source as PR #46 at
+`d07304a989e1b1ba3a276b07e77e0fb2767a45f5`. Its authentic Web quality run
+37349090619 passed all32 focused cases and the actual production build. Its
+compatibility run37349090630 failed on the unchanged old main website release
+2026-10-02.4 versus manifest/live2026-10-04.1. No source/test failure or drift
+gate weakening was inferred from that version failure.
+
+The matching immutable SDK and reviewed tenant Customer/support source from
+PR45 were integrated behind the Git main deployment hold in PR47. All three
+combined-head checks passed. Actual main merge
+`1dfcc2a8b86e87207f58c34187d6eec2a724e1c3` has the exact qualified tree
+`701e3a2fe9ff0bf20663dc3e6be3658f8b9190f9`. Its `main:false` configuration is
+present and a read-only post-merge production receipt still identifies the
+previous ff950425 main deployment. No explicit deployment or promotion occurred.
+
+Root normally merged that actual main into this published branch without
+rebasing or force-pushing. The sole conflict is package.json; resolution keeps
+all current main workspace/dependency/support scripts and appends the exact
+existing-auth test registration plus its launch-chain prepend. Both source
+histories and all stronger stable-identity/claim fences are preserved. The
+current main lockfile is retained; exact-lock dependency reuse uses a separate
+installed ac1 tree (SHA a53d09f701c2ceb1302b61837cd04d318cdfccc4cd6726d7e8374a1b45edb6e4).
+
+The original isolated receipts above remain historical. The new integrated head
+requires actual current-source tests/types/local drift and fresh compatibility,
+Web and support CI before merge. No native multi-table or target readiness is
+claimed by this normal integration. Root owns the final expected-head merge.
+
+Integrated local qualification at18:06 UTC: all six published production/test
+blobs remain byte-identical; exact eight-path delta against actualmain,
+both package registrations preserved, diff-check PASS. Node22 full ordinary
+npmtest (including32focuscases) passed against the current4.1 source.
+Application TypeScript passed. The first local type run incorrectly included
+root's preserved old dependency backup beneath the project's recursive TS glob;
+moving that backup outside the worktree to /tmp removed the accidental input
+and the unchanged-source rerun passed with zero diagnostics. No source or
+typechecking rule was relaxed. The preserved dependency tree remains intact.
+Fresh new-head remoteCI remains required before root merge.

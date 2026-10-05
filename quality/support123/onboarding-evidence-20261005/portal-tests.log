@@ -1,0 +1,392 @@
+
+> gridex-web@0.1.0 test:support
+> node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/staff-api-client.test.mjs && node --experimental-strip-types --experimental-loader ./tests/support-auth-loader.mjs tests/support-auth-session.test.mjs && node --experimental-strip-types --experimental-loader ./tests/support-ui-loader.mjs tests/support-actions.test.mjs && node --experimental-strip-types --experimental-loader ./tests/support-auth-loader.mjs tests/support-onboarding.test.mjs
+
+(node:104027) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/staff-api-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: configuration uses dedicated staff credentials and fails closed without each required setting
+ok 1 - configuration uses dedicated staff credentials and fails closed without each required setting
+  ---
+  duration_ms: 2.998603
+  type: 'test'
+  ...
+# Subtest: RS256 assertion verifies with real RSA and has exact provider identity, bounded lifetime and fresh jti
+ok 2 - RS256 assertion verifies with real RSA and has exact provider identity, bounded lifetime and fresh jti
+  ---
+  duration_ms: 4.446876
+  type: 'test'
+  ...
+# Subtest: no assertion/client or network access without a verified UUID subject or valid configuration
+ok 3 - no assertion/client or network access without a verified UUID subject or valid configuration
+  ---
+  duration_ms: 0.578542
+  type: 'test'
+  ...
+# Subtest: every real request has a fresh signed assertion, fixed HTTPS URL, no cache/manual redirects, and a deadline
+ok 4 - every real request has a fresh signed assertion, fixed HTTPS URL, no cache/manual redirects, and a deadline
+  ---
+  duration_ms: 115.182877
+  type: 'test'
+  ...
+# Subtest: opaque references, bounded queries, unknown query fields and missing idempotency cannot inject a URL or make a request
+ok 5 - opaque references, bounded queries, unknown query fields and missing idempotency cannot inject a URL or make a request
+  ---
+  duration_ms: 9.459065
+  type: 'test'
+  ...
+# Subtest: cursor continuation is passed unchanged and server pagination is exposed without fabricating completeness
+ok 6 - cursor continuation is passed unchanged and server pagination is exposed without fabricating completeness
+  ---
+  duration_ms: 26.794569
+  type: 'test'
+  ...
+# Subtest: upstream 403 retains safe code/request ID, redacts details/message and never retries writes
+ok 7 - upstream 403 retains safe code/request ID, redacts details/message and never retries writes
+  ---
+  duration_ms: 5.177018
+  type: 'test'
+  ...
+# Subtest: upstream 409 retains safe code/request ID, redacts details/message and never retries writes
+ok 8 - upstream 409 retains safe code/request ID, redacts details/message and never retries writes
+  ---
+  duration_ms: 4.99986
+  type: 'test'
+  ...
+# Subtest: upstream 503 retains safe code/request ID, redacts details/message and never retries writes
+ok 9 - upstream 503 retains safe code/request ID, redacts details/message and never retries writes
+  ---
+  duration_ms: 1.673384
+  type: 'test'
+  ...
+# Subtest: manual redirect is refused without following its Location or disclosing credentials
+ok 10 - manual redirect is refused without following its Location or disclosing credentials
+  ---
+  duration_ms: 6.003033
+  type: 'test'
+  ...
+# Subtest: network rejection is redacted and aborted requests finish at the configured deadline
+ok 11 - network rejection is redacted and aborted requests finish at the configured deadline
+  ---
+  duration_ms: 22.935529
+  type: 'test'
+  ...
+# Subtest: JSON content type, schema/version, closed DTO and page consistency are checked before returning data
+ok 12 - JSON content type, schema/version, closed DTO and page consistency are checked before returning data
+  ---
+  duration_ms: 13.612469
+  type: 'test'
+  ...
+# Subtest: case commands use actual contract paths/body/method and require a stable idempotency key
+ok 13 - case commands use actual contract paths/body/method and require a stable idempotency key
+  ---
+  duration_ms: 63.244549
+  type: 'test'
+  ...
+# Subtest: download restricts MIME, size and SHA-256 and returns only safe response metadata
+ok 14 - download restricts MIME, size and SHA-256 and returns only safe response metadata
+  ---
+  duration_ms: 6.055634
+  type: 'test'
+  ...
+# Subtest: successful JSON and binary responses require exact gridex-prod storage attestation
+ok 15 - successful JSON and binary responses require exact gridex-prod storage attestation
+  ---
+  duration_ms: 18.382533
+  type: 'test'
+  ...
+# Subtest: queue/detail/users/customer search and create/status/assignment use their distinct contract envelopes
+ok 16 - queue/detail/users/customer search and create/status/assignment use their distinct contract envelopes
+  ---
+  duration_ms: 148.425906
+  type: 'test'
+  ...
+# Subtest: controlled commands reject extra actor/company fields and invalid statuses before submitting
+ok 17 - controlled commands reject extra actor/company fields and invalid statuses before submitting
+  ---
+  duration_ms: 0.880588
+  type: 'test'
+  ...
+# Subtest: body and attachment limits reject oversized declared or streamed content before it reaches the UI
+ok 18 - body and attachment limits reject oversized declared or streamed content before it reaches the UI
+  ---
+  duration_ms: 11.001563
+  type: 'test'
+  ...
+# Subtest: customer read/contact/identity and tenant staff management use only documented methods, paths and result schemas
+ok 19 - customer read/contact/identity and tenant staff management use only documented methods, paths and result schemas
+  ---
+  duration_ms: 112.956605
+  type: 'test'
+  ...
+# Subtest: staff target UUIDs and versioned contact shapes are validated before any request
+ok 20 - staff target UUIDs and versioned contact shapes are validated before any request
+  ---
+  duration_ms: 3.201819
+  type: 'test'
+  ...
+# Subtest: tenant user/contact authorization and stale conflicts propagate with no retries or role authority invented by portal
+ok 21 - tenant user/contact authorization and stale conflicts propagate with no retries or role authority invented by portal
+  ---
+  duration_ms: 10.154706
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 612.981315
+(node:104062) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/support-auth-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: dedicated auth config rejects website fallback, other projects, service-role and secret keys
+ok 1 - dedicated auth config rejects website fallback, other projects, service-role and secret keys
+  ---
+  duration_ms: 1.718622
+  type: 'test'
+  ...
+# Subtest: verified production Auth user is bound to fresh staff assertion, configured Gridex company and limit1 authorization probe
+ok 2 - verified production Auth user is bound to fresh staff assertion, configured Gridex company and limit1 authorization probe
+  ---
+  duration_ms: 105.696609
+  type: 'test'
+  ...
+# Subtest: missing or malformed verified subject redirects before assertion/API creation
+ok 3 - missing or malformed verified subject redirects before assertion/API creation
+  ---
+  duration_ms: 0.666796
+  type: 'test'
+  ...
+# Subtest: temporary-password flag refuses protected session before signing or authorization requests
+ok 4 - temporary-password flag refuses protected session before signing or authorization requests
+  ---
+  duration_ms: 0.356077
+  type: 'test'
+  ...
+# Subtest: denied membership/scopes and revoked credential redirect to explicit access_denied without a retry
+ok 5 - denied membership/scopes and revoked credential redirect to explicit access_denied without a retry
+  ---
+  duration_ms: 0.57658
+  type: 'test'
+  ...
+# Subtest: Auth and Staff API network/configuration failures propagate instead of masquerading as signed-out users
+ok 6 - Auth and Staff API network/configuration failures propagate instead of masquerading as signed-out users
+  ---
+  duration_ms: 0.60994
+  type: 'test'
+  ...
+# Subtest: auth cookie adapter is separate, host-only/httpOnly/secure/lax and supports complete chunk rotation
+ok 7 - auth cookie adapter is separate, host-only/httpOnly/secure/lax and supports complete chunk rotation
+  ---
+  duration_ms: 2.290184
+  type: 'test'
+  ...
+# Subtest: RSC adapter ignores only the known Next read-only cookie mutation error and surfaces all unexpected failures
+ok 8 - RSC adapter ignores only the known Next read-only cookie mutation error and surfaces all unexpected failures
+  ---
+  duration_ms: 0.337329
+  type: 'test'
+  ...
+# Subtest: installed Supabase SSR verifies getUser over its Auth transport instead of trusting cookie user claims
+ok 9 - installed Supabase SSR verifies getUser over its Auth transport instead of trusting cookie user claims
+  ---
+  duration_ms: 10.440917
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 135.279899
+(node:104132) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/support-ui-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: offline fixture serves all actual read DTOs, history cursor continuation and verified attachment bytes
+ok 1 - offline fixture serves all actual read DTOs, history cursor continuation and verified attachment bytes
+  ---
+  duration_ms: 284.388115
+  type: 'test'
+  ...
+# Subtest: offline fixture rejects wrong RSA, assertion replay, actor/company/key injection and outbound hosts
+ok 2 - offline fixture rejects wrong RSA, assertion replay, actor/company/key injection and outbound hosts
+  ---
+  duration_ms: 43.477798
+  type: 'test'
+  ...
+# Subtest: offline boundary refuses wrong storage target before assertion consumption or fixture mutation
+ok 3 - offline boundary refuses wrong storage target before assertion consumption or fixture mutation
+  ---
+  duration_ms: 3.367138
+  type: 'test'
+  ...
+# Subtest: actual action authorization probe blocks missing/wrong response attestation before any write
+ok 4 - actual action authorization probe blocks missing/wrong response attestation before any write
+  ---
+  duration_ms: 21.296211
+  type: 'test'
+  ...
+# Subtest: installed Auth SDK logs in and verifies synthetic user over gridex-prod boundary with isolated cookies
+ok 5 - installed Auth SDK logs in and verifies synthetic user over gridex-prod boundary with isolated cookies
+  ---
+  duration_ms: 15.324544
+  type: 'test'
+  ...
+# Subtest: actual login action verifies issued session before API admission and wrong credentials cannot authorize a request
+ok 6 - actual login action verifies issued session before API admission and wrong credentials cannot authorize a request
+  ---
+  duration_ms: 5.836092
+  type: 'test'
+  ...
+# Subtest: actual login does not admit authenticated other-company users or temporary-password credentials
+ok 7 - actual login does not admit authenticated other-company users or temporary-password credentials
+  ---
+  duration_ms: 6.967619
+  type: 'test'
+  ...
+# Subtest: actual password update verifies authenticated subject and signout removes the isolated session
+ok 8 - actual password update verifies authenticated subject and signout removes the isolated session
+  ---
+  duration_ms: 4.741522
+  type: 'test'
+  ...
+# Subtest: actual reply action re-verifies Auth and cannot take actor/company/permission authority from browser fields
+ok 9 - actual reply action re-verifies Auth and cannot take actor/company/permission authority from browser fields
+  ---
+  duration_ms: 59.666799
+  type: 'test'
+  ...
+# Subtest: actual commands preserve documented note/phone/status/assignee payloads and caller idempotency exactly once
+ok 10 - actual commands preserve documented note/phone/status/assignee payloads and caller idempotency exactly once
+  ---
+  duration_ms: 206.95253
+  type: 'test'
+  ...
+# Subtest: actual write replay keeps one event and changed-payload409 returns safely without retries or cache revalidation
+ok 11 - actual write replay keeps one event and changed-payload409 returns safely without retries or cache revalidation
+  ---
+  duration_ms: 22.163689
+  type: 'test'
+  ...
+# Subtest: readonly staff authorizes reads but API-denied action has no effect and is submitted once
+ok 12 - readonly staff authorizes reads but API-denied action has no effect and is submitted once
+  ---
+  duration_ms: 10.752708
+  type: 'test'
+  ...
+# Subtest: other-company and absent sessions are rejected before command submission
+ok 13 - other-company and absent sessions are rejected before command submission
+  ---
+  duration_ms: 29.618653
+  type: 'test'
+  ...
+# Subtest: actual contact action maps one allowlisted field plus optimistic version and ignores forged identity/company
+ok 14 - actual contact action maps one allowlisted field plus optimistic version and ignores forged identity/company
+  ---
+  duration_ms: 35.973218
+  type: 'test'
+  ...
+# Subtest: actual contact stale409 and invalid-version422 retain state and never retry writes
+ok 15 - actual contact stale409 and invalid-version422 retain state and never retry writes
+  ---
+  duration_ms: 14.21472
+  type: 'test'
+  ...
+# Subtest: actual team actions preserve invite intent, UUID target, role, disable and empty enable DTO with one stable key
+ok 16 - actual team actions preserve invite intent, UUID target, role, disable and empty enable DTO with one stable key
+  ---
+  duration_ms: 83.443591
+  type: 'test'
+  ...
+# Subtest: actual create action uses authenticated tenant/customer binding and redirects only after successful API result
+ok 17 - actual create action uses authenticated tenant/customer binding and redirects only after successful API result
+  ---
+  duration_ms: 22.983986
+  type: 'test'
+  ...
+# Subtest: missing idempotency/config and malformed target fail closed before any write fetch
+ok 18 - missing idempotency/config and malformed target fail closed before any write fetch
+  ---
+  duration_ms: 7.910542
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 893.794217
+(node:104210) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/support-auth-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: pre-membership acceptance uses actual verified Prod Auth and fresh signed proof; first password precedes canonical API acceptance
+ok 1 - pre-membership acceptance uses actual verified Prod Auth and fresh signed proof; first password precedes canonical API acceptance
+  ---
+  duration_ms: 80.94194
+  type: 'test'
+  ...
+# Subtest: default Auth fragment credentials are verified before storing this portal session on explicit submit
+ok 2 - default Auth fragment credentials are verified before storing this portal session on explicit submit
+  ---
+  duration_ms: 6.281634
+  type: 'test'
+  ...
+# Subtest: PKCE and token-hash Auth links are exchanged only on explicit submission
+ok 3 - PKCE and token-hash Auth links are exchanged only on explicit submission
+  ---
+  duration_ms: 5.188655
+  type: 'test'
+  ...
+# Subtest: invalid token/key/password or contradictory Auth link mode stops before Auth/API writes
+ok 4 - invalid token/key/password or contradictory Auth link mode stops before Auth/API writes
+  ---
+  duration_ms: 0.433183
+  type: 'test'
+  ...
+# Subtest: unconfirmed, missing or invalid Auth subject cannot sign a request or update a password
+ok 5 - unconfirmed, missing or invalid Auth subject cannot sign a request or update a password
+  ---
+  duration_ms: 4.906731
+  type: 'test'
+  ...
+# Subtest: denied canonical acceptance, redirects, invalid response, wrong target or network error is redacted and never retried
+ok 6 - denied canonical acceptance, redirects, invalid response, wrong target or network error is redacted and never retried
+  ---
+  duration_ms: 17.05913
+  type: 'test'
+  ...
+# Subtest: retry after acceptance failure keeps canonical idempotency stable and creates fresh single-use proofs
+ok 7 - retry after acceptance failure keeps canonical idempotency stable and creates fresh single-use proofs
+  ---
+  duration_ms: 13.95626
+  type: 'test'
+  ...
+# Subtest: failed first-password completion creates no tenant membership through the onboarding API
+ok 8 - failed first-password completion creates no tenant membership through the onboarding API
+  ---
+  duration_ms: 0.380174
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 187.369721

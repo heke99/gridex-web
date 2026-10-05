@@ -1,0 +1,114 @@
+{
+  "status": "TARGETED_OFFLINE_PASS_PUBLIC_INQUIRY_BROWSER_EXECUTION_PENDING",
+  "created_at": "2026-10-05T14:33:44.463790+00:00",
+  "source_hashes": {
+    "tests/fixtures/support-runtime.mjs": "5c2cdaa03cff87c8a6c54a3a41bde103cba55e86a4b1c1a439a2c9b61b521bfd",
+    "tests/support-browser.mjs": "ed79a30bd6c188014a0c57cccd11725d910ada83658909a8b32a7bb51d850839",
+    "tests/customer-support-handoff.test.mjs": "7401e3d16951e370dbe622735d67d044b6c01467376bb0bda3befade9e096ee3",
+    "tests/customer-support-handoff-loader.mjs": "21b348a7b1c04dee5797c1fe89486c9d76692182db279d775fc5f94760d3c33d"
+  },
+  "supersedes_specific_proof_fidelity": {
+    "prior_receipt": "customer-support-handoff-qualification.json",
+    "prior_receipt_sha256": "d9b7798d317a77e1a714c175b8efbb3a1d16a36a6b29cb9020ec7cf955aa0f20",
+    "prior_retained_unchanged": true,
+    "correction": "Fixture customer event author_user_id is NULL, matching OPS created_by/actorUserId:null; verified customer local UUID is request identity/ownership only and never a central Staff actor. New customer-created references use support_case_<32 digits>."
+  },
+  "checks": {
+    "joined_customer_staff_actions_service": {
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "duration_ms": 319.646997,
+      "log": "customer-support-handoff-final-green.log",
+      "log_sha256": "f74cb6c8bc21bb303c9ec7ee176f6b63651a70ada54045097b55097272e3a9ab",
+      "added_service_cursor_assertions": true
+    },
+    "existing_staff_actions": {
+      "tests": 21,
+      "passed": 21,
+      "failed": 0,
+      "duration_ms": 521.085317,
+      "log": "customer-support-fixture-final-existing-staff.log",
+      "log_sha256": "ab95071c53eb54713b609b7ea1448cc5c756e81b3904bc33f5df1c3a240575a8"
+    },
+    "public_inquiry_actual_installed_sdk_offline": {
+      "status": "PASS",
+      "network_calls": 0,
+      "reads": 5,
+      "list_count": 1,
+      "visible_detail_found": true,
+      "hidden_authenticated_same_source_row": true,
+      "hidden_null_user_wrong_source_row": true,
+      "closed_status_empty": true,
+      "malformed_unbounded_query_denied": true,
+      "write_denied": true,
+      "wrong_credentials_denied": true,
+      "sdk": "installed @supabase/supabase-js, actual query builder + result parsing"
+    },
+    "scoped_eslint": {
+      "exit_code": 0,
+      "max_warnings": 0,
+      "paths": [
+        "tests/fixtures/support-runtime.mjs",
+        "tests/support-browser.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/customer-support-handoff-loader.mjs"
+      ],
+      "log": "customer-support-public-browser-fixture-lint.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "node22_syntax": {
+      "status": "PASS",
+      "new_browser_and_fixture": true
+    },
+    "diff_check": {
+      "status": "PASS"
+    },
+    "browser_new_scenarios": {
+      "status": "AUTHORED_NOT_RUN",
+      "total_declared_checks": 23,
+      "new_checks": 6,
+      "executor": "Root sole final full browser/build qualification"
+    }
+  },
+  "public_inquiry_fixture_scope": {
+    "database_origin": "https://ayiuxjlfazkjmmtlvhsl.supabase.co",
+    "route": "/rest/v1/customer_support_tickets",
+    "method": "GET only",
+    "credentials": "exact synthetic service-key fixture, no real credential",
+    "required_predicates": [
+      "user_id=is.null",
+      "metadata->>source=eq.public_kundservice_form",
+      "exact allowlisted column projection",
+      "bounded exact UUID detail OR count/exact deterministic order/range list",
+      "allowlisted optional status"
+    ],
+    "seed": "one anonymous public inquiry and two disallowed decoys; all synthetic",
+    "writes": false,
+    "canonical_separation": "Public inquiries have their own row fixture and are never added to canonical shared cases/events. Customer search fixture supports actual name/email/customer-number matching."
+  },
+  "authored_browser_assertions": [
+    "Anonymous staff session cannot reach public inquiry list or detail.",
+    "Verified staff list explicitly labels contacts unverified, returns one allowed row and excludes authenticated/wrong-source decoys and canonical cases.",
+    "Detail labels sender unidentified, exposes only supplied contact data and has no authenticated-customer reply/status/create mutations or automatic customer identity link.",
+    "Manual customer-search link passes supplied email to actual Staff search and lets operator explicitly open canonical masked customer detail.",
+    "Anonymous request stays absent from canonical case inbox after manual search.",
+    "Foreign tenant staff remains denied on inquiry list and detail."
+  ],
+  "runtime_production_bindings": {
+    "apps/support/lib/public-inquiries.ts": "255571511894b92a3b641e21ef3921cec2749fd12bd07588aa84edf78c855a07",
+    "apps/support/app/(workspace)/contact-requests/page.tsx": "00b5a3670f56cb52f32956eb0dd57aaa222044304f98b9498af54b9825602a43",
+    "apps/support/app/(workspace)/contact-requests/[id]/page.tsx": "078aac7135c262f4252c85a404624c088c3342a59b8938fcf14858e91d46d947",
+    "lib/customerPortal/service.ts": "4bfbd26ecf451868476f4e702e4ea5288ef90ada9f475c08c5eb8a89590988de",
+    "app/dashboard/support/actions.ts": "0a92a8a657bc88fb279baeb3bf9080ac97e8c0e146e0d0062b067bf427f57393",
+    "tests/run-support-browser.mjs": "cf626fb926f9af31a9b0da0652f63bd53f79e9000958beaf40de7723fad3c192"
+  },
+  "limitations": [
+    "Browser scenarios not executed by this agent; root executes final browser/build once.",
+    "SDK query proof uses in-memory fetch responses; no hosted Supabase/RLS/provider/live API proof.",
+    "Customer authenticated event NULL actor is tested, while request identity/ownership remains explicit distinct local UUID."
+  ],
+  "hosted_calls": 0,
+  "production_edits_by_agent": 0,
+  "commits_or_pushes": 0
+}
