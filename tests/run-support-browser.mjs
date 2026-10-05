@@ -5,7 +5,7 @@ import { createServer } from 'node:net'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { resolve } from 'node:path'
-import { FIXTURE_COMPANY } from './fixtures/support-runtime.mjs'
+import { FIXTURE_COMPANY, FIXTURE_PUBLIC_SERVICE_KEY } from './fixtures/support-runtime.mjs'
 
 // Fresh synthetic state and signing keys for each run. Nothing is provisioned
 // in Supabase and the preloaded boundary blocks outbound production requests.
@@ -24,6 +24,7 @@ const env = {
   SUPPORT_TEST_PUBLIC_KEY: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
   GRIDEX_SUPPORT_SUPABASE_URL: 'https://ayiuxjlfazkjmmtlvhsl.supabase.co',
   GRIDEX_SUPPORT_SUPABASE_ANON_KEY: 'sb_publishable_offline_support_key_123456',
+  GRIDEX_SUPPORT_SUPABASE_SERVICE_KEY: FIXTURE_PUBLIC_SERVICE_KEY,
   GRIDEX_STAFF_API_KEY: 'support-test-only-dedicated-key-1234567890',
   GRIDEX_STAFF_COMPANY_ID: FIXTURE_COMPANY,
   GRIDEX_STAFF_API_PROJECT_REF: 'piidsfebjqjmnepdpnas',

@@ -1,0 +1,108 @@
+{
+  "status": "OFFLINE_CANONICAL_CUSTOMER_STAFF_HANDOFF_QUALIFIED",
+  "created_at": "2026-10-05T14:21:31.215194+00:00",
+  "worktree": "/workspace/gridex-support123-web",
+  "base_head": "f792aedfc557e66251cfd581c5d3887ac8992129",
+  "owned_source_hashes": {
+    "tests/fixtures/support-runtime.mjs": "6b8ef84b4bc48fd9fbfb41a5fa4221fc8900b7a71e413ae8196bc86180f12825",
+    "tests/customer-support-handoff.test.mjs": "6b26c267efd6a2338088e034554675093c94786db5c7d24cec9a62612851401b",
+    "tests/customer-support-handoff-loader.mjs": "21b348a7b1c04dee5797c1fe89486c9d76692182db279d775fc5f94760d3c33d"
+  },
+  "actual_application_and_contract_bindings": {
+    "app/dashboard/support/actions.ts": "0a92a8a657bc88fb279baeb3bf9080ac97e8c0e146e0d0062b067bf427f57393",
+    "lib/customerPortal/service.ts": "d21410817509a9c8d5459f6ff0d8bdd0ad2415af0d839a0367abb1b8cd3a0761",
+    "lib/ops/client/customerSupport.ts": "71c6363d8a01c478df4ffb7f6dc04915ee52fb8e1501dc9d957aaae04d457fda",
+    "lib/ops/client/portal.ts": "18016007b561fc67af603c161dcc51563f44353e17f114bc522b6e9a446586aa",
+    "lib/ops/transport.ts": "2e35dff3907214460aa6538a32404d2e3392637d8d254648bf4fa186370ae241",
+    "lib/staff-api/client.ts": "bc83c2ebe5ce21ada20366e9182acda68c30596933456c90d0d42ea6f3d3518a",
+    "lib/staff-api/assertion.ts": "6af791ff3236970480b9a1d9abc5a70d6bf1af6aee01a3e71ad410a16fa491af",
+    "lib/staff-api/contract.json": "cb4996ba68c49be70fdc9d134535eda263f54e8b415f446f703ff07c6fdffc00",
+    "docs/openapi/customer-portal-v1.json": "2ada64c650234d8cf8e5191c68d6b6ab8b47586c5fef13feeb611a9bddb79294"
+  },
+  "logs": {
+    "customer-support-handoff-red.log": {
+      "sha256": "503ff6dde7137d73bb3d03bc9cb626605bd6d41a19de4c01c83b60e68cc8984b",
+      "bytes": 2103
+    },
+    "customer-support-handoff-green.log": {
+      "sha256": "9adfb1da06cd1c0f3c7f783f25bca888fe82246f001d81a3a07f90875f0e67a8",
+      "bytes": 2857
+    },
+    "customer-support-fixture-existing-staff.log": {
+      "sha256": "d6e3c1ddd4a79212a77e67fc65ef040c3501597724180e83a223ca5da76f02d3",
+      "bytes": 6164
+    },
+    "customer-support-handoff-lint.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "checks": {
+    "genuine_before_action_replacement_red": {
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "cause": "Real createSupportTicketAction tried customer_support_tickets local write; SDK boundary deliberately refused instead of canonical redirect."
+    },
+    "joined_actual_actions_service_and_client_green": {
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "duration_ms": 247.115138,
+      "node": "22.23.3",
+      "command": "node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs"
+    },
+    "existing_staff_actions_shared_fixture_regression": {
+      "tests": 21,
+      "passed": 21,
+      "failed": 0,
+      "duration_ms": 521.579594,
+      "command": "node --experimental-strip-types --experimental-loader ./tests/support-ui-loader.mjs tests/support-actions.test.mjs",
+      "note": "An earlier invocation used the wrong staff-api-only loader and failed framework resolution; the correct existing loader run is the final log. No source change was made for that runner correction."
+    },
+    "scoped_eslint": {
+      "exit_code": 0,
+      "max_warnings": 0,
+      "paths": [
+        "tests/fixtures/support-runtime.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/customer-support-handoff-loader.mjs"
+      ]
+    },
+    "node_syntax": {
+      "status": "PASS",
+      "paths": [
+        "tests/fixtures/support-runtime.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/customer-support-handoff-loader.mjs"
+      ]
+    },
+    "diff_check": {
+      "status": "PASS"
+    }
+  },
+  "verified_behavior": [
+    "Actual authenticated dashboard create uses verified own Auth UUID distinct from local/central Staff identities, ignores forged form actor/company, sends allowlisted Customer DTO, and returns existing success redirect.",
+    "Stable caller request UUID reuses the actual generated idempotency key and creates one shared canonical fixture case and one initial customer event on duplicate submission.",
+    "Actual signed Staff client reads the same case/list and real customer helper/service lists that public case, including cursor continuation.",
+    "Actual dashboard customer reply and signed Staff reply append to the same events map; Customer detail/messages and service show Staff response while internal Staff note is excluded.",
+    "Reply duplicate yields one new event; changed payload same key returns409 once with identical cases/events state.",
+    "Another verified customer cannot read or mutate the owned case through real helpers, action, or service; list is empty and canonical effects remain unchanged.",
+    "No verified own Auth means both actions and service fail before any Customer API/local profile/support query.",
+    "API503 mutation failures propagate once each without redirect, revalidation, canonical effects or local support fallback.",
+    "Own-user service identity mismatch, malformed reference/requestUUID and rate rejection deny before any API persistence.",
+    "Actual frozen Customer OpenAPI request/response validation rejects a malformed legacy success object/extra internal data."
+  ],
+  "boundaries": [
+    "Offline fixture models hosted canonical cases/events/ownership/idempotency state. No real PostgreSQL, Customer API server, production persistence or provider email delivery is exercised.",
+    "Test loader replaces only Next redirect/cache, rate-limit and Supabase SDK boundary. SDK getUser is explicit verified-user input; only own customer_profiles select(eq user_id) returns a synthetic profile. All legacy support/local business queries refuse. Real actions, service, customer helper, opsCustomerFetch, transport and schemas run.",
+    "Existing Staff RSA signature, issuer/audience/company/current binding/JTI checks remain and the signed actual Staff client executes. Customer fixture uses exact dedicated synthetic machine credential and paired verified-user headers, matching current transport; it does not assert Customer JWT verification/native authority.",
+    "Fixture and test sources only; no production application, package/scripts, OPS/native schema, hosted configuration or data mutation authored in this slice."
+  ],
+  "pending": [
+    "Root composition/publication and any requested full WEB qualification.",
+    "Actual central release/native qualification remains separately owned and is not inferred from this offline handoff."
+  ],
+  "hosted_calls": 0,
+  "contains_private_state": false
+}

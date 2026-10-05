@@ -85,6 +85,35 @@ Secure in production. Browser-supplied actor, company and role fields cannot
 grant authority. Writes need stable idempotency keys and are never retried
 automatically. Contact updates include the server’s optimistic version.
 
+## Customer support and incoming contacts
+
+Authenticated customers create and reply to support cases on `gridex.se` through
+the frozen **Customer API**, not a Staff assertion. The server verifies its own
+tenant Auth user and derives the customer identity from the tenant profile.
+Canonical cases and public messages are the same records handled through the
+Staff API; customer responses exclude internal notes. The customer page follows
+the API cursor to expose older cases. Stable per-form operation IDs prevent a
+repeated submission from creating duplicate cases or replies. Failed API calls
+are surfaced without writing a second local support record.
+
+The website's server-only `GRIDEX_API_KEY` needs `customer_support.read` and
+`customer_support.write` in its central tenant client. The existing Customer
+transport supplies paired Auth-user headers and stable customer references.
+It does **not** sign Customer-provider assertions: an enrolled Customer provider
+in enforce mode needs its own assertion integration before activation. An API
+403 must not be bypassed by a Staff credential or local persistence fallback.
+
+Anonymous website contacts have no verified customer identity. They remain
+tenant-owned records in **gridex-prod** and appear in the staff application's
+separate **Kontaktförfrågningar** inbox. Every read first requires fresh central
+Staff access, then uses the tenant-only server service key with both
+`user_id IS NULL` and `metadata.source = public_kundservice_form` filters. Contact
+details are labelled unverified. The inbox offers customer search, without
+guessing a customer association or copying a contact into a canonical case.
+This view is read-only; status changes require a separate authoritative write
+permission interface. Existing authenticated legacy local tickets are not
+shown or migrated by this correction.
+
 ## Tenant-owned staff invitations
 
 The existing leased OPS worker remains the single invitation-delivery owner.
@@ -126,7 +155,7 @@ account. It grants no access and is not a native password-rotation policy.
 
 The app provides login, case queue/details/history/replies/notes/phone logging,
 status and assignment, attachment download, customer search/detail/contact
-updates, invitations, role changes and disable/re-enable commands. OPS supplies
+updates, anonymous contact intake, invitations, role changes and disable/re-enable commands. OPS supplies
 assignable role definitions. This interface does not yet create arbitrary new
 role definitions or upload attachments.
 

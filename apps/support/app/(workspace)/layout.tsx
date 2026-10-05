@@ -26,6 +26,7 @@ export default async function Workspace({
           </Link>
           <nav aria-label="Huvudnavigation">
             <Link href="/">Ärenden</Link>
+            <Link href="/contact-requests">Kontaktförfrågningar</Link>
             <Link href="/customers">Kunder</Link>
             <Link href="/team">Personal</Link>
           </nav>

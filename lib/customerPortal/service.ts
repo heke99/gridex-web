@@ -7,6 +7,12 @@ import {
   type OpsCustomerReadResource,
   type OpsPortalIdentity,
 } from '@/lib/ops/client'
+import {
+  listOpsCustomerSupportCases,
+  listOpsCustomerSupportMessages,
+  type OpsCustomerSupportCaseListQuery,
+  type OpsCustomerSupportCaseListResponse,
+} from '@/lib/ops/client/customerSupport'
 import type {
   CustomerDataQuality,
   CustomerDocument,
@@ -560,28 +566,34 @@ export async function getCustomerProfile(
 
 export async function getCustomerTickets(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  verifiedUser?: User,
 ): Promise<CustomerSupportTicket[]> {
-  const { data } = await supabase
-    .from('customer_support_tickets')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+  const result = await getCustomerTicketPage(supabase, userId, { limit: 50 }, verifiedUser)
+  return result.data
+}
 
-  return (data ?? []) as CustomerSupportTicket[]
+export async function getCustomerTicketPage(
+  supabase: SupabaseClient,
+  userId: string,
+  query: OpsCustomerSupportCaseListQuery = {},
+  verifiedUser?: User,
+): Promise<OpsCustomerSupportCaseListResponse> {
+  const user = verifiedUser ?? await getUserOrThrow(supabase)
+  if (user.id !== userId) throw new CustomerPortalAccessError()
+  const identity = await getOpsPortalIdentityForUser(supabase, user)
+  return await listOpsCustomerSupportCases(identity, query)
 }
 
 export async function getTicketMessages(
   supabase: SupabaseClient,
-  ticketId: string
+  caseReference: string,
+  verifiedUser?: User,
 ): Promise<CustomerSupportMessage[]> {
-  const { data } = await supabase
-    .from('customer_support_messages')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true })
-
-  return (data ?? []) as CustomerSupportMessage[]
+  const user = verifiedUser ?? await getUserOrThrow(supabase)
+  const identity = await getOpsPortalIdentityForUser(supabase, user)
+  const result = await listOpsCustomerSupportMessages(identity, caseReference)
+  return result.data
 }
 
 export async function getCustomerNotifications(
@@ -725,7 +737,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const identity = portalIdentityFromProfile(user, localProfile)
 
   const [tickets, bundle] = await Promise.all([
-    getCustomerTickets(supabase, user.id),
+    getCustomerTickets(supabase, user.id, user),
     fetchOpsCustomerPortalBundle(identity),
   ])
 

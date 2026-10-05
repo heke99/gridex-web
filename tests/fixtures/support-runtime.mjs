@@ -14,17 +14,27 @@ export const FIXTURE_FOREIGN = '33333333-3333-4333-8333-333333333333'
 export const FIXTURE_LOCAL_ADMIN = '55555555-5555-4555-8555-555555555555'
 export const FIXTURE_LOCAL_READER = '66666666-6666-4666-8666-666666666666'
 export const FIXTURE_LOCAL_FOREIGN = '77777777-7777-4777-8777-777777777777'
+export const FIXTURE_CUSTOMER_AUTH = '44444444-4444-4444-8444-444444444444'
+export const FIXTURE_FOREIGN_CUSTOMER_AUTH = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+export const FIXTURE_PUBLIC_INQUIRY = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+export const FIXTURE_PUBLIC_SERVICE_KEY = 'sb_secret_offline_public_inquiry_key_1234567890'
 export const FIXTURE_PASSWORD = 'SupportFixture!234'
 export const FIXTURE_OPS_PROJECT_REF = 'piidsfebjqjmnepdpnas'
 const PROJECT_REF = FIXTURE_OPS_PROJECT_REF
 const AUTH_ORIGIN = 'https://ayiuxjlfazkjmmtlvhsl.supabase.co'
 const STAFF_ORIGIN = 'https://app.gridex.se'
 const schema = JSON.parse(readFileSync(new URL('../../lib/staff-api/contract.json', import.meta.url), 'utf8')).components
+const customerSchema = JSON.parse(readFileSync(new URL('../../docs/openapi/customer-portal-v1.json', import.meta.url), 'utf8')).components
 const ajv = new Ajv({ strict: false, allowUnionTypes: true }); addFormats(ajv)
 const validators = new Map()
 function valid(name, body) {
   if (!validators.has(name)) validators.set(name, ajv.compile({ $ref: `#/components/schemas/${name}`, components: schema }))
   return validators.get(name)(body)
+}
+function validCustomer(name, body) {
+  const key = `customer:${name}`
+  if (!validators.has(key)) validators.set(key, ajv.compile({ $ref: `#/components/schemas/${name}`, components: customerSchema }))
+  return validators.get(key)(body)
 }
 const clone = value => JSON.parse(JSON.stringify(value))
 const role = (key, label, permissions) => ({ key, label, description: 'Synthetic offline fixture role', permissions, assignable: true })
@@ -54,6 +64,21 @@ export function createSupportRuntime(settings) {
   const supportCase = { case_reference: FIXTURE_CASE, customer_reference: FIXTURE_CUSTOMER, title: 'Inkommande kundärende', description: 'Kunden behöver hjälp med sin faktura.', status: 'open', priority: 'normal', category: 'faktura', assignee_user_id: null, channel: 'customer_portal', created_at: now(), updated_at: now(), resolved_at: null, closed_at: null }
   const cases = new Map([[FIXTURE_CASE, supportCase]])
   const events = new Map([[FIXTURE_CASE, []]])
+  // Both public API surfaces operate on the same canonical cases and events.
+  const customerOwners = new Map([[FIXTURE_CASE, FIXTURE_CUSTOMER_AUTH]])
+  const customerRealm = { unavailable: false, requests: [], identities: new Map([
+    [FIXTURE_CUSTOMER_AUTH, FIXTURE_CUSTOMER],
+    [FIXTURE_FOREIGN_CUSTOMER_AUTH, 'customer_bbbbbbbbbbbbbbbbbbbbbbbb'],
+  ]) }
+  const publicInquiryRow = (id, userId, source, subject) => ({ id, user_id: userId, subject,
+    description: 'Jag har en fråga från kontaktformuläret. Kontaktuppgifterna är inte verifierade.',
+    category: 'faktura', status: 'open', created_at: '2026-10-05T12:00:00Z', updated_at: '2026-10-05T12:00:00Z',
+    metadata: { source, customer_name: 'Uppgiven besökare', customer_email: 'anna@example.invalid', customer_phone: '+46 70 000 00 00' } })
+  const publicInquiries = { requests: [], rows: [
+    publicInquiryRow(FIXTURE_PUBLIC_INQUIRY, null, 'public_kundservice_form', 'Fråga från kontaktformuläret'),
+    publicInquiryRow('dddddddd-dddd-4ddd-8ddd-dddddddddddd', FIXTURE_CUSTOMER_AUTH, 'public_kundservice_form', 'Autentiserat lokalt ärende ska aldrig visas'),
+    publicInquiryRow('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', null, 'other_source', 'Annan anonym källa ska aldrig visas'),
+  ] }
   const bytes = Buffer.from('%PDF-1.7\nOffline support fixture\n%%EOF')
   const attachment = { attachment_reference: FIXTURE_ATTACHMENT, file_name: 'syntetisk-bilaga.pdf', mime_type: 'application/pdf', byte_size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), uploaded_by: 'customer', created_at: now(), visibility: 'customer', scan_status: 'released', scan_reason: null }
   const traffic = []; const assertions = new Set(); const tokens = new Map(); const refresh = new Map(); const idempotent = new Map()
@@ -84,10 +109,106 @@ export function createSupportRuntime(settings) {
   addEvent(FIXTURE_CASE, users.get(FIXTURE_ADMIN), 'created', 'Kundärendet har kommit in.')
   addEvent(FIXTURE_CASE, users.get(FIXTURE_ADMIN), 'support_staff_reply', 'Vi undersöker din fråga.')
 
+  function customerMessages(ref) {
+    return events.get(ref).filter(event => event.visibility === 'customer' && ['message', 'phone_summary'].includes(event.kind))
+      .map(event => ({ message_reference: event.event_reference, author_type: event.author_type, kind: event.kind, body: event.message, created_at: event.created_at }))
+  }
+  function customerCase(ref) {
+    const current = cases.get(ref)
+    return { case_reference: ref, title: current.title, description: current.channel === 'customer_portal' ? current.description : null,
+      status: ['resolved', 'closed'].includes(current.status) ? current.status : current.status === 'open' ? 'received' : 'in_progress',
+      channel: current.channel === 'staff_api' ? 'admin' : current.channel, created_at: current.created_at, updated_at: current.updated_at, resolved_at: current.resolved_at }
+  }
+  function customerResult(data, status = 200, name) {
+    for (const item of Array.isArray(data) ? data : [data]) if (!validCustomer(name, item)) throw new Error('Offline customer response violates canonical contract')
+    return json(data, status)
+  }
+  function customerBoundary(url, headers, method, body) {
+    const authId = headers.get('x-gridex-auth-user-id')
+    if (headers.get('authorization') !== 'Bearer support-test-customer') return failure(401, 'api_key_invalid')
+    if (!authId || authId !== headers.get('x-gridex-customer-portal-user-id') || !customerRealm.identities.has(authId)) return failure(403, 'customer_identity_mismatch')
+    let payload
+    try { payload = body ? JSON.parse(String(body)) : {} } catch { return failure(422, 'invalid_request') }
+    const path = url.pathname.slice('/api/v1/customer/support'.length)
+    const call = { boundary: 'customer', method, path, authId, customer: customerRealm.identities.get(authId), idempotencyKey: headers.get('idempotency-key'), payload: clone(payload) }
+    traffic.push(call); customerRealm.requests.push(call)
+    if (customerRealm.unavailable) return failure(503, 'service_unavailable')
+    const rawKey = headers.get('idempotency-key'); const replayKey = `customer|${authId}|${method}|${path}|${rawKey}`
+    if (method !== 'GET') {
+      if (!rawKey) return failure(400, 'idempotency_key_required')
+      if (idempotent.has(replayKey)) { const old = idempotent.get(replayKey); return old.body === JSON.stringify(payload) ? json(old.data, old.status) : failure(409, 'idempotency_conflict') }
+    }
+    const done = (data, status, name) => {
+      const response = customerResult(data, status, name)
+      if (method !== 'GET') idempotent.set(replayKey, { body: JSON.stringify(payload), data: clone(data), status })
+      return response
+    }
+    if (path === '/cases' && method === 'GET') {
+      const rows = [...cases.keys()].filter(ref => customerOwners.get(ref) === authId).map(customerCase)
+      for (const row of rows) if (!validCustomer('CustomerSupportCase', row)) throw new Error('Offline customer list violates canonical contract')
+      return collection(rows, url)
+    }
+    if (path === '/cases' && method === 'POST') {
+      if (!validCustomer('CustomerSupportCaseCreateRequest', payload)) return failure(422, 'invalid_request')
+      const ref = `support_case_${String(++sequence).padStart(32, '0')}`
+      cases.set(ref, { ...supportCase, case_reference: ref, customer_reference: customerRealm.identities.get(authId), title: payload.title, description: payload.message,
+        category: payload.category ?? null, channel: 'customer_portal', created_at: now(), updated_at: now() })
+      events.set(ref, []); customerOwners.set(ref, authId)
+      addEvent(ref, { id: null }, 'support_customer_reply', payload.message, { author_type: 'customer', visibility: 'customer', kind: 'message', channel: 'customer_portal' })
+      return done(customerCase(ref), 201, 'CustomerSupportCase')
+    }
+    const match = path.match(/^\/cases\/([^/]+)(?:\/(messages))?$/)
+    if (!match || !cases.has(match[1]) || customerOwners.get(match[1]) !== authId) return failure(404, 'support_case_not_found')
+    const ref = match[1]
+    if (!match[2] && method === 'GET') return done({ ...customerCase(ref), messages: customerMessages(ref) }, 200, 'CustomerSupportCaseDetail')
+    if (match[2] === 'messages' && method === 'GET') return done(customerMessages(ref), 200, 'CustomerSupportMessage')
+    if (match[2] === 'messages' && method === 'POST') {
+      if (!validCustomer('CustomerSupportMessageCreateRequest', payload)) return failure(422, 'invalid_request')
+      if (['resolved', 'closed'].includes(cases.get(ref).status)) return failure(409, 'support_case_closed')
+      addEvent(ref, { id: null }, 'support_customer_reply', payload.message, { author_type: 'customer', visibility: 'customer', kind: 'message', channel: 'customer_portal' })
+      return done(customerMessages(ref).at(-1), 201, 'CustomerSupportMessage')
+    }
+    return failure(404, 'offline_customer_route_not_found')
+  }
+
+  function publicInquiryBoundary(url, headers, method) {
+    if (method !== 'GET' || headers.get('apikey') !== FIXTURE_PUBLIC_SERVICE_KEY
+      || headers.get('authorization') !== `Bearer ${FIXTURE_PUBLIC_SERVICE_KEY}`) throw new Error('Offline public inquiry boundary permits only synthetic service-role reads')
+    const params = url.searchParams
+    const columns = 'id,user_id,subject,description,category,status,created_at,updated_at,metadata'
+    if (params.get('select') !== columns || params.get('user_id') !== 'is.null'
+      || params.get('metadata->>source') !== 'eq.public_kundservice_form'
+      || [...params.keys()].some(key => !['select', 'user_id', 'metadata->>source', 'id', 'status', 'order', 'offset', 'limit'].includes(key))) throw new Error('Offline public inquiry query missing bounded anonymous/source predicates')
+    let rows = publicInquiries.rows.filter(row => row.user_id === null && row.metadata.source === 'public_kundservice_form')
+    const id = params.get('id'); const status = params.get('status')
+    if (id !== null) {
+      if (!/^eq\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+        || status !== null || ['order', 'offset', 'limit'].some(key => params.has(key))) throw new Error('Offline public inquiry detail query unbounded')
+      rows = rows.filter(row => row.id === id.slice(3))
+    } else {
+      if (params.get('order') !== 'created_at.desc,id.desc' || !headers.get('prefer')?.split(',').includes('count=exact')
+        || !/^\d+$/.test(params.get('offset') ?? '') || params.get('limit') !== '25') throw new Error('Offline public inquiry list query missing pagination/order/count')
+      if (status !== null) {
+        if (!/^eq\.(open|waiting_on_customer|waiting_on_internal|resolved|closed)$/.test(status)) throw new Error('Offline public inquiry status filter invalid')
+        rows = rows.filter(row => row.status === status.slice(3))
+      }
+    }
+    const count = rows.length; const start = Number(params.get('offset') ?? 0)
+    rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))
+    if (id === null) rows = rows.slice(start, start + 25)
+    const call = { boundary: 'public-inquiry', method, path: url.pathname, query: Object.fromEntries(params), returned: rows.length }
+    traffic.push(call); publicInquiries.requests.push(call)
+    const response = json(clone(rows), 200, true)
+    response.headers.set('x-gridex-project-ref', 'ayiuxjlfazkjmmtlvhsl')
+    response.headers.set('content-range', `${start}-${start + rows.length - 1}/${count}`)
+    return response
+  }
+
   async function fetchBoundary(input, init = {}) {
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
     const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined))
     const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
+    if (url.origin === AUTH_ORIGIN && url.pathname === '/rest/v1/customer_support_tickets') return publicInquiryBoundary(url, headers, method)
     if (url.origin === AUTH_ORIGIN && ['/auth/v1/token', '/auth/v1/user', '/auth/v1/logout'].includes(url.pathname)) {
       traffic.push({ boundary: 'auth', method, path: url.pathname })
       let body = {}; try { body = init.body ? JSON.parse(String(init.body)) : {} } catch { return json({ msg: 'Invalid fixture body' }, 400, true) }
@@ -103,6 +224,7 @@ export function createSupportRuntime(settings) {
       return json({ msg: 'Unsupported offline Auth route' }, 404, true)
     }
     const identityResolution = url.pathname === '/api/v1/staff-onboarding/identity/resolve'
+    if (url.origin === STAFF_ORIGIN && url.pathname.startsWith('/api/v1/customer/support/cases')) return customerBoundary(url, headers, method, init.body)
     if (url.origin !== STAFF_ORIGIN || (!url.pathname.startsWith('/api/v1/staff/') && !identityResolution)) throw new Error('Offline support fixture blocked unexpected outbound request')
     if (headers.get('x-gridex-expected-project-ref') !== PROJECT_REF) return failure(412, 'staff_storage_target_mismatch')
     if (headers.get('authorization') !== `Bearer ${settings.apiKey}`) return failure(401, 'api_key_invalid')
@@ -164,7 +286,7 @@ export function createSupportRuntime(settings) {
       return done(actorState(target))
     }
     if (path === '/customers' && method === 'GET') {
-      const q = (url.searchParams.get('q') ?? '').toLowerCase(); const customers = customer.display_name.toLowerCase().includes(q) ? [clone(customer)] : []
+      const q = (url.searchParams.get('q') ?? '').toLowerCase(); const customers = [customer.display_name, customer.email, customer.customer_number].some(value => value.toLowerCase().includes(q)) ? [clone(customer)] : []
       const keys = schema.schemas.StaffCustomerSummary.required
       return done({ customers: customers.map(c => Object.fromEntries(keys.map(k => [k, c[k]]))), pagination: { page: Number(url.searchParams.get('page') ?? 1), page_size: 25, total: customers.length, total_pages: customers.length ? 1 : 0 } })
     }
@@ -210,7 +332,7 @@ export function createSupportRuntime(settings) {
     }
     return failure(404, 'offline_route_not_found')
   }
-  return { fetch: fetchBoundary, state: { traffic, users, cases, events, customer, assertions, identities }, binding,
+  return { fetch: fetchBoundary, state: { traffic, users, cases, events, customer, assertions, identities, customerOwners, customerRealm, publicInquiries }, binding,
     authSession: id => authSession(users.get(id)) }
 }
 

@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import {
-  getCustomerTickets,
+  getCustomerTicketPage,
   getPortalSession,
   getTicketMessages,
 } from '@/lib/customerPortal/service'
@@ -27,7 +28,7 @@ function formatDate(value: string | null | undefined) {
 
 function formatSenderLabel(senderType: string) {
   if (senderType === 'customer') return 'Du'
-  if (senderType === 'agent') return 'Kundservice'
+  if (senderType === 'staff') return 'Kundservice'
   if (senderType === 'system') return 'System'
   if (senderType === 'integration') return 'Meddelande'
   return 'Meddelande'
@@ -51,11 +52,9 @@ function getClosedTicketMessage(status: string) {
 
 function getStatusLabel(status: string) {
   switch (status) {
-    case 'open':
+    case 'received':
       return 'Öppet'
-    case 'waiting_on_customer':
-      return 'Väntar på dig'
-    case 'waiting_on_internal':
+    case 'in_progress':
       return 'Under behandling'
     case 'resolved':
       return 'Löst'
@@ -66,43 +65,11 @@ function getStatusLabel(status: string) {
   }
 }
 
-function getPriorityLabel(priority: string) {
-  switch (priority) {
-    case 'low':
-      return 'Låg'
-    case 'normal':
-      return 'Normal'
-    case 'high':
-      return 'Hög'
-    case 'urgent':
-      return 'Akut'
-    default:
-      return 'Normal'
-  }
-}
-
-function getCategoryLabel(category: string) {
-  switch (category) {
-    case 'general':
-      return 'Allmänt'
-    case 'invoice':
-      return 'Faktura'
-    case 'move':
-      return 'Flytt'
-    case 'contract':
-      return 'Avtal'
-    default:
-      return 'Övrigt'
-  }
-}
-
 function getStatusBadgeClass(status: string) {
   switch (status) {
-    case 'open':
+    case 'received':
       return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
-    case 'waiting_on_customer':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-200'
-    case 'waiting_on_internal':
+    case 'in_progress':
       return 'border-blue-500/30 bg-blue-500/10 text-blue-200'
     case 'resolved':
       return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
@@ -127,17 +94,21 @@ function statusMessage(status?: string) {
 export default async function DashboardSupportPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string }>
+  searchParams?: Promise<{ status?: string; cursor?: string }>
 }) {
   const { supabase, user } = await getPortalSession()
   const params = (await searchParams) ?? {}
   const banner = statusMessage(params.status)
-  const tickets = await getCustomerTickets(supabase, user.id)
+  const result = await getCustomerTicketPage(supabase, user.id, {
+    limit: 5,
+    ...(params.cursor ? { cursor: params.cursor } : {}),
+  }, user)
+  const tickets = result.data
 
   const expanded = await Promise.all(
-    tickets.slice(0, 5).map(async (ticket) => ({
+    tickets.map(async (ticket) => ({
       ticket,
-      messages: await getTicketMessages(supabase, ticket.id),
+      messages: await getTicketMessages(supabase, ticket.case_reference, user),
       replyRequestId: randomUUID(),
     }))
   )
@@ -179,6 +150,8 @@ export default async function DashboardSupportPage({
             <label className="mb-2 block text-xs text-white/60">Ämne</label>
             <input
               name="subject"
+              maxLength={180}
+              required
               placeholder="Till exempel: Fråga om faktura eller flytt"
               className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3"
             />
@@ -199,21 +172,11 @@ export default async function DashboardSupportPage({
         </div>
 
         <div>
-          <label className="mb-2 block text-xs text-white/60">Prioritet</label>
-          <select
-            name="priority"
-            className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3"
-          >
-            <option value="normal">Normal</option>
-            <option value="high">Hög</option>
-            <option value="urgent">Akut</option>
-          </select>
-        </div>
-
-        <div>
           <label className="mb-2 block text-xs text-white/60">Beskrivning</label>
           <textarea
             name="description"
+            maxLength={8000}
+            required
             placeholder="Beskriv ditt ärende här"
             className="min-h-[140px] w-full rounded-2xl border border-white/10 bg-black/40 px-3 py-3"
           />
@@ -230,13 +193,13 @@ export default async function DashboardSupportPage({
 
           return (
             <section
-              key={ticket.id}
+              key={ticket.case_reference}
               className="rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold">{ticket.subject}</h2>
+                    <h2 className="text-lg font-semibold">{ticket.title}</h2>
                     <span
                       className={`rounded-full border px-2.5 py-1 text-[11px] ${getStatusBadgeClass(
                         ticket.status
@@ -244,12 +207,6 @@ export default async function DashboardSupportPage({
                     >
                       {getStatusLabel(ticket.status)}
                     </span>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/55">
-                    <span>{getCategoryLabel(ticket.category)}</span>
-                    <span>•</span>
-                    <span>{getPriorityLabel(ticket.priority)}</span>
                   </div>
                 </div>
 
@@ -277,11 +234,11 @@ export default async function DashboardSupportPage({
                 {messages.length > 0 ? (
                   messages.map((message) => (
                     <div
-                      key={message.id}
+                      key={message.message_reference}
                       className="rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
                       <div className="text-xs text-white/45">
-                        {formatSenderLabel(message.sender_type)} •{' '}
+                        {formatSenderLabel(message.author_type)} •{' '}
                         {formatDate(message.created_at)}
                       </div>
                       <div className="mt-2 whitespace-pre-wrap text-sm text-white/85">
@@ -302,7 +259,7 @@ export default async function DashboardSupportPage({
                 </div>
               ) : (
                 <form action={addSupportMessageAction} className="mt-5 space-y-3">
-                  <input type="hidden" name="ticket_id" value={ticket.id} />
+                  <input type="hidden" name="ticket_id" value={ticket.case_reference} />
                   <input type="hidden" name="client_request_id" value={replyRequestId} />
 
                   <div>
@@ -311,6 +268,8 @@ export default async function DashboardSupportPage({
                     </label>
                     <textarea
                       name="body"
+                      maxLength={8000}
+                      required
                       placeholder="Skriv ditt meddelande"
                       className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-black/40 px-3 py-3"
                     />
@@ -330,6 +289,16 @@ export default async function DashboardSupportPage({
           </div>
         )}
       </div>
+      {params.cursor || result.page.has_more ? (
+        <nav aria-label="Ärendesidor" className="flex flex-wrap gap-4 text-sm text-cyan-200">
+          {params.cursor ? <Link href="/dashboard/support">Senaste ärendena</Link> : null}
+          {result.page.has_more && result.page.next_cursor ? (
+            <Link href={`/dashboard/support?cursor=${encodeURIComponent(result.page.next_cursor)}`}>
+              Fler ärenden
+            </Link>
+          ) : null}
+        </nav>
+      ) : null}
     </div>
   )
 }

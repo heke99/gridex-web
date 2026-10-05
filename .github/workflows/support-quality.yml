@@ -5,6 +5,9 @@ on:
     paths:
       - 'apps/support/**'
       - 'lib/staff-api/**'
+      - 'lib/ops/client/customerSupport.ts'
+      - 'lib/customerPortal/**'
+      - 'app/dashboard/support/**'
       - 'tests/*support*'
       - 'tests/staff-api*'
       - 'tests/fixtures/support-runtime.mjs'
@@ -19,6 +22,9 @@ on:
     paths:
       - 'apps/support/**'
       - 'lib/staff-api/**'
+      - 'lib/ops/client/customerSupport.ts'
+      - 'lib/customerPortal/**'
+      - 'app/dashboard/support/**'
       - 'tests/*support*'
       - 'tests/staff-api*'
       - 'tests/fixtures/support-runtime.mjs'
@@ -42,14 +48,14 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Signed API, Auth and server actions
+      - name: Signed Staff API, tenant Auth and canonical customer handoff
         run: npm run test:support
       - name: Tenant migration integrity
         run: npm run db:migrations:check
       - name: Typecheck
         run: npm run typecheck:support
       - name: Lint
-        run: npx eslint apps/support lib/staff-api tests/*support*.mjs tests/staff-api*.mjs tests/fixtures/support-runtime.mjs --max-warnings=0
+        run: npx eslint apps/support lib/staff-api lib/ops/client/customerSupport.ts lib/customerPortal/service.ts lib/customerPortal/types.ts app/dashboard/support tests/*support*.mjs tests/staff-api*.mjs tests/fixtures/support-runtime.mjs --max-warnings=0
       - name: Browser dependencies
         run: npx playwright install --with-deps chromium
       - name: Independent portal in browser with synthetic backend
