@@ -1,0 +1,37 @@
+{
+  "status": "PASS_OFFLINE_BROWSER",
+  "checks": [
+    "anonymous inbox requires own staff login",
+    "anonymous contact request list and detail require verified staff access",
+    "login layout has no marketing or OPS navigation",
+    "mobile login fits viewport",
+    "own invitation page captures and removes Auth fragment without granting access on GET",
+    "invalid invitation does not expose an acceptance form",
+    "verified Gridex staff login opens real case inbox",
+    "public inquiries are labelled unverified and exclude authenticated or wrong-source local rows",
+    "public inquiry detail preserves unverified contact and offers no authenticated customer reply mutation",
+    "unverified contact can be manually searched but is never automatically linked to a canonical customer",
+    "anonymous request and canonical case remain separate surfaces after contact search",
+    "case detail and attachment available",
+    "reply creates customer-visible history",
+    "internal note remains staff-only",
+    "status action updates case",
+    "customer contact mutation is version-bound",
+    "team lists tenant staff and assigned RBAC roles",
+    "new case uses customer API and creates one case",
+    "sign out clears protected access",
+    "read-only account cannot submit a write",
+    "foreign tenant staff cannot enter Gridex queue",
+    "foreign tenant staff cannot enter anonymous contact request list or detail",
+    "no browser application errors"
+  ],
+  "errors": [],
+  "origin": "http://127.0.0.1:46577",
+  "production_data": false,
+  "tenant_auth_project": "ayiuxjlfazkjmmtlvhsl",
+  "central_api_project": "piidsfebjqjmnepdpnas",
+  "backend": "schema-faithful synthetic fixture with verified RSA and explicit distinct tenant/central identity binding",
+  "limitations": [
+    "No production enrollment, database migration, real invitation email or live acceptance"
+  ]
+}

@@ -49,7 +49,10 @@ test('actual dashboard create writes one canonical case visible to signed Staff 
   assert.notEqual(customerCalls(runtime)[0].authId, FIXTURE_ADMIN)
   assert.deepEqual(customerCalls(runtime)[0].payload, { title: 'Kanoniskt kundärende', message: 'Kunden frågar om sin faktura.', category: 'faktura' })
   assert.equal(runtime.state.events.get(created.case_reference)[0].author_type, 'customer')
+  assert.equal(runtime.state.events.get(created.case_reference)[0].event_type, 'support_customer_message')
   assert.equal(runtime.state.events.get(created.case_reference)[0].author_user_id, null)
+  assert.equal(runtime.state.events.get(created.case_reference)[0].kind, null)
+  assert.match(runtime.state.events.get(created.case_reference)[0].event_reference, /^support_message_\d{32}$/)
   assert.match(created.case_reference, /^support_case_\d{32}$/)
   const firstKey = customerCalls(runtime)[0].idempotencyKey
   await assert.rejects(() => createSupportTicketAction(create()), createdRedirect)
@@ -76,12 +79,15 @@ test('real customer reply and Staff reply share history while internal notes sta
   await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect)
   assert.equal(customerCalls(runtime).filter(call => call.method === 'POST').length, 2)
   const staffDetail = (await runtime.staff.getCase(ref)).data
-  assert.ok(staffDetail.events.some(event => event.message === 'Kundens uppföljning' && event.author_type === 'customer' && event.author_user_id === null))
+  assert.ok(staffDetail.events.some(event => event.message === 'Kundens uppföljning' && event.event_type === 'support_customer_message' && event.author_type === 'customer' && event.author_user_id === null && event.kind === null))
+  assert.ok(customerCalls(runtime).every(call => call.authId === CUSTOMER_AUTH))
   await runtime.staff.reply(ref, { message: 'Personalens svar' }, 'staff-public-reply-key')
   await runtime.staff.addNote(ref, { message: 'Hemlig intern anteckning' }, 'staff-private-note-key')
+  runtime.state.events.get(ref).push({ ...staffDetail.events[0], event_reference: 'support_message_ffffffffffffffffffffffffffffffff', event_type: 'status_changed', visibility: 'customer', kind: 'message', message: 'Teknisk händelse ska aldrig visas som kundmeddelande' })
   const detail = (await fetchOpsCustomerSupportCase(identity(CUSTOMER_AUTH), ref)).data
   assert.deepEqual(detail.messages.map(message => message.body), ['Kunden frågar om sin faktura.', 'Kundens uppföljning', 'Personalens svar'])
   assert.equal(detail.messages.at(-1).author_type, 'staff')
+  assert.ok(detail.messages.every(message => message.kind === 'message'))
   const messages = (await listOpsCustomerSupportMessages(identity(CUSTOMER_AUTH), ref)).data
   assert.deepEqual(messages, detail.messages)
   assert.ok((await getTicketMessages(runtime.boundary.sdk, ref)).some(message => message.body === 'Personalens svar'))
@@ -90,6 +96,29 @@ test('real customer reply and Staff reply share history while internal notes sta
   assert.equal(JSON.stringify(detail).includes(FIXTURE_ADMIN), false)
   assert.equal(runtime.state.assertions.size, runtime.state.traffic.filter(call => call.boundary === 'staff').length)
   noLocalSupport(runtime)
+})
+
+test('Staff-created case uses explicit canonical customer binding and frozen Customer DTO while keeping internal description and notes private', async t => {
+  const runtime = setup(t)
+  const created = (await runtime.staff.createCase({ customer_reference: runtime.state.customer.customer_reference,
+    title: 'Personalupprättat kundärende', description: 'Intern bakgrund som aldrig ska visas för kunden', priority: 'normal' }, 'staff-create-owned-customer-key')).data
+  assert.equal(created.channel, 'staff_api')
+  assert.equal(runtime.state.customerOwners.get(created.case_reference), CUSTOMER_AUTH)
+  await runtime.staff.reply(created.case_reference, { message: 'Personalsvar på personalupprättat ärende' }, 'staff-created-case-reply-key')
+  await runtime.staff.addNote(created.case_reference, { message: 'Privat anteckning på personalupprättat ärende' }, 'staff-created-case-note-key')
+  const customerView = (await fetchOpsCustomerSupportCase(identity(CUSTOMER_AUTH), created.case_reference)).data
+  assert.equal(customerView.case_reference, created.case_reference); assert.equal(customerView.title, created.title)
+  assert.equal(customerView.channel, 'admin'); assert.equal(customerView.description, null)
+  assert.equal(customerView.status, 'received')
+  assert.deepEqual(customerView.messages.map(message => ({ body: message.body, author_type: message.author_type, kind: message.kind })),
+    [{ body: 'Personalsvar på personalupprättat ärende', author_type: 'staff', kind: 'message' }])
+  assert.ok((await getCustomerTickets(runtime.boundary.sdk, CUSTOMER_AUTH)).some(item => item.case_reference === created.case_reference))
+  assert.deepEqual((await getTicketMessages(runtime.boundary.sdk, created.case_reference)).map(message => message.body), ['Personalsvar på personalupprättat ärende'])
+  assert.equal(JSON.stringify(customerView).includes('Intern bakgrund'), false)
+  assert.equal(JSON.stringify(customerView).includes('Privat anteckning'), false)
+  const before = snapshot(runtime)
+  await assert.rejects(() => fetchOpsCustomerSupportCase(identity(FOREIGN_CUSTOMER_AUTH), created.case_reference), error => error.status === 404)
+  assert.equal(snapshot(runtime), before); noLocalSupport(runtime)
 })
 
 test('customer stable reply replay yields one event; changed payload conflicts409 without retry or side effect', async t => {

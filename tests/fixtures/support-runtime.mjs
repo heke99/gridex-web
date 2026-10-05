@@ -103,15 +103,15 @@ export function createSupportRuntime(settings) {
   const actorState = u => ({ user_id: u.id, role_key: u.role_key, membership_role: 'member', status: u.status })
   const account = u => ({ ...actorState(u), email: u.email, full_name: u.full_name, invited_at: null, accepted_at: '2026-10-05T09:00:00Z', disabled_at: u.status === 'disabled' ? now() : null })
   function addEvent(ref, actor, type, message, extra = {}) {
-    const event = { event_reference: `event_${String(++sequence).padStart(24, '0')}`, event_type: type, message, visibility: type === 'support_staff_reply' ? 'customer' : 'internal', author_type: 'staff', author_user_id: actor.id, channel: 'staff_api', kind: type === 'support_staff_reply' ? 'message' : type === 'support_phone_interaction' ? 'phone_summary' : null, direction: null, verification_method: null, verification_reference: null, representative: null, created_at: now(), ...extra }
+    const event = { event_reference: `support_message_${String(++sequence).padStart(32, '0')}`, event_type: type, message, visibility: type === 'support_staff_reply' ? 'customer' : 'internal', author_type: 'staff', author_user_id: actor.id, channel: 'staff_api', kind: type === 'support_staff_reply' ? 'message' : type === 'support_phone_interaction' ? 'phone_summary' : null, direction: null, verification_method: null, verification_reference: null, representative: null, created_at: now(), ...extra }
     events.get(ref).push(event); cases.get(ref).updated_at = now(); return event
   }
   addEvent(FIXTURE_CASE, users.get(FIXTURE_ADMIN), 'created', 'Kundärendet har kommit in.')
   addEvent(FIXTURE_CASE, users.get(FIXTURE_ADMIN), 'support_staff_reply', 'Vi undersöker din fråga.')
 
   function customerMessages(ref) {
-    return events.get(ref).filter(event => event.visibility === 'customer' && ['message', 'phone_summary'].includes(event.kind))
-      .map(event => ({ message_reference: event.event_reference, author_type: event.author_type, kind: event.kind, body: event.message, created_at: event.created_at }))
+    return events.get(ref).filter(event => event.visibility === 'customer' && ['support_customer_message', 'support_staff_reply'].includes(event.event_type))
+      .map(event => ({ message_reference: event.event_reference, author_type: event.event_type === 'support_customer_message' ? 'customer' : 'staff', kind: event.kind === 'phone_summary' ? 'phone_summary' : 'message', body: event.message, created_at: event.created_at }))
   }
   function customerCase(ref) {
     const current = cases.get(ref)
@@ -154,7 +154,7 @@ export function createSupportRuntime(settings) {
       cases.set(ref, { ...supportCase, case_reference: ref, customer_reference: customerRealm.identities.get(authId), title: payload.title, description: payload.message,
         category: payload.category ?? null, channel: 'customer_portal', created_at: now(), updated_at: now() })
       events.set(ref, []); customerOwners.set(ref, authId)
-      addEvent(ref, { id: null }, 'support_customer_reply', payload.message, { author_type: 'customer', visibility: 'customer', kind: 'message', channel: 'customer_portal' })
+      addEvent(ref, { id: null }, 'support_customer_message', payload.message, { author_type: 'customer', visibility: 'customer', kind: null, channel: 'customer_portal' })
       return done(customerCase(ref), 201, 'CustomerSupportCase')
     }
     const match = path.match(/^\/cases\/([^/]+)(?:\/(messages))?$/)
@@ -165,7 +165,7 @@ export function createSupportRuntime(settings) {
     if (match[2] === 'messages' && method === 'POST') {
       if (!validCustomer('CustomerSupportMessageCreateRequest', payload)) return failure(422, 'invalid_request')
       if (['resolved', 'closed'].includes(cases.get(ref).status)) return failure(409, 'support_case_closed')
-      addEvent(ref, { id: null }, 'support_customer_reply', payload.message, { author_type: 'customer', visibility: 'customer', kind: 'message', channel: 'customer_portal' })
+      addEvent(ref, { id: null }, 'support_customer_message', payload.message, { author_type: 'customer', visibility: 'customer', kind: null, channel: 'customer_portal' })
       return done(customerMessages(ref).at(-1), 201, 'CustomerSupportMessage')
     }
     return failure(404, 'offline_customer_route_not_found')
@@ -311,7 +311,11 @@ export function createSupportRuntime(settings) {
       if (!valid('StaffCaseCreateRequest', payload)) return failure(422, 'invalid_request')
       if (payload.customer_reference !== FIXTURE_CUSTOMER) return failure(404, 'customer_not_found')
       const ref = `case_${String(++sequence).padStart(24, '0')}`; const result = { ...supportCase, case_reference: ref, ...payload, status: 'open', priority: payload.priority ?? 'normal', category: payload.category ?? null, description: payload.description ?? null, assignee_user_id: null, channel: 'staff_api', created_at: now(), updated_at: now(), resolved_at: null, closed_at: null }
-      cases.set(ref, result); events.set(ref, []); addEvent(ref, actor, 'created', 'Ärendet skapades.'); return done(result, 201)
+      cases.set(ref, result); events.set(ref, [])
+      const owners = [...customerRealm.identities].filter(([, customerReference]) => customerReference === payload.customer_reference)
+      if (owners.length !== 1) throw new Error('Offline Staff case lacks one explicit customer binding')
+      customerOwners.set(ref, owners[0][0])
+      addEvent(ref, actor, 'created', 'Ärendet skapades.'); return done(result, 201)
     }
     const casePath = path.match(/^\/cases\/([^/]+)(?:\/(.*))?$/)
     if (casePath) {
