@@ -1,0 +1,161 @@
+{
+  "status": "PASS_PRODUCT_SOURCE_WITH_FIXTURE_FIDELITY_CORRECTION_REQUESTED",
+  "reviewed_at": "2026-10-05T14:32:29.949442+00:00",
+  "scope": "Bounded read-only new customer canonical support handoff and own-tenant anonymous inquiry inbox; no central SQL/CI repeats",
+  "web_base": "f792aedfc557e66251cfd581c5d3887ac8992129",
+  "reviewed_uncommitted_sources": [
+    {
+      "path": "app/dashboard/support/actions.ts",
+      "sha256": "0a92a8a657bc88fb279baeb3bf9080ac97e8c0e146e0d0062b067bf427f57393",
+      "bytes": 2682
+    },
+    {
+      "path": "app/dashboard/support/page.tsx",
+      "sha256": "610341f995ff3b74c93ac1bfe40728e96b2f079d5146719c5e6d7989d4e052e6",
+      "bytes": 10852
+    },
+    {
+      "path": "lib/customerPortal/service.ts",
+      "sha256": "4bfbd26ecf451868476f4e702e4ea5288ef90ada9f475c08c5eb8a89590988de",
+      "bytes": 28042
+    },
+    {
+      "path": "lib/customerPortal/types.ts",
+      "sha256": "3445f99157656a2a8b68bac69f73414f9ac38e91de2fe2126c2414e311b58cf0",
+      "bytes": 5477
+    },
+    {
+      "path": "lib/ops/client/customerSupport.ts",
+      "sha256": "71c6363d8a01c478df4ffb7f6dc04915ee52fb8e1501dc9d957aaae04d457fda",
+      "bytes": 5837
+    },
+    {
+      "path": "apps/support/lib/public-inquiries.ts",
+      "sha256": "255571511894b92a3b641e21ef3921cec2749fd12bd07588aa84edf78c855a07",
+      "bytes": 5984
+    },
+    {
+      "path": "apps/support/app/(workspace)/contact-requests/page.tsx",
+      "sha256": "00b5a3670f56cb52f32956eb0dd57aaa222044304f98b9498af54b9825602a43",
+      "bytes": 3532
+    },
+    {
+      "path": "apps/support/app/(workspace)/contact-requests/[id]/page.tsx",
+      "sha256": "078aac7135c262f4252c85a404624c088c3342a59b8938fcf14858e91d46d947",
+      "bytes": 1928
+    },
+    {
+      "path": "apps/support/app/(workspace)/layout.tsx",
+      "sha256": "7159dab9d510900ed6a732bd47fa2c77a8ff898828612800e4aaab263b5a6a33",
+      "bytes": 1400
+    },
+    {
+      "path": "tests/customer-support-api.test.mjs",
+      "sha256": "3b5ff4480bf3bbe6a4b7b9be1bac5f6fdba6f9af1a32b4485fd2bee1afa5cec6",
+      "bytes": 9968
+    },
+    {
+      "path": "tests/customer-support-handoff.test.mjs",
+      "sha256": "7401e3d16951e370dbe622735d67d044b6c01467376bb0bda3befade9e096ee3",
+      "bytes": 14907
+    },
+    {
+      "path": "tests/customer-support-handoff-loader.mjs",
+      "sha256": "21b348a7b1c04dee5797c1fe89486c9d76692182db279d775fc5f94760d3c33d",
+      "bytes": 1160
+    },
+    {
+      "path": "tests/support-public-inquiries.test.mjs",
+      "sha256": "a10ef82ce0086e907d6ca844a6e7e076f8be110c7966272cd7889132de10bee3",
+      "bytes": 9776
+    },
+    {
+      "path": "tests/support-public-inquiries-loader.mjs",
+      "sha256": "ef9ce7f62db3ec28fc1830951a93114dcf866399dd971d081d0de1b33ae33d2e",
+      "bytes": 929
+    },
+    {
+      "path": "tests/fixtures/support-runtime.mjs",
+      "sha256": "5c2cdaa03cff87c8a6c54a3a41bde103cba55e86a4b1c1a439a2c9b61b521bfd",
+      "bytes": 34225
+    }
+  ],
+  "backend_reference_sources": [
+    {
+      "path": "lib/customer-service/supportConversation.ts",
+      "sha256": "3e808c91c646a5257141f551702a4239734bb0ea8101e4a9e4ce3b393e0c4e56"
+    },
+    {
+      "path": "lib/customer-service/supportApiHandlers.ts",
+      "sha256": "73a0e3c5a559f33ac353e947fc08b64d011a320cc63bf6690b5f94f5ca7ac82d"
+    },
+    {
+      "path": "lib/staff-api/cases.ts",
+      "sha256": "d7cf62f3d36822b4f7cec891567578ce51e97894671ea6d21847a075eb64b806"
+    },
+    {
+      "path": "lib/customer-portal/customerAssertion.ts",
+      "sha256": "1db0c187d72070796354455c6c17af92e8b437e7b4e3e4de84e093f6729c5243"
+    }
+  ],
+  "product_path_checks": {
+    "session": "Actual actions getPortalSession/getUser; caller form actor/user/company ignored; optional verifiedUser only used by server session caller",
+    "authority": "Customer API enforces client company plus existing bound customer account, owns canonical case/message writes; no Staff actor or local support persistence",
+    "request": "Fixed canonical production API origin; closed request DTOs, opaque reference encoding, stable keyed single POST, no write retry",
+    "response": "Generated immutable2026-10-04.1 Customer DTOs and runtime request/response validation, canonical error status/request ID preserved",
+    "case_linkage": "Actual Customer and Staff DTOs both publicReference support_case with same canonical customer_cases ID; Staff supported-source/read eligibility verified in source",
+    "pagination": "Current page usesgetCustomerTicketPage limit5 and API has_more/next_cursor, maps entirepage, encoded next cursor; no silent slice5",
+    "public_inquiry": "Fresh current central identity+cases.read session before fixedayiux service client; exact customer_support_tickets sourcepublic_kundservice_form/user_idNULL filters applied to everyquery and checked again in DTO",
+    "public_inquiry_scope": "Closed unverified incoming contact DTO; React text rendering; no audit/private metadata, verified-customer label, write, email, central-case copy or foreign data fallback",
+    "public_inquiry_ui": "Distinct contact-requests queue/detail andshelllink with filter-preserving paging/customer-search link; canonical customer cases remain separate"
+  },
+  "concrete_findings": [
+    {
+      "id": "FIXTURE_CUSTOMER_AUTHOR",
+      "severity": "P2_verification_fidelity",
+      "status": "REPORTED_TO_ROOT_PENDING_CORRECTION",
+      "source": "tests/fixtures/support-runtime.mjs customerBoundary addEvent({id:authId}) and tests/customer-support-handoff.test.mjs asserts author_user_id===CUSTOMER_AUTH",
+      "canonical_evidence": "Actual createCustomerSupportCase/addCustomerSupportMessage use actorUserId:null; staffCaseEventDto returns created_by as author_user_id",
+      "impact": "Joined fixture invents a central actor identity from local customer Auth UUID and overstates actual API attribution proof",
+      "targeted_fix": "Set fixture customer author_user_id null; prove verified customer identity through captured Customer boundary authId/current customer ownership, retaining distinct Staff author IDs"
+    },
+    {
+      "id": "FIXTURE_REFERENCE_SHAPE",
+      "severity": "P2_verification_fidelity",
+      "status": "REPORTED_TO_ROOT",
+      "source": "Fixture creates case_<24> references; real findStaffCase accepts support_case_<32> only",
+      "impact": "Shared-state fixture omits entity-specific real handler reference validation; remains simulated proof",
+      "targeted_fix": "Use canonical support_case_<32> format for newly joined/customer reference fixtures; continue injecting only externalAPI boundary"
+    }
+  ],
+  "deployment_prerequisites": [
+    "GRIDEX_API_KEY must belong to intended centralGridex company and have customer_support.read/write; do not reuse Staff-only key/scopes.",
+    "Each verified tenant customer account needs current existing central customer_portal identity binding; this source does not automatically enroll or link customers.",
+    "Customer transport has no x-gridex-customer-assertion signer. Current central customer-purpose enforcement NONE/REPORT permits account-bound calls; ENFORCE will403. Review actual setting beforeactivation, or add separately reviewed fresh customer-purpose signer; never weaken configured policy.",
+    "Staff purpose registration, explicit tenantAuth identity binding and fresh cases.read must be operational before public inquiry orstaff workspace reads.",
+    "GRIDEX_STAFF_COMPANY_ID/machine credential/provider/binding must identify intended centralGridex company; local inquiry DB alone supplies no company authority.",
+    "Support app deployment/root directory must remainapps/support; marketingcustomer/dashboardhandoff belongsrootwebsite deployment, separate builds.",
+    "NamedtenantProd servicekey must be private and valid; no credential/domain/provider state reviewed ormodified here."
+  ],
+  "proof_limits": [
+    "No tests rerun, no real customer/API/SMTP calls or hosted catalog writes. Root owns current helper/action/inquiry and browser checks.",
+    "Joined and inquiry loaders replace external API/SDK/framework boundaries; they do not execute real backend authorization/RLS/database or signed-customer enforcement.",
+    "Actual Customer messageendpoint returns atmost500 oldest customer-visible messages and offers no cursor in frozencontract; newUI cannot claim complete historybeyond backendlimit.",
+    "Legacy authenticated local support tickets are excluded from both new canonical customer list and anonymous local inbox; no olddata migration or automatic centralcasecopy isperformed.",
+    "getCustomerTickets overview compatibility helper remainslimit50; full history navigation isqualified onlythrough new paged supportpage.",
+    "Inquiry contact fields are unverified and bounded fordisplay; no authoritative identity linkage."
+  ],
+  "product_critical_or_important_blockers": [],
+  "pending": [
+    "Root fixture-fidelity correction",
+    "Root final meaningful targeted helper/action/inquiry/browser checks andsourcefreeze",
+    "Separate deployment andrealidentity/assertion-mode activation proof"
+  ],
+  "executions": {
+    "tests": 0,
+    "hosted_calls": 0,
+    "http_calls": 0,
+    "source_edits": 0,
+    "private_state_reads": 0
+  }
+}

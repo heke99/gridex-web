@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-05T14:24:05.723280+00:00",
+  "scope": "Read-only own Gridex tenant public contact inquiry inbox, independent of canonical authenticated-customer cases",
+  "owned_sources": [
+    {
+      "path": "/workspace/gridex-support123-web/apps/support/lib/public-inquiries.ts",
+      "sha256": "255571511894b92a3b641e21ef3921cec2749fd12bd07588aa84edf78c855a07",
+      "bytes": 5984
+    },
+    {
+      "path": "/workspace/gridex-support123-web/apps/support/app/(workspace)/contact-requests/page.tsx",
+      "sha256": "00b5a3670f56cb52f32956eb0dd57aaa222044304f98b9498af54b9825602a43",
+      "bytes": 3532
+    },
+    {
+      "path": "/workspace/gridex-support123-web/apps/support/app/(workspace)/contact-requests/[id]/page.tsx",
+      "sha256": "078aac7135c262f4252c85a404624c088c3342a59b8938fcf14858e91d46d947",
+      "bytes": 1928
+    },
+    {
+      "path": "/workspace/gridex-support123-web/apps/support/app/(workspace)/layout.tsx",
+      "sha256": "7159dab9d510900ed6a732bd47fa2c77a8ff898828612800e4aaab263b5a6a33",
+      "bytes": 1400
+    },
+    {
+      "path": "/workspace/gridex-support123-web/tests/support-public-inquiries.test.mjs",
+      "sha256": "a10ef82ce0086e907d6ca844a6e7e076f8be110c7966272cd7889132de10bee3",
+      "bytes": 9776
+    },
+    {
+      "path": "/workspace/gridex-support123-web/tests/support-public-inquiries-loader.mjs",
+      "sha256": "ef9ce7f62db3ec28fc1830951a93114dcf866399dd971d081d0de1b33ae33d2e",
+      "bytes": 929
+    }
+  ],
+  "logs": [
+    {
+      "path": "/tmp/gridex-staff-review/public-inquiries-red.log",
+      "sha256": "643fd5c3de01c8338e4796659394310d10541e2c6b89f1217a89a81201ee8fcf",
+      "bytes": 3786
+    },
+    {
+      "path": "/tmp/gridex-staff-review/public-inquiries-green.log",
+      "sha256": "07eb3f117052c1777ea8fd72d029c60781e434896615b7d39cbb5b74d5241365",
+      "bytes": 3015
+    },
+    {
+      "path": "/tmp/gridex-staff-review/public-inquiries-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/tmp/gridex-staff-review/public-inquiries-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "validation": {
+    "semantic_red": "Missing queue source predicate caused1 intended failure while9 other controls passed; closed DTO prevented exposure",
+    "semantic_green": "10/10 actual helper/query-fixture tests PASS",
+    "strict_support_types": "PASS",
+    "scoped_eslint": "PASS zero warnings",
+    "git_diff_check": "PASS"
+  },
+  "authority": {
+    "read_gate": "Fresh requireSupportSession local Auth + explicit current central identity binding + canonical cases.read probe before each store construction",
+    "local_database": "Fixed SUPPORT_AUTH_URL https://ayiuxjlfazkjmmtlvhsl.supabase.co, GRIDEX_SUPPORT_SUPABASE_SERVICE_KEY server only",
+    "every_query_predicates": {
+      "table": "customer_support_tickets",
+      "user_id": null,
+      "metadata.source": "public_kundservice_form"
+    },
+    "display": "Closed public DTO; unverified incoming contact names/email/phone, subject/body/status; no ip_hash/user_agent/private metadata or forged customer reference"
+  },
+  "read_only_limitation": "Frozen Staff API offers no authoritative current effective cases.write capability-read interface; per parent approval, no local status action/actor FK mutation/CAS write was introduced. Role key/profile and browser flags grant no authority. CAS and action replay tests therefore do not claim qualification of nonexistent writes.",
+  "ui": "Queue+detail under authenticated workspace, one actual shell link Kontaktförfrågningar; customer search remains own /customers? route; no emails or automatic case copies",
+  "effects": {
+    "hosted_operations": false,
+    "ops_source_changes": false,
+    "database_migrations": false,
+    "status_updates": false,
+    "emails": false,
+    "case_copies": false,
+    "commits": false
+  },
+  "pending_verification": "Parent owns production build/browser integration and package/workflow wiring; this receipt proves bounded local helper/types/lint only"
+}

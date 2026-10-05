@@ -1,0 +1,70 @@
+name: Gridex Support quality gate
+
+on:
+  pull_request:
+    paths:
+      - 'apps/support/**'
+      - 'lib/staff-api/**'
+      - 'lib/ops/client/customerSupport.ts'
+      - 'lib/customerPortal/**'
+      - 'app/dashboard/support/**'
+      - 'tests/*support*'
+      - 'tests/staff-api*'
+      - 'tests/fixtures/support-runtime.mjs'
+      - 'supabase/migrations/*support_staff*.sql'
+      - 'supabase/migrations/manifest.json'
+      - 'package*.json'
+      - 'tsconfig.json'
+      - 'eslint.config.mjs'
+      - '.github/workflows/support-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/support/**'
+      - 'lib/staff-api/**'
+      - 'lib/ops/client/customerSupport.ts'
+      - 'lib/customerPortal/**'
+      - 'app/dashboard/support/**'
+      - 'tests/*support*'
+      - 'tests/staff-api*'
+      - 'tests/fixtures/support-runtime.mjs'
+      - 'supabase/migrations/*support_staff*.sql'
+      - 'supabase/migrations/manifest.json'
+      - 'package*.json'
+      - '.github/workflows/support-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  support:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Signed Staff API, tenant Auth and canonical customer handoff
+        run: npm run test:support
+      - name: Tenant migration integrity
+        run: npm run db:migrations:check
+      - name: Typecheck
+        run: npm run typecheck:support
+      - name: Lint
+        run: npx eslint apps/support lib/staff-api lib/ops/client/customerSupport.ts lib/customerPortal/service.ts lib/customerPortal/types.ts app/dashboard/support tests/*support*.mjs tests/staff-api*.mjs tests/fixtures/support-runtime.mjs --max-warnings=0
+      - name: Browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Independent portal in browser with synthetic backend
+        run: npm run test:support:browser
+      - name: Production build without credentials
+        run: npm run build:support
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: support-browser-evidence
+          path: /tmp/gridex-support-browser-evidence
+          if-no-files-found: ignore

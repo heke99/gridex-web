@@ -1,0 +1,2561 @@
+{
+  "release": "2026-10-04.1",
+  "source_sha256": "460cf343a397c99f1173482ceb4c0045828399172fd47dd8c078e7d611e16de7",
+  "components": {
+    "schemas": {
+      "OpenApiReleaseManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "release_version",
+          "website_openapi_version",
+          "customer_portal_openapi_version",
+          "staff_openapi_version",
+          "runtime_contract_version",
+          "guide_version",
+          "released_at",
+          "generated_at",
+          "build_commit",
+          "compatibility_classification",
+          "deprecated_features",
+          "minimum_tenant_integration_version",
+          "specifications"
+        ],
+        "properties": {
+          "release_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "website_openapi_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "customer_portal_openapi_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "staff_openapi_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "runtime_contract_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "guide_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "released_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "build_commit": {
+            "type": "string"
+          },
+          "compatibility_classification": {
+            "type": "string",
+            "enum": [
+              "backward-compatible",
+              "breaking-client-update-required",
+              "breaking"
+            ]
+          },
+          "deprecated_features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "feature",
+                "replacement",
+                "sunset_at"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "replacement": {
+                  "type": "string"
+                },
+                "sunset_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "minimum_tenant_integration_version": {
+            "type": "string",
+            "const": "2026-10-02.3"
+          },
+          "specifications": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "website",
+              "customer_portal",
+              "staff"
+            ],
+            "properties": {
+              "website": {
+                "$ref": "#/components/schemas/OpenApiReleaseSpecification"
+              },
+              "customer_portal": {
+                "$ref": "#/components/schemas/OpenApiReleaseSpecification"
+              },
+              "staff": {
+                "$ref": "#/components/schemas/OpenApiReleaseSpecification"
+              }
+            }
+          }
+        }
+      },
+      "OpenApiReleaseSpecification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contract_name",
+          "contract_version",
+          "url",
+          "immutable_url",
+          "sha256",
+          "compatibility"
+        ],
+        "properties": {
+          "contract_name": {
+            "type": "string"
+          },
+          "contract_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "immutable_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "backward-compatible",
+              "breaking-client-update-required",
+              "breaking"
+            ]
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "request_id",
+          "correlation_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "field",
+              "blockers"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "hint": {
+                "type": "string"
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "blockers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApiBlocker"
+                }
+              },
+              "details": {
+                "type": [
+                  "object",
+                  "array",
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": "string"
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        },
+        "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
+      },
+      "ApiBlocker": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "recommended_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "StaffAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user_id",
+          "email",
+          "full_name",
+          "role_key",
+          "membership_role",
+          "status",
+          "invited_at",
+          "accepted_at",
+          "disabled_at"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_key": {
+            "type": "string"
+          },
+          "membership_role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "invited_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "accepted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "disabled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffAccountState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user_id",
+          "role_key",
+          "membership_role",
+          "status"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role_key": {
+            "type": "string"
+          },
+          "membership_role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "StaffInviteResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "role_key",
+          "membership_role",
+          "status"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "role_key": {
+            "type": "string"
+          },
+          "membership_role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "const": "pending"
+          }
+        }
+      },
+      "StaffRole": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "description",
+          "permissions",
+          "assignable"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assignable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StaffInviteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "role_key"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 320
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "role_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      },
+      "StaffRoleChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role_key"
+        ],
+        "properties": {
+          "role_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      },
+      "StaffDisableRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      },
+      "StaffPagination": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "has_more"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StaffCustomerSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "customer_reference",
+          "customer_number",
+          "customer_type",
+          "status",
+          "display_name",
+          "first_name",
+          "last_name",
+          "company_name",
+          "email",
+          "phone",
+          "personal_number_masked",
+          "org_number_masked",
+          "created_at"
+        ],
+        "properties": {
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "customer_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customer_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "company_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personal_number_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "org_number_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffCustomerContact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contact_reference",
+          "type",
+          "name",
+          "email",
+          "phone",
+          "title",
+          "is_primary"
+        ],
+        "properties": {
+          "contact_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_primary": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StaffCustomerAddress": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "address_reference",
+          "type",
+          "street_1",
+          "street_2",
+          "postal_code",
+          "city",
+          "country",
+          "is_active"
+        ],
+        "properties": {
+          "address_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street_1": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street_2": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postal_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StaffCustomerSite": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "facility_reference",
+          "site_name",
+          "facility_id",
+          "site_type",
+          "status",
+          "price_area_code",
+          "street",
+          "postal_code",
+          "city"
+        ],
+        "properties": {
+          "facility_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "site_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "facility_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "site_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postal_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "StaffCustomer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "customer_reference",
+          "customer_number",
+          "customer_type",
+          "status",
+          "display_name",
+          "first_name",
+          "last_name",
+          "company_name",
+          "email",
+          "phone",
+          "personal_number_masked",
+          "org_number_masked",
+          "created_at",
+          "invoice_email",
+          "preferred_language",
+          "apartment_number",
+          "updated_at",
+          "contacts",
+          "addresses",
+          "sites",
+          "contacts_page",
+          "addresses_page",
+          "sites_page"
+        ],
+        "properties": {
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "customer_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customer_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "company_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personal_number_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "org_number_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "invoice_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preferred_language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "apartment_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCustomerContact"
+            }
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCustomerAddress"
+            }
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCustomerSite"
+            }
+          },
+          "contacts_page": {
+            "$ref": "#/components/schemas/StaffEmbeddedCollectionPage"
+          },
+          "addresses_page": {
+            "$ref": "#/components/schemas/StaffEmbeddedCollectionPage"
+          },
+          "sites_page": {
+            "$ref": "#/components/schemas/StaffEmbeddedCollectionPage"
+          }
+        }
+      },
+      "StaffCustomerPagination": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "StaffContactChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedUpdatedAt"
+        ],
+        "properties": {
+          "expectedUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 320
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 32
+          },
+          "invoice_email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 320
+          },
+          "preferred_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          },
+          "apartment_number": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "email"
+            ]
+          },
+          {
+            "required": [
+              "phone"
+            ]
+          },
+          {
+            "required": [
+              "invoice_email"
+            ]
+          },
+          {
+            "required": [
+              "preferred_language"
+            ]
+          },
+          {
+            "required": [
+              "apartment_number"
+            ]
+          }
+        ]
+      },
+      "StaffContactChangeResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "customer_reference",
+          "changed",
+          "customer_updated_at"
+        ],
+        "properties": {
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "customer_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffIdentityChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "new_value",
+          "reason"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "personal_number",
+              "org_number"
+            ]
+          },
+          "new_value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "StaffIdentityChangeResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_reference",
+          "status",
+          "recipient_masked",
+          "expires_at",
+          "contract_count",
+          "takeover_required"
+        ],
+        "properties": {
+          "request_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "pending_customer_approval"
+            ]
+          },
+          "recipient_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "contract_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "takeover_required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "StaffCase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_reference",
+          "customer_reference",
+          "title",
+          "description",
+          "status",
+          "priority",
+          "category",
+          "assignee_user_id",
+          "channel",
+          "created_at",
+          "updated_at",
+          "resolved_at",
+          "closed_at"
+        ],
+        "properties": {
+          "case_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "action_required",
+              "awaiting_external_response",
+              "billing_blocked",
+              "manual_follow_up",
+              "resolved",
+              "cancelled",
+              "closed"
+            ]
+          },
+          "priority": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignee_user_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffCaseDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_reference",
+          "customer_reference",
+          "title",
+          "description",
+          "status",
+          "priority",
+          "category",
+          "assignee_user_id",
+          "channel",
+          "created_at",
+          "updated_at",
+          "resolved_at",
+          "closed_at",
+          "events",
+          "attachments",
+          "events_page",
+          "attachments_page"
+        ],
+        "properties": {
+          "case_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "action_required",
+              "awaiting_external_response",
+              "billing_blocked",
+              "manual_follow_up",
+              "resolved",
+              "cancelled",
+              "closed"
+            ]
+          },
+          "priority": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignee_user_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCaseEvent"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAttachment"
+            }
+          },
+          "events_page": {
+            "$ref": "#/components/schemas/StaffCasePage"
+          },
+          "attachments_page": {
+            "$ref": "#/components/schemas/StaffCasePage"
+          }
+        }
+      },
+      "StaffCaseEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_reference",
+          "event_type",
+          "message",
+          "visibility",
+          "author_type",
+          "author_user_id",
+          "channel",
+          "kind",
+          "direction",
+          "verification_method",
+          "verification_reference",
+          "representative",
+          "created_at"
+        ],
+        "properties": {
+          "event_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "internal"
+            ]
+          },
+          "author_type": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff"
+            ]
+          },
+          "author_user_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "message",
+              "phone_summary",
+              null
+            ]
+          },
+          "direction": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verification_method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verification_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "representative": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "mandate_reference"
+                ],
+                "properties": {
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mandate_reference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffCaseCreateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "customer_reference",
+          "title"
+        ],
+        "properties": {
+          "customer_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque resource reference. Access always requires the organization credential and authorized staff identity."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 8000
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ]
+          }
+        }
+      },
+      "StaffMessageRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "message",
+              "phone_summary"
+            ]
+          }
+        }
+      },
+      "StaffNoteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        }
+      },
+      "StaffPhoneRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "direction",
+          "summary",
+          "verification_method"
+        ],
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "inbound",
+              "outbound"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "verification_method": {
+            "type": "string",
+            "enum": [
+              "unverified",
+              "strong_eid",
+              "authenticated_portal_confirmation",
+              "callback_registered_number"
+            ]
+          },
+          "verification_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "representative": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
+                  },
+                  "mandate_reference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 120
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "StaffStatusRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "action_required",
+              "awaiting_external_response",
+              "manual_follow_up",
+              "resolved",
+              "closed"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 8000
+          }
+        }
+      },
+      "StaffAssigneeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assignee_user_id"
+        ],
+        "properties": {
+          "assignee_user_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "StaffAttachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attachment_reference",
+          "file_name",
+          "mime_type",
+          "byte_size",
+          "sha256",
+          "uploaded_by",
+          "created_at",
+          "visibility",
+          "scan_status",
+          "scan_reason"
+        ],
+        "properties": {
+          "attachment_reference": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$",
+            "description": "Opaque public reference. It identifies the attachment but grants no access on its own."
+          },
+          "file_name": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "Sanitized file name; the extension always matches the detected type."
+          },
+          "mime_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "application/pdf",
+              "image/png",
+              "image/jpeg",
+              null
+            ]
+          },
+          "byte_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4194304
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 of the stored bytes; re-verified on every download."
+          },
+          "uploaded_by": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "internal"
+            ]
+          },
+          "scan_status": {
+            "type": "string",
+            "enum": [
+              "quarantined",
+              "released",
+              "rejected"
+            ]
+          },
+          "scan_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "getApiV1StaffUsersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version",
+          "pagination"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAccount"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/StaffPagination"
+          }
+        }
+      },
+      "postApiV1StaffUsersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffInviteResult"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "patchApiV1StaffUsersIdResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffAccountState"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffUsersIdDisableResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffAccountState"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffUsersIdEnableResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffAccountState"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffRolesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffRole"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCustomersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "customers",
+              "pagination"
+            ],
+            "properties": {
+              "customers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/StaffCustomerSummary"
+                }
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/StaffCustomerPagination"
+              }
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCustomersRefResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "customer"
+            ],
+            "properties": {
+              "customer": {
+                "$ref": "#/components/schemas/StaffCustomer"
+              }
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "patchApiV1StaffCustomersRefContactResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffContactChangeResult"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffCustomersRefIdentityChangeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffIdentityChangeResult"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCasesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCase"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "page": {
+            "$ref": "#/components/schemas/StaffCasePage"
+          }
+        }
+      },
+      "postApiV1StaffCasesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCase"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCasesReferenceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCaseDetail"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffCasesReferenceMessagesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCaseEvent"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffCasesReferenceNotesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCaseEvent"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "postApiV1StaffCasesReferencePhoneInteractionsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCaseEvent"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "patchApiV1StaffCasesReferenceStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCase"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "patchApiV1StaffCasesReferenceAssigneeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffCase"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCasesReferenceAttachmentsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAttachment"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "page": {
+            "$ref": "#/components/schemas/StaffCasePage"
+          }
+        }
+      },
+      "postApiV1StaffCasesReferenceAttachmentsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StaffAttachment"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "getApiV1StaffCasesReferenceAttachmentsAttachmentReferenceFileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "data": {},
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        }
+      },
+      "StaffCasePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "offset",
+          "returned",
+          "has_more",
+          "next_cursor"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "const": 0
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "StaffEnableRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "request_id",
+          "correlation_id",
+          "contract_schema_version"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "field",
+              "blockers"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "hint": {
+                "type": "string"
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "blockers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApiBlocker"
+                }
+              },
+              "details": {
+                "type": [
+                  "object",
+                  "array",
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": "string"
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          }
+        },
+        "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
+      },
+      "StaffEmbeddedCollectionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "returned",
+          "has_more"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "const": 100
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "description": "Bounded initial customer collection. has_more explicitly indicates additional records beyond this initial collection."
+      },
+      "getApiV1StaffCasesReferenceEventsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "request_id",
+          "contract_schema_version",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffCaseEvent"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_schema_version": {
+            "type": "string",
+            "const": "2026-10-04.1"
+          },
+          "page": {
+            "$ref": "#/components/schemas/StaffCasePage"
+          }
+        }
+      }
+    }
+  }
+}
