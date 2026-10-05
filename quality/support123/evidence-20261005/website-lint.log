@@ -1,0 +1,10 @@
+
+> gridex-web@0.1.0 lint
+> eslint
+
+
+/workspace/gridex-support123-web/lib/website/pricingQuote.ts
+  255:3  warning  'now' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  256:3  warning  'options' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 2 problems (0 errors, 2 warnings)

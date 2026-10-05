@@ -1,0 +1,93 @@
+{
+  "status": "PORTAL_CODE_OFFLINE_VERIFIED_PROD_ACTIVATION_BLOCKED",
+  "target": {
+    "project": "gridex-prod",
+    "ref": "ayiuxjlfazkjmmtlvhsl"
+  },
+  "historical_hosted_api_project": "piidsfebjqjmnepdpnas",
+  "checks": {
+    "api_auth_actions": 48,
+    "browser": 15,
+    "browser_errors": 0,
+    "support_strict_types": "PASS",
+    "support_lint": "PASS_ZERO_WARNINGS",
+    "support_production_build": "PASS",
+    "website_types": "PASS",
+    "website_lint": "PASS_WITH_TWO_PREEXISTING_PRICING_WARNINGS"
+  },
+  "production_writes": false,
+  "limitations": [
+    "Offline fixture browser qualification is not live gridex-prod acceptance.",
+    "Prod prerequisite closure and Gridex tenant/admin are unresolved.",
+    "Independent invitation onboarding is being qualified separately.",
+    "No domain/deployment/provider/client changes have occurred."
+  ],
+  "files": [
+    {
+      "file": "browser-verification.json",
+      "sha256": "81b4759027b9eda124c9a00fedbfda5643e4c38f5c158dbffdcc314041012c13",
+      "bytes": 1076
+    },
+    {
+      "file": "login-mobile.png",
+      "sha256": "2af77be09ec8fee63aa5e21fb960010ad7f1d4b6f5d681ee0cd467815d57c66a",
+      "bytes": 35324
+    },
+    {
+      "file": "inbox.png",
+      "sha256": "6cde96a2f5f17cf2090ddbcbe2dd9329af5ad8667825b54516f55bebd18b67b1",
+      "bytes": 54873
+    },
+    {
+      "file": "case.png",
+      "sha256": "38c26ff0a227ccb247c04f6a43293d844918c2d59321fbae3d718224b8b75774",
+      "bytes": 143149
+    },
+    {
+      "file": "client-auth-actions-qualification.json",
+      "sha256": "d0ae9d76fb21b54db38c883c7fad3e4c5aceb2ce2a795bbb98dcfe0f1b1c0f81",
+      "bytes": 6239
+    },
+    {
+      "file": "gridex-prod-readiness.json",
+      "sha256": "1d6d385d8db06d1212bb9d542ce798969838b5128ea7d60c4ea35a773cb9dcae",
+      "bytes": 33525
+    },
+    {
+      "file": "portal-build.log",
+      "sha256": "997075ee7f1ac51b514177e561c28195fc695997055a5c99d435c2fc5e9fd73e",
+      "bytes": 869,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    },
+    {
+      "file": "portal-tests.log",
+      "sha256": "e92c31d7a6927b41d2f7522076836a43dd4f03ab80161e55a989396d30618a3d",
+      "bytes": 14632,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    },
+    {
+      "file": "portal-types.log",
+      "sha256": "deb0560c1df69e18f0004e9fe97885eee0060856f76c4a20edcba1f3bf8e0e3d",
+      "bytes": 98,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    },
+    {
+      "file": "portal-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    },
+    {
+      "file": "website-types.log",
+      "sha256": "b29ace825c520c116d060f0c5154f73d440ae481cbe663017a9eede82017410b",
+      "bytes": 60,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    },
+    {
+      "file": "website-lint.log",
+      "sha256": "5a3fd7af010ed8a34486edf00a6908be3b474555295b8bbb601b2381e81131ee",
+      "bytes": 332,
+      "normalization": "Trailing empty lines removed; original command output otherwise preserved."
+    }
+  ]
+}
