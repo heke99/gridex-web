@@ -38,7 +38,10 @@ try {
   await check('read-only account cannot submit a write', async () => { await login('readonly@example.invalid'); await expect(page).toHaveURL(`${origin}/`); await page.goto(`${origin}/cases/${FIXTURE_CASE}`); const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Svara kunden', exact: true }) }); await panel.getByLabel('Meddelande').fill('Obehörigt svar ska stoppas'); await panel.getByRole('button', { name: 'Spara svar till kunden' }).click(); await expect(panel.getByRole('alert')).toContainText('Du saknar behörighet'); await expect(page.locator('li.event').filter({ hasText: 'Obehörigt svar ska stoppas' })).toHaveCount(0); await page.getByRole('button', { name: 'Logga ut', exact: true }).click() })
   await check('foreign tenant staff cannot enter Gridex queue', async () => { await login('foreign@example.invalid'); await expect(page).toHaveURL(`${origin}/login?reason=access_denied`); await expect(page.locator('p[role="alert"]')).toContainText('Kontot saknar åtkomst'); await expect(page.getByRole('navigation')).toHaveCount(0) })
   await check('no browser application errors', async () => { expect(errors).toEqual([]) })
-  await writeFile(`${output}/verification.json`, JSON.stringify({ status: 'PASS_OFFLINE_BROWSER', checks, errors, origin, production_data: false, database_project: 'ayiuxjlfazkjmmtlvhsl', backend: 'schema-faithful synthetic fixture with verified RSA assertions', limitations: ['No production enrollment, database migration, real invitation email or live acceptance'] }, null, 2))
+  await writeFile(`${output}/verification.json`, JSON.stringify({ status: 'PASS_OFFLINE_BROWSER', checks, errors, origin, production_data: false,
+    tenant_auth_project: 'ayiuxjlfazkjmmtlvhsl', central_api_project: 'piidsfebjqjmnepdpnas',
+    backend: 'schema-faithful synthetic fixture with verified RSA and explicit distinct tenant/central identity binding',
+    limitations: ['No production enrollment, database migration, real invitation email or live acceptance'] }, null, 2))
   console.log(JSON.stringify({ status: 'PASS_OFFLINE_BROWSER', checks: checks.length, errors: errors.length, output }))
 } catch (error) {
   await page.screenshot({ path: `${output}/failure.png`, fullPage: true }).catch(() => undefined)

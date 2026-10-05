@@ -5,21 +5,25 @@ import { readSupportAuthConfig, SUPPORT_AUTH_COOKIE_NAME } from '../apps/support
 import { createSupportAuthClient, resolveSupportSession, writeSupportAuthCookies, SupportAuthError } from '../apps/support/lib/session.ts'
 import { createStaffApiClient, StaffApiError } from '../lib/staff-api/client.ts'
 
-const userId = '11111111-1111-4111-8111-111111111111'
+const userId = '55555555-5555-4555-8555-555555555555'
+const actorId = '11111111-1111-4111-8111-111111111111'
+const accessToken = 'synthetic-transport-token-only-123456'
+const binding = { actorUserId: actorId, bindingId: '88888888-8888-4888-8888-888888888888', bindingVersion: 1, localAuthSubject: userId, localAuthIssuer: 'https://ayiuxjlfazkjmmtlvhsl.supabase.co/auth/v1' }
 const company = 'b3ad1bf6-fa45-41a6-8054-2e0862e82aca'
 const publicAnon = ['e30', Buffer.from(JSON.stringify({ role: 'anon', ref: 'ayiuxjlfazkjmmtlvhsl' })).toString('base64url'), 'syntheticSignature'].join('.')
 const authEnv = { GRIDEX_SUPPORT_SUPABASE_URL: 'https://ayiuxjlfazkjmmtlvhsl.supabase.co', GRIDEX_SUPPORT_SUPABASE_ANON_KEY: publicAnon, NODE_ENV: 'production' }
 const privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
-const apiConfig = { apiKey: 'synthetic-staff-full-api-key-123456', companyId: company, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'test-key', privateKey, timeoutMs: 1000 }
+const apiConfig = { opsProjectRef: 'piidsfebjqjmnepdpnas', apiKey: 'synthetic-staff-full-api-key-123456', companyId: company, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'test-key', privateKey, timeoutMs: 1000 }
 const redirect = path => { throw new Error('REDIRECT ' + path) }
 function boundary(overrides = {}) {
   const calls = []
   return { calls, deps: {
-    authClient: async () => ({ auth: { getUser: async () => { calls.push('verified_getUser'); return { data: { user: { id: userId, email: 'test@example.invalid', user_metadata: {} } }, error: null } } } }),
-    apiClient: subject => { calls.push(['api_subject', subject]); return createStaffApiClient(subject, { config: apiConfig, fetchImpl: async (url, init) => {
+    authClient: async () => ({ auth: { getUser: async () => { calls.push('verified_getUser'); return { data: { user: { id: userId, email: 'test@example.invalid', user_metadata: {} } }, error: null } }, getSession: async () => { calls.push('bearer_transport'); return { data: { session: { access_token: accessToken } }, error: null } } } }),
+    resolveIdentity: async (subject, token) => { calls.push(['resolve_identity', subject, token]); return binding },
+    apiClient: (subject, resolvedBinding) => { calls.push(['api_subject', subject]); return createStaffApiClient(subject, { config: apiConfig, binding: resolvedBinding, fetchImpl: async (url, init) => {
       const proof = JSON.parse(Buffer.from(new Headers(init.headers).get('x-gridex-staff-assertion').split('.')[1], 'base64url'))
       calls.push(['network', url, proof.sub, proof.company_id])
-      return new Response(JSON.stringify({ data: [], page: { limit: 1, offset: 0, returned: 0, has_more: false, next_cursor: null }, request_id: 'request-1', contract_schema_version: '2026-10-04.1' }), { headers: { 'content-type': 'application/json', 'x-gridex-project-ref': 'ayiuxjlfazkjmmtlvhsl' } })
+      return new Response(JSON.stringify({ data: [], page: { limit: 1, offset: 0, returned: 0, has_more: false, next_cursor: null }, request_id: 'request-1', contract_schema_version: '2026-10-04.1' }), { headers: { 'content-type': 'application/json', 'x-gridex-project-ref': 'piidsfebjqjmnepdpnas' } })
     } }) }, redirect, ...overrides,
   } }
 }
@@ -41,9 +45,9 @@ test('dedicated auth config rejects website fallback, other projects, service-ro
 test('verified production Auth user is bound to fresh staff assertion, configured Gridex company and limit1 authorization probe', async () => {
   const { calls, deps } = boundary()
   const session = await resolveSupportSession(deps)
-  assert.equal(session.userId, userId); assert.equal(session.email, 'test@example.invalid'); assert.equal(typeof session.api.reply, 'function')
-  assert.deepEqual(calls.slice(0, 2), ['verified_getUser', ['api_subject', userId]])
-  assert.deepEqual(calls[2], ['network', 'https://app.gridex.se/api/v1/staff/cases?limit=1', userId, company])
+  assert.equal(session.userId, actorId); assert.equal(session.localAuthUserId, userId); assert.equal(session.email, 'test@example.invalid'); assert.equal(typeof session.api.reply, 'function')
+  assert.deepEqual(calls.slice(0, 4), ['verified_getUser', 'bearer_transport', ['resolve_identity', userId, accessToken], ['api_subject', actorId]])
+  assert.deepEqual(calls[4], ['network', 'https://app.gridex.se/api/v1/staff/cases?limit=1', actorId, company])
 })
 
 test('missing or malformed verified subject redirects before assertion/API creation', async () => {
@@ -66,6 +70,36 @@ test('denied membership/scopes and revoked credential redirect to explicit acces
     const { deps } = boundary({ apiClient: () => ({ listCases: async () => { attempts++; throw new StaffApiError(status, 'staff_membership_inactive') } }) })
     await assert.rejects(() => resolveSupportSession(deps), /REDIRECT \/login\?reason=access_denied$/)
     assert.equal(attempts, 1)
+  }
+})
+
+test('unbound or revoked identity denies access before a Staff client is created, without an identity retry', async () => {
+  for (const status of [401, 403]) {
+    let attempts = 0; let clients = 0
+    const { deps } = boundary({ resolveIdentity: async () => { attempts++; throw new StaffApiError(status, 'staff_identity_unbound') }, apiClient: () => { clients++; throw new Error('unexpected client') } })
+    await assert.rejects(() => resolveSupportSession(deps), /REDIRECT \/login\?reason=access_denied$/)
+    assert.equal(attempts, 1); assert.equal(clients, 0)
+  }
+  let clients = 0
+  const unavailable = new StaffApiError(503, 'staff_api_unavailable')
+  const { deps } = boundary({ resolveIdentity: async () => { throw unavailable }, apiClient: () => { clients++; throw new Error('unexpected client') } })
+  await assert.rejects(() => resolveSupportSession(deps), error => error === unavailable)
+  assert.equal(clients, 0)
+})
+
+test('resolver binding must match verified local identity; user_metadata cannot select a central actor or company', async () => {
+  let clients = 0
+  const { deps } = boundary({ resolveIdentity: async () => ({ ...binding, localAuthSubject: actorId }), apiClient: () => { clients++; throw new Error('unexpected client') } })
+  await assert.rejects(() => resolveSupportSession(deps), /REDIRECT \/login\?reason=access_denied$/)
+  assert.equal(clients, 0)
+})
+
+test('missing bearer never reaches resolver; transport failure stays unavailable instead of becoming signed out', async () => {
+  for (const response of [{ data: { session: null }, error: null }, { data: { session: null }, error: { status: 503 } }]) {
+    let resolutions = 0
+    const { deps } = boundary({ authClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: userId } }, error: null }), getSession: async () => response } }), resolveIdentity: async () => { resolutions++; return binding } })
+    await assert.rejects(() => resolveSupportSession(deps), response.error ? SupportAuthError : /REDIRECT \/login$/)
+    assert.equal(resolutions, 0)
   }
 })
 
@@ -109,14 +143,15 @@ test('installed Supabase SSR verifies getUser over its Auth transport instead of
     cookieStore: { getAll: () => [{ name: SUPPORT_AUTH_COOKIE_NAME, value: sessionCookie }], set: () => undefined },
     serverClient: (url, key, options) => createServerClient(url, key, { ...options, global: { fetch: async (url, init) => {
       authCalls.push([String(url), init.method])
-      return new Response(JSON.stringify({ id: userId, aud: 'authenticated', role: 'authenticated', email: 'verified@example.invalid', app_metadata: {}, user_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' }), { headers: { 'content-type': 'application/json', 'x-gridex-project-ref': 'ayiuxjlfazkjmmtlvhsl' } })
+      return new Response(JSON.stringify({ id: userId, aud: 'authenticated', role: 'authenticated', email: 'verified@example.invalid', app_metadata: {}, user_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' }), { headers: { 'content-type': 'application/json', 'x-gridex-project-ref': 'piidsfebjqjmnepdpnas' } })
     } } }),
   })
-  const { deps, calls } = boundary({ authClient: async () => auth })
+  const { deps, calls } = boundary({ authClient: async () => auth, resolveIdentity: async (subject, token) => { assert.equal(token, accessToken); calls.push(['resolve_identity', subject, token]); return binding } })
   const verified = await resolveSupportSession(deps)
-  assert.equal(verified.userId, userId); assert.notEqual(verified.userId, forgedCookieId)
+  assert.equal(verified.userId, actorId); assert.equal(verified.localAuthUserId, userId); assert.notEqual(verified.userId, forgedCookieId)
   assert.equal(verified.email, 'verified@example.invalid')
   assert.deepEqual(authCalls, [['https://ayiuxjlfazkjmmtlvhsl.supabase.co/auth/v1/user', 'GET']])
-  assert.deepEqual(calls[0], ['api_subject', userId])
-  assert.equal(calls[1][2], userId)
+  assert.deepEqual(calls[0], ['resolve_identity', userId, accessToken])
+  assert.deepEqual(calls[1], ['api_subject', actorId])
+  assert.equal(calls[2][2], actorId)
 })

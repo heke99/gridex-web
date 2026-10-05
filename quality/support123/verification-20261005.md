@@ -1,3 +1,9 @@
+> Historical source evidence. The user subsequently clarified that gridex-prod
+> is the Gridex tenant database and OPS is independent. Any interpretation below
+> requiring central OPS customer/case/RBAC objects in tenant Prod is superseded.
+> These original checks qualify only their recorded source, not corrected code.
+> See apps/support/README.md for the authoritative database/identity split.
+
 # Independent Gridex Support verification
 
 Status: **portal source verified offline; named gridex-prod activation blocked**.

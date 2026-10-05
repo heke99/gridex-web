@@ -1,13 +1,17 @@
 # Gridex Support
 
-Independent staff application for `support123.gridex.se`. Gridex is one company
-using the shared Personal API. Other companies use their own applications and
-credentials. This application has its own login, cookies and navigation.
+`support123.gridex.se` is Gridex’s internal staff application, with its own
+login, cookies and navigation. Gridex web and `gridex-prod` are one ordinary
+tenant of the independent OPS platform. `gridex.se` provides the tenant’s
+customer website and Mina sidor; the support app provides customer search,
+case handling and staff administration through the company-scoped API.
 
-All persistent support, customer, staff, role and Auth data must be in the named
-Supabase project **gridex-prod**, reference **ayiuxjlfazkjmmtlvhsl**. The portal
-does not create a separate support database and never uses website credentials
-as a fallback. Operational reads and writes go through the Personal API.
+Tenant authentication and invitation-delivery state belong in **gridex-prod**,
+Supabase reference **ayiuxjlfazkjmmtlvhsl**. Canonical customers, cases, central
+staff actors, membership, RBAC and audit remain in **OPS**. Do not copy the OPS
+schema into the tenant database or retarget the central API to tenant Prod.
+A registered issuer/local subject binding connects the two identities; matching
+UUIDs, email addresses or user metadata never establish authorization.
 
 ## Run and verify
 
@@ -22,106 +26,124 @@ npm run build:support
 ```
 
 The browser check starts an owned local server with fresh synthetic accounts,
-RSA keys and state. Its preload intercepts Auth and API requests, verifies the
-actual signed staff assertions, and blocks unexpected outbound traffic. It
-does not create production rows or send emails. Install Chromium with
+RSA keys and state. Auth and central actor UUIDs deliberately differ. Its
+preload verifies signed assertions and rejects unexpected outbound requests.
+It creates no production accounts or emails. Install Chromium with
 `npx playwright install chromium` if no system Chromium is available.
 
 ## Server configuration
 
 Configure the support application separately from the marketing website.
-Never expose the staff key or signing key through `NEXT_PUBLIC_*` variables.
+Never expose the API, service or signing secrets through `NEXT_PUBLIC_*`.
 
 | Variable | Meaning |
 | --- | --- |
 | `GRIDEX_SUPPORT_SUPABASE_URL` | Exactly `https://ayiuxjlfazkjmmtlvhsl.supabase.co` |
-| `GRIDEX_SUPPORT_SUPABASE_ANON_KEY` | Public Auth key of that same project; service/secret keys are rejected |
-| `GRIDEX_STAFF_COMPANY_ID` | Verified Gridex company UUID in **gridex-prod** |
-| `GRIDEX_STAFF_API_KEY` | Dedicated active API client of that company with required staff scopes |
+| `GRIDEX_SUPPORT_SUPABASE_ANON_KEY` | Public Auth key of that tenant project; service/secret keys are rejected |
+| `GRIDEX_STAFF_COMPANY_ID` | Verified Gridex company UUID in central **OPS** |
+| `GRIDEX_STAFF_API_PROJECT_REF` | Verified central OPS project reference; separate from tenant Auth |
+| `GRIDEX_STAFF_API_KEY` | Dedicated active same-company API client with explicit staff scopes |
 | `GRIDEX_STAFF_ASSERTION_ISSUER` | Registered staff provider issuer |
 | `GRIDEX_STAFF_ASSERTION_AUDIENCE` | Registered staff provider audience |
 | `GRIDEX_STAFF_ASSERTION_KID` | Registered public signing key ID |
 | `GRIDEX_STAFF_ASSERTION_PRIVATE_KEY` | Server-only RSA signing key, at least 2048 bits |
-| `GRIDEX_STAFF_TIMEOUT_MS` | Optional bounded request timeout; default 12000 ms |
+| `GRIDEX_STAFF_TIMEOUT_MS` | Optional bounded timeout; default 12000 ms |
 
-The API destination is fixed to `https://app.gridex.se/api/v1/staff`. Each call
-requests project `ayiuxjlfazkjmmtlvhsl` with `X-Gridex-Expected-Project-Ref` and
-requires the successful response to attest that exact project through
-`X-Gridex-Project-Ref`. The corresponding OPS guard compares the project with
-the URL captured by the real Supabase service client **before** API auth,
-rate-limit, audit and handler database access. The portal also performs a
-verified case-read authorization probe before each command. An old or
-incorrectly configured API deployment cannot pass that probe.
+The tenant-owned delivery bridge also requires server-only
+`GRIDEX_SUPPORT_SUPABASE_SERVICE_KEY` (tenant Prod only),
+`GRIDEX_SUPPORT_DELIVERY_API_CLIENT_ID`, `GRIDEX_SUPPORT_DELIVERY_PROVIDER_ID`,
+`GRIDEX_SUPPORT_DELIVERY_OPS_ISSUER`, `GRIDEX_SUPPORT_DELIVERY_OPS_KID` and
+`GRIDEX_SUPPORT_DELIVERY_OPS_PUBLIC_JWK`. Its receipts use the dedicated Staff
+signing key. The OPS worker alone holds `GRIDEX_STAFF_DELIVERY_PRIVATE_KEY` for
+signed bridge requests; it never receives the tenant Auth service key.
 
-Auth uses `getUser` to verify the account, never an unverified cookie subject.
-Cookies use the dedicated `gridex-support-auth` name and are host-only,
-HttpOnly, SameSite=Lax and Secure in production. Role, company and actor fields
-submitted by the browser do not grant authority. API role limits, active
-membership, tenant isolation and audit remain authoritative.
+The Staff destination is fixed to `https://app.gridex.se/api/v1/staff`.
+`X-Gridex-Expected-Project-Ref` requests the configured **central** project and
+successful responses must attest it through `X-Gridex-Project-Ref`. The OPS
+guard compares this value with its actual captured service SDK URL before
+Auth, rate-limit, audit and handler access. Tenant Auth uses its own Prod URL.
+There is no website-credential or same-project fallback.
 
-Every write requires a stable idempotency key. Writes are never automatically
-retried. Contact changes include the server-provided optimistic version; a 409
-requires the employee to reload before changing the current value.
+Each protected request first verifies tenant Auth using `getUser`. Only then
+is `getSession` used to obtain a bearer for transport; its cookie user is never
+an authority. A fresh local-purpose assertion and that bearer are sent to
+`POST /api/v1/staff-onboarding/identity/resolve` (contract `2026-10-05.2`). OPS
+verifies the session against the registered tenant’s public Auth client and
+looks up the exact current binding, client, provider and company membership.
+The closed result supplies the central actor UUID and binding/version.
 
-## Independent staff invitations
+Normal Staff assertions retain the frozen contract’s central actor `sub` and
+include the current binding ID/version and tenant issuer/subject. They cannot
+exchange identity-resolution or invitation-acceptance proof for Staff access.
+OPS rechecks current binding and authority for each request; native mutation
+guards repeat their checks under existing transaction locks. The portal also
+runs a case-read authorization probe before privileged actions. There is no
+cached identity or role shortcut.
 
-Register the dedicated client's `metadata.staff_onboarding_origin` as
-`https://support123.gridex.se` and include that exact origin in its
-`allowed_origins` column. Supabase Auth must separately allow the portal's
-`/auth/invitation` callback; otherwise email delivery may fall back to its
-global Site URL. Qualify the actual callback destination before enabling real
-invitations. These settings have not been changed in production.
+Cookies use `gridex-support-auth` and are host-only, HttpOnly, SameSite=Lax and
+Secure in production. Browser-supplied actor, company and role fields cannot
+grant authority. Writes need stable idempotency keys and are never retried
+automatically. Contact updates include the server’s optimistic version.
 
-The existing leased OPS worker delivers the Auth email to this own callback.
-GET displays a password form and creates no membership. The employee explicitly
-submits a new password, verified against this portal's own Prod Auth session,
-before the server requests canonical acceptance through the separately
-versioned `POST /api/v1/staff-onboarding/invitations/accept` contract
-(`2026-10-05.1`). This additive contract does not modify the frozen Staff release.
-Acceptance verifies the real Auth identity, fresh staff assertion, original
-invitation/client binding and current native authority before granting access.
-The legacy OPS acceptance page rejects invitations created through the Staff API.
+## Tenant-owned staff invitations
 
-The `must_change_password` user metadata is an advisory UX hint. It is editable
-by the account and does not enforce a native password-rotation policy or grant
-tenant access. The invitation form's successful password update precedes the
-membership grant; a failed update makes no onboarding API request.
+The existing leased OPS worker remains the single invitation-delivery owner.
+For registered external staff it delegates to the signed tenant-owned delivery
+bridge before any OPS Auth invitation, OTP or password effect. The bridge uses
+only its own tenant Auth administration credentials. OPS holds the tenant’s
+public Auth key, never the tenant Auth service key.
 
-## Deployment status and remaining prerequisites
+Register the exact support origin, registered tenant Auth URL/public key and
+signed delivery bridge in the dedicated OPS client. Tenant Auth must allow its
+own `/auth/invitation` callback. Durable claim-before-email state is tenant-local;
+completed retries reuse the receipt, while an indeterminate started delivery
+cannot automatically send a second email. The signed receipt creates an
+explicit local-subject-to-central-actor binding. No email matching grants a
+membership or merges accounts.
 
-The checked source provides login, cases, customer search/detail/contact
-changes, case history/replies/internal notes/phone/status/assignment, attachment
-downloads, staff invitations, role changes, disable and re-enable commands.
-The API supplies role definitions; this interface does not implement arbitrary
-new role creation or attachment upload.
+The registered client metadata is `staff_onboarding_origin`,
+`staff_tenant_auth: {url, public_key}` and
+`staff_tenant_delivery: {url, issuer, audience, key_id, request_public_jwk}`.
+The origin must be an exact member of `allowed_origins`; bridge URL and audience
+must equal that origin plus `/api/internal/staff/invitations/deliver`.
+The JWK is public RSA only, with `kid` equal to registered `key_id` and
+`GRIDEX_SUPPORT_DELIVERY_OPS_KID`. The bridge is signature-gated and has no caller-
+selected Auth project or service key.
 
-**Live activation is blocked.** The 2026-10-05 read-only catalog inspection of
-the named `gridex-prod` project found missing Staff API functions, support and
-integration tables, the private attachment bucket, and prerequisite canonical
-functions. It recorded none of the 22 frozen Staff forwards. Existing companies
-are Div3rsa AB and Nibela AB; no verified Gridex company UUID or initial Gridex
-administrator is available yet. Do not reuse the UUID or users from
-`gridex-ops-dev`.
+The invitation GET displays a form without granting membership. The employee
+explicitly verifies the tenant session and successfully sets a first password
+before `POST /api/v1/staff-onboarding/invitations/accept` requests acceptance
+(contract `2026-10-05.2`). The native wrapper verifies the exact delivered
+binding and reuses the existing canonical membership/RBAC engine. Legacy OPS
+acceptance refuses external tenant staff invitations. Initial tenant-admin
+enrollment requires an explicitly authorized OPS-admin invitation through that
+same engine; it does not assume a pre-existing external staff session.
 
-The earlier hosted Personal API acceptance used the OPS deployment backed by
-`gridex-ops-dev` (`piidsfebjqjmnepdpnas`). It remains valid for that historical
-target and is **not** acceptance of the named `gridex-prod` project.
+The `must_change_password` metadata is an advisory UX hint, editable by its
+account. It grants no access and is not a native password-rotation policy.
 
-Before assigning the domain, qualify the actual production-shaped dependency
-closure with native SQL, register the correct Gridex company/admin, install the
-reviewed additive code, and provision the dedicated client/staff provider. The
-independent invitation callback and explicit canonical acceptance must also
-pass native SQL and hosted delivery checks before real staff invitations are enabled. Never replay
-the entire historical OPS migration directory into this different baseline,
-write a fake readiness row, change the global OPS callback URL, or copy live
-tenant data without an explicit data mapping.
+## Deployment and evidence
 
-The intended Vercel application has root directory `apps/support` and its own
-environment. The marketing project continues to serve `gridex.se` and
-`www.gridex.se`. This source alone does not change the current DNS/domain
-assignment. Legacy marketing support-ticket storage has not been merged into
-the canonical Personal API case store.
+The app provides login, case queue/details/history/replies/notes/phone logging,
+status and assignment, attachment download, customer search/detail/contact
+updates, invitations, role changes and disable/re-enable commands. OPS supplies
+assignable role definitions. This interface does not yet create arbitrary new
+role definitions or upload attachments.
 
-The original offline receipt and its immutable evidence remain in
-`quality/support123/verification-20261005.md`. The final invitation addition is
-recorded separately; local browser fixtures are not native or hosted acceptance.
+**The corrected code is being qualified; the live domain has not changed.**
+Before activation, verify the existing central Gridex company, enroll its first
+tenant Auth identity explicitly, register the dedicated client/provider/Auth
+issuer/bridge, apply each reviewed migration only to its owning database and
+verify an actual invitation and staff session against the intended services.
+The tenant database does not need the central Staff/RBAC/case migration history.
+
+Deploy the support app with Vercel root `apps/support` and its own environment,
+then assign `support123.gridex.se`. The marketing app continues to serve
+`gridex.se` and `www.gridex.se`. Legacy marketing support-ticket storage has not
+been merged into canonical API cases. No hosted migration, account, email,
+environment or domain change has occurred during source correction.
+
+Previous offline/native receipts describe their exact historical sources and
+targets. Their earlier interpretation requiring all OPS data in tenant Prod is
+superseded by this architecture; preserve the evidence, never relabel it as
+qualification of corrected code. New verification must identify its own source.

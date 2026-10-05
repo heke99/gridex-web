@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateKeyPairSync, verify, createHash } from 'node:crypto'
-import { readStaffApiConfig, GRIDEX_PROD_PROJECT_REF } from '../lib/staff-api/config.ts'
-import { signStaffAssertion } from '../lib/staff-api/assertion.ts'
+import { readStaffApiConfig } from '../lib/staff-api/config.ts'
+import { signStaffAssertion, signLocalStaffAssertion } from '../lib/staff-api/assertion.ts'
+import { resolveStaffIdentity } from '../lib/staff-api/identity.ts'
 import { createStaffApiClient, StaffApiError } from '../lib/staff-api/client.ts'
 
 const subject = '11111111-1111-4111-8111-111111111111'
@@ -11,11 +12,12 @@ const reference = 'case_abcdefghijklmnopqrstuv'
 const attachmentReference = 'attachment_abcdefghijklmnopqrstuv'
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
-const config = { apiKey: 'gxk_staff_example_full_secret_1234567890', companyId: company, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'support-key-1', privateKey: pem, timeoutMs: 1000 }
-const environment = { GRIDEX_STAFF_API_KEY: config.apiKey, GRIDEX_STAFF_COMPANY_ID: company, GRIDEX_STAFF_ASSERTION_ISSUER: config.issuer, GRIDEX_STAFF_ASSERTION_AUDIENCE: config.audience, GRIDEX_STAFF_ASSERTION_KID: config.keyId, GRIDEX_STAFF_ASSERTION_PRIVATE_KEY: pem }
+const GRIDEX_OPS_PROJECT_REF = 'piidsfebjqjmnepdpnas'
+const config = { opsProjectRef: GRIDEX_OPS_PROJECT_REF, apiKey: 'gxk_staff_example_full_secret_1234567890', companyId: company, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'support-key-1', privateKey: pem, timeoutMs: 1000 }
+const environment = { GRIDEX_STAFF_API_PROJECT_REF: config.opsProjectRef, GRIDEX_STAFF_API_KEY: config.apiKey, GRIDEX_STAFF_COMPANY_ID: company, GRIDEX_STAFF_ASSERTION_ISSUER: config.issuer, GRIDEX_STAFF_ASSERTION_AUDIENCE: config.audience, GRIDEX_STAFF_ASSERTION_KID: config.keyId, GRIDEX_STAFF_ASSERTION_PRIVATE_KEY: pem }
 const page = { limit: 1, offset: 0, returned: 0, has_more: false, next_cursor: null }
 const envelope = data => ({ data, request_id: 'request-1', contract_schema_version: '2026-10-04.1' })
-const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'x-request-id': 'request-1', 'x-gridex-project-ref': GRIDEX_PROD_PROJECT_REF, ...headers } })
+const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'x-request-id': 'request-1', 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF, ...headers } })
 const event = { event_reference: 'event_abcdefghijklmnopqrstuv', event_type: 'support_staff_reply', message: 'Synthetic test reply', visibility: 'customer', author_type: 'staff', author_user_id: subject, channel: 'staff_api', kind: 'message', direction: null, verification_method: null, verification_reference: null, representative: null, created_at: '2026-10-05T09:00:00Z' }
 const claims = token => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
 function client(fetchImpl, override = {}) { return createStaffApiClient(subject, { config, fetchImpl, ...override }) }
@@ -68,7 +70,7 @@ test('every real request has a fresh signed assertion, fixed HTTPS URL, no cache
   const headers = new Headers(init.headers)
   assert.equal(headers.get('authorization'), `Bearer ${config.apiKey}`)
   assert.equal(headers.has('cookie'), false)
-  assert.equal(headers.get('x-gridex-expected-project-ref'), GRIDEX_PROD_PROJECT_REF)
+  assert.equal(headers.get('x-gridex-expected-project-ref'), GRIDEX_OPS_PROJECT_REF)
   const token = headers.get('x-gridex-staff-assertion')
   assert.equal(claims(token).sub, subject); assert.equal(claims(token).company_id, company)
   assert.notEqual(claims(token).jti, claims(new Headers(observed[1][1].headers).get('x-gridex-staff-assertion')).jti)
@@ -127,7 +129,7 @@ test('network rejection is redacted and aborted requests finish at the configure
 })
 
 test('JSON content type, schema/version, closed DTO and page consistency are checked before returning data', async () => {
-  for (const response of [new Response('<html>private</html>', { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_PROD_PROJECT_REF } }), json({ ...envelope([]), page, contract_schema_version: 'wrong' }), json({ ...envelope([]), page, private_column: 'secret' }), json({ ...envelope([]), page: { ...page, returned: 3 } }), json({ ...envelope([]), page: { ...page, has_more: true } })]) {
+  for (const response of [new Response('<html>private</html>', { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF } }), json({ ...envelope([]), page, contract_schema_version: 'wrong' }), json({ ...envelope([]), page, private_column: 'secret' }), json({ ...envelope([]), page: { ...page, returned: 3 } }), json({ ...envelope([]), page: { ...page, has_more: true } })]) {
     await assert.rejects(() => client(async () => response).listCases(), error => error.code === 'staff_api_response_invalid' && error.status === 502)
   }
 })
@@ -144,21 +146,21 @@ test('case commands use actual contract paths/body/method and require a stable i
 test('download restricts MIME, size and SHA-256 and returns only safe response metadata', async () => {
   const bytes = Buffer.from('%PDF-1.7\nsynthetic\n%%EOF')
   const sha256 = createHash('sha256').update(bytes).digest('hex')
-  const api = client(async () => new Response(bytes, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_PROD_PROJECT_REF, 'content-type': 'application/pdf', 'x-gridex-sha256': sha256, 'content-disposition': 'attachment; filename="test.pdf"', 'x-request-id': 'file-request' } }))
+  const api = client(async () => new Response(bytes, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF, 'content-type': 'application/pdf', 'x-gridex-sha256': sha256, 'content-disposition': 'attachment; filename="test.pdf"', 'x-request-id': 'file-request' } }))
   const file = await api.downloadAttachment(reference, attachmentReference)
   assert.deepEqual(Buffer.from(file.bytes), bytes); assert.equal(file.mimeType, 'application/pdf'); assert.equal(file.sha256, sha256); assert.equal(file.requestId, 'file-request')
   for (const [type, hash] of [['text/html', sha256], ['application/pdf', '0'.repeat(64)]]) {
-    await assert.rejects(() => client(async () => new Response(bytes, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_PROD_PROJECT_REF, 'content-type': type, 'x-gridex-sha256': hash } })).downloadAttachment(reference, attachmentReference), error => error.code === 'staff_api_response_invalid')
+    await assert.rejects(() => client(async () => new Response(bytes, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF, 'content-type': type, 'x-gridex-sha256': hash } })).downloadAttachment(reference, attachmentReference), error => error.code === 'staff_api_response_invalid')
   }
 })
 
-test('successful JSON and binary responses require exact gridex-prod storage attestation', async () => {
-  for (const project of [null, 'piidsfebjqjmnepdpnas']) {
+test('successful JSON and binary responses require the configured central OPS project attestation', async () => {
+  for (const project of [null, 'ayiuxjlfazkjmmtlvhsl']) {
     for (const binary of [false, true]) {
       let calls = 0
       const api = client(async (_url, init) => {
         calls++
-        assert.equal(new Headers(init.headers).get('x-gridex-expected-project-ref'), GRIDEX_PROD_PROJECT_REF)
+        assert.equal(new Headers(init.headers).get('x-gridex-expected-project-ref'), GRIDEX_OPS_PROJECT_REF)
         const response = binary ? new Response(Buffer.from('%PDF synthetic'), { headers: { 'content-type': 'application/pdf' } }) : json({ ...envelope([]), page })
         if (project === null) response.headers.delete('x-gridex-project-ref')
         else response.headers.set('x-gridex-project-ref', project)
@@ -168,6 +170,70 @@ test('successful JSON and binary responses require exact gridex-prod storage att
       assert.equal(calls, 1)
     }
   }
+})
+
+const localSubject = '55555555-5555-4555-8555-555555555555'
+const identityBinding = { actorUserId: subject, bindingId: '88888888-8888-4888-8888-888888888888', bindingVersion: 1,
+  localAuthSubject: localSubject, localAuthIssuer: 'https://ayiuxjlfazkjmmtlvhsl.supabase.co/auth/v1' }
+const resolvedEnvelope = () => ({ data: { actor_user_id: subject, binding_id: identityBinding.bindingId, binding_version: 1 }, request_id: 'identity-request', contract_schema_version: '2026-10-05.2' })
+const identityInput = { config, fetchImpl: async () => json(resolvedEnvelope()) }
+const identity = deps => resolveStaffIdentity(localSubject, 'opaque-local-auth-bearer-123456', identityBinding.localAuthIssuer, { ...identityInput, ...deps })
+
+test('purpose-specific local proof cannot impersonate the resolved central actor; normal proof binds both distinct IDs', () => {
+  for (const tokenUse of ['staff_identity_resolution', 'staff_invitation_acceptance']) {
+    const proof = claims(signLocalStaffAssertion(config, localSubject, tokenUse))
+    assert.equal(proof.sub, localSubject); assert.equal(proof.token_use, tokenUse)
+    assert.equal('staff_binding_id' in proof, false)
+  }
+  const proof = claims(signStaffAssertion(config, subject, new Date(), identityBinding))
+  assert.equal(proof.sub, subject); assert.notEqual(proof.sub, localSubject)
+  assert.equal(proof.token_use, 'staff_access'); assert.equal(proof.staff_binding_id, identityBinding.bindingId)
+  assert.equal(proof.staff_binding_version, 1); assert.equal(proof.local_auth_subject, localSubject)
+  assert.equal(proof.local_auth_issuer, identityBinding.localAuthIssuer)
+  for (const invalid of [{ ...identityBinding, actorUserId: localSubject }, { ...identityBinding, bindingVersion: 0 }, { ...identityBinding, localAuthIssuer: 'https://unregistered.invalid/auth/v1' }]) {
+    assert.throws(() => signStaffAssertion(config, subject, new Date(), invalid), StaffApiError)
+  }
+  assert.throws(() => signLocalStaffAssertion(config, localSubject, 'staff_access'), StaffApiError)
+})
+
+test('identity transport uses fixed POST{}, verified bearer and fresh local purpose proof with central project attestation', async () => {
+  const requests = []
+  const fetchImpl = async (url, init) => { requests.push([url, init]); return json(resolvedEnvelope()) }
+  const binding = await identity({ fetchImpl }); await identity({ fetchImpl })
+  assert.deepEqual(binding, identityBinding)
+  assert.equal(requests.length, 2)
+  for (const [url, init] of requests) {
+    assert.equal(url, 'https://app.gridex.se/api/v1/staff-onboarding/identity/resolve')
+    assert.equal(init.method, 'POST'); assert.equal(init.body, '{}'); assert.equal(init.cache, 'no-store'); assert.equal(init.redirect, 'manual')
+    const headers = new Headers(init.headers)
+    assert.equal(headers.get('x-gridex-expected-project-ref'), config.opsProjectRef)
+    assert.equal(headers.get('x-gridex-support-auth-token'), 'opaque-local-auth-bearer-123456')
+    assert.equal(headers.has('cookie'), false)
+    const proof = claims(headers.get('x-gridex-staff-assertion'))
+    assert.equal(proof.sub, localSubject); assert.equal(proof.token_use, 'staff_identity_resolution')
+  }
+  assert.notEqual(claims(new Headers(requests[0][1].headers).get('x-gridex-staff-assertion')).jti, claims(new Headers(requests[1][1].headers).get('x-gridex-staff-assertion')).jti)
+})
+
+test('identity resolution rejects unverified storage, wrong versions and nonclosed or malformed bindings', async () => {
+  const baseline = resolvedEnvelope()
+  for (const response of [json(baseline, 200, { 'x-gridex-project-ref': 'ayiuxjlfazkjmmtlvhsl' }),
+    json({ ...baseline, contract_schema_version: '2026-10-05.1' }), json({ ...baseline, role_key: 'company_admin' }),
+    json({ ...baseline, data: { ...baseline.data, binding_version: 0 } }), json({ ...baseline, data: { ...baseline.data, actor_user_id: 'invented' } }),
+    json({ ...baseline, data: { ...baseline.data, local_auth_subject: localSubject } }), json({ ...baseline, data: null }),
+    new Response('x'.repeat(16_385), { headers: { 'content-type': 'application/json', 'x-gridex-project-ref': config.opsProjectRef } })]) {
+    await assert.rejects(() => identity({ fetchImpl: async () => response }), StaffApiError)
+  }
+})
+
+test('identity errors do not disclose upstream detail or retry; redirects never forward the local bearer', async () => {
+  for (const status of [401, 403, 503]) {
+    let count = 0
+    await assert.rejects(() => identity({ fetchImpl: async () => { count++; return json({ error: { code: 'staff_identity_unbound', message: 'private-secret-details' } }, status) } }), error => error.status === status && error.code === 'staff_identity_unbound' && !error.message.includes('private-secret'))
+    assert.equal(count, 1)
+  }
+  await assert.rejects(() => identity({ fetchImpl: async (_url, init) => { assert.equal(init.redirect, 'manual'); return new Response(null, { status: 302, headers: { location: 'https://attacker.invalid' } }) } }), error => error.code === 'staff_api_redirect_blocked')
+  await assert.rejects(() => identity({ fetchImpl: async () => { throw new Error('private-connection-details') } }), error => error.code === 'staff_api_unavailable' && !error.message.includes('private-connection'))
 })
 
 const supportCase = { case_reference: reference, customer_reference: 'customer_abcdefghijklmnopqrstuv', title: 'Synthetic case', description: null, status: 'open', priority: 'normal', category: null, assignee_user_id: null, channel: 'staff_api', created_at: '2026-10-05T09:00:00Z', updated_at: '2026-10-05T09:00:00Z', resolved_at: null, closed_at: null }
@@ -208,7 +274,7 @@ test('controlled commands reject extra actor/company fields and invalid statuses
 test('body and attachment limits reject oversized declared or streamed content before it reaches the UI', async () => {
   await assert.rejects(() => client(async () => json(envelope([]), 200, { 'content-length': String(2 * 1024 * 1024 + 1) })).listCases(), error => error.code === 'staff_api_response_invalid')
   const oversized = new Uint8Array(4 * 1024 * 1024 + 1)
-  await assert.rejects(() => client(async () => new Response(oversized, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_PROD_PROJECT_REF, 'content-type': 'application/pdf', 'x-gridex-sha256': 'a'.repeat(64) } })).downloadAttachment(reference, attachmentReference), error => error.code === 'staff_api_response_invalid')
+  await assert.rejects(() => client(async () => new Response(oversized, { status: 200, headers: { 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF, 'content-type': 'application/pdf', 'x-gridex-sha256': 'a'.repeat(64) } })).downloadAttachment(reference, attachmentReference), error => error.code === 'staff_api_response_invalid')
 })
 
 const customerReference = 'customer_abcdefghijklmnopqrstuv'

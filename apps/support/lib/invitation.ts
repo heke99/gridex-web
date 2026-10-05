@@ -1,13 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  GRIDEX_PROD_PROJECT_REF,
   readStaffApiConfig,
   STAFF_SUBJECT_UUID,
   validateStaffApiConfig,
   type StaffApiConfig,
 } from "../../../lib/staff-api/config";
-import { signStaffAssertion } from "../../../lib/staff-api/assertion";
+import { signLocalStaffAssertion } from "../../../lib/staff-api/assertion";
 import type { FormState } from "../components/ActionForm";
 import { createSupportAuthClient } from "./session";
 
@@ -18,7 +17,7 @@ export type InvitationDependencies = {
 };
 const ONBOARDING_ENDPOINT =
   "https://app.gridex.se/api/v1/staff-onboarding/invitations/accept";
-const ONBOARDING_VERSION = "2026-10-05.1";
+const ONBOARDING_VERSION = "2026-10-05.2";
 const FAILURE =
   "Inbjudan kunde inte accepteras. Öppna din senaste inbjudningslänk eller kontakta bolagsadministratören.";
 
@@ -148,7 +147,8 @@ export async function submitSupportInvitation(
         password_changed_at: new Date().toISOString(),
       },
     });
-    if (updated.error) return { error: "Lösenordet kunde inte sparas. Försök igen." };
+    if (updated.error)
+      return { error: "Lösenordet kunde inte sparas. Försök igen." };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
@@ -163,10 +163,11 @@ export async function submitSupportInvitation(
             Authorization: `Bearer ${config.apiKey}`,
             "Content-Type": "application/json",
             "Idempotency-Key": key,
-            "X-Gridex-Expected-Project-Ref": GRIDEX_PROD_PROJECT_REF,
-            "X-Gridex-Staff-Assertion": signStaffAssertion(
+            "X-Gridex-Expected-Project-Ref": config.opsProjectRef,
+            "X-Gridex-Staff-Assertion": signLocalStaffAssertion(
               config,
               verified.data.user.id,
+              "staff_invitation_acceptance",
             ),
             "X-Gridex-Support-Auth-Token": accessToken,
           },
@@ -175,7 +176,7 @@ export async function submitSupportInvitation(
       );
       if (
         response.status !== 200 ||
-        response.headers.get("x-gridex-project-ref") !== GRIDEX_PROD_PROJECT_REF
+        response.headers.get("x-gridex-project-ref") !== config.opsProjectRef
       )
         return { error: FAILURE };
       const payload = (await boundedJson(response)) as {

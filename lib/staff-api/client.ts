@@ -3,8 +3,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 import contract from './contract.json'
-import { signStaffAssertion } from './assertion'
-import { readStaffApiConfig, requireStaffSubject, validateStaffApiConfig, STAFF_API_BASE_URL, GRIDEX_PROD_PROJECT_REF, STAFF_SUBJECT_UUID, type StaffApiConfig } from './config'
+import { signStaffAssertion, type StaffIdentityBinding } from './assertion'
+import { readStaffApiConfig, requireStaffSubject, validateStaffApiConfig, STAFF_API_BASE_URL, STAFF_SUBJECT_UUID, type StaffApiConfig } from './config'
 import { StaffApiError } from './errors'
 import type {
   StaffCaseQuery, StaffCursorQuery, StaffUserQuery, StaffCustomerQuery, StaffDownloadedAttachment,
@@ -91,9 +91,9 @@ async function boundedBody(response: Response, maximum: number): Promise<Uint8Ar
   return body
 }
 
-export type StaffApiDependencies = { config?: StaffApiConfig; fetchImpl?: typeof fetch; now?: () => Date }
+export type StaffApiDependencies = { config?: StaffApiConfig; fetchImpl?: typeof fetch; now?: () => Date; binding?: StaffIdentityBinding }
 
-/** Bind only to the user UUID returned by the dedicated, verified OPS Auth session. */
+/** Bind to a server-resolved central actor and its explicit tenant Auth binding. */
 export function createStaffApiClient(verifiedSubject: string, dependencies: StaffApiDependencies = {}) {
   requireStaffSubject(verifiedSubject)
   const config = dependencies.config ? validateStaffApiConfig(dependencies.config) : readStaffApiConfig()
@@ -102,9 +102,9 @@ export function createStaffApiClient(verifiedSubject: string, dependencies: Staf
   async function request<T>(path: string, schema: string | null, method = 'GET', body?: unknown, key?: string): Promise<T> {
     // No public raw URL/path method exists. All paths below are literal staff routes
     // with validated opaque references and URLSearchParams-encoded query values.
-    const assertion = signStaffAssertion(config, verifiedSubject, dependencies.now?.() ?? new Date())
+    const assertion = signStaffAssertion(config, verifiedSubject, dependencies.now?.() ?? new Date(), dependencies.binding)
     const headers = new Headers({ Accept: schema === null ? 'application/pdf, image/png, image/jpeg' : 'application/json',
-      Authorization: `Bearer ${config.apiKey}`, 'x-gridex-staff-assertion': assertion, 'x-request-id': randomUUID(), 'x-gridex-expected-project-ref': GRIDEX_PROD_PROJECT_REF })
+      Authorization: `Bearer ${config.apiKey}`, 'x-gridex-staff-assertion': assertion, 'x-request-id': randomUUID(), 'x-gridex-expected-project-ref': config.opsProjectRef })
     if (body !== undefined) headers.set('Content-Type', 'application/json')
     if (key !== undefined) headers.set('Idempotency-Key', idempotency(key))
     const controller = new AbortController()
@@ -116,7 +116,7 @@ export function createStaffApiClient(verifiedSubject: string, dependencies: Staf
         signal: controller.signal, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
       const requestId = safeIdentifier(response.headers.get('x-request-id'))
       if (response.status >= 300 && response.status < 400) throw new StaffApiError(502, 'staff_api_redirect_blocked', requestId)
-      if (response.ok && response.headers.get('x-gridex-project-ref') !== GRIDEX_PROD_PROJECT_REF) throw new StaffApiError(503, 'staff_storage_target_unverified', requestId)
+      if (response.ok && response.headers.get('x-gridex-project-ref') !== config.opsProjectRef) throw new StaffApiError(503, 'staff_storage_target_unverified', requestId)
       const mimeType = response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase()
       if (response.ok && schema === null) {
         if (!['application/pdf', 'image/png', 'image/jpeg'].includes(mimeType ?? '')) invalidResponse(requestId)

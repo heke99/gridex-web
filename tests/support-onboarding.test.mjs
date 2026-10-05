@@ -5,7 +5,8 @@ import { submitSupportInvitation } from "../apps/support/lib/invitation.ts";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const token = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
-const prod = "ayiuxjlfazkjmmtlvhsl";
+const opsProject = "piidsfebjqjmnepdpnas";
+const tenantProject = "ayiuxjlfazkjmmtlvhsl";
 const { privateKey, publicKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
 });
@@ -17,6 +18,7 @@ const config = {
   keyId: "staff-key",
   privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
   timeoutMs: 1000,
+  opsProjectRef: opsProject,
 };
 const user = {
   id: userId,
@@ -81,12 +83,12 @@ function boundary(changes = {}) {
           JSON.stringify({
             data: { status: "accepted" },
             request_id: "request-1",
-            contract_schema_version: "2026-10-05.1",
+            contract_schema_version: "2026-10-05.2",
           }),
           {
             headers: {
               "content-type": "application/json",
-              "x-gridex-project-ref": prod,
+              "x-gridex-project-ref": opsProject,
             },
           },
         );
@@ -120,7 +122,7 @@ test("pre-membership acceptance uses actual verified Prod Auth and fresh signed 
   assert.equal(init.cache, "no-store");
   const headers = new Headers(init.headers);
   assert.equal(headers.get("authorization"), "Bearer " + config.apiKey);
-  assert.equal(headers.get("x-gridex-expected-project-ref"), prod);
+  assert.equal(headers.get("x-gridex-expected-project-ref"), opsProject);
   assert.equal(
     headers.get("x-gridex-support-auth-token"),
     "synthetic-verified-access-token",
@@ -138,6 +140,8 @@ test("pre-membership acceptance uses actual verified Prod Auth and fresh signed 
   );
   const claims = JSON.parse(Buffer.from(jwt[1], "base64url"));
   assert.equal(claims.sub, userId);
+  assert.equal(claims.token_use, "staff_invitation_acceptance");
+  assert.notEqual(headers.get("x-gridex-expected-project-ref"), tenantProject);
   assert.equal(claims.company_id, config.companyId);
   assert.equal(claims.exp - claims.iat, 60);
   assert.deepEqual(JSON.parse(init.body), { invitation_token: token });
@@ -232,12 +236,12 @@ test("denied canonical acceptance, redirects, invalid response, wrong target or 
         JSON.stringify({
           data: { status: "accepted" },
           request_id: "request-1",
-          contract_schema_version: "2026-10-05.1",
+          contract_schema_version: "2026-10-05.2",
         }),
         {
           headers: {
             "content-type": "application/json",
-            "x-gridex-project-ref": "piidsfebjqjmnepdpnas",
+            "x-gridex-project-ref": tenantProject,
           },
         },
       ),
@@ -246,12 +250,12 @@ test("denied canonical acceptance, redirects, invalid response, wrong target or 
         JSON.stringify({
           data: { status: "accepted", role_key: "super_admin" },
           request_id: "request-1",
-          contract_schema_version: "2026-10-05.1",
+          contract_schema_version: "2026-10-05.2",
         }),
         {
           headers: {
             "content-type": "application/json",
-            "x-gridex-project-ref": prod,
+            "x-gridex-project-ref": opsProject,
           },
         },
       ),
@@ -280,7 +284,12 @@ test("denied canonical acceptance, redirects, invalid response, wrong target or 
 });
 test("retry after acceptance failure keeps canonical idempotency stable and creates fresh single-use proofs", async () => {
   const { requests, dependencies } = boundary({
-    dependencies: { fetchImpl: async (...args) => { requests.push(args); return new Response(null, { status: 503 }); } },
+    dependencies: {
+      fetchImpl: async (...args) => {
+        requests.push(args);
+        return new Response(null, { status: 503 });
+      },
+    },
   });
   assert.ok((await submitSupportInvitation(form(), dependencies)).error);
   assert.ok((await submitSupportInvitation(form(), dependencies)).error);
@@ -297,7 +306,13 @@ test("retry after acceptance failure keeps canonical idempotency stable and crea
 });
 
 test("failed first-password completion creates no tenant membership through the onboarding API", async () => {
-  const { requests, dependencies } = boundary({ auth: { updateUser: async () => ({ error: { message: "synthetic rejected password" } }) } });
+  const { requests, dependencies } = boundary({
+    auth: {
+      updateUser: async () => ({
+        error: { message: "synthetic rejected password" },
+      }),
+    },
+  });
   assert.ok((await submitSupportInvitation(form(), dependencies)).error);
   assert.equal(requests.length, 0);
 });

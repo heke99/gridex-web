@@ -5,6 +5,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createStaffApiClient, StaffApiError, type StaffApiClient } from '../../../lib/staff-api/client'
 import { STAFF_SUBJECT_UUID } from '../../../lib/staff-api/config'
+import { resolveStaffIdentity } from '../../../lib/staff-api/identity'
+import type { StaffIdentityBinding } from '../../../lib/staff-api/assertion'
 import { readSupportAuthConfig, SupportAuthError, SUPPORT_AUTH_COOKIE_NAME, type SupportAuthConfig } from './auth-config'
 
 export { SupportAuthError } from './auth-config'
@@ -45,11 +47,15 @@ export async function createSupportAuthClient(dependencies: SupportAuthDependenc
   })
 }
 
-export type SupportSession = { userId: string; email: string | null; api: StaffApiClient }
+export type SupportSession = { userId: string; localAuthUserId: string; email: string | null; api: StaffApiClient }
 type VerifiedAuthUser = { id: string; email?: string; user_metadata?: Record<string, unknown> }
 export type SupportSessionDependencies = {
-  authClient: () => Promise<{ auth: { getUser: () => Promise<{ data: { user: VerifiedAuthUser | null }; error: unknown }> } }>
-  apiClient: (verifiedUserId: string) => StaffApiClient
+  authClient: () => Promise<{ auth: {
+    getUser: () => Promise<{ data: { user: VerifiedAuthUser | null }; error: unknown }>
+    getSession: () => Promise<{ data: { session: { access_token: string } | null }; error: unknown }>
+  } }>
+  resolveIdentity: (localAuthUserId: string, accessToken: string) => Promise<StaffIdentityBinding>
+  apiClient: (centralActorUserId: string, binding: StaffIdentityBinding) => StaffApiClient
   redirect: (path: string) => never
 }
 
@@ -68,11 +74,24 @@ export async function resolveSupportSession(dependencies: SupportSessionDependen
   if (!user || typeof user.id !== 'string' || !STAFF_SUBJECT_UUID.test(user.id)) dependencies.redirect('/login')
   if (user.user_metadata?.must_change_password === true) dependencies.redirect('/login/update-password')
   try {
-    const api = dependencies.apiClient(user.id)
+    // getSession supplies the bearer transport only. Its cookie user is never
+    // used as authority; OPS verifies that bearer at registered tenant Auth.
+    let transport: Awaited<ReturnType<typeof auth.auth.getSession>>
+    try { transport = await auth.auth.getSession() }
+    catch { throw new SupportAuthError('support_auth_unavailable') }
+    if (transport.error) {
+      const error = transport.error as { name?: string; status?: number }
+      if (error.name === 'AuthSessionMissingError' || error.status === 401 || error.status === 403) dependencies.redirect('/login')
+      throw new SupportAuthError('support_auth_unavailable')
+    }
+    if (!transport.data.session?.access_token) dependencies.redirect('/login')
+    const binding = await dependencies.resolveIdentity(user.id, transport.data.session.access_token)
+    if (binding.localAuthSubject !== user.id) throw new StaffApiError(401, 'staff_identity_binding_invalid')
+    const api = dependencies.apiClient(binding.actorUserId, binding)
     // A valid Auth credential alone does not confer company membership, case
     // permissions or staff API scopes. Check the authoritative API each request.
     await api.listCases({ limit: 1 })
-    return { userId: user.id, email: user.email ?? null, api }
+    return { userId: binding.actorUserId, localAuthUserId: user.id, email: user.email ?? null, api }
   } catch (error) {
     if (error instanceof StaffApiError && (error.status === 401 || error.status === 403)) dependencies.redirect('/login?reason=access_denied')
     throw error
@@ -80,5 +99,7 @@ export async function resolveSupportSession(dependencies: SupportSessionDependen
 }
 
 export async function requireSupportSession(): Promise<SupportSession> {
-  return resolveSupportSession({ authClient: createSupportAuthClient, apiClient: createStaffApiClient, redirect })
+  return resolveSupportSession({ authClient: createSupportAuthClient,
+    resolveIdentity: (subject, token) => resolveStaffIdentity(subject, token, `${readSupportAuthConfig().url}/auth/v1`),
+    apiClient: (subject, binding) => createStaffApiClient(subject, { binding }), redirect })
 }

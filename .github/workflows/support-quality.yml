@@ -8,6 +8,8 @@ on:
       - 'tests/*support*'
       - 'tests/staff-api*'
       - 'tests/fixtures/support-runtime.mjs'
+      - 'supabase/migrations/*support_staff*.sql'
+      - 'supabase/migrations/manifest.json'
       - 'package*.json'
       - 'tsconfig.json'
       - 'eslint.config.mjs'
@@ -20,6 +22,8 @@ on:
       - 'tests/*support*'
       - 'tests/staff-api*'
       - 'tests/fixtures/support-runtime.mjs'
+      - 'supabase/migrations/*support_staff*.sql'
+      - 'supabase/migrations/manifest.json'
       - 'package*.json'
       - '.github/workflows/support-quality.yml'
   workflow_dispatch:
@@ -40,6 +44,8 @@ jobs:
       - run: npm ci
       - name: Signed API, Auth and server actions
         run: npm run test:support
+      - name: Tenant migration integrity
+        run: npm run db:migrations:check
       - name: Typecheck
         run: npm run typecheck:support
       - name: Lint

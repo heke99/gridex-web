@@ -26,6 +26,7 @@ const env = {
   GRIDEX_SUPPORT_SUPABASE_ANON_KEY: 'sb_publishable_offline_support_key_123456',
   GRIDEX_STAFF_API_KEY: 'support-test-only-dedicated-key-1234567890',
   GRIDEX_STAFF_COMPANY_ID: FIXTURE_COMPANY,
+  GRIDEX_STAFF_API_PROJECT_REF: 'piidsfebjqjmnepdpnas',
   GRIDEX_STAFF_ASSERTION_ISSUER: 'https://support123.gridex.se',
   GRIDEX_STAFF_ASSERTION_AUDIENCE: 'gridex-staff',
   GRIDEX_STAFF_ASSERTION_KID: 'offline-support-key',

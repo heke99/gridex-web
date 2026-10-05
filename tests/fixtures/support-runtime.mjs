@@ -11,8 +11,12 @@ export const FIXTURE_ATTACHMENT = 'attachment_aaaaaaaaaaaaaaaaaaaaaaaa'
 export const FIXTURE_ADMIN = '11111111-1111-4111-8111-111111111111'
 export const FIXTURE_READER = '22222222-2222-4222-8222-222222222222'
 export const FIXTURE_FOREIGN = '33333333-3333-4333-8333-333333333333'
+export const FIXTURE_LOCAL_ADMIN = '55555555-5555-4555-8555-555555555555'
+export const FIXTURE_LOCAL_READER = '66666666-6666-4666-8666-666666666666'
+export const FIXTURE_LOCAL_FOREIGN = '77777777-7777-4777-8777-777777777777'
 export const FIXTURE_PASSWORD = 'SupportFixture!234'
-const PROJECT_REF = 'ayiuxjlfazkjmmtlvhsl'
+export const FIXTURE_OPS_PROJECT_REF = 'piidsfebjqjmnepdpnas'
+const PROJECT_REF = FIXTURE_OPS_PROJECT_REF
 const AUTH_ORIGIN = 'https://ayiuxjlfazkjmmtlvhsl.supabase.co'
 const STAFF_ORIGIN = 'https://app.gridex.se'
 const schema = JSON.parse(readFileSync(new URL('../../lib/staff-api/contract.json', import.meta.url), 'utf8')).components
@@ -38,6 +42,13 @@ export function createSupportRuntime(settings) {
     [FIXTURE_READER, user(FIXTURE_READER, 'readonly@example.invalid', 'Läsbehörig personal', 'customer_service_viewer')],
     [FIXTURE_FOREIGN, user(FIXTURE_FOREIGN, 'foreign@example.invalid', 'Annan organisation', 'company_admin', '44444444-4444-4444-8444-444444444444')],
   ])
+  const identities = new Map([
+    [FIXTURE_ADMIN, { localAuthSubject: FIXTURE_LOCAL_ADMIN, bindingId: '88888888-8888-4888-8888-888888888888' }],
+    [FIXTURE_READER, { localAuthSubject: FIXTURE_LOCAL_READER, bindingId: '99999999-9999-4999-8999-999999999999' }],
+    [FIXTURE_FOREIGN, { localAuthSubject: FIXTURE_LOCAL_FOREIGN, bindingId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }],
+  ])
+  for (const [id, identity] of identities) users.get(id).authId = identity.localAuthSubject
+  const binding = actorUserId => ({ actorUserId, ...identities.get(actorUserId), bindingVersion: 1, localAuthIssuer: `${AUTH_ORIGIN}/auth/v1` })
   const embedded = () => ({ limit: 100, returned: 0, has_more: false })
   const customer = { customer_reference: FIXTURE_CUSTOMER, customer_number: 'TEST-1001', customer_type: 'private', status: 'active', display_name: 'Anna Testkund', first_name: 'Anna', last_name: 'Testkund', company_name: null, email: 'anna@example.invalid', phone: '+46 70 111 22 33', personal_number_masked: '1980••••-••••', org_number_masked: null, created_at: now(), invoice_email: 'anna@example.invalid', preferred_language: 'sv', apartment_number: null, updated_at: now(), contacts: [], addresses: [], sites: [], contacts_page: embedded(), addresses_page: embedded(), sites_page: embedded() }
   const supportCase = { case_reference: FIXTURE_CASE, customer_reference: FIXTURE_CUSTOMER, title: 'Inkommande kundärende', description: 'Kunden behöver hjälp med sin faktura.', status: 'open', priority: 'normal', category: 'faktura', assignee_user_id: null, channel: 'customer_portal', created_at: now(), updated_at: now(), resolved_at: null, closed_at: null }
@@ -46,9 +57,9 @@ export function createSupportRuntime(settings) {
   const bytes = Buffer.from('%PDF-1.7\nOffline support fixture\n%%EOF')
   const attachment = { attachment_reference: FIXTURE_ATTACHMENT, file_name: 'syntetisk-bilaga.pdf', mime_type: 'application/pdf', byte_size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), uploaded_by: 'customer', created_at: now(), visibility: 'customer', scan_status: 'released', scan_reason: null }
   const traffic = []; const assertions = new Set(); const tokens = new Map(); const refresh = new Map(); const idempotent = new Map()
-  const authUser = u => ({ id: u.id, email: u.email, aud: 'authenticated', role: 'authenticated', user_metadata: clone(u.user_metadata), app_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' })
+  const authUser = u => ({ id: u.authId, email: u.email, email_confirmed_at: '2026-10-05T09:00:00Z', aud: 'authenticated', role: 'authenticated', user_metadata: clone(u.user_metadata), app_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' })
   function authSession(u) {
-    const access = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: u.id, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.${Buffer.from(randomUUID()).toString('base64url')}`
+    const access = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: u.authId, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.${Buffer.from(randomUUID()).toString('base64url')}`
     const refreshToken = `offline-refresh-${randomUUID()}`; tokens.set(access, u.id); refresh.set(refreshToken, u.id)
     return { access_token: access, refresh_token: refreshToken, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: authUser(u) }
   }
@@ -91,7 +102,8 @@ export function createSupportRuntime(settings) {
       if (url.pathname === '/auth/v1/user' && method === 'PUT') { if (body.password) u.password = body.password; if (body.data) u.user_metadata = { ...u.user_metadata, ...body.data }; return json(authUser(u), 200, true) }
       return json({ msg: 'Unsupported offline Auth route' }, 404, true)
     }
-    if (url.origin !== STAFF_ORIGIN || !url.pathname.startsWith('/api/v1/staff/')) throw new Error('Offline support fixture blocked unexpected outbound request')
+    const identityResolution = url.pathname === '/api/v1/staff-onboarding/identity/resolve'
+    if (url.origin !== STAFF_ORIGIN || (!url.pathname.startsWith('/api/v1/staff/') && !identityResolution)) throw new Error('Offline support fixture blocked unexpected outbound request')
     if (headers.get('x-gridex-expected-project-ref') !== PROJECT_REF) return failure(412, 'staff_storage_target_mismatch')
     if (headers.get('authorization') !== `Bearer ${settings.apiKey}`) return failure(401, 'api_key_invalid')
     let claims; let actor
@@ -103,8 +115,23 @@ export function createSupportRuntime(settings) {
       if (claims.iss !== settings.issuer || claims.aud !== settings.audience || !Number.isInteger(claims.iat) || !Number.isInteger(claims.exp) || claims.exp - claims.iat !== 60 || claims.iat > seconds + 60 || claims.exp < seconds - 60 || typeof claims.jti !== 'string' || assertions.has(claims.jti)) return failure(401, 'staff_assertion_invalid')
       assertions.add(claims.jti)
       if (claims.company_id !== FIXTURE_COMPANY) return failure(403, 'staff_company_mismatch')
+      if (identityResolution) {
+        const currentActor = users.get(tokens.get(headers.get('x-gridex-support-auth-token')))
+        traffic.push({ boundary: 'identity', method, path: url.pathname, localSubject: claims.sub })
+        if (method !== 'POST' || String(init.body) !== '{}') return failure(422, 'invalid_request')
+        if (claims.token_use !== 'staff_identity_resolution' || !currentActor || identities.get(currentActor.id)?.localAuthSubject !== claims.sub) return failure(401, 'staff_assertion_invalid')
+        if (currentActor.company !== FIXTURE_COMPANY || currentActor.status !== 'active' || !identities.has(currentActor.id)) return failure(403, 'staff_membership_inactive')
+        const resolved = binding(currentActor.id)
+        const requestId = randomUUID()
+        return json({ data: { actor_user_id: resolved.actorUserId, binding_id: resolved.bindingId, binding_version: resolved.bindingVersion },
+          request_id: requestId, contract_schema_version: '2026-10-05.2' }, 200, true)
+      }
       actor = users.get(claims.sub)
       if (!actor || actor.company !== FIXTURE_COMPANY || actor.status !== 'active') return failure(403, 'staff_membership_inactive')
+      const currentBinding = binding(actor.id)
+      if (claims.token_use !== 'staff_access' || claims.staff_binding_id !== currentBinding.bindingId
+        || claims.staff_binding_version !== currentBinding.bindingVersion || claims.local_auth_subject !== currentBinding.localAuthSubject
+        || claims.local_auth_issuer !== currentBinding.localAuthIssuer || !identities.has(actor.id)) return failure(403, 'staff_identity_binding_invalid')
     } catch { return failure(401, 'staff_assertion_invalid') }
     let payload = {}; try { payload = init.body ? JSON.parse(String(init.body)) : {} } catch { return failure(422, 'invalid_request') }
     const path = url.pathname.slice('/api/v1/staff'.length)
@@ -183,7 +210,8 @@ export function createSupportRuntime(settings) {
     }
     return failure(404, 'offline_route_not_found')
   }
-  return { fetch: fetchBoundary, state: { traffic, users, cases, events, customer, assertions }, authSession: id => authSession(users.get(id)) }
+  return { fetch: fetchBoundary, state: { traffic, users, cases, events, customer, assertions, identities }, binding,
+    authSession: id => authSession(users.get(id)) }
 }
 
 if (process.env.SUPPORT_TEST_MODE === '1') {

@@ -1,0 +1,100 @@
+{
+  "status": "LOCAL_CORRECTED_SOURCE_PASS_REMOTE_CI_PENDING",
+  "recorded_at_utc": "2026-10-05T13:24:43.547217+00:00",
+  "base_head": "54b406d82ddb7a26a3bdc510a7fd4b460c4a0cfe",
+  "architecture": {
+    "tenant_auth_project": "ayiuxjlfazkjmmtlvhsl",
+    "central_api_project": "separately configured GRIDEX_STAFF_API_PROJECT_REF",
+    "tenant_is_ordinary_ops_company": true,
+    "identity": "explicit registered issuer/localUUID binding to distinct central actor; no email/equality shortcut",
+    "no_hosted_writes": true
+  },
+  "source_sha256": {
+    "lib/staff-api/config.ts": "e34354ac898c21372322a518bbfc341946129f2e08a548db8e1f41a2a3cc44ac",
+    "lib/staff-api/assertion.ts": "6af791ff3236970480b9a1d9abc5a70d6bf1af6aee01a3e71ad410a16fa491af",
+    "lib/staff-api/client.ts": "bc83c2ebe5ce21ada20366e9182acda68c30596933456c90d0d42ea6f3d3518a",
+    "lib/staff-api/identity.ts": "0bc3cfdc6510a349a16a053f879f65aa47327bde0ecfd8ba46d9360a48e1330f",
+    "apps/support/lib/session.ts": "d8c394a1e6f509684d3dc331d1079a2e909edaa0b5e7f510f9ecd3fdf186ca6d",
+    "apps/support/lib/invitation.ts": "6e644b18209ec60273a4bb664b075b916fe0234ac2ce8ef78407d1af4bd87ee8",
+    "apps/support/lib/tenant-delivery.ts": "141f34fcbab98a7f4c25d74b4645b09568de879e7650e79d9e489d05c6cbe95a",
+    "apps/support/app/api/internal/staff/invitations/deliver/route.ts": "2063362098a1beb40544700a24774944f2d663848efef8d34721954cab0b1b3c",
+    "supabase/migrations/20261005125326_support_staff_invitation_delivery_private.sql": "9fbe18d55d2a42b06d437d9038935e76668336ce160ad12ba192bd8ae12d9224",
+    "tests/staff-api-client.test.mjs": "e7cad3c13ca56482901fc5d7914d6239df8b96f2c7a6b276c31816a6cdd8b3c0",
+    "tests/support-auth-session.test.mjs": "f429575b926c07236a913cd3d104a9d092ecaff3a80ae33fee265ac11da22f98",
+    "tests/support-actions.test.mjs": "008b7e8b184274b59780651eb199fdad71433da782df6ee5c590c92a248310b0",
+    "tests/support-onboarding.test.mjs": "c28064107807c6a318680e30d3b9a31bbb46eedbefe1dd3ee7b5a38c08a5abfe",
+    "tests/support-tenant-delivery.test.mjs": "9816d362bdb8c0ac88b0f8f207333e5142a2359416d9df1dc5119ae88454800e",
+    "tests/support-tenant-delivery-sql.test.mjs": "a63968b60a6aac2d4181c5c0783eb81fdfd743d928182fe83eca5f6e01a5d3fb",
+    "tests/fixtures/support-runtime.mjs": "98571111e2536233a83b91ef73155638f12fb77a0aa708f56bb3b529a24a617e",
+    "tests/run-support-browser.mjs": "d17a0a289a69afed02f176d5a2a13af3ace730ea4b58bdcde90ca8dfda13fa03",
+    "tests/support-browser.mjs": "514d28cd1f48c829eeface8b9d5a8322039245675c0e150f706534a378ffe34f",
+    ".github/workflows/support-quality.yml": "6f2662146eff60eb5e653ff7fbd5c7b2cda557b65dd3bf94fe655dc42afc3d39",
+    "package.json": "ebe3aac16db8458e8ed6004c455cf296881906fd0102a3165bca1e9e514fd00b",
+    "package-lock.json": "a53d09f701c2ceb1302b61837cd04d318cdfccc4cd6726d7e8374a1b45edb6e4"
+  },
+  "log_sha256": {
+    "corrected-support-tests.log": "9c374a260f25ee24ccac2e7f2f32f32f20bb0aa941caafaab9709bd3d6a600c2",
+    "corrected-support-types.log": "deb0560c1df69e18f0004e9fe97885eee0060856f76c4a20edcba1f3bf8e0e3d",
+    "corrected-support-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "corrected-marketing-tests.log": "846c222053cb3fe611b29f578f8384434ef37d223ac0b57e88ca1d574d43bf26",
+    "corrected-marketing-types.log": "b29ace825c520c116d060f0c5154f73d440ae481cbe663017a9eede82017410b",
+    "browser-verification.json": "b3011b5517aa94b536bfc547d1d4256773b3c2c14f597531ee92d02ff2e68b21",
+    "corrected-support-browser.log": "6b16357babeca7d342d373083304e51b14147774590b8d517a190c8819eaed93"
+  },
+  "checks": {
+    "support_tests": {
+      "pass": 75,
+      "fail": 0,
+      "skip": 0,
+      "suites": {
+        "client": 25,
+        "session": 12,
+        "actions": 21,
+        "onboarding": 8,
+        "signed_bridge": 8,
+        "actual_tenant_sql": 1
+      }
+    },
+    "support_types": "PASS",
+    "support_lint": "PASS_0_WARNINGS",
+    "website_types": "PASS",
+    "complete_website_launch_tests": "PASS",
+    "support_production_build": {
+      "status": "PASS",
+      "dynamic_routes": 12,
+      "evidence": "toolprocess54397 compiled/typechecked/completed exit0 without credentials"
+    },
+    "browser": {
+      "status": "PASS",
+      "checks": 17,
+      "errors": 0,
+      "report": "browser-verification.json",
+      "scope": "Fresh local synthetic Auth/RSA/identity-boundary browser flow; no hosted acceptance."
+    },
+    "tenant_migration_integrity": "PASS39FILES_38PRIORHASHES_UNCHANGED"
+  },
+  "not_qualified": [
+    "RemoteCI of new source",
+    "Corrected OPS native clean/upgrade replay/schema capture",
+    "Hosted tenant enrollment/callback/email/domain"
+  ],
+  "independent_review": {
+    "support-split-identity-client-independent-review-20261005.json": "fc32a8580118c621d150818eefce84ea05910273915c043b86565f31e61ad7bc",
+    "support-split-delivery-native-independent-review-20261005.json": "3f363a1d98d5f3cb1ef53572f02700fcdbbc5b8a86c6232be5225aa8618c5ac9"
+  },
+  "log_storage": {
+    "trailing_blank_lines_removed_only": {
+      "corrected-marketing-types.log": "17f23df1437977f0feee0f8164941f0303de00f550e47817204e90f94581c8cd",
+      "corrected-support-types.log": "dbb11183b31d3f2cfad6381a5279ff83eb823794ad2c29ea9c54ddecda24a03e"
+    },
+    "other_logs": "unchanged raw bytes"
+  },
+  "synthetic_fixture_only_source_delta": {
+    "receipt": "tenant-independent-bridge-synthetic-fixture-supplement.json",
+    "sha256": "cf47624ba65cbc20f9b692f8b78b665096285a65704c337f6ad2d12e1d22e462",
+    "focused_tests": "8 PASS",
+    "lint": "PASS0warnings",
+    "production_source": "unchanged",
+    "prior75test_run": "preserved; focused8 repeated after fixture-only change"
+  }
+}

@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateKeyPairSync } from 'node:crypto'
-import { createSupportRuntime, FIXTURE_ADMIN, FIXTURE_READER, FIXTURE_FOREIGN, FIXTURE_COMPANY, FIXTURE_CASE, FIXTURE_CUSTOMER, FIXTURE_ATTACHMENT, FIXTURE_PASSWORD } from './fixtures/support-runtime.mjs'
+import { createSupportRuntime, FIXTURE_ADMIN, FIXTURE_READER, FIXTURE_FOREIGN, FIXTURE_COMPANY, FIXTURE_CASE, FIXTURE_CUSTOMER, FIXTURE_ATTACHMENT, FIXTURE_PASSWORD, FIXTURE_OPS_PROJECT_REF, FIXTURE_LOCAL_ADMIN } from './fixtures/support-runtime.mjs'
 import { createStaffApiClient, StaffApiError } from '../lib/staff-api/client.ts'
-import { signStaffAssertion } from '../lib/staff-api/assertion.ts'
+import { signStaffAssertion, signLocalStaffAssertion } from '../lib/staff-api/assertion.ts'
 import { createSupportAuthClient, requireSupportSession } from '../apps/support/lib/session.ts'
 import { createCase, caseCommand, customerContact, inviteUser, userCommand } from '../apps/support/app/actions.ts'
 import { signIn, signOut, updatePassword } from '../apps/support/app/login/actions.ts'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
-const config = { apiKey: 'support-test-dedicated-key-1234567890', companyId: FIXTURE_COMPANY, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'offline-support-key', privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(), timeoutMs: 1000 }
+const config = { opsProjectRef: FIXTURE_OPS_PROJECT_REF, apiKey: 'support-test-dedicated-key-1234567890', companyId: FIXTURE_COMPANY, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'offline-support-key', privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(), timeoutMs: 1000 }
 const authUrl = 'https://ayiuxjlfazkjmmtlvhsl.supabase.co'
-const environment = { GRIDEX_SUPPORT_SUPABASE_URL: authUrl, GRIDEX_SUPPORT_SUPABASE_ANON_KEY: 'sb_publishable_offline_support_key_123456', GRIDEX_STAFF_API_KEY: config.apiKey, GRIDEX_STAFF_COMPANY_ID: config.companyId, GRIDEX_STAFF_ASSERTION_ISSUER: config.issuer, GRIDEX_STAFF_ASSERTION_AUDIENCE: config.audience, GRIDEX_STAFF_ASSERTION_KID: config.keyId, GRIDEX_STAFF_ASSERTION_PRIVATE_KEY: config.privateKey }
+const environment = { GRIDEX_SUPPORT_SUPABASE_URL: authUrl, GRIDEX_SUPPORT_SUPABASE_ANON_KEY: 'sb_publishable_offline_support_key_123456', GRIDEX_STAFF_API_PROJECT_REF: config.opsProjectRef, GRIDEX_STAFF_API_KEY: config.apiKey, GRIDEX_STAFF_COMPANY_ID: config.companyId, GRIDEX_STAFF_ASSERTION_ISSUER: config.issuer, GRIDEX_STAFF_ASSERTION_AUDIENCE: config.audience, GRIDEX_STAFF_ASSERTION_KID: config.keyId, GRIDEX_STAFF_ASSERTION_PRIVATE_KEY: config.privateKey }
 function form(values) { const result = new FormData(); for (const [key, value] of Object.entries(values)) result.set(key, String(value)); return result }
 function setup(t, actor = FIXTURE_ADMIN) {
   const runtime = createSupportRuntime({ ...config, publicKey: publicKey.export({ type: 'spki', format: 'pem' }).toString() })
@@ -26,7 +26,7 @@ function setup(t, actor = FIXTURE_ADMIN) {
   globalThis.__supportTestCookies = { getAll: () => [...cookieMap].map(([name, value]) => ({ name, value })), set: (name, value, options) => { writes.push({ name, options }); if (value) cookieMap.set(name, value); else cookieMap.delete(name) } }
   globalThis.__supportTestRevalidations = []
   t.after(() => { globalThis.fetch = oldFetch; for (const [key, value] of Object.entries(oldEnv)) { if (value === undefined) delete process.env[key]; else process.env[key] = value } delete globalThis.__supportTestCookies; delete globalThis.__supportTestRevalidations })
-  const api = createStaffApiClient(actor ?? FIXTURE_ADMIN)
+  const api = createStaffApiClient(actor ?? FIXTURE_ADMIN, { binding: runtime.binding(actor ?? FIXTURE_ADMIN) })
   return { ...runtime, api, cookieMap, writes, setSession }
 }
 const staff = runtime => runtime.state.traffic.filter(call => call.boundary === 'staff')
@@ -50,22 +50,22 @@ test('offline fixture serves all actual read DTOs, history cursor continuation a
 
 test('offline fixture rejects wrong RSA, assertion replay, actor/company/key injection and outbound hosts', async t => {
   const runtime = setup(t)
-  const invoke = (proof, apiKey = config.apiKey) => runtime.fetch('https://app.gridex.se/api/v1/staff/cases?limit=1', { headers: { authorization: `Bearer ${apiKey}`, 'x-gridex-expected-project-ref': 'ayiuxjlfazkjmmtlvhsl', 'x-gridex-staff-assertion': proof } })
-  const proof = signStaffAssertion(config, FIXTURE_ADMIN)
+  const invoke = (proof, apiKey = config.apiKey) => runtime.fetch('https://app.gridex.se/api/v1/staff/cases?limit=1', { headers: { authorization: `Bearer ${apiKey}`, 'x-gridex-expected-project-ref': FIXTURE_OPS_PROJECT_REF, 'x-gridex-staff-assertion': proof } })
+  const proof = signStaffAssertion(config, FIXTURE_ADMIN, new Date(), runtime.binding(FIXTURE_ADMIN))
   assert.equal((await invoke(proof)).status, 200); assert.equal((await invoke(proof)).status, 401)
-  assert.equal((await invoke(signStaffAssertion(config, FIXTURE_ADMIN), 'website-api-key')).status, 401)
-  assert.equal((await invoke(signStaffAssertion({ ...config, companyId: '44444444-4444-4444-8444-444444444444' }, FIXTURE_ADMIN))).status, 403)
-  assert.equal((await invoke(signStaffAssertion(config, FIXTURE_FOREIGN))).status, 403)
+  assert.equal((await invoke(signStaffAssertion(config, FIXTURE_ADMIN, new Date(), runtime.binding(FIXTURE_ADMIN)), 'website-api-key')).status, 401)
+  assert.equal((await invoke(signStaffAssertion({ ...config, companyId: '44444444-4444-4444-8444-444444444444' }, FIXTURE_ADMIN, new Date(), runtime.binding(FIXTURE_ADMIN)))).status, 403)
+  assert.equal((await invoke(signStaffAssertion(config, FIXTURE_FOREIGN, new Date(), runtime.binding(FIXTURE_FOREIGN)))).status, 403)
   const otherKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
-  assert.equal((await invoke(signStaffAssertion({ ...config, privateKey: otherKey }, FIXTURE_ADMIN))).status, 401)
+  assert.equal((await invoke(signStaffAssertion({ ...config, privateKey: otherKey }, FIXTURE_ADMIN, new Date(), runtime.binding(FIXTURE_ADMIN)))).status, 401)
   await assert.rejects(() => runtime.fetch('https://unexpected.example.invalid/'), /blocked unexpected outbound/)
   assert.equal(commands(runtime).length, 0)
 })
 
 test('offline boundary refuses wrong storage target before assertion consumption or fixture mutation', async t => {
   const runtime = setup(t); const before = JSON.stringify(runtime.state.customer)
-  for (const target of [null, 'piidsfebjqjmnepdpnas']) {
-    const headers = new Headers({ authorization: `Bearer ${config.apiKey}`, 'x-gridex-staff-assertion': signStaffAssertion(config, FIXTURE_ADMIN), 'idempotency-key': 'wrong-storage-key' })
+  for (const target of [null, 'ayiuxjlfazkjmmtlvhsl']) {
+    const headers = new Headers({ authorization: `Bearer ${config.apiKey}`, 'x-gridex-staff-assertion': signStaffAssertion(config, FIXTURE_ADMIN, new Date(), runtime.binding(FIXTURE_ADMIN)), 'idempotency-key': 'wrong-storage-key' })
     if (target) headers.set('x-gridex-expected-project-ref', target)
     const result = await runtime.fetch(`https://app.gridex.se/api/v1/staff/customers/${FIXTURE_CUSTOMER}/contact`, { method: 'PATCH', headers, body: JSON.stringify({ expectedUpdatedAt: runtime.state.customer.updated_at, phone: 'changed' }) })
     assert.equal(result.status, 412); assert.equal((await result.json()).error.code, 'staff_storage_target_mismatch')
@@ -75,7 +75,7 @@ test('offline boundary refuses wrong storage target before assertion consumption
 
 test('actual action authorization probe blocks missing/wrong response attestation before any write', async t => {
   const runtime = setup(t)
-  for (const target of [null, 'piidsfebjqjmnepdpnas']) {
+  for (const target of [null, 'ayiuxjlfazkjmmtlvhsl']) {
     const requests = []
     globalThis.fetch = async (input, init) => {
       if (String(input).startsWith(authUrl)) return runtime.fetch(input, init)
@@ -86,7 +86,7 @@ test('actual action authorization probe blocks missing/wrong response attestatio
       return response
     }
     await assert.rejects(() => caseCommand(FIXTURE_CASE, 'reply', {}, form({ message: 'Wrong target', idempotency_key: 'storage-probe-key' })), error => error instanceof StaffApiError && error.status === 503 && error.code === 'staff_storage_target_unverified')
-    assert.deepEqual(requests, ['GET'])
+    assert.deepEqual(requests, ['POST'])
   }
   assert.equal(commands(runtime).length, 0); assert.deepEqual(globalThis.__supportTestRevalidations, [])
 })
@@ -94,8 +94,8 @@ test('actual action authorization probe blocks missing/wrong response attestatio
 test('installed Auth SDK logs in and verifies synthetic user over gridex-prod boundary with isolated cookies', async t => {
   const runtime = setup(t, null)
   const auth = await createSupportAuthClient()
-  const result = await auth.auth.signInWithPassword({ email: 'support@example.invalid', password: FIXTURE_PASSWORD })
-  assert.equal(result.error, null); assert.equal(result.data.user.id, FIXTURE_ADMIN)
+  const result = await auth.auth.signInWithPassword({ email: 'support@example.invalid', password: FIXTURE_PASSWORD, FIXTURE_OPS_PROJECT_REF, FIXTURE_LOCAL_ADMIN })
+  assert.equal(result.error, null); assert.equal(result.data.user.id, FIXTURE_LOCAL_ADMIN)
   assert.equal((await requireSupportSession()).userId, FIXTURE_ADMIN)
   assert.ok(runtime.state.traffic.some(c => c.boundary === 'auth' && c.path === '/auth/v1/token'))
   assert.ok(runtime.state.traffic.some(c => c.boundary === 'auth' && c.path === '/auth/v1/user'))
@@ -109,17 +109,17 @@ test('actual login action verifies issued session before API admission and wrong
   assert.ok(invalid.error); assert.equal(staff(runtime).length, 0); assert.equal(runtime.cookieMap.size, 0)
   runtime.state.traffic.length = 0
   await assert.rejects(() => signIn({}, form({ email: 'SUPPORT@example.invalid', password: FIXTURE_PASSWORD, user_id: FIXTURE_FOREIGN, company_id: 'foreign' })), redirect('/'))
-  assert.deepEqual(runtime.state.traffic.map(c => [c.boundary, c.method, c.path]), [['auth', 'POST', '/auth/v1/token'], ['auth', 'GET', '/auth/v1/user'], ['staff', 'GET', '/cases']])
+  assert.deepEqual(runtime.state.traffic.map(c => [c.boundary, c.method, c.path]), [['auth', 'POST', '/auth/v1/token'], ['auth', 'GET', '/auth/v1/user'], ['identity', 'POST', '/api/v1/staff-onboarding/identity/resolve'], ['staff', 'GET', '/cases']])
   assert.equal(staff(runtime)[0].actor, FIXTURE_ADMIN); assert.equal(staff(runtime)[0].company, FIXTURE_COMPANY)
 })
 
 test('actual login does not admit authenticated other-company users or temporary-password credentials', async t => {
   const runtime = setup(t, null)
-  await assert.rejects(() => signIn({}, form({ email: 'foreign@example.invalid', password: FIXTURE_PASSWORD })), redirect('/login?reason=access_denied'))
+  await assert.rejects(() => signIn({}, form({ email: 'foreign@example.invalid', password: FIXTURE_PASSWORD, FIXTURE_OPS_PROJECT_REF, FIXTURE_LOCAL_ADMIN })), redirect('/login?reason=access_denied'))
   assert.equal(commands(runtime).length, 0)
   runtime.cookieMap.clear(); runtime.state.traffic.length = 0
   runtime.state.users.get(FIXTURE_ADMIN).user_metadata.must_change_password = true
-  await assert.rejects(() => signIn({}, form({ email: 'support@example.invalid', password: FIXTURE_PASSWORD })), redirect('/login/update-password'))
+  await assert.rejects(() => signIn({}, form({ email: 'support@example.invalid', password: FIXTURE_PASSWORD, FIXTURE_OPS_PROJECT_REF, FIXTURE_LOCAL_ADMIN })), redirect('/login/update-password'))
   assert.equal(staff(runtime).length, 0)
   await assert.rejects(() => caseCommand(FIXTURE_CASE, 'reply', {}, form({ message: 'Temporary credential', idempotency_key: 'temporary-key' })), redirect('/login/update-password'))
   assert.equal(commands(runtime).length, 0)
@@ -147,9 +147,50 @@ test('actual reply action re-verifies Auth and cannot take actor/company/permiss
     assert.ok(result.success)
   }
   assert.equal(runtime.state.traffic.filter(c => c.boundary === 'auth' && c.path === '/auth/v1/user').length, 2)
-  assert.equal(staff(runtime).length, 4); assert.equal(runtime.state.assertions.size, 4)
+  assert.equal(staff(runtime).length, 4); assert.equal(runtime.state.assertions.size, 6)
   assert.deepEqual(commands(runtime).map(c => ({ actor: c.actor, company: c.company, key: c.idempotencyKey, payload: c.payload })), ['reply-once-1', 'reply-once-2'].map(key => ({ actor: FIXTURE_ADMIN, company: FIXTURE_COMPANY, key, payload: { message: 'Svar till kunden' } })))
   assert.equal(runtime.state.events.get(FIXTURE_CASE).at(-1).author_user_id, FIXTURE_ADMIN)
+})
+
+test('actual action denies removed external binding despite valid own Auth, same email and forged actor metadata', async t => {
+  const runtime = setup(t)
+  runtime.state.users.get(FIXTURE_ADMIN).user_metadata = { actor_user_id: FIXTURE_ADMIN, company_id: FIXTURE_COMPANY, role_key: 'company_admin' }
+  runtime.state.identities.delete(FIXTURE_ADMIN)
+  await assert.rejects(() => caseCommand(FIXTURE_CASE, 'reply', {}, form({ message: 'Must not write', idempotency_key: 'unbound-key' })), redirect('/login?reason=access_denied'))
+  assert.equal(commands(runtime).length, 0); assert.equal(staff(runtime).length, 0)
+})
+
+test('a previously resolved Staff client cannot use a revoked binding or exchange a local proof for normal Staff access', async t => {
+  const runtime = setup(t)
+  const api = (await requireSupportSession()).api
+  runtime.state.identities.delete(FIXTURE_ADMIN)
+  await assert.rejects(() => api.reply(FIXTURE_CASE, { message: 'Must not write' }, 'revoked-key'), error => error.status === 403)
+  assert.equal(commands(runtime).length, 0)
+  const localProof = signStaffAssertion(config, FIXTURE_LOCAL_ADMIN)
+  const response = await runtime.fetch('https://app.gridex.se/api/v1/staff/cases', { headers: {
+    authorization: `Bearer ${config.apiKey}`, 'x-gridex-expected-project-ref': config.opsProjectRef, 'x-gridex-staff-assertion': localProof,
+  } })
+  assert.equal(response.status, 403)
+})
+
+test('valid RSA purpose exchange and wrong binding claims are refused before a fixture write effect', async t => {
+  const runtime = setup(t)
+  const original = JSON.stringify(runtime.state.events.get(FIXTURE_CASE))
+  const invoke = proof => runtime.fetch(`https://app.gridex.se/api/v1/staff/cases/${FIXTURE_CASE}/messages`, { method: 'POST', headers: {
+    authorization: `Bearer ${config.apiKey}`, 'x-gridex-expected-project-ref': config.opsProjectRef,
+    'x-gridex-staff-assertion': proof, 'idempotency-key': 'binding-negative-key',
+  }, body: JSON.stringify({ message: 'Must not write' }) })
+  for (const purpose of ['staff_identity_resolution', 'staff_invitation_acceptance']) {
+    // Even a colliding UUID cannot exchange an identity-only proof for access.
+    assert.equal((await invoke(signLocalStaffAssertion(config, FIXTURE_ADMIN, purpose))).status, 403)
+  }
+  const binding = runtime.binding(FIXTURE_ADMIN)
+  for (const wrong of [{ ...binding, bindingId: runtime.binding(FIXTURE_READER).bindingId }, { ...binding, bindingVersion: 2 },
+    { ...binding, localAuthSubject: runtime.binding(FIXTURE_READER).localAuthSubject },
+    { ...binding, localAuthIssuer: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co/auth/v1' }]) {
+    assert.equal((await invoke(signStaffAssertion(config, FIXTURE_ADMIN, new Date(), wrong))).status, 403)
+  }
+  assert.equal(commands(runtime).length, 0); assert.equal(JSON.stringify(runtime.state.events.get(FIXTURE_CASE)), original)
 })
 
 test('actual commands preserve documented note/phone/status/assignee payloads and caller idempotency exactly once', async t => {
