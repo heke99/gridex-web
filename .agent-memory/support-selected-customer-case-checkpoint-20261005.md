@@ -68,3 +68,18 @@ At the first review freeze, this lane had performed no local commit, push, PR, r
 2026-10-05 18:04 UTC: local source commit 5c27635ec097452527baf79a595b6a7baf3519f7 contains exactly the four claimed paths. Normal --no-ff merge c3f14282d58ae49247357d3b374bb9c9ee27d7a7 incorporates current main 1dfcc2a8b86e87207f58c34187d6eec2a724e1c3 and preserves both histories. The merge was conflict-free and imported only the existing root deployment-hold document plus vercel.json; no application/test source changed.
 
 Post-merge actual page/action suite: 28/28 PASS, zero failures. Comparison against exact current main: only the four claimed paths differ. Original three reviewed source hashes match unchanged. Main deployment-hold configuration, package and lock are byte-identical to main; both main and the local source commit are verified ancestors. Integrated diff whitespace passes and the worktree is clean before this authorized chronology update. Root owns push/PR, fresh integrated-head CI/build/browser qualification and eventual merge; this lane performed no external write or hosted action.
+
+## PR48 and PR46 common baseline chronology
+
+2026-10-05 18:18 UTC: root reported PR48 published at cfc5432461e0c871ac0e848d7d0418ddb1d860da with all three CI checks SUCCESS, and PR46 merged into actual Web main b5e37f3ed51f79766def6683c9389c405a3a3e7f. Those prior PR48 CI receipts remain historical; they do not qualify the new combined head. Root authorized a normal merge of exact b5 into this same own published branch, with no push, force or rebase.
+
+Normal merge 5dbb6c904df36ddae603b35ad90ca2dd178f53db was conflict-free and preserves both the published PR48 ancestry and actual b5 main. The package/lock remain byte-identical to b5, both support and portal-existing-auth test registrations are present, test:launch includes the 32-case onboarding suite, and the exact main deploymentEnabled.main=false configuration is preserved. All six PR46 source/test blobs were compared to exact b5 and remain byte-identical:
+
+- onboarding.ts: b90a43bc2483e973708563d11776c1deef49182e
+- onboardingResume.ts: d90392a00c9cc764ebca4f332401a61d0440cbe1
+- portalClaim.ts: 67188c58bf5b2f0b86ed57c04b741bd8446464ad
+- stableIdentity.ts: 4cbf187fe2c72dd4d4daa0ca9416a89103c4549a
+- auth-onboarding-hardening.test.mjs: ca7e7fb194d25fef664e614f1d9d090ea11ddb24
+- portal-existing-auth-onboarding-runtime.test.mjs: 00a6773a6cbd873a9d14d7e450e8d77bbf21ef3b
+
+Fresh combined-source local checks: ordinary npm test PASS, including 32 onboarding tests/32 PASS/zero failures; npm run test:support PASS with 128/128 across nine suites; website and support typechecks PASS. Exact delta relative to b5 remains only this checkpoint and the three approved source/test paths; integrated whitespace check passes. This final chronology is committed locally. Root alone will publish the new head and require fresh OpenAPI, website and support CI/build/browser results; no earlier CI success is promoted to this combined head. No external or hosted action occurred in this lane.
