@@ -1,0 +1,45 @@
+{
+  "status": "LOCAL_FINAL_FIDELITY_PASS_REMOTE_FINALHEAD_CI_PENDING",
+  "created_at_utc": "2026-10-05T14:59:43.399809+00:00",
+  "base_head": "426da64d86562620061b2876fcaebad8806b40f2",
+  "source_sha256": {
+    "tests/fixtures/support-runtime.mjs": "03da85a071372e7667700d981eb0ef4822fcffce04ad9b008f6872ffc1f217e9",
+    "tests/customer-support-handoff.test.mjs": "0e79c2a19df16c8ff5115cda2f7168b831c3a54fa2e22c9ac627b50cc52e94a4"
+  },
+  "production_app_and_library_bytes_unchanged_from_all3_green_426da_head": true,
+  "checks": {
+    "support_tests": {
+      "pass": 121,
+      "fail": 0
+    },
+    "real_joined_dashboard_customer_staff_flows": 9,
+    "browser_offline": {
+      "pass": 23,
+      "errors": 0
+    },
+    "build_types_launch_api_and_migration_proof": "previous qualified426da sources unchanged; final exact-head CI still required"
+  },
+  "receipt_sha256": {
+    "customer-support-final-fidelity-qualification.json": "6ea83b743798f322e8ce24b23690d4a10aedc1241cda0f732790c08a4f86ec09",
+    "support-customer-channel-final-independent-review-20261005.json": "d35c4ff7818f067c470d8f3e23ab325a49364e90dba289f94340de65f4be794f"
+  },
+  "uncompressed_log_sha256": {
+    "customer-handoff-final-fidelity-support-tests.log": "ee46b94baa090f769a22bee75a7c8d8849bc11c9597bfb5e9d942d664c98af72",
+    "customer-handoff-final-fidelity-browser.log": "6c3dcee164d1ef2fe0195ac8e4050679deeb800d3e0e5b347dae30892c371b12"
+  },
+  "companion_ops_public_channel_source_sha256": "4427ffb56087b2b8a4e451f1b3a1509f8ba0906a64d09e461b89ea5965838fb8",
+  "corrections": [
+    "Customer canonical actor NULL with local account verified via boundary traffic",
+    "Actual support_customer_message event, Staff customer-kind NULL, Customer public-kind message",
+    "Exact support_message/support_case opaque references",
+    "Allowlisted event type AND customer visibility",
+    "Explicit selected customer ownership for staff-created cases and private descriptions hidden"
+  ],
+  "hosted_writes": 0,
+  "limits": [
+    "Offline backend is a model; actual OPS public channel separately source-tested67cases",
+    "No automatic customer matching or Staff impersonation",
+    "Customer assertion enforce integration and real tenant enrollment remain activation prerequisites",
+    "Historical evidence retained unchanged"
+  ]
+}

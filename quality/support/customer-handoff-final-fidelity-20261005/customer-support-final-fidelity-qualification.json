@@ -1,0 +1,118 @@
+{
+  "status": "FINAL_OFFLINE_FIXTURE_FIDELITY_QUALIFIED",
+  "created_at": "2026-10-05T14:49:53.813803+00:00",
+  "base_web_source": {
+    "commit": "426da64d86562620061b2876fcaebad8806b40f2",
+    "observed_head": "426da64d86562620061b2876fcaebad8806b40f2"
+  },
+  "owned_current_sources": {
+    "tests/fixtures/support-runtime.mjs": "03da85a071372e7667700d981eb0ef4822fcffce04ad9b008f6872ffc1f217e9",
+    "tests/customer-support-handoff.test.mjs": "0e79c2a19df16c8ff5115cda2f7168b831c3a54fa2e22c9ac627b50cc52e94a4"
+  },
+  "unchanged_browser_and_loader": {
+    "tests/support-browser.mjs": "ed79a30bd6c188014a0c57cccd11725d910ada83658909a8b32a7bb51d850839",
+    "tests/customer-support-handoff-loader.mjs": "21b348a7b1c04dee5797c1fe89486c9d76692182db279d775fc5f94760d3c33d"
+  },
+  "logs": {
+    "customer-support-event-type-red.log": {
+      "sha256": "171eb3f866146ad0d8e27c68d1d69e2979af8b00d49c89d004957be5a7dec6dd",
+      "bytes": 4350
+    },
+    "customer-support-final-fidelity-green.log": {
+      "sha256": "2ba2ccc92011f1be5fc3adcd4f7895b86470360a76f956c026854026e8e882ed",
+      "bytes": 3199
+    },
+    "customer-support-final-fidelity-existing-staff.log": {
+      "sha256": "bef2373c8db2d8673e21df540348c2da499eec60dc73709eba131b262867c0bb",
+      "bytes": 6163
+    },
+    "customer-support-final-fidelity-lint.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "checks": {
+    "event_type_assertions_before_fix_red": {
+      "tests": 8,
+      "passed": 6,
+      "failed": 2,
+      "cause": "Actual old fixture support_customer_reply differs from immutable OPS support_customer_message; create and reply assertions fail."
+    },
+    "final_joined_real_customer_staff_actions_service_clients": {
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "duration_ms": 375.17685,
+      "command": "node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs"
+    },
+    "final_existing_staff_actions": {
+      "tests": 21,
+      "passed": 21,
+      "failed": 0,
+      "duration_ms": 547.895325,
+      "command": "node --experimental-strip-types --experimental-loader ./tests/support-ui-loader.mjs tests/support-actions.test.mjs"
+    },
+    "scoped_eslint": {
+      "exit_code": 0,
+      "max_warnings": 0,
+      "paths": [
+        "tests/fixtures/support-runtime.mjs",
+        "tests/customer-support-handoff.test.mjs"
+      ]
+    },
+    "diff_check": {
+      "status": "PASS"
+    },
+    "browser_23checks": {
+      "status": "NOT_RERUN_BY_THIS_AGENT",
+      "source_unchanged": true,
+      "qualification_owner": "Root final full browser/build"
+    },
+    "independent_source_review": {
+      "status": "REQUESTED_PENDING_SEPARATE_REVIEWER_RECEIPT",
+      "reviewer": "/root/staff_rollout_review",
+      "current_hashes_supplied": true
+    }
+  },
+  "exact_fidelity_corrections": [
+    "Both canonical Customer fixture create/reply append support_customer_message, matching SUPPORT_EVENT_TYPES.customerMessage and Staff author mapping.",
+    "Customer Staff event author_user_id and kind are NULL. Local verified customer UUID is used only for request identity and explicit ownership, never a central actor.",
+    "Both API event DTOs use synthetic support_message_<32digits> opaque references. Newly Customer-created case references remain support_case_<32digits>; preexisting old synthetic case refs are retained within the frozen generic public reference pattern.",
+    "Customer public message filter requires event_type in support_customer_message/support_staff_reply AND visibility=customer. Kind defaults to message unless explicitly phone_summary; author derives eventtype.",
+    "Joined test adds a technical status event with customer visibility and message-kind; it remains outside Customer public messages due exact event allowlist.",
+    "Staff-created synthetic case receives ownership only via exactly one explicit preconfigured customerReference-to-localAuth binding. No email/name match, default or central/local UUID equality is used.",
+    "New ninth flow exercises real signed Staff client create/reply/note, real Customer helper and actual customer portal service with frozen schema: Customer sees channeladmin, NULL internaldescription and public Staff reply, excludes note/description, and foreign customer gets404 without effects."
+  ],
+  "actual_source_anchors": [
+    "/workspace/gridex-support-portal-ops/lib/customer-service/supportConversation.ts:24",
+    "/workspace/gridex-support-portal-ops/lib/customer-service/supportConversation.ts:131",
+    "/workspace/gridex-support-portal-ops/lib/customer-service/supportConversation.ts:138",
+    "/workspace/gridex-support-portal-ops/lib/customer-service/supportConversation.ts:340",
+    "/workspace/gridex-support-portal-ops/lib/staff-api/cases.ts:34"
+  ],
+  "tested_application_source_bindings": {
+    "app/dashboard/support/actions.ts": "0a92a8a657bc88fb279baeb3bf9080ac97e8c0e146e0d0062b067bf427f57393",
+    "lib/customerPortal/service.ts": "4bfbd26ecf451868476f4e702e4ea5288ef90ada9f475c08c5eb8a89590988de",
+    "lib/ops/client/customerSupport.ts": "71c6363d8a01c478df4ffb7f6dc04915ee52fb8e1501dc9d957aaae04d457fda",
+    "lib/ops/client/portal.ts": "18016007b561fc67af603c161dcc51563f44353e17f114bc522b6e9a446586aa",
+    "lib/ops/transport.ts": "2e35dff3907214460aa6538a32404d2e3392637d8d254648bf4fa186370ae241",
+    "lib/staff-api/client.ts": "bc83c2ebe5ce21ada20366e9182acda68c30596933456c90d0d42ea6f3d3518a",
+    "lib/staff-api/assertion.ts": "6af791ff3236970480b9a1d9abc5a70d6bf1af6aee01a3e71ad410a16fa491af",
+    "lib/staff-api/contract.json": "cb4996ba68c49be70fdc9d134535eda263f54e8b415f446f703ff07c6fdffc00",
+    "docs/openapi/customer-portal-v1.json": "2ada64c650234d8cf8e5191c68d6b6ab8b47586c5fef13feeb611a9bddb79294"
+  },
+  "historical_receipts_retained": {
+    "customer-support-handoff-qualification.json": "d9b7798d317a77e1a714c175b8efbb3a1d16a36a6b29cb9020ec7cf955aa0f20",
+    "customer-support-public-browser-fixture-qualification.json": "a72e57c3ebf291bd855c52190f23d9991e032b51d09f43c9097a9faf99c57af7"
+  },
+  "limitations": [
+    "Hosted canonical backend remains modeled by the offline fixture. Real actions/services/clients/transport/contract validation/RSA execute, while SDK verified-user input and hosted persistence are test boundaries.",
+    "Customer channeladmin in the offline Staff-created flow is the intended published Customer representation. It does not qualify the deployed OPS staff_api-to-admin DTO fix; root/resolver own a separate actual-source frozen-schema RED/GREEN regression.",
+    "No live Customer JWT/provider/membership/RLS native qualification is inferred. Authentic central native CI and hosted operations are separately owned by root.",
+    "No browser/full suite/build rerun by this agent after the bounded correction. Root owns final integrated qualification."
+  ],
+  "hosted_calls": 0,
+  "production_source_edits": 0,
+  "ops_sql_or_native_edits": 0,
+  "commits_or_pushes": 0
+}

@@ -77,8 +77,8 @@ were accepted. Root authorized a local commit of these two files only. No push,
 PR, merge, deployment or hosted write was made. Root owns the small hold PR,
 required CI, publication and production receipt; the local commit ID will be
 reported in the author handoff.
-Root must verify that the hold is integrated and the existing production
-deployment is unchanged before integrating Web45 under this separation.
+Root must verify the hold in the integrated source tree and confirm that the
+existing production deployment remains unchanged before removing the boundary.
 
 Restore automatic main deployments only through a separate reviewed source
 change after root has qualified the actual Customer support read/write path,
@@ -87,3 +87,35 @@ temporary main entry (and the empty git object if it has no other settings),
 preserving unrelated configuration. A later release action still requires the
 root owner's deployment decision; removing the hold is not evidence of target
 readiness.
+
+## Publication and reviewed contract integration, 17:47 UTC
+
+The isolated two-file commit `ed19961ab31ad52901defe4a23db7b08a1404278`
+was published as draft Web PR #47. Root's artifact attachment attempt timed out;
+the canonical review URL is https://github.com/heke99/gridex-web/pull/47.
+
+An authentic PR #46 compatibility failure exposed the unchanged main baseline's
+old website contract: local `2026-10-02.4`, manifest/live `2026-10-04.1`.
+The independently reviewed Web #45 head
+`ac1c6ca09bcc49cae519e14c5d6550c63c8117d3` already contains the frozen matching
+contracts and generated SDK. A hold-only #47 would encounter the same stale
+baseline. Root therefore integrated that immutable reviewed source with a
+normal, non-force merge into this root-owned branch; no retained source branch
+was rewritten. The merge had no conflicts. Its immutable source history remains
+part of this delivery, rather than duplicating the SDK synchronization.
+
+The full final PR integrates the reviewed #45 Customer/support source and the
+temporary Git deployment hold together. The initial two-file description above
+records the hold's own delta, not the expanded PR's total diff. Relative to #45,
+only `vercel.json` and this checkpoint differ. The hold exists in the same tree
+as the changed Customer consumer, so source integration does not require an
+intermediate unprotected main tree. Fresh combined-head compatibility, Web
+quality and support/native-delivery CI are required before merge. Earlier #45
+CI and #46's successful 32-case production build remain historical evidence.
+
+A read-only production receipt before publication showed the active ready main
+deployment still using `ff950425b6922df88817f840dc5a395cbceab8eb`.
+No production deploy, promotion, environment write or identity operation was
+performed. Root will compare the post-merge production receipt and then merge
+the new main normally into published #46, preserving its stronger ownership and
+stable-identity fences and both package script registrations.

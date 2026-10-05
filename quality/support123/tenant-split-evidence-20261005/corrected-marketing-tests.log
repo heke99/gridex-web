@@ -1,0 +1,186 @@
+
+> gridex-web@0.1.0 test:launch
+> npm run test:public-contract-v4 && npm run test:gridex-runtime-hardening && npm run test:post-commit-durability && node tests/public-contract-cache-durability.test.mjs && node tests/public-contract-failure-visibility.test.mjs && node tests/public-contract-feed-fail-closed.test.mjs && node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/schema-additive-compatibility.test.mjs && npm run test:ops-transport && node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/non-expiring-canonical-quotes.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260801.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-runtime-regressions-20260801.test.mjs && node tests/api-contract-regressions-20260802.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-canonical-area-prices.test.mjs && node tests/openapi-sync-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260804-3.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260805-1.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-issue-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-feed-isolation.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-runtime-compatibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/price-option-selection.test.mjs && node --experimental-strip-types tests/signup-canonical-kwh.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node tests/customer-pricing-copy-and-renewal.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-contract-option-adapter.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node tests/quote-validation-canonical-tuple.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs && node --experimental-strip-types tests/safe-redirect-path.test.mjs && node tests/automatic-checkout-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/automatic-price-option-selection.test.mjs && node tests/signup-quote-integrity-sync.test.mjs && node tests/forward-contract-version-compatibility.test.mjs
+
+
+> gridex-web@0.1.0 test:public-contract-v4
+> node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-v4-runtime.test.mjs
+
+(node:118310) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public OPS 2026-10-04.1 producer and isolation regression passed
+
+> gridex-web@0.1.0 test:gridex-runtime-hardening
+> node --experimental-strip-types tests/gridex-runtime-hardening.test.mjs
+
+gridex runtime hardening tests passed
+
+> gridex-web@0.1.0 test:post-commit-durability
+> node tests/checkout-post-commit-durability.test.mjs
+
+Checkout post-commit durability checks passed
+public-contract cache durability tests passed
+public-contract failure visibility tests passed
+public-contract feed contract-isolation tests passed
+API compatibility hardening static checks passed.
+(node:118402) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+schema additive compatibility tests passed
+
+> gridex-web@0.1.0 test:ops-transport
+> node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-transport-not-modified.test.mjs
+
+(node:118430) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/website/quote/validate',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: '00000000-0000-4000-8000-000000000409',
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+OPS transport 304/redirect/error-details regression tests: passed
+live application-number contract regression passed
+(node:118446) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:118454) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Non-expiring canonical quote tests passed
+(node:118467) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Customer Portal API hardening checks passed
+(node:118476) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-01 canonical API regression tests passed
+(node:118484) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-01 OpenAPI runtime regression tests passed
+2026-08-02 Gridex API contract regressions passed
+(node:118514) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Elprisetjustnu API tests passed
+(node:118533) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Launch-readiness checks passed
+(node:118557) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract DTO compatibility checks passed
+(node:118573) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+canonical public-contract area price tests passed
+openapi sync contract tests passed
+(node:118597) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-04.1 Gridex price-area API regressions passed
+(node:118605) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Gridex API 2026-08-05.1 grouped legal-document regression checks passed
+(node:118613) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract issue policy tests passed
+(node:118621) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract feed isolation tests passed
+(node:118633) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract runtime compatibility tests passed
+(node:118646) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+canonical price option selection tests passed
+Signup canonical monthly kWh regression checks passed
+(node:118661) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Signup quote binding regression checks passed
+Customer pricing copy and automatic renewal checks passed
+(node:118676) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+signup contract option canonical adapter tests passed
+(node:118684) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website API contract tests passed (2026-10-04.1)
+(node:118696) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+Website API runtime contract tests passed
+Canonical quote-validation tuple checks passed
+(node:118717) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website signup hardening checks passed
+safe redirect path tests passed
+Automatic checkout policy checks passed
+(node:118747) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Automatic price option selection runtime checks passed
+signup quote-integrity synchronization regression: ok
+Forward contract version compatibility tests passed (2026-10-04.1)

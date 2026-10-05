@@ -1,0 +1,123 @@
+{
+  "status": "PASS_OFFLINE_SELECTED_BOUNDARIES",
+  "checked_at": "2026-10-05T09:33:44.860430+00:00",
+  "repository": "/workspace/gridex-support123-web",
+  "owned_changed_files": {
+    "tests/fixtures/support-runtime.mjs": "7f69c5c685d39bcbec3119ca320a770f8850995f2e02777ca17e7786cbb2f2c6",
+    "tests/support-actions.test.mjs": "3dfd541bfd361e0770f007c369d6384acdff0572baab67d70602d0e7305e1920",
+    "tests/support-ui-loader.mjs": "f39f514ffbd2f743fbad36168fdd4208c76c5b65c59f1b52dde42bd534eabc81",
+    "apps/support/lib/auth-config.ts": "c745da983d29e3075bc0089010a3c3b141bf8e4472dea30d3c05f23a4fb4817f",
+    "tests/support-auth-session.test.mjs": "2a274f6cd6f71b88e1ba376ddedfc1e9483447de1da5ca2b07fdb50a8b332dbe",
+    "tests/staff-api-client.test.mjs": "0a136487934ed89bbab738439d3ed5d7bc961e9a44f0eb5c446266a23f0dc4d1"
+  },
+  "tested_application_sources": {
+    "apps/support/app/actions.ts": "fb3bc8017a31ce8b5436cddd08c947ddd64e7f3b8c5da88c353f1fb4785518ee",
+    "apps/support/app/login/actions.ts": "eeb13841f142ca9c0c6919ee37b6a90f6e85768e86f3d419458aca695cb71266",
+    "apps/support/lib/session.ts": "e48709cb33ff68848504040c4b8970c67d99bee9f71d24d7623cf46651e94c9f",
+    "lib/staff-api/client.ts": "d6cd9135f531f6de1d5e3e3224281d5b44934f518ebd424d7ec051e7327aa091",
+    "lib/staff-api/config.ts": "761301c6c78d34da3c9065040e6c240a96d79556dbb012620c47e4571fadd420",
+    "lib/staff-api/assertion.ts": "fa6d036271d63cb6a74b382d07894aeee84c20706b78925f6a65646beb93091b",
+    "lib/staff-api/contract.json": "cb4996ba68c49be70fdc9d134535eda263f54e8b415f446f703ff07c6fdffc00"
+  },
+  "auth_storage_target": {
+    "name": "gridex-prod",
+    "reference": "ayiuxjlfazkjmmtlvhsl",
+    "url": "https://ayiuxjlfazkjmmtlvhsl.supabase.co",
+    "old_dev_url_and_reference": "explicitly rejected in tests",
+    "constant": "SUPPORT_AUTH_URL"
+  },
+  "qualification": {
+    "actions_and_fixture": {
+      "pass": 18,
+      "fail": 0,
+      "skip": 0
+    },
+    "client": {
+      "pass": 21,
+      "fail": 0,
+      "skip": 0
+    },
+    "auth": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    },
+    "total_selected_tests": 48,
+    "strict_scoped_typecheck": "PASS",
+    "scoped_eslint_zero_warnings": "PASS",
+    "fixture_syntax": "PASS"
+  },
+  "test_boundaries": {
+    "actual": [
+      "serveractions",
+      "Supabase SSR/getUser",
+      "supportsessionloader",
+      "staffclient",
+      "RSA signer",
+      "immutable contract DTO validators"
+    ],
+    "injected": [
+      "Auth and staffAPI external fetch only",
+      "Next request cookies",
+      "Next redirect",
+      "Next cache revalidation"
+    ],
+    "network": "all synthetic; no outbound network requests",
+    "fixture_role_checks": "synthetic model only; not independent proof of production RBAC"
+  },
+  "scenario_proof": [
+    "fresh verified Auth subject for each protected action",
+    "forged browser actor/company/role fields do not select assertion authority",
+    "stable caller idempotency sent once per action, identical replay has one event, differing replay returns409/noeffects",
+    "readonly actor403 action has no effects or retry",
+    "other-company/absent/temporary-password sessions rejected before writes",
+    "contact optimistic409 and malformed422 with exact safe UI messages and no mutation",
+    "team invitation intent, UUID role target, disable and empty enable DTO",
+    "queue/detail/customer/team/role schemas, cursor continuation, attachment bytes and digest",
+    "Prod request target guarded before fixture mutation, missing/wrong successful response target rejects JSON and binary",
+    "actual login re-verifies new session; authenticated password change and isolated session signout"
+  ],
+  "red_provenance": {
+    "auth_config": "support-prod-auth-red.log: new production-target auth tests failed against predecessor dev target (aggregate file failed; detailed subtest count not emitted)",
+    "first_fixture_run": "support-actions-first-run.log:2 pass/11 fail; new app storage attestation guard rejected fixture success responses until fixture modeled documented additional safety header",
+    "action_binding_errors": "contact and enable mismatches communicated to root before tests; root fixed them before first successful actual-action execution; no claim of captured RED for those source fixes"
+  },
+  "logs": {
+    "support-prod-auth-red.log": {
+      "path": "/tmp/gridex-staff-review/support-prod-auth-red.log",
+      "sha256": "a5935d5402b04cac0ff5fc74c8d8d05293e655084c1247e22a0a759162f1d7e7"
+    },
+    "support-actions-first-run.log": {
+      "path": "/tmp/gridex-staff-review/support-actions-first-run.log",
+      "sha256": "71d4ce69d90c37445da844613631bc5423de18db63dd3e92c644553f7a9a667a"
+    },
+    "support-client-prod-storage-green.log": {
+      "path": "/tmp/gridex-staff-review/support-client-prod-storage-green.log",
+      "sha256": "ed11511cf64e6381660cebee70675d3e811d5926192be556a4bbde99a975d6a0"
+    },
+    "support-prod-auth-green-detailed.log": {
+      "path": "/tmp/gridex-staff-review/support-prod-auth-green-detailed.log",
+      "sha256": "2bf59e989e0e6c8bc89a25679012e37d91088441f7816b2aaaf602c5bef49a62"
+    },
+    "support-actions-prod-storage-green.log": {
+      "path": "/tmp/gridex-staff-review/support-actions-prod-storage-green.log",
+      "sha256": "811151275f0029c8ba0ba2b5baf0fc8f89a5dfda33209d555616a56d9e8d92f7"
+    },
+    "support-fixture-actions-lint.log": {
+      "path": "/tmp/gridex-staff-review/support-fixture-actions-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "support-prod-auth-client-types.log": {
+      "path": "/tmp/gridex-staff-review/support-prod-auth-client-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limits": [
+    "Browser verification remains parent-owned/pending",
+    "No live Auth/API/provider/email/configuration/persistence activity",
+    "Invitation models pending intent; email delivery NOT_RUN",
+    "Identity models pending approval; external approval delivery NOT_RUN",
+    "No production app fixture toggle or fixture import",
+    "No changes to root serveractions, UI, package/config or production backend made by fixture task"
+  ]
+}

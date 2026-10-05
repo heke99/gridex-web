@@ -1,0 +1,26 @@
+{
+  "task": "existing frozen OPS Customer Portal support JSON helper",
+  "files": {
+    "lib/ops/client/customerSupport.ts": "71c6363d8a01c478df4ffb7f6dc04915ee52fb8e1501dc9d957aaae04d457fda",
+    "tests/customer-support-api.test.mjs": "3b5ff4480bf3bbe6a4b7b9be1bac5f6fdba6f9af1a32b4485fd2bee1afa5cec6"
+  },
+  "focused_tests": {
+    "pass": 27,
+    "fail": 0,
+    "command": "node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/customer-support-api.test.mjs"
+  },
+  "checks": {
+    "web_typecheck": "PASS tsc --noEmit --pretty false --incremental false",
+    "scoped_lint": "PASS max-warnings 0",
+    "whitespace": "PASS"
+  },
+  "baseline": "RED before helper implementation: ERR_MODULE_NOT_FOUND; /tmp/customer-support-api-red.log",
+  "green": "/tmp/customer-support-api-green.log",
+  "verification_limits": [
+    "Real opsCustomerFetch + transport + frozen OpenAPI validators, only fetch mocked",
+    "No hosted calls",
+    "No tenant Customer assertion signer added",
+    "No binary attachment transport added",
+    "Anonymous public intake assessed read-only"
+  ]
+}

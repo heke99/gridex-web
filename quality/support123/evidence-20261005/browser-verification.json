@@ -1,0 +1,28 @@
+{
+  "status": "PASS_OFFLINE_BROWSER",
+  "checks": [
+    "anonymous inbox requires own staff login",
+    "login layout has no marketing or OPS navigation",
+    "mobile login fits viewport",
+    "verified Gridex staff login opens real case inbox",
+    "case detail and attachment available",
+    "reply creates customer-visible history",
+    "internal note remains staff-only",
+    "status action updates case",
+    "customer contact mutation is version-bound",
+    "team lists tenant staff and assigned RBAC roles",
+    "new case uses customer API and creates one case",
+    "sign out clears protected access",
+    "read-only account cannot submit a write",
+    "foreign tenant staff cannot enter Gridex queue",
+    "no browser application errors"
+  ],
+  "errors": [],
+  "origin": "http://127.0.0.1:35197",
+  "production_data": false,
+  "database_project": "ayiuxjlfazkjmmtlvhsl",
+  "backend": "schema-faithful synthetic fixture with verified RSA assertions",
+  "limitations": [
+    "No production enrollment, database migration, real invitation email or live acceptance"
+  ]
+}
