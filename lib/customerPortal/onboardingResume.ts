@@ -1,6 +1,7 @@
 import type { PortalOnboardingInput } from '@/lib/customerPortal/onboarding'
 import { resumePortalOnboardingForConfirmedUser } from '@/lib/customerPortal/onboarding'
 import { supabaseService } from '@/lib/supabase/service'
+import { stablePortalCustomerIdentityConflicts, stablePortalCustomerIdentityMatches } from '@/lib/customerPortal/stableIdentity'
 
 type PortalOnboardingJobCandidate = {
   id: string
@@ -8,6 +9,8 @@ type PortalOnboardingJobCandidate = {
   email: string
   auth_user_id: string | null
   payload: PortalOnboardingInput
+  attempt_count: number
+  last_error: string | null
 }
 
 type ExistingProfile = {
@@ -28,37 +31,20 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function escapeIlikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`)
-}
-
-function stableProfileMatchesApplication(
-  profile: ExistingProfile | null,
-  input: PortalOnboardingInput,
-): boolean {
-  if (!profile) return false
-  const appExternal = input.application.external_customer_id?.trim() || null
-  const appCustomerNumber = input.application.customer_number?.trim() || null
-
-  return Boolean(
-    (appExternal && profile.external_customer_id === appExternal) ||
-      (appCustomerNumber &&
-        (profile.customer_number === appCustomerNumber ||
-          profile.contract_customer_ref === appCustomerNumber)),
-  )
-}
-
 export function portalOnboardingCandidateHasStableIdentity(
   job: Pick<PortalOnboardingJobCandidate, 'auth_user_id' | 'payload'>,
   profile: ExistingProfile | null,
   userId: string,
 ): boolean {
+  if (profile && (profile.user_id !== userId || stablePortalCustomerIdentityConflicts(profile, job.payload.application))) return false
   if (job.auth_user_id === userId) return true
   if (job.auth_user_id && job.auth_user_id !== userId) return false
-  return stableProfileMatchesApplication(profile, job.payload)
+  return Boolean(profile && stablePortalCustomerIdentityMatches(profile, job.payload.application))
 }
 
-async function markBlocked(jobId: string): Promise<void> {
+async function markBlocked(job: PortalOnboardingJobCandidate): Promise<void> {
+  // An email-only login must not consume the explicit signed-result claim.
+  if (!job.auth_user_id && job.last_error === 'existing_auth_user_requires_login') return
   const { error } = await supabaseService
     .from('portal_onboarding_jobs')
     .update({
@@ -67,10 +53,11 @@ async function markBlocked(jobId: string): Promise<void> {
       locked_at: null,
       next_attempt_at: null,
     })
-    .eq('id', jobId)
-    .neq('status', 'completed')
+    .eq('id', job.id)
+    .eq('status', job.status)
+    .eq('attempt_count', job.attempt_count)
 
-  if (error) throw new Error(`Could not quarantine onboarding job ${jobId}: ${error.message}`)
+  if (error) throw new Error('Could not quarantine onboarding job ' + job.id + ': ' + error.message)
 }
 
 /**
@@ -91,7 +78,7 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
   const email = normalizeEmail(input.email)
   const { data: jobsData, error: jobsError } = await supabaseService
     .from('portal_onboarding_jobs')
-    .select('id,status,email,auth_user_id,payload')
+    .select('id,status,email,auth_user_id,payload,attempt_count,last_error')
     .eq('email', email)
     .in('status', ['pending', 'retryable_failure', 'manual_review'])
     .limit(11)
@@ -105,7 +92,7 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
   // ordering. If more candidates exist, never risk validating one set and processing
   // another; force manual review instead.
   if (jobs.length > 10) {
-    await Promise.all(jobs.map((job) => markBlocked(job.id)))
+    await Promise.all(jobs.map((job) => markBlocked(job)))
     return { processed: 0, completed: 0, blocked: jobs.length }
   }
 
@@ -123,15 +110,14 @@ export async function resumePortalOnboardingForConfirmedUserSafely(input: {
   )
 
   if (blocked.length > 0) {
-    await Promise.all(blocked.map((job) => markBlocked(job.id)))
+    await Promise.all(blocked.map((job) => markBlocked(job)))
     return { processed: 0, completed: 0, blocked: blocked.length }
   }
 
   const result = await resumePortalOnboardingForConfirmedUser({
     userId: input.userId,
-    // The legacy helper uses ILIKE. Escape wildcard characters so this remains
-    // an exact normalized-email lookup while the helper is retained.
-    email: escapeIlikePattern(email),
+    email,
+    jobIds: jobs.map((job) => job.id),
   })
 
   return { ...result, blocked: 0 }

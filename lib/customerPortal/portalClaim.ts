@@ -1,5 +1,6 @@
-import { submitOpsCustomerPortalSync } from '@/lib/ops/client'
-import type { PortalOnboardingInput } from '@/lib/customerPortal/onboarding'
+import { submitOpsCustomerPortalSync, isOpsError, OpsError } from '@/lib/ops/client'
+import { assertPortalOnboardingAuthUserEligible, type PortalOnboardingInput } from '@/lib/customerPortal/onboarding'
+import { stablePortalCustomerIdentityConflicts, writePortalProfileWithStableIdentity } from '@/lib/customerPortal/stableIdentity'
 import { supabaseService } from '@/lib/supabase/service'
 import { readWebsiteApplicationResultState } from '@/lib/website/applicationResultStore'
 
@@ -23,6 +24,7 @@ type PortalClaimJob = {
   payload: PortalOnboardingInput
   attempt_count: number
   max_attempts: number
+  locked_at: string | null
 }
 
 export type PortalClaimResult = {
@@ -56,67 +58,95 @@ function fullName(input: PortalOnboardingInput): string | null {
 }
 
 async function markJob(
-  jobId: string,
+  job: PortalClaimJob,
   patch: Record<string, unknown>,
-): Promise<void> {
-  const { error } = await supabaseService
+): Promise<boolean> {
+  let update = supabaseService
     .from('portal_onboarding_jobs')
     .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', jobId)
+    .eq('id', job.id)
+    .eq('status', job.status)
+    .eq('attempt_count', job.attempt_count)
+  update = job.locked_at ? update.eq('locked_at', job.locked_at) : update.is('locked_at', null)
+  update = job.auth_user_id ? update.eq('auth_user_id', job.auth_user_id) : update.is('auth_user_id', null)
+  const { data, error } = await update.select('id').maybeSingle()
   if (error) throw new Error(`Portal claim job update failed: ${error.message}`)
+  return Boolean(data)
 }
 
 async function blockJob(job: PortalClaimJob, reason: string): Promise<PortalClaimResult> {
   if (job.status !== 'completed') {
-    await markJob(job.id, {
+    const updated = await markJob(job, {
       status: 'manual_review',
       last_error: reason,
       next_attempt_at: null,
       locked_at: null,
     })
+    if (!updated) return { status: 'pending', message: 'onboarding_job_processing_claim_lost' }
   }
   return { status: 'blocked', message: reason }
+}
+
+async function profileConflicts(userId: string, application: PortalOnboardingInput['application']): Promise<boolean> {
+  const { data: profile, error } = await supabaseService
+    .from('customer_profiles')
+    .select('external_customer_id,customer_number,contract_customer_ref')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw new Error('Portal claim identity verification failed: ' + error.message)
+  return Boolean(profile && stablePortalCustomerIdentityConflicts(profile, application))
+}
+
+async function stillOwnsClaim(job: PortalClaimJob): Promise<boolean> {
+  if (!job.auth_user_id) return false
+  const { data, error } = await supabaseService
+    .from('portal_onboarding_jobs')
+    .select('id')
+    .eq('id', job.id)
+    .eq('status', 'processing')
+    .eq('attempt_count', job.attempt_count)
+    .eq('locked_at', job.locked_at)
+    .eq('auth_user_id', job.auth_user_id)
+    .maybeSingle()
+  if (error) throw new Error('Portal claim lock verification failed: ' + error.message)
+  return Boolean(data)
 }
 
 async function upsertClaimedPortalRows(
   input: PortalOnboardingInput,
   userId: string,
   portalIdentityId: string | null,
+  assertClaim: () => Promise<void>,
 ): Promise<void> {
   const app = input.application
-  const { error: profileError } = await supabaseService
-    .from('customer_profiles')
-    .upsert(
-      [{
-        user_id: userId,
-        email: normalizeEmail(input.email),
-        first_name: input.firstName ?? null,
-        last_name: input.lastName ?? null,
-        full_name: fullName(input),
-        phone: input.phone ?? null,
-        onboarding_state: 'verified',
-        billing_customer_ref: app.customer_number ?? app.customer_reference ?? null,
-        contract_customer_ref: app.customer_number ?? app.external_customer_id ?? null,
-        external_identity_ref: app.external_customer_id ?? app.customer_reference ?? null,
-        customer_number: app.customer_number ?? null,
-        external_customer_id: app.external_customer_id ?? null,
-        portal_identity_id: portalIdentityId ?? userId,
-        customer_type: input.customerType,
-        company_name: input.companyName ?? null,
-        metadata: {
-          source: 'verified_checkout_portal_claim',
-          submission_attempt_id: input.submissionAttemptId,
-          application_number: app.application_number ?? null,
-          contract_reference: app.contract_reference ?? null,
-          customer_reference: app.customer_reference ?? null,
-        },
-      }],
-      { onConflict: 'user_id', defaultToNull: false },
-    )
-  if (profileError) throw new Error(`Portal claim profile upsert failed: ${profileError.message}`)
+  await writePortalProfileWithStableIdentity(supabaseService, userId, app, {
+    user_id: userId,
+    email: normalizeEmail(input.email),
+    first_name: input.firstName ?? null,
+    last_name: input.lastName ?? null,
+    full_name: fullName(input),
+    phone: input.phone ?? null,
+    onboarding_state: 'verified',
+    billing_customer_ref: app.customer_number ?? app.customer_reference ?? null,
+    contract_customer_ref: app.customer_number ?? app.external_customer_id ?? null,
+    external_identity_ref: app.external_customer_id ?? app.customer_reference ?? null,
+    customer_number: app.customer_number ?? null,
+    external_customer_id: app.external_customer_id ?? null,
+    portal_identity_id: portalIdentityId ?? userId,
+    customer_type: input.customerType,
+    company_name: input.companyName ?? null,
+    metadata: {
+      source: 'verified_checkout_portal_claim',
+      submission_attempt_id: input.submissionAttemptId,
+      application_number: app.application_number ?? null,
+      contract_reference: app.contract_reference ?? null,
+      customer_reference: app.customer_reference ?? null,
+    },
+  }, assertClaim)
 
   const contractExternalReference = app.contract_reference ?? app.contract_number ?? null
   if (contractExternalReference) {
+    await assertClaim()
     const { error } = await supabaseService.from('customer_contract_portal_links').upsert(
       [{
         user_id: userId,
@@ -147,6 +177,7 @@ async function upsertClaimedPortalRows(
 
   const facilityReference = input.facilityId ?? app.facility_reference ?? null
   if (facilityReference) {
+    await assertClaim()
     const { error } = await supabaseService.from('customer_delivery_points').upsert(
       {
         user_id: userId,
@@ -215,7 +246,7 @@ export async function resumePortalOnboardingFromResultProof(input: {
 
   const { data: jobData, error: jobError } = await supabaseService
     .from('portal_onboarding_jobs')
-    .select('id,submission_attempt_id,status,email,auth_user_id,customer_number,external_customer_id,payload,attempt_count,max_attempts')
+    .select('id,submission_attempt_id,status,email,auth_user_id,customer_number,external_customer_id,payload,attempt_count,max_attempts,locked_at')
     .eq('submission_attempt_id', submissionAttemptId)
     .maybeSingle()
   if (jobError) throw new Error(`Portal claim onboarding read failed: ${jobError.message}`)
@@ -227,6 +258,7 @@ export async function resumePortalOnboardingFromResultProof(input: {
       ? { status: 'linked' }
       : { status: 'blocked', message: 'completed_job_bound_to_other_user' }
   }
+  if (job.status === 'processing') return { status: 'pending', message: 'onboarding_job_already_processing' }
 
   const email = normalizeEmail(input.email)
   const payloadEmail = normalizeEmail(job.payload.email)
@@ -246,10 +278,14 @@ export async function resumePortalOnboardingFromResultProof(input: {
   ) {
     return blockJob(job, 'onboarding_stable_identity_mismatch')
   }
+  if (await profileConflicts(input.userId, job.payload.application)) {
+    return blockJob(job, 'existing_profile_stable_identity_conflict')
+  }
 
   const attempt = job.attempt_count + 1
+  const lockedAt = new Date().toISOString()
   const payload = { ...job.payload, authenticatedUserId: input.userId }
-  const { data: claimedData, error: claimError } = await supabaseService
+  let claimQuery = supabaseService
     .from('portal_onboarding_jobs')
     .update({
       auth_user_id: input.userId,
@@ -258,27 +294,39 @@ export async function resumePortalOnboardingFromResultProof(input: {
       attempt_count: attempt,
       next_attempt_at: null,
       last_error: null,
-      locked_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      locked_at: lockedAt,
+      updated_at: lockedAt,
     })
     .eq('id', job.id)
     .eq('attempt_count', job.attempt_count)
+    .eq('status', job.status)
+    .is('locked_at', null)
     .in('status', ['pending', 'retryable_failure', 'manual_review'])
+    .eq('email', job.email)
+    .eq('external_customer_id', job.external_customer_id)
+    .eq('customer_number', job.customer_number)
+  claimQuery = job.auth_user_id ? claimQuery.eq('auth_user_id', job.auth_user_id) : claimQuery.is('auth_user_id', null)
+  const { data: claimedData, error: claimError } = await claimQuery
     .select('id')
     .maybeSingle()
   if (claimError) throw new Error(`Portal claim processing lock failed: ${claimError.message}`)
   if (!claimedData) return { status: 'pending', message: 'onboarding_job_already_processing' }
+  const claimedJob: PortalClaimJob = { ...job, payload, auth_user_id: input.userId, status: 'processing', attempt_count: attempt, locked_at: lockedAt }
 
   try {
     const { data: authData, error: authError } = await supabaseService.auth.admin.getUserById(input.userId)
-    if (authError || !authData.user) throw new Error(`Portal claim Auth verification failed: ${authError?.message ?? 'user missing'}`)
+    if (authError) throw new OpsError('Kundkontot kunde inte verifieras.', authError.status === 404 ? 403 : 503, {
+      code: 'portal_claim_auth_verification_failed', retryable: authError.status !== 404,
+    })
+    assertPortalOnboardingAuthUserEligible(input.userId, authData.user)
     if (!authData.user.email_confirmed_at && !authData.user.confirmed_at) {
-      return blockJob({ ...job, status: 'processing' }, 'authenticated_email_not_confirmed')
+      return blockJob(claimedJob, 'authenticated_email_not_confirmed')
     }
     if (normalizeEmail(authData.user.email ?? '') !== email) {
-      return blockJob({ ...job, status: 'processing' }, 'auth_user_email_mismatch')
+      return blockJob(claimedJob, 'auth_user_email_mismatch')
     }
 
+    if (!await stillOwnsClaim(claimedJob)) return { status: 'pending', message: 'onboarding_job_processing_claim_lost' }
     const sync = await submitOpsCustomerPortalSync({
       identity: {
         userId: input.userId,
@@ -306,8 +354,11 @@ export async function resumePortalOnboardingFromResultProof(input: {
     }
 
     const portalIdentityId = syncedText(sync.synced, ['identity_id', 'portal_identity_id', 'customer_portal_user_id'])
-    await upsertClaimedPortalRows(payload, input.userId, portalIdentityId)
-    await markJob(job.id, {
+    if (!await stillOwnsClaim(claimedJob)) return { status: 'pending', message: 'onboarding_job_processing_claim_lost' }
+    await upsertClaimedPortalRows(payload, input.userId, portalIdentityId, async () => {
+      if (!await stillOwnsClaim(claimedJob)) throw new Error('onboarding_job_processing_claim_lost')
+    })
+    const completed = await markJob(claimedJob, {
       status: 'completed',
       auth_user_id: input.userId,
       payload,
@@ -316,11 +367,12 @@ export async function resumePortalOnboardingFromResultProof(input: {
       locked_at: null,
       completed_at: new Date().toISOString(),
     })
+    if (!completed) return { status: 'pending', message: 'onboarding_job_processing_claim_lost' }
     return { status: 'linked' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const exhausted = attempt >= job.max_attempts
-    await markJob(job.id, {
+    const exhausted = (isOpsError(error) && !error.retryable) || attempt >= job.max_attempts
+    await markJob(claimedJob, {
       status: exhausted ? 'manual_review' : 'retryable_failure',
       last_error: message.slice(0, 2000),
       next_attempt_at: exhausted ? null : new Date(Date.now() + 5 * 60_000).toISOString(),
