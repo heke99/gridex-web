@@ -11,10 +11,22 @@ export default async function NewCase({
 }) {
   const { api } = await requireSupportSession();
   const search = await searchParams;
+  const selectedCustomer = search.customer
+    ? (await api.getCustomer(search.customer)).data.customer
+    : null;
   const customers = await api.searchCustomers({
     q: search.q?.slice(0, 200),
     page_size: 50,
   });
+  const customerOptions = selectedCustomer
+    ? [
+        selectedCustomer,
+        ...customers.data.customers.filter(
+          (customer) =>
+            customer.customer_reference !== selectedCustomer.customer_reference,
+        ),
+      ]
+    : customers.data.customers;
   return (
     <>
       <div className="heading">
@@ -27,6 +39,13 @@ export default async function NewCase({
       <section className="panel">
         <h2>Hitta kunden</h2>
         <form className="filters">
+          {selectedCustomer ? (
+            <input
+              type="hidden"
+              name="customer"
+              value={selectedCustomer.customer_reference}
+            />
+          ) : null}
           <label>
             Sök kund
             <input
@@ -50,16 +69,10 @@ export default async function NewCase({
             <select
               name="customer_reference"
               required
-              defaultValue={
-                customers.data.customers.some(
-                  (c) => c.customer_reference === search.customer,
-                )
-                  ? search.customer
-                  : ""
-              }
+              defaultValue={selectedCustomer?.customer_reference ?? ""}
             >
               <option value="">Välj kund</option>
-              {customers.data.customers.map((c) => (
+              {customerOptions.map((c) => (
                 <option key={c.customer_reference} value={c.customer_reference}>
                   {c.display_name ?? c.customer_number ?? "Kund"}
                   {c.customer_number ? ` · ${c.customer_number}` : ""}
