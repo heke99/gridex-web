@@ -11,11 +11,11 @@ import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay
 // Frozen upstream release, independent of the implementation's local version.
 // Before the hotfix, the production validator rejects /data/contract_version
 // with canonical_response_schema_invalid before processing these offers.
-const version = '2026-10-02.4'
+const version = '2026-10-04.1'
 const baseUrl = 'https://app.gridex.se/api/v1'
 const organization = 'organization_hotfix_0123456789abcdef'
 const fixture = JSON.parse(readFileSync(new URL(
-  './fixtures/public-contracts.ops-2026-10-02.4.json', import.meta.url,
+  './fixtures/public-contracts.ops-2026-10-04.1.json', import.meta.url,
 ), 'utf8'))
 const context = {
   data: {
@@ -123,4 +123,4 @@ try {
   })
 }
 
-console.log('Public OPS 2026-10-02.4 producer and isolation regression passed')
+console.log('Public OPS 2026-10-04.1 producer and isolation regression passed')
