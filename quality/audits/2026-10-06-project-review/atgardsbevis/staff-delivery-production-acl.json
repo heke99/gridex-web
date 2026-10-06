@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-06",
+  "database_project": "ayiuxjlfazkjmmtlvhsl",
+  "registered_version": "20261006220746",
+  "source_file": "supabase/migrations/20261005125326_support_staff_invitation_delivery_private.sql",
+  "table": {
+    "rls": true,
+    "anon_access": false,
+    "customer_access": false
+  },
+  "schema": {
+    "anon_usage": false,
+    "customer_usage": false
+  },
+  "functions": [
+    {
+      "name": "gridex_support_claim_staff_delivery_v1",
+      "definer": true,
+      "settings": [
+        "search_path=pg_catalog"
+      ],
+      "anon_execute": false,
+      "server_execute": true,
+      "customer_execute": false
+    },
+    {
+      "name": "gridex_support_complete_staff_delivery_v1",
+      "definer": true,
+      "settings": [
+        "search_path=pg_catalog"
+      ],
+      "anon_execute": false,
+      "server_execute": true,
+      "customer_execute": false
+    },
+    {
+      "name": "gridex_support_existing_invitation_subject_v1",
+      "definer": true,
+      "settings": [
+        "search_path=pg_catalog"
+      ],
+      "anon_execute": false,
+      "server_execute": true,
+      "customer_execute": false
+    }
+  ]
+}

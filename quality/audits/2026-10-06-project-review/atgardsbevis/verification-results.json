@@ -1,6 +1,6 @@
 {
   "date": "2026-10-06",
-  "scope": "Local workspace, isolated PostgreSQL engine and localhost browser fixtures. Live API reads and one Resend webhook subscription update.",
+  "scope": "Local tests, live API metadata, Resend webhook subscriptions and separately verified staff-delivery database prerequisite.",
   "checks": [
     {
       "command": "npm test",
@@ -80,10 +80,12 @@
   ],
   "production": {
     "web_deployed": false,
-    "database_migrations_applied": false,
     "actual_test_emails_sent": false,
     "auth_smtp_verified": false,
-    "resend_webhook_subscriptions_updated_and_read_back": true
+    "resend_webhook_subscriptions_updated_and_read_back": true,
+    "staff_delivery_prerequisite_applied": true,
+    "staff_delivery_acl_verified": true,
+    "audit_database_migrations_applied": false
   },
   "remaining": [
     "Coordinated Web/DB rollout and staff-delivery prerequisite",

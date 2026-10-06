@@ -20,7 +20,7 @@ Krav: offerter ska inte löpa ut enbart för att tiden går, ingen femminutersti
 | F08 | Rättat lokalt | Gemensam deadline omfattar headers, body och retries. Långsam body och klientabort regressionstestade. |
 | F09 | Rättat lokalt | Explicit retryable=false stoppar transport och outbox. Backoff avbryts när deadline/klient avbryter. |
 | F10 | Rättat lokalt | CAS-claim och completion/failure matchar försöksnummer och claimtid. Gammal worker kan inte avsluta det nya försöket. |
-| F11 | Migrationsunderlag klart; målrelease kvar | 45 filers manifest verifierat, sex nya migreringar, katalogreadiness med rätt projekt. Befintlig saknad staff-delivery-migration måste avstämmas och appliceras separat; ingen blind historisk replay. |
+| F11 | Migrationsunderlag klart; målrelease kvar | 45 filers manifest verifierat, sex nya migreringar, katalogreadiness med rätt projekt. Staff-delivery-prerequisiten är nu installerad och privata grants verifierade i prod. De sex auditmigreringarna väntar på samordnad release; ingen blind historisk replay. |
 | F12 | UI rättat; Auth-inställningar kvar | Profilbyte använder gemensam lösenordspolicy. Supabases styrka och kontroll av läckta lösenord behöver ställas in/verifieras i Auth. |
 | F13 | Rättat lokalt | 60 s adaptiv pollning, dold/offline-paus, deadline och terminalstopp. Verifierad ansökan får egen kvot; delad IP har separat högre missbrukskvot. |
 | F14 | Rättat lokalt | Distribuerad begränsning avvisar vid infrastrukturfel i produktion. Bunden reservcache i utveckling och Vercels ingress-IP-header. |
@@ -57,7 +57,7 @@ Krav: offerter ska inte löpa ut enbart för att tiden går, ingen femminutersti
 
 ## Levererat byggunderlag och testbevis
 
-Rättningarna är committade och publicerade i [draft PR #49](https://github.com/heke99/gridex-web/pull/49). Slutlig merge återstår enligt [leveransstatus](LEVERANSSTATUS.md). Befintliga tester och nya regressioner är körda utan att skapa kundansökningar, konton eller testmejl i produktion. Den aktiva Resend-webhookens prenumeration har uppdaterats; övriga skarpa releasesteg är inte genomförda.
+Rättningarna är committade och publicerade i [draft PR #49](https://github.com/heke99/gridex-web/pull/49). Slutlig merge återstår enligt [leveransstatus](LEVERANSSTATUS.md). Befintliga tester och nya regressioner är körda utan att skapa kundansökningar, konton eller testmejl i produktion. Den aktiva Resend-webhookens prenumeration har uppdaterats; staff-delivery-prerequisiten har installerats separat och verifierats. Övriga skarpa releasesteg är inte genomförda.
 
 - Full Web-testsvit inklusive nya API-/SQL-/köregressioner: `npm test`.
 - Supportens testsvit: `npm run test:support`.
@@ -76,7 +76,7 @@ Full `npm audit` visar nu **0 sårbarheter**, även för utvecklingsverktygen. D
 
 Produktionssläppet är ännu inte klart. [Release- och återställningsplanen](RELEASE-OCH-VERIFIERING.md) anger ordning, databasschema, miljövariabler och tester som återstår. `npm run release:audit:check` avvisar saknad konfiguration, fel projekt/revision, saknade DB-prerequisiter och saknade skarpa testbevis.
 
-1. Förbered och verifiera rätt Web-revision tillsammans med de sex nya migreringarna och separat avstämd staff-delivery-prerequisite. Kör inte hela gamla migrationshistoriken mot prod. Staff-prerequisiten består av privat tabell och tre RPC:er; samtliga saknas fortfarande i målprojektet.
+1. Förbered och verifiera rätt Web-revision tillsammans med de sex nya migreringarna och separat avstämd staff-delivery-prerequisite. Kör inte hela gamla migrationshistoriken mot prod. Staff-prerequisitens privata tabell och tre RPC:er är nu installerade och dess grants verifierade i målprojektet.
 2. Verifiera OPS assertionpolicy och nycklar samt supportens mål, behörigheter och integration.
 3. Verifiera Supabase Auth/SMTP/mallar/redirects och skydd mot läckta lösenord. Konfigurera supportkvittensens avsändare och cron.
 4. Genomför verklig kontobekräftelse, återställning och mottagning i en godkänd testinkorg. Testadress och explicit tillstånd för dessa utskick inväntas.

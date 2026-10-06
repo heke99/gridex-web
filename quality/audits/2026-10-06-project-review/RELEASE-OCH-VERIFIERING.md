@@ -1,6 +1,6 @@
 # Gridex – release och kvarvarande skarp verifiering
 
-2026-10-06. Detta är ett körklart releaseunderlag, inte ett intyg om att produktionen redan har rättats. Ändringarna finns i `/workspace/gridex-web`. Resends befintliga webhook är den enda skarpa inställning som ändrats i denna åtgärdsomgång.
+2026-10-06. Detta är ett körklart releaseunderlag, inte ett intyg om att produktionen redan har rättats. Ändringarna finns i `/workspace/gridex-web`. Resends befintliga webhook har ändrats och den separat kontrollerade staff-delivery-prerequisiten har installerats i gridex-prod. De sex nya auditmigreringarna är ännu inte applicerade.
 
 ## Versionsbindning
 
@@ -21,7 +21,7 @@ De sex nya, ännu inte produktionsapplicerade migreringarna är:
 5. `20261006210639_audited_release_preflight.sql`: service-only katalogreadiness som avslöjar saknade objekt och otillåtna kundskrivgrants utan kunddata.
 6. `20261006214901_audited_duplicate_policies.sql`: ta bort 54 exakt dubblerade permissiva policyer på 19 tabeller, endast när kommando, roller och båda villkor fortfarande är identiska. Idempotent; katalogdrift och restriktiva policyer lämnas kvar.
 
-Staff-delivery-objekten saknades i gridex-prod. Stäm separat av befintliga `20261005125326_support_staff_invitation_delivery_private.sql` mot målet. Applicera just det saknade kompatibla steget om tabellen och samtliga tre RPC:er saknas; vid delvis befintligt schema krävs en ny framåtriktad korrigeringsmigration. Skriv inte om redan applicerade checksummor.
+Staff-delivery-objekten saknades i gridex-prod vid granskningen och installerades separat 2026-10-06, registrerad version `20261006220746`, från oförändrade lokala `20261005125326_support_staff_invitation_delivery_private.sql`. Tabell-RLS, privata schema-/tabellgrants och samtliga tre RPC:ers ACL verifierades efteråt. Historisk avstämningsinstruktion för andra mål: Stäm separat av befintliga `20261005125326_support_staff_invitation_delivery_private.sql` mot målet. Applicera just det saknade kompatibla steget om tabellen och samtliga tre RPC:er saknas; vid delvis befintligt schema krävs en ny framåtriktad korrigeringsmigration. Skriv inte om redan applicerade checksummor.
 
 Ta schema-/grantsunderlag och säkerställ fungerande databasbackup före rollout. Prova de aktuella migreringarna mot en isolerad målklon med samma enums, constraints, triggers, grants och policyer. De nya lokala PostgreSQL-testerna verifierar transaktioner och kundroller men ersätter inte denna målklon.
 
