@@ -1,7 +1,7 @@
 // components/layout/PublicHeader.tsx
 'use client'
 
-import Link from 'next/link'
+import Link from '@/components/navigation/IntentLink'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import GridexLogo from '@/components/brand/GridexLogo'
@@ -31,7 +31,6 @@ function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      prefetch
       aria-current={active ? 'page' : undefined}
       className={[
         'group relative inline-flex min-h-11 items-center text-sm font-medium transition-colors duration-200',
@@ -93,7 +92,7 @@ export default function PublicHeader({
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--gx-border)] bg-[var(--gx-canvas)]/95">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-2">
-        <Link href="/" prefetch className="flex shrink-0 items-center" aria-label="Gridex startsida">
+        <Link href="/" className="flex shrink-0 items-center" aria-label="Gridex startsida">
           <GridexLogo className="h-[68px] w-auto max-w-none sm:h-[72px]" inverted priority />
         </Link>
 
@@ -115,7 +114,6 @@ export default function PublicHeader({
               </div>
               <Link
                 href="/mina-sidor"
-                prefetch
                 className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--gx-text-muted)] transition-colors duration-200 hover:text-[var(--gx-text)]"
               >
                 Mina sidor
@@ -130,7 +128,6 @@ export default function PublicHeader({
           ) : (
             <Link
               href="/mina-sidor"
-              prefetch
               className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--gx-text-muted)] transition-colors duration-200 hover:text-[var(--gx-text)]"
             >
               Mina sidor
@@ -139,7 +136,6 @@ export default function PublicHeader({
 
           <Link
             href="/teckna-avtal"
-            prefetch
             className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-2 text-sm font-semibold text-[var(--gx-accent-ink)] transition-[background-color,transform] duration-200 hover:-translate-y-0.5 hover:bg-[var(--gx-accent-hover)]"
           >
             Teckna elavtal
@@ -196,7 +192,6 @@ export default function PublicHeader({
                   </div>
                   <Link
                     href="/mina-sidor"
-                    prefetch
                     className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--gx-text)]"
                     onClick={() => setOpen(false)}
                   >
@@ -207,7 +202,6 @@ export default function PublicHeader({
               ) : (
                 <Link
                   href="/mina-sidor"
-                  prefetch
                   className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--gx-text)]"
                   onClick={() => setOpen(false)}
                 >
@@ -217,7 +211,6 @@ export default function PublicHeader({
 
               <Link
                 href="/teckna-avtal"
-                prefetch
                 className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-4 py-3 text-center text-sm font-semibold text-[var(--gx-accent-ink)] transition-colors duration-200 hover:bg-[var(--gx-accent-hover)]"
                 onClick={() => setOpen(false)}
               >

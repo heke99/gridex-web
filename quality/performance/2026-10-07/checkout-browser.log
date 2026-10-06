@@ -1,0 +1,9 @@
+
+> gridex-web@0.1.0 test:audit:browser
+> node tests/run-audit-browser.mjs
+
+PASSED F37: pending review is shown as pending
+PASSED F38: unchanged move-out retry preserves its operation ID across page reload
+PASSED F41: recovery rate limits display a wait instruction
+PASSED F26: an old quote response cannot restore pricing after its address changes
+PASSED F05/F13: checkout controls current display, email delivery refreshes, and terminal/expired states stop polling

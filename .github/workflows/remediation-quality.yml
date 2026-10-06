@@ -42,10 +42,14 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+      - name: Public snapshot performance regressions
+        run: npm run test:performance
       - name: Browser dependencies
         run: npx playwright install --with-deps chromium
       - name: Customer, prices and receipt browser regressions
         run: npm run test:audit:browser
+      - name: Auth isolation and navigation performance
+        run: npm run test:performance:browser
       - name: Dependency security
         run: npm audit
       - name: Build

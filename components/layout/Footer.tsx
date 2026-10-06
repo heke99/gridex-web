@@ -1,5 +1,5 @@
 // components/layout/Footer.tsx
-import Link from 'next/link'
+import Link from '@/components/navigation/IntentLink'
 import GridexLogo from '@/components/brand/GridexLogo'
 
 export default function Footer() {

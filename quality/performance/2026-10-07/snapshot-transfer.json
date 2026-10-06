@@ -1,0 +1,9 @@
+{
+  "baselineResponseBytes": 106377,
+  "optimizedResponseBytes": 2,
+  "contractRowsTransferred": {
+    "before": 40,
+    "after": 0
+  },
+  "liveDatabaseChanged": false
+}

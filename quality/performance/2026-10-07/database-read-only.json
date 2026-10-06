@@ -1,0 +1,265 @@
+{
+  "project": "gridex-prod",
+  "projectId": "ayiuxjlfazkjmmtlvhsl",
+  "observedAt": "2026-10-06T22:44:00.947Z",
+  "readOnlyInspection": true,
+  "statisticsWindow": [
+    {
+      "pg_postmaster_start_time": "2026-07-10 13:47:56.776524+00",
+      "stats_reset": null,
+      "statement_stats_reset": "2026-07-10 13:47:35.988271+00",
+      "statement_tracking": "top",
+      "extensions": [
+        {
+          "schema": "extensions",
+          "extension": "pg_stat_statements"
+        }
+      ]
+    }
+  ],
+  "health": [
+    {
+      "health": {
+        "connections": 15,
+        "snapshot_rows": 25,
+        "waiting_locks": 0,
+        "max_connections": "60",
+        "onboarding_states": [
+          {
+            "jobs": 5,
+            "status": "pending"
+          }
+        ],
+        "active_connections": 1,
+        "index_cache_hit_percent": 99.924,
+        "snapshot_avg_json_bytes": 23704,
+        "table_cache_hit_percent": 99.979
+      }
+    }
+  ],
+  "queryStatistics": [
+    {
+      "role": "service_role",
+      "queryId": "7853264479675414656",
+      "calls": 1479,
+      "totalMs": "70906.89",
+      "meanMs": "47.942",
+      "maxMs": "185.355",
+      "sharedHits": 799924,
+      "sharedReads": 1,
+      "resources": [
+        "\"public\".\"store_website_public_contract_snapshot_v2\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-434312818710278714",
+      "calls": 4979,
+      "totalMs": "34651.50",
+      "meanMs": "6.960",
+      "maxMs": "254.963",
+      "sharedHits": 165931,
+      "sharedReads": 11,
+      "resources": [
+        "\"public\".\"customer_profiles\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-7821780334453251234",
+      "calls": 50681,
+      "totalMs": "22251.37",
+      "meanMs": "0.439",
+      "maxMs": "12.056",
+      "sharedHits": 154651,
+      "sharedReads": 0,
+      "resources": []
+    },
+    {
+      "role": "service_role",
+      "queryId": "-6557998876162730325",
+      "calls": 3207,
+      "totalMs": "20701.12",
+      "meanMs": "6.455",
+      "maxMs": "23.694",
+      "sharedHits": 137115,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"website_public_contract_snapshots\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "1176061772494723310",
+      "calls": 4979,
+      "totalMs": "15959.86",
+      "meanMs": "3.205",
+      "maxMs": "41.194",
+      "sharedHits": 89304,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"portal_onboarding_jobs\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-3832004735676774359",
+      "calls": 266,
+      "totalMs": "12683.25",
+      "meanMs": "47.681",
+      "maxMs": "147.675",
+      "sharedHits": 121787,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"store_website_public_contract_snapshot\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "7475437834311565012",
+      "calls": 1539,
+      "totalMs": "8964.63",
+      "meanMs": "5.825",
+      "maxMs": "14.749",
+      "sharedHits": 58047,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"portal_onboarding_jobs\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "2617046772461152117",
+      "calls": 4979,
+      "totalMs": "8060.88",
+      "meanMs": "1.619",
+      "maxMs": "58.633",
+      "sharedHits": 121067,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"customer_contract_portal_links\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-6403538714559582896",
+      "calls": 4979,
+      "totalMs": "5263.16",
+      "meanMs": "1.057",
+      "maxMs": "58.569",
+      "sharedHits": 98290,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"customer_delivery_points\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-6873074417028561900",
+      "calls": 598,
+      "totalMs": "5057.35",
+      "meanMs": "8.457",
+      "maxMs": "95.719",
+      "sharedHits": 153275,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"consume_distributed_rate_limit\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "1856263198247868148",
+      "calls": 4979,
+      "totalMs": "3541.94",
+      "meanMs": "0.711",
+      "maxMs": "212.361",
+      "sharedHits": 76572,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"portal_onboarding_jobs\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "1127430928291251349",
+      "calls": 1544,
+      "totalMs": "3226.54",
+      "meanMs": "2.090",
+      "maxMs": "12.331",
+      "sharedHits": 1564,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"portal_onboarding_jobs\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "4409977953790049228",
+      "calls": 2046,
+      "totalMs": "1936.75",
+      "meanMs": "0.947",
+      "maxMs": "3.246",
+      "sharedHits": 10230,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"customer_portal_write_outbox\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-4840316404097645243",
+      "calls": 2121,
+      "totalMs": "1862.40",
+      "meanMs": "0.878",
+      "maxMs": "12.132",
+      "sharedHits": 2260,
+      "sharedReads": 0,
+      "resources": [
+        "\"public\".\"distributed_rate_limits\""
+      ]
+    },
+    {
+      "role": "service_role",
+      "queryId": "-4928439739680971761",
+      "calls": 18,
+      "totalMs": "714.82",
+      "meanMs": "39.712",
+      "maxMs": "77.798",
+      "sharedHits": 5148,
+      "sharedReads": 7,
+      "resources": [
+        "\"public\".\"store_website_public_contract_snapshot\""
+      ]
+    }
+  ],
+  "advisors": [
+    {
+      "name": "unindexed_foreign_keys",
+      "count": 61,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+    },
+    {
+      "name": "unused_index",
+      "count": 194,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+    },
+    {
+      "name": "multiple_permissive_policies",
+      "count": 537,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+    },
+    {
+      "name": "duplicate_index",
+      "count": 6,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0009_duplicate_index"
+    }
+  ],
+  "snapshotReadPlan": {
+    "executionMs": 0.156,
+    "planningMs": 0.579,
+    "rows": 25,
+    "sharedHits": 4,
+    "sharedReads": 0,
+    "note": "SELECT only; anonymized primary-key discovery subquery. Seq scan over 25 rows is not a missing-index bottleneck."
+  }
+}

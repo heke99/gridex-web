@@ -110,13 +110,13 @@ function HeroBlock() {
         </p>
 
         <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link
+          <a
             href="#rakna-elpris"
             className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--gx-radius-sm)] bg-[var(--gx-accent)] px-6 py-3 text-sm font-semibold text-[var(--gx-accent-ink)] transition-[background-color,transform] duration-200 hover:-translate-y-0.5 hover:bg-[var(--gx-accent-hover)]"
           >
             Räkna ditt elpris
             <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-          </Link>
+          </a>
 
           <Link
             href="/elavtal"
@@ -197,13 +197,13 @@ function HeroBlock() {
           </li>
         </ol>
 
-        <Link
+        <a
           href="#rakna-elpris"
           className="group mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--gx-text)] transition-colors duration-200 hover:text-[var(--gx-accent)]"
         >
           Se ditt pris nu
           <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-        </Link>
+        </a>
 
         <p className="mt-3 max-w-sm text-xs leading-5 text-[var(--gx-text-subtle)]">
           Pris påverkas av elområde, förbrukning och vald avtalsform. Full

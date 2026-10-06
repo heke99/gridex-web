@@ -2,13 +2,13 @@
 
 import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, getVerifiedServerUser } from '@/lib/supabase/server'
 
 async function fetchUserPermissions(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string[]> {
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await getVerifiedServerUser(supabase)
   if (authError || user?.id !== userId) return []
   const { data, error } = await supabase.rpc(
     'gridex_my_permissions_v1'

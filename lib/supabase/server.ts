@@ -1,5 +1,6 @@
 // lib/supabase/server.ts
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -17,10 +18,10 @@ function getSupabaseAnonKey(): string {
 
 /**
  * READ-ONLY for Server Components (pages/layouts).
- * Next 15 forbids cookie mutation here.
- * Enterprise: guarantees anon context for public pages while still supporting session cookies when present.
+ * Share the cookie-backed client only within one React server render.
+ * React.cache is request scoped; route handlers/actions get a fresh client.
  */
-export async function createSupabaseServerClient(): Promise<SupabaseClient> {
+export const createSupabaseServerClient = cache(async (): Promise<SupabaseClient> => {
   const cookieStore = await cookies()
 
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -33,7 +34,12 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
       remove(): void {},
     },
   })
-}
+})
+
+/** Verify with Auth once per client/server render; never trust an unverified session. */
+export const getVerifiedServerUser = cache(async (supabase: SupabaseClient) => {
+  return supabase.auth.getUser()
+})
 
 /**
  * READ + WRITE for Server Actions & Route Handlers.

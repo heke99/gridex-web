@@ -1,6 +1,6 @@
 import { supabaseService } from '@/lib/supabase/service'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, getVerifiedServerUser } from '@/lib/supabase/server'
 import {
   fetchOpsCustomerPortalBundle,
   fetchOpsCustomerResource,
@@ -54,7 +54,7 @@ export class CustomerPortalAccessError extends Error {
 async function getUserOrThrow(supabase: SupabaseClient) {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getVerifiedServerUser(supabase)
 
   if (!user) {
     throw new CustomerPortalAccessError()
@@ -763,8 +763,10 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const identity = portalIdentityFromProfile(user, localProfile)
 
   const [support, bundle] = await Promise.all([
-    getCustomerTickets(supabase, user.id, user).then(
-      (tickets) => ({ tickets, error: null }),
+    // The verified identity is already resolved. Reusing it removes a second
+    // profile query from the support branch without caching customer data.
+    listOpsCustomerSupportCases(identity, { limit: 50 }).then(
+      (result) => ({ tickets: result.data, error: null }),
       () => ({ tickets: [] as CustomerSupportTicket[], error: 'Supportärenden kan inte hämtas just nu.' }),
     ),
     fetchOpsCustomerPortalBundle(identity),

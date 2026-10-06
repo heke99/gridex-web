@@ -1,0 +1,5 @@
+
+> gridex-web@0.1.0 test:performance:browser
+> node tests/run-performance-browser.mjs
+
+PASS: real Next RSC deduplicates 3 Auth reads to 1, isolates concurrent customers, preserves guests/expired errors; menu idle/hover/focus/changed-href/navigation checks pass
