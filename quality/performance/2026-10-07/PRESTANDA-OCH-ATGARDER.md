@@ -78,6 +78,7 @@ Inspektionen var read-only och exporterade aggregat, fråge-ID:n och resursnamn.
 | Prioritet | Nästa åtgärd | Tillstånd |
 |---|---|---|
 | Hög | Samordna driftsättning av redan mergad auditkod och schemaändringar | Tidigare produktionsarbete kvarstår |
+| Hög | Lös Vercels cron-begränsning inför driftsättning | PR-förhandsvisning nekas på Hobby; Pro eller extern schemaläggare krävs för befintlig frekvens |
 | Hög | Mät verklig checkout/portal och OPS-tid separat från lokal frontend | Kräver driftsatt revision och testkonto |
 | Medel | Aktivera förberedd städning av verifierade dubbla index | Redan i `20261006205350_audited_web_indexes.sql`; inte applicerad |
 | Medel | Aktivera förberedd policy-deduplicering | Redan i `20261006214901_audited_duplicate_policies.sql`; inte applicerad |
@@ -140,6 +141,23 @@ passerade hela supportsuiten. Ingen assertionskontroll togs bort.
 Leveransen ändrar webbkod och lokal skill. Ingen produktionsdriftsättning eller
 databasmigration har utförts i denna prestandaomgång. Live prestanda är därför
 fortfarande ej verifierad för den nya revisionen.
+
+### PR och hosting
+
+[PR #50](https://github.com/heke99/gridex-web/pull/50) innehåller ändringarna och
+är öppen. GitHub Actions-kontrollerna ligger i kö vid leveransen.
+
+Vercels förhandsvisning nekades med meddelandet: "Hobby accounts are limited to
+daily cron jobs. This cron expression (5 * * * *) would run more than once per
+day." Befintlig `vercel.json` har även ett kvittensjobb var tionde minut. Projektet
+behöver en plan som stödjer dessa intervall eller en extern schemaläggare som
+anropar de skyddade interna endpoints med korrekt autentisering. Frekvenserna har
+behållits i denna PR. Att ändra dem till dagligen skulle påverka återförsök och
+kundernas mejl-/kontoflöden och behöver bedömas som en produktionsändring.
+
+Förhandsvisningsfelet kommer från Vercels validering av hostingplan och cron, före
+ett tillgängligt preview-bygge. Lokalt produktionsbygge och browserproven är
+godkända. Ingen kostnadsändring eller ny schemaläggare har aktiverats.
 
 ## Försökslogg
 

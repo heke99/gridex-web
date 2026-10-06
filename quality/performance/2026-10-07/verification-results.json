@@ -18,5 +18,8 @@
   "production_database_changed": false,
   "production_deployed": false,
   "live_speedup_verified": false,
+  "pull_request": "https://github.com/heke99/gridex-web/pull/50",
+  "github_actions_at_delivery": "queued",
+  "vercel_preview": "blocked: Hobby plan allows daily cron; existing hourly/10-minute cron schedules require a compatible plan or external scheduler",
   "metrics_scope": "Local synthetic request counts/decoded bytes; PostgreSQL fixture and real Next RSC with offline Auth adapter. No live p95/p99/INP assertion."
 }
