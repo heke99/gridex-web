@@ -19,6 +19,8 @@ export const DEFAULT_CUSTOMER_PORTAL_SCOPES = [
   'customer_power_of_attorney.write',
 ] as const
 
+export const CUSTOMER_SUPPORT_SCOPES = ['customer_support.read', 'customer_support.write'] as const
+
 type PortalScopeStatus = 'verified' | 'alternative_verified' | 'missing' | 'unverified'
 type PortalProbe = {
   name: string
@@ -35,6 +37,7 @@ export type PortalReadiness = {
   scopes: Array<{ scope: string; status: PortalScopeStatus }>
   probes: Array<{ name: string; ok: boolean; status: number | null; code: string | null }>
   portalBundleProbe: { ok: boolean; status: number | null; code: string | null }
+  support: { ready: boolean; probes: PortalReadiness['probes'] }
   contextReadiness: {
     customerPortalReady: boolean
     completeIntegrationReady: boolean
@@ -77,7 +80,7 @@ function probeDefinitions(): PortalProbe[] {
       scopes: ['customer_notifications.write'],
       path: '/api/v1/customer/notifications/read',
       method: 'POST',
-      body: { notification_ids: [] },
+      body: { notification_references: [] },
     },
     {
       name: 'customer_profile_update.write',
@@ -126,6 +129,7 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
       probes,
       portalBundleProbe: { ok: false, status: null, code: 'ops_not_configured' },
       contextReadiness: null,
+      support: { ready: false, probes: [] },
     }
   }
 
@@ -146,6 +150,14 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     contextReadiness = null
   }
 
+  const supportDefinitions: PortalProbe[] = [
+    { name: 'customer_support.read', scopes: ['customer_support.read'], path: '/api/v1/customer/support/cases?limit=1', method: 'GET' },
+    { name: 'customer_support.write', scopes: ['customer_support.write'], path: '/api/v1/customer/support/cases', method: 'POST', body: {} },
+  ]
+  const supportResults = await Promise.allSettled(supportDefinitions.map(runProbe))
+  const supportProbes = supportResults.map((result, index) => result.status === 'fulfilled'
+    ? { name: supportDefinitions[index].name, ...result.value }
+    : { name: supportDefinitions[index].name, ok: false, status: isOpsError(result.reason) ? result.reason.status : null, code: 'support_probe_failed' })
   const results = await Promise.allSettled(definitions.map(runProbe))
   results.forEach((settled, index) => {
     const definition = definitions[index]
@@ -178,5 +190,6 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     probes,
     portalBundleProbe: { ok: portalBundle.ok, status: portalBundle.status, code: portalBundle.code },
     contextReadiness,
+    support: { ready: supportProbes.every((probe) => probe.ok), probes: supportProbes },
   }
 }

@@ -1,0 +1,5 @@
+
+> gridex-web@0.1.0 test:support:browser
+> node tests/run-support-browser.mjs
+
+{"status":"PASS_OFFLINE_BROWSER","checks":23,"errors":0,"output":"/tmp/gridex-support-browser-evidence"}

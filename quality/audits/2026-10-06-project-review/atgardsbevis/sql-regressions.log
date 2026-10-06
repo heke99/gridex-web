@@ -1,0 +1,2 @@
+Pricing, support receipt transactions, duplicate-index checks and queue ownership passed
+Audit SQL regressions passed: customer isolation, forged writes denied, scoped permissions, current Auth email, fencing and atomic rollback

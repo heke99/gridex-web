@@ -96,7 +96,7 @@ export default async function AdminCustomerSpecPreviewPage() {
               Steg 3
             </div>
             <div className="mt-2 text-sm text-white/85">
-              Publicera först när kundspec och publikt utfall stämmer exakt.
+              Kontrollera kundens pris i OPS-offerten. Den äldre lokala modellen är endast en intern förhandsvisning.
             </div>
           </div>
         </div>

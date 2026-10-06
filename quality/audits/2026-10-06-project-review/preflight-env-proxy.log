@@ -1,0 +1,205 @@
+(node:2432) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:preflight
+> npm run api:check:live && npm run api:contract && npm run api:runtime && npm run db:migrations:check && npm run api:compatibility
+
+(node:2445) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:check:live
+> node scripts/check-openapi-drift.mjs
+
+(node:2458) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+website-integration-v1.json: no live drift (2026-10-04.1)
+customer-portal-v1.json: no live drift (2026-10-04.1)
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+(node:2470) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:contract
+> node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs
+
+(node:2483) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+live application-number contract regression passed
+(node:2491) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2491) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(node:2491) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website API contract tests passed (2026-10-04.1)
+(node:2504) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2504) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(node:2504) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+Website API runtime contract tests passed
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+(node:2517) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:runtime
+> npm run api:contract
+
+(node:2530) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:contract
+> node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs
+
+(node:2543) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+live application-number contract regression passed
+(node:2551) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2551) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(node:2551) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website API contract tests passed (2026-10-04.1)
+(node:2564) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2564) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(node:2564) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+Website API runtime contract tests passed
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+(node:2577) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 db:migrations:check
+> node scripts/check-migration-manifest.mjs
+
+(node:2590) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Migration integrity passed (39 files).
+(node:2602) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> gridex-web@0.1.0 api:compatibility
+> node scripts/check-api-compatibility.mjs
+
+(node:2615) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "contract_version": "2026-10-04.1",
+  "upstream_contract_gaps": [],
+  "environment_blockers": []
+}
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

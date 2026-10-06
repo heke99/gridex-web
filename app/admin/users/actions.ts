@@ -35,8 +35,7 @@ async function requireAdminAccess() {
   if (legacy?.role === 'admin') return { user, supabase, mode: 'legacy' as const }
 
   // New: permission admin.access
-  const { data: ok, error } = await supabase.rpc('gridex_has_permission', {
-    p_user_id: user.id,
+  const { data: ok, error } = await supabase.rpc('gridex_my_has_permission_v1', {
     p_permission: 'admin.access',
   })
 

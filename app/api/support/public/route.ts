@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseService } from '@/lib/supabase/service'
-import { checkRateLimit } from '@/lib/security/rateLimit'
+import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { hashIp } from '@/lib/ops/client'
+import { createHash } from 'node:crypto'
 
 export const dynamic = 'force-dynamic'
 
 type PublicSupportPayload = {
+  client_operation_id?: unknown
   name?: unknown
   email?: unknown
   phone?: unknown
@@ -24,11 +26,7 @@ function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function clientIp(h: Headers): string | null {
-  const xff = h.get('x-forwarded-for')
-  if (xff) return xff.split(',')[0]?.trim() || null
-  return h.get('x-real-ip')?.trim() || null
-}
+
 
 export async function POST(req: Request) {
   try {
@@ -61,7 +59,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const ip = clientIp(h)
+    const ip = clientIpFromHeaders(h)
     const rate = await checkRateLimit(`public-support:${ip ?? email}`, {
       limit: 6,
       windowMs: 15 * 60 * 1000,
@@ -74,56 +72,24 @@ export async function POST(req: Request) {
     }
 
     const userAgent = h.get('user-agent')
-    const clientRequestId = `public:${email}:${Date.now()}`
-
-    const { data: ticket, error: ticketError } = await supabaseService
-      .from('customer_support_tickets')
-      .insert({
-        user_id: null,
-        subject,
-        description: message,
-        category,
-        priority: 'normal',
-        status: 'open',
-        metadata: {
-          source: 'public_kundservice_form',
-          customer_name: name,
-          customer_email: email,
-          customer_phone: phone || null,
-          client_request_id: clientRequestId,
-          ip_hash: hashIp(ip),
-          user_agent: userAgent,
-        },
-      })
-      .select('id')
-      .single<{ id: string }>()
-
-    if (ticketError) {
-      throw new Error(ticketError.message)
+    const operationId = asText(body.client_operation_id, 80)
+    if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(operationId)) {
+      return NextResponse.json({ error: 'Åtgärds-ID saknas. Ladda om sidan och försök igen.' }, { status: 400 })
     }
-
-    const { error: messageError } = await supabaseService
-      .from('customer_support_messages')
-      .insert({
-        ticket_id: ticket.id,
-        sender_user_id: null,
-        sender_type: 'customer',
-        body: message,
-      })
-
-    if (messageError) {
-      throw new Error(messageError.message)
-    }
-
-    await supabaseService.from('system_emails').insert({
-      to_email: email,
-      subject: 'Vi har tagit emot ditt ärende hos Gridex AB',
-      body: `Hej ${name},\n\nTack för ditt meddelande. Vi har tagit emot ditt ärende och återkommer till dig via e-post.\n\nÄmne: ${subject}\n\nVänliga hälsningar,\nGridex AB`,
+    const payloadHash = createHash('sha256').update(JSON.stringify({ name, email, phone, category, subject, message })).digest('hex')
+    const { data: ticketId, error } = await supabaseService.rpc('gridex_create_public_inquiry_v1', {
+      p_operation_id: operationId, p_payload_hash: payloadHash,
+      p_name: name, p_email: email, p_phone: phone || null, p_category: category,
+      p_subject: subject, p_message: message, p_ip_hash: hashIp(ip), p_user_agent: userAgent,
     })
+    if (error || !ticketId) {
+      const conflict = error?.message?.includes('idempotency_conflict')
+      return NextResponse.json({ error: conflict ? 'Samma åtgärds-ID har redan använts för ett annat ärende.' : 'Ärendet kunde inte sparas just nu.' }, { status: conflict ? 409 : 503 })
+    }
+    return NextResponse.json({ ok: true, ticketId, confirmation_status: 'queued' })
 
-    return NextResponse.json({ ok: true, ticketId: ticket.id })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Kunde inte skicka ärendet.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[public support] intake failed', { code: error instanceof Error ? error.name : 'unknown' })
+    return NextResponse.json({ error: 'Kunde inte skicka ärendet just nu.' }, { status: 503 })
   }
 }

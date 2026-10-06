@@ -47,8 +47,7 @@ export async function requirePermissionServer(permission: string) {
   // --------------------------------------------------
   // 2) New permission system
   // --------------------------------------------------
-  const { data: allowed, error } = await supabase.rpc('gridex_has_permission', {
-    p_user_id: user.id,
+  const { data: allowed, error } = await supabase.rpc('gridex_my_has_permission_v1', {
     p_permission: permission,
   })
 

@@ -8,9 +8,10 @@ async function fetchUserPermissions(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string[]> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || user?.id !== userId) return []
   const { data, error } = await supabase.rpc(
-    'gridex_get_user_permissions',
-    { p_user_id: userId }
+    'gridex_my_permissions_v1'
   )
 
   if (error) {

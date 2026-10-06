@@ -1,3 +1,4 @@
+import { supabaseService } from '@/lib/supabase/service'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -78,6 +79,15 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
+}
+
+function safeDocumentUrl(value: unknown): string | null {
+  const text = asText(value)
+  if (!text) return null
+  try {
+    const url = new URL(text)
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : null
+  } catch { return null }
 }
 
 function authMetadata(user?: User | null): Record<string, unknown> {
@@ -161,7 +171,7 @@ function pickDate(row: Record<string, unknown>, keys: string[]): string | null {
 
 function requiredCanonicalReference(
   row: Record<string, unknown>,
-  field: 'contract_reference' | 'invoice_reference' | 'site_reference' | 'document_reference' | 'notification_reference',
+  field: 'contract_reference' | 'invoice_reference' | 'facility_reference' | 'document_reference' | 'notification_reference',
   code:
     | 'PORTAL_CONTRACT_REFERENCE_MISSING'
     | 'PORTAL_INVOICE_REFERENCE_MISSING'
@@ -276,26 +286,40 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
     price_plan_id: null,
     price_plan_version_id: null,
     contract_price_snapshot_id: null,
-    pricing_snapshot: {},
+    pricing_snapshot: {
+      energy_direction: pick(row, ['energy_direction']),
+      contract_type: pick(row, ['contract_type']),
+      price_area: pick(row, ['price_area']),
+      monthly_fee_sek: asNumber(row.monthly_fee_sek),
+      invoice_fee_sek: asNumber(row.invoice_fee_sek),
+      fixed_price_ore_per_kwh: asNumber(row.fixed_price_ore_per_kwh),
+      markup_ore_per_kwh: asNumber(row.markup_ore_per_kwh),
+      binding_months: asNumber(row.binding_months),
+      notice_months: asNumber(row.notice_months),
+      auto_renew_enabled: typeof row.auto_renew_enabled === 'boolean' ? row.auto_renew_enabled : null,
+      withdrawal_deadline_at: pickDate(row, ['withdrawal_deadline_at']),
+      signature_snapshot_sha256: pick(row, ['signature_snapshot_sha256']),
+    },
     metadata: {},
-    created_at: pickDate(row, ['created_at']) ?? new Date().toISOString(),
+    created_at: pickDate(row, ['created_at']),
   }
 }
 
 function mapOpsSite(row: Record<string, unknown>): CustomerSite {
-  const id = requiredCanonicalReference(row, 'site_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+  const id = requiredCanonicalReference(row, 'facility_reference', 'PORTAL_SITE_REFERENCE_MISSING')
+  const address = asRecord(row.address)
   return {
     id,
     site_reference: id,
-    address: pick(row, ['address']),
-    postal_code: pick(row, ['postal_code']),
-    city: pick(row, ['city']),
+    address: [pick(address, ['street']), pick(address, ['care_of'])].filter(Boolean).join(', ') || null,
+    postal_code: pick(address, ['postal_code']),
+    city: pick(address, ['city']),
     facility_id: pick(row, ['facility_id']),
     metering_point_id: pick(row, ['metering_point_id']),
     grid_area_code: pick(row, ['grid_area_code']),
     price_area: pick(row, ['price_area']),
     grid_owner_name: null,
-    verification_status: null,
+    verification_status: pick(row, ['status']),
     onboarding_status: null,
     data_quality_status: null,
     resolution_status: null,
@@ -317,8 +341,8 @@ function mapOpsInvoice(row: Record<string, unknown>): CustomerInvoice {
     due_at: pickDate(row, ['due_date']),
     paid_at: pickDate(row, ['paid_at']),
     status: pick(row, ['status']) ?? 'unknown',
-    total_amount: asNumber(row.amount_inc_vat) ?? 0,
-    vat_amount: asNumber(row.vat_amount) ?? 0,
+    total_amount: asNumber(row.amount_inc_vat),
+    vat_amount: asNumber(row.vat_amount),
     ocr_number: null,
     payment_reference: null,
     pdf_url: null,
@@ -350,8 +374,8 @@ function mapOpsDocument(row: Record<string, unknown>): CustomerDocument {
     status: pick(row, ['status']),
     created_at: pickDate(row, ['created_at']),
     file_url: null,
-    download_url: pick(row, ['download_url']),
-    version: null,
+    download_url: safeDocumentUrl(row.secure_url),
+    version: pick(row, ['version']),
   }
 }
 
@@ -381,7 +405,9 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
     id: stableEntityId('acceptance', row, ['acceptance_reference', 'id', 'acceptance_id']),
     acceptance_type: type,
     title: pick(row, ['title', 'name']) ?? acceptanceTitle(type),
-    version: pick(row, ['version', 'legal_version', 'version_key']),
+    version: pick(row, ['document_version', 'version', 'legal_version', 'version_key']),
+    document_reference: pick(row, ['document_reference']),
+    document_hash: pick(row, ['document_hash']),
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
     source: pick(row, ['source', 'accepted_source']),
     status: pick(row, ['status']) ?? 'accepted',
@@ -408,11 +434,11 @@ function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAtt
   const scopes = stringArray(row.scope ?? row.scopes ?? row.poa_scope)
   return {
     id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id']),
-    status: pick(row, ['status']) ?? 'active',
+    status: pick(row, ['status']) ?? 'unknown',
     scopes,
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
     revoked_at: pickDate(row, ['revoked_at']),
-    valid_until: pickDate(row, ['valid_until', 'expires_at']),
+    valid_until: pickDate(row, ['valid_to', 'valid_until', 'expires_at']),
     title: pick(row, ['title', 'name']) ?? poaScopeLabel(scopes),
     version: pick(row, ['version', 'legal_version', 'power_of_attorney_version']),
   }
@@ -736,8 +762,11 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
   const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, localProfile)
 
-  const [tickets, bundle] = await Promise.all([
-    getCustomerTickets(supabase, user.id, user),
+  const [support, bundle] = await Promise.all([
+    getCustomerTickets(supabase, user.id, user).then(
+      (tickets) => ({ tickets, error: null }),
+      () => ({ tickets: [] as CustomerSupportTicket[], error: 'Supportärenden kan inte hämtas just nu.' }),
+    ),
     fetchOpsCustomerPortalBundle(identity),
   ])
 
@@ -782,7 +811,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     switchStatus,
     meteringValues: bundle.meteringValues.map(mapOpsMeteringValue),
     events: bundle.events.map(mapOpsEvent),
-    tickets,
+    tickets: support.tickets,
+    supportError: support.error,
     notifications: bundle.notifications.map(mapOpsNotification),
     opsAvailable: true,
     opsError: null,
@@ -810,7 +840,7 @@ export async function markCustomerNotificationsRead(input: {
     operationId,
   })
 
-  let localQuery = supabase
+  let localQuery = supabaseService
     .from('customer_notifications')
     .update({ is_read: true, read_at: readAt })
     .eq('user_id', user.id)

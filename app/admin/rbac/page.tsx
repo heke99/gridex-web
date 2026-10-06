@@ -10,9 +10,7 @@ export default async function RbacOverviewPage() {
 
   const supabase = ctx.supabase
 
-  const { data: perms, error } = await supabase.rpc('gridex_get_user_permissions', {
-    p_user_id: ctx.userId,
-  })
+  const { data: perms, error } = await supabase.rpc('gridex_my_permissions_v1')
 
   if (error) {
     throw new Error(error.message)

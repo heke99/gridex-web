@@ -1,0 +1,6 @@
+(node:4551) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./quality/audits/2026-10-06-project-review/pricing-audit-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED F27: real save action commits deletion before failing insertion; previous four area-price rows are lost at modeled DB boundary
+CONFIRMED F31: real email-sign page reports signed when query returns no matching agreement
+CONFIRMED F29: one monthly average fans out to 30 daily fetches; four-area page schedules 120 monthly fetches plus 4 live fetches before cache effects

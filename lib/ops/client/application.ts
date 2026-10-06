@@ -501,7 +501,7 @@ export function mapCustomerApplicationCommunication(
 
 export async function submitOpsCustomerApplication(
   input: OpsCustomerApplicationInput,
-): Promise<AcceptedOpsCustomerApplicationResult> {
+): Promise<OpsCustomerApplicationResult> {
   if (!getOpsClientStatus().liveSignupEnabled) {
     throw new OpsError("Live-teckning är avstängd för hemsidan.", 503);
   }
@@ -533,7 +533,8 @@ export async function submitOpsCustomerApplication(
   }
 
   const result = mapOpsCustomerApplicationResult(payload);
-  assertAcceptedApplication(result);
+  if (!result.application_number) throw new OpsError('OPS saknar ansökningsreferens.', 502, { code: 'ops_application_number_missing', retryable: false });
+  if (result.checkout.thank_you_ready) assertAcceptedApplication(result);
   return result;
 }
 
@@ -614,6 +615,7 @@ export function mapOpsCustomerApplicationResult(
 ): OpsCustomerApplicationResult {
   const root = recordValue(payload) ?? {}
   const row = recordValue(root.data) ?? root
+  assertWebsiteResponse('WebsiteCheckoutResult', row.checkout, '/api/v1/website/customer-applications')
   const stringArray = (key: string): string[] => {
     const value = row[key]
     if (!Array.isArray(value)) {
@@ -647,6 +649,7 @@ export function mapOpsCustomerApplicationResult(
   }
 
   return {
+    checkout: row.checkout as OpsCustomerApplicationResult['checkout'],
     status,
     customer_id: pickString(row, ['customer_id']),
     customer_number: pickString(row, ['customer_number']),
@@ -723,6 +726,9 @@ export function assertAcceptedApplication(
   }
 
   if (result.status !== 'accepted') fail('ops_application_not_accepted', 'status', result.status)
+  if (!result.checkout.thank_you_ready || !['success', 'success_action_required'].includes(result.checkout.page_state)) {
+    fail('ops_checkout_not_ready', 'checkout', result.checkout)
+  }
   if (!result.application_number?.trim()) fail('ops_application_number_missing', 'application_number')
   if (!result.customer_number?.trim()) fail('ops_customer_number_missing', 'customer_number')
   if (result.contract_status !== 'signed') fail('ops_contract_not_signed', 'contract_status', result.contract_status)

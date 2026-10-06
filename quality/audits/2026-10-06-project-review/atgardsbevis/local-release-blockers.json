@@ -1,0 +1,26 @@
+{
+  "baseline_web_sha": "188e475d18341a9ec9a531d9705da8988d9e9f6b",
+  "working_tree_has_changes": true,
+  "source_sha256": "31e2608af01a724b9c9173c199717951e0b46ed8a6c6cc31f830ec01b2700dd9",
+  "api_version": "2026-10-04.1",
+  "migrations_sha256": "8e7bfa6d797271219af5e55b204b75e134e9ae90fbd5922d1ffa77b76117d9ac",
+  "migration_count": 44,
+  "expected_database_project": "ayiuxjlfazkjmmtlvhsl",
+  "ready": false,
+  "blockers": [
+    "configuration:NEXT_PUBLIC_SUPABASE_URL",
+    "configuration:NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "configuration:SUPABASE_SERVICE_ROLE_KEY",
+    "configuration:GRIDEX_API_KEY",
+    "configuration:GRIDEX_SUPPORT_SUPABASE_URL",
+    "configuration:GRIDEX_SUPPORT_SUPABASE_ANON_KEY",
+    "configuration:CRON_SECRET",
+    "configuration:GRIDEX_SUPPORT_RECEIPT_RESEND_KEY",
+    "configuration:GRIDEX_SUPPORT_RECEIPT_FROM",
+    "configuration:GRIDEX_WEBSITE_STATE_SIGNING_SECRET",
+    "configuration:WEBSITE_RESULT_TOKEN_SECRET",
+    "configuration:GRIDEX_RELEASE_WEB_SHA",
+    "configuration:GRIDEX_RELEASE_E2E_EVIDENCE",
+    "working_tree_not_committed"
+  ]
+}

@@ -1,42 +1,14 @@
-import { supabaseService } from '@/lib/supabase/service'
-import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
-import { ContractAgreement } from '@/lib/types/contracts'
-
+import Link from 'next/link'
 export const dynamic = 'force-dynamic'
 
-export default async function EmailSign({
-  params,
-}: {
-  params: Promise<{ token: string }>
-}) {
-  const { token } = await params
-  const { data, error } = await supabaseService
-    .from('contract_agreements')
-    .update({
-      email_signed_at: new Date().toISOString(),
-      status: 'email_signed',
-    })
-    .eq('email_sign_token', token)
-    .is('email_signed_at', null)
-    .select('*')
-    .maybeSingle<ContractAgreement>()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  if (data?.id) {
-    await finalizeAgreement(data.id)
-  }
-
+/** Retired legacy links must never mutate an agreement when fetched by mail scanners. */
+export default async function EmailSign() {
   return (
     <div className="mx-auto max-w-xl px-6 py-20">
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-8 text-center">
-        <h1 className="text-2xl font-bold text-white">Avtalet är signerat</h1>
-        <p className="mt-3 text-gray-400">
-          Din signering har registrerats. Om avtalet inte redan var färdigbehandlat
-          har PDF och välkomstflöde nu startats.
-        </p>
+        <h1 className="text-2xl font-bold text-white">Den här signeringslänken används inte längre</h1>
+        <p className="mt-3 text-gray-400">Kontrollera avtalsstatusen på Mina sidor eller kontakta kundservice för en aktuell länk.</p>
+        <Link href="/mina-sidor" className="mt-5 inline-block text-cyan-300">Öppna Mina sidor</Link>
       </div>
     </div>
   )

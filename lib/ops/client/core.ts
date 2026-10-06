@@ -891,6 +891,21 @@ export function normalizeWebsitePricingSpecification(
     ...row,
     specification: rawSpecification,
   });
+  const lines = Array.isArray(row.lines) ? row.lines.map(recordValue).filter((line): line is Record<string, unknown> => line !== null) : [];
+  const resolved = Array.isArray(row.resolved_price_components) ? row.resolved_price_components.map(recordValue) : [];
+  const canonicalLine = (code: string) => resolved.some((component) => component?.component_code === code && component?.website_visibility === 'visible') ? lines.find((line) => line.component_code === code) : undefined;
+  const canonicalLines = lines.filter((line) => resolved.some((component) => component?.component_code === line.component_code && component?.website_visibility === 'visible')).map((line) => ({
+    code: String(line.component_code), name: String(line.name), quantity: normalizeNumber(line.quantity), unit: String(line.unit),
+    unitPriceExVat: normalizeNumber(line.unit_price_ex_vat), amountExVat: normalizeNumber(line.amount_ex_vat), amountIncVat: normalizeNumber(line.amount_inc_vat),
+  })).filter((line) => line.quantity !== null && line.unitPriceExVat !== null && line.amountExVat !== null && line.amountIncVat !== null);
+  const canonicalRate = (codes: string[], expectedUnit: string) => {
+    const line = codes.map(canonicalLine).find(Boolean);
+    if (!line) return null;
+    const value = normalizeNumber(line.unit_price_ex_vat);
+    if (value === null) return null;
+    if (line.unit === expectedUnit) return value;
+    return expectedUnit === 'ore_per_kwh' && line.unit === 'sek_per_kwh' ? value * 100 : null;
+  };
   const fees = {
     ...rawFees,
     markupOre:
@@ -903,6 +918,7 @@ export function normalizeWebsitePricingSpecification(
             rawFees.supplierMarginOrePerKwh,
         ),
         componentValues.markup_ore_per_kwh,
+        canonicalRate(['markup', 'supplier_margin'], 'ore_per_kwh'),
       ) ?? undefined,
     variableFeeOre:
       coalesceNumber(
@@ -914,6 +930,7 @@ export function normalizeWebsitePricingSpecification(
             rawFees.variableMarkupOrePerKwh,
         ),
         componentValues.variable_markup_ore_per_kwh,
+        canonicalRate(['variable_fee', 'variable_markup'], 'ore_per_kwh'),
       ) ?? undefined,
     elcertOre:
       coalesceNumber(
@@ -921,6 +938,7 @@ export function normalizeWebsitePricingSpecification(
           rawFees.elcertOre ?? rawFees.elcert_ore ?? rawFees.elcert_ore_per_kwh,
         ),
         componentValues.elcert_ore_per_kwh,
+        canonicalRate(['elcert', 'elcert_fee'], 'ore_per_kwh'),
       ) ?? undefined,
     monthlyFeeSek:
       coalesceNumber(
@@ -931,6 +949,7 @@ export function normalizeWebsitePricingSpecification(
             rawFees.subscription_fee_sek,
         ),
         componentValues.monthly_fee_sek,
+        canonicalRate(['monthly_fee'], 'sek_per_month'),
       ) ?? undefined,
     invoiceFeeSek:
       coalesceNumber(
@@ -941,6 +960,7 @@ export function normalizeWebsitePricingSpecification(
             rawFees.billing_fee_sek,
         ),
         componentValues.invoice_fee_sek,
+        canonicalRate(['invoice_fee'], 'sek_per_invoice'),
       ) ?? undefined,
     invoiceFeeIncludedInMonthlyEstimate:
       typeof rawFees.invoiceFeeIncludedInMonthlyEstimate === "boolean"
@@ -959,10 +979,12 @@ export function normalizeWebsitePricingSpecification(
           rawFees.invoiceIntervalMonths ??
           rawFees.invoice_interval_months,
       ) ?? undefined,
+    vatIncluded: lines.length ? false : undefined,
   };
 
   return {
     ...rawSpecification,
+    canonicalLines,
     fees,
   };
 }
@@ -1073,7 +1095,7 @@ export function mapOpsWebsiteQuote(payload: unknown, input: OpsWebsiteQuoteInput
     row.total_monthly_cost_incl_vat_sek ?? row.monthly_cost_inc_vat,
   );
   const yearly = normalizeNumber(
-    estimate.yearly_inc_vat ?? estimate.yearly_cost ??
+    estimate.annual_inc_vat ?? estimate.yearly_inc_vat ?? estimate.yearly_cost ??
     totals.yearly_inc_vat ?? totals.yearly_cost ?? row.total_yearly_cost_sek,
   );
   const validUntil = pickString(row, ['valid_until', 'validUntil', 'expires_at', 'expiresAt']);

@@ -104,9 +104,8 @@ async function assertAdmin(): Promise<{ userId: string }> {
     if (!user) throw new Error('Not authenticated')
 
     const { data: hasPerm, error: permError } = await supabase.rpc(
-      'gridex_has_permission',
+      'gridex_my_has_permission_v1',
       {
-        p_user_id: user.id,
         p_permission: 'admin.access',
       }
     )
@@ -215,36 +214,16 @@ export async function createVersionAction(formData: FormData) {
 
   const contract = await getContractOrThrow(service, contractId)
 
-  const { data: latestVersion, error: latestError } = await service
-    .from('contract_pricing_versions')
-    .select('version_number')
-    .eq('contract_id', contractId)
-    .order('version_number', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ version_number: number }>()
-
-  if (latestError) throw new Error(latestError.message)
-
-  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1
-
-  const { error: insertError } = await service
-    .from('contract_pricing_versions')
-    .insert({
-      contract_id: contractId,
-      version_number: nextVersionNumber,
-      valid_from: validFrom,
-      is_published: false,
-      status: 'draft',
-      created_by: userId,
-    })
-
-  if (insertError) throw new Error(insertError.message)
+  const { error } = await service.rpc('gridex_create_pricing_version_v1', {
+    p_contract_id: contractId, p_actor: userId, p_valid_from: validFrom.slice(0,10), p_reason: 'Create draft',
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePricingPaths(slug ?? contract.slug)
 }
 
 export async function savePricingAction(formData: FormData) {
-  await assertAdmin()
+  const { userId } = await assertAdmin()
   const service = getServiceClient()
 
   const pricingVersionId = String(formData.get('pricing_version_id') ?? '').trim()
@@ -285,24 +264,23 @@ export async function savePricingAction(formData: FormData) {
     }
   })
 
-  const { error: deleteError } = await service
-    .from('contract_area_pricing')
-    .delete()
-    .eq('pricing_version_id', pricingVersionId)
-
-  if (deleteError) throw new Error(deleteError.message)
-
-  const { error: insertError } = await service
-    .from('contract_area_pricing')
-    .insert(rows)
-
-  if (insertError) throw new Error(insertError.message)
+  const { error } = await service.rpc('gridex_save_pricing_rows_v1', {
+    p_version_id: pricingVersionId, p_actor: userId, p_rows: rows,
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePricingPaths(slug)
 }
 
 export async function publishVersionAction(formData: FormData) {
   const { userId } = await assertAdmin()
+  if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') {
+    const supabase = await createSupabaseServerClient()
+    const { data: canPublish, error } = await supabase.rpc('gridex_my_has_permission_v1', { p_permission: 'pricing.publish_prod' })
+    const { data: canAdmin, error: adminError } = await supabase.rpc('gridex_my_has_permission_v1', { p_permission: 'admin.access' })
+    const legacy = await requireAdminRole(supabase).catch(() => null)
+    if (legacy?.role !== 'admin' && (error || adminError || (canPublish !== true && canAdmin !== true))) throw new Error('Publish not allowed in prod')
+  }
   const service = getServiceClient()
 
   const contractId = String(formData.get('contract_id') ?? '').trim()
@@ -321,53 +299,10 @@ export async function publishVersionAction(formData: FormData) {
     throw new Error('Version does not belong to contract')
   }
 
-  const { error: unpublishError } = await service
-    .from('contract_pricing_versions')
-    .update({
-      is_published: false,
-      status: 'draft',
-      published_at: null,
-      published_by: null,
-    })
-    .eq('contract_id', contractId)
-    .or('is_published.eq.true,status.eq.published')
-
-  if (unpublishError) throw new Error(unpublishError.message)
-
-  const { error: publishError } = await service
-    .from('contract_pricing_versions')
-    .update({
-      is_published: true,
-      status: 'published',
-      published_at: new Date().toISOString(),
-      published_by: userId,
-    })
-    .eq('id', versionId)
-
-  if (publishError) throw new Error(publishError.message)
-
-  const { error: auditError } = await service
-    .from('pricing_version_audit')
-    .insert({
-      contract_id: contractId,
-      version_id: versionId,
-      action: 'publish',
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-  if (auditError) {
-    const fallbackAudit = await service.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: versionId,
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-    if (fallbackAudit.error) throw new Error(fallbackAudit.error.message)
-  }
+  const { error } = await service.rpc('gridex_publish_pricing_v1', {
+    p_contract_id: contractId, p_version_id: versionId, p_actor: userId, p_reason: reason,
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePricingPaths(slug ?? contract.slug)
 }
@@ -392,83 +327,10 @@ export async function cloneVersionAction(formData: FormData) {
     throw new Error('Source version does not belong to contract')
   }
 
-  const { data: latestVersion, error: latestError } = await service
-    .from('contract_pricing_versions')
-    .select('version_number')
-    .eq('contract_id', contractId)
-    .order('version_number', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ version_number: number }>()
-
-  if (latestError) throw new Error(latestError.message)
-
-  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1
-
-  const { data: createdVersion, error: createError } = await service
-    .from('contract_pricing_versions')
-    .insert({
-      contract_id: contractId,
-      version_number: nextVersionNumber,
-      valid_from: sourceVersion.valid_from,
-      is_published: false,
-      status: 'draft',
-      created_by: userId,
-    })
-    .select('id')
-    .single<{ id: string }>()
-
-  if (createError) throw new Error(createError.message)
-  if (!createdVersion) throw new Error('Failed to create cloned version')
-
-  const { data: sourceRows, error: sourceRowsError } = await service
-    .from('contract_area_pricing')
-    .select(
-      'price_area,price_per_kwh_ore,markup_ore,variable_fee_ore,elcert_ore,monthly_fee_sek'
-    )
-    .eq('pricing_version_id', sourceVersionId)
-
-  if (sourceRowsError) throw new Error(sourceRowsError.message)
-
-  if ((sourceRows ?? []).length > 0) {
-    const clonedRows = (sourceRows ?? []).map((row) => ({
-      pricing_version_id: createdVersion.id,
-      price_area: row.price_area,
-      price_per_kwh_ore: row.price_per_kwh_ore ?? 0,
-      markup_ore: row.markup_ore ?? 0,
-      variable_fee_ore: row.variable_fee_ore ?? 0,
-      elcert_ore: row.elcert_ore ?? 0,
-      monthly_fee_sek: row.monthly_fee_sek ?? 0,
-    }))
-
-    const { error: insertRowsError } = await service
-      .from('contract_area_pricing')
-      .insert(clonedRows)
-
-    if (insertRowsError) throw new Error(insertRowsError.message)
-  }
-
-  const { error: auditError } = await service
-    .from('pricing_version_audit')
-    .insert({
-      contract_id: contractId,
-      version_id: createdVersion.id,
-      action: 'clone',
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-  if (auditError) {
-    const fallbackAudit = await service.from('pricing_version_audit').insert({
-      contract_id: contractId,
-      version_id: createdVersion.id,
-      reason,
-      performed_by: userId,
-      performed_at: new Date().toISOString(),
-    })
-
-    if (fallbackAudit.error) throw new Error(fallbackAudit.error.message)
-  }
+  const { error } = await service.rpc('gridex_create_pricing_version_v1', {
+    p_contract_id: contractId, p_actor: userId, p_valid_from: null, p_source_id: sourceVersionId, p_reason: reason,
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePricingPaths(slug ?? contract.slug)
 }

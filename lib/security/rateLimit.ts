@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 type Bucket = {
   count: number
@@ -6,12 +6,15 @@ type Bucket = {
 }
 
 const buckets = new Map<string, Bucket>()
+let lastPrunedAt = 0
+let sharedClient: SupabaseClient | null = null
+let sharedConfiguration = ''
 
 export type RateLimitResult = {
   allowed: boolean
   remaining: number
   resetAt: number
-  source: 'shared' | 'local_fallback'
+  source: 'shared' | 'local_fallback' | 'unavailable'
 }
 
 type SharedRateLimitRow = {
@@ -25,9 +28,14 @@ function localRateLimit(
   options: { limit: number; windowMs: number },
 ): RateLimitResult {
   const now = Date.now()
+  if (now - lastPrunedAt >= 30_000 || buckets.size >= 10_000) {
+    for (const [key, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(key)
+    lastPrunedAt = now
+  }
   const existing = buckets.get(key)
 
   if (!existing || existing.resetAt <= now) {
+    if (buckets.size >= 10_000) return { allowed: false, remaining: 0, resetAt: now + options.windowMs, source: 'unavailable' }
     const resetAt = now + options.windowMs
     buckets.set(key, { count: 1, resetAt })
     return {
@@ -59,9 +67,8 @@ function localRateLimit(
 
 /**
  * Distributed rate limiter backed by an atomic Supabase/Postgres function.
- * Falls back to an in-process bucket only when shared infrastructure is not
- * configured or temporarily unavailable, so public flows remain usable while
- * still receiving best-effort protection.
+ * Production fails closed when the shared limiter is unavailable. Development
+ * uses bounded process-local buckets without weakening deployed write protection.
  */
 export async function checkRateLimit(
   key: string,
@@ -72,15 +79,26 @@ export async function checkRateLimit(
   const windowMs = Math.max(1_000, Math.floor(options.windowMs))
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const unavailable = (): RateLimitResult => process.env.NODE_ENV === 'production'
+    ? { allowed: false, remaining: 0, resetAt: Date.now() + 30_000, source: 'unavailable' }
+    : localRateLimit(normalizedKey || 'unknown', { limit, windowMs })
 
   if (!normalizedKey || !url || !serviceKey) {
-    return localRateLimit(normalizedKey || 'unknown', { limit, windowMs })
+    return unavailable()
   }
 
   try {
-    const supabase = createClient(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
+    const configuration = `${url}:${serviceKey}`
+    if (!sharedClient || sharedConfiguration !== configuration) {
+      sharedClient = createClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { fetch: (input, init) => fetch(input, {
+          ...init, signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(3_000)]) : AbortSignal.timeout(3_000),
+        }) },
+      })
+      sharedConfiguration = configuration
+    }
+    const supabase = sharedClient
     const { data, error } = await supabase.rpc('consume_distributed_rate_limit', {
       p_key: normalizedKey,
       p_limit: limit,
@@ -100,17 +118,18 @@ export async function checkRateLimit(
       resetAt,
       source: 'shared',
     }
-  } catch (error) {
-    console.error('[rate-limit] shared limiter unavailable; using local fallback', error)
-    return localRateLimit(normalizedKey, { limit, windowMs })
+  } catch {
+    console.error('[rate-limit] shared limiter unavailable')
+    return unavailable()
   }
 }
 
 export function clientIpFromHeaders(headers: Headers): string {
-  const xff = headers.get('x-forwarded-for')
+  // Vercel overwrites this header at its ingress, unlike forwarded application headers.
+  const xff = headers.get(process.env.VERCEL ? 'x-vercel-forwarded-for' : 'x-forwarded-for')
   if (xff) {
     const first = xff.split(',')[0]?.trim()
     if (first) return first
   }
-  return headers.get('x-real-ip')?.trim() || 'unknown'
+  return process.env.VERCEL ? 'unknown' : headers.get('x-real-ip')?.trim() || 'unknown'
 }

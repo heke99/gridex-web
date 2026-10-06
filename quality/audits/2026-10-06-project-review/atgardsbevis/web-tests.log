@@ -1,0 +1,638 @@
+
+> gridex-web@0.1.0 test
+> npm run test:launch && npm run test:audit-hardening
+
+
+> gridex-web@0.1.0 test:launch
+> npm run test:portal-existing-auth && npm run test:public-contract-v4 && npm run test:gridex-runtime-hardening && npm run test:post-commit-durability && node tests/public-contract-cache-durability.test.mjs && node tests/public-contract-failure-visibility.test.mjs && node tests/public-contract-feed-fail-closed.test.mjs && node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/schema-additive-compatibility.test.mjs && npm run test:ops-transport && node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/non-expiring-canonical-quotes.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260801.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-runtime-regressions-20260801.test.mjs && node tests/api-contract-regressions-20260802.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-canonical-area-prices.test.mjs && node tests/openapi-sync-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260804-3.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260805-1.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-issue-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-feed-isolation.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-runtime-compatibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/price-option-selection.test.mjs && node --experimental-strip-types tests/signup-canonical-kwh.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node tests/customer-pricing-copy-and-renewal.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-contract-option-adapter.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node tests/quote-validation-canonical-tuple.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs && node --experimental-strip-types tests/safe-redirect-path.test.mjs && node tests/automatic-checkout-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/automatic-price-option-selection.test.mjs && node tests/signup-quote-integrity-sync.test.mjs && node tests/forward-contract-version-compatibility.test.mjs
+
+
+> gridex-web@0.1.0 test:portal-existing-auth
+> node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs
+
+(node:17732) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[customer portal] onboarding could not be queued OpsError: Teckningens kundkoppling stämmer inte med det väntande försöket.
+    at queueJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:356:11)
+    at async Module.ensureCustomerPortalOnboarding (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:584:33)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:220:18)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_job_identity_conflict', retryable: false },
+  code: 'portal_onboarding_job_identity_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed Error: onboarding_job_processing_claim_lost
+    at file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:359:52
+    at async writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertClaimedPortalRows (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:302:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[portal claim] verified result claim failed OpsError: Kundkopplingen ändrades och behöver verifieras igen.
+    at writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:80:11)
+    at async upsertClaimedPortalRows (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:319:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_profile_changed', retryable: false },
+  code: 'portal_onboarding_profile_changed',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkopplingen ändrades och behöver verifieras igen.
+    at writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:80:11)
+    at async upsertClaimedPortalRows (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:319:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_profile_changed', retryable: false },
+  code: 'portal_onboarding_profile_changed',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:291:20)
+    at async writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertLocalPortalRows (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:291:20)
+    at async writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertLocalPortalRows (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:522:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:522:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed OpsError: Kundkopplingen behöver verifieras av kundservice.
+    at writePortalProfileWithStableIdentity (file:///workspace/gridex-web/lib/customerPortal/stableIdentity.ts:56:11)
+    at async upsertLocalPortalRows (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:371:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: {
+    code: 'portal_onboarding_stable_identity_conflict',
+    retryable: false
+  },
+  code: 'portal_onboarding_stable_identity_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:381:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:444:7)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:381:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed OpsError: Kundkontot stämmer inte med den väntande kopplingen.
+    at processJob (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:432:13)
+    at async Module.processPortalOnboardingJobs (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:391:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_auth_binding_conflict', retryable: false },
+  code: 'portal_onboarding_auth_binding_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///workspace/gridex-web/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///workspace/gridex-web/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///workspace/gridex-web/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+TAP version 13
+# Subtest: existing account waits for explicit claim without sending mail or minting reset tokens
+ok 1 - existing account waits for explicit claim without sending mail or minting reset tokens
+  ---
+  duration_ms: 4.858918
+  type: 'test'
+  ...
+# Subtest: repeat checkout and scheduled worker leave an existing-account wait idempotent
+ok 2 - repeat checkout and scheduled worker leave an existing-account wait idempotent
+  ---
+  duration_ms: 3.113321
+  type: 'test'
+  ...
+# Subtest: login alone cannot claim an unbound job by shared email
+ok 3 - login alone cannot claim an unbound job by shared email
+  ---
+  duration_ms: 0.651163
+  type: 'test'
+  ...
+# Subtest: explicit signed-result claim links once and preserves older contract projections
+ok 4 - explicit signed-result claim links once and preserves older contract projections
+  ---
+  duration_ms: 1.587046
+  type: 'test'
+  ...
+# Subtest: expired checkout proof causes no ownership or persistence changes
+ok 5 - expired checkout proof causes no ownership or persistence changes
+  ---
+  duration_ms: 0.255355
+  type: 'test'
+  ...
+# Subtest: actual claim route preserves signed intent across login and makes authenticated replay idempotent
+ok 6 - actual claim route preserves signed intent across login and makes authenticated replay idempotent
+  ---
+  duration_ms: 5.014652
+  type: 'test'
+  ...
+# Subtest: waiting submission cannot be replayed with a different stable customer
+ok 7 - waiting submission cannot be replayed with a different stable customer
+  ---
+  duration_ms: 2.225635
+  type: 'test'
+  ...
+# Subtest: signed claim refuses mismatched accepted-submission identity
+ok 8 - signed claim refuses mismatched accepted-submission identity
+  ---
+  duration_ms: 0.763353
+  type: 'test'
+  ...
+# Subtest: signed checkout refuses known conflicting profile: {"external_customer_id":"different-customer","customer_number":"C-1001"}
+ok 9 - signed checkout refuses known conflicting profile: {"external_customer_id":"different-customer","customer_number":"C-1001"}
+  ---
+  duration_ms: 0.480395
+  type: 'test'
+  ...
+# Subtest: signed checkout refuses known conflicting profile: {"external_customer_id":"customer-1","customer_number":"C-OTHER"}
+ok 10 - signed checkout refuses known conflicting profile: {"external_customer_id":"customer-1","customer_number":"C-OTHER"}
+  ---
+  duration_ms: 0.573325
+  type: 'test'
+  ...
+# Subtest: callback cannot take a job bound to another Auth UUID
+ok 11 - callback cannot take a job bound to another Auth UUID
+  ---
+  duration_ms: 0.215705
+  type: 'test'
+  ...
+# Subtest: stale signed-claim completion cannot overwrite a replacement processing claim
+ok 12 - stale signed-claim completion cannot overwrite a replacement processing claim
+  ---
+  duration_ms: 0.305782
+  type: 'test'
+  ...
+# Subtest: signed claim cannot replace an Auth binding changed after validation
+ok 13 - signed claim cannot replace an Auth binding changed after validation
+  ---
+  duration_ms: 0.336298
+  type: 'test'
+  ...
+# Subtest: signed claim checks its Auth binding again after the canonical API await
+ok 14 - signed claim checks its Auth binding again after the canonical API await
+  ---
+  duration_ms: 0.412723
+  type: 'test'
+  ...
+# Subtest: signed claim lost during its last profile read cannot publish any projection
+ok 15 - signed claim lost during its last profile read cannot publish any projection
+  ---
+  duration_ms: 0.955593
+  type: 'test'
+  ...
+# Subtest: signed claim cannot overwrite a profile changed after its last identity read: false
+ok 16 - signed claim cannot overwrite a profile changed after its last identity read: false
+  ---
+  duration_ms: 0.831796
+  type: 'test'
+  ...
+# Subtest: signed claim cannot overwrite a profile changed after its last identity read: true
+ok 17 - signed claim cannot overwrite a profile changed after its last identity read: true
+  ---
+  duration_ms: 2.00714
+  type: 'test'
+  ...
+# Subtest: worker cannot publish verified projections after its claim changes during canonical sync: {"locked_at":"replacement-lock","attempt_count":2}
+ok 18 - worker cannot publish verified projections after its claim changes during canonical sync: {"locked_at":"replacement-lock","attempt_count":2}
+  ---
+  duration_ms: 1.420205
+  type: 'test'
+  ...
+# Subtest: worker cannot publish verified projections after its claim changes during canonical sync: {"auth_user_id":"22222222-2222-4222-8222-222222222222"}
+ok 19 - worker cannot publish verified projections after its claim changes during canonical sync: {"auth_user_id":"22222222-2222-4222-8222-222222222222"}
+  ---
+  duration_ms: 0.879788
+  type: 'test'
+  ...
+# Subtest: signed claim lost during provider verification cannot call canonical sync
+ok 20 - signed claim lost during provider verification cannot call canonical sync
+  ---
+  duration_ms: 0.339953
+  type: 'test'
+  ...
+# Subtest: worker lost during provider verification cannot call canonical sync
+ok 21 - worker lost during provider verification cannot call canonical sync
+  ---
+  duration_ms: 0.729071
+  type: 'test'
+  ...
+# Subtest: worker lost during profile verification cannot call canonical sync
+ok 22 - worker lost during profile verification cannot call canonical sync
+  ---
+  duration_ms: 0.490431
+  type: 'test'
+  ...
+# Subtest: worker refuses a customer identity changed during canonical sync
+ok 23 - worker refuses a customer identity changed during canonical sync
+  ---
+  duration_ms: 0.741309
+  type: 'test'
+  ...
+# Subtest: worker lost during email discovery cannot send a new account invitation
+ok 24 - worker lost during email discovery cannot send a new account invitation
+  ---
+  duration_ms: 0.471452
+  type: 'test'
+  ...
+# Subtest: worker refuses a stored payload that conflicts with its durable Auth binding
+ok 25 - worker refuses a stored payload that conflicts with its durable Auth binding
+  ---
+  duration_ms: 0.509159
+  type: 'test'
+  ...
+# Subtest: durable authenticated payload does not bypass current Auth confirmation
+ok 26 - durable authenticated payload does not bypass current Auth confirmation
+  ---
+  duration_ms: 0.865176
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"id":"22222222-2222-4222-8222-222222222222"}
+ok 27 - explicit claim requires current provider eligibility: {"id":"22222222-2222-4222-8222-222222222222"}
+  ---
+  duration_ms: 0.438563
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"deleted_at":"2026-10-04"}
+ok 28 - explicit claim requires current provider eligibility: {"deleted_at":"2026-10-04"}
+  ---
+  duration_ms: 0.362858
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"banned_until":"2999-01-01T00:00:00Z"}
+ok 29 - explicit claim requires current provider eligibility: {"banned_until":"2999-01-01T00:00:00Z"}
+  ---
+  duration_ms: 0.390459
+  type: 'test'
+  ...
+# Subtest: safe callback processes only IDs from its already-validated candidate set
+ok 30 - safe callback processes only IDs from its already-validated candidate set
+  ---
+  duration_ms: 0.96691
+  type: 'test'
+  ...
+# Subtest: a bound Auth UUID cannot bypass a known stable-customer conflict on callback
+ok 31 - a bound Auth UUID cannot bypass a known stable-customer conflict on callback
+  ---
+  duration_ms: 0.136437
+  type: 'test'
+  ...
+# Subtest: new Auth user retains invitation and confirmation flow
+ok 32 - new Auth user retains invitation and confirmation flow
+  ---
+  duration_ms: 0.613737
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64.395384
+
+> gridex-web@0.1.0 test:public-contract-v4
+> node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-v4-runtime.test.mjs
+
+(node:17767) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public OPS 2026-10-04.1 producer and isolation regression passed
+
+> gridex-web@0.1.0 test:gridex-runtime-hardening
+> node --experimental-strip-types tests/gridex-runtime-hardening.test.mjs
+
+gridex runtime hardening tests passed
+
+> gridex-web@0.1.0 test:post-commit-durability
+> node tests/checkout-post-commit-durability.test.mjs
+
+Checkout post-commit durability checks passed
+public-contract cache durability tests passed
+public-contract failure visibility tests passed
+public-contract feed contract-isolation tests passed
+API compatibility hardening static checks passed.
+(node:17865) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+schema additive compatibility tests passed
+
+> gridex-web@0.1.0 test:ops-transport
+> node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-transport-not-modified.test.mjs
+
+(node:17895) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/website/quote/validate',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: '00000000-0000-4000-8000-000000000409',
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+OPS transport 304/redirect/error-details regression tests: passed
+live application-number contract regression passed
+(node:17917) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17933) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Non-expiring canonical quote tests passed
+(node:17942) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Customer Portal API hardening checks passed
+(node:17951) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-01 canonical API regression tests passed
+(node:17971) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-01 OpenAPI runtime regression tests passed
+2026-08-02 Gridex API contract regressions passed
+(node:18011) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Elprisetjustnu API tests passed
+(node:18019) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Launch-readiness checks passed
+(node:18028) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract DTO compatibility checks passed
+(node:18062) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+canonical public-contract area price tests passed
+openapi sync contract tests passed
+(node:18137) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-04.1 Gridex price-area API regressions passed
+(node:18164) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Gridex API 2026-08-05.1 grouped legal-document regression checks passed
+(node:18193) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract issue policy tests passed
+(node:18221) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract feed isolation tests passed
+(node:18267) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+public-contract runtime compatibility tests passed
+(node:18291) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+canonical price option selection tests passed
+Signup canonical monthly kWh regression checks passed
+(node:18306) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Signup quote binding regression checks passed
+Customer pricing copy and automatic renewal checks passed
+(node:18329) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+signup contract option canonical adapter tests passed
+(node:18337) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website API contract tests passed (2026-10-04.1)
+(node:18367) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+[gridex-openapi] compatible additive response fields detected {
+  endpoint: '/api/v1/website/quote/validate',
+  schema: 'website-operation-response',
+  code: 'canonical_response_schema_invalid',
+  request_id: '11111111-1111-4111-8111-111111111111',
+  correlation_id: null,
+  issues: [
+    {
+      path: '/data',
+      keyword: 'additionalProperties',
+      message: 'must NOT have additional properties',
+      additional_property: 'price_options'
+    }
+  ]
+}
+Website API runtime contract tests passed
+Canonical quote-validation tuple checks passed
+(node:18388) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Website signup hardening checks passed
+safe redirect path tests passed
+Automatic checkout policy checks passed
+(node:18417) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Automatic price option selection runtime checks passed
+signup quote-integrity synchronization regression: ok
+Forward contract version compatibility tests passed (2026-10-04.1)
+
+> gridex-web@0.1.0 test:audit-hardening
+> node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs
+
+Pricing, support receipt transactions, duplicate-index checks and queue ownership passed
+Audit SQL regressions passed: customer isolation, forged writes denied, scoped permissions, current Auth email, fencing and atomic rollback
+(node:18538) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/audit-regressions-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/customer/me',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: null,
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/customer/notifications/read',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: null,
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+Transport, notification contract and signed customer assertion regressions passed
+Price fees, VAT metadata, production display, key rotation, non-expiring quotes, market date/DST and monthly fan-out regressions passed
+[auth confirm] profile sync pending
+Checkout processing, portal DTOs, zero vs unknown invoices, support isolation and post-OTP database outage regressions passed
+Separate support readiness, fail-closed rate limiting and durable provider idempotency regressions passed
+(node:18594) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/audit-outbox-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Outbox regression passed: stale worker cannot close or fail another processing claim

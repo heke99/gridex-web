@@ -33,8 +33,7 @@ async function assertSupportManagePermission() {
   }
 
   const { data: permissionData, error } = await supabase.rpc(
-    'gridex_get_user_permissions',
-    { p_user_id: user.id }
+    'gridex_my_permissions_v1'
   )
 
   if (error) {

@@ -1,0 +1,28 @@
+[
+  {
+    "name": "gridex.se",
+    "status": 0,
+    "answers": [
+      "v=spf1 include:_spf.strato.com include:amazonses.com ~all"
+    ]
+  },
+  {
+    "name": "_dmarc.gridex.se",
+    "status": 0,
+    "answers": [
+      "v=DMARC1; p=none; pct=100"
+    ]
+  },
+  {
+    "name": "resend._domainkey.gridex.se",
+    "status": 0,
+    "answers": [
+      "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD4R2g9YUWMC6/F3CHC0skF1gbV5jJJKkJrNqBamnwzhFPGenA5iBm7vjGlL2Tmo4nrzXqrp4VE7SoWolW2ly7CTiPhsaNGMi9ZHubYtqcJhJ+W8F0b7JN2T0yZJppVtG3VyOE8QDVcZL2vJ+37zDy5gcOxfjgoSxs9hrIFNqxVCQIDAQAB"
+    ]
+  },
+  {
+    "name": "send.gridex.se",
+    "status": 0,
+    "answers": []
+  }
+]

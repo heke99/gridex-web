@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "visible": 2,
+    "blocked": 0
+  },
+  "meta": {
+    "channel": "website",
+    "state": "feed_loaded_with_contracts",
+    "feed_state": "contracts_present",
+    "empty_feed_authorization": null,
+    "contract_version": "2026-10-02.4",
+    "publication_revision": 78,
+    "fetched_at": "2026-10-04T15:33:37.804Z",
+    "source": "live",
+    "stale": false,
+    "upstream_status": 200,
+    "upstream_etag": "W/\"pcf-11a21719b8dc9a3edd7789dbcb7553d1\"",
+    "parser_version": "2026-08-02.1",
+    "schema_sha256": "10fb2f3051f112990fe4ef63ffa18b24ee5d9b5203b1f4429a2a3d88675c43be",
+    "request_id": "0d22d1b7-c61b-4741-82ae-4661949462d2",
+    "correlation_id": "0d22d1b7-c61b-4741-82ae-4661949462d2",
+    "upstream_count": 2,
+    "visible_count": 2,
+    "blocked_count": 0,
+    "warning_count": 0,
+    "compatibility_issue_count": 0
+  }
+}

@@ -7,6 +7,7 @@ import {
 } from 'node:crypto'
 import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import { createClient } from '@supabase/supabase-js'
+import type { OpsCustomerApplicationResult } from '@/lib/ops/client/types'
 
 export type WebsiteCommunicationItem = {
   event_type?: string
@@ -17,6 +18,7 @@ export type WebsiteCommunicationItem = {
 }
 
 export type WebsiteApplicationPublicResult = {
+  checkout?: OpsCustomerApplicationResult['checkout']
   workflowId: string | null
   workflowState: string | null
   continuationJobId?: string | null
@@ -119,9 +121,11 @@ function validPublicResult(value: unknown): value is WebsiteApplicationPublicRes
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const row = value as Partial<WebsiteApplicationPublicResult>
   return (
-    row.status === 'accepted' &&
     typeof row.applicationNumber === 'string' &&
     row.applicationNumber.trim().length > 0 &&
+    (row.energyDirection === 'consumption' || row.energyDirection === 'production') &&
+    ((row.checkout?.thank_you_ready === false && ['processing', 'action_required'].includes(row.checkout.page_state)) || (
+    row.status === 'accepted' &&
     typeof row.customerNumber === 'string' &&
     row.customerNumber.trim().length > 0 &&
     row.contractStatus === 'signed' &&
@@ -131,6 +135,7 @@ function validPublicResult(value: unknown): value is WebsiteApplicationPublicRes
     typeof row.signedAt === 'string' &&
     !Number.isNaN(Date.parse(row.signedAt)) &&
     (row.energyDirection === 'consumption' || row.energyDirection === 'production')
+    ))
   )
 }
 
@@ -220,13 +225,20 @@ export function isWebsiteApplicationResultTokenShape(token: string | null | unde
 export async function createWebsiteApplicationResult(input: {
   submissionAttemptId: string
   userId: string | null
+  receivedAt?: string
   result: WebsiteApplicationPublicResult
 }): Promise<string> {
   if (!validPublicResult(input.result)) {
     throw new Error('Website result cannot be created from an unverified OPS application result.')
   }
 
-  const issuedAt = new Date(input.result.signedAt!)
+  // A received application may not have been signed yet. Use the immutable
+  // submission time for that receipt; never turn null into the Unix epoch.
+  const issuedAtValue = input.result.signedAt ?? input.receivedAt
+  if (!issuedAtValue || Number.isNaN(Date.parse(issuedAtValue))) {
+    throw new Error('Website result requires a valid signed or received timestamp.')
+  }
+  const issuedAt = new Date(issuedAtValue)
   const expiresAt = new Date(issuedAt.getTime() + RESULT_TTL_MS).toISOString()
   const useStatelessToken = Boolean(configuredResultTokenSecret())
   const token = useStatelessToken

@@ -1,0 +1,64 @@
+{
+  "audited_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "result": [
+    {
+      "evidence": {
+        "columns": [
+          "id",
+          "user_id",
+          "contract_slug",
+          "pricing_version_id",
+          "address",
+          "postal_code",
+          "apartment",
+          "facility_id",
+          "email",
+          "phone",
+          "sign_method",
+          "status",
+          "email_sign_token",
+          "email_signed_at",
+          "bankid_order_ref",
+          "bankid_completed_at",
+          "activated_at",
+          "created_at",
+          "updated_at",
+          "first_name",
+          "last_name",
+          "personal_number",
+          "move_in_date",
+          "street",
+          "city",
+          "customer_number",
+          "agreement_reference",
+          "idempotency_key",
+          "contract_pdf_path",
+          "welcome_email_sent_at",
+          "company_id",
+          "customer_id",
+          "customer_site_id",
+          "metering_point_id",
+          "canonical_customer_id",
+          "personal_number_hash",
+          "personal_number_masked",
+          "monthly_consumption_kwh",
+          "price_area",
+          "price_snapshot",
+          "customer_status_label",
+          "customer_status_step",
+          "cis_customer_ref",
+          "cis_contract_ref",
+          "cis_status",
+          "cis_last_event_at"
+        ],
+        "legacy_agreements": {
+          "rows": 0,
+          "unsigned_with_token": 0,
+          "with_email_sign_token": 0
+        },
+        "legal_acceptance_triggers": null
+      }
+    }
+  ]
+}

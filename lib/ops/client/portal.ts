@@ -358,7 +358,7 @@ export async function markOpsCustomerNotificationsRead(
   if (ids.length === 0) {
     throw new OpsError("Minst en notis måste anges.", 400, {
       code: "validation_error",
-      field: "notification_ids",
+      field: "notification_references",
     });
   }
   const headers = portalHeaders(identity);
@@ -370,7 +370,7 @@ export async function markOpsCustomerNotificationsRead(
   await opsCustomerFetch("/api/v1/customer/notifications/read", identity, {
     method: "POST",
     headers,
-    body: JSON.stringify({ notification_ids: ids }),
+    body: JSON.stringify({ notification_references: ids }),
   });
 }
 
@@ -498,7 +498,7 @@ export function mapCustomerWriteResult(payload: unknown): OpsCustomerWriteResult
   const data = recordValue(row.data);
   const status = data ? pickString(data, ['status']) : null;
   return {
-    ok: Boolean(data),
+    ok: Boolean(data) && data?.ok !== false && !['rejected', 'failed', 'declined'].includes(status ?? ''),
     status,
     data,
     warnings: data ? normalizeWarnings(data) : [],

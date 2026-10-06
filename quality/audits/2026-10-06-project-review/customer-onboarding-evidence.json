@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "note": "Aggregates only, no customer records or authentication tokens.",
+  "result": [
+    {
+      "evidence": {
+        "cron_extension": false,
+        "pending_onboarding": {
+          "due": 5,
+          "total": 5,
+          "older_than_day": 5,
+          "auth_email_confirmed": 0,
+          "auth_email_unconfirmed": 5,
+          "auth_email_differs_from_job": 0
+        }
+      }
+    }
+  ]
+}

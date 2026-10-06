@@ -84,9 +84,8 @@ async function assertAdmin(): Promise<{ userId: string }> {
     if (!user) throw new Error('Not authenticated')
 
     const { data: hasPerm, error: permError } = await supabase.rpc(
-      'gridex_has_permission',
+      'gridex_my_has_permission_v1',
       {
-        p_user_id: user.id,
         p_permission: 'admin.access',
       }
     )

@@ -124,7 +124,8 @@ for (const marker of [
   'auth_profile_sync_jobs',
   'recoverStaleAuthProfileSyncJobs',
   'updateClaimedJob',
-  'defaultToNull: false',
+  'gridex_enqueue_auth_profile_v1',
+  'gridex_commit_auth_profile_v1',
 ]) assert.ok(authSync.includes(marker), `missing auth sync marker: ${marker}`)
 
 for (const marker of [

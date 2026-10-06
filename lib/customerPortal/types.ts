@@ -44,7 +44,7 @@ export type CustomerPortalContract = {
   contract_price_snapshot_id?: string | null
   pricing_snapshot: Record<string, unknown>
   metadata: Record<string, unknown>
-  created_at: string
+  created_at: string | null
 }
 
 export type CustomerSite = {
@@ -77,8 +77,8 @@ export type CustomerInvoice = {
   due_at: string | null
   paid_at: string | null
   status: string
-  total_amount: number
-  vat_amount: number
+  total_amount: number | null
+  vat_amount: number | null
   ocr_number: string | null
   payment_reference: string | null
   pdf_url: string | null
@@ -145,6 +145,8 @@ export type CustomerLegalAcceptance = {
   acceptance_type: string
   title: string | null
   version: string | null
+  document_reference?: string | null
+  document_hash?: string | null
   accepted_at: string | null
   source: string | null
   status: string | null
@@ -185,6 +187,7 @@ export type CustomerSwitchStatus = {
 }
 
 export type CustomerPortalOverview = {
+  supportError?: string | null
   profile: CustomerProfile | null
   contracts: CustomerPortalContract[]
   sites: CustomerSite[]

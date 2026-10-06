@@ -753,7 +753,7 @@ export default async function AdminPricingContractPage({
       <div className="rounded-3xl border border-gray-800 bg-gray-950 p-6">
         <div className="text-lg font-semibold">4) Preview</div>
         <p className="mt-1 text-sm text-gray-400">
-          Preview använder pricing-engine med selectionMode{' '}
+          Denna äldre interna modell styr inte kundens pris. Kundpriset kommer från OPS-offerten. Lokal preview använder selectionMode{' '}
           <span className="font-mono">by_id</span>.
         </p>
 

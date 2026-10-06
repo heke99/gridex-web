@@ -1,0 +1,66 @@
+{
+  "audited_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "result": [
+    {
+      "evidence": {
+        "snapshots": {
+          "rows": 42,
+          "sum_mismatches": 0,
+          "nonfinite_or_missing_totals": 0
+        },
+        "local_catalog": {
+          "products": 2,
+          "area_prices": 12,
+          "pricing_versions": 7
+        },
+        "pricing_triggers": [
+          {
+            "table": "contract_pricing_versions",
+            "definition": "CREATE TRIGGER check_area_pricing_before_publish BEFORE UPDATE ON public.contract_pricing_versions FOR EACH ROW EXECUTE FUNCTION enforce_full_area_pricing()"
+          },
+          {
+            "table": "contract_pricing_versions",
+            "definition": "CREATE TRIGGER sync_publish_versions BEFORE UPDATE ON public.contract_pricing_versions FOR EACH ROW EXECUTE FUNCTION enforce_single_published_version()"
+          },
+          {
+            "table": "contract_pricing_versions",
+            "definition": "CREATE TRIGGER trg_gridex_sync_pricing_version_flags BEFORE INSERT OR UPDATE OF status, is_published ON public.contract_pricing_versions FOR EACH ROW EXECUTE FUNCTION gridex_sync_pricing_version_flags()"
+          }
+        ],
+        "pricing_constraints": [
+          {
+            "name": "contract_pricing_versions_contract_id_version_number_key",
+            "table": "contract_pricing_versions",
+            "definition": "UNIQUE (contract_id, version_number)"
+          },
+          {
+            "name": "contract_pricing_versions_status_chk",
+            "table": "contract_pricing_versions",
+            "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text])))"
+          },
+          {
+            "name": "published_requires_valid_from",
+            "table": "contract_pricing_versions",
+            "definition": "CHECK (((status <> 'published'::text) OR (valid_from IS NOT NULL)))"
+          },
+          {
+            "name": "contract_area_pricing_price_area_check",
+            "table": "contract_area_pricing",
+            "definition": "CHECK ((price_area = ANY (ARRAY['SE1'::text, 'SE2'::text, 'SE3'::text, 'SE4'::text])))"
+          },
+          {
+            "name": "contract_area_pricing_pricing_version_id_price_area_key",
+            "table": "contract_area_pricing",
+            "definition": "UNIQUE (pricing_version_id, price_area)"
+          },
+          {
+            "name": "contract_area_pricing_unique_version_area",
+            "table": "contract_area_pricing",
+            "definition": "UNIQUE (pricing_version_id, price_area)"
+          }
+        ]
+      }
+    }
+  ]
+}

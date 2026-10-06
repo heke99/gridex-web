@@ -1,0 +1,36 @@
+{
+  "audited_at": "2026-10-06",
+  "url": "https://gridex.se/api/elpris/live?area=SE3&date=2026-10-06",
+  "status": 200,
+  "reported_date": "2026-10-05",
+  "current": {
+    "sekPerKwh": -0.00011,
+    "eurPerKwh": -1e-05,
+    "exchangeRate": 11.304508,
+    "timeStart": "2026-10-04T23:45:00+02:00",
+    "timeEnd": "2026-10-05T00:00:00+02:00"
+  },
+  "entries_count": 96,
+  "first_entry": {
+    "sekPerKwh": 0.03798,
+    "eurPerKwh": 0.00336,
+    "exchangeRate": 11.304508,
+    "timeStart": "2026-10-04T00:00:00+02:00",
+    "timeEnd": "2026-10-04T00:15:00+02:00"
+  },
+  "last_entry": {
+    "sekPerKwh": -0.00011,
+    "eurPerKwh": -1e-05,
+    "exchangeRate": 11.304508,
+    "timeStart": "2026-10-04T23:45:00+02:00",
+    "timeEnd": "2026-10-05T00:00:00+02:00"
+  },
+  "stats": {
+    "averageSekPerKwh": 0.4972183333333334,
+    "averageOrePerKwh": 49.721833333333336,
+    "minSekPerKwh": -0.00011,
+    "maxSekPerKwh": 1.24338,
+    "samples": 96
+  },
+  "note": "Offentligt GET-anrop; inga kunddata. Negativa spotpriser är giltiga, datum och aktualitet är problemen."
+}

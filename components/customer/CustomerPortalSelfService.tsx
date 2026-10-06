@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { stockholmCalendarDate } from '@/lib/website/businessDate'
 
 type Props = {
+  userId?: string
   site: {
     id: string
     facilityId: string | null
@@ -15,7 +16,7 @@ type Props = {
 }
 
 type ActionState = {
-  kind: 'idle' | 'working' | 'success' | 'error'
+  kind: 'idle' | 'working' | 'success' | 'pending' | 'error'
   message: string
 }
 
@@ -34,6 +35,7 @@ async function postJson(path: string, body: Record<string, unknown>) {
   })
   const payload = await response.json().catch(() => ({})) as {
     queued?: boolean
+    data?: { ok?: boolean; data?: { facility_updated?: boolean }; status?: string | null; synced?: { access_granted?: boolean } | null }
     error?: string | { message?: string }
   }
   if (!response.ok) {
@@ -42,27 +44,48 @@ async function postJson(path: string, body: Record<string, unknown>) {
       : payload.error?.message || 'Åtgärden kunde inte genomföras.'
     throw new Error(message)
   }
+  if (['rejected', 'failed', 'declined'].includes(payload.data?.status ?? '')) throw new Error('Åtgärden kunde inte slutföras. Kontrollera uppgifterna och försök igen.')
   return payload
+}
+
+function pendingResult(result: Awaited<ReturnType<typeof postJson>>): boolean {
+  return Boolean(result.queued || result.data?.ok === false || ['pending_review', 'processing', 'pending', 'queued'].includes(result.data?.status ?? '') || result.data?.data?.facility_updated === false || result.data?.synced?.access_granted === false)
 }
 
 function Result({ state }: { state: ActionState }) {
   if (state.kind === 'idle' || state.kind === 'working') return null
   return (
-    <p className={`mt-3 text-sm ${state.kind === 'success' ? 'text-emerald-200' : 'text-rose-200'}`} role="status">
+    <p className={`mt-3 text-sm ${state.kind === 'success' ? 'text-emerald-200' : state.kind === 'pending' ? 'text-amber-200' : 'text-rose-200'}`} role="status">
       {state.message}
     </p>
   )
 }
 
-export default function CustomerPortalSelfService({ site, latestUnreadNotificationId }: Props) {
+export default function CustomerPortalSelfService({ site, latestUnreadNotificationId, userId }: Props) {
+  const intents = useRef(new Map<string, string>())
+  async function submitIntent(path: string, prefix: string, body: Record<string, unknown>) {
+    const bytes = new TextEncoder().encode(JSON.stringify(body))
+    const digest = await crypto.subtle.digest('SHA-256', bytes)
+    const hash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
+    const key = `gridex:portal-intent:${userId ?? 'session'}:${prefix}:${hash}`
+    let id = intents.current.get(key)
+    if (!id && userId) { try { id = sessionStorage.getItem(key) ?? undefined } catch {} }
+    if (!id) id = operationId(prefix)
+    intents.current.set(key, id)
+    if (userId) { try { sessionStorage.setItem(key, id) } catch {} }
+    const result = await postJson(path, { ...body, client_operation_id: id })
+    if (!pendingResult(result)) {
+      intents.current.delete(key)
+      if (userId) { try { sessionStorage.removeItem(key) } catch {} }
+    }
+    return result
+  }
   const [syncState, setSyncState] = useState<ActionState>(idle)
   const [facilityState, setFacilityState] = useState<ActionState>(idle)
   const [moveState, setMoveState] = useState<ActionState>(idle)
   const [notificationState, setNotificationState] = useState<ActionState>(idle)
   const [facilityId, setFacilityId] = useState(site?.facilityId ?? '')
   const [meteringPointId, setMeteringPointId] = useState(site?.meteringPointId ?? '')
-  const [gridAreaCode, setGridAreaCode] = useState(site?.gridAreaCode ?? '')
-  const [priceAreaCode, setPriceAreaCode] = useState(site?.priceAreaCode ?? '')
   const [moveOutDate, setMoveOutDate] = useState('')
 
   const minimumMoveOutDate = useMemo(() => stockholmCalendarDate(), [])
@@ -70,13 +93,11 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
   async function syncPortal() {
     setSyncState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/web/customer-portal/sync', {
-        client_operation_id: operationId('portal-sync'),
-      })
+      const result = await submitIntent('/api/web/customer-portal/sync', 'portal-sync', {})
       setSyncState({
-        kind: 'success',
-        message: result.queued
-          ? 'Kopplingen är köad och uppdateras automatiskt.'
+        kind: pendingResult(result) ? 'pending' : 'success',
+        message: pendingResult(result)
+          ? 'Kopplingen inväntar behandling. Tillgången till Mina sidor är ännu inte bekräftad.'
           : 'Kopplingen till Mina sidor är uppdaterad.',
       })
     } catch (error) {
@@ -88,21 +109,17 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     event.preventDefault()
     setFacilityState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/web/customer/sync', {
-        client_operation_id: operationId('facility-data'),
+      const result = await submitIntent('/api/web/customer/sync', 'facility-data', {
         facility_data: {
           site_id: site?.id ?? undefined,
           facility_id: facilityId.trim() || undefined,
           metering_point_id: meteringPointId.trim() || undefined,
-          grid_area_code: gridAreaCode.trim() || undefined,
-          price_area_code: priceAreaCode.trim().toUpperCase() || undefined,
           source: 'customer_portal_self_service',
-          verified_at: new Date().toISOString(),
         },
       })
       setFacilityState({
-        kind: 'success',
-        message: result.queued
+        kind: pendingResult(result) ? 'pending' : 'success',
+        message: pendingResult(result)
           ? 'Uppgifterna är mottagna och behandlas automatiskt.'
           : 'Anläggningsuppgifterna är uppdaterade.',
       })
@@ -115,8 +132,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     event.preventDefault()
     setMoveState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/web/customer/move-out', {
-        client_operation_id: operationId('move-out'),
+      const result = await submitIntent('/api/web/customer/move-out', 'move-out', {
         move_out: {
           site_id: site?.id ?? undefined,
           facility_id: site?.facilityId ?? (facilityId.trim() || undefined),
@@ -125,12 +141,12 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
         },
       })
       setMoveState({
-        kind: 'success',
-        message: result.queued
+        kind: pendingResult(result) ? 'pending' : 'success',
+        message: pendingResult(result)
           ? 'Flyttanmälan är mottagen och behandlas automatiskt.'
           : 'Flyttanmälan är skickad.',
       })
-      setMoveOutDate('')
+      if (!pendingResult(result)) setMoveOutDate('')
     } catch (error) {
       setMoveState({ kind: 'error', message: error instanceof Error ? error.message : 'Flyttanmälan kunde inte skickas.' })
     }
@@ -140,8 +156,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     if (!latestUnreadNotificationId) return
     setNotificationState({ kind: 'working', message: '' })
     try {
-      const result = await postJson('/api/web/customer/notifications/read', {
-        client_operation_id: operationId('notification-read'),
+      const result = await submitIntent('/api/web/customer/notifications/read', 'notification-read', {
         notification_ids: [latestUnreadNotificationId],
       })
       setNotificationState({
@@ -178,8 +193,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Field label="Anläggnings-ID" value={facilityId} onChange={setFacilityId} />
             <Field label="Mätpunkts-ID" value={meteringPointId} onChange={setMeteringPointId} />
-            <Field label="Nätområde" value={gridAreaCode} onChange={setGridAreaCode} />
-            <Field label="Elområde" value={priceAreaCode} onChange={setPriceAreaCode} placeholder="SE1–SE4" />
+            <p className="text-xs text-white/60">Nätområde: {site?.gridAreaCode ?? 'Inväntas'}<br />Elområde: {site?.priceAreaCode ?? 'Inväntas'}<br />Områdena fastställs från anläggningsuppgifterna.</p>
           </div>
           <button type="submit" disabled={facilityState.kind === 'working'} className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50">
             {facilityState.kind === 'working' ? 'Sparar…' : 'Spara uppgifter'}

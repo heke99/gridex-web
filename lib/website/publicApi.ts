@@ -179,7 +179,10 @@ export type WebsitePricingPreview = {
   legalText?: string;
   specification?: {
     basis?: Record<string, unknown>;
+    canonicalLines?: Array<{ code: string; name: string; quantity: number; unit: string; unitPriceExVat: number; amountExVat: number; amountIncVat: number }>;
+
     fees?: {
+      vatIncluded?: boolean;
       markupOre?: number;
       variableFeeOre?: number;
       elcertOre?: number;

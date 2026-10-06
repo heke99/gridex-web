@@ -42,7 +42,7 @@ export async function getAdminContext(): Promise<AdminContext> {
     { data: permissionData, error: permissionError },
     { data: roleData, error: roleError },
   ] = await Promise.all([
-    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
+    supabase.rpc('gridex_my_permissions_v1'),
     supabase
       .from('user_roles')
       .select('role,is_active')

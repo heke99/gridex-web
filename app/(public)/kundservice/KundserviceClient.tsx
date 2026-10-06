@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 
 type SubmitState = 'idle' | 'sending' | 'sent' | 'error'
 
@@ -11,11 +11,13 @@ type FaqItem = {
 }
 
 export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] }) {
+  const intent = useRef<{ fingerprint: string; id: string } | null>(null)
   const [state, setState] = useState<SubmitState>('idle')
   const [error, setError] = useState<string | null>(null)
 
   async function submitSupportTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (state === 'sending') return
     setState('sending')
     setError(null)
 
@@ -32,11 +34,13 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
       website: String(formData.get('website') ?? ''),
     }
 
+    const fingerprint = JSON.stringify(payload)
+    if (intent.current?.fingerprint !== fingerprint) intent.current = { fingerprint, id: crypto.randomUUID() }
     try {
       const response = await fetch('/api/support/public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, client_operation_id: intent.current.id }),
       })
 
       const data = (await response.json().catch(() => ({}))) as { error?: string }
@@ -47,6 +51,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         return
       }
 
+      intent.current = null
       form.reset()
       setState('sent')
     } catch {

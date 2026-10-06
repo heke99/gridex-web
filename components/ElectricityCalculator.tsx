@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PriceResultCard from "@/components/PriceResultCard";
 import {
   buildCustomerEnteredConsumptionProfile,
@@ -41,6 +41,7 @@ export type ContractOption = {
   value: string;
   offerReference: string;
   type: string;
+  energyDirection?: 'consumption' | 'production';
   monthlyFeeSek?: number | null;
   invoiceFeeSek?: number | null;
   markupOrePerKwh?: number | null;
@@ -261,6 +262,8 @@ export default function ElectricityCalculator({
     initialPricingPreview,
   );
   const [loading, setLoading] = useState(false);
+  const calculationGeneration = useRef(0);
+  useEffect(() => () => { calculationGeneration.current += 1; }, []);
   const [error, setError] = useState<string | null>(null);
   const [continueHref, setContinueHref] = useState<string | null>(null);
 
@@ -281,7 +284,7 @@ export default function ElectricityCalculator({
   const effectiveArea = resolution?.price_area_code ?? null;
   const hasContracts = availableContracts.length > 0;
   const effectiveConsumptionMode: ConsumptionMode =
-    customerType === "business" ? "known" : consumptionMode;
+    customerType === "business" || selectedContract?.energyDirection === 'production' ? "known" : consumptionMode;
 
   const suggestedAnnualKwh = useMemo(() => {
     if (
@@ -428,6 +431,8 @@ export default function ElectricityCalculator({
 
   const setSelectedValue = useCallback(
     (value: string) => {
+      calculationGeneration.current += 1;
+      setLoading(false);
       setInternalSelectedValue(value);
       onSelectedValueChange?.(value);
       setResultState(null);
@@ -445,6 +450,8 @@ export default function ElectricityCalculator({
 
   useEffect(() => {
     if (resetSignal <= 0) return;
+    calculationGeneration.current += 1;
+    setLoading(false);
     setResultState(null);
     setContinueHref(null);
     setError(null);
@@ -461,6 +468,8 @@ export default function ElectricityCalculator({
   }
 
   function clearQuote() {
+    calculationGeneration.current += 1;
+    setLoading(false);
     setResult(null);
     onQuoteContextChange?.(null);
     setContinueHref(null);
@@ -496,7 +505,7 @@ export default function ElectricityCalculator({
     clearQuote();
   }
 
-  async function resolveArea(): Promise<WebsiteEnergyResolution> {
+  async function resolveArea(generation: number): Promise<WebsiteEnergyResolution> {
     const normalizedPostalCode = normalizeWebsitePostalCode(postalCode);
     if (
       !/^\d{5}$/.test(normalizedPostalCode) ||
@@ -516,6 +525,7 @@ export default function ElectricityCalculator({
       requested_start_mode: requestedStartMode,
       requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
     });
+    if (generation !== calculationGeneration.current) throw new Error('calculation_superseded');
     setResolution(resolved);
     if (!resolved.price_area_code) {
       throw new Error(
@@ -548,12 +558,13 @@ export default function ElectricityCalculator({
       );
     }
 
+    const generation = ++calculationGeneration.current;
     setLoading(true);
     setError(null);
     setResult(null);
     try {
       const quoteAttemptId = crypto.randomUUID();
-      const resolved = await resolveArea();
+      const resolved = await resolveArea(generation);
       const resolvedArea = resolved.price_area_code;
       if (!resolvedArea) throw new Error("Elområdet kunde inte verifieras.");
       const preview = await previewWebsitePricing({
@@ -571,6 +582,7 @@ export default function ElectricityCalculator({
         requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
         quote_attempt_id: quoteAttemptId,
       });
+      if (generation !== calculationGeneration.current) return;
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
         throw new Error("Prisberäkningen returnerade en annan förbrukning än den du godkände.");
       }
@@ -631,6 +643,7 @@ export default function ElectricityCalculator({
               "Priset är beräknat men kunde inte föras vidare. Försök igen.",
           );
         }
+        if (generation !== calculationGeneration.current) return;
         setContinueHref(
           `/teckna-avtal?checkout=${encodeURIComponent(contextData.checkout_token)}`,
         );
@@ -641,10 +654,11 @@ export default function ElectricityCalculator({
       setResult(verifiedPreview);
       onQuoteContextChange?.(nextQuoteContext);
     } catch (err) {
+      if (generation !== calculationGeneration.current) return;
       onQuoteContextChange?.(null);
       setError(customerSafeError(err));
     } finally {
-      setLoading(false);
+      if (generation === calculationGeneration.current) setLoading(false);
     }
   }
 
@@ -777,13 +791,13 @@ export default function ElectricityCalculator({
 
         <section className="space-y-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
           <div>
-            <h3 className="text-xl font-semibold text-white">Din förbrukning</h3>
+            <h3 className="text-xl font-semibold text-white">{selectedContract?.energyDirection === 'production' ? 'Din inmatade produktion' : 'Din förbrukning'}</h3>
             <p className="mt-2 text-sm leading-6 text-gray-400">
               Ingen standardförbrukning används. Du anger själv ett värde eller godkänner en uppskattning.
             </p>
           </div>
 
-          {customerType === "private" ? (
+          {customerType === "private" && selectedContract?.energyDirection !== 'production' ? (
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-white/80">Hur vill du ange förbrukningen?</legend>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -812,7 +826,7 @@ export default function ElectricityCalculator({
           {effectiveConsumptionMode === "known" ? (
             <div className="max-w-xl space-y-2">
               <label htmlFor="calculator-annual-kwh" className="text-sm font-medium text-white/80">
-                {customerType === "business" ? "Uppskattad årsförbrukning" : "Årsförbrukning"} (kWh/år)
+                {selectedContract?.energyDirection === 'production' ? "Uppskattad årlig inmatning" : customerType === "business" ? "Uppskattad årsförbrukning" : "Årsförbrukning"} (kWh/år)
               </label>
               <input
                 id="calculator-annual-kwh"

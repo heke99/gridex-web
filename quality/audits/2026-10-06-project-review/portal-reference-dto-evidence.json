@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-06",
+  "reference_source_sha256": "eaa4a7c19bb6e0ee9b828f2f0d22f104bc094e88e18f173eb02a5fc09f6ff4b6",
+  "note": "Local OPS source is reference evidence for public DTO shape; exact live authenticated responses remain unverified. No internal OPS audit or modification performed.",
+  "excerpts": [
+    {
+      "path": "/workspace/gridex-ops-platform/lib/customer-portal/publicDto.ts",
+      "start": 121,
+      "end": 150,
+      "code": "export function publicPortalSite(\n  companyId: string,\n  value: unknown,\n): JsonRecord {\n  const row = record(value)\n  return {\n    facility_reference:\n      text(row.facility_reference) ??\n      publicReference('facility', companyId, row.id),\n    facility_id: text(row.facility_id),\n    status: text(row.status),\n    name: text(row.site_name),\n    facility_type: text(row.site_type),\n    address: {\n      street: text(row.street),\n      care_of: text(row.care_of),\n      postal_code: text(row.postal_code),\n      city: text(row.city),\n      country: text(row.country) ?? 'SE',\n    },\n    price_area: text(row.price_area_code),\n    grid_area_code: text(row.grid_area_code),\n    move_in_date: text(row.move_in_date),\n    move_out_date: text(row.move_out_date),\n    annual_consumption_kwh: numberOrNull(row.annual_consumption_kwh),\n    created_at: text(row.created_at),\n  }\n}\n\nexport function publicPortalMeteringPoint("
+    },
+    {
+      "path": "/workspace/gridex-ops-platform/lib/customer-portal/publicDto.ts",
+      "start": 211,
+      "end": 250,
+      "code": "export function publicPortalDocument(\n  companyId: string,\n  value: unknown,\n): JsonRecord {\n  const row = record(value)\n  return {\n    document_reference: publicReference('document', companyId, row.id),\n    document_type: text(row.document_type),\n    title: text(row.title),\n    file_name: text(row.file_name),\n    mime_type: text(row.mime_type),\n    file_size_bytes: numberOrNull(row.file_size_bytes),\n    status: text(row.status),\n    secure_url: text(row.public_url),\n    version: text(row.document_version),\n    created_at: text(row.created_at) ?? text(row.uploaded_at),\n  }\n}\n\nexport function publicPortalLegalAcceptance(\n  companyId: string,\n  value: unknown,\n): JsonRecord {\n  const row = record(value)\n  return {\n    acceptance_reference: publicReference('acceptance', companyId, row.id),\n    acceptance_type: text(row.acceptance_type),\n    document_reference: publicReference(\n      'legal_document',\n      companyId,\n      row.legal_bundle_version_document_id ?? row.legal_text_version_id,\n    ),\n    document_code: text(row.legal_module_key),\n    document_version: text(row.legal_document_version),\n    document_hash: text(row.legal_document_sha256),\n    accepted_at: text(row.accepted_at),\n    source: text(row.source),\n    created_at: text(row.created_at),\n  }\n}"
+    },
+    {
+      "path": "/workspace/gridex-ops-platform/lib/customer-portal/publicDto.ts",
+      "start": 252,
+      "end": 280,
+      "code": "export function publicPortalPowerOfAttorney(\n  companyId: string,\n  value: unknown,\n): JsonRecord {\n  const row = record(value)\n  return {\n    power_of_attorney_reference:\n      text(row.reference) ??\n      publicReference('power_of_attorney', companyId, row.id),\n    contract_reference: publicReference(\n      'contract',\n      companyId,\n      row.contract_id,\n    ),\n    facility_reference: publicReference(\n      'facility',\n      companyId,\n      row.customer_site_id ?? row.site_id,\n    ),\n    scope: text(row.scope),\n    status: text(row.status),\n    signed_at: text(row.signed_at),\n    accepted_at: text(row.accepted_at),\n    valid_from: text(row.valid_from),\n    valid_to: text(row.valid_to) ?? text(row.valid_until),\n    created_at: text(row.created_at),\n  }\n}\n"
+    }
+  ]
+}

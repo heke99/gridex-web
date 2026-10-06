@@ -101,9 +101,9 @@ function equalSignature(left: string, right: string): boolean {
 function normalized(value: string | null | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("sv-SE");
 }
-export function pricingLocationFingerprint(input: { postalCode: string; city: string; address: string }): string | null {
+export function pricingLocationFingerprint(input: { postalCode: string; city: string; address: string }, kid?: string): string | null {
   const keyring = quoteKeys();
-  const secret = keyring?.active.key ?? null;
+  const secret = kid ? keyring?.verification.find((key) => key.kid === kid)?.key : keyring?.active.key;
   if (!secret) return null;
   return hmac(`location:${[normalized(input.postalCode).replace(/\s/g, ""), normalized(input.city), normalized(input.address)].join("|")}`, secret);
 }
@@ -255,6 +255,9 @@ export function verifyWebsitePricingQuote(
   now = new Date(),
   options: { allowExpired?: boolean } = {},
 ): PricingQuoteVerification {
+  // Compatibility arguments are intentionally ignored: elapsed time never expires a quote.
+  void now;
+  void options;
   const keyring = quoteKeys();
   if (!keyring) return { ok: false, reason: "not_configured" };
   if (!token) return { ok: false, reason: "invalid" };
@@ -352,7 +355,8 @@ export function validateWebsitePricingQuote(input: {
   if (quote.price_area_code !== input.priceAreaCode) return { ok: false, reason: "area_changed" };
   if (Math.abs(quote.estimated_monthly_kwh - input.estimatedMonthlyKwh) > 0.001) return { ok: false, reason: "kwh_changed" };
   if (Math.abs(quote.annual_consumption_kwh - input.annualConsumptionKwh) > 0.001) return { ok: false, reason: "annual_kwh_changed" };
-  const fingerprint = pricingLocationFingerprint(input.location);
+  // Use the authenticated token's signing key so rotation preserves existing quotes.
+  const fingerprint = pricingLocationFingerprint(input.location, input.token?.split('.')[1]);
   if (!fingerprint || !equalSignature(quote.location_fingerprint, fingerprint)) return { ok: false, reason: "location_changed" };
   return { ok: true, quote };
 }

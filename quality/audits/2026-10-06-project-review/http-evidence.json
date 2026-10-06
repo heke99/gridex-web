@@ -1,0 +1,160 @@
+[
+  {
+    "url": "https://gridex.se",
+    "status": 200,
+    "seconds": 1.925,
+    "bytes": 92951,
+    "sha256": "78dbf7debef088b1634f9f1edcf1f36dc6e308cd0bdd4033971d3af8a9c76d12",
+    "headers": {
+      "cache-control": "public, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-vercel-cache": "STALE"
+    }
+  },
+  {
+    "url": "https://gridex.se/teckna-avtal",
+    "status": 200,
+    "seconds": 1.314,
+    "bytes": 116950,
+    "sha256": "8b17717ab9696bf37c0870f4ff4643191f3b82f154202f19cb69a46fa4c349b9",
+    "headers": {
+      "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-vercel-cache": "MISS"
+    }
+  },
+  {
+    "url": "https://gridex.se/login",
+    "status": 200,
+    "seconds": 1.485,
+    "bytes": 30018,
+    "sha256": "05067c557734c7ffb368a18d69c107dd2d67f80a014e1ea59e2c279e612e3992",
+    "headers": {
+      "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-vercel-cache": "MISS"
+    }
+  },
+  {
+    "url": "https://gridex.se/api/web/contracts",
+    "status": 200,
+    "seconds": 1.304,
+    "bytes": 45516,
+    "sha256": "cb3dd991de456d9c643a3bc860f39c00c03f82f46d29c0d1168338ce2120ebf0",
+    "headers": {
+      "cache-control": "no-store, max-age=0",
+      "strict-transport-security": "max-age=63072000",
+      "x-gridex-contract-version": "2026-10-02.4",
+      "x-vercel-cache": "MISS"
+    },
+    "json_keys": [
+      "data",
+      "blocked_contracts",
+      "warnings",
+      "compatibility_issues",
+      "meta"
+    ],
+    "summary": {}
+  },
+  {
+    "url": "https://gridex.se/api/auth/public-session",
+    "status": 200,
+    "seconds": 0.241,
+    "bytes": 27,
+    "sha256": "9c9915fb23c5d8417aa3f1d59db552e89d02f177944e25ebd0751081c57efd59",
+    "headers": {
+      "cache-control": "private, no-store, max-age=0",
+      "strict-transport-security": "max-age=63072000",
+      "x-vercel-cache": "MISS"
+    },
+    "json_keys": [
+      "authenticatedEmail"
+    ],
+    "summary": {}
+  },
+  {
+    "url": "https://app.gridex.se/api/v1/openapi/release-manifest.json",
+    "status": 200,
+    "seconds": 0.686,
+    "bytes": 2548,
+    "sha256": "ef0dcba3a20bb3e3aaa7cbda9be904a2fc65be0d940581fd0e806e934183fafb",
+    "headers": {
+      "cache-control": "no-store, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-gridex-contract-version": "2026-10-04.1",
+      "x-vercel-cache": "MISS"
+    },
+    "json_keys": [
+      "release_version",
+      "website_openapi_version",
+      "customer_portal_openapi_version",
+      "staff_openapi_version",
+      "runtime_contract_version",
+      "guide_version",
+      "released_at",
+      "generated_at",
+      "build_commit",
+      "compatibility_classification",
+      "deprecated_features",
+      "minimum_tenant_integration_version",
+      "specifications"
+    ],
+    "summary": {}
+  },
+  {
+    "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
+    "status": 200,
+    "seconds": 1.313,
+    "bytes": 491564,
+    "sha256": "2ada64c650234d8cf8e5191c68d6b6ab8b47586c5fef13feeb611a9bddb79294",
+    "headers": {
+      "cache-control": "no-store, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-gridex-contract-version": "2026-10-04.1",
+      "x-vercel-cache": "MISS"
+    },
+    "json_keys": [
+      "openapi",
+      "info",
+      "servers",
+      "paths",
+      "components",
+      "x-contract-schema-version",
+      "x-gridex-organization-setup",
+      "tags",
+      "x-gridex-release-version",
+      "x-error-codes",
+      "x-scope-aliases"
+    ],
+    "summary": {}
+  },
+  {
+    "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
+    "status": 200,
+    "seconds": 1.456,
+    "bytes": 499787,
+    "sha256": "311c1fd85a82aec158bc5e391bcd380a8a944d7762a7fdeebb24cc0ae7da6a47",
+    "headers": {
+      "cache-control": "no-store, max-age=0, must-revalidate",
+      "strict-transport-security": "max-age=63072000",
+      "x-gridex-contract-version": "2026-10-04.1",
+      "x-vercel-cache": "MISS"
+    },
+    "json_keys": [
+      "openapi",
+      "info",
+      "servers",
+      "security",
+      "tags",
+      "paths",
+      "components",
+      "x-contract-schema-version",
+      "x-gridex-organization-setup",
+      "x-gridex-release-version",
+      "x-error-codes",
+      "x-scope-aliases",
+      "webhooks"
+    ],
+    "summary": {}
+  }
+]

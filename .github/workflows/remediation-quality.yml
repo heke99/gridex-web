@@ -42,5 +42,11 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+      - name: Browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Customer, prices and receipt browser regressions
+        run: npm run test:audit:browser
+      - name: Dependency security
+        run: npm audit
       - name: Build
         run: npm run build

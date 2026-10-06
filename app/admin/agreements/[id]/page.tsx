@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
 import { supabaseService } from '@/lib/supabase/service'
-import { finalizeAgreement } from '@/lib/contracts/finalizeAgreement'
 import { ContractAgreement, LegalAcceptance } from '@/lib/types/contracts'
 
 export const dynamic = 'force-dynamic'
@@ -104,19 +103,7 @@ export default async function AgreementDetail({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <form
-              action={async () => {
-                'use server'
-                await finalizeAgreement(id)
-              }}
-            >
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-black hover:bg-white/90"
-              >
-                Generera PDF + skicka mail
-              </button>
-            </form>
+            <p className="text-sm text-gray-400">Nya avtal och avtalsmejl hanteras i OPS.</p>
 
             <a
               href={`/api/agreements/${id}/pdf`}

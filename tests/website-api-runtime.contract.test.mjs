@@ -292,6 +292,7 @@ assert.equal(normalizePublicContractApiPayload({
 
 const mappedApplication = mapOpsCustomerApplicationResult({
   data: {
+    checkout: { outcome: 'agreement_signed', thank_you_ready: true, page_state: 'success', customer_action_required: false, application: { application_number: 'APP-1001', status: 'accepted' }, agreement: { status: 'signed', contract_number: 'C-1001', signed_at: '2026-10-06T10:00:00Z', withdrawal_deadline_at: null, signature_snapshot_sha256: 'a'.repeat(64) }, confirmation_email: { expected: true, status: 'queued' }, status_path: '/api/v1/website/customer-applications/APP-1001' },
     status: 'accepted',
     application_number: 'APP-1001',
     customer_id: 'customer_runtime_1',

@@ -33,26 +33,35 @@ export default function SwitchStatusCard({
 
   useEffect(() => {
     let stopped = false
+    let failures = 0
+    const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | null = null
     const load = async () => {
+      if (document.visibilityState === 'hidden' || !navigator.onLine) { if (!stopped) timer = setTimeout(load, 60_000); return }
       try {
         const response = await fetch(`/api/checkout/switch-status?result_token=${encodeURIComponent(resultToken)}`, {
           cache: 'no-store',
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12_000)]),
           headers: { Accept: 'application/json' },
         })
+        if ([400, 401, 403, 404, 410].includes(response.status)) return
+        if (!response.ok) failures += 1
         const payload = await response.json().catch(() => null) as { data?: SwitchStatus } | null
         if (!stopped && response.ok && payload?.data) {
+          failures = 0
           setStatus(payload.data)
           if (payload.data.terminal) return
         }
       } catch {
+        failures += 1
         // The receipt remains valid even if a status refresh is temporarily unavailable.
       }
-      if (!stopped) timer = setTimeout(load, 30_000)
+      if (!stopped) timer = setTimeout(load, Math.min(5 * 60_000, 60_000 * 2 ** failures))
     }
     void load()
     return () => {
       stopped = true
+      controller.abort()
       if (timer) clearTimeout(timer)
     }
   }, [resultToken])

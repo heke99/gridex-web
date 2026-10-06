@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteApplicationStatus, isOpsError } from '@/lib/ops/client'
 import { isWebsiteApplicationResultTokenShape, readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
@@ -23,7 +24,7 @@ export async function GET(
 
   const rate = await checkRateLimit(
     `website-application-status:${clientIpFromHeaders(new Headers(request.headers))}`,
-    { limit: 40, windowMs: 10 * 60_000 },
+    { limit: 1200, windowMs: 10 * 60_000 },
   )
   if (!rate.allowed) {
     return NextResponse.json(
@@ -37,6 +38,12 @@ export async function GET(
     return NextResponse.json({ error: { code: 'application_not_found' } }, { status: 404 })
   }
 
+  // Use the verified receipt's application, so unrelated customers sharing an IP do not share this quota.
+  const applicationRate = await checkRateLimit(
+    `website-application-status:application:${createHash('sha256').update(applicationNumber).digest('hex')}`,
+    { limit: 120, windowMs: 10 * 60_000 },
+  )
+  if (!applicationRate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((applicationRate.resetAt - Date.now()) / 1_000))) } })
   try {
     const data = await fetchOpsWebsiteApplicationStatus(applicationNumber)
     await syncWebsiteSubmissionStatus({

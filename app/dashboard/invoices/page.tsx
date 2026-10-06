@@ -18,7 +18,8 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value))
 }
 
-function formatCurrency(value: number, currencyCode: string) {
+function formatCurrency(value: number | null, currencyCode: string) {
+  if (value === null) return 'Inväntas'
   return new Intl.NumberFormat('sv-SE', {
     style: 'currency',
     currency: currencyCode || 'SEK',
@@ -81,8 +82,8 @@ export default async function DashboardInvoicesPage() {
               </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-4">
-                <Info label="Belopp" value={formatCurrency(Number(invoice.total_amount || 0), invoice.currency_code)} />
-                <Info label="Moms" value={formatCurrency(Number(invoice.vat_amount || 0), invoice.currency_code)} />
+                <Info label="Belopp" value={formatCurrency(invoice.total_amount, invoice.currency_code)} />
+                <Info label="Moms" value={formatCurrency(invoice.vat_amount, invoice.currency_code)} />
                 <Info label="Förfallodatum" value={formatDate(invoice.due_at)} />
                 <Info label="OCR/referens" value={invoice.ocr_number || invoice.payment_reference || '—'} />
               </div>

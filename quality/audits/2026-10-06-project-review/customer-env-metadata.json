@@ -1,0 +1,239 @@
+{
+  "checked_at": "2026-10-06",
+  "project": "gridex-web",
+  "note": "Names, types and targets only. Values were not decrypted. Presence does not establish actual configuration or binding.",
+  "envs": [
+    {
+      "key": "GRIDEX_WEBSITE_STATE_SIGNING_SECRET",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_API_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_OPS_TIMEOUT_MS",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_WEBSITE_PRICING_QUOTE_SECRET",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_OPS_API_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_ENABLE_PORTAL_ONBOARDING",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PAPILITE_BASE_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "WEBSITE_ARCGIS_GRID_AREAS_QUERY_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PAPILITE_API_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_ENABLE_OPS_WEBHOOKS",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_OPS_WEBHOOK_SECRET",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_OPS_WEBHOOK_TOLERANCE_SECONDS",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_ALLOW_UNSAFE_OPS_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_OPS_API_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_WEBSITE_API_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_WEBSITE_TENANT_ID",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_ENABLE_LIVE_SIGNUP",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_WEBSITE_HASH_PEPPER",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_WEBSITE_APPLICATION_PREFIX",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "SPOT_PRICE_API_URL_TEMPLATE",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CONTRACTS_BUCKET",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PII_HASH_PEPPER",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PII_ENCRYPTION_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GRIDEX_INTEGRATION_API_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CRON_SECRET",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "NEXT_PUBLIC_SITE_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    }
+  ]
+}

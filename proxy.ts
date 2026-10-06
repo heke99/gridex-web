@@ -93,8 +93,8 @@ export async function proxy(req: NextRequest) {
 
     // New permission system.
     const { data: hasPerm, error: permErr } = await supabase.rpc(
-      'gridex_has_permission',
-      { p_user_id: user.id, p_permission: 'admin.access' },
+      'gridex_my_has_permission_v1',
+      { p_permission: 'admin.access' },
     )
 
     const permAllowed = !permErr && hasPerm === true

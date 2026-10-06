@@ -1,0 +1,488 @@
+[
+  {
+    "table": "audit_logs",
+    "keep": "gridex_db1_audit_logs_insert",
+    "drop": "gridex_db3_audit_logs_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "audit_logs",
+    "keep": "gridex_db1_audit_logs_select",
+    "drop": "gridex_db3_audit_logs_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "audit_logs",
+    "keep": "gridex_db1_audit_logs_update",
+    "drop": "gridex_db3_audit_logs_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "billing_export_runs",
+    "keep": "gridex_db1_billing_export_runs_insert",
+    "drop": "gridex_db3_billing_export_runs_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "billing_export_runs",
+    "keep": "gridex_db1_billing_export_runs_select",
+    "drop": "gridex_db3_billing_export_runs_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "billing_export_runs",
+    "keep": "gridex_db1_billing_export_runs_update",
+    "drop": "gridex_db3_billing_export_runs_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "billing_underlays",
+    "keep": "gridex_db1_billing_underlays_insert",
+    "drop": "gridex_db3_billing_underlays_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "billing_underlays",
+    "keep": "gridex_db1_billing_underlays_select",
+    "drop": "gridex_db3_billing_underlays_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "billing_underlays",
+    "keep": "gridex_db1_billing_underlays_update",
+    "drop": "gridex_db3_billing_underlays_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "communication_routes",
+    "keep": "gridex_db1_communication_routes_insert",
+    "drop": "gridex_db3_communication_routes_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "communication_routes",
+    "keep": "gridex_db1_communication_routes_select",
+    "drop": "gridex_db3_communication_routes_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "communication_routes",
+    "keep": "gridex_db1_communication_routes_update",
+    "drop": "gridex_db3_communication_routes_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "companies",
+    "keep": "gridex_db1_companies_insert",
+    "drop": "gridex_db3_companies_platform_insert",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "gridex_user_is_platform_admin()"
+  },
+  {
+    "table": "companies",
+    "keep": "gridex_db1_companies_update",
+    "drop": "gridex_db3_companies_platform_update",
+    "command": "w",
+    "roles": "{}",
+    "using": "gridex_user_is_platform_admin()",
+    "check": "gridex_user_is_platform_admin()"
+  },
+  {
+    "table": "company_invitations",
+    "keep": "gridex_db1_company_invitations_insert",
+    "drop": "gridex_db3_company_invitations_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "company_invitations",
+    "keep": "gridex_db1_company_invitations_select",
+    "drop": "gridex_db3_company_invitations_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "company_invitations",
+    "keep": "gridex_db1_company_invitations_update",
+    "drop": "gridex_db3_company_invitations_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "company_memberships",
+    "keep": "gridex_db1_company_memberships_insert",
+    "drop": "gridex_db3_company_memberships_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "company_memberships",
+    "keep": "gridex_db1_company_memberships_select",
+    "drop": "gridex_db3_company_memberships_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "company_memberships",
+    "keep": "gridex_db1_company_memberships_update",
+    "drop": "gridex_db3_company_memberships_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "contract_agreements",
+    "keep": "user_can_read_own_agreements",
+    "drop": "users can read own agreements",
+    "command": "r",
+    "roles": "{}",
+    "using": "(( SELECT auth.uid() AS uid) = user_id)",
+    "check": null
+  },
+  {
+    "table": "customer_contracts",
+    "keep": "gridex_db1_customer_contracts_insert",
+    "drop": "gridex_db3_customer_contracts_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "customer_contracts",
+    "keep": "gridex_db1_customer_contracts_select",
+    "drop": "gridex_db3_customer_contracts_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "customer_contracts",
+    "keep": "gridex_db1_customer_contracts_update",
+    "drop": "gridex_db3_customer_contracts_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "customer_sites",
+    "keep": "gridex_db1_customer_sites_insert",
+    "drop": "gridex_db3_customer_sites_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "customer_sites",
+    "keep": "gridex_db1_customer_sites_select",
+    "drop": "gridex_db3_customer_sites_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "customer_sites",
+    "keep": "gridex_db1_customer_sites_update",
+    "drop": "gridex_db3_customer_sites_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "customers",
+    "keep": "gridex_db1_customers_insert",
+    "drop": "gridex_db3_customers_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "customers",
+    "keep": "gridex_db1_customers_select",
+    "drop": "gridex_db3_customers_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "customers",
+    "keep": "gridex_db1_customers_update",
+    "drop": "gridex_db3_customers_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_actor_settings",
+    "keep": "gridex_db1_ediel_actor_settings_insert",
+    "drop": "gridex_db3_ediel_actor_settings_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_actor_settings",
+    "keep": "gridex_db1_ediel_actor_settings_select",
+    "drop": "gridex_db3_ediel_actor_settings_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "ediel_actor_settings",
+    "keep": "gridex_db1_ediel_actor_settings_update",
+    "drop": "gridex_db3_ediel_actor_settings_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_message_events",
+    "keep": "gridex_db1_ediel_message_events_insert",
+    "drop": "gridex_db3_ediel_message_events_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_message_events",
+    "keep": "gridex_db1_ediel_message_events_select",
+    "drop": "gridex_db3_ediel_message_events_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "ediel_message_events",
+    "keep": "gridex_db1_ediel_message_events_update",
+    "drop": "gridex_db3_ediel_message_events_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_messages",
+    "keep": "gridex_db1_ediel_messages_insert",
+    "drop": "gridex_db3_ediel_messages_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_messages",
+    "keep": "gridex_db1_ediel_messages_select",
+    "drop": "gridex_db3_ediel_messages_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "ediel_messages",
+    "keep": "gridex_db1_ediel_messages_update",
+    "drop": "gridex_db3_ediel_messages_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_route_profiles",
+    "keep": "gridex_db1_ediel_route_profiles_insert",
+    "drop": "gridex_db3_ediel_route_profiles_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "ediel_route_profiles",
+    "keep": "gridex_db1_ediel_route_profiles_select",
+    "drop": "gridex_db3_ediel_route_profiles_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "ediel_route_profiles",
+    "keep": "gridex_db1_ediel_route_profiles_update",
+    "drop": "gridex_db3_ediel_route_profiles_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "metering_points",
+    "keep": "gridex_db1_metering_points_insert",
+    "drop": "gridex_db3_metering_points_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "metering_points",
+    "keep": "gridex_db1_metering_points_select",
+    "drop": "gridex_db3_metering_points_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "metering_points",
+    "keep": "gridex_db1_metering_points_update",
+    "drop": "gridex_db3_metering_points_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "outbound_requests",
+    "keep": "gridex_db1_outbound_requests_insert",
+    "drop": "gridex_db3_outbound_requests_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "outbound_requests",
+    "keep": "gridex_db1_outbound_requests_select",
+    "drop": "gridex_db3_outbound_requests_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "outbound_requests",
+    "keep": "gridex_db1_outbound_requests_update",
+    "drop": "gridex_db3_outbound_requests_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "powers_of_attorney",
+    "keep": "gridex_db1_powers_of_attorney_insert",
+    "drop": "gridex_db3_powers_of_attorney_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "powers_of_attorney",
+    "keep": "gridex_db1_powers_of_attorney_select",
+    "drop": "gridex_db3_powers_of_attorney_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "powers_of_attorney",
+    "keep": "gridex_db1_powers_of_attorney_update",
+    "drop": "gridex_db3_powers_of_attorney_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "supplier_switch_requests",
+    "keep": "gridex_db1_supplier_switch_requests_insert",
+    "drop": "gridex_db3_supplier_switch_requests_insert_company",
+    "command": "a",
+    "roles": "{}",
+    "using": null,
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  },
+  {
+    "table": "supplier_switch_requests",
+    "keep": "gridex_db1_supplier_switch_requests_select",
+    "drop": "gridex_db3_supplier_switch_requests_select_company",
+    "command": "r",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": null
+  },
+  {
+    "table": "supplier_switch_requests",
+    "keep": "gridex_db1_supplier_switch_requests_update",
+    "drop": "gridex_db3_supplier_switch_requests_update_company",
+    "command": "w",
+    "roles": "{}",
+    "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+    "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))"
+  }
+]

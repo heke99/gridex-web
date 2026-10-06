@@ -1,0 +1,8 @@
+(node:2412) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED: schema-valid action_required/thank_you_ready=false is discarded and passes accepted gate
+CONFIRMED: schema-valid processing application is rejected as an upstream error
+CONFIRMED: GET retries three times despite explicit retryable=false
+CONFIRMED: response body remains pending beyond configured timeout; abort timer already cleared
+CONFIRMED: shared password policy rejects the eight-character password accepted by profile action length check

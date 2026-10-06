@@ -11,6 +11,7 @@ import {
 type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; continueHref?: string };
 function hasNumber(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
 function formatNumber(value: number, maximumFractionDigits = 0) { return new Intl.NumberFormat("sv-SE", { maximumFractionDigits }).format(value); }
+function lineUnit(unit: string) { return ({sek_per_month:'kr/mån',sek_per_invoice:'kr/faktura',sek_per_kwh:'kr/kWh',ore_per_kwh:'öre/kWh',kwh:'kWh',sek:'kr'} as Record<string,string>)[unit] ?? unit; }
 function formatOre(value: number) { return formatNumber(value, 4); }
 function formatDate(value?: string) {
   if (!value) return null;
@@ -42,6 +43,10 @@ function isCustomerVisibleAssumption(label: string) {
 export default function PriceResultCard({ data, updatedAt, onSelect, continueHref }: Props) {
   const { totalMonthlyCostSek, totalMonthlyCostInclVatSek, pricePerKwhOre, priceArea, kwh, specification, contract } = data;
   const fees = specification?.fees ?? {};
+  const canonicalLines = specification?.canonicalLines ?? [];
+  const production = data.energy_direction === 'production';
+  const estimate = data.customer_type === 'business' ? totalMonthlyCostSek : totalMonthlyCostInclVatSek;
+  const taxLabel = data.customer_type === 'business' ? 'exkl. moms' : 'inkl. moms';
   const contractHref = continueHref ?? (contract.offer_reference ? `/teckna-avtal?offer=${encodeURIComponent(contract.offer_reference)}` : "/teckna-avtal");
   const estimatedInclVat = hasNumber(totalMonthlyCostInclVatSek) ? totalMonthlyCostInclVatSek : undefined;
   const marketTimestamp = formatDate(data.market_data_timestamp);
@@ -70,9 +75,10 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
 
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="text-sm text-gray-400">Beräknad månadskostnad inkl. moms</div>
-            <div className="mt-2 text-4xl font-bold tracking-tight text-white">{hasNumber(estimatedInclVat) ? `${formatNumber(estimatedInclVat)} kr` : "Kan inte visas"}<span className="ml-2 text-lg text-gray-400">/ mån</span></div>
+            <div className="text-sm text-gray-400">{production ? 'Beräknad månadsersättning' : 'Beräknad månadskostnad'} {taxLabel}</div>
+            <div className="mt-2 text-4xl font-bold tracking-tight text-white">{hasNumber(estimate) ? `${formatNumber(estimate)} kr` : "Kan inte visas"}<span className="ml-2 text-lg text-gray-400">/ mån</span></div>
             {hasNumber(pricePerKwhOre) ? <div className="mt-2 text-sm text-gray-400">{formatOre(pricePerKwhOre)} öre/kWh exkl. moms före fasta avgifter</div> : null}
+            {hasNumber(data.totalYearlyCostSek) ? <p className="mt-2 text-sm text-gray-400">{production ? 'Beräknad årsersättning' : 'Beräknad årskostnad'} inkl. moms: {formatNumber(data.totalYearlyCostSek)} kr</p> : null}
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/30 p-5 text-sm">
             <div className="font-medium text-white">Prisunderlag</div>
@@ -85,10 +91,16 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
         </div>
 
         <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm">
+          {fees.vatIncluded !== undefined ? <p className="text-xs text-gray-400">Avgifter {fees.vatIncluded ? 'inkl. moms' : 'exkl. moms'}</p> : null}
+          {canonicalLines.length ? canonicalLines.map((line, index) => <div key={`${line.code}-${index}`} className="flex justify-between gap-4">
+            <span className="text-gray-300">{line.name}<span className="block text-xs text-gray-400">{formatNumber(line.quantity, 4)} × {formatNumber(line.unitPriceExVat, 4)} {lineUnit(line.unit)} exkl. moms</span></span>
+            <span className="text-right text-gray-100">{formatNumber(data.customer_type === 'business' ? line.amountExVat : line.amountIncVat, 2)} kr<br /><span className="text-xs text-gray-400">{taxLabel} i beräkningen</span></span>
+          </div>) : <>
           {hasNumber(fees.markupOre) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Påslag</span><span className="text-gray-100">{formatOre(fees.markupOre)} öre/kWh</span></div> : null}
           {hasNumber(fees.variableFeeOre) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Rörlig avgift</span><span className="text-gray-100">{formatOre(fees.variableFeeOre)} öre/kWh</span></div> : null}
           {hasNumber(fees.elcertOre) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Elcertifikat</span><span className="text-gray-100">{formatOre(fees.elcertOre)} öre/kWh</span></div> : null}
           {hasNumber(fees.monthlyFeeSek) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Månadsavgift</span><span className="text-gray-100">{formatNumber(fees.monthlyFeeSek, 2)} kr/mån</span></div> : null}
+          </>}
           <div className="border-t border-white/10 pt-3">
             {hasNumber(totalMonthlyCostSek) ? <div className="flex justify-between gap-4"><span className="text-gray-300">Beräknat exkl. moms</span><span className="text-gray-100">{formatNumber(totalMonthlyCostSek)} kr/mån</span></div> : null}
             {hasNumber(estimatedInclVat) ? <div className="mt-2 flex justify-between gap-4"><span className="text-gray-300">Beräknat inkl. moms</span><span className="font-semibold text-white">{formatNumber(estimatedInclVat)} kr/mån</span></div> : null}
@@ -100,7 +112,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          {onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} prefetch={true} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Teckna elavtal</Link>}
+          {onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} prefetch={true} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">{production ? 'Teckna produktionsavtal' : 'Teckna elavtal'}</Link>}
           <Link href="/elavtal" className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</Link>
         </div>
       </div>

@@ -10,6 +10,10 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
+function priceValue(value: unknown, unit: string): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('sv-SE', { maximumFractionDigits: 4 })} ${unit}` : 'Inväntas'
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
   return new Intl.DateTimeFormat('sv-SE', {
@@ -65,7 +69,15 @@ export default async function DashboardContractsPage() {
               <Info label="Bekräftat startdatum" value={formatDate(contract.confirmed_start_date)} />
               <Info label="Avtalsreferens" value={contract.contract_number || contract.contract_external_ref || '—'} />
               <Info label="Skapat" value={formatDate(contract.created_at)} />
+              <Info label="Energiriktning" value={contract.pricing_snapshot.energy_direction === 'production' ? 'Produktion' : contract.pricing_snapshot.energy_direction === 'consumption' ? 'Förbrukning' : 'Inväntas'} />
+              <Info label="Månadsavgift" value={priceValue(contract.pricing_snapshot.monthly_fee_sek, 'kr/mån')} />
+              <Info label="Fast energipris" value={priceValue(contract.pricing_snapshot.fixed_price_ore_per_kwh, 'öre/kWh')} />
+              <Info label="Påslag" value={priceValue(contract.pricing_snapshot.markup_ore_per_kwh, 'öre/kWh')} />
+              <Info label="Bindningstid" value={priceValue(contract.pricing_snapshot.binding_months, 'mån')} />
+              <Info label="Uppsägningstid" value={priceValue(contract.pricing_snapshot.notice_months, 'mån')} />
+              <Info label="Automatisk förlängning" value={contract.pricing_snapshot.auto_renew_enabled === true ? 'Ja' : contract.pricing_snapshot.auto_renew_enabled === false ? 'Nej' : 'Inväntas'} />
             </div>
+            <p className="mt-3 text-xs text-white/50">Priserna är dina avtalsuppgifter. Momshanteringen framgår av avtalsdokumentet.</p>
           </article>
         ))}
 

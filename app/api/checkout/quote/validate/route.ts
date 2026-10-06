@@ -4,6 +4,8 @@ import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/we
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
 import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
 import { readWebJson } from '@/lib/api/webBoundary'
+import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
+import { verifyWebsitePricingQuote } from '@/lib/website/pricingQuote'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -13,9 +15,14 @@ function text(value: unknown, max = 12_000): string {
 }
 
 export async function POST(req: Request) {
+  const rate = await checkRateLimit(`quote-validate:${clientIpFromHeaders(req.headers)}`, { limit: 30, windowMs: 10 * 60_000 })
+  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
   const parsedBody = await readWebJson<Record<string, unknown>>(req)
   if (!parsedBody.ok) return parsedBody.response
   const body = parsedBody.value
+  if (typeof body.pricing_token !== 'string' || body.pricing_token.length > 24_000 || !verifyWebsitePricingQuote(body.pricing_token).ok) {
+    return NextResponse.json({ ok: false, error: { code: 'invalid_quote' } }, { status: 400 })
+  }
   const customerType = parseWebsiteCustomerType(body?.customer_type)
   const offerReference = text(body?.offer_reference, 180)
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')

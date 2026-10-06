@@ -20,7 +20,7 @@
     "test:launch": "npm run test:portal-existing-auth && npm run test:public-contract-v4 && npm run test:gridex-runtime-hardening && npm run test:post-commit-durability && node tests/public-contract-cache-durability.test.mjs && node tests/public-contract-failure-visibility.test.mjs && node tests/public-contract-feed-fail-closed.test.mjs && node tests/api-compatibility-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/schema-additive-compatibility.test.mjs && npm run test:ops-transport && node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-facing-pricing-visibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/non-expiring-canonical-quotes.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-portal-api-hardening.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260801.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-runtime-regressions-20260801.test.mjs && node tests/api-contract-regressions-20260802.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/elprisetjustnu-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/launch-readiness.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-canonical-area-prices.test.mjs && node tests/openapi-sync-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260804-3.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-contract-regressions-20260805-1.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-issue-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-feed-isolation.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/public-contract-runtime-compatibility.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/price-option-selection.test.mjs && node --experimental-strip-types tests/signup-canonical-kwh.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-pricing-regression.test.mjs && node tests/customer-pricing-copy-and-renewal.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/signup-contract-option-adapter.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs && node tests/quote-validation-canonical-tuple.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-signup-hardening.test.mjs && node --experimental-strip-types tests/safe-redirect-path.test.mjs && node tests/automatic-checkout-policy.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/automatic-price-option-selection.test.mjs && node tests/signup-quote-integrity-sync.test.mjs && node tests/forward-contract-version-compatibility.test.mjs",
     "backfill:portal-customer": "node scripts/backfill-portal-customer.mjs",
     "typecheck": "tsc --noEmit --pretty false",
-    "test": "npm run test:launch",
+    "test": "npm run test:launch && npm run test:audit-hardening",
     "api:contract": "node tests/live-application-number-contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api.contract.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/website-api-runtime.contract.test.mjs",
     "api:generate": "node scripts/generate-openapi-types.mjs",
     "api:drift": "node scripts/check-openapi-drift.mjs",
@@ -53,15 +53,19 @@
     "test:support:browser": "node tests/run-support-browser.mjs",
     "typecheck:support": "tsc --noEmit --pretty false -p apps/support/tsconfig.json",
     "test:customer-support": "node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/customer-support-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs",
-    "test:portal-existing-auth": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs"
+    "test:portal-existing-auth": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs",
+    "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs",
+    "release:audit:manifest": "node scripts/check-audit-release.mjs --snapshot",
+    "release:audit:check": "node scripts/check-audit-release.mjs",
+    "test:audit:browser": "node tests/run-audit-browser.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.95.3",
+    "@supabase/ssr": "0.8.0",
+    "@supabase/supabase-js": "2.98.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "dotenv": "^17.4.2",
-    "next": "^16.2.7",
+    "next": "16.3.8",
     "pdfkit": "^0.17.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -75,11 +79,18 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.7",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "fast-uri": "^3.1.8",
+    "baseline-browser-mapping": "^2.11.0",
+    "source-map-js": "^1.2.2",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "@next/eslint-plugin-next": {
+      "fast-glob": "npm:tinyglobby@0.2.17"
+    }
   }
 }

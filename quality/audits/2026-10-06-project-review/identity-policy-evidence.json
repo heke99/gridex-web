@@ -1,0 +1,943 @@
+[
+  {
+    "evidence": {
+      "roles": [
+        {
+          "role": "authenticated",
+          "inherit": true,
+          "bypassrls": false,
+          "superuser": false
+        },
+        {
+          "role": "anon",
+          "inherit": true,
+          "bypassrls": false,
+          "superuser": false
+        }
+      ],
+      "views": [
+        {
+          "view": "gridex_customer_intake_security_report_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "contract_pricing_versions_with_state",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_batch3_role_action_security_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "legal_documents_live",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_batch4c_role_action_security_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_sensitive_action_audit_coverage_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_debug_batch2_rbac_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_active_actor_settings_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_route_runtime_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_message_ack_state_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_debug_step1_2_schema_alignment_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_overdue_message_acks_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_duplicate_ack_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_duplicate_site_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_duplicate_metering_point_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_rbac_health_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "ediel_rule_ambiguities_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_schema_gap_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_tenant_gap_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_duplicate_customer_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_backfill_readiness_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_company_overview_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_rls_policy_gap_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_company_reconciliation_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_membership_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_customer_profile_mapping_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_current_backfill_items_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_profile_review_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_backfill_run_summary_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_debug_batch2_tenant_policy_gaps_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_customer_profile_candidates_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_final_readiness_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2b_superadmin_target_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2b_preflight_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db3_rbac_snapshot_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_user_auth_integrity_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "customer_portal_overview_v1",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db3_tenant_policy_gaps_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db3_final_readiness_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2b_superadmin_membership_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2b_final_readiness_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2b_rbac_snapshot_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db3_tenant_data_gaps_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db4b_customer_registry_visibility_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "customer_contract_status_v1",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db1_storage_gap_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_schema_contract_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        },
+        {
+          "view": "gridex_db2_v4_source_inventory_v",
+          "options": [
+            "security_invoker=true"
+          ]
+        }
+      ],
+      "grants": [
+        {
+          "rls": true,
+          "table": "admin_users",
+          "anon_insert": false,
+          "authenticated_insert": false,
+          "authenticated_update": false
+        },
+        {
+          "rls": true,
+          "table": "customer_contracts",
+          "anon_insert": true,
+          "authenticated_insert": true,
+          "authenticated_update": true
+        },
+        {
+          "rls": true,
+          "table": "customer_delivery_points",
+          "anon_insert": true,
+          "authenticated_insert": true,
+          "authenticated_update": true
+        },
+        {
+          "rls": true,
+          "table": "customer_notifications",
+          "anon_insert": true,
+          "authenticated_insert": true,
+          "authenticated_update": true
+        },
+        {
+          "rls": true,
+          "table": "customer_profiles",
+          "anon_insert": true,
+          "authenticated_insert": true,
+          "authenticated_update": true
+        }
+      ],
+      "policies": [
+        {
+          "name": "customer_contracts_owner_insert",
+          "check": "(( SELECT auth.uid() AS uid) = user_id)",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": null,
+          "command": "INSERT"
+        },
+        {
+          "name": "customer_contracts_owner_select",
+          "check": null,
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": "(( SELECT auth.uid() AS uid) = user_id)",
+          "command": "SELECT"
+        },
+        {
+          "name": "gridex_db1_customer_contracts_insert",
+          "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": null,
+          "command": "INSERT"
+        },
+        {
+          "name": "gridex_db1_customer_contracts_select",
+          "check": null,
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+          "command": "SELECT"
+        },
+        {
+          "name": "gridex_db1_customer_contracts_update",
+          "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+          "command": "UPDATE"
+        },
+        {
+          "name": "gridex_db3_customer_contracts_insert_company",
+          "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": null,
+          "command": "INSERT"
+        },
+        {
+          "name": "gridex_db3_customer_contracts_select_company",
+          "check": null,
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+          "command": "SELECT"
+        },
+        {
+          "name": "gridex_db3_customer_contracts_update_company",
+          "check": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_write_company(company_id)))",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_contracts",
+          "using": "(gridex_user_is_platform_admin() OR ((company_id IS NOT NULL) AND gridex_can_read_company(company_id)))",
+          "command": "UPDATE"
+        },
+        {
+          "name": "customer_delivery_points_owner_all",
+          "check": "(( SELECT auth.uid() AS uid) = user_id)",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_delivery_points",
+          "using": "(( SELECT auth.uid() AS uid) = user_id)",
+          "command": "ALL"
+        },
+        {
+          "name": "customer_notifications_owner_all",
+          "check": "(( SELECT auth.uid() AS uid) = user_id)",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_notifications",
+          "using": "(( SELECT auth.uid() AS uid) = user_id)",
+          "command": "ALL"
+        },
+        {
+          "name": "customer_profiles_owner_insert",
+          "check": "(( SELECT auth.uid() AS uid) = user_id)",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_profiles",
+          "using": null,
+          "command": "INSERT"
+        },
+        {
+          "name": "customer_profiles_owner_select",
+          "check": null,
+          "roles": [
+            "public"
+          ],
+          "table": "customer_profiles",
+          "using": "(( SELECT auth.uid() AS uid) = user_id)",
+          "command": "SELECT"
+        },
+        {
+          "name": "customer_profiles_owner_update",
+          "check": "(( SELECT auth.uid() AS uid) = user_id)",
+          "roles": [
+            "public"
+          ],
+          "table": "customer_profiles",
+          "using": "(( SELECT auth.uid() AS uid) = user_id)",
+          "command": "UPDATE"
+        }
+      ],
+      "contract_columns": [
+        {
+          "type": "uuid",
+          "column": "id",
+          "default": "gen_random_uuid()",
+          "nullable": "NO"
+        },
+        {
+          "type": "uuid",
+          "column": "user_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "contract_product_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "status",
+          "default": "'draft'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "sign_method",
+          "default": "'email'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "timestamp with time zone",
+          "column": "signed_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "company_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "expected_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "confirmed_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "actual_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "start_date_source",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "start_date_blocker_reason",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "campaign_code",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "campaign_version",
+          "default": "'v1'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "price_version",
+          "default": "'v1'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "terms_version",
+          "default": "'v1'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "price_snapshot",
+          "default": "'{}'::jsonb",
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "campaign_snapshot",
+          "default": "'{}'::jsonb",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "billing_ready_status",
+          "default": "'not_checked'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "billing_blocker_reasons",
+          "default": "'[]'::jsonb",
+          "nullable": "YES"
+        },
+        {
+          "type": "timestamp with time zone",
+          "column": "withdrawal_requested_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "rejected_reason",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "discount_value",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "discount_unit",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "start_fee_sek",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "admin_fee_sek",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "break_fee_sek",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "vat_rate",
+          "default": "0.25",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "invoice_recipient",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "invoice_email",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "invoice_reference",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "billing_street",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "billing_postal_code",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "billing_city",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "billing_country",
+          "default": "'SE'::text",
+          "nullable": "NO"
+        },
+        {
+          "type": "boolean",
+          "column": "billing_address_same_as_site",
+          "default": "false",
+          "nullable": "NO"
+        },
+        {
+          "type": "text",
+          "column": "billing_level",
+          "default": "'customer'::text",
+          "nullable": "NO"
+        },
+        {
+          "type": "boolean",
+          "column": "consolidated_invoice",
+          "default": "false",
+          "nullable": "NO"
+        },
+        {
+          "type": "text",
+          "column": "contract_version",
+          "default": "'v1'::text",
+          "nullable": "NO"
+        },
+        {
+          "type": "text",
+          "column": "signed_version",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "terms_signed_version",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "version_snapshot",
+          "default": "'{}'::jsonb",
+          "nullable": "NO"
+        },
+        {
+          "type": "text",
+          "column": "start_status",
+          "default": "'start_date_missing'::text",
+          "nullable": "NO"
+        },
+        {
+          "type": "date",
+          "column": "old_supplier_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "grid_owner_confirmed_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "ediel_confirmed_start_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "boolean",
+          "column": "export_blocked",
+          "default": "false",
+          "nullable": "NO"
+        },
+        {
+          "type": "text",
+          "column": "export_block_reason",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "customer_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "site_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "metering_point_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "customer_site_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "contract_offer_id",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "source_type",
+          "default": "'manual_override'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "contract_name",
+          "default": "'Elavtal'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "contract_type",
+          "default": "'variable_monthly'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "starts_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "ends_at",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "date",
+          "column": "termination_notice_date",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "termination_reason",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "boolean",
+          "column": "auto_renew_enabled",
+          "default": "false",
+          "nullable": "YES"
+        },
+        {
+          "type": "integer",
+          "column": "auto_renew_term_months",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "override_reason",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "fixed_price_ore_per_kwh",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "spot_markup_ore_per_kwh",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "variable_fee_ore_per_kwh",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "monthly_fee_sek",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "text",
+          "column": "green_fee_mode",
+          "default": "'none'::text",
+          "nullable": "YES"
+        },
+        {
+          "type": "numeric",
+          "column": "green_fee_value",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "integer",
+          "column": "binding_months",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "integer",
+          "column": "notice_months",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "optional_fee_lines",
+          "default": "'[]'::jsonb",
+          "nullable": "YES"
+        },
+        {
+          "type": "jsonb",
+          "column": "metadata",
+          "default": "'{}'::jsonb",
+          "nullable": "YES"
+        },
+        {
+          "type": "timestamp with time zone",
+          "column": "created_at",
+          "default": "now()",
+          "nullable": "YES"
+        },
+        {
+          "type": "timestamp with time zone",
+          "column": "updated_at",
+          "default": "now()",
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "created_by",
+          "default": null,
+          "nullable": "YES"
+        },
+        {
+          "type": "uuid",
+          "column": "updated_by",
+          "default": null,
+          "nullable": "YES"
+        }
+      ]
+    }
+  }
+]

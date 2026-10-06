@@ -16,10 +16,11 @@ function shouldHideAccountExistence(message: string): boolean {
   return /not found|user|account|registered|exists/i.test(message)
 }
 
-function humanizeAuthError(message: string): string {
-  const msg = message.toLowerCase()
-
-  if (msg.includes('email')) {
+function humanizeAuthError(error: { code?: string; status?: number; message: string }): string {
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') {
+    return 'För många försök. Vänta en stund innan du begär en ny återställningslänk.'
+  }
+  if (error.code === 'email_address_invalid') {
     return 'Ange en giltig e-postadress.'
   }
 
@@ -63,11 +64,13 @@ export default function ForgotPasswordPage() {
       })
 
       if (error && !shouldHideAccountExistence(error.message)) {
-        setError(humanizeAuthError(error.message))
+        setError(humanizeAuthError(error))
         return
       }
 
       setSent(true)
+    } catch {
+      setError('Kunde inte skicka återställningslänken just nu. Försök igen senare.')
     } finally {
       setLoading(false)
     }

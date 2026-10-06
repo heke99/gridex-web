@@ -57,7 +57,7 @@ export async function loginWithPassword(formData: FormData) {
   }
 
   const [permissionsResult, rolesResult] = await Promise.allSettled([
-    supabase.rpc('gridex_get_user_permissions', { p_user_id: user.id }),
+    supabase.rpc('gridex_my_permissions_v1'),
     supabase
       .from('user_roles')
       .select('role,is_active')
@@ -96,7 +96,8 @@ export async function loginWithPassword(formData: FormData) {
   const isAdmin = permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
 
   try {
-    await supabase.rpc('gridex_log_customer_login', { p_user_id: user.id })
+    const { error } = await supabase.rpc('gridex_my_log_login_v1')
+    if (error) throw error
   } catch (error) {
     console.error('[loginWithPassword] gridex_log_customer_login failed', error)
   }
