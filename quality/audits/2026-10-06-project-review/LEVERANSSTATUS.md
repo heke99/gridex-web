@@ -1,4 +1,4 @@
-# Leveransstatus – 2026-10-06
+# Leveransstatus – uppdaterad 2026-10-07
 
 PR: https://github.com/heke99/gridex-web/pull/49
 
@@ -7,7 +7,7 @@ Källträd: `fdfe3f636db648687899d8659293b7e6f6d1927b`, exakt samma som lokalt t
 Källhash (utan quality): `4dff3164f3d75d16d0c59aec10e1984afc94242e565039bd127717ba7205ef95`.
 API: `2026-10-04.1`. Migrationsmanifest: 45 filer.
 
-PR:n är draft och inte mergad. Användaren har redan instruerat slutlig merge när alla fel är rättade; ett nytt tillstånd att merga behövs inte. Villkoret är ännu inte uppfyllt i drift.
+Den 2026-10-07 instruerade användaren att merga de verifierade kodrättningarna till main och ta återstående produktionspunkter senare. De skarpa punkterna nedan är därför villkor för produktionsaktivering, inte för denna kodmerge. Aktuell mergestatus och SHA verifieras i PR #49.
 
 ## Utförda kontroller
 
@@ -15,7 +15,7 @@ Ren npm-ci, Web- och supporttester, standardbyggen, TypeScript, lint, API-prefli
 
 GitHubs tre Actions-workflows är skapade men stod fortfarande queued vid avläsningen. Detta är inte ett godkänt CI-resultat. CodeRabbit och Vercel-preview har status success. Ingen produktionsrelease har genomförts.
 
-## Återstående blockerare
+## Återstående produktionspunkter
 
 1. Supabase security advisor bekräftar avstängt skydd mot läckta lösenord. Den anslutna Supabase-verktygsuppsättningen har ingen hantering av Auth/SMTP eller dess inställningar. Kräver en åtkomstväg till Auth-konfigurationen i rätt projekt; ändra inte SQL för att försöka kringgå GoTrues inställningar.
 2. Befintliga Vercel-värden är sensitive och går inte att dekryptera via anslutningen. Rätt OPS-tenant, assertionkonfiguration och servernycklar kan därför inte verifieras med autentiserade skarpa tester här. Gissa inte issuer/audience/tenant eller ersätt befintliga nycklar.
@@ -23,4 +23,4 @@ GitHubs tre Actions-workflows är skapade men stod fortfarande queued vid avläs
 4. Sex nya migreringar och separat verifierad staff-delivery-prerequisite ska appliceras som en samordnad release. Staff-prerequisiten installerades separat i gridex-prod 2026-10-06 och dess privata ACL samt tre server-only RPC:er verifierades; ingen historisk migrationsreplay eller återöppning av osäkra kundgrants.
 5. Skarp tvåkundsisolering och komplett OPS-checkout/E2E samt kvarvarande belastningsmätning saknar bevis. Databasrådgivarvarningar är inte ensamma en grund för breda policyändringar.
 
-Nästa steg: säkerställ Auth-/SMTP-/OPS-konfiguration och godkänd testinkorg; verifiera samordnad schema/release mot rätt mål; invänta aktuell grön CI; stäng kvarstående fynd med bevis; markera PR:n ready och merga mot kontrollerad head-SHA. Main-deployment är tills dess fortsatt avstängd.
+Kodleverans: kontrollera aktuell PR-head och kvalitetskontroller, markera PR:n ready och merga till main enligt användarens instruktion. Därefter återstår Auth-/SMTP-/OPS-konfiguration, godkänd testinkorg och samordnad schema/release mot rätt mål. Main-deployment är fortsatt avstängd tills produktionsaktiveringen är verifierad.

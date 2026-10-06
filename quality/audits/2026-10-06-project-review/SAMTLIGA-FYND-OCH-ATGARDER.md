@@ -57,7 +57,7 @@ Krav: offerter ska inte löpa ut enbart för att tiden går, ingen femminutersti
 
 ## Levererat byggunderlag och testbevis
 
-Rättningarna är committade och publicerade i [draft PR #49](https://github.com/heke99/gridex-web/pull/49). Slutlig merge återstår enligt [leveransstatus](LEVERANSSTATUS.md). Befintliga tester och nya regressioner är körda utan att skapa kundansökningar, konton eller testmejl i produktion. Den aktiva Resend-webhookens prenumeration har uppdaterats; staff-delivery-prerequisiten har installerats separat och verifierats. Övriga skarpa releasesteg är inte genomförda.
+Rättningarna är committade och publicerade i [PR #49](https://github.com/heke99/gridex-web/pull/49). Användaren har 2026-10-07 instruerat kodmerge till main med produktionspunkterna kvar för senare hantering; se [leveransstatus](LEVERANSSTATUS.md). Befintliga tester och nya regressioner är körda utan att skapa kundansökningar, konton eller testmejl i produktion. Den aktiva Resend-webhookens prenumeration har uppdaterats; staff-delivery-prerequisiten har installerats separat och verifierats. Övriga skarpa releasesteg är inte genomförda.
 
 - Full Web-testsvit inklusive nya API-/SQL-/köregressioner: `npm test`.
 - Supportens testsvit: `npm run test:support`.
