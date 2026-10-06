@@ -1,0 +1,9 @@
+(node:3812) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./quality/audits/2026-10-06-project-review/pricing-audit-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED F17: valid canonical quote retains monthly total 186.25 but loses visible monthly-fee line 49 and annual_inc_vat 2235
+CONFIRMED F18: ex-VAT component renders as 49 kr/mån with VAT semantics discarded; gross counterpart is 61.25
+CONFIRMED F19: production compensation quote is rendered as monthly cost and uses consumption checkout wording
+CONFIRMED F20: old quote signature verifies through previous key but unchanged address is rejected after key rotation
+CONFIRMED F24: schema-valid unknown invoice total and VAT become known zero values
+CONFIRMED F25: canonical contract price/binding/renewal fields discarded and unknown creation time replaced with now

@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-06",
+  "local_commit": "188e475d18341a9ec9a531d9705da8988d9e9f6b",
+  "production": {
+    "deployment": "dpl_AzzAxuYSZpjRdbNWbC5w7KLyQCfb",
+    "state": "READY",
+    "url": "gridex-9li4qpv6o-div3rsa.vercel.app",
+    "alias": [
+      "gridex.se",
+      "www.gridex.se",
+      "gridex-web-ten.vercel.app",
+      "gridex-web-div3rsa.vercel.app",
+      "gridex-web-git-main-div3rsa.vercel.app"
+    ],
+    "git_commit": "ff950425b6922df88817f840dc5a395cbceab8eb",
+    "git_ref": "main",
+    "created_at": "2026-10-03T18:16:14.101Z",
+    "target": "production"
+  }
+}

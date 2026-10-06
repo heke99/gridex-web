@@ -10,6 +10,8 @@ export type PublicContractDisplayRow = {
   label: string
   value: number | string
   formatted: string
+  vatIncluded?: boolean | null
+  vatRate?: number | null
   unit?: 'sek_month' | 'sek_invoice' | 'ore_kwh' | 'months' | 'days' | 'percent' | 'sek'
 }
 
@@ -189,12 +191,22 @@ function addPublishedComponents(rows: PublicContractDisplayRow[], contract: OpsP
         key: component.component_code,
         label: component.name,
         value: component.amount,
+        vatIncluded: component.vat_included,
+        vatRate: component.vat_rate,
         formatted: `${component.amount.toLocaleString('sv-SE', { maximumFractionDigits: 4 })} ${component.unit}`,
       })
       continue
     }
     const before = rows.length
     addNumberRow(rows, component.component_code, component.name, component.amount, unit)
+    if (rows.length > before) {
+      const current = rows[rows.length - 1]
+      current.vatIncluded = component.vat_included
+      current.vatRate = component.vat_rate
+      if (['sek_month', 'sek_invoice', 'ore_kwh', 'sek'].includes(unit)) {
+        current.formatted += component.vat_included === true ? ' inkl. moms' : component.vat_included === false ? ' exkl. moms' : ' · momsuppgift inväntas'
+      }
+    }
     if (rows.length > before && component.calculation_base) {
       const current = rows[rows.length - 1]
       current.formatted = `${current.formatted} · bas: ${component.calculation_base}`

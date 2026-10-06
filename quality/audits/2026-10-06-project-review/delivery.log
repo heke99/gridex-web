@@ -1,0 +1,29 @@
+
+> gridex-web@0.1.0 verify:delivery
+> npm run api:check:local && npm run db:migrations:check && npm run api:compatibility && npm run test:api-hardening
+
+
+> gridex-web@0.1.0 api:check:local
+> node scripts/check-openapi-drift.mjs --local-only
+
+website-integration-v1.json: local snapshot/types consistent (2026-10-04.1)
+customer-portal-v1.json: local snapshot/types consistent (2026-10-04.1)
+
+> gridex-web@0.1.0 db:migrations:check
+> node scripts/check-migration-manifest.mjs
+
+Migration integrity passed (39 files).
+
+> gridex-web@0.1.0 api:compatibility
+> node scripts/check-api-compatibility.mjs
+
+{
+  "contract_version": "2026-10-04.1",
+  "upstream_contract_gaps": [],
+  "environment_blockers": []
+}
+
+> gridex-web@0.1.0 test:api-hardening
+> node tests/api-compatibility-hardening.test.mjs
+
+API compatibility hardening static checks passed.

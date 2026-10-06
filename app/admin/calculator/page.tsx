@@ -249,9 +249,7 @@ export default async function AdminCalculatorPreviewPage({
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold">Kalkylator • Admin Preview</h1>
         <p className="mt-2 text-sm text-white/60">
-          Kopplad mot publicerad pricing-version, area-priser och
-          spot/portfolio-inställningar. Validera exakt kundspec och månadskostnad,
-          inklusive jämförelse sida-vid-sida.
+          Intern förhandsvisning av äldre lokala prisinställningar. Kundens pris och avtal fastställs av den canonicala OPS-offerten. Denna modell används inte för att godkänna kundpriser.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">

@@ -40,6 +40,7 @@ export default async function HomePage() {
       value: item.offer_reference,
       offerReference: item.offer_reference,
       type: item.type,
+      energyDirection: item.energy_direction,
       monthlyFeeSek: item.monthly_fee_sek ?? null,
       invoiceFeeSek: null,
       markupOrePerKwh: item.markup_ore_per_kwh ?? null,

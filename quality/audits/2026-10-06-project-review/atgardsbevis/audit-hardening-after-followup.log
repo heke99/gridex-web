@@ -1,0 +1,53 @@
+
+> gridex-web@0.1.0 test:audit-hardening
+> node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs
+
+Next lint uses pinned tinyglobby; default, explicit, array and monorepo directory patterns preserve behavior
+Policy deduplication preserved 665 access outcomes across 19 tables and seven actors; drift, roles and restrictive policies remain protected
+Pricing, support receipt transactions, duplicate-index checks and queue ownership passed
+Audit SQL regressions passed: customer isolation, forged writes denied, scoped permissions, current Auth email, fencing and atomic rollback
+(node:23062) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/audit-regressions-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/customer/me',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: null,
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+[gridex-contract] runtime contract drift detected; response will be defensively parsed {
+  endpoint: '/api/v1/customer/notifications/read',
+  local_version: '2026-10-04.1',
+  received_version: null,
+  request_id: null,
+  correlation_id: null,
+  header_present: false,
+  parseable: false,
+  newer_than_local: null
+}
+Transport, notification contract and signed customer assertion regressions passed
+Price fees, VAT metadata, production display, key rotation, non-expiring quotes, market date/DST and monthly fan-out regressions passed
+[website signup] durable result row upsert failed; using verified stateless result token Error: Website result storage is not configured.
+    at serviceClient (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:91:27)
+    at createWebsiteApplicationResult (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:256:29)
+    at file:///workspace/gridex-web/tests/audit-hardening-runtime.test.mjs:131:27
+[website signup] stateless result projection repair failed Error: Website result storage is not configured.
+    at serviceClient (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:91:27)
+    at readWebsiteApplicationResultState (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:304:31)
+    at file:///workspace/gridex-web/tests/audit-hardening-runtime.test.mjs:132:29
+[website signup] durable result row upsert failed; using verified stateless result token Error: Website result storage is not configured.
+    at serviceClient (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:91:27)
+    at createWebsiteApplicationResult (file:///workspace/gridex-web/lib/website/applicationResultStore.ts:256:29)
+    at file:///workspace/gridex-web/tests/audit-hardening-runtime.test.mjs:136:21
+Unsigned processing receipt remains valid without inventing a signature; retries preserve its token
+[auth confirm] profile sync pending
+Checkout processing, portal DTOs, zero vs unknown invoices, support isolation and post-OTP database outage regressions passed
+Separate support readiness, fail-closed rate limiting and durable provider idempotency regressions passed
+(node:23102) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/audit-outbox-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+Outbox regression passed: stale worker cannot close or fail another processing claim

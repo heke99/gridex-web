@@ -256,6 +256,13 @@ export default async function AdminIntegrationsPage() {
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <h2 className="text-lg font-semibold">Kundsupport-readiness</h2>
+        <p className="mt-1 text-sm text-white/60">Supportens behörigheter verifieras separat. Ett supportfel blockerar inte kundens avtal och fakturor.</p>
+        <p className={portalReadiness.support.ready ? 'mt-3 text-emerald-300' : 'mt-3 text-rose-300'}>{portalReadiness.support.ready ? 'redo' : 'blockerad eller inte verifierad'}</p>
+        {portalReadiness.support.probes.map((probe) => <p key={probe.name} className="mt-2 text-xs text-white/70">{probe.name}: {probe.ok ? 'verifierad' : 'fel'} ({probe.status ?? 'n/a'}{probe.code ? `, ${probe.code}` : ''})</p>)}
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <div>
           <h2 className="text-lg font-semibold">Publiceringsdiagnostik för avtal</h2>
           <p className="mt-1 text-sm text-white/60">

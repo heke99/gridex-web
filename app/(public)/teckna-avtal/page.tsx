@@ -19,6 +19,7 @@ import {
   isOpsError,
   isTransientOpsError,
   submitOpsCustomerApplication,
+  assertAcceptedApplication,
   type OpsCustomerApplicationInput,
   type OpsPublicContract,
   type OpsWebsitePowerOfAttorneyInput,
@@ -1317,6 +1318,50 @@ export default async function TecknaPage({
       });
     }
 
+    if (!result.checkout.thank_you_ready) {
+      const pendingUpdate = {
+        submissionAttemptId, status: 'submitting' as const,
+        opsApplicationNumber: result.application_number ?? null,
+        opsResultSnapshot: result.raw ?? null,
+      }
+      await updateWebsiteSubmission(pendingUpdate).catch((error) =>
+        queueWebsiteSubmissionReconciliation(pendingUpdate, String(error)).catch((queueError) => {
+          console.error('[website signup] received application projection remains pending', queueError)
+        }),
+      )
+      let resultToken: string
+      try {
+        resultToken = await createWebsiteApplicationResult({
+        submissionAttemptId, userId: linkedAuthUserId, receivedAt: acceptedAt,
+        result: {
+          checkout: result.checkout,
+          workflowId: result.workflow_id ?? null, workflowState: result.workflow_state ?? null,
+          signatureSnapshotSha256: result.signature_snapshot_sha256 ?? '', status: result.status,
+          energyDirection: result.energy_direction ?? offer.energy_direction,
+          portalStatus: 'pending', portalMessage: null,
+          customerNumber: result.customer_number ?? null, contractNumber: result.contract_number ?? null,
+          applicationNumber: result.application_number ?? null, nextStep: result.next_step ?? null,
+          nextActionMessage: null, caseReference: null, powerOfAttorneySigned: result.power_of_attorney?.status === 'signed',
+          missingFields: result.missing_fields, contractStatus: result.contract_status ?? null,
+          signedAt: result.signed_at ?? null, withdrawalDeadlineAt: result.withdrawal_deadline_at ?? null,
+          canSendAgreementConfirmation: result.can_send_agreement_confirmation ?? null,
+          canStartSwitch: false, canCreateSupplierSwitchRequest: false, canDispatchSupplierSwitch: false, supplierSwitchStatus: result.supplier_switch.status,
+          blockingReasons: result.blocking_reasons, warnings: result.warnings,
+          communicationQueued: result.communication?.queued ?? [], communicationSent: result.communication?.sent ?? [], communicationFailed: result.communication?.failed ?? [],
+        },
+        })
+      } catch (error) {
+        console.error('[website signup] received application receipt requires reconciliation', error)
+        await recordWebsiteSubmissionFailure({
+          flow: 'received_result_token_reconciliation', submissionAttemptId, email,
+          reason: error instanceof Error ? error.message : String(error),
+          metadata: { application_number: result.application_number },
+        }).catch(() => null)
+        return redirect('/teckna-avtal/tack')
+      }
+      return redirect(`/teckna-avtal/tack?result=${encodeURIComponent(resultToken)}`)
+    }
+    assertAcceptedApplication(result)
     const acceptedSubmissionUpdate = {
       submissionAttemptId,
       status: "accepted",
@@ -1408,6 +1453,7 @@ export default async function TecknaPage({
         submissionAttemptId,
         userId: linkedAuthUserId,
         result: {
+          checkout: result.checkout,
           workflowId: result.workflow_id ?? null,
           workflowState: result.workflow_state,
           continuationJobId: result.continuation_job_id ?? null,

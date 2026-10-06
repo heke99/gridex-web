@@ -1,0 +1,4 @@
+'use client'
+import CustomerPortalSelfService from '@/components/customer/CustomerPortalSelfService'
+import ForgotPasswordPage from '@/app/login/forgot-password/page'
+export default function AuditCustomer(){return <><CustomerPortalSelfService site={{id:'facility_abcdefghijklmnopqrstuvwx',facilityId:'735999111222333444',meteringPointId:null,gridAreaCode:'AUDIT',priceAreaCode:'SE3'}} latestUnreadNotificationId='notification_abcdefghijklmnopqrstuvwx'/><ForgotPasswordPage/></>}

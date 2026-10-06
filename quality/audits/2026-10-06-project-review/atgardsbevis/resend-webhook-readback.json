@@ -1,0 +1,13 @@
+{
+  "endpoint": "https://app.gridex.se/api/webhooks/resend",
+  "status": "enabled",
+  "events": [
+    "email.bounced",
+    "email.delivered",
+    "email.failed",
+    "email.suppressed",
+    "email.complained",
+    "email.delivery_delayed"
+  ],
+  "verified_after_update": true
+}

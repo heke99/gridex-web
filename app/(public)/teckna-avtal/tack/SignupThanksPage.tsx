@@ -91,7 +91,9 @@ export default async function SignupThanksPage({
   const portalActionHref = portal.needsClaim ? portalClaimHref : '/mina-sidor'
   const portalActionLabel = portal.needsClaim ? 'Logga in och koppla den här teckningen' : 'Öppna Mina sidor'
 
-  const confirmationCopy = confirmationFailed
+  const confirmationCopy = stored.checkout?.confirmation_email.status === 'delivered'
+    ? 'Avtalsbekräftelsen har levererats till mottagarens mejlserver.'
+    : confirmationFailed
     ? 'Vi följer upp avtalsbekräftelsen och kontaktar dig vid behov.'
     : confirmationSent
       ? 'Avtalsbekräftelsen har skickats till din e-post.'
@@ -116,7 +118,7 @@ export default async function SignupThanksPage({
       />
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
         <div className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Teckning mottagen</div>
-        <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">Tack! Din teckning är skickad.</h1>
+        <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">{stored.checkout?.page_state === 'action_required' ? 'Din ansökan behöver kompletteras' : stored.checkout?.page_state === 'processing' ? 'Din ansökan behandlas' : 'Tack! Din teckning är skickad.'}</h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">{friendlyStatusDescription(status)} Du får information om avtal, leverantörsbyte och Mina sidor när respektive del är klar.</p>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <Info label="Kundnummer" value={stored.customerNumber ?? '—'} />
@@ -137,7 +139,7 @@ export default async function SignupThanksPage({
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="text-sm font-semibold text-white">Bekräftelse och leverantörsbyte</div>
-            <div className={`mt-2 text-sm ${confirmationFailed ? 'text-amber-100' : 'text-gray-300'}`}>{confirmationCopy}</div>
+            <div className={`mt-2 text-sm ${confirmationFailed ? 'text-amber-100' : 'text-gray-300'}`}>Vid inskickningen: {confirmationCopy}</div>
             <div className="mt-2 text-xs text-gray-500">{switchCopy}</div>
           </div>
         </div>

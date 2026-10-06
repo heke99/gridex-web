@@ -1,0 +1,12 @@
+(node:6245) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./quality/audits/2026-10-06-project-review/customer-audit-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED F32: actual notification-read client fails OpenAPI request validation before any outbound fetch
+CONFIRMED F33: actual site mapper rejects OPS facility_reference and cannot consume its nested address
+CONFIRMED F34: actual document mapper drops secure_url and version; real documents page has no open-document action
+CONFIRMED F35: self-service submitted grid-area and price-area fields are silently discarded before OPS
+CONFIRMED F36: canonical legal document version and power-of-attorney valid_to are lost in portal mapping
+CONFIRMED F39: real confirmation callback verifies OTP then throws on stale-job recovery instead of redirecting safely
+CONFIRMED F40: newer confirmed email is not durably recorded while old sync job processes; retry writes old email and marks complete
+CONTROL PASSED: valid confirmation redirects safely when profile persistence works
+CONTROL PASSED: external next destination is rejected

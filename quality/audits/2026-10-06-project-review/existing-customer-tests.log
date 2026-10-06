@@ -1,0 +1,406 @@
+(node:6220) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+[customer portal] onboarding could not be queued OpsError: Teckningens kundkoppling stämmer inte med det väntande försöket.
+    at queueJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:356:11)
+    at async Module.ensureCustomerPortalOnboarding (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:584:33)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:220:18)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_job_identity_conflict', retryable: false },
+  code: 'portal_onboarding_job_identity_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed Error: onboarding_job_processing_claim_lost
+    at file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:359:52
+    at async writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertClaimedPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:302:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[portal claim] verified result claim failed OpsError: Kundkopplingen ändrades och behöver verifieras igen.
+    at writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:80:11)
+    at async upsertClaimedPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:319:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_profile_changed', retryable: false },
+  code: 'portal_onboarding_profile_changed',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkopplingen ändrades och behöver verifieras igen.
+    at writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:80:11)
+    at async upsertClaimedPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:122:3)
+    at async Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:358:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:319:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_profile_changed', retryable: false },
+  code: 'portal_onboarding_profile_changed',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:291:20)
+    at async writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertLocalPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:291:20)
+    at async writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:62:3)
+    at async upsertLocalPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:338:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:522:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:522:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:360:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed OpsError: Kundkopplingen behöver verifieras av kundservice.
+    at writePortalProfileWithStableIdentity (file:///tmp/gridex-audit-source/lib/customerPortal/stableIdentity.ts:56:11)
+    at async upsertLocalPortalRows (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:199:3)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:550:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:371:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: {
+    code: 'portal_onboarding_stable_identity_conflict',
+    retryable: false
+  },
+  code: 'portal_onboarding_stable_identity_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[customer portal] failed to persist retry state Error: Portal onboarding processing claim was lost.
+    at updateClaimedJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:310:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:563:5)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:381:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed Error: Portal onboarding processing claim was lost.
+    at assertWorkerClaim (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:291:20)
+    at async processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:444:7)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:381:3)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+[customer portal] durable onboarding attempt failed OpsError: Kundkontot stämmer inte med den väntande kopplingen.
+    at processJob (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:432:13)
+    at async Module.processPortalOnboardingJobs (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:614:20)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:391:17)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 409,
+  details: { code: 'portal_onboarding_auth_binding_conflict', retryable: false },
+  code: 'portal_onboarding_auth_binding_conflict',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+[portal claim] verified result claim failed OpsError: Kundkontot kan inte verifieras för Mina sidor.
+    at assertPortalOnboardingAuthUserEligible (file:///tmp/gridex-audit-source/lib/customerPortal/onboarding.ts:131:11)
+    at Module.resumePortalOnboardingFromResultProof (file:///tmp/gridex-audit-source/lib/customerPortal/portalClaim.ts:321:5)
+    at async TestContext.<anonymous> (file:///tmp/gridex-audit-source/tests/portal-existing-auth-onboarding-runtime.test.mjs:407:19)
+    at async Test.run (node:internal/test_runner/test:1054:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+  status: 403,
+  details: { code: 'portal_onboarding_auth_user_ineligible', retryable: false },
+  code: 'portal_onboarding_auth_user_ineligible',
+  requestId: null,
+  correlationId: null,
+  retryable: false,
+  endpoint: null
+}
+TAP version 13
+# Subtest: existing account waits for explicit claim without sending mail or minting reset tokens
+ok 1 - existing account waits for explicit claim without sending mail or minting reset tokens
+  ---
+  duration_ms: 2.926921
+  type: 'test'
+  ...
+# Subtest: repeat checkout and scheduled worker leave an existing-account wait idempotent
+ok 2 - repeat checkout and scheduled worker leave an existing-account wait idempotent
+  ---
+  duration_ms: 1.590757
+  type: 'test'
+  ...
+# Subtest: login alone cannot claim an unbound job by shared email
+ok 3 - login alone cannot claim an unbound job by shared email
+  ---
+  duration_ms: 0.432832
+  type: 'test'
+  ...
+# Subtest: explicit signed-result claim links once and preserves older contract projections
+ok 4 - explicit signed-result claim links once and preserves older contract projections
+  ---
+  duration_ms: 1.536155
+  type: 'test'
+  ...
+# Subtest: expired checkout proof causes no ownership or persistence changes
+ok 5 - expired checkout proof causes no ownership or persistence changes
+  ---
+  duration_ms: 0.26584
+  type: 'test'
+  ...
+# Subtest: actual claim route preserves signed intent across login and makes authenticated replay idempotent
+ok 6 - actual claim route preserves signed intent across login and makes authenticated replay idempotent
+  ---
+  duration_ms: 4.820845
+  type: 'test'
+  ...
+# Subtest: waiting submission cannot be replayed with a different stable customer
+ok 7 - waiting submission cannot be replayed with a different stable customer
+  ---
+  duration_ms: 1.350495
+  type: 'test'
+  ...
+# Subtest: signed claim refuses mismatched accepted-submission identity
+ok 8 - signed claim refuses mismatched accepted-submission identity
+  ---
+  duration_ms: 0.349717
+  type: 'test'
+  ...
+# Subtest: signed checkout refuses known conflicting profile: {"external_customer_id":"different-customer","customer_number":"C-1001"}
+ok 9 - signed checkout refuses known conflicting profile: {"external_customer_id":"different-customer","customer_number":"C-1001"}
+  ---
+  duration_ms: 0.661557
+  type: 'test'
+  ...
+# Subtest: signed checkout refuses known conflicting profile: {"external_customer_id":"customer-1","customer_number":"C-OTHER"}
+ok 10 - signed checkout refuses known conflicting profile: {"external_customer_id":"customer-1","customer_number":"C-OTHER"}
+  ---
+  duration_ms: 0.389107
+  type: 'test'
+  ...
+# Subtest: callback cannot take a job bound to another Auth UUID
+ok 11 - callback cannot take a job bound to another Auth UUID
+  ---
+  duration_ms: 0.29187
+  type: 'test'
+  ...
+# Subtest: stale signed-claim completion cannot overwrite a replacement processing claim
+ok 12 - stale signed-claim completion cannot overwrite a replacement processing claim
+  ---
+  duration_ms: 0.323598
+  type: 'test'
+  ...
+# Subtest: signed claim cannot replace an Auth binding changed after validation
+ok 13 - signed claim cannot replace an Auth binding changed after validation
+  ---
+  duration_ms: 0.206321
+  type: 'test'
+  ...
+# Subtest: signed claim checks its Auth binding again after the canonical API await
+ok 14 - signed claim checks its Auth binding again after the canonical API await
+  ---
+  duration_ms: 0.273952
+  type: 'test'
+  ...
+# Subtest: signed claim lost during its last profile read cannot publish any projection
+ok 15 - signed claim lost during its last profile read cannot publish any projection
+  ---
+  duration_ms: 0.793236
+  type: 'test'
+  ...
+# Subtest: signed claim cannot overwrite a profile changed after its last identity read: false
+ok 16 - signed claim cannot overwrite a profile changed after its last identity read: false
+  ---
+  duration_ms: 0.852534
+  type: 'test'
+  ...
+# Subtest: signed claim cannot overwrite a profile changed after its last identity read: true
+ok 17 - signed claim cannot overwrite a profile changed after its last identity read: true
+  ---
+  duration_ms: 0.724672
+  type: 'test'
+  ...
+# Subtest: worker cannot publish verified projections after its claim changes during canonical sync: {"locked_at":"replacement-lock","attempt_count":2}
+ok 18 - worker cannot publish verified projections after its claim changes during canonical sync: {"locked_at":"replacement-lock","attempt_count":2}
+  ---
+  duration_ms: 1.208972
+  type: 'test'
+  ...
+# Subtest: worker cannot publish verified projections after its claim changes during canonical sync: {"auth_user_id":"22222222-2222-4222-8222-222222222222"}
+ok 19 - worker cannot publish verified projections after its claim changes during canonical sync: {"auth_user_id":"22222222-2222-4222-8222-222222222222"}
+  ---
+  duration_ms: 0.90251
+  type: 'test'
+  ...
+# Subtest: signed claim lost during provider verification cannot call canonical sync
+ok 20 - signed claim lost during provider verification cannot call canonical sync
+  ---
+  duration_ms: 0.265751
+  type: 'test'
+  ...
+# Subtest: worker lost during provider verification cannot call canonical sync
+ok 21 - worker lost during provider verification cannot call canonical sync
+  ---
+  duration_ms: 0.806816
+  type: 'test'
+  ...
+# Subtest: worker lost during profile verification cannot call canonical sync
+ok 22 - worker lost during profile verification cannot call canonical sync
+  ---
+  duration_ms: 0.520675
+  type: 'test'
+  ...
+# Subtest: worker refuses a customer identity changed during canonical sync
+ok 23 - worker refuses a customer identity changed during canonical sync
+  ---
+  duration_ms: 0.648267
+  type: 'test'
+  ...
+# Subtest: worker lost during email discovery cannot send a new account invitation
+ok 24 - worker lost during email discovery cannot send a new account invitation
+  ---
+  duration_ms: 0.639874
+  type: 'test'
+  ...
+# Subtest: worker refuses a stored payload that conflicts with its durable Auth binding
+ok 25 - worker refuses a stored payload that conflicts with its durable Auth binding
+  ---
+  duration_ms: 1.272658
+  type: 'test'
+  ...
+# Subtest: durable authenticated payload does not bypass current Auth confirmation
+ok 26 - durable authenticated payload does not bypass current Auth confirmation
+  ---
+  duration_ms: 0.884093
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"id":"22222222-2222-4222-8222-222222222222"}
+ok 27 - explicit claim requires current provider eligibility: {"id":"22222222-2222-4222-8222-222222222222"}
+  ---
+  duration_ms: 0.430169
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"deleted_at":"2026-10-04"}
+ok 28 - explicit claim requires current provider eligibility: {"deleted_at":"2026-10-04"}
+  ---
+  duration_ms: 0.594496
+  type: 'test'
+  ...
+# Subtest: explicit claim requires current provider eligibility: {"banned_until":"2999-01-01T00:00:00Z"}
+ok 29 - explicit claim requires current provider eligibility: {"banned_until":"2999-01-01T00:00:00Z"}
+  ---
+  duration_ms: 0.544661
+  type: 'test'
+  ...
+# Subtest: safe callback processes only IDs from its already-validated candidate set
+ok 30 - safe callback processes only IDs from its already-validated candidate set
+  ---
+  duration_ms: 1.064535
+  type: 'test'
+  ...
+# Subtest: a bound Auth UUID cannot bypass a known stable-customer conflict on callback
+ok 31 - a bound Auth UUID cannot bypass a known stable-customer conflict on callback
+  ---
+  duration_ms: 0.173702
+  type: 'test'
+  ...
+# Subtest: new Auth user retains invitation and confirmation flow
+ok 32 - new Auth user retains invitation and confirmation flow
+  ---
+  duration_ms: 0.738463
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51.420294

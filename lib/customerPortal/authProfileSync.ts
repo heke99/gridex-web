@@ -22,75 +22,15 @@ function retryAt(attempt: number): string {
   return new Date(Date.now() + minutes * 60_000).toISOString()
 }
 
-async function syncRows(
-  supabase: SupabaseServiceClient,
-  params: { userId: string; email: string | null; type: EmailOtpType },
-): Promise<void> {
-  const now = new Date().toISOString()
-  const customerProfilePatch: Record<string, unknown> = {
-    user_id: params.userId,
-    email: params.email,
-    email_verified_at: now,
-  }
-  if (params.type === 'email' || params.type === 'invite') {
-    customerProfilePatch.onboarding_state = 'verified'
-  }
-
-  const { error: customerError } = await supabase
-    .from('customer_profiles')
-    .upsert([customerProfilePatch], { onConflict: 'user_id', defaultToNull: false })
-  if (customerError) throw new Error(`Customer profile sync failed: ${customerError.message}`)
-
-  const { error: userError } = await supabase.from('user_profiles').upsert(
-    [{
-      id: params.userId,
-      user_id: params.userId,
-      email: params.email,
-    }],
-    { onConflict: 'id', defaultToNull: false },
-  )
-  if (userError) throw new Error(`User profile sync failed: ${userError.message}`)
-}
-
 async function queueJob(
   supabase: SupabaseServiceClient,
   params: { userId: string; email: string | null; type: EmailOtpType },
 ): Promise<AuthProfileSyncJob> {
-  const { data: existing, error: readError } = await supabase
-    .from('auth_profile_sync_jobs')
-    .select('user_id,email,otp_type,status,attempt_count,max_attempts,locked_at')
-    .eq('user_id', params.userId)
-    .maybeSingle<AuthProfileSyncJob>()
-  if (readError) throw new Error(`Auth profile job read failed: ${readError.message}`)
-
-  const sameOperation = Boolean(
-    existing && existing.email === params.email && existing.otp_type === params.type,
-  )
-  if (existing?.status === 'processing') return existing
-  if (existing?.status === 'completed' && sameOperation) return existing
-
-  const { data, error } = await supabase
-    .from('auth_profile_sync_jobs')
-    .upsert(
-      [{
-        user_id: params.userId,
-        email: params.email,
-        otp_type: params.type,
-        status: 'pending',
-        attempt_count: sameOperation && existing?.status !== 'manual_review' ? existing?.attempt_count ?? 0 : 0,
-        max_attempts: existing?.max_attempts ?? 10,
-        next_attempt_at: new Date().toISOString(),
-        last_error: null,
-        locked_at: null,
-      }],
-      { onConflict: 'user_id', defaultToNull: false },
-    )
-    .select('user_id,email,otp_type,status,attempt_count,max_attempts,locked_at')
-    .single<AuthProfileSyncJob>()
-  if (error || !data) {
-    throw new Error(`Auth profile job queue failed: ${error?.message ?? 'missing row'}`)
-  }
-  return data
+  const { data, error } = await supabase.rpc('gridex_enqueue_auth_profile_v1', {
+    p_user_id: params.userId, p_otp_type: params.type,
+  })
+  if (error || !data) throw new Error('Auth profile job queue failed.')
+  return data as AuthProfileSyncJob
 }
 
 
@@ -98,6 +38,7 @@ async function updateClaimedJob(
   supabase: SupabaseServiceClient,
   userId: string,
   attempt: number,
+  lockedAt: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
   const { data, error } = await supabase
@@ -106,6 +47,7 @@ async function updateClaimedJob(
     .eq('user_id', userId)
     .eq('status', 'processing')
     .eq('attempt_count', attempt)
+    .eq('locked_at', lockedAt)
     .select('user_id')
     .maybeSingle<{ user_id: string }>()
   if (error) throw new Error(`Auth profile claimed update failed: ${error.message}`)
@@ -115,14 +57,15 @@ async function updateClaimedJob(
 async function claimJob(
   supabase: SupabaseServiceClient,
   job: AuthProfileSyncJob,
-): Promise<number | null> {
+): Promise<{ attempt: number; lockedAt: string } | null> {
   const attempt = job.attempt_count + 1
+  const lockedAt = new Date().toISOString()
   const { data, error } = await supabase
     .from('auth_profile_sync_jobs')
     .update({
       status: 'processing',
       attempt_count: attempt,
-      locked_at: new Date().toISOString(),
+      locked_at: lockedAt,
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', job.user_id)
@@ -131,15 +74,15 @@ async function claimJob(
     .select('user_id')
     .maybeSingle<{ user_id: string }>()
   if (error) throw new Error(`Auth profile job claim failed: ${error.message}`)
-  return data ? attempt : null
+  return data ? { attempt, lockedAt } : null
 }
 
 async function processJob(
   supabase: SupabaseServiceClient,
   job: AuthProfileSyncJob,
 ): Promise<{ completed: boolean; error?: string }> {
-  const attempt = await claimJob(supabase, job)
-  if (attempt === null) {
+  const claim = await claimJob(supabase, job)
+  if (claim === null) {
     const { data } = await supabase
       .from('auth_profile_sync_jobs')
       .select('status')
@@ -150,25 +93,19 @@ async function processJob(
       : { completed: false, error: 'Auth profile sync is already being processed.' }
   }
 
+  const { attempt, lockedAt } = claim
   try {
-    await syncRows(supabase, {
-      userId: job.user_id,
-      email: job.email,
-      type: job.otp_type,
+    const { data, error } = await supabase.rpc('gridex_commit_auth_profile_v1', {
+      p_user_id: job.user_id, p_attempt: attempt, p_locked_at: lockedAt,
     })
-    await updateClaimedJob(supabase, job.user_id, attempt, {
-      status: 'completed',
-      last_error: null,
-      next_attempt_at: null,
-      completed_at: new Date().toISOString(),
-      locked_at: null,
-    })
+    if (error) throw new Error('Auth profile transaction failed.')
+    if (data !== true) return { completed: false, error: 'Auth profile processing claim was lost.' }
     return { completed: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const exhausted = attempt >= job.max_attempts
     try {
-      await updateClaimedJob(supabase, job.user_id, attempt, {
+      await updateClaimedJob(supabase, job.user_id, attempt, lockedAt, {
         status: exhausted ? 'manual_review' : 'retryable_failure',
         last_error: message.slice(0, 2000),
         next_attempt_at: exhausted ? null : retryAt(attempt),
@@ -186,14 +123,14 @@ export async function syncConfirmedUserProfileDurably(params: {
   email: string | null
   type: EmailOtpType
 }): Promise<{ completed: boolean; error?: string }> {
-  const supabase = await loadServiceClient()
-  await recoverStaleAuthProfileSyncJobs(supabase)
   const normalized = {
     ...params,
     email: params.email?.trim().toLowerCase() ?? null,
   }
 
   try {
+    const supabase = await loadServiceClient()
+    await recoverStaleAuthProfileSyncJobs(supabase)
     return processJob(supabase, await queueJob(supabase, normalized))
   } catch (error) {
     return { completed: false, error: error instanceof Error ? error.message : String(error) }

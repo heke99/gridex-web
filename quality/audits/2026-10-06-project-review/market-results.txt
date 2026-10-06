@@ -1,0 +1,7 @@
+(node:3840) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/typescript-alias-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED F21: direct day fetch requests 2026-10-05 for 2026-10-06; summary reparses and requests 2026-10-04 in UTC
+CONFIRMED F22: expired interval is exposed as current without freshness rejection
+CONFIRMED F23: 23-hour truncated normal Stockholm day is accepted as complete and contributes to averages
+CONFIRMED F23: missing SEK_per_kWh=null is normalized as a genuine zero spot price

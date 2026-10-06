@@ -1,0 +1,11 @@
+{
+  "audited_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "query": "select to_regclass('public.system_emails')::text as system_emails_relation, (select count(*) from public.customer_invoices) as local_invoice_rows;",
+  "result": [
+    {
+      "system_emails_relation": null,
+      "local_invoice_rows": 0
+    }
+  ]
+}

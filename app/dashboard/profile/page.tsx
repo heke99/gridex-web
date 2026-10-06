@@ -22,6 +22,8 @@ function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
       return 'Dina kontaktuppgifter har sparats och synkats.'
+    case 'profile-pending':
+      return 'Dina kontaktuppgifter är mottagna och inväntar behandling.'
     case 'profile-sync-failed':
       return 'Kontaktuppgifterna kunde inte uppdateras just nu. Inga lokala ändringar har behandlats som genomförda.'
     case 'email-updated':

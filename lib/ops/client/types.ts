@@ -298,6 +298,7 @@ export type OpsCustomerApplicationCommunication = {
 };
 
 export type OpsCustomerApplicationResult = {
+  checkout: WebsiteApiComponents['schemas']['WebsiteCheckoutResult'];
   status: string;
   application_number?: string | null;
   customer_reference?: string | null;
@@ -735,6 +736,7 @@ export type OpsWebsiteApplicationStatusValue =
   | "failed";
 
 export type OpsWebsiteApplicationStatus = {
+  checkout: WebsiteApiComponents['schemas']['WebsiteCheckoutResult'];
   application_number: string;
   status: OpsWebsiteApplicationStatusValue;
   stage: string;

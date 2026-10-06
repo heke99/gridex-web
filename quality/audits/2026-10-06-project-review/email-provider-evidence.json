@@ -1,0 +1,46 @@
+{
+  "checked_at": "2026-10-06",
+  "provider": "Resend",
+  "domain": "gridex.se",
+  "domain_details": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Name: gridex.se\nID: 20c9be4b-35f6-461e-a9df-fde37461517e\nStatus: verified\nRegion: eu-west-1\nSending: enabled\nReceiving: disabled\nOpen Tracking: false\nClick Tracking: false\nCreated at: 2026-06-09 19:39:43.035772+00"
+      },
+      {
+        "type": "text",
+        "text": "DNS Records:\n\nDKIM (TXT):\n  Name: resend._domainkey\n  Value: p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD4R2g9YUWMC6/F3CHC0skF1gbV5jJJKkJrNqBamnwzhFPGenA5iBm7vjGlL2Tmo4nrzXqrp4VE7SoWolW2ly7CTiPhsaNGMi9ZHubYtqcJhJ+W8F0b7JN2T0yZJppVtG3VyOE8QDVcZL2vJ+37zDy5gcOxfjgoSxs9hrIFNqxVCQIDAQAB\n  TTL: Auto\n  Status: verified\n\nSPF (MX):\n  Name: send\n  Value: feedback-smtp.eu-west-1.amazonses.com\n  TTL: Auto\n  Status: verified\n  Priority: 10\n\nSPF (TXT):\n  Name: send\n  Value: v=spf1 include:amazonses.com ~all\n  TTL: Auto\n  Status: verified"
+      }
+    ],
+    "isError": false
+  },
+  "webhooks": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 1 webhook:"
+      },
+      {
+        "type": "text",
+        "text": "Endpoint: https://app.gridex.se/api/webhooks/resend\nStatus: enabled\nEvents: email.bounced, email.delivered, email.failed, email.suppressed\nID: 01446c9e-d817-4a0b-8cd5-45d4d5c2e2b2\nCreated at: 2026-05-31 22:03:11.428959+00"
+      }
+    ],
+    "isError": false
+  },
+  "metrics": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Email metrics for 2026-09-07T20:05:04.562Z to 2026-10-06T20:05:04.528Z (daily granularity):\n\nTotals:\n- sent: 0\n- delivered: 0\n- bounced: 0\n- failed: 0\n- complained: 0\n- suppressed: 0\n- delivery_delayed: 0\n"
+      }
+    ],
+    "isError": false
+  },
+  "limitations": [
+    "SMTP configuration and Auth templates in Supabase are not exposed by the available tools.",
+    "The metrics endpoint clamped the requested range; use the actual returned range in its text.",
+    "Zero messages in these provider metrics does not prove that Supabase uses this provider or that no messages were sent elsewhere.",
+    "No message contents or recipient records were read; no emails or test events were sent."
+  ]
+}

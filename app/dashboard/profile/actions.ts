@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
+import { passwordMeetsPolicy, PASSWORD_REQUIREMENT_TEXT } from '@/lib/auth/passwordPolicy'
+import { supabaseService } from '@/lib/supabase/service'
 
 function pick(formData: FormData, key: string): string {
   const value = formData.get(key)
@@ -16,8 +18,8 @@ function normalizeEmail(value: string): string {
 }
 
 function validatePassword(password: string): string | null {
-  if (!password || password.length < 8) {
-    return 'Lösenordet måste vara minst 8 tecken.'
+  if (!passwordMeetsPolicy(password)) {
+    return PASSWORD_REQUIREMENT_TEXT
   }
 
   return null
@@ -49,14 +51,17 @@ export async function updateCustomerProfileAction(formData: FormData) {
   if (!/^[0-9a-zA-Z:_-]{8,240}$/.test(operationId)) {
     throw new Error('Åtgärds-ID saknas. Ladda om sidan och försök igen.')
   }
+  let profileUpdated = false
   try {
     const identity = await getOpsPortalIdentityForUser(supabase, user)
-    await submitOpsCustomerProfileUpdate({
+    const result = await submitOpsCustomerProfileUpdate({
       identity,
       idempotencyKey: operationId,
       profile: profilePayload,
       metadata: { source: 'customer_profile_action' },
     })
+    if (!result.ok) throw new Error('Profile update was not accepted.')
+    profileUpdated = result.data?.profile_updated === true
   } catch (syncError) {
     console.error('[customer profile] canonical update failed', {
       message: syncError instanceof Error ? syncError.message : 'unknown_error',
@@ -66,9 +71,14 @@ export async function updateCustomerProfileAction(formData: FormData) {
     redirect('/dashboard/profile?status=profile-sync-failed')
   }
 
+  if (!profileUpdated) {
+    revalidatePath('/dashboard/profile')
+    redirect('/dashboard/profile?status=profile-pending')
+  }
+
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const { error } = await supabase.from('customer_profiles').upsert(
-    {
+  const { error } = await supabaseService.from('customer_profiles').upsert(
+    [{
       user_id: user.id,
       email: user.email ?? null,
       first_name: firstName || null,
@@ -79,8 +89,8 @@ export async function updateCustomerProfileAction(formData: FormData) {
       source: 'ops',
       synced_at: new Date().toISOString(),
       projection_status: 'current',
-    },
-    { onConflict: 'user_id' }
+    }],
+    { onConflict: 'user_id', defaultToNull: false }
   )
   if (error) {
     console.error('[customer profile] local projection update failed', { code: error.code })

@@ -1,0 +1,3 @@
+CONFIRMED F37: actual self-service reports portal link updated for pending_review and access_granted=false
+CONFIRMED F38: unchanged move-out retry uses a new operation ID and loses API idempotency protection
+CONFIRMED F41: provider email rate limit is shown as invalid customer email by actual password recovery page

@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteLegalBundle, getOpsClientStatus, isOpsError } from '@/lib/ops/client'
 import { toBrowserLegalBundle } from '@/lib/website/publicDtos'
+import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
+  const rate = await checkRateLimit(`legal-bundle:${clientIpFromHeaders(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })
+  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
   const offerReference = new URL(request.url).searchParams.get('offer_reference')?.trim()
-  if (!offerReference) {
+  if (!offerReference || offerReference.length > 180) {
     return NextResponse.json(
       {
         error: {

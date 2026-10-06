@@ -251,6 +251,7 @@ export async function processPortalWriteOutbox(limit = 50) {
       .from('customer_portal_write_outbox')
       .update({ status: 'processing', attempt_count: attempt, last_attempt_at: now, updated_at: now })
       .eq('id', row.id)
+      .eq('attempt_count', row.attempt_count)
       .in('status', ['pending', 'failed'])
       .select('id')
       .maybeSingle()
@@ -270,6 +271,8 @@ export async function processPortalWriteOutbox(limit = 50) {
         })
         .eq('id', row.id)
         .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+        .eq('last_attempt_at', now)
         .select('id')
         .maybeSingle<{ id: string }>()
       if (completeError) throw new Error(completeError.message)
@@ -277,7 +280,7 @@ export async function processPortalWriteOutbox(limit = 50) {
       completed += 1
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)
-      const permanent = isOpsError(dispatchError) && dispatchError.status < 500 && dispatchError.status !== 408 && dispatchError.status !== 429
+      const permanent = isOpsError(dispatchError) && !dispatchError.retryable
       const maxAttempts = Math.max(1, row.max_attempts ?? 10)
       const deadLetter = permanent || attempt >= maxAttempts
       const failedAt = new Date().toISOString()
@@ -296,6 +299,8 @@ export async function processPortalWriteOutbox(limit = 50) {
         })
         .eq('id', row.id)
         .eq('status', 'processing')
+        .eq('attempt_count', attempt)
+        .eq('last_attempt_at', now)
         .select('id')
         .maybeSingle<{ id: string }>()
       if (failureStateError) throw new Error(failureStateError.message)

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-05T13:20:24.723692+00:00",
-  "migration_count": 39,
+  "generated_at": "2026-10-06T21:56:05.390Z",
+  "migration_count": 45,
   "version_collisions": [],
   "migrations": [
     {
@@ -198,6 +198,36 @@
       "file": "20261005125326_support_staff_invitation_delivery_private.sql",
       "version": "20261005125326",
       "sha256": "9fbe18d55d2a42b06d437d9038935e76668336ce160ad12ba192bd8ae12d9224"
+    },
+    {
+      "file": "20261006204008_customer_portal_audit_hardening.sql",
+      "version": "20261006204008",
+      "sha256": "5b395ad2c5b9316f0e6cb2484b559746a2a667027544acfc6a50de79dc0d5162"
+    },
+    {
+      "file": "20261006205014_legacy_pricing_atomic_writes.sql",
+      "version": "20261006205014",
+      "sha256": "2fa86acb1f589f2e0be5e94df40793d990971c84ec463ac9381d376bc1ada594"
+    },
+    {
+      "file": "20261006205027_public_support_durable_receipts.sql",
+      "version": "20261006205027",
+      "sha256": "204e393b131bc3319dfa9254f0417b259b5f24cec852b9511c0ffcc76d8a1d0e"
+    },
+    {
+      "file": "20261006205350_audited_web_indexes.sql",
+      "version": "20261006205350",
+      "sha256": "ae58bcedf44449605faca699e3a2cd486cd9079a29ca00d7c21b33bb6cc59880"
+    },
+    {
+      "file": "20261006210639_audited_release_preflight.sql",
+      "version": "20261006210639",
+      "sha256": "d6b4f30ea8b0cc0a94e011b0af8640bed3ff82fc4d004aff58399b458dcfb853"
+    },
+    {
+      "file": "20261006214901_audited_duplicate_policies.sql",
+      "version": "20261006214901",
+      "sha256": "e06d96d123205d7314c9cd8a23c63085f3a6422bf3aff10de170b5f1488467d9"
     }
   ]
 }

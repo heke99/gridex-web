@@ -1,0 +1,5 @@
+
+> gridex-web@0.1.0 db:migrations:check
+> node scripts/check-migration-manifest.mjs
+
+Migration integrity passed (44 files).

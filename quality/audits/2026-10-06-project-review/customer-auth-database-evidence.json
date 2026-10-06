@@ -1,0 +1,30 @@
+{
+  "checked_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "note": "Aggregates only, no customer records or authentication tokens.",
+  "result": [
+    {
+      "evidence": {
+        "webhooks": null,
+        "auth_users": {
+          "total": 6,
+          "invited": 4,
+          "email_confirmed": 3,
+          "recovery_requested": 0,
+          "confirmation_requested": 4,
+          "email_change_requested": 0
+        },
+        "onboarding": [
+          {
+            "jobs": 5,
+            "status": "pending",
+            "auth_bound": 5,
+            "awaiting_existing_login": 0
+          }
+        ],
+        "profile_sync": null,
+        "auth_actions_last_30_days": null
+      }
+    }
+  ]
+}

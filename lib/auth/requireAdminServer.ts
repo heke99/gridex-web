@@ -16,8 +16,7 @@ export async function requireAdminServer() {
     throw new Error('Unauthorized')
   }
 
-  const { data, error } = await supabase.rpc('gridex_has_permission', {
-    p_user_id: user.id,
+  const { data, error } = await supabase.rpc('gridex_my_has_permission_v1', {
     p_permission: 'admin.access',
   })
 

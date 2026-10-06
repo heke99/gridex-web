@@ -2,6 +2,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { supabaseService } from '@/lib/supabase/service'
 import { requireAdminActionAccess } from '@/lib/admin/guards'
 
 type PricingVersionRow = {
@@ -35,7 +36,6 @@ export async function publishPricingVersion(
     process.env.NODE_ENV === 'production'
 
   const isAdmin =
-    ctx.isAdmin ||
     ctx.roles.includes('admin') ||
     ctx.permissions.includes('admin.access')
 
@@ -74,44 +74,10 @@ export async function publishPricingVersion(
     throw new Error('Invalid version for contract')
   }
 
-  const { error: unpublishError } = await supabase
-    .from('contract_pricing_versions')
-    .update({
-      is_published: false,
-      status: 'draft',
-    })
-    .eq('contract_id', contractId)
-
-  if (unpublishError) {
-    throw new Error(unpublishError.message)
-  }
-
-  const { error: publishError } = await supabase
-    .from('contract_pricing_versions')
-    .update({
-      is_published: true,
-      status: 'published',
-    })
-    .eq('id', versionId)
-    .eq('contract_id', contractId)
-
-  if (publishError) {
-    throw new Error(publishError.message)
-  }
-
-  const { error: auditError } = await supabase
-    .from('pricing_version_audit')
-    .insert({
-      contract_id: contractId,
-      version_id: versionId,
-      action: 'publish',
-      performed_by: ctx.userId,
-      reason: isProd ? 'publish_prod' : 'publish',
-    })
-
-  if (auditError) {
-    throw new Error(auditError.message)
-  }
+  const { error } = await supabaseService.rpc('gridex_publish_pricing_v1', {
+    p_contract_id: contractId, p_version_id: versionId, p_actor: ctx.userId, p_reason: isProd ? 'publish_prod' : 'publish',
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')
@@ -136,10 +102,7 @@ export async function unpublishPricingForContract(contractId: string) {
     anyOf: ['pricing.publish', 'pricing.publish_prod', 'admin.access'],
   })
 
-  const supabase = ctx.supabase
-
   const isAdmin =
-    ctx.isAdmin ||
     ctx.roles.includes('admin') ||
     ctx.permissions.includes('admin.access')
 
@@ -153,48 +116,12 @@ export async function unpublishPricingForContract(contractId: string) {
     throw new Error('Unpublish not allowed')
   }
 
-  const { data: activeVersions, error: activeError } = await supabase
-    .from('contract_pricing_versions')
-    .select('id,contract_id,version_number,valid_from,is_published,status')
-    .eq('contract_id', contractId)
-    .or('status.eq.published,is_published.eq.true')
-    .order('valid_from', { ascending: false })
-    .returns<PricingVersionRow[]>()
+  if ((process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') && !isAdmin && !ctx.permissions.includes('pricing.publish_prod')) throw new Error('Unpublish not allowed in prod (missing pricing.publish_prod)')
 
-  if (activeError) {
-    throw new Error(activeError.message)
-  }
-
-  const active = (activeVersions ?? [])[0] ?? null
-
-  const { error: unpublishError } = await supabase
-    .from('contract_pricing_versions')
-    .update({
-      is_published: false,
-      status: 'draft',
-    })
-    .eq('contract_id', contractId)
-    .or('status.eq.published,is_published.eq.true')
-
-  if (unpublishError) {
-    throw new Error(unpublishError.message)
-  }
-
-  if (active?.id) {
-    const { error: auditError } = await supabase
-      .from('pricing_version_audit')
-      .insert({
-        contract_id: contractId,
-        version_id: active.id,
-        action: 'unpublish',
-        performed_by: ctx.userId,
-        reason: 'manual unpublish',
-      })
-
-    if (auditError) {
-      throw new Error(auditError.message)
-    }
-  }
+  const { error } = await supabaseService.rpc('gridex_publish_pricing_v1', {
+    p_contract_id: contractId, p_version_id: null, p_actor: ctx.userId, p_reason: 'manual unpublish',
+  })
+  if (error) throw new Error(error.message)
 
   revalidatePath('/admin')
   revalidatePath('/admin/pricing')

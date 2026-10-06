@@ -1,0 +1,910 @@
+{
+  "checked_at": "2026-10-06",
+  "project": "gridex-prod",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "policies": [
+    {
+      "tablename": "customer_contract_portal_links",
+      "policyname": "customer_contract_links_owner_select",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": null
+    },
+    {
+      "tablename": "customer_delivery_points",
+      "policyname": "customer_delivery_points_owner_all",
+      "roles": "{public}",
+      "cmd": "ALL",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "customer_notifications",
+      "policyname": "customer_notifications_owner_all",
+      "roles": "{public}",
+      "cmd": "ALL",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "customer_portal_write_outbox",
+      "policyname": "customer_portal_write_outbox_service_role_all",
+      "roles": "{service_role}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    },
+    {
+      "tablename": "customer_profiles",
+      "policyname": "customer_profiles_owner_insert",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "customer_profiles",
+      "policyname": "customer_profiles_owner_select",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": null
+    },
+    {
+      "tablename": "customer_profiles",
+      "policyname": "customer_profiles_owner_update",
+      "roles": "{public}",
+      "cmd": "UPDATE",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "portal_onboarding_jobs",
+      "policyname": "portal_onboarding_jobs_service_role_all",
+      "roles": "{service_role}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "user_profiles_admin_read",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "gridex_can('admin.access'::text)",
+      "with_check": null
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "user_profiles_admin_update",
+      "roles": "{authenticated}",
+      "cmd": "UPDATE",
+      "qual": "gridex_can('admin.access'::text)",
+      "with_check": "gridex_can('admin.access'::text)"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "user_profiles_owner_insert",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "user_profiles_owner_select",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": null
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "user_profiles_owner_update",
+      "roles": "{public}",
+      "cmd": "UPDATE",
+      "qual": "(( SELECT auth.uid() AS uid) = user_id)",
+      "with_check": "(( SELECT auth.uid() AS uid) = user_id)"
+    },
+    {
+      "tablename": "user_roles",
+      "policyname": "rbac_user_roles_read_own_v1",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(user_id = ( SELECT auth.uid() AS uid))",
+      "with_check": null
+    },
+    {
+      "tablename": "website_application_submissions",
+      "policyname": "website_application_submissions_service_role_all",
+      "roles": "{service_role}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    }
+  ],
+  "constraints": [
+    {
+      "relname": "customer_contract_portal_links",
+      "conname": "customer_contract_portal_links_agreement_id_key",
+      "contype": "u",
+      "definition": "UNIQUE (agreement_id)"
+    },
+    {
+      "relname": "customer_contract_portal_links",
+      "conname": "customer_contract_portal_links_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "relname": "customer_contract_portal_links",
+      "conname": "customer_contract_portal_links_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "relname": "customer_delivery_points",
+      "conname": "customer_delivery_points_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "relname": "customer_delivery_points",
+      "conname": "customer_delivery_points_user_id_facility_id_key",
+      "contype": "u",
+      "definition": "UNIQUE (user_id, facility_id)"
+    },
+    {
+      "relname": "customer_delivery_points",
+      "conname": "customer_delivery_points_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "relname": "customer_portal_write_outbox",
+      "conname": "customer_portal_write_outbox_idempotency_key_key",
+      "contype": "u",
+      "definition": "UNIQUE (idempotency_key)"
+    },
+    {
+      "relname": "customer_portal_write_outbox",
+      "conname": "customer_portal_write_outbox_operation_type_check",
+      "contype": "c",
+      "definition": "CHECK ((operation_type = ANY (ARRAY['customer_event'::text, 'notification_read'::text, 'profile_update'::text, 'customer_sync'::text, 'customer_portal_sync'::text, 'move_out'::text, 'facility_data_update'::text])))"
+    },
+    {
+      "relname": "customer_portal_write_outbox",
+      "conname": "customer_portal_write_outbox_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "relname": "customer_portal_write_outbox",
+      "conname": "customer_portal_write_outbox_status_check",
+      "contype": "c",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'failed'::text, 'dead_letter'::text])))"
+    },
+    {
+      "relname": "customer_portal_write_outbox",
+      "conname": "customer_portal_write_outbox_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "relname": "customer_profiles",
+      "conname": "customer_profiles_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (user_id)"
+    },
+    {
+      "relname": "customer_profiles",
+      "conname": "customer_profiles_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_attempt_count_check",
+      "contype": "c",
+      "definition": "CHECK ((attempt_count >= 0))"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_auth_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_max_attempts_check",
+      "contype": "c",
+      "definition": "CHECK (((max_attempts >= 1) AND (max_attempts <= 100)))"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_status_check",
+      "contype": "c",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'retryable_failure'::text, 'manual_review'::text])))"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_submission_attempt_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (submission_attempt_id) REFERENCES website_application_submissions(submission_attempt_id) ON DELETE CASCADE"
+    },
+    {
+      "relname": "portal_onboarding_jobs",
+      "conname": "portal_onboarding_jobs_submission_attempt_id_key",
+      "contype": "u",
+      "definition": "UNIQUE (submission_attempt_id)"
+    },
+    {
+      "relname": "website_application_submissions",
+      "conname": "website_application_submissions_external_application_id_key",
+      "contype": "u",
+      "definition": "UNIQUE (external_application_id)"
+    },
+    {
+      "relname": "website_application_submissions",
+      "conname": "website_application_submissions_idempotency_key_key",
+      "contype": "u",
+      "definition": "UNIQUE (idempotency_key)"
+    },
+    {
+      "relname": "website_application_submissions",
+      "conname": "website_application_submissions_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (submission_attempt_id)"
+    },
+    {
+      "relname": "website_application_submissions",
+      "conname": "website_application_submissions_status_check",
+      "contype": "c",
+      "definition": "CHECK ((status = ANY (ARRAY['prepared'::text, 'submitting'::text, 'accepted'::text, 'failed'::text])))"
+    },
+    {
+      "relname": "website_application_submissions",
+      "conname": "website_application_submissions_user_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+    }
+  ],
+  "migrations": [
+    {
+      "version": "20260814090917",
+      "name": "production_security_surface_hardening"
+    },
+    {
+      "version": "20260814092103",
+      "name": "finalize_client_privilege_hardening"
+    },
+    {
+      "version": "20260814092536",
+      "name": "optimize_rls_auth_initplans"
+    },
+    {
+      "version": "20260819172229",
+      "name": "ops_organization_reference_expand"
+    },
+    {
+      "version": "20260819172938",
+      "name": "ops_domain_webhook_organization_reference"
+    },
+    {
+      "version": "20261002192814",
+      "name": "gridex_web_server_owned_rbac"
+    }
+  ],
+  "queues": [
+    {
+      "queue": "onboarding",
+      "status": "pending",
+      "total": 5,
+      "oldest": "2026-08-24 07:20:49.770888+00"
+    },
+    {
+      "queue": "submissions",
+      "status": "accepted",
+      "total": 5,
+      "oldest": "2026-08-24 07:20:43.793336+00"
+    },
+    {
+      "queue": "submissions",
+      "status": "failed",
+      "total": 13,
+      "oldest": "2026-08-22 20:51:41.138457+00"
+    }
+  ],
+  "privilege_audit": [
+    {
+      "audit": {
+        "indexes": [
+          {
+            "name": "customer_contract_portal_links_pkey",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE UNIQUE INDEX customer_contract_portal_links_pkey ON public.customer_contract_portal_links USING btree (id)"
+          },
+          {
+            "name": "customer_contract_portal_links_agreement_id_key",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE UNIQUE INDEX customer_contract_portal_links_agreement_id_key ON public.customer_contract_portal_links USING btree (agreement_id)"
+          },
+          {
+            "name": "idx_customer_contract_links_user_id",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE INDEX idx_customer_contract_links_user_id ON public.customer_contract_portal_links USING btree (user_id)"
+          },
+          {
+            "name": "customer_contract_portal_links_tenant_ops_id_uidx",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE UNIQUE INDEX customer_contract_portal_links_tenant_ops_id_uidx ON public.customer_contract_portal_links USING btree (tenant_reference, canonical_ops_id) WHERE ((tenant_reference IS NOT NULL) AND (canonical_ops_id IS NOT NULL))"
+          },
+          {
+            "name": "customer_contract_portal_links_projection_state_idx",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE INDEX customer_contract_portal_links_projection_state_idx ON public.customer_contract_portal_links USING btree (tenant_reference, projection_status, synced_at DESC)"
+          },
+          {
+            "name": "customer_contract_portal_links_provider_reference_uidx",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE UNIQUE INDEX customer_contract_portal_links_provider_reference_uidx ON public.customer_contract_portal_links USING btree (user_id, contract_provider_key, contract_external_ref)"
+          },
+          {
+            "name": "customer_delivery_points_pkey",
+            "table": "customer_delivery_points",
+            "definition": "CREATE UNIQUE INDEX customer_delivery_points_pkey ON public.customer_delivery_points USING btree (id)"
+          },
+          {
+            "name": "customer_delivery_points_user_id_facility_id_key",
+            "table": "customer_delivery_points",
+            "definition": "CREATE UNIQUE INDEX customer_delivery_points_user_id_facility_id_key ON public.customer_delivery_points USING btree (user_id, facility_id)"
+          },
+          {
+            "name": "idx_customer_delivery_points_user_id",
+            "table": "customer_delivery_points",
+            "definition": "CREATE INDEX idx_customer_delivery_points_user_id ON public.customer_delivery_points USING btree (user_id)"
+          },
+          {
+            "name": "customer_delivery_points_tenant_ops_id_uidx",
+            "table": "customer_delivery_points",
+            "definition": "CREATE UNIQUE INDEX customer_delivery_points_tenant_ops_id_uidx ON public.customer_delivery_points USING btree (tenant_reference, canonical_ops_id) WHERE ((tenant_reference IS NOT NULL) AND (canonical_ops_id IS NOT NULL))"
+          },
+          {
+            "name": "customer_delivery_points_projection_state_idx",
+            "table": "customer_delivery_points",
+            "definition": "CREATE INDEX customer_delivery_points_projection_state_idx ON public.customer_delivery_points USING btree (tenant_reference, projection_status, synced_at DESC)"
+          },
+          {
+            "name": "customer_portal_write_outbox_pkey",
+            "table": "customer_portal_write_outbox",
+            "definition": "CREATE UNIQUE INDEX customer_portal_write_outbox_pkey ON public.customer_portal_write_outbox USING btree (id)"
+          },
+          {
+            "name": "customer_portal_write_outbox_idempotency_key_key",
+            "table": "customer_portal_write_outbox",
+            "definition": "CREATE UNIQUE INDEX customer_portal_write_outbox_idempotency_key_key ON public.customer_portal_write_outbox USING btree (idempotency_key)"
+          },
+          {
+            "name": "idx_customer_portal_write_outbox_dispatch",
+            "table": "customer_portal_write_outbox",
+            "definition": "CREATE INDEX idx_customer_portal_write_outbox_dispatch ON public.customer_portal_write_outbox USING btree (status, next_attempt_at, created_at)"
+          },
+          {
+            "name": "idx_customer_portal_write_outbox_dead_letter",
+            "table": "customer_portal_write_outbox",
+            "definition": "CREATE INDEX idx_customer_portal_write_outbox_dead_letter ON public.customer_portal_write_outbox USING btree (dead_letter_at DESC) WHERE (status = 'dead_letter'::text)"
+          },
+          {
+            "name": "customer_profiles_pkey",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_pkey ON public.customer_profiles USING btree (user_id)"
+          },
+          {
+            "name": "idx_customer_profiles_customer_number",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX idx_customer_profiles_customer_number ON public.customer_profiles USING btree (customer_number) WHERE (customer_number IS NOT NULL)"
+          },
+          {
+            "name": "idx_customer_profiles_external_customer_id",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX idx_customer_profiles_external_customer_id ON public.customer_profiles USING btree (external_customer_id) WHERE (external_customer_id IS NOT NULL)"
+          },
+          {
+            "name": "idx_customer_profiles_portal_identity_id",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX idx_customer_profiles_portal_identity_id ON public.customer_profiles USING btree (portal_identity_id) WHERE (portal_identity_id IS NOT NULL)"
+          },
+          {
+            "name": "idx_customer_profiles_email_lower",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX idx_customer_profiles_email_lower ON public.customer_profiles USING btree (lower(email)) WHERE (email IS NOT NULL)"
+          },
+          {
+            "name": "customer_profiles_customer_number_idx",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX customer_profiles_customer_number_idx ON public.customer_profiles USING btree (customer_number)"
+          },
+          {
+            "name": "customer_profiles_external_customer_id_idx",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX customer_profiles_external_customer_id_idx ON public.customer_profiles USING btree (external_customer_id)"
+          },
+          {
+            "name": "customer_profiles_email_lower_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_email_lower_uidx ON public.customer_profiles USING btree (lower(email))"
+          },
+          {
+            "name": "customer_profiles_email_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_email_uidx ON public.customer_profiles USING btree (email)"
+          },
+          {
+            "name": "customer_profiles_external_customer_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_external_customer_uidx ON public.customer_profiles USING btree (external_customer_id) WHERE (external_customer_id IS NOT NULL)"
+          },
+          {
+            "name": "customer_profiles_customer_number_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_customer_number_uidx ON public.customer_profiles USING btree (customer_number) WHERE (customer_number IS NOT NULL)"
+          },
+          {
+            "name": "customer_profiles_portal_identity_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_portal_identity_uidx ON public.customer_profiles USING btree (portal_identity_id) WHERE (portal_identity_id IS NOT NULL)"
+          },
+          {
+            "name": "customer_profiles_tenant_ops_id_uidx",
+            "table": "customer_profiles",
+            "definition": "CREATE UNIQUE INDEX customer_profiles_tenant_ops_id_uidx ON public.customer_profiles USING btree (tenant_reference, canonical_ops_id) WHERE ((tenant_reference IS NOT NULL) AND (canonical_ops_id IS NOT NULL))"
+          },
+          {
+            "name": "customer_profiles_projection_state_idx",
+            "table": "customer_profiles",
+            "definition": "CREATE INDEX customer_profiles_projection_state_idx ON public.customer_profiles USING btree (tenant_reference, projection_status, synced_at DESC)"
+          },
+          {
+            "name": "portal_onboarding_jobs_pkey",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE UNIQUE INDEX portal_onboarding_jobs_pkey ON public.portal_onboarding_jobs USING btree (id)"
+          },
+          {
+            "name": "portal_onboarding_jobs_submission_attempt_id_key",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE UNIQUE INDEX portal_onboarding_jobs_submission_attempt_id_key ON public.portal_onboarding_jobs USING btree (submission_attempt_id)"
+          },
+          {
+            "name": "portal_onboarding_jobs_due_idx",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE INDEX portal_onboarding_jobs_due_idx ON public.portal_onboarding_jobs USING btree (next_attempt_at, created_at) WHERE (status = ANY (ARRAY['pending'::text, 'retryable_failure'::text]))"
+          },
+          {
+            "name": "portal_onboarding_jobs_processing_idx",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE INDEX portal_onboarding_jobs_processing_idx ON public.portal_onboarding_jobs USING btree (locked_at) WHERE (status = 'processing'::text)"
+          },
+          {
+            "name": "portal_onboarding_jobs_auth_user_idx",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE INDEX portal_onboarding_jobs_auth_user_idx ON public.portal_onboarding_jobs USING btree (auth_user_id, status) WHERE ((auth_user_id IS NOT NULL) AND (status <> 'completed'::text))"
+          },
+          {
+            "name": "portal_onboarding_jobs_email_idx",
+            "table": "portal_onboarding_jobs",
+            "definition": "CREATE INDEX portal_onboarding_jobs_email_idx ON public.portal_onboarding_jobs USING btree (lower(email), status) WHERE (status <> 'completed'::text)"
+          }
+        ],
+        "triggers": [
+          {
+            "name": "trg_customer_contract_portal_links_updated_at",
+            "table": "customer_contract_portal_links",
+            "definition": "CREATE TRIGGER trg_customer_contract_portal_links_updated_at BEFORE UPDATE ON public.customer_contract_portal_links FOR EACH ROW EXECUTE FUNCTION set_current_timestamp_updated_at()"
+          },
+          {
+            "name": "trg_customer_delivery_points_updated_at",
+            "table": "customer_delivery_points",
+            "definition": "CREATE TRIGGER trg_customer_delivery_points_updated_at BEFORE UPDATE ON public.customer_delivery_points FOR EACH ROW EXECUTE FUNCTION set_current_timestamp_updated_at()"
+          },
+          {
+            "name": "trg_customer_profiles_updated_at",
+            "table": "customer_profiles",
+            "definition": "CREATE TRIGGER trg_customer_profiles_updated_at BEFORE UPDATE ON public.customer_profiles FOR EACH ROW EXECUTE FUNCTION set_current_timestamp_updated_at()"
+          }
+        ],
+        "auth_aggregate": {
+          "total": 6,
+          "confirmed": 3
+        },
+        "rpc_privileges": [
+          {
+            "anon": false,
+            "auth": false,
+            "name": "consume_distributed_rate_limit"
+          },
+          {
+            "anon": false,
+            "auth": false,
+            "name": "gridex_get_user_permissions"
+          },
+          {
+            "anon": false,
+            "auth": false,
+            "name": "gridex_log_customer_login"
+          }
+        ],
+        "onboarding_aggregate": [
+          {
+            "bound": true,
+            "total": 5,
+            "locked": false,
+            "status": "pending",
+            "max_attempts": 10,
+            "attempt_count": 0,
+            "no_next_attempt": false
+          }
+        ],
+        "profile_column_privileges": [
+          {
+            "column": "user_id",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "email",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "first_name",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "last_name",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "full_name",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "phone",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "language_code",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "timezone",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "email_verified_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "onboarding_state",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "billing_customer_ref",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "contract_customer_ref",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "external_identity_ref",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "marketing_opt_in",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "metadata",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "created_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "updated_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "last_login_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "total_logins",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "personal_number_hash",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "personal_number_masked",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "cis_customer_ref",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "gdpr_retention_until",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "customer_number",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "external_customer_id",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "portal_identity_id",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "customer_type",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "company_name",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "application_number",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "contract_number",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "onboarding_status",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "onboarding_last_sent_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "canonical_ops_id",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "source",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "tenant_reference",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "upstream_revision",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "upstream_version",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "synced_at",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "last_event_id",
+            "insert": true,
+            "update": true
+          },
+          {
+            "column": "projection_status",
+            "insert": true,
+            "update": true
+          }
+        ]
+      }
+    }
+  ],
+  "additional_privileges": [
+    {
+      "audit": {
+        "grants": [
+          {
+            "anon": false,
+            "function": "gridex_can",
+            "authenticated": false
+          },
+          {
+            "anon": false,
+            "function": "gridex_has_permission",
+            "authenticated": false
+          }
+        ],
+        "table_privileges": [
+          {
+            "table": "admin_users",
+            "delete": false,
+            "insert": false,
+            "select": true,
+            "update": false
+          },
+          {
+            "table": "customer_delivery_points",
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true
+          },
+          {
+            "table": "customer_notifications",
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true
+          },
+          {
+            "table": "customer_profiles",
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true
+          },
+          {
+            "table": "user_profiles",
+            "delete": true,
+            "insert": true,
+            "select": true,
+            "update": true
+          }
+        ],
+        "support_migration_table": null
+      }
+    }
+  ],
+  "queue_diagnostics": [
+    {
+      "audit": {
+        "due": 0,
+        "delivery_rpc": null,
+        "delivery_table": null,
+        "reconciliation": 0,
+        "waiting_confirmed": 0,
+        "waiting_unconfirmed": 5,
+        "changed_after_creation": 5,
+        "projection_identity_gaps": 2
+      }
+    }
+  ],
+  "storage": [
+    {
+      "id": "contract-pdfs",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/pdf"
+      ]
+    },
+    {
+      "id": "customer-intake",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/pdf",
+        "text/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ]
+    },
+    {
+      "id": "billing-imports",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "text/csv",
+        "application/json",
+        "application/xml",
+        "text/xml",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ]
+    },
+    {
+      "id": "billing-exports",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "text/csv",
+        "application/json",
+        "application/xml",
+        "text/xml",
+        "application/pdf"
+      ]
+    },
+    {
+      "id": "ediel-files",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/EDIFACT",
+        "text/plain",
+        "application/octet-stream",
+        "message/rfc822"
+      ]
+    },
+    {
+      "id": "actor-test-evidence",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "text/plain",
+        "application/json"
+      ]
+    },
+    {
+      "id": "customer-documents",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ]
+    }
+  ]
+}

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     })
     if (!profileSync.completed) {
       portalLinkPending = true
-      console.warn('[auth confirm] durable profile sync queued', profileSync.error)
+      console.warn('[auth confirm] profile sync pending')
     }
 
     try {

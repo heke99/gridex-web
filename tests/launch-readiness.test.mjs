@@ -45,26 +45,8 @@ assertIncludes(
   "admin agreement export must write audit",
 );
 
-assertIncludes(
-  "app/api/legal/accept/route.ts",
-  "checkRateLimit",
-  "legal accept route must rate limit",
-);
-assertIncludes(
-  "app/api/legal/accept/route.ts",
-  "email_sign_token",
-  "legal accept route must verify agreement token",
-);
-assertIncludes(
-  "app/api/legal/accept/route.ts",
-  "document_hash",
-  "legal accept route must hash accepted document",
-);
-assertIncludes(
-  "app/api/legal/accept/route.ts",
-  "idempotent",
-  "legal accept route must be idempotent",
-);
+assertIncludes("app/api/legal/accept/route.ts", "status: 410", "legacy acceptance must be retired");
+assert.ok(!read("app/api/legal/accept/route.ts").includes(".from("), "retired acceptance must not write evidence");
 
 assert.equal(existsSync(new URL("../app/api/price/route.ts", import.meta.url)), false);
 assert.equal(existsSync(new URL("../app/api/offers/calculate/route.ts", import.meta.url)), false);

@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-06",
+  "scope": "Local workspace, isolated PostgreSQL engine and localhost browser fixtures. Live API reads and one Resend webhook subscription update.",
+  "checks": [
+    {
+      "command": "npm test",
+      "exit_code": 0,
+      "meaning": "Full Web suite including audit SQL, runtime and outbox regressions"
+    },
+    {
+      "command": "npm run test:support",
+      "exit_code": 0,
+      "meaning": "Support tests including tenant-local SQL and customer support flows"
+    },
+    {
+      "command": "npm run test:audit:browser",
+      "exit_code": 0,
+      "meaning": "Pending review, page-reload retry ID, recovery 429, stale calculator response, live checkout display/email status and terminal polling"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "meaning": "Web production build"
+    },
+    {
+      "command": "npm run build:support",
+      "exit_code": 0,
+      "meaning": "Support production build"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "meaning": "Web type check"
+    },
+    {
+      "command": "npm run typecheck:support",
+      "exit_code": 0,
+      "meaning": "Support type check"
+    },
+    {
+      "command": "npm run lint",
+      "exit_code": 0,
+      "meaning": "No lint errors or warnings"
+    },
+    {
+      "command": "npm run api:check:live",
+      "exit_code": 0,
+      "meaning": "Both checked-in OpenAPI documents match live version 2026-10-04.1"
+    },
+    {
+      "command": "npm run db:migrations:check",
+      "exit_code": 0,
+      "meaning": "45 migrations, matching hashes and no timestamp collisions"
+    },
+    {
+      "command": "npm audit --omit=dev",
+      "exit_code": 0,
+      "meaning": "Zero reported production dependency vulnerabilities"
+    },
+    {
+      "command": "npm audit",
+      "exit_code": 0,
+      "meaning": "Zero reported vulnerabilities including development dependencies; pinned Next-only tinyglobby override"
+    },
+    {
+      "command": "npm run release:audit:check",
+      "exit_code": 1,
+      "meaning": "Intentionally blocked: local release credentials, committed revision and real release E2E evidence are unavailable"
+    },
+    {
+      "command": "npm run test:support:browser",
+      "exit_code": 0,
+      "meaning": "23 synthetic browser checks passed; zero errors"
+    },
+    {
+      "command": "node tests/audit-policy-deduplication.test.mjs",
+      "exit_code": 0,
+      "meaning": "665 synthetic outcomes for duplicated policy expressions preserved across 19 tables and seven actors; changed expressions/roles/restrictive policies preserved"
+    }
+  ],
+  "production": {
+    "web_deployed": false,
+    "database_migrations_applied": false,
+    "actual_test_emails_sent": false,
+    "auth_smtp_verified": false,
+    "resend_webhook_subscriptions_updated_and_read_back": true
+  },
+  "remaining": [
+    "Coordinated Web/DB rollout and staff-delivery prerequisite",
+    "OPS assertion policy and keys",
+    "Supabase Auth/SMTP and leaked-password configuration",
+    "Authorized inbox and actual verification/recovery/support receipt delivery",
+    "Shared OPS RLS/index workload triage",
+    "Authenticated production configuration values unavailable: existing Vercel sensitive variables cannot be decrypted"
+  ],
+  "followup_date": "2026-10-06",
+  "migration_count": 45
+}

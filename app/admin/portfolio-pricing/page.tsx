@@ -115,8 +115,7 @@ export default async function AdminPortfolioPricingPage() {
         <h1 className="text-3xl font-bold">Portfölj & fastpris</h1>
         <p className="mt-2 text-sm text-white/60">
           Fast pris per kWh per elområde för aktiva portfölj- och fastprisavtal.
-          Dessa värden används i preview, kundspec och prissättning för publika
-          flöden.
+          Dessa värden används endast av den äldre interna modellen. Publika kundpriser styrs av OPS.
         </p>
       </div>
 

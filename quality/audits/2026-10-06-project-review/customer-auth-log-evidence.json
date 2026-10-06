@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-10-06",
+  "project_ref": "ayiuxjlfazkjmmtlvhsl",
+  "note": "Default last-24-hour log window. Read queries in this audit also generate logs; this is not SMTP delivery evidence.",
+  "result": {
+    "result": [
+      {
+        "auth_entries": 120,
+        "email_mentions": 0,
+        "error_mentions": 0,
+        "smtp_mentions": 0
+      }
+    ]
+  }
+}

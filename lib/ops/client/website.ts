@@ -588,6 +588,7 @@ export async function fetchOpsWebsiteApplicationStatus(
     })
   }
   const value = row as OpsCustomerApplicationStatusDto
+  assertWebsiteResponse('WebsiteCheckoutResult', value.checkout, endpoint)
   if (value.application_number !== normalized) {
     throw new OpsError('OPS returnerade status för en annan ansökan.', 502, {
       code: 'ops_application_status_identity_mismatch',
@@ -599,6 +600,7 @@ export async function fetchOpsWebsiteApplicationStatus(
   }
   return {
     application_number: value.application_number,
+    checkout: value.checkout,
     status: value.status,
     stage: value.stage,
     customer_number: value.customer_number ?? null,

@@ -1,4 +1,5 @@
 import type { PriceArea } from './types'
+import { isStrictCalendarDate, stockholmDayBounds } from '@/lib/website/businessDate'
 
 export type ElprisetJustNuEntry = {
   SEK_per_kWh?: unknown
@@ -158,7 +159,7 @@ function averageExchangeRate(samples: SpotSample[]): number | null {
   return average === null ? null : Number(average.toFixed(8))
 }
 
-function validateSampleTimeline(samples: SpotSample[]): SpotSample[] {
+function validateSampleTimeline(samples: SpotSample[], date: string): SpotSample[] {
   const ordered = [...samples].sort((a, b) => a.startMs - b.startMs)
   for (let index = 1; index < ordered.length; index += 1) {
     const previous = ordered[index - 1]
@@ -172,8 +173,8 @@ function validateSampleTimeline(samples: SpotSample[]): SpotSample[] {
     }
   }
   if (ordered.length) {
-    const totalDurationMinutes = ordered.reduce((sum, sample) => sum + sample.durationMinutes, 0)
-    if (totalDurationMinutes < 1_380 || totalDurationMinutes > 1_500) {
+    const bounds = stockholmDayBounds(date)
+    if (ordered[0].startMs !== bounds.start || ordered[ordered.length - 1].endMs !== bounds.end) {
       throw new Error('Elprisetjustnu API returnerade inte ett komplett marknadsdygn.')
     }
   }
@@ -186,6 +187,7 @@ async function fetchDailySpotSamples(params: {
   day: number
   area: PriceArea
 }): Promise<SpotSample[]> {
+  if (!['SE1', 'SE2', 'SE3', 'SE4'].includes(params.area) || !isStrictCalendarDate(`${params.year}-${pad2(params.month)}-${pad2(params.day)}`)) throw new Error('Ogiltigt datum eller elområde.')
   const requestInit: RequestInit & { next: { revalidate: number } } = {
     headers: { accept: 'application/json' },
     next: { revalidate: 5 * 60 },
@@ -207,10 +209,10 @@ async function fetchDailySpotSamples(params: {
   }
 
   const samples = data.map(parseSample).filter((sample): sample is SpotSample => Boolean(sample))
-  if (data.length > 0 && samples.length === 0) {
+  if (samples.length !== data.length) {
     throw new Error('Elprisetjustnu API saknade giltiga SEK-priser eller tidsintervall.')
   }
-  return validateSampleTimeline(samples)
+  return validateSampleTimeline(samples, `${params.year}-${pad2(params.month)}-${pad2(params.day)}`)
 }
 
 export function stockholmDateParts(now = new Date()): {
@@ -292,7 +294,7 @@ export async function fetchDailySpotAverageFromElprisetJustNu(params: {
   }
 }
 
-export async function fetchMonthlySpotAverageFromElprisetJustNu(params: {
+async function calculateMonthlySpotAverage(params: {
   year: number
   month: number
   priceArea: PriceArea
@@ -303,16 +305,19 @@ export async function fetchMonthlySpotAverageFromElprisetJustNu(params: {
     ? calendarDayCount
     : Math.min(calendarDayCount, Math.max(1, Math.floor(params.throughDay)))
   const days = Array.from({ length: dayCount }, (_, index) => index + 1)
-  const dailySamples = await Promise.all(
-    days.map((day) =>
-      fetchDailySpotSamples({
+  const dailySamples: SpotSample[][] = new Array(dayCount)
+  let cursor = 0
+  await Promise.all(Array.from({ length: Math.min(4, dayCount) }, async () => {
+    while (cursor < days.length) {
+      const index = cursor++
+      dailySamples[index] = await fetchDailySpotSamples({
         year: params.year,
         month: params.month,
-        day,
+        day: days[index],
         area: params.priceArea,
-      }),
-    ),
-  )
+      })
+    }
+  }))
 
   const missingDays = dailySamples.flatMap((samples, index) =>
     samples.length ? [] : [index + 1],
@@ -342,4 +347,26 @@ export async function fetchMonthlySpotAverageFromElprisetJustNu(params: {
     periodStart: `${params.year}-${pad2(params.month)}-01`,
     periodEnd: `${params.year}-${pad2(params.month)}-${pad2(dayCount)}`,
   }
+}
+
+// Share concurrent calculations and retain a bounded number of short-lived aggregates.
+const monthlyCache = new Map<string, { expires: number; result: Promise<MonthlySpotApiAverage | null> }>()
+export function fetchMonthlySpotAverageFromElprisetJustNu(params: {
+  year: number; month: number; priceArea: PriceArea; throughDay?: number
+}): Promise<MonthlySpotApiAverage | null> {
+  if (!['SE1', 'SE2', 'SE3', 'SE4'].includes(params.priceArea)) throw new Error('Ogiltigt elområde.')
+  if (!Number.isInteger(params.year) || params.year < 2000 || params.year > 2100 || !Number.isInteger(params.month) || params.month < 1 || params.month > 12 ||
+    (params.throughDay !== undefined && (!Number.isInteger(params.throughDay) || params.throughDay < 1 || params.throughDay > daysInMonth(params.year, params.month)))) {
+    return Promise.reject(new TypeError('Ogiltig marknadsmånad eller dag.'))
+  }
+  const key = `${params.priceArea}:${params.year}:${params.month}:${params.throughDay ?? 'full'}`
+  const now = Date.now()
+  for (const [key, entry] of monthlyCache) if (entry.expires <= now) monthlyCache.delete(key)
+  const cached = monthlyCache.get(key)
+  if (cached) return cached.result
+  if (monthlyCache.size >= 24) monthlyCache.delete(monthlyCache.keys().next().value!)
+  const result = calculateMonthlySpotAverage(params)
+  monthlyCache.set(key, { expires: now + 5 * 60_000, result })
+  void result.catch(() => { if (monthlyCache.get(key)?.result === result) monthlyCache.delete(key) })
+  return result
 }

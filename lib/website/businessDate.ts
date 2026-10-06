@@ -31,6 +31,25 @@ export function requireStrictCalendarDate(
   return value
 }
 
+/** Resolve local midnight using the actual Stockholm offset, including DST days. */
+export function stockholmDayBounds(date: string): { start: number; end: number } {
+  requireStrictCalendarDate(date)
+  const [year, month, day] = date.split('-').map(Number)
+  const midnight = (utc: number) => {
+    let instant = utc
+    for (let step = 0; step < 3; step += 1) {
+      const offset = new Intl.DateTimeFormat('en-US', {
+        timeZone: STOCKHOLM_TIME_ZONE, timeZoneName: 'shortOffset',
+      }).formatToParts(new Date(instant)).find((part) => part.type === 'timeZoneName')?.value
+      const match = offset?.match(/^GMT([+-])(\d{1,2})(?::(\d{2}))?$/)
+      if (!match) throw new Error('Stockholms tidszon kunde inte beräknas.')
+      instant = utc - (match[1] === '+' ? 1 : -1) * (Number(match[2]) * 60 + Number(match[3] ?? 0)) * 60_000
+    }
+    return instant
+  }
+  return { start: midnight(Date.UTC(year, month - 1, day)), end: midnight(Date.UTC(year, month - 1, day + 1)) }
+}
+
 
 
 export type StockholmValidityResult =

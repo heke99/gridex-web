@@ -169,6 +169,7 @@ export default async function DashboardPage() {
       </div>
 
       <CustomerPortalSelfService
+        userId={overview.profile?.user_id}
         site={latestSite ? {
           id: latestSite.id,
           facilityId: latestSite.facility_id,
@@ -178,6 +179,7 @@ export default async function DashboardPage() {
         } : null}
         latestUnreadNotificationId={overview.notifications.find((notification) => !notification.is_read)?.id ?? null}
       />
+      {overview.supportError ? <p role="status" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">{overview.supportError} Dina avtal och övriga kunduppgifter visas fortfarande.</p> : null}
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <div className="flex items-center justify-between gap-4">
