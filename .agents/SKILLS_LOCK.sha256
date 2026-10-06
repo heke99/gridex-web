@@ -12,7 +12,7 @@
 58a38edd230cdcdd866939906321c8ba6f47c98a70d0cda373360196ee2ca1a7  .agents/skills/refactor/SKILL.md
 59aef769adeae40aad67a1d54474aaf914ea7ecdfc2a4752a54840a8d29f80de  .agents/skills/doubt-driven-development/SKILL.md
 5fb7f4d995fc05386a8c04b045f96fd3cb652cbd31fd52d78966f86323b373b8  .agents/skills/error-handling-patterns/SKILL.md
-64f4f4105b66d155f0a6654dd8d542a58329d282c4e07bc82881bb755230fb29  .agents/skills/performance-optimization/SKILL.md
+651729816edd25fa099defdf9d8fa2865541a015681ce57876fd79343a1ba097  .agents/skills/performance-optimization/SKILL.md
 67ce2c9442da0c5a6e3515617fc9c4003cfe232ef7c7210da342f40f508f9958  .agents/skills/debugging-and-error-recovery/SKILL.md
 71ed7794962fa6e803ee83030517b5b93a9f70fbfeb431ec4535c5480a8d8355  .agents/skills/vercel-react-best-practices/SKILL.md
 71fdddb96c2c54041fcfbfdaef3c172b202fb9240b609e658d9d82edbed6cad1  .agents/skills/test-driven-development/SKILL.md
@@ -37,3 +37,4 @@ f4647ca866a3accf763777f83e7682954f0187cd6bea7eea0399796652414e8f  .agents/skills
 4929b7cfac1e3379f639818c972e8eac782262fcd16d04e142918beb5fc47edc  .agents/skills/vercel-composition-patterns/SKILL.md
 33f4581794003fbf5663b45af407c64ecaa31167f7347a5484f02f377a3ce6c7  .agents/skills/vercel-react-view-transitions/SKILL.md
 4d6b6c7b14a2a2a87e18379a9a653a05b2327d4b26032bbfde6e8b3dff8d9a0e  .agents/skills/gridex-design/SKILL.md
+ce5a9e25067569646b11413dce87b95e23db1212bcc4a710549fddd355548d79  .agents/skills/performance-optimization/references/performance-checklist.md

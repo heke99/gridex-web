@@ -167,11 +167,18 @@ export async function readWebsitePublicContractSnapshot(
   cacheKey: string,
   expected: SnapshotReadExpectations,
 ): Promise<OpsPublicContractsSnapshot | null> {
-  const { data, error } = await supabaseService
+  // Reject expired/incompatible rows before PostgREST detoasts and serializes
+  // their full contract payload. Keep all payload checks below as defense in depth.
+  let query = supabaseService
     .from('website_public_contract_snapshots')
     .select('snapshot')
     .eq('cache_key', cacheKey)
-    .maybeSingle<StoredSnapshotRow>()
+    .eq('contract_version', expected.contractVersion)
+    .eq('parser_version', expected.parserVersion)
+    .eq('schema_sha256', expected.schemaSha256)
+    .gte('fetched_at', new Date(Date.now() - maxSnapshotAgeMs(expected.maxAgeMs)).toISOString())
+  if (expected.organizationReference) query = query.eq('organization_reference', expected.organizationReference)
+  const { data, error } = await query.maybeSingle<StoredSnapshotRow>()
 
   if (error) {
     throw new Error(`Website public-contract snapshot read failed: ${error.message}`)

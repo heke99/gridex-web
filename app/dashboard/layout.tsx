@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, getVerifiedServerUser } from '@/lib/supabase/server'
 import UserMenu from '@/components/account/UserMenu'
 import DashboardNav from './ui/DashboardNav'
 import { loadUserPermissionsWithClient } from '@/lib/auth/permissions'
@@ -87,7 +87,7 @@ export default async function DashboardLayout({
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getVerifiedServerUser(supabase)
 
   if (!user) {
     redirect(buildLoginRedirect('/dashboard'))

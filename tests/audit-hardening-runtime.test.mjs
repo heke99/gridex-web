@@ -155,7 +155,11 @@ assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote')
  globalThis.__auditRegression.resource={invoices:[{invoice_reference:'invoice_abcdefghijklmnopqrstuvwx',status:'paid',amount_inc_vat:0,vat_amount:0}]}
  assert.equal((await service.getCanonicalCustomerResource('invoices')).data[0].total_amount,0)
  globalThis.__auditRegression.bundle={profile:{email:user.email},contracts:[],sites:[],invoices:[],documents:[],legalAcceptances:[],powersOfAttorney:[],switchStatus:null,customerStatus:null,dataQuality:null,meteringValues:[],events:[],notifications:[]}
+ let profileReads=0
+ const profileFrom=globalThis.__auditRegression.db.from
+ globalThis.__auditRegression.db.from=(...args)=>{profileReads++;return profileFrom(...args)}
  const overview=await service.getCustomerPortalOverview();assert.ok(overview.authoritative);assert.ok(overview.supportError)
+ assert.equal(profileReads,1,'the overview and optional support reuse one verified profile identity')
  globalThis.__auditRegression.db.from=()=>({update(){return this},eq(){return this},lt:async()=>({error:{message:'Modeled outage'}})})
  const {GET}=await import('../app/auth/confirm/route.ts');const {NextRequest}=await import('next/server.js')
  const callback=await GET(new NextRequest('https://gridex.invalid/auth/confirm?token_hash=offline&type=email'))

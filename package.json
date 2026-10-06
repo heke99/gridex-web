@@ -57,7 +57,10 @@
     "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs",
     "release:audit:manifest": "node scripts/check-audit-release.mjs --snapshot",
     "release:audit:check": "node scripts/check-audit-release.mjs",
-    "test:audit:browser": "node tests/run-audit-browser.mjs"
+    "test:audit:browser": "node tests/run-audit-browser.mjs",
+    "perf:web": "node scripts/measure-web-performance.mjs",
+    "test:performance": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/performance-snapshot.test.mjs",
+    "test:performance:browser": "node tests/run-performance-browser.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",

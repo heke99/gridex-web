@@ -5,6 +5,14 @@ description: Optimizes application performance across frontend, backend, queries
 
 # Performance Optimization
 
+## Gridex local supplement
+
+For this repository, start with [the measurement checklist](references/performance-checklist.md).
+It supplies the previously missing reference, the `perf:web` command, safe Supabase
+inspection, request-scoped Auth deduplication and production-release boundaries.
+Keep customer identity, permissions, quotes and current prices out of shared TTL
+caches. Numeric budgets below are examples, not evidence or Gridex release targets.
+
 ## Overview
 
 Measure before optimizing. Performance work without measurement is guessing — and guessing leads to premature optimization that adds complexity without improving what matters. Profile first, identify the actual bottleneck, fix it, measure again. Optimize only what measurements prove matters.
