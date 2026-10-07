@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import MarketSeoPage from '@/components/seo/MarketSeoPage'
-import { SITE_URL, findPageByPath, marketPages } from '@/lib/seo/content'
+import { SITE_OG_IMAGE, SITE_URL, findPageByPath, marketPages } from '@/lib/seo/content'
 
 export const dynamic = 'force-static'
 
@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   openGraph: page
     ? {
+        images: [SITE_OG_IMAGE],
         title: page.title,
         description: page.description,
         url: `${SITE_URL}/natagare`,

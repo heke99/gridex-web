@@ -1,8 +1,13 @@
 import type { MetadataRoute } from 'next'
-import { SITE_URL, canonicalPublicRoutes } from '@/lib/seo/content'
+import { SITE_URL, canonicalPublicRoutes, elavtalPages, elprisPages, guidePages, glossaryPages, marketPages } from '@/lib/seo/content'
 
 const LAST_MODIFIED_BY_ROUTE: Record<string, string> = {
-  '/': '2026-06-24',
+  '/': '2026-10-07',
+  '/elavtal/billigt-elavtal': '2026-10-07',
+  '/elavtal/jamfor-elavtal': '2026-10-07',
+  '/elavtal/byta-elbolag': '2026-10-07',
+  '/elbolag/byta-fran-annat-elbolag': '2026-10-07',
+  '/elbolag': '2026-10-07',
   '/elavtal': '2026-06-24',
   '/elpriser': '2026-06-24',
   '/elpriser/elpris-idag': '2026-06-24',
@@ -41,9 +46,16 @@ function priority(path: string) {
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const contentDates = new Map(
+    [...elavtalPages, ...elprisPages, ...guidePages, ...glossaryPages, ...marketPages]
+      .filter((page) => page.lastModified)
+      .map((page) => [page.path, page.lastModified!] as const),
+  )
   return canonicalPublicRoutes.map((path) => ({
     url: `${SITE_URL}${path === '/' ? '' : path}`,
-    lastModified: new Date(`${LAST_MODIFIED_BY_ROUTE[path] ?? '2026-06-24'}T00:00:00.000Z`),
+    lastModified: contentDates.get(path) ?? (LAST_MODIFIED_BY_ROUTE[path]
+      ? new Date(`${LAST_MODIFIED_BY_ROUTE[path]}T00:00:00.000Z`)
+      : undefined),
     changeFrequency: frequency(path),
     priority: priority(path),
   }))

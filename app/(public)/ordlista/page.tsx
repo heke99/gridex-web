@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Breadcrumbs from '@/components/seo/Breadcrumbs'
 import JsonLd, { breadcrumbJsonLd, itemListJsonLd, webPageJsonLd } from '@/components/seo/JsonLd'
-import { SITE_URL, glossaryPages } from '@/lib/seo/content'
+import { SITE_OG_IMAGE, SITE_URL, glossaryPages } from '@/lib/seo/content'
 
 export const dynamic = 'force-static'
 
@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/ordlista` },
   robots: { index: true, follow: true },
   openGraph: {
+    images: [SITE_OG_IMAGE],
     title: 'Ordlista för elavtal och elpris',
     description: 'Gridex förklarar vanliga elbegrepp på enkel svenska.',
     url: `${SITE_URL}/ordlista`,

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import SeoLandingPage from '@/components/seo/SeoLandingPage'
-import { DEFAULT_LAST_MODIFIED, SITE_URL, findPage, guidePages } from '@/lib/seo/content'
+import { SITE_OG_IMAGE, SITE_URL, findPage, guidePages } from '@/lib/seo/content'
 
 export const dynamic = 'force-static'
 
@@ -19,6 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description: page.description,
     alternates: { canonical: `${SITE_URL}${page.path}` },
     openGraph: {
+    images: [SITE_OG_IMAGE],
       title: page.title,
       description: page.description,
       url: `${SITE_URL}${page.path}`,
@@ -34,8 +35,6 @@ export default async function GuideSeoPage({ params }: { params: Promise<{ slug:
   const { slug } = await params
   const page = findPage(guidePages, slug)
   if (!page) notFound()
-
-  page.lastModified = page.lastModified ?? DEFAULT_LAST_MODIFIED
 
   return (
     <SeoLandingPage

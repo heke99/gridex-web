@@ -8,7 +8,7 @@ const BRAND_OG_URL = `${SITE_URL}/brand/gridex-og.png`
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Elpris idag – tydliga elavtal | Gridex AB',
+    default: 'Elavtal med tydliga priser och avgifter | Gridex AB',
     template: '%s | Gridex',
   },
   description:
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: 'Elpris idag – Billiga & datadrivna elavtal',
+    title: 'Gridex – elavtal med tydliga priser och avgifter',
     description:
-      'Elpris per elområde (SE1–SE4). Transparent prismotor och tydlig specifikation innan teckning.',
+      'Se Gridex elavtal, jämför våra avtalsformer och räkna på elhandelskostnaden innan du tecknar.',
     url: SITE_URL,
     siteName: 'Gridex AB',
     locale: 'sv_SE',

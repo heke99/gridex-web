@@ -1,4 +1,16 @@
+import { contractContent } from './contract-content'
+import { priceContent } from './price-content'
+import { locationContent } from './location-content'
+import { guideContent } from './guide-content'
+import { homeContent } from './home-content'
+
 export const SITE_URL = 'https://gridex.se'
+export const SITE_OG_IMAGE = {
+  url: `${SITE_URL}/brand/gridex-og.png`,
+  width: 1200,
+  height: 630,
+  alt: 'Gridex elleverantör',
+}
 export const DEFAULT_LAST_MODIFIED = new Date('2026-06-24T00:00:00.000Z')
 
 export type FaqItem = {
@@ -30,12 +42,13 @@ export const elavtalPages: SeoPageContent[] = [
     path: '/elavtal/jamfor-elavtal',
     title: 'Jämför elavtal – se pris, påslag och avgifter',
     description:
-      'Jämför elavtal hos Gridex och se skillnaden mellan rörligt elpris, fastpris, kvartspris och portföljupplägg innan du tecknar.',
+      'Jämför elavtal utifrån årsförbrukning, påslag, månadsavgift och villkor. Förstå avtalsformerna och räkna på Gridex egna elavtal.',
     eyebrow: 'Jämför elavtal',
     h1: 'Jämför elavtal utan att missa avgifterna',
     lead:
       'Ett lågt öre/kWh-pris säger inte allt. När du jämför elavtal behöver du se spotpris, påslag, månadsavgift, moms och vad som inte ingår i elhandelspriset.',
     intent: 'Hjälper kunder som söker jämförelse mellan elavtal och vill förstå totalpriset innan teckning.',
+    lastModified: new Date('2026-10-07T00:00:00.000Z'),
     primaryCta: { label: 'Räkna på ditt elpris', href: '/#rakna-elpris' },
     secondaryCta: { label: 'Teckna elavtal', href: '/teckna-avtal' },
     sections: [
@@ -49,12 +62,41 @@ export const elavtalPages: SeoPageContent[] = [
       {
         title: 'Vilket elavtal passar bäst?',
         body: [
-          'Rörligt elpris passar ofta dig som accepterar marknadsvariation. Fastpris passar dig som prioriterar förutsägbarhet. Kvartspris/timpris kan passa dig som kan styra förbrukningen till billigare timmar.',
+          'Med rörligt månadspris varierar energipriset mellan månader. Med kvartspris följer kostnaden priset under de kvartar då du använder el: då spelar förbrukningens tidpunkt roll. Att flytta laddning eller uppvärmning kan påverka kostnaden, men ett kvartsprisavtal är inte automatiskt billigast.',
+          'Fast pris ger ett avtalat energipris under en viss period. Elräkningen varierar ändå med förbrukning och andra avgifter. Portfölj- och mixavtal kan kombinera olika prissättningar; kontrollera hur just det avtalets pris beräknas och vilka risker du tar.',
+        ],
+      },
+      {
+        title: 'Ta fram samma underlag för varje avtal',
+        body: [
+          'Utgå från din årsförbrukning i kWh och ditt elområde. Hämta uppgifterna från fakturan eller nätägarens kundsidor. Jämför priser inklusive moms för ett privat hushåll och använd samma tidsperiod i alla alternativ.',
+          'Notera energipris, påslag, andra rörliga kostnader, månadsavgift och eventuell fakturaavgift. För tidsbaserade avtal behövs också förbrukningens fördelning över tid för att jämförelsen ska bli rättvis. Ett enkelt årsgenomsnitt visar inte hela skillnaden mellan kvartspris och månadspris.',
+        ],
+      },
+      {
+        title: 'Räkna om öre per kWh till kronor per år',
+        body: [
+          'För en fast avgift eller ett påslag kan du räkna så här: årskostnad i kronor = årsförbrukning × påslag i öre/kWh ÷ 100 + månadsavgift × 12. Energipris och andra kostnader tillkommer.',
+          'En skillnad på 3 öre/kWh motsvarar 60 kronor per år vid 2 000 kWh och 600 kronor vid 20 000 kWh. En skillnad på 30 kronor i månadsavgift motsvarar 360 kronor per år, oavsett förbrukning. Beloppen är räkneexempel, inte aktuella erbjudanden.',
+        ],
+      },
+      {
+        title: 'Kontrollera rabatten och villkoren efter kampanjen',
+        body: [
+          'Jämför både kampanjperioden och priset efter att rabatten löper ut. Kontrollera vad som rabatteras, om avgifter tillkommer och hur länge erbjudandet gäller. Ett lågt introduktionspris behöver inte ge lägst kostnad över hela avtalsperioden.',
+          'Läs bindningstid, uppsägningstid, förlängningsvillkor och vad ett förtida avslut kan kosta innan du tecknar. Välj också ett startdatum som fungerar med ditt befintliga avtal.',
+        ],
+      },
+      {
+        title: 'Vad jämför du på Gridex?',
+        body: [
+          'Gridex är ett elhandelsbolag. Prisräknaren visar Gridex egna publicerade avtalsalternativ och är inte en oberoende jämförelse av alla elbolag. Vilka alternativ som går att teckna framgår av det aktuella erbjudandet.',
+          'Jämför resultatet med din nuvarande faktura och avtalets villkor. Beräkningar baserade på föregående månads spotpris beskriver ett historiskt underlag och garanterar inte framtida pris. Elnätskostnader behöver bedömas separat från elhandeln.',
         ],
       },
     ],
     bullets: [
-      'Jämför rörligt, fast, portfölj och kvartspris på samma sida.',
+      'Jämför samma förbrukning, elområde och prisperiod.',
       'Se vilka avgifter som läggs ovanpå spotpriset.',
       'Kom ihåg att elnätsavgiften kommer från nätägaren och inte ingår i elhandelspriset.',
     ],
@@ -69,24 +111,29 @@ export const elavtalPages: SeoPageContent[] = [
         answer:
           'Inte alltid. Ett avtal kan vara billigt i ett scenario men mindre bra om din förbrukning, ditt elområde eller marknaden ändras. Välj efter både pris, risk och tydlighet.',
       },
+      { question: 'Jämför Gridex alla elbolag?', answer: 'Nej. Gridex prisräknare visar Gridex egna publicerade avtalsalternativ. Du kan använda prisraderna som underlag när du jämför med ett annat bolags erbjudande.' },
+      { question: 'Ingår elnätsavgiften i jämförelsen?', answer: 'Nej, elhandelsavtalet och elnätsavtalet är olika avtal. Kontrollera nätavgifter och hur energiskatt redovisas hos din nätägare när du bedömer hela elkostnaden.' },
     ],
     related: [
       { label: 'Billigt elavtal', href: '/elavtal/billigt-elavtal', description: 'Se vad som faktiskt gör ett elavtal billigt.' },
       { label: 'Rörligt elpris', href: '/elavtal/rorligt-elpris', description: 'Förstå rörliga avtal och spotprisbaserad prissättning.' },
       { label: 'Elpris idag', href: '/elpriser/elpris-idag', description: 'Se aktuellt elpris per elområde.' },
+      { label: 'Fast eller rörligt elpris', href: '/guider/fast-eller-rorligt-elpris', description: 'Jämför förutsägbarhet och prisrisk.' },
+      { label: 'Prisvillkor', href: '/prisvillkor', description: 'Kontrollera hur Gridex prisdelar beräknas.' },
     ],
   },
   {
     slug: 'billigt-elavtal',
     path: '/elavtal/billigt-elavtal',
-    title: 'Billigt elavtal – hitta ett tydligt elpris',
+    title: 'Billig el – jämför elavtal och total kostnad',
     description:
-      'Letar du efter billigt elavtal? Gridex hjälper dig jämföra totalpris, påslag och månadsavgift så att du ser vad avtalet kostar.',
+      'Vill du ha billig el? Jämför elavtalets påslag, månadsavgift och total kostnad. Se räkneexempel och beräkna priset för Gridex elavtal.',
     eyebrow: 'Billigt elavtal',
-    h1: 'Billigt elavtal börjar med tydligt totalpris',
+    h1: 'Billig el börjar med att jämföra hela kostnaden',
     lead:
       'Ett billigt elavtal är inte bara ett lågt marknadspris. Det handlar också om låga och tydliga avgifter, rätt avtalsform och att priset passar din förbrukning.',
-    intent: 'Fångar kunder som söker billigt elavtal och behöver en seriös väg från jämförelse till teckning.',
+    intent: 'Räkna på Gridex elavtal med din förbrukning och jämför med villkoren på din nuvarande faktura.',
+    lastModified: new Date('2026-10-07T00:00:00.000Z'),
     primaryCta: { label: 'Jämför ditt pris', href: '/#rakna-elpris' },
     secondaryCta: { label: 'Se elavtal', href: '/elavtal' },
     sections: [
@@ -101,6 +148,21 @@ export const elavtalPages: SeoPageContent[] = [
         title: 'Billigt ska också vara begripligt',
         body: [
           'Undvik avtal där det är svårt att se påslag, bindningstid eller månadsavgift. Ett tydligt avtal gör det enklare att undvika överraskningar.',
+        ],
+      },
+      {
+        title: 'Räkneexempel: låg månadsavgift eller lågt påslag?',
+        body: [
+          'Anta att avtal A har 39 kronor i månadsavgift och 5 öre/kWh i påslag, medan avtal B har 69 kronor i månadsavgift och 2 öre/kWh i påslag. Beloppen är fiktiva och inklusive moms. Vi antar samma energipris och övriga villkor i båda avtalen.',
+          'Vid 2 000 kWh per år blir månadsavgift och påslag tillsammans 568 kronor för A och 868 kronor för B. Vid 20 000 kWh blir motsvarande kostnader 1 468 kronor för A och 1 228 kronor för B. Brytpunkten är 12 000 kWh per år: där blir dessa kostnader lika stora.',
+          'Exemplet visar bara månadsavgift och påslag, inte hela elräkningen. Energipris, andra elhandelskostnader och elnätskostnader tillkommer. Kontrollera också hur energiskatt och moms redovisas på fakturorna. Beloppen är inte erbjudanden från Gridex eller andra elbolag.',
+        ],
+      },
+      {
+        title: 'Jämför ditt nuvarande avtal med Gridex',
+        body: [
+          'Hämta din årsförbrukning, ditt elområde, påslag, månadsavgift och eventuella rabattvillkor från fakturan och avtalet. Kontrollera när rabatten upphör samt bindnings- och uppsägningstid.',
+          'Använd samma förbrukning och prisperiod när du jämför. Gridex prisräknare visar Gridex avtalsalternativ; den är inte en oberoende jämförelse av hela elmarknaden. Ett historiskt spotpris är ett beräkningsunderlag, inte en garanti för framtida kostnad.',
         ],
       },
     ],
@@ -189,19 +251,43 @@ export const elavtalPages: SeoPageContent[] = [
     lead:
       'När du byter elhandelsbolag behåller du normalt samma nätägare. Det du byter är elhandelsavtalet – alltså vem som säljer elen till dig.',
     intent: 'Hjälper kunder som är nära köp men behöver förstå processen.',
+    lastModified: new Date('2026-10-07T00:00:00.000Z'),
     primaryCta: { label: 'Starta teckning', href: '/teckna-avtal' },
     secondaryCta: { label: 'Jämför avtal först', href: '/elavtal/jamfor-elavtal' },
     sections: [
       {
-        title: 'Det här behöver du',
+        title: '1. Kontrollera när ditt nuvarande avtal kan avslutas',
+        body: [
+          'Läs bindningstid och uppsägningstid i ditt nuvarande avtal. Be ditt elbolag bekräfta tidigaste slutdatum och om ett förtida avslut kan medföra en kostnad. En kampanjrabatt och en bindningstid kan ha olika slutdatum.',
+          'Vid ett vanligt leverantörsbyte hanteras bytet normalt genom marknadsprocessen. Kontrollera befintliga avtalsvillkor innan du tar ställning till en separat uppsägning.',
+        ],
+      },
+      {
+        title: '2. Samla uppgifter om rätt person och anläggning',
         body: [
           'Du behöver person- eller organisationsuppgifter, adress, ungefärlig förbrukning och information om anläggningen. I vissa fall behövs kompletteringar från nätägaren.',
+          'Kontrollera vem som står på elnätsavtalet och att teckningen gäller rätt elanläggning. Anläggnings-ID finns ofta på nätfakturan. Följ uppgifterna i teckningsflödet om något saknas.',
+        ],
+      },
+      {
+        title: '3. Välj elavtal och önskat startdatum',
+        body: [
+          'Jämför prisdelar och villkor och välj ett önskat startdatum som stämmer med det befintliga avtalets slutdatum. Ett önskat datum är inte samma sak som ett bekräftat leveransdatum.',
+          'Läs de publicerade dokument som visas i teckningsflödet innan du slutför teckningen. Följ därefter bekräftelsen för aktuell status och avtalsstart.',
+        ],
+      },
+      {
+        title: '4. Följ bekräftelsen och komplettera vid behov',
+        body: [
+          'Spara kvittot och kontrollera bekräftelsen från Gridex. Om uppgifter behöver kompletteras kan startdatum påverkas. Följ informationen via e-post och, när profilen är kopplad, på Mina sidor.',
+          'Kontakta kundservice om bekräftat startdatum saknas eller skiljer sig från vad du väntat dig. Kontrollera slutdatum och slutfaktura från den tidigare elhandlaren så att kostnaderna stämmer med avtalet.',
         ],
       },
       {
         title: 'Elnätsavtalet ligger kvar',
         body: [
           'Nätägaren ansvarar för elnätet i ditt område och fakturerar nätavgifter. Gridex ansvarar för elhandelsdelen när avtalet startar.',
+          'Ett leverantörsbyte på samma adress innebär normalt inget fysiskt arbete och ska inte i sig orsaka ett strömavbrott. Vid flytt behöver du däremot kontrollera elnätsavtalet på den nya adressen och avsluta avtalen för den gamla enligt deras villkor.',
         ],
       },
     ],
@@ -221,11 +307,15 @@ export const elavtalPages: SeoPageContent[] = [
         answer:
           'Nej, nätägaren styrs av var anläggningen finns. Vid elhandelsbyte byter du bara elhandelsbolag.',
       },
+      { question: 'Kostar det att byta elbolag?', answer: 'Kontrollera ditt nuvarande avtal. Ett förtida avslut av ett bundet avtal kan medföra en kostnad. Bedöm den tillsammans med priset och avgifterna i det nya avtalet innan du byter.' },
+      { question: 'Hur lång tid tar leverantörsbytet?', answer: 'Det beror på nuvarande avtalsvillkor, önskat startdatum och om anläggningsuppgifterna kan verifieras. Utgå från det bekräftade startdatumet och kontakta kundservice om något är oklart.' },
     ],
     related: [
       { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till teckning.' },
       { label: 'Fullmakt', href: '/fullmakt', description: 'Läs om fullmakt och uppgifter.' },
       { label: 'Kundservice', href: '/kundservice', description: 'Få hjälp med frågor innan du byter.' },
+      { label: 'Uppsägningstid för elavtal', href: '/elavtal/uppsagningstid-elavtal', description: 'Kontrollera tidsfristen innan du väljer startdatum.' },
+      { label: 'Teckna elavtal vid flytt', href: '/elavtal/teckna-elavtal-vid-flytt', description: 'Se vad som skiljer ett byte från en flytt.' },
     ],
   },
   {
@@ -961,10 +1051,10 @@ export const guidePages: SeoPageContent[] = [
 
 const SEO_COMPETITOR_BATCH_MODIFIED = new Date('2026-06-24T00:00:00.000Z')
 
-type CompetitorSeoPageInput = Omit<SeoPageContent, 'lastModified'>
+type CompetitorSeoPageInput = SeoPageContent
 
 function competitorSeoPage(input: CompetitorSeoPageInput): SeoPageContent {
-  return { ...input, lastModified: SEO_COMPETITOR_BATCH_MODIFIED }
+  return { ...input, lastModified: input.lastModified ?? SEO_COMPETITOR_BATCH_MODIFIED }
 }
 
 function elavtalCompetitorPage(input: Omit<CompetitorSeoPageInput, 'primaryCta' | 'secondaryCta'>): SeoPageContent {
@@ -1082,16 +1172,12 @@ elavtalPages.push(
       h1: `Elavtal för ${page.label}`,
       lead: page.lead,
       intent: `För kunder som söker elavtal anpassat efter boendeformen ${page.label}.`,
-      sections: [
-        { title: 'Jämför utifrån din faktiska förbrukning', body: ['Använd tidigare faktura eller uppskattad årsförbrukning för att få en mer rättvis bild av kostnaden.', 'Gridex prisräknare hjälper dig se hur pris och avgifter påverkar totalen.'] },
-        { title: 'Tänk på elområde och avtalsform', body: ['Elpriset kan skilja sig mellan SE1–SE4. Rörligt, fast och kvartspris passar olika hushåll beroende på risknivå och möjlighet att styra förbrukningen.'] },
-      ],
+      lastModified: new Date('2026-10-07T00:00:00.000Z'),
+      sections: homeContent[page.slug].sections,
       bullets: page.bullets,
-      faq: [
-        { question: `Vilket elavtal passar för ${page.label}?`, answer: 'Det beror på årsförbrukning, elområde, uppvärmning och hur mycket förutsägbarhet du vill ha.' },
-        { question: 'Är månadsavgiften viktig?', answer: 'Ja, särskilt vid lägre förbrukning. Jämför alltid månadsavgift tillsammans med kWh-pris och påslag.' },
-      ],
+      faq: homeContent[page.slug].faq,
       related: [
+        ...homeContent[page.slug].related,
         { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal', description: 'Jämför avtalsformer och avgifter.' },
         { label: 'Elpris idag', href: '/elpriser/elpris-idag', description: 'Se aktuellt elpris per elområde.' },
         { label: 'Så läser du elfakturan', href: '/guider/sa-laser-du-din-elfaktura', description: 'Hitta förbrukning och avgifter.' },
@@ -1254,15 +1340,10 @@ guidePages.push(
       h1: page.h1,
       lead: page.lead,
       intent: `Guide för kunder som vill förstå ${page.label} innan de jämför eller tecknar elavtal.`,
-      sections: [
-        { title: 'Börja med helheten', body: ['Elkostnaden påverkas av både elavtal, förbrukning, elområde, moms och elnätsavgifter. En bra jämförelse börjar därför med totalen.', 'Använd guiden som stöd och kontrollera sedan avtalsinformationen innan du tecknar.'] },
-        { title: 'Gör jämförelsen konkret', body: ['Ta fram tidigare årsförbrukning, kontrollera elområde och titta på både rörliga och fasta avgifter. Då blir nästa steg mer tillförlitligt.'] },
-      ],
+      lastModified: new Date('2026-10-07T00:00:00.000Z'),
+      sections: guideContent[page.slug].sections,
       bullets: ['Förstå kostnaden innan du väljer.', 'Jämför pris och villkor tillsammans.', 'Använd rätt elområde och förbrukning.'],
-      faq: [
-        { question: `Varför är ${page.label} viktigt?`, answer: 'Det hjälper dig fatta ett bättre beslut och undvika att bara jämföra en enskild prisrad.' },
-        { question: 'Vad är nästa steg?', answer: 'Räkna på din förbrukning, jämför avtalsformer och kontrollera villkoren innan du tecknar.' },
-      ],
+      faq: guideContent[page.slug].faq,
       related: [
         { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal', description: 'Gå från guide till val.' },
         { label: 'Elpris idag', href: '/elpriser/elpris-idag', description: 'Se marknadsläget.' },
@@ -1322,6 +1403,7 @@ export const marketPages: SeoPageContent[] = [
     description: 'Lär dig vad ett elbolag gör, hur elhandel skiljer sig från elnät och vad du bör jämföra innan du väljer elleverantör.',
     eyebrow: 'Elbolag',
     h1: 'Elbolag i Sverige',
+    lastModified: new Date('2026-10-07T00:00:00.000Z'),
     lead: 'Ett elbolag säljer elhandelsavtal till kunder. Nätägaren ansvarar för elnätet. Den skillnaden är viktig när du jämför kostnader.',
     intent: 'Informativ sida för kunder som söker elbolag och vill förstå marknaden innan de väljer.',
     primaryCta: { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal' },
@@ -1448,17 +1530,18 @@ export const marketPages: SeoPageContent[] = [
   competitorSeoPage({
     slug: 'byta-fran-annat-elbolag',
     path: '/elbolag/byta-fran-annat-elbolag',
-    title: 'Byta från annat elbolag till Gridex',
-    description: 'Så byter du från ditt nuvarande elbolag till Gridex. Kontrollera bindningstid, startdatum och anläggningsuppgifter.',
+    title: 'Byta till Gridex – uppgifter och bekräftad avtalsstart',
+    description: 'Redo att byta till Gridex? Samla dina uppgifter, kontrollera nuvarande avtalsvillkor och följ bekräftelsen på när ditt nya elavtal startar.',
     eyebrow: 'Byta elbolag',
     h1: 'Byta från annat elbolag till Gridex',
     lead: 'När du byter till Gridex byter du elhandelsavtal. Nätägaren ligger normalt kvar eftersom elnätet styrs av adressen.',
     intent: 'För kunder som redan har elavtal och vill byta till Gridex.',
+    lastModified: new Date('2026-10-07T00:00:00.000Z'),
     primaryCta: { label: 'Starta teckning', href: '/teckna-avtal' },
     secondaryCta: { label: 'Läs om bytet', href: '/elavtal/byta-elbolag' },
     sections: [
-      { title: 'Kontrollera nuvarande avtal', body: ['Se om ditt nuvarande avtal har bindningstid eller uppsägningstid. Det påverkar lämpligt startdatum för nytt avtal.'] },
-      { title: 'Teckna online', body: ['Gridex samlar uppgifter digitalt och kontrollerar vad som behövs för att gå vidare med leverantörsbytet.'] },
+      { title: 'Förbered din teckning hos Gridex', body: ['Ha kontaktuppgifter, adress och uppskattad årsförbrukning till hands. Företag behöver även organisationsnummer och uppgifter om behörig företrädare. Kontrollera att uppgifterna avser rätt elanläggning och avtalspart.', 'Anläggnings-ID finns ofta på nätfakturan. Om uppgifter saknas kan Gridex behöva komplettera och verifiera dem innan avtalet kan starta. Kontrollera ditt nuvarande avtals tidigaste slutdatum före teckningen.'] },
+      { title: 'Från mottagen teckning till bekräftad start', body: ['Efter teckningen får du ett kvitto med den första tillgängliga statusen. Mottaget underlag innebär inte att elleveransen redan har startat. Uppgifter och önskat startdatum behöver hanteras innan starten är bekräftad.', 'Följ uppdateringar via e-post och, när din profil är kopplad, på Mina sidor. Om en bekräftelse saknas, kontrollera skräpposten och kontakta kundservice. Gridex kan behöva kompletteringar som påverkar startdatumet.'] },
     ],
     bullets: ['Kontrollera bindningstid.', 'Välj startdatum med omsorg.', 'Gridex återkommer om något saknas.'],
     faq: [
@@ -1469,9 +1552,24 @@ export const marketPages: SeoPageContent[] = [
       { label: 'Byta elbolag', href: '/elavtal/byta-elbolag', description: 'Mer om processen.' },
       { label: 'Uppsägningstid', href: '/elavtal/uppsagningstid-elavtal', description: 'Kontrollera datum.' },
       { label: 'Bindningstid', href: '/elavtal/bindningstid-elavtal', description: 'Förstå villkoren.' },
+      { label: 'Allmänna villkor', href: '/allmanna-villkor', description: 'Kontrollera villkoren för teckning och avtalsstart.' },
+      { label: 'Kundservice', href: '/kundservice', description: 'Få hjälp med din teckning eller bekräftelse.' },
     ],
   }),
 ]
+
+// Assemble editorial page content once. OPS-backed offers, prices and legal documents
+// are rendered by their existing flows and are not part of this content registry.
+const editorialContent = { ...contractContent, ...priceContent, ...locationContent }
+for (const pages of [elavtalPages, elprisPages]) {
+  for (let index = 0; index < pages.length; index += 1) {
+    const page = pages[index]
+    const editorial = editorialContent[page.path]
+    if (editorial) {
+      pages[index] = { ...page, ...editorial, lastModified: new Date('2026-10-07T00:00:00.000Z') }
+    }
+  }
+}
 
 export const glossaryRoutePaths = ['/ordlista', ...glossaryPages.map((page) => page.path)]
 export const marketRoutePaths = marketPages.map((page) => page.path)
