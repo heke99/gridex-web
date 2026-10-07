@@ -1,3 +1,4 @@
+import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 import EventLink from '@/components/customer/EventLink'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerDocument } from '@/lib/customerPortal/types'
@@ -10,14 +11,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
-}
+
 
 function statusLabel(status: string | null | undefined) {
   switch (status) {

@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return
-      if (session?.user) setRecoveryStatus('ready')
+      setRecoveryStatus(session?.user ? 'ready' : 'expired')
     })
 
     return () => {
@@ -105,6 +105,8 @@ export default function ResetPasswordPage() {
       window.setTimeout(() => {
         router.push('/login?status=password-updated')
       }, 1200)
+    } catch {
+      setError('Kunde inte uppdatera lösenordet just nu. Försök igen senare.')
     } finally {
       setLoading(false)
     }

@@ -1,3 +1,5 @@
+import { formatCustomerCurrency as formatCurrency } from '@/lib/customerPortal/display'
+import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 import EventLink from '@/components/customer/EventLink'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerInvoice } from '@/lib/customerPortal/types'
@@ -9,22 +11,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
-}
 
-function formatCurrency(value: number | null, currencyCode: string) {
-  if (value === null) return 'Inväntas'
-  return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: currencyCode || 'SEK',
-  }).format(value)
-}
+
+
 
 function invoiceTitle(invoiceNumber: string | null, externalRef: string | null) {
   return invoiceNumber || externalRef || 'Faktura'

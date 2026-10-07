@@ -1,3 +1,4 @@
+import { formatCustomerDate } from '@/lib/customerPortal/display'
 import Link from 'next/link'
 import OverviewCards from '@/components/dashboard/OverviewCards'
 import CustomerPortalSelfService from '@/components/customer/CustomerPortalSelfService'
@@ -13,15 +14,7 @@ import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusH
 
 export const dynamic = 'force-dynamic'
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
 
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(value))
-}
 
 function customerStatusText(status: string | null | undefined) {
   // Delegate to the central status helper for customer-friendly text
@@ -133,7 +126,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="mt-1 text-xs text-white/55">
                     {customerStatusText(latestContract.status)} • Start:{' '}
-                    {formatDate(latestContract.starts_at)}
+                    {formatCustomerDate(latestContract.starts_at, true)}
                   </div>
                 </div>
 
@@ -157,7 +150,7 @@ export default async function DashboardPage() {
               <div className="text-sm font-medium">{latestNotification.title}</div>
               <div className="mt-2 text-sm text-white/70">{latestNotification.body}</div>
               <div className="mt-3 text-[11px] text-white/45">
-                {formatDate(latestNotification.created_at)}
+                {formatCustomerDate(latestNotification.created_at, true)}
               </div>
             </div>
           ) : (

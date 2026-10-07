@@ -25,10 +25,9 @@ export default function EventLink({
       client_operation_id: `customer-event:${crypto.randomUUID()}`,
     })
 
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/web/customer/events', new Blob([payload], { type: 'application/json' }))
-      return
-    }
+    try {
+      if (navigator.sendBeacon?.('/api/web/customer/events', new Blob([payload], { type: 'application/json' }))) return
+    } catch { /* Navigation must work even when beacon is unavailable. */ }
 
     void fetch('/api/web/customer/events', {
       method: 'POST',
@@ -42,7 +41,7 @@ export default function EventLink({
     <a
       {...props}
       onClick={(event) => {
-        logEvent()
+        try { logEvent() } catch { /* Event logging must not interrupt navigation. */ }
         onClick?.(event)
       }}
     >

@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { readCustomerWriteResponse, pendingCustomerWrite as pendingResult } from '@/lib/customerPortal/writeResponse'
 import { stockholmCalendarDate } from '@/lib/website/businessDate'
 
 type Props = {
@@ -33,23 +35,7 @@ async function postJson(path: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
     credentials: 'same-origin',
   })
-  const payload = await response.json().catch(() => ({})) as {
-    queued?: boolean
-    data?: { ok?: boolean; data?: { facility_updated?: boolean }; status?: string | null; synced?: { access_granted?: boolean } | null }
-    error?: string | { message?: string }
-  }
-  if (!response.ok) {
-    const message = typeof payload.error === 'string'
-      ? payload.error
-      : payload.error?.message || 'Åtgärden kunde inte genomföras.'
-    throw new Error(message)
-  }
-  if (['rejected', 'failed', 'declined'].includes(payload.data?.status ?? '')) throw new Error('Åtgärden kunde inte slutföras. Kontrollera uppgifterna och försök igen.')
-  return payload
-}
-
-function pendingResult(result: Awaited<ReturnType<typeof postJson>>): boolean {
-  return Boolean(result.queued || result.data?.ok === false || ['pending_review', 'processing', 'pending', 'queued'].includes(result.data?.status ?? '') || result.data?.data?.facility_updated === false || result.data?.synced?.access_granted === false)
+  return readCustomerWriteResponse(response)
 }
 
 function Result({ state }: { state: ActionState }) {
@@ -62,6 +48,8 @@ function Result({ state }: { state: ActionState }) {
 }
 
 export default function CustomerPortalSelfService({ site, latestUnreadNotificationId, userId }: Props) {
+  const router = useRouter()
+  const [readNotificationId, setReadNotificationId] = useState<string | null>(null)
   const intents = useRef(new Map<string, string>())
   async function submitIntent(path: string, prefix: string, body: Record<string, unknown>) {
     const bytes = new TextEncoder().encode(JSON.stringify(body))
@@ -77,6 +65,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     if (!pendingResult(result)) {
       intents.current.delete(key)
       if (userId) { try { sessionStorage.removeItem(key) } catch {} }
+      router.refresh()
     }
     return result
   }
@@ -159,9 +148,11 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
       const result = await submitIntent('/api/web/customer/notifications/read', 'notification-read', {
         notification_ids: [latestUnreadNotificationId],
       })
+      const pending = pendingResult(result)
+      if (!pending) setReadNotificationId(latestUnreadNotificationId)
       setNotificationState({
-        kind: 'success',
-        message: result.queued ? 'Meddelandet markeras som läst.' : 'Meddelandet är markerat som läst.',
+        kind: pending ? 'pending' : 'success',
+        message: pending ? 'Meddelandet markeras som läst.' : 'Meddelandet är markerat som läst.',
       })
     } catch (error) {
       setNotificationState({ kind: 'error', message: error instanceof Error ? error.message : 'Meddelandet kunde inte uppdateras.' })
@@ -223,7 +214,7 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
         </form>
       </div>
 
-      {latestUnreadNotificationId ? (
+      {latestUnreadNotificationId && latestUnreadNotificationId !== readNotificationId ? (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
           <span className="text-sm text-white/70">Senaste meddelandet är oläst.</span>
           <button type="button" onClick={markLatestRead} disabled={notificationState.kind === 'working'} className="rounded-full border border-white/15 px-3 py-1.5 text-xs disabled:opacity-50">

@@ -1,23 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { readCustomerWriteResponse, pendingCustomerWrite } from '@/lib/customerPortal/writeResponse'
 
 export default function DashboardError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const [state, setState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+  const operation = useRef<string | null>(null)
+  const [state, setState] = useState<'idle' | 'working' | 'pending' | 'done' | 'error'>('idle')
 
   async function repairLink() {
     setState('working')
-    const response = await fetch('/api/web/customer-portal/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_operation_id: `portal-repair:${crypto.randomUUID()}` }),
-    }).catch(() => null)
-    if (!response?.ok) {
+    try {
+      operation.current ??= `portal-repair:${crypto.randomUUID()}`
+      const response = await fetch('/api/web/customer-portal/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_operation_id: operation.current }),
+      })
+      const result = await readCustomerWriteResponse(response)
+      if (pendingCustomerWrite(result)) {
+        setState('pending')
+        return
+      }
+      operation.current = null
+      setState('done')
+      reset()
+    } catch {
       setState('error')
-      return
     }
-    setState('done')
-    reset()
   }
 
   return (
@@ -30,6 +38,7 @@ export default function DashboardError({ reset }: { error: Error & { digest?: st
         </button>
         <button type="button" onClick={reset} className="rounded-full border border-white/15 px-4 py-2 text-sm">Försök igen</button>
       </div>
+      {state === 'pending' ? <p className="mt-3 text-sm text-amber-200">Kopplingen inväntar behandling. Tillgången är ännu inte bekräftad.</p> : null}
       {state === 'done' ? <p className="mt-3 text-sm text-emerald-200">Kopplingen är uppdaterad.</p> : null}
       {state === 'error' ? <p className="mt-3 text-sm text-rose-200">Kopplingen kunde inte uppdateras automatiskt. Kundservice kan hjälpa dig.</p> : null}
     </div>

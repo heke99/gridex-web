@@ -54,13 +54,14 @@
     "typecheck:support": "tsc --noEmit --pretty false -p apps/support/tsconfig.json",
     "test:customer-support": "node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/customer-support-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs",
     "test:portal-existing-auth": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs",
-    "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs",
+    "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs && npm run test:web-independent",
     "release:audit:manifest": "node scripts/check-audit-release.mjs --snapshot",
     "release:audit:check": "node scripts/check-audit-release.mjs",
     "test:audit:browser": "node tests/run-audit-browser.mjs",
     "perf:web": "node scripts/measure-web-performance.mjs",
     "test:performance": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/performance-snapshot.test.mjs",
-    "test:performance:browser": "node tests/run-performance-browser.mjs"
+    "test:performance:browser": "node tests/run-performance-browser.mjs",
+    "test:web-independent": "node tests/web-independent-regression.mjs && node tests/web-customer-readiness.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",

@@ -1,0 +1,50 @@
+{
+  "scope": "Gridex Web only; real TS/TSX handlers, mocked React hooks and external boundaries; no network, email or database writes",
+  "results": [
+    {
+      "finding": "W01",
+      "input": {
+        "status": 500,
+        "code": "unexpected_failure",
+        "message": "Error sending recovery email to user"
+      },
+      "status": "reproduced",
+      "observed": "sent=true, error=null despite provider error"
+    },
+    {
+      "finding": "W01",
+      "input": {
+        "status": 429,
+        "code": "over_email_send_rate_limit",
+        "message": "Email rate limit exceeded for this user"
+      },
+      "status": "reproduced",
+      "observed": "sent=true, error=null despite provider error"
+    },
+    {
+      "finding": "W02",
+      "status": "reproduced",
+      "observed": "HTTP 200, last 19 characters discarded before RPC"
+    },
+    {
+      "finding": "W03",
+      "status": "reproduced",
+      "observed": "Identical support inquiry receives different operation IDs after remount following unknown outcome"
+    },
+    {
+      "finding": "W04",
+      "status": "reproduced",
+      "observed": "Invalid JSON response produces success and deletes persistent operation ID"
+    },
+    {
+      "finding": "W05",
+      "status": "reproduced",
+      "observed": "SIGNED_OUT/null leaves reset form ready"
+    },
+    {
+      "finding": "W06",
+      "status": "reproduced",
+      "observed": "Successful notification read retains unread label and read button"
+    }
+  ]
+}

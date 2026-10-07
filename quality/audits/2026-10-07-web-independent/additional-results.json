@@ -1,0 +1,25 @@
+{
+  "scope": "Real Web handlers/render functions with mocked external boundaries; TZ=UTC; no network or production writes",
+  "results": [
+    {
+      "finding": "W07",
+      "observed": "Profile password action strips leading and trailing spaces before Auth update"
+    },
+    {
+      "finding": "W08",
+      "observed": "Already-decoded opaque reference is decoded again; literal percent throws outside error boundary"
+    },
+    {
+      "finding": "W09",
+      "observed": "UTC runtime renders 2026-10-07 for timestamp whose Swedish calendar date is 2026-10-08"
+    },
+    {
+      "finding": "W10",
+      "observed": "One malformed document date rejects whole page render instead of showing a fallback"
+    },
+    {
+      "finding": "W11",
+      "observed": "sendBeacon=false silently loses event; fetch fallback never runs"
+    }
+  ]
+}
