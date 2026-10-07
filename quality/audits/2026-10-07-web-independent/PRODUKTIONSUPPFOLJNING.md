@@ -52,3 +52,28 @@ Två åtgärder avvisades av auto-review och försöktes inte igen via andra vä
 Supabase-verktyget registrerar tillämpningar med sin egen ledger-version. Stäm därför av ledgerns namn, version och faktisk SQL-effekt mot källfilerna före en senare CLI-release. Återspela inte oktoberhistoriken eller kör db push blint. Denna uppföljning ändrar inte äldre ledgerposter.
 
 Säkerhetsadvisorn visar förväntade varningar för authenticated SECURITY DEFINER-sessionwrappers; dessa funktioner binder anropet till auth.uid och avvisar saknad session. Befintliga service-tabeller med RLS utan klientpolicy ska inte få breda klientpolicyer enbart för att ta bort en advisory. [Advisorns vägledning](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+
+## Slutförande av Web-delarna efter avgränsningen
+
+Uppföljt efter användarens uttryckliga instruktion att enbart arbeta med Gridex Web. Prismigreringen och den tidigare breda readiness-migreringen ska inte tillämpas inom detta arbete. De är inte längre efterfrågade godkännanden eller blockerare för Webs egna kundmejl.
+
+Genomfört:
+
+- Ny `gridex_web_customer_readiness_v1()` är installerad med SECURITY INVOKER och endast service_role-exekvering. Den granskar Webs sex kund-/kötabeller, RLS, tabell-/kolumnskrivrättigheter och sju Auth/support-RPC:er. Den läser inga kundposter och har inga beroenden till prisadministration, personalutskick eller upstreamscheman.
+- Produktion gav `ready=true`, `missing=[]`, `schema_revision=2026-10-07-web-customer-1`.
+- `scripts/check-audit-release.mjs` använder den nya kontrollen. Personalapplikationens databasvariabler och dess supportkrav ingår inte längre. Evidenskraven avser Webs egna checkout/support/Auth-flöden. Obestyrkt Auth-/inkorgsleverans sätts fortfarande inte till godkänd.
+- `WEBSITE_RESULT_TOKEN_SECRET` har konfigurerats som en separat Sensitive-variabel i Webs produktionsprojekt. Dess värde visas eller lagras inte i Git. Den aktiveras i nästföljande deployment.
+
+Verifiering av supportens faktiska sändväg:
+
+1. Ett tekniskt ärende skickades genom `https://gridex.se/api/support/public` till Resends dokumenterade testadress `delivered+gridex-web-support@resend.dev`.
+2. API svarade 200, `ok=true`, `confirmation_status=queued`.
+3. Ordinarie schemalagd Web-worker skickade kvittensen på första försöket, utan manuellt anrop till mejl-API:t.
+4. Databasposten visar `status=sent`, `attempt_count=1`, `last_error_code=null`, provider-ID `01a115ce-71c3-751d-8ac4-66b97f6e8a26`.
+5. Resend returnerade `Status: delivered`, skapad `2026-10-07 10:00:18.868000+00`, korrekt avsändare `Gridex Kundservice <support@gridex.se>` och korrekt kvittenstext.
+
+Detta är Resends simulerade leveranstest och bevis för Web API → databas → schemalagd worker → provider med produktionskonfigurationen. Det är inte ett bevis på placering i en verklig kunds inkorg. [Resends dokumenterade testadresser](https://resend.com/docs/dashboard/emails/send-test-emails).
+
+Supabase Auths publika settings bekräftar aktiverad e-postinloggning och att signup kräver mejlbekräftelse (`mailer_autoconfirm=false`). De publika settings visar inte SMTP-hemligheter, aktiva malltexter eller skyddet mot läckta lösenord. Det tillgängliga Supabase-verktyget har inga operationer för Auth-konfiguration, och CLI har ingen befintlig Management API-inloggning. Därför har SMTP/mallar/läckta-lösenord-inställningen inte ändrats eller påståtts verifierad. Den kvarvarande delen behöver hanteras via behörig åtkomst till Web-projektets Auth-konfiguration.
+
+Regressionstesterna för den nya readiness-funktionen verifierar saknade funktioner, avstängd RLS, kolumnskrivgrants, klientåtkomst till server-RPC och nekad åtkomst till själva kontrollen. Testmiljön innehåller inga pris- eller personalfunktioner.

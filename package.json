@@ -61,7 +61,7 @@
     "perf:web": "node scripts/measure-web-performance.mjs",
     "test:performance": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/performance-snapshot.test.mjs",
     "test:performance:browser": "node tests/run-performance-browser.mjs",
-    "test:web-independent": "node tests/web-independent-regression.mjs"
+    "test:web-independent": "node tests/web-independent-regression.mjs && node tests/web-customer-readiness.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",
