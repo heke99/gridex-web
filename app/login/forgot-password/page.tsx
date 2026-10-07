@@ -12,8 +12,10 @@ function looksLikeEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
-function shouldHideAccountExistence(message: string): boolean {
-  return /not found|user|account|registered|exists/i.test(message)
+function shouldHideAccountExistence(error: { code?: string; status?: number }): boolean {
+  // Only explicit account-disclosure errors are neutral successes.
+  if (error.status === 429 || (error.status ?? 0) >= 500) return false
+  return error.code === 'user_not_found'
 }
 
 function humanizeAuthError(error: { code?: string; status?: number; message: string }): string {
@@ -63,7 +65,7 @@ export default function ForgotPasswordPage() {
         redirectTo,
       })
 
-      if (error && !shouldHideAccountExistence(error.message)) {
+      if (error && !shouldHideAccountExistence(error)) {
         setError(humanizeAuthError(error))
         return
       }

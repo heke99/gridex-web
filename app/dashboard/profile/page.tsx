@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PASSWORD_REQUIREMENT_TEXT } from '@/lib/auth/passwordPolicy'
 import { randomUUID } from 'node:crypto'
 import Link from 'next/link'
 import { getCustomerProfile, getPortalSession } from '@/lib/customerPortal/service'
@@ -110,7 +111,7 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
 
           <form action={updateCustomerPasswordAction} className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6">
             <h2 className="text-lg font-semibold">Lösenord</h2>
-            <p className="text-sm text-white/60">Välj ett lösenord med minst 8 tecken.</p>
+            <p className="text-sm text-white/60">{PASSWORD_REQUIREMENT_TEXT}</p>
             <div className="space-y-2">
               <label htmlFor="password" className="text-xs text-white/60">Nytt lösenord</label>
               <input id="password" name="password" type="password" autoComplete="new-password" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />

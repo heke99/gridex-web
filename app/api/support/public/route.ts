@@ -19,7 +19,7 @@ type PublicSupportPayload = {
 }
 
 function asText(value: unknown, maxLength: number): string {
-  return String(value ?? '').trim().slice(0, maxLength)
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
 }
 
 function isEmail(value: string): boolean {
@@ -38,8 +38,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    const limits = { name: 120, email: 320, phone: 60, category: 80, subject: 180, message: 4000 } as const
+    for (const [field, max] of Object.entries(limits)) {
+      const value = body[field as keyof typeof limits]
+      if (value !== undefined && (typeof value !== 'string' || value.trim().length > max)) {
+        return NextResponse.json({ error: `Fältet ${field} får innehålla högst ${max} tecken.` }, { status: 400 })
+      }
+    }
     const name = asText(body.name, 120)
-    const email = asText(body.email, 180).toLowerCase()
+    const email = asText(body.email, 320).toLowerCase()
     const phone = asText(body.phone, 60)
     const category = asText(body.category, 80) || 'general'
     const subject = asText(body.subject, 180)

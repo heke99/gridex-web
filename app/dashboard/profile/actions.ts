@@ -122,7 +122,8 @@ export async function updateCustomerEmailAction(formData: FormData) {
 
 export async function updateCustomerPasswordAction(formData: FormData) {
   const supabase = await createSupabaseServerActionClient()
-  const password = pick(formData, 'password')
+  const rawPassword = formData.get('password')
+  const password = typeof rawPassword === 'string' ? rawPassword : ''
 
   const passwordError = validatePassword(password)
   if (passwordError) {

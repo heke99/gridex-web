@@ -10,7 +10,7 @@ type RouteContext = {
 
 function text(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  const trimmed = decodeURIComponent(value).trim()
+  const trimmed = value.trim()
   return trimmed ? trimmed : null
 }
 

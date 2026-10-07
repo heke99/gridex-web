@@ -35,15 +35,22 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
     }
 
     const fingerprint = JSON.stringify(payload)
-    if (intent.current?.fingerprint !== fingerprint) intent.current = { fingerprint, id: crypto.randomUUID() }
     try {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fingerprint))
+      const storageKey = `gridex:public-support:${Array.from(new Uint8Array(digest), v => v.toString(16).padStart(2, '0')).join('')}`
+      if (intent.current?.fingerprint !== fingerprint) {
+        let previous: string | null = null
+        try { previous = sessionStorage.getItem(storageKey) } catch {}
+        intent.current = { fingerprint, id: previous && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(previous) ? previous : crypto.randomUUID() }
+      }
+      try { sessionStorage.setItem(storageKey, intent.current.id) } catch {}
       const response = await fetch('/api/support/public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, client_operation_id: intent.current.id }),
       })
 
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
+      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; ticketId?: string; confirmation_status?: string; error?: string }
 
       if (!response.ok) {
         setError(data.error ?? 'Vi kunde inte skicka ärendet just nu. Försök igen om en stund eller mejla kundservice.')
@@ -51,6 +58,10 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
         return
       }
 
+      if (data.ok !== true || typeof data.ticketId !== 'string' || !data.ticketId || data.confirmation_status !== 'queued') {
+        throw new Error('Unconfirmed support receipt')
+      }
+      try { sessionStorage.removeItem(storageKey) } catch {}
       intent.current = null
       form.reset()
       setState('sent')
@@ -86,9 +97,9 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
           ) : (
             <form onSubmit={submitSupportTicket} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Namn" name="name" required autoComplete="name" />
-                <Field label="E-post" name="email" type="email" required autoComplete="email" />
-                <Field label="Telefon" name="phone" autoComplete="tel" />
+                <Field label="Namn" name="name" maxLength={120} required autoComplete="name" />
+                <Field label="E-post" name="email" type="email" maxLength={320} required autoComplete="email" />
+                <Field label="Telefon" name="phone" maxLength={60} autoComplete="tel" />
                 <div>
                   <label htmlFor="category" className="text-sm font-medium text-white/80">Kategori</label>
                   <select
@@ -105,7 +116,7 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
                 </div>
               </div>
 
-              <Field label="Ämne" name="subject" required />
+              <Field label="Ämne" name="subject" maxLength={180} required />
 
               <div>
                 <label htmlFor="message" className="text-sm font-medium text-white/80">
@@ -116,11 +127,12 @@ export default function KundserviceClient({ faqItems }: { faqItems: FaqItem[] })
                   name="message"
                   required
                   rows={6}
+                  maxLength={4000}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
                   placeholder="Beskriv vad du behöver hjälp med. Ange gärna kundnummer, anläggnings-ID eller fakturanummer om du har det."
                 />
                 <p className="mt-2 text-xs leading-5 text-white/45">
-                  Vi använder uppgifterna för att hantera ditt ärende och återkoppla till dig. Skicka inte känsliga uppgifter som inte behövs för ärendet.
+                  Högst 4 000 tecken. Vi använder uppgifterna för att hantera ditt ärende och återkoppla till dig. Skicka inte känsliga uppgifter som inte behövs för ärendet.
                 </p>
               </div>
 
@@ -207,12 +219,14 @@ function Field({
   type = 'text',
   required = false,
   autoComplete,
+  maxLength,
 }: {
   label: string
   name: string
   type?: string
   required?: boolean
   autoComplete?: string
+  maxLength?: number
 }) {
   return (
     <div>
@@ -225,6 +239,7 @@ function Field({
         type={type}
         required={required}
         autoComplete={autoComplete}
+        maxLength={maxLength}
         className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30"
       />
     </div>
