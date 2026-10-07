@@ -1,0 +1,3456 @@
+{
+  "checked": 28,
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "title": "Elavtal med tydliga priser och avgifter | Gridex",
+      "canonical": "https://gridex.se/",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad behöver jag för att teckna elavtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Du behöver adress, uppskattad förbrukning, kontaktuppgifter och personnummer. Företag anger även organisationsnummer samt uppgifter om den behöriga personen som skriver under."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Hur vet jag vilket elområde jag tillhör?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Teckningsflödet fastställer automatiskt elområdet SE1–SE4 från adressen. Om adressen inte kan verifieras får du kontrollera den eller kontakta kundservice."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Vad ingår i priset och vad fakturerar nätägaren separat?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Teckningsflödet visar de publicerade komponenterna för elhandelsavtalet och beräknad moms. Elnätsavgift och nätabonnemang faktureras normalt separat av elnätsföretaget."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Vad är skillnaden mellan fast pris, månadspris, timpris, kvartspris och portföljpris?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fast pris låser avtalets kWh-pris under den angivna perioden. Månadspris följer den publicerade månadsmodellen. Tim- och kvartspris prissätter användningen enligt respektive marknadsintervall. Portföljpris följer den avtalade portföljmodellen och dess låsta avgifter och andelar. De exakta avtalskomponenterna visas innan du tecknar."
+              }
+            }
+          ]
+        }
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elbolag",
+      "status": 200,
+      "title": "Elbolag i Sverige – förstå skillnaden innan du byter | Gridex",
+      "canonical": "https://gridex.se/elbolag",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Kan jag välja nätägare?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej, nätägaren styrs av var anläggningen ligger. Du kan däremot välja elhandelsbolag."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Vad ska jag jämföra mellan elbolag?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Jämför pris, påslag, fasta avgifter, villkor och hur tydlig kundprocessen är."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elbolag",
+                "item": "https://gridex.se/elbolag"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elbolag i Sverige",
+                "item": "https://gridex.se/elbolag"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elbolag i Sverige – förstå skillnaden innan du byter",
+            "description": "Lär dig vad ett elbolag gör, hur elhandel skiljer sig från elnät och vad du bör jämföra innan du väljer elleverantör.",
+            "url": "https://gridex.se/elbolag",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/ordlista",
+      "status": 200,
+      "title": "Ordlista för elavtal och elpris – Gridex | Gridex",
+      "canonical": "https://gridex.se/ordlista",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Ordlista",
+                "item": "https://gridex.se/ordlista"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Ordlista för elavtal och elpris",
+            "description": "Förstå vanliga begrepp inom elavtal, elpris och faktura.",
+            "url": "https://gridex.se/ordlista",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "Gridex ordlista",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "kWh – kilowattimme",
+                "url": "https://gridex.se/ordlista/kwh"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Spotpris",
+                "url": "https://gridex.se/ordlista/spotpris"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Påslag på elpris",
+                "url": "https://gridex.se/ordlista/paslag"
+              },
+              {
+                "@type": "ListItem",
+                "position": 4,
+                "name": "Elnätsavgift",
+                "url": "https://gridex.se/ordlista/elnatsavgift"
+              },
+              {
+                "@type": "ListItem",
+                "position": 5,
+                "name": "Elhandelspris",
+                "url": "https://gridex.se/ordlista/elhandelspris"
+              },
+              {
+                "@type": "ListItem",
+                "position": 6,
+                "name": "Elområde",
+                "url": "https://gridex.se/ordlista/elomrade"
+              },
+              {
+                "@type": "ListItem",
+                "position": 7,
+                "name": "Elförbrukning",
+                "url": "https://gridex.se/ordlista/forbrukning"
+              },
+              {
+                "@type": "ListItem",
+                "position": 8,
+                "name": "Anläggnings-ID",
+                "url": "https://gridex.se/ordlista/anlaggnings-id"
+              },
+              {
+                "@type": "ListItem",
+                "position": 9,
+                "name": "Mätpunkt",
+                "url": "https://gridex.se/ordlista/matpunkt"
+              },
+              {
+                "@type": "ListItem",
+                "position": 10,
+                "name": "Nord Pool",
+                "url": "https://gridex.se/ordlista/nord-pool"
+              },
+              {
+                "@type": "ListItem",
+                "position": 11,
+                "name": "Bindningstid",
+                "url": "https://gridex.se/ordlista/bindningstid"
+              },
+              {
+                "@type": "ListItem",
+                "position": 12,
+                "name": "Uppsägningstid",
+                "url": "https://gridex.se/ordlista/uppsagningstid"
+              }
+            ]
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/jamfor-elavtal",
+      "status": 200,
+      "title": "Jämför elavtal – se pris, påslag och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/jamfor-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad ska jag jämföra när jag väljer elavtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Jämför avtalsform, bindningstid, påslag, månadsavgift, moms och hur priset beräknas. Titta på totalen för din förbrukning, inte bara på ett enskilt öre/kWh-tal."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Är det billigaste elavtalet alltid bäst?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inte alltid. Ett avtal kan vara billigt i ett scenario men mindre bra om din förbrukning, ditt elområde eller marknaden ändras. Välj efter både pris, risk och tydlighet."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Jämför Gridex alla elbolag?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Gridex prisräknare visar Gridex egna publicerade avtalsalternativ. Du kan använda prisraderna som underlag när du jämför med ett annat bolags erbjudande."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Ingår elnätsavgiften i jämförelsen?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej, elhandelsavtalet och elnätsavtalet är olika avtal. Kontrollera nätavgifter och hur energiskatt redovisas hos din nätägare när du bedömer hela elkostnaden."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Jämför elavtal utan att missa avgifterna",
+                "item": "https://gridex.se/elavtal/jamfor-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Jämför elavtal – se pris, påslag och avgifter",
+            "description": "Jämför elavtal utifrån årsförbrukning, påslag, månadsavgift och villkor. Förstå avtalsformerna och räkna på Gridex egna elavtal.",
+            "url": "https://gridex.se/elavtal/jamfor-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Jämför elavtal utan att missa avgifterna",
+            "description": "Jämför elavtal utifrån årsförbrukning, påslag, månadsavgift och villkor. Förstå avtalsformerna och räkna på Gridex egna elavtal.",
+            "url": "https://gridex.se/elavtal/jamfor-elavtal",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": [
+        {
+          "href": "#avsnitt-1",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-2",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-3",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-4",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-5",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-6",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "path": "/elavtal/billigt-elavtal",
+      "status": 200,
+      "title": "Billig el – jämför elavtal och total kostnad | Gridex",
+      "canonical": "https://gridex.se/elavtal/billigt-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Hur får jag billig el?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Du kan påverka kostnaden genom att välja rätt avtalsform, ha koll på din förbrukning, jämföra påslag och undvika otydliga avgifter."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Vad är viktigast för ett billigt elavtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Totalpriset är viktigast: marknadspris, påslag, fasta avgifter och moms tillsammans. Ett lågt spotpris hjälper inte om övriga avgifter är höga."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Billig el börjar med att jämföra hela kostnaden",
+                "item": "https://gridex.se/elavtal/billigt-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Billig el – jämför elavtal och total kostnad",
+            "description": "Vill du ha billig el? Jämför elavtalets påslag, månadsavgift och total kostnad. Se räkneexempel och beräkna priset för Gridex elavtal.",
+            "url": "https://gridex.se/elavtal/billigt-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Billig el börjar med att jämföra hela kostnaden",
+            "description": "Vill du ha billig el? Jämför elavtalets påslag, månadsavgift och total kostnad. Se räkneexempel och beräkna priset för Gridex elavtal.",
+            "url": "https://gridex.se/elavtal/billigt-elavtal",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": [
+        {
+          "href": "#avsnitt-1",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-2",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-3",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-4",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "path": "/elavtal/byta-elbolag",
+      "status": 200,
+      "title": "Byta elbolag – så fungerar leverantörsbytet | Gridex",
+      "canonical": "https://gridex.se/elavtal/byta-elbolag",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Kan jag byta elbolag när som helst?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på ditt nuvarande avtal. Kontrollera bindningstid och uppsägningstid innan du byter."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Byter jag även nätägare?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej, nätägaren styrs av var anläggningen finns. Vid elhandelsbyte byter du bara elhandelsbolag."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Kostar det att byta elbolag?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera ditt nuvarande avtal. Ett förtida avslut av ett bundet avtal kan medföra en kostnad. Bedöm den tillsammans med priset och avgifterna i det nya avtalet innan du byter."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Hur lång tid tar leverantörsbytet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på nuvarande avtalsvillkor, önskat startdatum och om anläggningsuppgifterna kan verifieras. Utgå från det bekräftade startdatumet och kontakta kundservice om något är oklart."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Byta elbolag ska vara enkelt och tydligt",
+                "item": "https://gridex.se/elavtal/byta-elbolag"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Byta elbolag – så fungerar leverantörsbytet",
+            "description": "Så byter du elbolag till Gridex. Se vad du behöver, hur startdatum fungerar och vad som händer med elnätsavtalet.",
+            "url": "https://gridex.se/elavtal/byta-elbolag",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Byta elbolag ska vara enkelt och tydligt",
+            "description": "Så byter du elbolag till Gridex. Se vad du behöver, hur startdatum fungerar och vad som händer med elnätsavtalet.",
+            "url": "https://gridex.se/elavtal/byta-elbolag",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": [
+        {
+          "href": "#avsnitt-1",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-2",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-3",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-4",
+          "exists": true
+        },
+        {
+          "href": "#avsnitt-5",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "path": "/elavtal/villa",
+      "status": 200,
+      "title": "Elavtal för villa – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/villa",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Är kvartspris bäst för en villa med värmepump?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på när värmepumpen använder el och hur mycket som kan flyttas utan att påverka komforten. Jämför förbrukningsprofil och avtalsvillkor; det finns ingen garanti för att kvartspris blir billigast."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Ska jag jämföra med sommarens eller hela årets förbrukning?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Använd ett helt år om det finns historik. En sommarmånad kan ge en missvisande bild när uppvärmningen använder mycket el på vintern."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för villa",
+                "item": "https://gridex.se/elavtal/villa"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för villa – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för villa. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/villa",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för villa",
+            "description": "Se vad du bör tänka på när du väljer elavtal för villa. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/villa",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/hus",
+      "status": 200,
+      "title": "Elavtal för hus – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/hus",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Hur uppskattar jag förbrukningen i ett nytt hus?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Utgå från tillgänglig årshistorik och justera för uppvärmning, hushållets storlek och eventuell elbil. Saknas historik, jämför flera rimliga förbrukningsscenarier."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Följer säljarens elavtal med huset?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Utgå inte från det. Kontrollera vilka egna avtal du behöver för elhandel och elnät och vilket datum de ska börja gälla."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för hus",
+                "item": "https://gridex.se/elavtal/hus"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för hus – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för hus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/hus",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för hus",
+            "description": "Se vad du bör tänka på när du väljer elavtal för hus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/hus",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/lagenhet",
+      "status": 200,
+      "title": "Elavtal för lägenhet – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/lagenhet",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad är viktigast när jag jämför elavtal för lägenhet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Vid låg förbrukning kan månadsavgiften få stor betydelse. Jämför ändå hela elhandelskostnaden och kontrollera vad som ingår i boendet."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Kan jag välja elbolag om elen debiteras av föreningen?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på hur mätning och abonnemang är ordnade. Vid gemensamt abonnemang väljer föreningen normalt elhandlare för anslutningen."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för lägenhet",
+                "item": "https://gridex.se/elavtal/lagenhet"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för lägenhet – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för lägenhet. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/lagenhet",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för lägenhet",
+            "description": "Se vad du bör tänka på när du väljer elavtal för lägenhet. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/lagenhet",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/bostadsratt",
+      "status": 200,
+      "title": "Elavtal för bostadsrätt – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/bostadsratt",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad betyder individuell mätning och debitering av el?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det innebär att användningen mäts för varje bostad och debiteras individuellt inom en gemensam lösning. Fråga föreningen hur abonnemang och avtal är ordnade."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Kan styrelsen teckna avtal för gemensamma utrymmen?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Föreningen kan ha egna elhandelsavtal för sina anslutningar. Det är ett annat underlag än ett hushålls eget avtal."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för bostadsrätt",
+                "item": "https://gridex.se/elavtal/bostadsratt"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för bostadsrätt – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för bostadsrätt. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/bostadsratt",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för bostadsrätt",
+            "description": "Se vad du bör tänka på när du väljer elavtal för bostadsrätt. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/bostadsratt",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/hyresratt",
+      "status": 200,
+      "title": "Elavtal för hyresrätt – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/hyresratt",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Måste jag teckna elavtal för en hyresrätt?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på hyresavtalet och hur fastighetens el är ordnad. Fråga hyresvärden om du ska teckna egna avtal för elhandel och elnät."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Vilket datum ska elavtalet börja gälla?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Utgå från när du får tillträde och ansvarar för bostadens el. Kontrollera datumet med hyresvärden och följ bekräftelsen för avtalsstart."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för hyresrätt",
+                "item": "https://gridex.se/elavtal/hyresratt"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för hyresrätt – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för hyresrätt. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/hyresratt",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för hyresrätt",
+            "description": "Se vad du bör tänka på när du väljer elavtal för hyresrätt. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/hyresratt",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/radhus",
+      "status": 200,
+      "title": "Elavtal för radhus – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/radhus",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Går gemensam laddning på mitt eget elavtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Det beror på anslutningen och hur området debiterar laddningen. Kontrollera om laddningen ligger på din egen mätare eller ett gemensamt abonnemang."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Har alla radhus samma behov av elavtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Uppvärmning, anslutning och hushållets användning skiljer sig. Jämför med din egen förbrukning."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för radhus",
+                "item": "https://gridex.se/elavtal/radhus"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för radhus – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för radhus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/radhus",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för radhus",
+            "description": "Se vad du bör tänka på när du väljer elavtal för radhus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/radhus",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/fritidshus",
+      "status": 200,
+      "title": "Elavtal för fritidshus – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/fritidshus",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Betalar jag månadsavgift när fritidshuset är tomt?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera avtalet. En fast månadsavgift tas normalt även när förbrukningen är låg eller noll."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Kan jag använda gamla mätvärden om jag börjar vistas där på vintern?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "De ger ett underlag, men behöver justeras när användning och uppvärmning ändras. Jämför flera scenarier för årsförbrukningen."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för fritidshus",
+                "item": "https://gridex.se/elavtal/fritidshus"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för fritidshus – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för fritidshus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/fritidshus",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för fritidshus",
+            "description": "Se vad du bör tänka på när du väljer elavtal för fritidshus. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/fritidshus",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/elavtal/sommarstuga",
+      "status": 200,
+      "title": "Elavtal för sommarstuga – jämför rätt pris och avgifter | Gridex",
+      "canonical": "https://gridex.se/elavtal/sommarstuga",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Är ett lågt påslag viktigast för en sommarstuga?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Vid mycket låg förbrukning kan fasta avgifter ha större betydelse. Räkna på hela året och inkludera kostnader som ligger utanför elhandeln."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Kan jag stänga elen under vintern?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera först byggnadens behov av frostskydd och ventilation samt nätägarens villkor för frånkoppling och återanslutning. Det är inte samma sak som ett vanligt leverantörsbyte."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Elavtal",
+                "item": "https://gridex.se/elavtal"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Elavtal för sommarstuga",
+                "item": "https://gridex.se/elavtal/sommarstuga"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Elavtal för sommarstuga – jämför rätt pris och avgifter",
+            "description": "Se vad du bör tänka på när du väljer elavtal för sommarstuga. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/sommarstuga",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Elavtal för sommarstuga",
+            "description": "Se vad du bör tänka på när du väljer elavtal för sommarstuga. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.",
+            "url": "https://gridex.se/elavtal/sommarstuga",
+            "provider": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Sweden"
+            },
+            "serviceType": "Elhandelsavtal"
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/spotpris-vs-rorligt-elpris",
+      "status": 200,
+      "title": "Spotpris vs rörligt elpris – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/spotpris-vs-rorligt-elpris",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Är ett lågt spotpris samma sak som en låg elräkning?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Förbrukning, avtalsmodell, påslag, fasta avgifter och nätkostnader påverkar totalen. Ett spotpris för en enskild kvart beskriver inte en hel månads kostnad."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Spotpris vs rörligt elpris",
+                "item": "https://gridex.se/guider/spotpris-vs-rorligt-elpris"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Spotpris vs rörligt elpris – guide från Gridex",
+            "description": "Gridex förklarar spotpris och rörligt elpris med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/spotpris-vs-rorligt-elpris",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Spotpris vs rörligt elpris",
+            "description": "Gridex förklarar spotpris och rörligt elpris med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/spotpris-vs-rorligt-elpris",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/spotpris-vs-rorligt-elpris"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/innan-du-tecknar-elavtal",
+      "status": 200,
+      "title": "Innan du tecknar elavtal – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/innan-du-tecknar-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad ska jag ha framför mig när jag jämför ett erbjudande?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Årsförbrukning, elområde, prisdelar och aktuella avtalsvillkor. Kontrollera också hur ett nytt startdatum passar ihop med det befintliga avtalet."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Innan du tecknar elavtal",
+                "item": "https://gridex.se/guider/innan-du-tecknar-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Innan du tecknar elavtal – guide från Gridex",
+            "description": "Gridex förklarar checklista före elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/innan-du-tecknar-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Innan du tecknar elavtal",
+            "description": "Gridex förklarar checklista före elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/innan-du-tecknar-elavtal",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/innan-du-tecknar-elavtal"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/kontrollera-elavtal",
+      "status": 200,
+      "title": "Kontrollera ditt elavtal – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/kontrollera-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Vad gör jag om fakturan inte stämmer med avtalet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera period, förbrukning, moms och rabattens giltighet. Kontakta elhandlaren med faktura och avtalsbekräftelse om avvikelsen kvarstår."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Kontrollera ditt elavtal",
+                "item": "https://gridex.se/guider/kontrollera-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Kontrollera ditt elavtal – guide från Gridex",
+            "description": "Gridex förklarar kontrollera elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/kontrollera-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Kontrollera ditt elavtal",
+            "description": "Gridex förklarar kontrollera elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/kontrollera-elavtal",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/kontrollera-elavtal"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/rabatter-pa-elavtal",
+      "status": 200,
+      "title": "Rabatter på elavtal – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/rabatter-pa-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Är ett avtal med rabatt alltid billigare?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Rabattens värde måste vägas mot ordinarie pris, andra avgifter och villkor under hela jämförelseperioden."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Rabatter på elavtal",
+                "item": "https://gridex.se/guider/rabatter-pa-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Rabatter på elavtal – guide från Gridex",
+            "description": "Gridex förklarar rabatter på elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/rabatter-pa-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Rabatter på elavtal",
+            "description": "Gridex förklarar rabatter på elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/rabatter-pa-elavtal",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/rabatter-pa-elavtal"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/bindningstid-och-uppsagningstid",
+      "status": 200,
+      "title": "Bindningstid och uppsägningstid – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/bindningstid-och-uppsagningstid",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Kan ett avtal sakna bindningstid men ha uppsägningstid?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Ja. Begreppen avser olika saker. Kontrollera den uppsägningstid och de avslutsvillkor som står i just ditt avtal."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Bindningstid och uppsägningstid",
+                "item": "https://gridex.se/guider/bindningstid-och-uppsagningstid"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Bindningstid och uppsägningstid – guide från Gridex",
+            "description": "Gridex förklarar bindningstid och uppsägningstid med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/bindningstid-och-uppsagningstid",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Bindningstid och uppsägningstid",
+            "description": "Gridex förklarar bindningstid och uppsägningstid med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/bindningstid-och-uppsagningstid",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/bindningstid-och-uppsagningstid"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/anvisat-elavtal",
+      "status": 200,
+      "title": "Anvisat elavtal – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/anvisat-elavtal",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Hur vet jag om jag har ett anvisat avtal?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera avtalsbekräftelsen och fakturan eller fråga din elhandlare vilken avtalsform som gäller och vilka avslutsvillkor du har."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Anvisat elavtal",
+                "item": "https://gridex.se/guider/anvisat-elavtal"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Anvisat elavtal – guide från Gridex",
+            "description": "Gridex förklarar anvisat elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/anvisat-elavtal",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Anvisat elavtal",
+            "description": "Gridex förklarar anvisat elavtal med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/anvisat-elavtal",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/anvisat-elavtal"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/undvik-dolda-avgifter",
+      "status": 200,
+      "title": "Undvik dolda avgifter på elavtal – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/undvik-dolda-avgifter",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Hur jämför jag avtal med olika avgifter?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Räkna om fasta avgifter och påslag till kostnad för samma förbrukning och period. Kontrollera därefter energiprisets beräkning och övriga villkor."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Undvik dolda avgifter på elavtal",
+                "item": "https://gridex.se/guider/undvik-dolda-avgifter"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Undvik dolda avgifter på elavtal – guide från Gridex",
+            "description": "Gridex förklarar dolda avgifter med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/undvik-dolda-avgifter",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Undvik dolda avgifter på elavtal",
+            "description": "Gridex förklarar dolda avgifter med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/undvik-dolda-avgifter",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/undvik-dolda-avgifter"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/energieffektivisera-hemmet",
+      "status": 200,
+      "title": "Energieffektivisera hemmet – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/energieffektivisera-hemmet",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Sparar varje borttagen kWh hela fakturans genomsnittspris?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inte alltid. Fasta avgifter kan ligga kvar. Beräkna besparingen med de kostnader som faktiskt påverkas av lägre förbrukning."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Energieffektivisera hemmet",
+                "item": "https://gridex.se/guider/energieffektivisera-hemmet"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Energieffektivisera hemmet – guide från Gridex",
+            "description": "Gridex förklarar energieffektivisering med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/energieffektivisera-hemmet",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Energieffektivisera hemmet",
+            "description": "Gridex förklarar energieffektivisering med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/energieffektivisera-hemmet",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/energieffektivisera-hemmet"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/anvanda-mindre-el",
+      "status": 200,
+      "title": "Använda mindre el – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/anvanda-mindre-el",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Använder jag mindre el om jag flyttar laddningen till natten?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inte nödvändigtvis. Samma laddning kan använda lika många kWh men kosta annorlunda beroende på avtalsform och priset när elen används."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Använda mindre el",
+                "item": "https://gridex.se/guider/anvanda-mindre-el"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Använda mindre el – guide från Gridex",
+            "description": "Gridex förklarar minska elanvändning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/anvanda-mindre-el",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Använda mindre el",
+            "description": "Gridex förklarar minska elanvändning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/anvanda-mindre-el",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/anvanda-mindre-el"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/styr-din-elanvandning",
+      "status": 200,
+      "title": "Styr din elanvändning – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/styr-din-elanvandning",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Ska jag starta alla apparater när spotpriset är lågt?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kontrollera först avtalsform, nätets effekttariff och utrustningens behov. Samtidiga stora laster kan ge andra kostnader även om energipriset är lågt."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Styr din elanvändning",
+                "item": "https://gridex.se/guider/styr-din-elanvandning"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Styr din elanvändning – guide från Gridex",
+            "description": "Gridex förklarar styra elanvändning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/styr-din-elanvandning",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Styr din elanvändning",
+            "description": "Gridex förklarar styra elanvändning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/styr-din-elanvandning",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/styr-din-elanvandning"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/ladda-elbil-billigare",
+      "status": 200,
+      "title": "Ladda elbil billigare – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/ladda-elbil-billigare",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Varför skiljer laddboxens kWh från batteriets ökning?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Laddning har förluster och bilen kan använda energi till andra funktioner. Använd energi från nätet när du beräknar vad hemmaladdningen kostar."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Ladda elbil billigare",
+                "item": "https://gridex.se/guider/ladda-elbil-billigare"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Ladda elbil billigare – guide från Gridex",
+            "description": "Gridex förklarar ladda elbil billigare med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/ladda-elbil-billigare",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Ladda elbil billigare",
+            "description": "Gridex förklarar ladda elbil billigare med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/ladda-elbil-billigare",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/ladda-elbil-billigare"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/varmepump-elforbrukning",
+      "status": 200,
+      "title": "Värmepump och elförbrukning – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/varmepump-elforbrukning",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Kan jag uppskatta förbrukningen från värmepumpens effekt?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Effekt visar inte ensam årsförbrukningen. Drifttid, temperatur, effektivitet och tillsatsvärme påverkar. Använd uppmätt historik när den finns."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Värmepump och elförbrukning",
+                "item": "https://gridex.se/guider/varmepump-elforbrukning"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Värmepump och elförbrukning – guide från Gridex",
+            "description": "Gridex förklarar värmepump elförbrukning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/varmepump-elforbrukning",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Värmepump och elförbrukning",
+            "description": "Gridex förklarar värmepump elförbrukning med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/varmepump-elforbrukning",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/varmepump-elforbrukning"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/vad-drar-mest-el-i-hemmet",
+      "status": 200,
+      "title": "Vad drar mest el i hemmet? – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/vad-drar-mest-el-i-hemmet",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Drar den apparat med flest watt alltid mest el?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Energi beror på både effekt och drifttid. Räkna kWh eller mät faktisk användning över en relevant period."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Vad drar mest el i hemmet?",
+                "item": "https://gridex.se/guider/vad-drar-mest-el-i-hemmet"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Vad drar mest el i hemmet? – guide från Gridex",
+            "description": "Gridex förklarar vad drar mest el med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/vad-drar-mest-el-i-hemmet",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Vad drar mest el i hemmet?",
+            "description": "Gridex förklarar vad drar mest el med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/vad-drar-mest-el-i-hemmet",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/vad-drar-mest-el-i-hemmet"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    },
+    {
+      "path": "/guider/sanka-elkostnaden",
+      "status": 200,
+      "title": "Sänka elkostnaden – guide från Gridex | Gridex",
+      "canonical": "https://gridex.se/guider/sanka-elkostnaden",
+      "ogImage": "https://gridex.se/brand/gridex-og.png",
+      "h1Count": 1,
+      "schemas": [
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "email": "support@gridex.se",
+            "logo": "https://gridex.se/brand/gridex-logo.png",
+            "image": "https://gridex.se/brand/gridex-logo.png",
+            "identifier": "559416-7149",
+            "legalName": "Gridex AB",
+            "vatID": "SE559416714901",
+            "areaServed": "SE"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Gridex AB",
+            "url": "https://gridex.se",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ],
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Måste jag byta elbolag för att sänka kostnaden?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nej. Lägre förbrukning eller bättre användningstid kan också påverka kostnaden. Ett avtalsbyte bör bedömas utifrån totalpris och villkor."
+              }
+            }
+          ]
+        },
+        [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Start",
+                "item": "https://gridex.se"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guider",
+                "item": "https://gridex.se/guider"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Sänka elkostnaden",
+                "item": "https://gridex.se/guider/sanka-elkostnaden"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Sänka elkostnaden – guide från Gridex",
+            "description": "Gridex förklarar sänka elkostnaden med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/sanka-elkostnaden",
+            "inLanguage": "sv-SE",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "Sänka elkostnaden",
+            "description": "Gridex förklarar sänka elkostnaden med fokus på elpris, avtal, förbrukning och tydliga beslut för svenska elkunder.",
+            "url": "https://gridex.se/guider/sanka-elkostnaden",
+            "inLanguage": "sv-SE",
+            "dateModified": "2026-10-07",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "https://gridex.se/guider/sanka-elkostnaden"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Gridex AB",
+              "url": "https://gridex.se",
+              "logo": "https://gridex.se/brand/gridex-logo.png"
+            }
+          }
+        ]
+      ],
+      "toc": []
+    }
+  ]
+}

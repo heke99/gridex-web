@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import SeoLandingPage from '@/components/seo/SeoLandingPage'
-import { DEFAULT_LAST_MODIFIED, findPageByPath, marketPages } from '@/lib/seo/content'
+import { findPageByPath, marketPages } from '@/lib/seo/content'
 
 export default function MarketSeoPage({
   path,
@@ -15,8 +15,6 @@ export default function MarketSeoPage({
 }) {
   const page = findPageByPath(marketPages, path)
   if (!page) notFound()
-
-  page.lastModified = page.lastModified ?? DEFAULT_LAST_MODIFIED
 
   return (
     <SeoLandingPage
