@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { SeoPageContent } from '@/lib/seo/content'
-import { SITE_URL, DEFAULT_LAST_MODIFIED } from '@/lib/seo/content'
+import { SITE_URL } from '@/lib/seo/content'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
 import JsonLd, {
   articleJsonLd,
@@ -24,9 +24,7 @@ export default function SeoLandingPage({
   schemaType = 'webpage',
 }: Props) {
   const absoluteUrl = `${SITE_URL}${page.path}`
-  const modified = (page.lastModified ?? DEFAULT_LAST_MODIFIED)
-    .toISOString()
-    .slice(0, 10)
+  const modified = page.lastModified?.toISOString().slice(0, 10)
   const jsonLd = [
     breadcrumbJsonLd([
       { name: 'Start', url: SITE_URL },
@@ -71,6 +69,12 @@ export default function SeoLandingPage({
           <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-300">
             {page.lead}
           </p>
+          {schemaType === 'article' ? (
+            <p className="mt-4 text-sm text-gray-400">
+              Av Gridex AB
+              {modified ? <> · Uppdaterad <time dateTime={modified}>{modified}</time></> : null}
+            </p>
+          ) : null}
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
               href={page.primaryCta.href}
@@ -100,8 +104,18 @@ export default function SeoLandingPage({
 
       <section className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          {page.sections.map((section) => (
-            <article key={section.title} className="rounded-3xl border border-white/10 bg-gray-950 p-7 md:p-8">
+          {page.sections.length > 2 ? (
+            <nav aria-label="På den här sidan" className="rounded-3xl border border-white/10 bg-gray-950 p-7">
+              <h2 className="text-lg font-semibold text-white">På den här sidan</h2>
+              <ul className="mt-3 space-y-2">
+                {page.sections.map((section, index) => (
+                  <li key={section.title}><a href={`#avsnitt-${index + 1}`} className="text-sm text-cyan-200 underline underline-offset-4">{section.title}</a></li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
+          {page.sections.map((section, index) => (
+            <article id={`avsnitt-${index + 1}`} key={section.title} className="scroll-mt-24 rounded-3xl border border-white/10 bg-gray-950 p-7 md:p-8">
               <h2 className="text-2xl font-bold text-white">{section.title}</h2>
               <div className="mt-4 space-y-4 text-sm leading-7 text-gray-300 md:text-base">
                 {section.body.map((paragraph) => (
@@ -115,7 +129,7 @@ export default function SeoLandingPage({
         <aside className="space-y-5">
           <div className="rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-6">
             <h2 className="text-lg font-bold text-white">Rätt nästa steg</h2>
-            <p className="mt-3 text-sm leading-6 text-cyan-50/80">{page.intent}</p>
+            <p className="mt-3 text-sm leading-6 text-cyan-50/80">Se Gridex elavtal, kontrollera villkoren och räkna på din kostnad innan du tecknar.</p>
             <Link
               href={page.primaryCta.href}
               className="mt-5 block rounded-xl bg-cyan-500 px-4 py-3 text-center text-sm font-bold text-black transition hover:bg-cyan-400"

@@ -11,7 +11,7 @@ import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
 import JsonLd, { breadcrumbJsonLd, webPageJsonLd } from '@/components/seo/JsonLd'
 import Breadcrumbs from '@/components/seo/Breadcrumbs'
-import { SITE_URL } from '@/lib/seo/content'
+import { SITE_OG_IMAGE, SITE_URL } from '@/lib/seo/content'
 
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
 
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'Se elpris idag och föregående månads genomsnittliga spotpris per svenskt elområde. Jämför SE1, SE2, SE3 och SE4 innan du väljer elavtal.',
   alternates: { canonical: `${SITE_URL}/elpriser/elpris-idag` },
   openGraph: {
+    images: [SITE_OG_IMAGE],
     title: 'Elpris idag – SE1, SE2, SE3 och SE4',
     description:
       'Aktuellt elpris och föregående månads spotpris per elområde. Se marknadspris innan påslag, avgifter och moms.',

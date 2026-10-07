@@ -1,0 +1,56 @@
+{
+  "exact_section_body_duplicates": [
+    [
+      "/elavtal/avtalsformer",
+      "/elavtal/mixpris",
+      "/elavtal/portfoljpris",
+      "/elavtal/anvisningspris",
+      "/elavtal/tillsvidarepris",
+      "/elavtal/vintersakrat-elpris",
+      "/elavtal/el-till-inkopspris",
+      "/elavtal/byta-elleverantor",
+      "/elavtal/flytta-elavtal",
+      "/elavtal/teckna-elavtal-vid-flytt",
+      "/elavtal/uppsagningstid-elavtal",
+      "/elavtal/bindningstid-elavtal"
+    ],
+    [
+      "/elpriser/se1",
+      "/elpriser/se2",
+      "/elpriser/se3",
+      "/elpriser/se4"
+    ],
+    [
+      "/elpriser/skane",
+      "/elpriser/landskrona",
+      "/elpriser/stockholm",
+      "/elpriser/goteborg",
+      "/elpriser/malmo"
+    ],
+    [
+      "/elpriser/morgondagens-elpris",
+      "/elpriser/negativt-elpris",
+      "/elpriser/nord-pool",
+      "/elpriser/elborsen",
+      "/elpriser/elpris-per-kwh",
+      "/elpriser/elpris-med-moms",
+      "/elpriser/elpris-utan-moms",
+      "/elpriser/elpris-vinter",
+      "/elpriser/elpris-sommar"
+    ],
+    [
+      "/elpriser/helsingborg",
+      "/elpriser/lund",
+      "/elpriser/trelleborg",
+      "/elpriser/kristianstad"
+    ],
+    [
+      "/elpriser/uppsala",
+      "/elpriser/vasteras",
+      "/elpriser/orebro",
+      "/elpriser/linkoping",
+      "/elpriser/jonkoping"
+    ]
+  ],
+  "unresolved_related_links": []
+}

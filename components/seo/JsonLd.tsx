@@ -59,11 +59,13 @@ export function articleJsonLd({
   description,
   url,
   dateModified,
+  datePublished,
 }: {
   headline: string
   description: string
   url: string
-  dateModified: string
+  dateModified?: string
+  datePublished?: string
 }) {
   return {
     '@context': 'https://schema.org',
@@ -72,11 +74,13 @@ export function articleJsonLd({
     description,
     url,
     inLanguage: 'sv-SE',
-    datePublished: '2026-06-24',
-    dateModified,
+    ...(datePublished ? { datePublished } : {}),
+    ...(dateModified ? { dateModified } : {}),
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Organization',
       name: 'Gridex AB',
+      url: 'https://gridex.se',
     },
     publisher: {
       '@type': 'Organization',

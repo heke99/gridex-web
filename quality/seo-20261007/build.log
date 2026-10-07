@@ -1,0 +1,215 @@
+
+> gridex-web@0.1.0 build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 28ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1274ms
+  Running TypeScript ...
+  Finished TypeScript in 3.5s ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/151) ...
+[gridex-public-contracts] fast snapshot read unavailable {
+  message: 'Supabase service client is not configured for this runtime request.'
+}
+[gridex-public-contracts] integration context unavailable; trying API-key-bound snapshot {
+  status: 503,
+  code: 'ops_not_configured',
+  message: 'Gridex API är inte konfigurerat.'
+}
+[gridex-public-contracts] persistent snapshot database read failed {
+  message: 'Supabase service client is not configured for this runtime request.'
+}
+[website home] public contracts load failed {
+  status: 503,
+  code: 'ops_not_configured',
+  request_id: null,
+  correlation_id: null,
+  retryable: false,
+  details: {
+    code: 'ops_not_configured',
+    reason: 'GRIDEX_API_KEY',
+    retryable: false
+  },
+  message: 'Gridex API är inte konfigurerat.'
+}
+  Generating static pages using 4 workers (37/151)
+  Generating static pages using 4 workers (75/151)
+  Generating static pages using 4 workers (113/151)
+✓ Generating static pages using 4 workers (151/151) in 3.3s
+  Finalizing page optimization ...
+
+Route (app)                                                Revalidate  Expire
+┌ ○ /                                                             15s      1y
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/access
+├ ƒ /admin/account
+├ ƒ /admin/agreements
+├ ƒ /admin/agreements/[id]
+├ ƒ /admin/audit/agreements
+├ ƒ /admin/audit/pricing
+├ ƒ /admin/audit/pricing/export
+├ ƒ /admin/billing
+├ ƒ /admin/calculator
+├ ƒ /admin/contracts
+├ ƒ /admin/customer-spec
+├ ƒ /admin/customers
+├ ƒ /admin/customers/[id]
+├ ƒ /admin/incidents
+├ ƒ /admin/integrations
+├ ƒ /admin/monthly-spot
+├ ƒ /admin/portfolio-pricing
+├ ƒ /admin/postal-areas
+├ ƒ /admin/pricing
+├ ƒ /admin/pricing/[slug]
+├ ƒ /admin/rbac
+├ ƒ /admin/rbac/assignments
+├ ƒ /admin/rbac/permissions
+├ ƒ /admin/rbac/roles
+├ ƒ /admin/settlements
+├ ƒ /admin/spot-settings
+├ ƒ /admin/support-tickets
+├ ƒ /admin/users
+├ ○ /aktuella-elpriser
+├ ○ /allmanna-villkor
+├ ○ /angerblankett
+├ ○ /angerratt
+├ ƒ /api/admin/agreements/export
+├ ƒ /api/admin/cis/actions
+├ ƒ /api/admin/customer-portal/outbox
+├ ƒ /api/agreements/[id]/pdf
+├ ƒ /api/auth/public-session
+├ ƒ /api/bankid/collect
+├ ƒ /api/bankid/initiate
+├ ƒ /api/checkout/applications/[applicationId]
+├ ƒ /api/checkout/context
+├ ƒ /api/checkout/energy-area/resolve
+├ ƒ /api/checkout/legal-bundle
+├ ƒ /api/checkout/quote
+├ ƒ /api/checkout/quote/validate
+├ ƒ /api/checkout/switch-status
+├ ƒ /api/elpris/day
+├ ƒ /api/elpris/live
+├ ƒ /api/elpris/monthly
+├ ƒ /api/integrations/cis/status
+├ ƒ /api/integrations/invoices
+├ ƒ /api/integrations/spot-prices/import
+├ ƒ /api/internal/customer-portal/notifications/reconcile
+├ ƒ /api/internal/customer-portal/onboarding/process
+├ ƒ /api/internal/customer-portal/outbox/process
+├ ƒ /api/internal/integrations/gridex/health
+├ ƒ /api/internal/support/receipts/process
+├ ƒ /api/internal/webhooks/retry
+├ ƒ /api/legal/accept
+├ ƒ /api/me/permissions
+├ ƒ /api/ops/webhooks
+├ ƒ /api/signup/orders
+├ ƒ /api/support/public
+├ ƒ /api/web/contracts
+├ ƒ /api/web/customer-portal/sync
+├ ƒ /api/web/customer/contracts
+├ ƒ /api/web/customer/documents
+├ ƒ /api/web/customer/events
+├ ƒ /api/web/customer/invoices
+├ ƒ /api/web/customer/invoices/[id]
+├ ƒ /api/web/customer/legal-acceptances
+├ ƒ /api/web/customer/me
+├ ƒ /api/web/customer/metering-values
+├ ƒ /api/web/customer/move-out
+├ ƒ /api/web/customer/notifications
+├ ƒ /api/web/customer/notifications/read
+├ ƒ /api/web/customer/portal-bundle
+├ ƒ /api/web/customer/powers-of-attorney
+├ ƒ /api/web/customer/profile-update
+├ ƒ /api/web/customer/sites
+├ ƒ /api/web/customer/switch-status
+├ ƒ /api/web/customer/sync
+├ ƒ /api/web/market-price/current
+├ ƒ /api/web/portfolio-prices
+├ ƒ /auth/confirm
+├ ƒ /auth/portal-claim
+├ ○ /avtal
+├ ○ /cookies
+├ ƒ /dashboard
+├ ƒ /dashboard/approvals
+├ ƒ /dashboard/contracts
+├ ƒ /dashboard/documents
+├ ƒ /dashboard/invoices
+├ ƒ /dashboard/profile
+├ ƒ /dashboard/support
+├ ƒ /elavtal
+├   /elavtal/[slug]
+│ ├ ● /elavtal/jamfor-elavtal
+│ ├ ● /elavtal/billigt-elavtal
+│ ├ ● /elavtal/billigaste-elavtalet
+│ └ ● [+27 more paths]
+├ ○ /elbolag
+├ ○ /elbolag/byta-fran-annat-elbolag
+├ ○ /elbolag/gridex-el-ab
+├ ○ /elhandlare
+├ ○ /elpris-se1
+├ ○ /elpris-se2
+├ ○ /elpris-se3
+├ ○ /elpris-se4
+├ ○ /elpriser
+├   /elpriser/[slug]
+│ ├ ● /elpriser/elpris-nu
+│ ├ ● /elpriser/spotpris-el
+│ ├ ● /elpriser/historiska-elpriser
+│ └ ● [+30 more paths]
+├ ○ /elpriser/dagens-elpris
+├ ƒ /elpriser/elpris-idag
+├ ○ /foretagsvillkor
+├ ○ /fullmakt
+├ ○ /gdpr
+├ ○ /guider
+├   /guider/[slug]
+│ ├ ● /guider/vad-paverkar-elpriset
+│ ├ ● /guider/elomraden-se1-se2-se3-se4
+│ ├ ● /guider/fast-eller-rorligt-elpris
+│ └ ● [+20 more paths]
+├ ○ /icon.svg
+├ ○ /integritet
+├ ○ /integritetspolicy
+├ ○ /kundservice
+├ ƒ /login
+├ ○ /login/bankid
+├ ○ /login/forgot-password
+├ ○ /login/register
+├ ○ /login/reset-password
+├ ƒ /logout
+├ ƒ /mina-sidor
+├ ○ /natagare
+├ ○ /natagare/elnatsavgift
+├ ○ /ordlista
+├   /ordlista/[slug]
+│ ├ ● /ordlista/kwh
+│ ├ ● /ordlista/spotpris
+│ ├ ● /ordlista/paslag
+│ └ ● [+9 more paths]
+├ ○ /prisvillkor
+├ ○ /register
+├ ○ /robots.txt
+├ ƒ /sign/email/[token]
+├ ○ /sign/pending
+├ ○ /sign/success
+├ ○ /sitemap
+├ ○ /sitemap.xml
+├ ○ /teckna
+├ ƒ /teckna-avtal
+├ ƒ /teckna-avtal/tack
+├ ƒ /teckna/tack
+├ ○ /vanliga-fragor
+├ ○ /villkor
+├ ƒ /webhooks/contracts.publication.changed
+└ ƒ /webhooks/gridex
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand

@@ -12,11 +12,20 @@ import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from
 export const revalidate = 15;
 
 export const metadata: Metadata = {
-  title: "Elpris idag – Billiga & datadrivna elavtal",
+  title: "Elavtal med tydliga priser och avgifter | Gridex",
   description:
-    "Jämför elpris idag per elområde (SE1–SE4). Gridex visar tydliga elavtal med full transparens kring pris, påslag och månadsavgift.",
+    "Se Gridex elavtal och räkna på din elkostnad i SE1–SE4. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar elavtal online.",
   alternates: {
     canonical: "https://gridex.se",
+  },
+  openGraph: {
+    title: "Elavtal med tydliga priser och avgifter | Gridex",
+    description: "Se Gridex elavtal och räkna på din elkostnad. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar.",
+    url: "https://gridex.se",
+    type: "website",
+    locale: "sv_SE",
+    siteName: "Gridex AB",
+    images: [{ url: "https://gridex.se/brand/gridex-og.png", width: 1200, height: 630, alt: "Gridex elleverantör" }],
   },
 };
 

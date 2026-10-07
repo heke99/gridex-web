@@ -1,0 +1,27 @@
+[
+  {
+    "path": "/teckna-avtal/tack",
+    "status": 200,
+    "tags": [
+      {
+        "name": "robots",
+        "content": "noindex, nofollow"
+      },
+      {
+        "rel": "canonical",
+        "href": "https://gridex.se"
+      }
+    ],
+    "x_robots": null
+  },
+  {
+    "path": "/en-sida-som-inte-finns-gridex-seo-audit",
+    "status": 404
+  },
+  {
+    "path": "/robots.txt",
+    "status": 200,
+    "tags": [],
+    "x_robots": null
+  }
+]
