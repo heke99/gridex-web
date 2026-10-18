@@ -1,6 +1,7 @@
 // app/admin/users/page.tsx
 
 import { requireAdminPageAccess } from '@/lib/admin/guards'
+import { supabaseService } from '@/lib/supabase/service'
 import { createUser, resetUserPassword, setUserActive, setUserRole, type AdminUserRole } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +15,7 @@ type AuthUserRow = {
 type UserProfileRow = {
   id: string
   full_name: string | null
-  is_active?: boolean | null
+  user_status: string | null
   created_at: string
 }
 
@@ -35,8 +36,8 @@ function fmt(iso: string) {
 }
 
 export default async function AdminUsersPage() {
-  const ctx = await requireAdminPageAccess({ anyOf: ['admin.access'] })
-  const supabase = ctx.supabase
+  await requireAdminPageAccess({ anyOf: ['admin.access'] })
+  const supabase = supabaseService
 
   // 1️⃣ Auth users via RPC (admin_list_auth_users)
   const { data: rawUsers, error: authErr } = await supabase.rpc('admin_list_auth_users')
@@ -47,7 +48,7 @@ export default async function AdminUsersPage() {
   // 2️⃣ Profiles
   const { data: profilesRaw, error: profileErr } = await supabase
     .from('user_profiles')
-    .select('id,full_name,is_active,created_at')
+    .select('id,full_name,user_status,created_at')
 
   if (profileErr) throw new Error(profileErr.message)
   const profiles: UserProfileRow[] = (profilesRaw ?? []) as UserProfileRow[]
@@ -56,6 +57,7 @@ export default async function AdminUsersPage() {
   const { data: rolesRaw, error: roleErr } = await supabase
     .from('user_roles')
     .select('user_id,role,is_active')
+    .is('company_id', null)
 
   if (roleErr) throw new Error(roleErr.message)
   const userRoles: UserRoleRow[] = (rolesRaw ?? []) as UserRoleRow[]
@@ -162,7 +164,7 @@ export default async function AdminUsersPage() {
             <tbody>
               {authUsers.map((u) => {
                 const profile = profileMap.get(u.id)
-                const isActive = profile?.is_active !== false
+                const isActive = profile?.user_status !== 'inactive'
                 const roles = (roleMap.get(u.id) ?? []).filter((r) => r.is_active !== false)
 
                 return (
