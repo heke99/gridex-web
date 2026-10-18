@@ -2,7 +2,7 @@
   "date": "2026-10-18",
   "repository": "gridex-web",
   "base_commit": "1fc033ef791b5bb62ac6672576e64c83727c17d0",
-  "source_status": "local_changes_not_deployed",
+  "source_status": "Marketing commit 1f60c9f and support commit 54fa120 deployed to their respective production projects; live evidence attached",
   "runtime": "Node.js 22.23.3",
   "story": "Only verified Gridex staff with a current tenant identity binding and authoritative API permissions can use support123; customer and staff requests stay on their respective API surfaces.",
   "instructions_applied": [
@@ -21,8 +21,8 @@
       "independent Staff onboarding"
     ],
     "data": "Canonical business records stay in OPS; tenant Auth, invitation delivery and anonymous contact intake stay in gridex-prod",
-    "production_inspection": "Read-only metadata, RLS policies, function definitions, security advisors and Vercel project/environment names; no customer records or secret values retrieved",
-    "excluded": "Unrelated repositories, OPS application changes, new accounts, real emails, production writes and a full database performance audit"
+    "production_inspection": "Metadata, scoped RLS/function/advisor review, named account readiness and explicit staff binding/configuration; no canonical customer record or existing secret value retrieved",
+    "excluded": "Unrelated application changes, new Auth accounts, password/membership changes, real emails or electricity agreements, and full database performance qualification"
   },
   "api": {
     "guide": "https://app.gridex.se/developers/customer-portal-api",
@@ -41,7 +41,8 @@
       "staff_identity_onboarding_json": 16384,
       "staff_attachment": 4194304
     },
-    "retries": "Reads honor integer and HTTP-date Retry-After without shortening the requested wait; waits outside the deadline return the API error. Writes are submitted once with the original idempotency key."
+    "retries": "Reads honor integer and HTTP-date Retry-After without shortening the requested wait; waits outside the deadline return the API error. Writes are submitted once with the original idempotency key.",
+    "latest_live_recheck": "PASS again after the subsequent OPS release: all three published SHA-256 specifications remain exact"
   },
   "verified_fixes": [
     {
@@ -152,6 +153,14 @@
       "command": "Customer/Staff attachment and incoming request boundary tests",
       "status": "PASS",
       "scope": "Raw bytes, verified customer identity, type/size/origin limits, stable write keys, no write retries, download SHA-256 and early streamed overflow cancellation"
+    },
+    {
+      "command": "Live public support123 browser and TLS/HTML checks",
+      "status": "PASS",
+      "checks": 3,
+      "application_errors": 0,
+      "scope": "Real custom-domain login, mobile layout and anonymous denial on four protected routes; no staff login or business write",
+      "evidence": "quality/support123/live-evidence-20261018/browser-verification.json"
     }
   ],
   "database_inspection": {
@@ -169,25 +178,26 @@
     "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
   },
   "live_blockers": [
-    "Real staff password login has not been performed; no password or user session was requested or fabricated",
-    "Tenant service key is not readable from existing sensitive Vercel configuration; anonymous contact inbox requires secure server configuration",
-    "Signed invitation delivery bridge and OPS worker signing key are not registered; no real invitation email sent"
+    "Persistent support123 Project Domain record still belongs to marketing; available connector has alias assignment but no Move operation. User has the exact manual move instruction.",
+    "New private signing key for OPS staff invitation delivery was blocked by automatic review; explicit approval for GRIDEX_STAFF_DELIVERY_PRIVATE_KEY and redeployment of existing OPS production code is pending. Five public bridge settings are prepared on support.",
+    "Supabase invitation callback allowlist currently falls back to https://gridex.se; the user has been asked to allow https://support123.gridex.se/auth/invitation**. Probe used an invalid token and sent no email.",
+    "Real staff password login, authenticated anonymous-contact read, permitted API business write and audit attribution have not been exercised with the nominated account."
   ],
   "next_production_steps": [
-    "Deploy verified branch to separate support project and verify public login and denied protected requests",
-    "Assign support domain to tested deployment",
-    "Configure tenant-only server service key and signed invitation bridge securely",
-    "Owner completes a real staff login; qualify a permitted read/write with audit attribution before claiming full live business flow"
+    "Complete persistent domain Move from gridex-web to gridex-support",
+    "After explicit approval, configure the dedicated OPS delivery signing secret and register its public bridge metadata; activate with unchanged production sources",
+    "User allows support invitation callback in tenant Auth; verify with an invalid-token no-email probe",
+    "Owner completes real staff login and permitted read/write/audit qualification"
   ],
-  "external_mutations": "Dedicated support Vercel project/environment, staff client/provider/explicit existing-owner binding; exact two approved Customer support scopes with audit. No account/password/membership/contract change or email.",
-  "status": "SOURCE_VERIFIED_SUPPORT_PROVISIONED_PENDING_DEPLOYMENT",
+  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed.",
+  "status": "PRODUCTION_RELEASED_AWAITING_INVITATION_AND_DOMAIN_CONFIGURATION",
   "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
   "production_changes": {
     "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
     "support_project": "gridex-support",
     "root_directory": "apps/support",
     "node_version": "22.x",
-    "dedicated_production_env_variables": 9,
+    "dedicated_production_env_variables": 15,
     "staff_client_id": "7db896df-8c42-4338-a422-37f6e0c7a487",
     "staff_provider_id": "56473ec1-ab97-412d-9601-d3fba6d89780",
     "staff_binding_id": "b77a8df3-7eda-4cde-8977-f204094968d9",
@@ -201,6 +211,74 @@
     ],
     "scope_authorization": "Explicit user approval after initial automatic review rejection",
     "audit_attribution": "codex_automation; no human actor impersonated",
-    "email_sent": false
+    "email_sent": false,
+    "marketing_deployment": "User-approved production release completed",
+    "support_deployment": "READY, independent login and anonymous workspace denial checked using caller-authorized Vercel protection access",
+    "support_domain_alias": "Explicitly approved alias now points to dpl_8ygNStf1HN7DptspHE6oydzrz2ZF, HTTP 200 staff login confirmed on custom domain",
+    "nominated_account_readiness": "Existing confirmed tenant account has a password credential and is not deleted/banned; the password was never retrieved or reset",
+    "marketing_vercel_protection": "Existing all-deployment Vercel protection intentionally retained after user declined opening the marketing custom domains",
+    "tenant_service_key": "User saved a sensitive production variable on gridex-support; activated by deployment dpl_8ygNStf1HN7DptspHE6oydzrz2ZF. Its value was never read."
+  },
+  "deployments": {
+    "marketing": {
+      "id": "dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27",
+      "url": "https://gridex-3at0zgnry-div3rsa.vercel.app",
+      "source_commit": "1f60c9fbd2d6db778bc0406369dbfda8446c6367",
+      "target": "production",
+      "state": "READY",
+      "user_approval": "Explicitly approved production release to gridex.se and www.gridex.se",
+      "live_readback": {
+        "gridex_se_checkout_status": 200,
+        "checkout_calculator_present": true,
+        "html_deployment_id_matches": true,
+        "www_elavtal_status": 308,
+        "www_uses_canonical_redirect": true,
+        "authentication_context": "Caller-authorized Vercel fetch. Anonymous public requests redirect to Vercel SSO; user explicitly chose to retain that gate."
+      }
+    },
+    "support": {
+      "id": "dpl_8ygNStf1HN7DptspHE6oydzrz2ZF",
+      "url": "https://gridex-support-6ywi24gjr-div3rsa.vercel.app",
+      "source_commit": "54fa1200633d379ee29907dcbeaa179198c2846a",
+      "target": "production",
+      "state": "READY",
+      "live_readback": {
+        "login_status": 200,
+        "staff_login_form_present": true,
+        "password_field_present": true,
+        "marketing_navigation_absent": true,
+        "protected_workspace": "Server render includes NEXT_REDIRECT to /login; no case data exposed",
+        "custom_domain_login_status": 200,
+        "custom_domain_certificate_curl_system_ca_verified": true,
+        "anonymous_browser_routes_redirect_to_login": [
+          "/",
+          "/team",
+          "/customers",
+          "/contact-requests"
+        ],
+        "evidence": "quality/support123/live-evidence-20261018/browser-verification.json"
+      },
+      "domain_cutover": "User approved and live alias cutover completed. Persistent project-domain registration still needs Move from marketing to support.",
+      "build_fix": "Workspace now declares TypeScript/types and has an explicit root install command in apps/support/vercel.json",
+      "previous_verified_deployment_id": "dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS",
+      "environment_scope": "10-variable runtime activates tenant service key; five additional public delivery settings await final signing activation/redeploy"
+    }
+  },
+  "pull_request": "https://github.com/heke99/gridex-web/pull/53",
+  "tenant_delivery_database": {
+    "table": "support_private.staff_invitation_deliveries",
+    "exists": true,
+    "rls_enabled": true,
+    "claim_and_complete_functions": "Present; EXECUTE restricted to postgres/service_role",
+    "existing_invitation_subject_lookup": "Present",
+    "migration_applied_by_this_task": false
+  },
+  "invitation_callback_probe": {
+    "http_status": 303,
+    "redirect_origin": "https://gridex.se",
+    "expected_support_callback_allowed": false,
+    "real_token": false,
+    "email_sent": false,
+    "auth_session_created": false
   }
 }

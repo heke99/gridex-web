@@ -210,3 +210,27 @@ review is `docs/api-compatibility/gridex-web-review-20261018.md`. Attachment
 requests are raw bytes, capped at 4 MiB, content checked by OPS, and every
 download validates its SHA-256. Uploads use a stable key for the same file and
 visibility; writes are never retried automatically.
+
+## Current production release
+
+The support deployment `dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS` (commit `54fa120`)
+is READY and serves the approved live alias `support123.gridex.se`. Its actual
+public login, mobile viewport and anonymous redirects on the workspace, users,
+customers and contact inbox have been checked. Evidence is in
+`quality/support123/live-evidence-20261018`. A real staff password login has not
+been performed or fabricated.
+
+The persistent Vercel Project Domain record still belongs to `gridex-web`.
+Move that record to `gridex-support` in Vercel Domains before a future marketing
+production release; the connector exposes alias assignment but lacks the
+documented domain-move operation. Adding the existing domain returns 409.
+The live alias has already been verified against the intended support project.
+
+Marketing commit `1f60c9f` is released as deployment
+`dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27` after explicit user approval. Its existing
+Vercel protection is intentionally retained at the user's request. The tenant service key is now saved on the separate support project and
+activated by deployment `dpl_8ygNStf1HN7DptspHE6oydzrz2ZF` (same source
+`54fa120`). Five public delivery settings are prepared; the OPS private signing
+key and invitation callback allowlist still await their explicit activation.
+A no-email invalid-token probe currently redirects to the marketing site, so
+the support callback must be allowed before sending a real staff invitation.

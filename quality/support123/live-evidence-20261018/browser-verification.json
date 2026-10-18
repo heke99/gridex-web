@@ -1,0 +1,14 @@
+{
+  "status": "PASS_LIVE_PUBLIC_LOGIN",
+  "deployment": "dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS",
+  "source": "54fa1200633d379ee29907dcbeaa179198c2846a",
+  "checks": [
+    "Live custom domain renders the staff login without Vercel protection or marketing navigation",
+    "Live mobile login fits viewport",
+    "Anonymous workspace, staff administration, customers and contact inbox all redirect to login"
+  ],
+  "errors": [],
+  "real_account_login": false,
+  "environment": "Managed network proxy: browser certificate verification skipped; independent curl request passed system CA verification",
+  "limitation": "Public login and anonymous denial only; no staff password/session, customer record, write, contract or email used"
+}
