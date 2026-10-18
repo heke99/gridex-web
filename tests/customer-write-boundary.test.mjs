@@ -94,15 +94,15 @@ function harness(route, { authenticated = true } = {}) {
   const modules = new Map()
   function load(file) {
     if (modules.has(file)) return modules.get(file).exports
-    const module = { exports: {} }
-    modules.set(file, module)
+    const cjsModule = { exports: {} }
+    modules.set(file, cjsModule)
     const source = readFileSync(file, 'utf8')
     const compiled = ts.transpileModule(source, {
       fileName: file,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
     }).outputText
     vm.runInNewContext(compiled, {
-      module, exports: module.exports,
+      module: cjsModule, exports: cjsModule.exports,
       require(specifier) {
         if (Object.hasOwn(boundaries, specifier)) return boundaries[specifier]
         if (specifier === 'next/server') return nativeRequire('next/server.js')
@@ -122,7 +122,7 @@ function harness(route, { authenticated = true } = {}) {
       console, setTimeout, clearTimeout,
       fetch() { throw new Error('Unexpected outbound network request') },
     }, { filename: file })
-    return module.exports
+    return cjsModule.exports
   }
   const exports = load(resolve(root, route))
   return { state, POST: exports.POST, exports, loadModule: relative => load(resolve(root, relative)) }

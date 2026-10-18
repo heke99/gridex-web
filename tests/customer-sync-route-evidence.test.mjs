@@ -95,14 +95,14 @@ function fixture({ failRead = false, failInsert = false, opsFailures = 0 } = {})
   }
   function load(file) {
     if (modules.has(file)) return modules.get(file).exports
-    const module = { exports: {} }
-    modules.set(file, module)
+    const cjsModule = { exports: {} }
+    modules.set(file, cjsModule)
     const compiled = ts.transpileModule(readFileSync(file, 'utf8'), {
       fileName: file,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
     }).outputText
     vm.runInNewContext(compiled, {
-      module, exports: module.exports,
+      module: cjsModule, exports: cjsModule.exports,
       require(specifier) {
         if (Object.hasOwn(boundaries, specifier)) return boundaries[specifier]
         if (specifier === 'next/server') return nativeRequire('next/server.js')
@@ -121,7 +121,7 @@ function fixture({ failRead = false, failInsert = false, opsFailures = 0 } = {})
       process: { env: { VERCEL: '1', NODE_ENV: 'production', NEXT_PUBLIC_SUPABASE_URL: 'https://receipt-fixture.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-offline-key' } },
       fetch() { throw new Error('Unexpected outbound network request') },
     }, { filename: file })
-    return module.exports
+    return cjsModule.exports
   }
   return { ...load(resolve(root, 'app/api/web/customer/sync/route.ts')), state }
 }

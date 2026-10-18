@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-18T20:58:39.102470+00:00",
+  "checked_at": "2026-10-18T21:07:05.096906+00:00",
   "marketing_protection": "Preserved per user instruction",
   "web_source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
   "web_browser": {
@@ -391,10 +391,24 @@
     "deadline_rpc": "ediel_advance_supply_deadlines_v1(uuid,uuid,integer)",
     "live_database_exists": false,
     "cron_observation": "2026-10-18T20:51:41.851Z: supplyMarketDeadlines skipped PGRST202",
-    "separate_poa_pdf": "Still awaiting qualified upstream PR828 release; existing agreement PDF and earlier delivery remain verified"
+    "separate_poa_pdf": "Still awaiting qualified upstream PR828 release; existing agreement PDF and earlier delivery remain verified",
+    "additional_missing_dependencies": [
+      "gridex_received_sources.advance_supply_before_normal_switch_v1(uuid,uuid,integer)",
+      "gridex_received_sources.normal_activation_sweep_cursors"
+    ],
+    "repair_boundary": "Existing qualified backend/schema producer must reconcile the canonical dependencies; no stub, permission bypass or unqualified wholesale migration applied"
   },
   "limits": [
     "Postal-only probes cannot qualify physical facility, actual network owner or supplier dispatch.",
     "Existing authenticated portal test and cleanup are recorded in live-portal-reaudit-20261018.json; runtime source unchanged."
-  ]
+  ],
+  "all_three_live_contracts_match": "PASS 2026-10-12.1 Website/Customer/Staff",
+  "temporary_preview_shares_revoked": true,
+  "support_release": "dpl_4UXeGK1zQ5jBUTfX5X5wSGcBQP11",
+  "web_ci_lint": {
+    "initial_failure": "Three Node VM test loaders named a local variable module, violating the Next lint rule; one unused source read warning.",
+    "fix": "Renamed local objects to cjsModule while retaining the module property passed to the VM; removed the unused source read. No assertions or lint rules removed.",
+    "targeted_existing_tests": "PASS customer-sync-route-evidence, customer-write-boundary, pricing-snapshot-idempotency, customer-pricing-copy-and-renewal",
+    "repository_lint": "PASS npm run lint, zero errors/warnings"
+  }
 }

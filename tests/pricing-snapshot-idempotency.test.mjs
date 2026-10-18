@@ -102,14 +102,14 @@ function fixture() {
   const modules = new Map()
   function load(file) {
     if (modules.has(file)) return modules.get(file).exports
-    const module = { exports: {} }
-    modules.set(file, module)
+    const cjsModule = { exports: {} }
+    modules.set(file, cjsModule)
     const source = ts.transpileModule(readFileSync(file, 'utf8'), {
       fileName: file,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
     }).outputText
     vm.runInNewContext(source, {
-      module, exports: module.exports,
+      module: cjsModule, exports: cjsModule.exports,
       require(specifier) {
         if (specifier === '@supabase/supabase-js') return sdk
         if (specifier === 'node:crypto') return nativeRequire('node:crypto')
@@ -124,7 +124,7 @@ function fixture() {
       process: { env: { NEXT_PUBLIC_SUPABASE_URL: 'https://snapshot-fixture.example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-offline-key' } },
       fetch() { throw new Error('Unexpected outbound network request') },
     }, { filename: file })
-    return module.exports
+    return cjsModule.exports
   }
   return { state, ...load(resolve(root, 'lib/website/pricingSnapshotStore.ts')) }
 }

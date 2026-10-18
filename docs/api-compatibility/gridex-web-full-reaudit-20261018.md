@@ -81,10 +81,14 @@ och [FK-index](https://supabase.com/docs/guides/database/database-linter?lint=00
   kundportalprovet gick igenom. Ett kort 503-avbrott vid validering följdes av
   200 för exakt samma offert. Orsaken är inte fastställd och ingen permanent
   upstream-rättning påstås. Tidsgränser har inte höjts utan underlag.
-- Det befintliga interna OPS-jobbet customer-operations/permissionMarketDeadlines
-  loggade 42501 permission_execution_actor_unqualified även före detta prov.
-  Ingen godtycklig aktör eller providerbehörighet har tilldelats för att passera
-  kvalificeringen.
+- OPS-jobbet loggade först permission_execution_actor_unqualified. Efter ett
+  uttryckligt användargodkännande aktiverades det befintliga tjänstekontot via
+  canonical_change_tenant_user_access: en aktiv profil, ett accepterat medlemskap
+  och operations_manager enbart i Gridex El AB, med verifierad revisionshändelse.
+  Efter detta loggade supplyMarketDeadlines PGRST202: public.ediel_advance_supply_deadlines_v1
+  saknas, liksom dess privata föregångare och normal_activation_sweep_cursors.
+  Detta kräver en kvalificerad OPS-schemautrullning. Inga stubbfunktioner eller
+  behörighetsgenvägar har lagts till.
 
 Ingen verklig elanläggning, leverantörs-/nätägar-dispatch, fakturabetalning,
 produktionslast eller riktig personalinloggning har kvalificerats av detta prov.
@@ -93,3 +97,20 @@ inbjudnings-/SMTP-leverans. Avtalsmejlets tidigare verifierade leverans är sepa
 
 Maskinbevis finns i quality/api-compatibility/full-reaudit-20261018.json,
 live-portal-reaudit-20261018.json och live-area-reaudit-20261018.json.
+
+## Driftuppföljning 21:06 UTC
+
+Support123 kör nu lösenordsåterställning från 88ce1b2 på produktion
+(dpl_4UXeGK1zQ5jBUTfX5X5wSGcBQP11). Native PKCE, verifierad egen identitet
+och befintliga personalbehörigheter används. 19 återställningsprov, hela
+personalsviten, TypeScript, bygge, 28 isolerade webbläsarprov samt sju kontroller
+vardera på förhandsversionen och support123.gridex.se passerade. Förhandsmiljöns
+publika Auth-konfiguration kompletterades; privata nycklar förblev produktionsbundna.
+Ingen återställningslänk eller lösenord hämtades och inget återställningsmejl
+skickades av testerna. Användaren kan begära länken via Glömt lösenord.
+
+32 publika sidor och samtliga fyra områdens fast-/månadsprisflöden kontrollerades
+på nytt. Alla tre dokumentkontrakt matchar fortfarande OPS 2026-10-12.1.
+Alla tillfälliga förhandsdelningar är återkallade.
+Detaljer: quality/api-compatibility/live-production-followup-20261018.json och
+support-password-recovery-20261018.json.

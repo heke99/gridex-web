@@ -12,7 +12,6 @@ const canonical = read('lib/website/canonicalQuoteValidation.ts')
 const quoteToken = read('lib/website/pricingQuote.ts')
 const areaToken = read('lib/website/energyAreaToken.ts')
 const contextRoute = read('app/api/checkout/context/route.ts')
-const snapshotStore = read('lib/website/pricingSnapshotStore.ts')
 
 for (const removedCopy of [
   'Marknadskällor:',

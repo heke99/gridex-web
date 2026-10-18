@@ -116,5 +116,7 @@
     "Invoices/metering returned valid empty lists for this test customer. No real invoice payment, meter delivery, actual staff-password session or full production load test was performed.",
     "Synthetic Auth account used admin-confirmed email for a bounded test; this does not qualify customer invitation/SMTP delivery. Previous approved agreement/PDF email delivery evidence remains separate."
   ],
-  "temporary_preview_access_revoked": true
+  "temporary_preview_access_revoked": true,
+  "followup": "quality/api-compatibility/live-production-followup-20261018.json",
+  "support_password_recovery": "quality/api-compatibility/support-password-recovery-20261018.json"
 }
