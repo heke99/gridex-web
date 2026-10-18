@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import InvitationForm from "@/support/components/InvitationForm";
+import PasswordRecoveryForm from "@/support/components/PasswordRecoveryForm";
+import { acceptPasswordRecovery } from "../../login/actions";
 import { acceptInvitation } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +16,22 @@ export default async function InvitationPage({
     code?: string;
     token_hash?: string;
     type?: string;
+    flow?: string;
   }>;
 }) {
   const params = await searchParams;
+  if (params.flow === "password-recovery") {
+    return (
+      <main className="staff-login">
+        <section className="staff-login-card" aria-labelledby="recovery-title">
+          <h1 id="recovery-title">Välj nytt lösenord</h1>
+          <PasswordRecoveryForm action={acceptPasswordRecovery}
+            code={typeof params.code === "string" && params.code.length <= 16_384 ? params.code : ""} />
+          <Link href="/login">Till inloggningen</Link>
+        </section>
+      </main>
+    );
+  }
   const token =
     typeof params.token === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

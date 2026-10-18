@@ -7,6 +7,15 @@ import {
 } from "@/support/lib/session";
 import { StaffApiError } from "@/staff-api/client";
 import type { FormState } from "@/support/components/ActionForm";
+import { requestSupportPasswordRecovery, acceptSupportPasswordRecovery } from "@/support/lib/password-recovery";
+
+export async function requestPasswordRecovery(_previous: FormState, data: FormData): Promise<FormState> {
+  return requestSupportPasswordRecovery(data, { authClient: createSupportAuthClient });
+}
+
+export async function acceptPasswordRecovery(_previous: FormState, data: FormData): Promise<FormState> {
+  return acceptSupportPasswordRecovery(data, { authClient: createSupportAuthClient, redirect });
+}
 
 export async function signIn(
   _previous: FormState,

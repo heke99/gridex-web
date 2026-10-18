@@ -1,0 +1,400 @@
+{
+  "checked_at": "2026-10-18T20:58:39.102470+00:00",
+  "marketing_protection": "Preserved per user instruction",
+  "web_source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+  "web_browser": {
+    "checks": 32,
+    "errors": 0,
+    "environment": "Protected exact-source preview, plus actual Support123 public login"
+  },
+  "area_checks": {
+    "checked_at": "2026-10-18T20:51:13.917176+00:00",
+    "deployment": "dpl_9H7X2SGMrtVV9Ej2Wper5fuYjGZi",
+    "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+    "scope": "both published offer types and repeated resolutions in SE1-SE4; anonymous customer denial; real public pages",
+    "test_correction": "The nonexistent /elpris was mistakenly expected by the probe; actual route /elpriser verified. No production change made for that test error.",
+    "observations": [
+      {
+        "path": "/api/web/contracts",
+        "status": 200
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "expected_area": "SE1",
+        "area": "SE1",
+        "pricing_ready": true,
+        "facility_lookup_ready": false,
+        "switch_dispatch_ready": false,
+        "grid_owner_known": false
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "replay": true
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE1",
+        "offer_type": "fixed",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "fixed_price",
+          "customer_accepts": "fixed_energy_price",
+          "energy_price_locked_at_signup": true,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "not_applicable",
+          "settlement_resolution": "fixed"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE1",
+        "offer_type": "variable_monthly",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "market_monthly",
+          "customer_accepts": "pricing_model",
+          "energy_price_locked_at_signup": false,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "indicative_preview_only",
+          "settlement_resolution": "month"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/web/market-price/current",
+        "status": 200,
+        "area": "SE1"
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "expected_area": "SE2",
+        "area": "SE2",
+        "pricing_ready": true,
+        "facility_lookup_ready": false,
+        "switch_dispatch_ready": false,
+        "grid_owner_known": false
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "replay": true
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE2",
+        "offer_type": "fixed",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "fixed_price",
+          "customer_accepts": "fixed_energy_price",
+          "energy_price_locked_at_signup": true,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "not_applicable",
+          "settlement_resolution": "fixed"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE2",
+        "offer_type": "variable_monthly",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "market_monthly",
+          "customer_accepts": "pricing_model",
+          "energy_price_locked_at_signup": false,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "indicative_preview_only",
+          "settlement_resolution": "month"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/web/market-price/current",
+        "status": 200,
+        "area": "SE2"
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "expected_area": "SE3",
+        "area": "SE3",
+        "pricing_ready": true,
+        "facility_lookup_ready": false,
+        "switch_dispatch_ready": false,
+        "grid_owner_known": false
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "replay": true
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE3",
+        "offer_type": "fixed",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "fixed_price",
+          "customer_accepts": "fixed_energy_price",
+          "energy_price_locked_at_signup": true,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "not_applicable",
+          "settlement_resolution": "fixed"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE3",
+        "offer_type": "variable_monthly",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "market_monthly",
+          "customer_accepts": "pricing_model",
+          "energy_price_locked_at_signup": false,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "indicative_preview_only",
+          "settlement_resolution": "month"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/web/market-price/current",
+        "status": 200,
+        "area": "SE3"
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "expected_area": "SE4",
+        "area": "SE4",
+        "pricing_ready": true,
+        "facility_lookup_ready": false,
+        "switch_dispatch_ready": false,
+        "grid_owner_known": false
+      },
+      {
+        "path": "/api/checkout/energy-area/resolve",
+        "status": 200,
+        "replay": true
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE4",
+        "offer_type": "fixed",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "fixed_price",
+          "customer_accepts": "fixed_energy_price",
+          "energy_price_locked_at_signup": true,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "not_applicable",
+          "settlement_resolution": "fixed"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/checkout/quote",
+        "status": 200,
+        "area": "SE4",
+        "offer_type": "variable_monthly",
+        "canonical_quote": true,
+        "settlement": {
+          "model": "market_monthly",
+          "customer_accepts": "pricing_model",
+          "energy_price_locked_at_signup": false,
+          "uses_actual_metered_consumption": true,
+          "market_data_role": "indicative_preview_only",
+          "settlement_resolution": "month"
+        }
+      },
+      {
+        "path": "/api/checkout/quote/validate",
+        "status": 200,
+        "valid": true
+      },
+      {
+        "path": "/api/checkout/legal-bundle",
+        "status": 200
+      },
+      {
+        "path": "/api/web/market-price/current",
+        "status": 200,
+        "area": "SE4"
+      },
+      {
+        "path": "/api/web/customer/me",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/contracts",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/sites",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/invoices",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/documents",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/legal-acceptances",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/powers-of-attorney",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/events",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/metering-values",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/notifications",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/api/web/customer/portal-bundle",
+        "status": 401,
+        "error": "unauthorized"
+      },
+      {
+        "path": "/teckna-avtal",
+        "status": 200
+      },
+      {
+        "path": "/avtal",
+        "status": 200
+      },
+      {
+        "path": "/teckna-avtal",
+        "status": 200
+      },
+      {
+        "path": "/avtal",
+        "status": 200
+      },
+      {
+        "path": "/elpriser",
+        "status": 200
+      },
+      {
+        "path": "/login",
+        "status": 200
+      }
+    ]
+  },
+  "service_account": {
+    "user_approval": "Explicit approval received in this chat",
+    "activated": true,
+    "identity": "automation@gridex.se",
+    "company_id": "b3ad1bf6-fa45-41a6-8054-2e0862e82aca",
+    "role": "operations_manager",
+    "active_profiles": 1,
+    "active_memberships": 1,
+    "active_roles": 1,
+    "command": "canonical_change_tenant_user_access",
+    "idempotency_key": "gridex-ops-service-activation-20261018",
+    "audit_events_verified": 1,
+    "scope": "Gridex El AB only; no global role",
+    "vercel_configuration": "GRIDEX_AUTOMATION_USER_ID set to the approved confirmed Auth UUID in OPS production and preview",
+    "first_attempt": "Rolled back entirely due to an ambiguous SQL variable; corrected transaction succeeded"
+  },
+  "remaining_ops_gap": {
+    "deadline_rpc": "ediel_advance_supply_deadlines_v1(uuid,uuid,integer)",
+    "live_database_exists": false,
+    "cron_observation": "2026-10-18T20:51:41.851Z: supplyMarketDeadlines skipped PGRST202",
+    "separate_poa_pdf": "Still awaiting qualified upstream PR828 release; existing agreement PDF and earlier delivery remain verified"
+  },
+  "limits": [
+    "Postal-only probes cannot qualify physical facility, actual network owner or supplier dispatch.",
+    "Existing authenticated portal test and cleanup are recorded in live-portal-reaudit-20261018.json; runtime source unchanged."
+  ]
+}

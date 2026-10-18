@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import type { FormAction } from "./ActionForm";
 
 export default function LoginForm({ action }: { action: FormAction }) {
@@ -24,6 +25,7 @@ export default function LoginForm({ action }: { action: FormAction }) {
       <button type="submit" className="primary staff-login-submit" disabled={pending}>
         {pending ? "Loggar in…" : "Logga in"}
       </button>
+      <Link href="/login/forgot-password">Glömt lösenord?</Link>
     </form>
   );
 }

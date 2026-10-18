@@ -83,6 +83,7 @@ export function createSupportRuntime(settings) {
   const attachment = { attachment_reference: FIXTURE_ATTACHMENT, file_name: 'syntetisk-bilaga.pdf', mime_type: 'application/pdf', byte_size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), uploaded_by: 'customer', created_at: now(), visibility: 'customer', scan_status: 'released', scan_reason: null }
   const uploadedAttachments = new Map()
   const traffic = []; const assertions = new Set(); const tokens = new Map(); const refresh = new Map(); const idempotent = new Map()
+  let recovery = null
   const authUser = u => ({ id: u.authId, email: u.email, email_confirmed_at: '2026-10-05T09:00:00Z', aud: 'authenticated', role: 'authenticated', user_metadata: clone(u.user_metadata), app_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' })
   function authSession(u) {
     const access = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: u.authId, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.${Buffer.from(randomUUID()).toString('base64url')}`
@@ -210,10 +211,24 @@ export function createSupportRuntime(settings) {
     const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined))
     const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
     if (url.origin === AUTH_ORIGIN && url.pathname === '/rest/v1/customer_support_tickets') return publicInquiryBoundary(url, headers, method)
-    if (url.origin === AUTH_ORIGIN && ['/auth/v1/token', '/auth/v1/user', '/auth/v1/logout'].includes(url.pathname)) {
+    if (url.origin === AUTH_ORIGIN && ['/auth/v1/token', '/auth/v1/user', '/auth/v1/logout', '/auth/v1/recover'].includes(url.pathname)) {
       traffic.push({ boundary: 'auth', method, path: url.pathname })
       let body = {}; try { body = init.body ? JSON.parse(String(init.body)) : {} } catch { return json({ msg: 'Invalid fixture body' }, 400, true) }
+      if (url.pathname === '/auth/v1/recover' && method === 'POST') {
+        const u = [...users.values()].find(u => u.email === body.email)
+        if (url.searchParams.get('redirect_to') !== 'https://support123.gridex.se/auth/invitation?flow=password-recovery'
+          || body.code_challenge_method !== 's256' || !body.code_challenge) throw new Error('Recovery requires fixed callback and native PKCE')
+        recovery = u ? { user: u, challenge: body.code_challenge } : null
+        return json({}, 200, true)
+      }
       if (url.pathname === '/auth/v1/token' && method === 'POST') {
+        if (url.searchParams.get('grant_type') === 'pkce') {
+          const valid = recovery && body.auth_code === 'offline-native-recovery-code'
+            && createHash('sha256').update(body.code_verifier ?? '').digest('base64url') === recovery.challenge
+          const u = valid ? recovery.user : null
+          recovery = null
+          return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_grant', msg: 'Invalid or consumed recovery' }, 400, true)
+        }
         const u = url.searchParams.get('grant_type') === 'refresh_token' ? users.get(refresh.get(body.refresh_token)) : [...users.values()].find(u => u.email === body.email && u.password === body.password)
         return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_credentials', msg: 'Invalid offline credentials' }, 400, true)
       }
