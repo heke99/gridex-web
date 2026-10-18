@@ -58,8 +58,31 @@ som användarkrav och måste verifieras i ett faktiskt dokument.
 Det lagrade provets fullmaktsunderlag är JSON; PDF-sökväg, PDF-checksumma och
 separat verifikationsnummer saknas i de kontrollerade posterna. Detta bevisar
 inte ensamt om en dokumenterad läsväg kan generera en PDF vid hämtning.
-Den kompletterande läskontrollen redovisas i JSON-beviset när den är färdig.
+Partner API:s dokumenterade GET har nu också körts mot exakt provkund och
+anläggning med denna API-ytas egna referenser. Svaret är 200 med
+`file_base64: null` och `file_extension: null`. Ingen PDF genererades vid denna
+hämtning. Separat fullmakts-PDF/verifikationsnummer kvarstår som ett OPS-behov.
 
 BankID är valfritt. Webben använder elektroniskt godkännande och påstår ingen
 BankID-verifiering eller inbäddad kryptografisk PDF-signatur. Kund-, avtals-
 och ansökningsnummer ersätter inte ett separat fullmaktsverifikationsnummer.
+
+## Publicering och slutlig livekontroll
+
+Webbrättningarna är publicerade från `ffa37ac4d34f320d2fe98110961a82bf3fc69403`
+i produktion `dpl_DKN6bDQLZC2N9fNgfhRRSXgkSTnC`. Båda marknadsdomänerna
+pekar på den färdiga versionen. Supportdomänen pekar fortsatt på separat
+personalprojekt. Vercel-skyddet är oförändrat och skickar vanliga besökare till
+Vercels inloggning, enligt användarens uttryckliga val.
+
+Samma källa gav 200 för erbjudanden, adress, offert, identiskt offertåterförsök,
+validering, juridiskt paket och marknadspris i byggd förhandsversion. Identisk
+offert behöll samma OPS-referens. Anonym kundsynk gav 401 och främmande origin
+403. Bevis finns i `quality/api-compatibility/live-web-verification-20261018.json`.
+Samtliga tillfälliga testlänkar för detta slutprov har återkallats.
+
+En inloggad produktionskontroll via Vercel-connectorn stoppades av automatisk
+godkännandegranskning eftersom verktyget kan skapa eller återanvända en länk
+förbi skyddet. Ingen alternativ väg förbi spärren användes. Produktionens
+källversion, READY-status, domänkopplingar och anonyma skydd verifierades;
+funktionsprovet gäller förhandsversionen med samma kod.

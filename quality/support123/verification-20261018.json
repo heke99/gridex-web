@@ -326,11 +326,11 @@
     "Real electricity agreement signing and full production load/query-plan qualification"
   ],
   "website_reaudit": {
-    "status": "WEB_FINDINGS_FIXED_PENDING_PRODUCTION_PUBLICATION",
-    "checked_at": "2026-10-18T18:06:57.062328+00:00",
+    "status": "WEB_FINDINGS_PUBLISHED",
+    "checked_at": "2026-10-18T19:22:18.980412+00:00",
     "evidence": "quality/api-compatibility/signing-review-20261018.json",
     "open_findings": [],
-    "contract_sync": "All published manifests verified; W1-W7 code fixes covered by behavioral regressions",
+    "contract_sync": "All published manifests verified; W1-W7 fixed and published",
     "support_domain_affected": false
   },
   "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_FIXES_VERIFIED_REAL_APPLICATION_PDF_DELIVERED",
@@ -338,12 +338,13 @@
     "date": "2026-10-18",
     "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
     "endpoint_operations_reviewed": 142,
-    "code_findings": "W1-W7 fixed in branch; final live source recorded separately",
+    "code_findings": "W1-W7 fixed and published from ffa37ac4d34f320d2fe98110961a82bf3fc69403",
     "live_test_customer": "[testkundsreferens utelämnad]",
     "live_pdf_delivery_verified": false,
-    "remaining": "Separate POA PDF and verification number not yet qualified against documented read routes",
+    "remaining": "Separate POA PDF and verification number: documented Partner read succeeds but returns no file",
     "new_behavior_tests": 93,
     "live_agreement_and_email_pdf_delivery_verified": true,
-    "live_poa_pdf_delivery_verified": false
+    "live_poa_pdf_delivery_verified": false,
+    "production_deployment": "dpl_DKN6bDQLZC2N9fNgfhRRSXgkSTnC"
   }
 }

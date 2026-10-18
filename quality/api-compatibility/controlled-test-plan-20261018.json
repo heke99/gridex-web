@@ -34,6 +34,6 @@
     "idempotency_verified": true,
     "original_ip_verified": true,
     "confirmation_pdf_delivered": true,
-    "poa_pdf_and_verification_number": "Missing in current OPS archive; remains open."
+    "poa_pdf_and_verification_number": "Not available: documented Partner GET returned 200 with no PDF file; separate verification number not observed. Current guide does not promise automatic Website PDF generation."
   }
 }
