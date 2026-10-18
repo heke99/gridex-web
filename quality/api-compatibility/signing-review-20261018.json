@@ -1,0 +1,151 @@
+{
+  "checked_at": "2026-10-18T18:06:57.062328+00:00",
+  "status": "PARTIAL_COMPLIANCE_OPEN_CUSTOMER_SYNC_FINDINGS",
+  "guide": "https://app.gridex.se/developers/customer-portal-api",
+  "documentation_version": "2026-10-12.1",
+  "runtime_version": "2026-10-09.1",
+  "reviewed_base_commit": "3148745",
+  "production_marketing": {
+    "observed_alias": "gridex.se",
+    "deployment_id": "dpl_HqSDrDHQUa9xGaX1mTuXg6pmiUks",
+    "ready_state": "READY",
+    "source_commit": "1f60c9fbd2d6db778bc0406369dbfda8446c6367",
+    "finding_source_files_match_branch": true
+  },
+  "current_ops_alias_deployment": "dpl_3nPZpu9tE9MH6rXM6X9f6eyjoZaR",
+  "findings": [
+    {
+      "id": "W1",
+      "severity": "medium",
+      "status": "OPEN",
+      "file": "lib/customerPortal/writeValidation.ts",
+      "line": 147,
+      "issue": "Customer sync drops signer_name, signer_identity_number, method, ip_address and user_agent.",
+      "proof": "Direct local call of syncPowerOfAttorney with all five fields returns none of them.",
+      "impact": "This path cannot forward a complete signed/external-sendable POA; OPS documents draft/blocked delivery when evidence is missing. No live side effect tested.",
+      "remediation": "Preserve trusted original signing evidence with stable acceptance time/IP across retries; do not trust browser-supplied IP or BankID metadata."
+    },
+    {
+      "id": "W2",
+      "severity": "medium",
+      "status": "OPEN",
+      "file": "lib/customerPortal/writeValidation.ts",
+      "line": 168,
+      "issue": "Omitted accepted flag becomes accepted:true.",
+      "proof": "Remove accepted from an otherwise normalizable synthetic input: actual normalizer returns accepted:true.",
+      "impact": "Outgoing sync payload can claim explicit acceptance absent from its input. This does not prove a successful external signature or delivery.",
+      "remediation": "Require explicit acceptance and return a field-level validation error for incomplete evidence."
+    },
+    {
+      "id": "W3",
+      "severity": "medium",
+      "status": "OPEN",
+      "files": [
+        "app/api/web/customer/sync/route.ts",
+        "app/api/web/customer-portal/sync/route.ts",
+        "app/api/web/customer/profile-update/route.ts",
+        "app/api/web/customer/move-out/route.ts",
+        "app/api/web/customer/notifications/read/route.ts",
+        "app/api/web/market-price/current/route.ts"
+      ],
+      "issue": "Direct JSON reading omits the shared application byte limit, read deadline, MIME and origin checks.",
+      "proof": "Source inspection: direct req.json/request.json; no equivalent global proxy controls.",
+      "impact": "Application-level hardening coverage is incomplete; no CSRF exploit or bypass of platform request limits is claimed.",
+      "remediation": "Use the common bounded reader while preserving authentication and original operation keys."
+    },
+    {
+      "id": "W4",
+      "severity": "low",
+      "status": "FIXED_IN_BRANCH_NOT_DEPLOYED",
+      "issue": "Two published specifications changed descriptive signing/IP text under the same version.",
+      "proof": "Initial live drift check failed; manifest-verified sync and subsequent exact live check pass.",
+      "validation_rules_changed": false
+    }
+  ],
+  "checks": [
+    {
+      "command": "npm run api:sync",
+      "result": "PASS",
+      "detail": "Description-only upstream changes; no path or validation-rule changes."
+    },
+    {
+      "command": "npm run api:check:live",
+      "result": "PASS",
+      "specifications": 3
+    },
+    {
+      "command": "npm run api:compatibility",
+      "result": "PASS",
+      "upstream_gaps": [],
+      "environment_blockers": []
+    },
+    {
+      "command": "npm run api:contract",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run test:portal",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "website_evidence_probe": {
+    "status": "PASS_SYNTHETIC_WEBSITE_EVIDENCE_PROBE",
+    "checks": [
+      "Original IP and user agent preserved across repeated immutable submission",
+      "Original server acceptance timestamp preserved",
+      "Website payload builder preserves original IP, time, user agent, consent method and exact textVersionId"
+    ],
+    "production_data": false,
+    "production_writes": 0
+  },
+  "customer_sync_behavior_probe": {
+    "result": "CONFIRMED_W1_W2",
+    "discarded_fields": [
+      "signer_name",
+      "signer_identity_number",
+      "method",
+      "ip_address",
+      "user_agent"
+    ],
+    "omitted_accepted_becomes_true": true,
+    "production_calls": 0
+  },
+  "new_sha256": {
+    "website": "ce141a8c6dc9f93c04043102dca42c8145baa1a2d9c1139c6f4f1c6b516343b5",
+    "customer_portal": "e30b2b4bc589b3ada7124312f973a891bd469f0ef15ac184884dfaa6f2d80f6c",
+    "staff": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b"
+  },
+  "pdf_verification_number": {
+    "owner": "OPS",
+    "documentation_requires": "Stable verification number on each page of the private accepted-text/scopes/evidence PDF; API server IP recorded separately.",
+    "website_generates_number": false,
+    "live_pdf_retrieved": false,
+    "real_signature_or_email_tested": false,
+    "customer_portal_has_separate_number_display": false
+  },
+  "bankid": {
+    "website_method": "website_acceptance",
+    "public_provider_enabled": false,
+    "optional_in_documentation": true
+  },
+  "false_positive_controls": [
+    "Vercel documents x-forwarded-for as overwritten by default; helper mismatch alone does not prove spoofing.",
+    "The legacy local PDF generator has no caller found in app/lib/tests and is not the canonical Website PDF archive.",
+    "Description drift does not imply a breaking request-schema change."
+  ],
+  "limits": [
+    "No new product behavior changed or production deployment performed in this review.",
+    "No real customer data, account, PDF, IP or identity number read; no email/agreement/database write performed.",
+    "Full production signing/PDF/archive/number/tenant-isolation/delivery qualification remains.",
+    "Full live database/RLS/query-plan/load audit not performed."
+  ],
+  "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md"
+}

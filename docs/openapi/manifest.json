@@ -3,10 +3,10 @@
   "runtime_contract_version": "2026-10-09.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c"
+      "sha256": "ce141a8c6dc9f93c04043102dca42c8145baa1a2d9c1139c6f4f1c6b516343b5"
     },
     "customer-portal-v1.json": {
-      "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185"
+      "sha256": "e30b2b4bc589b3ada7124312f973a891bd469f0ef15ac184884dfaa6f2d80f6c"
     },
     "staff-v1.json": {
       "sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b"

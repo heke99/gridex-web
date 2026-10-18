@@ -42,7 +42,7 @@
       "staff_attachment": 4194304
     },
     "retries": "Reads honor integer and HTTP-date Retry-After without shortening the requested wait; waits outside the deadline return the API error. Writes are submitted once with the original idempotency key.",
-    "latest_live_recheck": "PASS again after the subsequent OPS release: all three published SHA-256 specifications remain exact"
+    "latest_live_recheck": "Subsequent user-requested signing review found description-only drift under the same version. Re-synchronized Website/Customer snapshots and generated provenance; all three live SHA-256 specifications now match again in the branch. No new production deployment by this review."
   },
   "verified_fixes": [
     {
@@ -198,7 +198,7 @@
     "Owner completes real staff login and permitted read/write/audit qualification; send a real staff invitation only when explicitly requested"
   ],
   "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist. User removed the old support123 project-domain association; the domain was added to gridex-support and now awaits its new DNS ownership challenge. No DNS record was changed. User corrected the external DNS TXT challenge; Vercel ownership verification and support alias assignment completed. No DNS write was performed by this task.",
-  "status": "DEPLOYED_AND_DOMAIN_VERIFIED_PENDING_REAL_ACCOUNT_QUALIFICATION",
+  "status": "SUPPORT_DOMAIN_LIVE_WEBSITE_REAUDIT_FINDINGS_OPEN",
   "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
   "production_changes": {
     "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
@@ -324,5 +324,17 @@
     "Real nominated-owner password login and authenticated anonymous-contact read",
     "Explicitly requested real staff invitation and acceptance, with email/durable receipt/audit attribution",
     "Real electricity agreement signing and full production load/query-plan qualification"
-  ]
+  ],
+  "website_reaudit": {
+    "status": "PARTIAL_COMPLIANCE_OPEN_CUSTOMER_SYNC_FINDINGS",
+    "checked_at": "2026-10-18T18:06:57.062328+00:00",
+    "evidence": "quality/api-compatibility/signing-review-20261018.json",
+    "open_findings": [
+      "W1",
+      "W2",
+      "W3"
+    ],
+    "contract_sync": "W4 fixed in branch; deployed product behavior unchanged",
+    "support_domain_affected": false
+  }
 }

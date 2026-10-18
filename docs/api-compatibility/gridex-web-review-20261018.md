@@ -17,10 +17,16 @@ slutna affärsscheman.
 | 4. Livscykel | Ansökningsnumret och API-kvittensen sparas. Omedelbart resultat använder `checkout`; färdig signering visas bara med `thank_you_ready`. Avtalets signering och bekräftelsemejlets leverans behandlas separat. Status hämtas via API efter senare besök. |
 | 5. Kundportal | Granulära läsningar och dokumenterade skrivningar med parvisa verifierade identitetsheaders. Supportärenden och meddelanden ligger i samma kanoniska modell som personalens. Bilagor kompletterade med uppladdning, lista och verifierad nedladdning. |
 | 6. Partner API | Separat serverintegration för partnerägda kund-/anläggnings-/avtalsskrivningar. Gridex Web använder dokumentationens Website checkout och Customer API. Partnerkontrakt anropas inte parallellt för samma teckning, eftersom det skulle skapa en andra affärsskrivning. |
-| 7. Webhooks | Rå kropp, HMAC-SHA256, tidskontroll och deduplicerade leveranser. Befintlig uthållig fel-/omkörningshantering bevaras. `lib/webhooks/opsWebhook.ts`, `app/api/ops/webhooks/route.ts`, `lib/webhooks/retry.ts`. |
+| 7. Webhooks | Rå kropp, HMAC-SHA256, tidskontroll och deduplicerade leveranser. Generella händelser: `app/webhooks/gridex/route.ts`; publicering: `app/webhooks/contracts.publication.changed/route.ts`. Den gamla `app/api/ops/webhooks/route.ts` svarar 410. |
 | 8. Tillförlitlighet | Stabil nyckel per oförändrad skrivning, inga automatiska skrivomförsök, ETag för erbjudanden och organisations-/kundtypsbunden cache. Läsomförsök respekterar full `Retry-After`, även HTTP-datum, inom en gemensam tidsbudget. |
 | 9. Fel | Strukturerade felkoder, status, korrelations-/request-id och retryability används. Proxy-HTML, autentiseringsfel och interna feltexter skickas inte vidare som kundinformation. |
 | 10. Endpointreferens | Följande resurser är genomgångna mot de incheckade specifikationerna. Historiska OpenAPI-URL:er är dokumentationsarkiv, inte extra affärsflöden att implementera. |
+
+Den fördjupade efterkontrollen av signering och fullmakt hittade öppna fel i den
+separata kundsynken. Tabellen beskriver implementationens avsedda täckning och
+är inte ett intyg om fullständig efterlevnad. Se
+`gridex-web-signing-review-20261018.md` för bekräftade fynd, beteendeprov och
+skillnaden mellan webbens inskickade bevis och OPS PDF-arkiv.
 
 ## Adress, geolokalisering och priser
 
@@ -61,7 +67,7 @@ API-revisionen. API:et avgör signering, fryst signeringshash och eventuell
 | --- | --- |
 | `me`, `contracts`, `sites`, `invoices`, `invoices/{id}`, `metering-values`, `events`, `documents`, `legal-acceptances`, `powers-of-attorney`, `notifications` | `lib/ops/client/portal.ts` och `lib/customerPortal/service.ts`, verifierad kundägare och slutna API-svar. |
 | `portal-bundle` | Befintlig kombinerad adapter. Granulära vyer använder sina egna resurser för att undvika onödiga krav på alla scopes samtidigt. |
-| `customer-portal/sync`, `customer/sync`, `profile-update`, `move-out`, `notifications/read` | Befintliga idempotenta serverflöden. Sync ger inte en obunden eller främmande identitet åtkomst. |
+| `customer-portal/sync`, `customer/sync`, `profile-update`, `move-out`, `notifications/read` | Befintliga serverflöden med identitetsbindning och skrivnycklar. Efterkontrollen fann att kundsynkens fullmaktsnormalisering tappar signeringsbevis och antar godkännande när flaggan saknas. Dessa fem routes saknar också den gemensamma begränsade JSON-/origin-läsaren. Fynden är öppna. |
 | `support/cases`, ärendedetalj, `messages` | Kanoniska API-flöden för lista, skapa och svara; kund kan inte ange staff-aktör eller intern synlighet. |
 | Ärendets `attachments` och `attachments/{attachmentReference}` | Nya råa uppladdningar och verifierade nedladdningar. Endast släppta kundsynliga filer listas av Customer API. |
 | `website/customer-events`, `events` | Befintliga serveradaptrar för kundhändelser och domänhändelser; alternativ POST-alias används inte för en andra leverans av samma händelse. |
