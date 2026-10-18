@@ -169,6 +169,14 @@
       "live_browser_checks": 3,
       "application_errors": 0,
       "evidence": "quality/support123/live-evidence-20261018-minimal/browser-verification.json"
+    },
+    {
+      "command": "Final permanent domain readback, system-CA HTTPS and public browser checks",
+      "status": "PASS",
+      "checks": 3,
+      "application_errors": 0,
+      "scope": "Persistent support project association verified; correct active deployment alias; minimal desktop/mobile login and anonymous denial on four protected routes. Marketing SSO gate retained.",
+      "evidence": "quality/support123/live-evidence-20261018-domain-final/browser-verification.json"
     }
   ],
   "database_inspection": {
@@ -185,15 +193,12 @@
     },
     "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
   },
-  "live_blockers": [
-    "Support123 is registered on the correct support project, but the newly added external Strato TXT value has a literal trailing dot and fails Vercel ownership verification. Both Google and Cloudflare resolve the malformed value. The operator has been asked to remove just that dot. Public support123 remains unavailable until verification and alias reassignment; the unchanged READY deployment login returns 200 through authorized Vercel access."
-  ],
+  "live_blockers": [],
   "next_production_steps": [
-    "User removes the literal trailing dot from the new _vercel TXT value. Then verify support project domain, assign its READY deployment alias, and recheck public HTTPS and login.",
     "Owner completes real staff login and permitted read/write/audit qualification; send a real staff invitation only when explicitly requested"
   ],
-  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist. User removed the old support123 project-domain association; the domain was added to gridex-support and now awaits its new DNS ownership challenge. No DNS record was changed.",
-  "status": "MINIMAL_LOGIN_AND_SIGNING_DEPLOYED_PENDING_NEW_DOMAIN_DNS_VERIFICATION",
+  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist. User removed the old support123 project-domain association; the domain was added to gridex-support and now awaits its new DNS ownership challenge. No DNS record was changed. User corrected the external DNS TXT challenge; Vercel ownership verification and support alias assignment completed. No DNS write was performed by this task.",
+  "status": "DEPLOYED_AND_DOMAIN_VERIFIED_PENDING_REAL_ACCOUNT_QUALIFICATION",
   "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
   "production_changes": {
     "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
@@ -217,7 +222,7 @@
     "email_sent": false,
     "marketing_deployment": "User-approved production release completed",
     "support_deployment": "Minimal login and all 15 production variables active in dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
-    "support_domain_alias": "Unavailable after user removed old project association. Support project domain created; new DNS ownership verification required before alias reassignment.",
+    "support_domain_alias": "Verified persistent Project Domain and live alias both belong to gridex-support; alias serves dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr, public HTTPS 200 and 3 live browser checks pass after final reassociation.",
     "nominated_account_readiness": "Existing confirmed tenant account has a password credential and is not deleted/banned; the password was never retrieved or reset",
     "marketing_vercel_protection": "Existing all-deployment Vercel protection intentionally retained after user declined opening the marketing custom domains",
     "tenant_service_key": "Sensitive production variable saved by user on gridex-support and active; value never read",
@@ -265,20 +270,23 @@
           "/customers",
           "/contact-requests"
         ],
-        "evidence": "quality/support123/live-evidence-20261018-minimal/browser-verification.json",
+        "evidence": "quality/support123/live-evidence-20261018-domain-final/browser-verification.json",
         "unsigned_delivery_status": 403,
         "signed_email_delivery_tested": false,
-        "timing": "Historical PASS before the old project association was removed; see current_domain_readback for current availability."
+        "timing": "Repeated successfully after permanent domain reassociation and DNS verification; historical screenshots retained separately."
       },
-      "domain_cutover": "Old marketing association removed by user; persistent project domain added to gridex-support, verified=false pending new external DNS TXT challenge. Alias is currently absent.",
+      "domain_cutover": "Complete: old marketing association absent, support persistent domain verified=true, live alias points to the correct READY support deployment.",
       "build_fix": "Workspace now declares TypeScript/types and has an explicit root install command in apps/support/vercel.json",
       "previous_verified_deployment_id": "dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS",
       "environment_scope": "All 15 configured Auth, Staff and signed delivery variables active",
       "current_domain_readback": {
+        "checked_at": "2026-10-18T17:53:47.363518+00:00",
         "project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
-        "verified": false,
-        "public_login_status": 404,
-        "vercel_error": "DEPLOYMENT_NOT_FOUND",
+        "verified": true,
+        "public_login_status": 200,
+        "deployment_id_matches": true,
+        "browser_checks": 3,
+        "application_errors": 0,
         "evidence": "quality/support123/domain-reassociation-20261018.json"
       }
     },

@@ -169,10 +169,10 @@ change a membership, reset a password or send an email. The native OPS binding
 validation accepts the exact current registration. New personnel still use the
 canonical invitation/acceptance engine; email matching does not grant access.
 
-Production deployment/domain results and pending configuration are recorded in
+Production deployment/domain results and remaining qualification are recorded in
 `quality/support123/verification-20261018.json`. The tenant service key for the
-anonymous contact inbox and the signed invitation delivery bridge are separate
-prerequisites; source checks do not qualify those unconfigured live features.
+anonymous contact inbox and signed invitation delivery settings are active;
+source checks alone do not qualify a real authenticated session or email flow.
 
 Previous offline/native receipts describe their exact historical sources and
 targets. Their earlier interpretation requiring all OPS data in tenant Prod is
@@ -214,13 +214,14 @@ visibility; writes are never retried automatically.
 ## Current production release
 
 Support deployment `dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr` (commit `e63a349`)
-is READY. Its custom-domain alias is temporarily unavailable pending the new
-ownership verification described below. The requested minimal page contains
+is READY and serves `support123.gridex.se` through the verified support project
+domain and production alias. The requested minimal page contains
 only the Gridex brand, login heading, email/password fields and sign-in controls.
 The introductory text, feature blocks, help text and footer were removed.
 The 25 offline browser checks, support typecheck, scoped ESLint and production
-build pass. Live desktop/mobile and anonymous redirects are recorded in
-`quality/support123/live-evidence-20261018-minimal`. No real staff password
+build pass. The repeated live desktop/mobile and anonymous redirect checks after
+the permanent domain reassociation are recorded in
+`quality/support123/live-evidence-20261018-domain-final`. No real staff password
 session was retrieved or fabricated.
 
 The tenant service key and all five public delivery settings are active on the
@@ -239,16 +240,15 @@ requested real staff invitation.
 
 The operator removed the old `support123.gridex.se` project association from
 `gridex-web`. The domain was then added to `gridex-support`; its persistent
-project ID now matches `prj_zyESgah9KJLBtFAD7pzygH3i3pp8`. Vercel issued a new
-ownership challenge, so `verified` is currently false and the alias cannot be
-assigned. Public HTTPS returns 404 `DEPLOYMENT_NOT_FOUND` during this interval.
-The authoritative DNS is external (Strato/rzone); the connected tools cannot
-edit it. Add an additional TXT record at `_vercel.gridex.se` with value
-`vc-domain-verify=support123.gridex.se,1c940708e74e16620520`, preserving existing
-records. Once it resolves, verify the project domain, assign the alias to the
-READY support deployment and repeat public HTTPS/login checks. The existing
-support verification TXT value is for the removed association and does not
-satisfy this new challenge. See `quality/support123/domain-reassociation-20261018.json`.
+project ID now matches `prj_zyESgah9KJLBtFAD7pzygH3i3pp8`. The operator added
+Vercel's new ownership TXT at the external Strato DNS and corrected an extra
+trailing dot. Vercel now reports `verified: true`, and both the persistent
+project-domain record and live alias belong to `gridex-support`. The alias points
+to the READY support deployment above. Public HTTPS returns 200 with the exact
+deployment ID and minimal login form; all four checked protected routes redirect
+anonymous browsers to login, with no browser application errors. The old
+marketing project-domain lookup returns 404. See
+`quality/support123/domain-reassociation-20261018.json` for exact readbacks.
 
 Marketing commit `1f60c9f` remains released as deployment
 `dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27`. Its existing Vercel protection is intentionally
