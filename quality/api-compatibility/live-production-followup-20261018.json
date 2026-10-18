@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-18T21:07:05.096906+00:00",
+  "checked_at": "2026-10-18T21:47:14.439900+00:00",
   "marketing_protection": "Preserved per user instruction",
   "web_source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
   "web_browser": {
@@ -396,7 +396,13 @@
       "gridex_received_sources.advance_supply_before_normal_switch_v1(uuid,uuid,integer)",
       "gridex_received_sources.normal_activation_sweep_cursors"
     ],
-    "repair_boundary": "Existing qualified backend/schema producer must reconcile the canonical dependencies; no stub, permission bypass or unqualified wholesale migration applied"
+    "repair_boundary": "Existing qualified backend/schema producer must reconcile the canonical dependencies; no stub, permission bypass or unqualified wholesale migration applied",
+    "poa_staged_build": {
+      "deployment_id": "dpl_8u1EyrR3m6TBqYPfQLhhpj3D4Xew",
+      "state": "ERROR",
+      "code": "BUILD_EXCEEDED_MAXIMUM_TIME",
+      "promoted": false
+    }
   },
   "limits": [
     "Postal-only probes cannot qualify physical facility, actual network owner or supplier dispatch.",
@@ -404,11 +410,46 @@
   ],
   "all_three_live_contracts_match": "PASS 2026-10-12.1 Website/Customer/Staff",
   "temporary_preview_shares_revoked": true,
-  "support_release": "dpl_4UXeGK1zQ5jBUTfX5X5wSGcBQP11",
+  "support_release": {
+    "status": "DEPLOYED_AND_VERIFIED",
+    "source_commit": "9a7a82e338130a6055ed5ed65aaa99a168cc1798",
+    "deployment_id": "dpl_KMhcV8LdtRcqZLxLRmDPCuKvMUUV",
+    "ready_state": "READY",
+    "target": "production",
+    "alias": "support123.gridex.se",
+    "domain_saved_project_verified": true
+  },
   "web_ci_lint": {
     "initial_failure": "Three Node VM test loaders named a local variable module, violating the Next lint rule; one unused source read warning.",
     "fix": "Renamed local objects to cjsModule while retaining the module property passed to the VM; removed the unused source read. No assertions or lint rules removed.",
     "targeted_existing_tests": "PASS customer-sync-route-evidence, customer-write-boundary, pricing-snapshot-idempotency, customer-pricing-copy-and-renewal",
     "repository_lint": "PASS npm run lint, zero errors/warnings"
+  },
+  "staff_login": "User-confirmed successful real login; identity/cases/customers 200 after audited canonical role repair",
+  "cross_browser_recovery": {
+    "native_status": "PASS_NATIVE_CROSS_BROWSER_RECOVERY",
+    "native_checks": 6,
+    "unit_cases": 34,
+    "preview_checks": 8,
+    "production_checks": 8,
+    "fixture_deleted": true,
+    "deleted_fixture_session_rejected": true,
+    "remaining_fixture_auth_users": 0,
+    "auth_smtp_delivery_qualified": false,
+    "evidence": "native-support-recovery-20261018.json"
+  },
+  "ops_delivery": {
+    "pull_request": 830,
+    "head": "caae18fc74af84b775f8c1e767bb5c31b2aa4d52",
+    "receiving_main": "61b29f0cadd04b28f467abd68e2b7c528a7e7baa",
+    "checks": {
+      "success": 18,
+      "skipped": 11,
+      "pending": 0,
+      "failed": 0
+    },
+    "status": "Two independent final receiving-main source-applicability approvals received; head-only CI green; existing serial owner must qualify current receiving composition before normal delivery",
+    "independent_reviewers": 2,
+    "merge_provenance_limit": "Reported test merge still has historical base 8ccad787; no claim that the passing head contexts executed on the new combined main61b29 tree"
   }
 }

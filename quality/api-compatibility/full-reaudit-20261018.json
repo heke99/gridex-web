@@ -118,5 +118,12 @@
   ],
   "temporary_preview_access_revoked": true,
   "followup": "quality/api-compatibility/live-production-followup-20261018.json",
-  "support_password_recovery": "quality/api-compatibility/support-password-recovery-20261018.json"
+  "support_password_recovery": "quality/api-compatibility/support-password-recovery-20261018.json",
+  "latest_support_followup": {
+    "evidence": "support-password-recovery-20261018.json",
+    "native_evidence": "native-support-recovery-20261018.json",
+    "user_staff_login": "CONFIRMED_SUCCESS",
+    "runtime_source": "9a7a82e338130a6055ed5ed65aaa99a168cc1798",
+    "scope": "Later follow-up; does not change the qualification limits or historical results of the original full audit"
+  }
 }

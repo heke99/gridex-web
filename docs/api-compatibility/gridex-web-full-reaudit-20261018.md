@@ -91,7 +91,8 @@ och [FK-index](https://supabase.com/docs/guides/database/database-linter?lint=00
   behörighetsgenvägar har lagts till.
 
 Ingen verklig elanläggning, leverantörs-/nätägar-dispatch, fakturabetalning,
-produktionslast eller riktig personalinloggning har kvalificerats av detta prov.
+produktionslast har kvalificerats av detta ursprungliga prov. Riktig personalinloggning
+bekräftades senare av användaren, se driftuppföljningen nedan.
 Det syntetiska Auth-kontots administrativt bekräftade e-post bevisar inte kundens
 inbjudnings-/SMTP-leverans. Avtalsmejlets tidigare verifierade leverans är separat.
 
@@ -114,3 +115,49 @@ på nytt. Alla tre dokumentkontrakt matchar fortfarande OPS 2026-10-12.1.
 Alla tillfälliga förhandsdelningar är återkallade.
 Detaljer: quality/api-compatibility/live-production-followup-20261018.json och
 support-password-recovery-20261018.json.
+
+## Driftuppföljning 21:45 UTC
+
+Användaren har bekräftat riktig inloggning på Support123. Det befintliga kontot
+och identitetskopplingen fanns; rollen `owner` saknades däremot i Staff API:s
+behörighetsprofiler. Den tidigare godkända administratören fick därför den
+stödda `company_admin`-rollen genom det kanoniska, loggade tenantkommandot.
+Befintliga registrerade behörigheter och bolagets ägarpost bevarades.
+Efter rättningen gav identitets-, ärende- och kundläsning 200. Lösenordet
+hämtades eller ändrades inte av verktygen.
+
+Support123 kör nu källa `9a7a82e338130a6055ed5ed65aaa99a168cc1798`,
+READY `dpl_KMhcV8LdtRcqZLxLRmDPCuKvMUUV`. Nya återställningsmejl använder
+en separat publik Auth-klient utan webbläsarbunden PKCE-verifierare.
+Callbacken tar bort fragmentet från adressfältet och kräver uttrycklig POST,
+native verifiering/rotation och exakt matchande UUID innan lösenordsformuläret
+öppnas. Äldre PKCE-länkar behåller sin ursprungliga webbläsarkoppling.
+
+34 återställningsprov, hela personalsviten, typer och lint passerade.
+28 isolerade webbläsarkontroller samt åtta kontroller vardera på aktuell
+förhandsversion och produktion passerade utan JavaScript-fel. Ett separat
+verkligt Auth-prov skapade en uttryckligt märkt syntetisk användare, genererade
+en native återställningslänk utan mejlutskick, öppnade den i en ny
+webbläsarsession, ändrade lösenordet och verifierade ny lösenordsinloggning.
+Den ursprungliga e-postverifieringslänken nekades vid återanvändning. Kontot
+saknade personalbindning och nekades personalytan. Det togs sedan bort:
+kvarvarande Auth-fixturer är noll och den borttagna sessionen nekas.
+Detta kvalificerar inte Auth SMTP-leverans. Alla tillfälliga förhandsdelningar
+är återkallade.
+
+PR830:s oförändrade granskade OPS-källa har 18 godkända och 11 villkorligt
+överhoppade kontroller, utan väntande/felande kontroller. Två oberoende
+granskare har godkänt källans tillämplighet mot nya main `61b29f0c`. GitHubs
+rapporterade provmerge använder fortfarande historiska basen `8ccad787`: de
+gröna kontrollerna utgör inte provning av det nya sammansatta trädet. Befintlig
+seriell leveransägare måste kvalificera den kombinationen före normal merge.
+Detta är inte en OPS-release.
+Den separata fullmaktsrättningen i PR828 saknar ännu kvalificerad leverans;
+dess förberedda bygge avbröts av `BUILD_EXCEEDED_MAXIMUM_TIME`. Saknad
+leveransfrist-RPC och dess privata beroenden kvarstår. Projektet är därför
+inte kvalificerat som helt färdigt.
+
+Detaljer: `support-staff-role-repair-20261018.json`,
+`support-password-recovery-20261018.json`,
+`native-support-recovery-20261018.json` och
+`live-production-followup-20261018.json` under `quality/api-compatibility/`.

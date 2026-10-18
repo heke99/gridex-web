@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-18T21:39:57.654Z",
+  "scope": "Dedicated synthetic native Auth recovery; no human session or email used",
+  "emails_sent": 0,
+  "checks": [
+    "New explicitly marked Auth fixture; native recovery link generated without sending email",
+    "Native Auth verification returns cross-browser recovery credentials for the fixed Support123 callback",
+    "Original native email verification link cannot be redeemed twice",
+    "Fresh browser with no requesting-browser cookies verifies/rotates native recovery and opens own password form",
+    "Native password update succeeds while the fixture remains denied staff access without a binding",
+    "Real native password sign-in verifies the newly chosen password for exactly the synthetic fixture"
+  ],
+  "status": "PASS_NATIVE_CROSS_BROWSER_RECOVERY",
+  "fixture_deleted": true,
+  "deleted_fixture_session_rejected": true,
+  "source_commit": "9a7a82e338130a6055ed5ed65aaa99a168cc1798",
+  "deployment_id": "dpl_KMhcV8LdtRcqZLxLRmDPCuKvMUUV",
+  "remaining_fixture_auth_users": 0,
+  "cleanup_verification": "Read-only Auth catalog count after deletion: zero matching synthetic fixture users; deleted fixture session rejected",
+  "temporary_shares_revoked": true,
+  "qualification_limits": [
+    "Native link generation/verification, password change and subsequent password sign-in are proven; Auth SMTP delivery was not exercised.",
+    "Only a newly created explicitly marked synthetic Auth fixture was used; no existing human recovery token or session was obtained.",
+    "No fixture staff binding or role was created; recovered fixture remained denied the staff workspace."
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-18T21:24:37.649301+00:00",
+  "checked_at": "2026-10-18T21:47:14.439900+00:00",
   "scope": "User-nominated first Support123 administrator in Gridex El AB",
   "confirmed_finding": {
     "native_password_login": "succeeded at 21:10 UTC",
@@ -20,5 +20,16 @@
     "first_attempt": "An incompatible owner/company_admin pair was rejected by the canonical mapping guard; entire transaction rolled back. Corrected command lets canonical mapping derive the supported membership role.",
     "password_reset_or_human_session_retrieval": false
   },
-  "user_verification": "Requested after repair; awaiting reply"
+  "user_verification": {
+    "status": "CONFIRMED_SUCCESS",
+    "reply": "Ja, jag kommer in",
+    "scope": "Actual nominated staff account logging into support123.gridex.se after canonical role repair"
+  },
+  "post_repair_request_log": {
+    "source": "OPS integration_api_requests",
+    "window": "2026-10-18 around 21:25 UTC",
+    "staff_identity_resolution": 200,
+    "staff_cases": 200,
+    "staff_customers": 200
+  }
 }
