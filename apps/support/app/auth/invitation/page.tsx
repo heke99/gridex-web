@@ -25,8 +25,7 @@ export default async function InvitationPage({
       <main className="staff-login">
         <section className="staff-login-card" aria-labelledby="recovery-title">
           <h1 id="recovery-title">Välj nytt lösenord</h1>
-          <PasswordRecoveryForm action={acceptPasswordRecovery}
-            code={typeof params.code === "string" && params.code.length <= 16_384 ? params.code : ""} />
+          <PasswordRecoveryForm action={acceptPasswordRecovery} />
           <Link href="/login">Till inloggningen</Link>
         </section>
       </main>

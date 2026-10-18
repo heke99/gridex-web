@@ -52,6 +52,11 @@ try {
     page = await context.newPage()
     page.setDefaultTimeout(12_000)
     page.on('pageerror', error => errors.push(error.message))
+    await page.goto(`${origin}/auth/invitation?flow=password-recovery&code=invalid-native-code`)
+    await page.getByRole('button', { name: 'Fortsätt och välj lösenord' }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText('Länken är ogiltig')
+    // Replacing the rejected URL's fragment must capture the new email proof
+    // and clear the rejected form state without requiring a tab reload.
     await page.goto(`${origin}/auth/invitation?flow=password-recovery#access_token=offline-cross-browser-access-token&refresh_token=offline-cross-browser-refresh-token&type=recovery`)
     await expect(page).toHaveURL(`${origin}/auth/invitation?flow=password-recovery`)
     await expect(page.locator('input[name="access_token"]')).toHaveValue('offline-cross-browser-access-token')
