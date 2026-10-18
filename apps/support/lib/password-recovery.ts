@@ -13,6 +13,11 @@ const callback = "https://support123.gridex.se/auth/invitation?flow=password-rec
 const sent = { success: "Om kontot finns får du en länk via e-post. Länken kan öppnas i en annan webbläsare." };
 const unavailable = { error: "Länken kunde inte skickas. Försök igen senare." };
 const invalid = { error: "Länken är ogiltig eller har gått ut. Begär en ny länk." };
+function verifiedSubject(user: { id?: unknown } | null | undefined): string | null {
+  return typeof user?.id === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
+    ? user.id : null;
+}
 
 export async function requestSupportPasswordRecovery(
   data: FormData,
@@ -58,22 +63,24 @@ export async function acceptSupportPasswordRecovery(
       // must never replace the identity proven by the email access token.
       const checked = await client.auth.getUser(access);
       const user = checked.data.user;
-      if (!checked.error && user?.email_confirmed_at && Number.isFinite(Date.parse(user.email_confirmed_at))) {
+      const subject = verifiedSubject(user);
+      if (!checked.error && subject && user?.email_confirmed_at && Number.isFinite(Date.parse(user.email_confirmed_at))) {
         const rotated = await client.auth.refreshSession({ refresh_token: refresh });
-        if (!rotated.error && rotated.data.session && rotated.data.user?.id === user.id
-          && rotated.data.session.user.id === user.id) {
+        if (!rotated.error && rotated.data.session && verifiedSubject(rotated.data.user) === subject
+          && verifiedSubject(rotated.data.session.user) === subject) {
           const current = await client.auth.getUser();
-          verified = !current.error && current.data.user?.id === user.id;
+          verified = !current.error && verifiedSubject(current.data.user) === subject;
         }
       }
     } else {
       // Keep previously sent PKCE links usable in their original browser.
       const exchanged = await client.auth.exchangeCodeForSession(code);
-      if (!exchanged.error && exchanged.data.session && exchanged.data.user
+      const subject = verifiedSubject(exchanged.data.user);
+      if (!exchanged.error && exchanged.data.session && subject
         && "redirectType" in exchanged.data && exchanged.data.redirectType === "PASSWORD_RECOVERY"
-        && exchanged.data.session.user.id === exchanged.data.user.id) {
+        && verifiedSubject(exchanged.data.session.user) === subject) {
         const current = await client.auth.getUser();
-        verified = !current.error && current.data.user?.id === exchanged.data.user.id;
+        verified = !current.error && verifiedSubject(current.data.user) === subject;
       }
     }
   } catch {

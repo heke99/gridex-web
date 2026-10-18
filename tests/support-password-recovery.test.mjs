@@ -451,3 +451,100 @@ test('the canonical getUser after fragment refresh must verify the same recovere
     noBusinessChanges(f.state)
   }
 })
+
+const invalidSubjects = [undefined, '', 'not-a-uuid', '11111111-1111-4111-8111-11111111111z']
+
+test('PKCE recovery never treats missing subject IDs and a missing canonical user as matching identities', async () => {
+  const exchanged = recoveryExchange()
+  delete exchanged.data.user.id
+  delete exchanged.data.session.user.id
+  const f = fixture({ exchangeResult: exchanged, userResult: { data: { user: null }, error: null } })
+  safeError(await acceptSupportPasswordRecovery(form({ code }), f.deps))
+  assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+  assert.deepEqual(f.state.redirects, [])
+  assert.equal(f.state.sessionLive, false)
+  noBusinessChanges(f.state)
+})
+
+test('PKCE recovery requires a valid UUID even when exchange, session and canonical subject claims all agree', async () => {
+  for (const id of invalidSubjects) {
+    const exchanged = recoveryExchange()
+    exchanged.data.user.id = id
+    exchanged.data.session.user.id = id
+    const f = fixture({ exchangeResult: exchanged, userResult: { data: { user: { ...user, id } }, error: null } })
+    safeError(await acceptSupportPasswordRecovery(form({ code }), f.deps))
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
+})
+
+test('PKCE recovery rejects malformed native session or canonical subject IDs', async () => {
+  for (const id of invalidSubjects) {
+    for (const stage of ['session', 'canonical']) {
+      const exchanged = recoveryExchange()
+      const options = { exchangeResult: exchanged }
+      if (stage === 'session') exchanged.data.session.user.id = id
+      else options.userResult = { data: { user: { ...user, id } }, error: null }
+      const f = fixture(options)
+      safeError(await acceptSupportPasswordRecovery(form({ code }), f.deps))
+      assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+      assert.deepEqual(f.state.redirects, [])
+      assert.equal(f.state.sessionLive, false)
+      noBusinessChanges(f.state)
+    }
+  }
+})
+
+test('fragment recovery never equates undefined access/refresh subjects with a missing canonical user', async () => {
+  const checkedUser = { ...user }
+  delete checkedUser.id
+  const refreshed = recoveryRefresh()
+  delete refreshed.data.user.id
+  delete refreshed.data.session.user.id
+  const f = fixture({
+    accessUserResult: { data: { user: checkedUser }, error: null },
+    refreshResult: refreshed, userResult: { data: { user: null }, error: null },
+  })
+  safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+  assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+  assert.deepEqual(f.state.redirects, [])
+  assert.equal(f.state.sessionLive, false)
+  noBusinessChanges(f.state)
+})
+
+test('fragment recovery requires a verified UUID even when every provider subject claim agrees', async () => {
+  for (const id of invalidSubjects) {
+    const refreshed = recoveryRefresh()
+    refreshed.data.user.id = id
+    refreshed.data.session.user.id = id
+    const f = fixture({
+      accessUserResult: { data: { user: { ...user, id } }, error: null },
+      refreshResult: refreshed, userResult: { data: { user: { ...user, id } }, error: null },
+    })
+    safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
+})
+
+test('fragment recovery rejects malformed native refresh-user, session-user and canonical-user UUIDs', async () => {
+  for (const id of invalidSubjects) {
+    for (const stage of ['refresh', 'session', 'canonical']) {
+      const refreshed = recoveryRefresh()
+      const options = { refreshResult: refreshed }
+      if (stage === 'refresh') refreshed.data.user.id = id
+      else if (stage === 'session') refreshed.data.session.user.id = id
+      else options.userResult = { data: { user: { ...user, id } }, error: null }
+      const f = fixture(options)
+      safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+      assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+      assert.deepEqual(f.state.redirects, [])
+      assert.equal(f.state.sessionLive, false)
+      noBusinessChanges(f.state)
+    }
+  }
+})
