@@ -2,7 +2,7 @@
   "date": "2026-10-18",
   "repository": "gridex-web",
   "base_commit": "1fc033ef791b5bb62ac6672576e64c83727c17d0",
-  "source_status": "Marketing commit 1f60c9f and support commit 54fa120 deployed to their respective production projects; live evidence attached",
+  "source_status": "Marketing commit 1f60c9f, minimal support commit e63a349, and unchanged existing OPS source 3034e14 deployed to their respective production projects",
   "runtime": "Node.js 22.23.3",
   "story": "Only verified Gridex staff with a current tenant identity binding and authoritative API permissions can use support123; customer and staff requests stay on their respective API surfaces.",
   "instructions_applied": [
@@ -161,6 +161,14 @@
       "application_errors": 0,
       "scope": "Real custom-domain login, mobile layout and anonymous denial on four protected routes; no staff login or business write",
       "evidence": "quality/support123/live-evidence-20261018/browser-verification.json"
+    },
+    {
+      "command": "Minimal login support typecheck, production build, scoped ESLint and 25 offline browser checks",
+      "status": "PASS",
+      "source_commit": "e63a349a7863b1c2584b1a679de8ec93c03b2b3b",
+      "live_browser_checks": 3,
+      "application_errors": 0,
+      "evidence": "quality/support123/live-evidence-20261018-minimal/browser-verification.json"
     }
   ],
   "database_inspection": {
@@ -178,19 +186,14 @@
     "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
   },
   "live_blockers": [
-    "Persistent support123 Project Domain record still belongs to marketing; available connector has alias assignment but no Move operation. User has the exact manual move instruction.",
-    "New private signing key for OPS staff invitation delivery was blocked by automatic review; explicit approval for GRIDEX_STAFF_DELIVERY_PRIVATE_KEY and redeployment of existing OPS production code is pending. Five public bridge settings are prepared on support.",
-    "Supabase invitation callback allowlist currently falls back to https://gridex.se; the user has been asked to allow https://support123.gridex.se/auth/invitation**. Probe used an invalid token and sent no email.",
-    "Real staff password login, authenticated anonymous-contact read, permitted API business write and audit attribution have not been exercised with the nominated account."
+    "Persistent support123 Project Domain record still belongs to marketing; live alias points to support. Connector lacks Move/Remove. User reported Move unavailable and has been asked to remove only the old project association so it can be added to support."
   ],
   "next_production_steps": [
-    "Complete persistent domain Move from gridex-web to gridex-support",
-    "After explicit approval, configure the dedicated OPS delivery signing secret and register its public bridge metadata; activate with unchanged production sources",
-    "User allows support invitation callback in tenant Auth; verify with an invalid-token no-email probe",
-    "Owner completes real staff login and permitted read/write/audit qualification"
+    "After the old support123 project association is removed, add the existing domain to gridex-support and verify the persistent project ID and live alias",
+    "Owner completes real staff login and permitted read/write/audit qualification; send a real staff invitation only when explicitly requested"
   ],
-  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed.",
-  "status": "PRODUCTION_RELEASED_AWAITING_INVITATION_AND_DOMAIN_CONFIGURATION",
+  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist.",
+  "status": "MINIMAL_LOGIN_AND_SIGNING_LIVE_PENDING_PERSISTENT_DOMAIN_ASSOCIATION",
   "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
   "production_changes": {
     "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
@@ -213,11 +216,21 @@
     "audit_attribution": "codex_automation; no human actor impersonated",
     "email_sent": false,
     "marketing_deployment": "User-approved production release completed",
-    "support_deployment": "READY, independent login and anonymous workspace denial checked using caller-authorized Vercel protection access",
-    "support_domain_alias": "Explicitly approved alias now points to dpl_8ygNStf1HN7DptspHE6oydzrz2ZF, HTTP 200 staff login confirmed on custom domain",
+    "support_deployment": "Minimal login and all 15 production variables active in dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+    "support_domain_alias": "Explicitly approved alias points to dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr; HTTP 200 minimal login and anonymous browser denial verified",
     "nominated_account_readiness": "Existing confirmed tenant account has a password credential and is not deleted/banned; the password was never retrieved or reset",
     "marketing_vercel_protection": "Existing all-deployment Vercel protection intentionally retained after user declined opening the marketing custom domains",
-    "tenant_service_key": "User saved a sensitive production variable on gridex-support; activated by deployment dpl_8ygNStf1HN7DptspHE6oydzrz2ZF. Its value was never read."
+    "tenant_service_key": "Sensitive production variable saved by user on gridex-support and active; value never read",
+    "staff_delivery_signing": {
+      "explicit_user_approval": true,
+      "ops_secret": "GRIDEX_STAFF_DELIVERY_PRIVATE_KEY",
+      "ops_secret_type": "sensitive",
+      "key_id": "ops-staff-delivery-20261018",
+      "public_registration_added_with_audit": true,
+      "native_onboarding_readiness": true,
+      "tenant_key_shared_with_ops": false,
+      "email_sent": false
+    }
   },
   "deployments": {
     "marketing": {
@@ -237,31 +250,39 @@
       }
     },
     "support": {
-      "id": "dpl_8ygNStf1HN7DptspHE6oydzrz2ZF",
-      "url": "https://gridex-support-6ywi24gjr-div3rsa.vercel.app",
-      "source_commit": "54fa1200633d379ee29907dcbeaa179198c2846a",
+      "id": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+      "url": "https://gridex-support-ey91dudwk-div3rsa.vercel.app",
+      "source_commit": "e63a349a7863b1c2584b1a679de8ec93c03b2b3b",
       "target": "production",
       "state": "READY",
       "live_readback": {
-        "login_status": 200,
-        "staff_login_form_present": true,
-        "password_field_present": true,
-        "marketing_navigation_absent": true,
-        "protected_workspace": "Server render includes NEXT_REDIRECT to /login; no case data exposed",
         "custom_domain_login_status": 200,
-        "custom_domain_certificate_curl_system_ca_verified": true,
+        "minimal_form_only": true,
+        "intro_features_help_footer_removed": true,
         "anonymous_browser_routes_redirect_to_login": [
           "/",
           "/team",
           "/customers",
           "/contact-requests"
         ],
-        "evidence": "quality/support123/live-evidence-20261018/browser-verification.json"
+        "evidence": "quality/support123/live-evidence-20261018-minimal/browser-verification.json",
+        "unsigned_delivery_status": 403,
+        "signed_email_delivery_tested": false
       },
       "domain_cutover": "User approved and live alias cutover completed. Persistent project-domain registration still needs Move from marketing to support.",
       "build_fix": "Workspace now declares TypeScript/types and has an explicit root install command in apps/support/vercel.json",
       "previous_verified_deployment_id": "dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS",
-      "environment_scope": "10-variable runtime activates tenant service key; five additional public delivery settings await final signing activation/redeploy"
+      "environment_scope": "All 15 configured Auth, Staff and signed delivery variables active"
+    },
+    "ops_signing_activation": {
+      "id": "dpl_CwFDvmb8qxUkrsohcVHFJafvbbK6",
+      "url": "https://gridex-ops-platform-ra12tygg4-div3rsa.vercel.app",
+      "source_commit": "3034e14d194dbf6d8add1b23a5de1d2924f3a1a7",
+      "source_changed_by_this_task": false,
+      "state": "READY",
+      "target": "production",
+      "app_gridex_se_alias_verified": true,
+      "authorization": "User explicitly approved signing secret and redeployment of existing OPS production code"
     }
   },
   "pull_request": "https://github.com/heke99/gridex-web/pull/53",
@@ -275,10 +296,17 @@
   },
   "invitation_callback_probe": {
     "http_status": 303,
-    "redirect_origin": "https://gridex.se",
-    "expected_support_callback_allowed": false,
+    "redirect_origin": "https://support123.gridex.se",
+    "redirect_path": "/auth/invitation",
+    "token_parameter_preserved": true,
+    "expected_support_callback_allowed": true,
     "real_token": false,
     "email_sent": false,
     "auth_session_created": false
-  }
+  },
+  "remaining_qualification": [
+    "Real nominated-owner password login and authenticated anonymous-contact read",
+    "Explicitly requested real staff invitation and acceptance, with email/durable receipt/audit attribution",
+    "Real electricity agreement signing and full production load/query-plan qualification"
+  ]
 }

@@ -107,8 +107,17 @@ oförändrade övriga rättigheter. En tidigare automatisk granskning stoppade
 ändringen tills det specifika godkännandet kom.
 
 Driftresultat, källa och kvarvarande begränsningar dokumenteras i
-`quality/support123/verification-20261018.json`. Tenantens servernyckel för
-kontaktförfrågningar och den signerade leveransbryggan för nya personalinbjudningar
-måste vara konfigurerade innan dessa två driftflöden kan kvalificeras.
-Ett skarpt signerat kundavtal, verklig personalinloggning och fullständig
-last-/databasprestandakvalificering har inte påståtts utifrån enbart lokala tester.
+`quality/support123/verification-20261018.json`. Tenantens servernyckel och
+leveransbryggans publika inställningar är nu aktiva i personalappen. OPS har
+fått den uttryckligen godkända separata signeringsnyckeln och driftsatts om med
+oförändrad befintlig kod. Den inbyggda onboardingkontrollen godkänner registreringen.
+Callbacken till personalappen är tillåten i Supabase och verifierad med en
+ogiltig token utan att skapa session eller skicka mejl. Osignerade anrop till
+bryggan nekas. Inloggningssidan är förenklad till själva inloggningen enligt
+användarens instruktion och verifierad i både lokal och skarp webbläsare.
+
+Den bestående projektdomänkopplingen återstår: aliaset fungerar redan, men
+Vercels gamla projektregistrering behöver tas bort och läggas till på support
+när UI-funktionen Move inte finns. Ett skarpt signerat kundavtal, verklig
+personalinloggning, inbjudningsmejl och fullständig last-/databasprestandakvalificering
+har inte påståtts utifrån enbart lokala tester.

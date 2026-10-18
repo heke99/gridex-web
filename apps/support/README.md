@@ -213,24 +213,37 @@ visibility; writes are never retried automatically.
 
 ## Current production release
 
-The support deployment `dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS` (commit `54fa120`)
-is READY and serves the approved live alias `support123.gridex.se`. Its actual
-public login, mobile viewport and anonymous redirects on the workspace, users,
-customers and contact inbox have been checked. Evidence is in
-`quality/support123/live-evidence-20261018`. A real staff password login has not
-been performed or fabricated.
+Support deployment `dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr` (commit `e63a349`)
+is READY and serves `support123.gridex.se`. The requested minimal page contains
+only the Gridex brand, login heading, email/password fields and sign-in controls.
+The introductory text, feature blocks, help text and footer were removed.
+The 25 offline browser checks, support typecheck, scoped ESLint and production
+build pass. Live desktop/mobile and anonymous redirects are recorded in
+`quality/support123/live-evidence-20261018-minimal`. No real staff password
+session was retrieved or fabricated.
+
+The tenant service key and all five public delivery settings are active on the
+support deployment. After explicit approval, OPS received the separate sensitive
+`GRIDEX_STAFF_DELIVERY_PRIVATE_KEY` and redeployed its existing production source
+`3034e14` as `dpl_CwFDvmb8qxUkrsohcVHFJafvbbK6`. The registered delivery metadata
+passes `gridex_staff_tenant_onboarding_ready_v1`. Tenant delivery tables/RPCs
+already exist with private RLS/service-only access; no migration was applied.
+
+The operator added the tenant Auth redirect allowlist. An invalid-token probe
+now returns the exact support invitation callback and preserves its token query
+parameter. Unsigned requests to the live delivery bridge are refused with 403.
+No real invitation, email, membership or password change was used for testing.
+Authenticated invitation delivery still needs qualification through an explicitly
+requested real staff invitation.
 
 The persistent Vercel Project Domain record still belongs to `gridex-web`.
-Move that record to `gridex-support` in Vercel Domains before a future marketing
-production release; the connector exposes alias assignment but lacks the
-documented domain-move operation. Adding the existing domain returns 409.
-The live alias has already been verified against the intended support project.
+The live alias points to support. The connector lacks domain Move/Remove, and
+adding an already registered domain returns 409. Since the operator cannot Move
+it in the UI, remove only the `support123.gridex.se` project association from
+marketing, then add it to support; keep DNS and domain registration intact.
+The intended target is ready before that short reassignment.
 
-Marketing commit `1f60c9f` is released as deployment
-`dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27` after explicit user approval. Its existing
-Vercel protection is intentionally retained at the user's request. The tenant service key is now saved on the separate support project and
-activated by deployment `dpl_8ygNStf1HN7DptspHE6oydzrz2ZF` (same source
-`54fa120`). Five public delivery settings are prepared; the OPS private signing
-key and invitation callback allowlist still await their explicit activation.
-A no-email invalid-token probe currently redirects to the marketing site, so
-the support callback must be allowed before sending a real staff invitation.
+Marketing commit `1f60c9f` remains released as deployment
+`dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27`. Its existing Vercel protection is intentionally
+retained at the user's request. Complete evidence and remaining live-session
+qualification limits are in `quality/support123/verification-20261018.json`.
