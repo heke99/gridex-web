@@ -186,10 +186,10 @@
     "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
   },
   "live_blockers": [
-    "The old marketing association was removed by the user and support123 was added to gridex-support. Vercel now requires a new external Strato TXT challenge before it permits the alias. Current public HTTPS returns 404 DEPLOYMENT_NOT_FOUND; the READY support deployment remains available through authorized Vercel access."
+    "Support123 is registered on the correct support project, but the newly added external Strato TXT value has a literal trailing dot and fails Vercel ownership verification. Both Google and Cloudflare resolve the malformed value. The operator has been asked to remove just that dot. Public support123 remains unavailable until verification and alias reassignment; the unchanged READY deployment login returns 200 through authorized Vercel access."
   ],
   "next_production_steps": [
-    "User adds the additional TXT record returned by Vercel at _vercel.gridex.se; preserve other records. Then verify support project domain, assign its READY deployment alias, and recheck public HTTPS and login.",
+    "User removes the literal trailing dot from the new _vercel TXT value. Then verify support project domain, assign its READY deployment alias, and recheck public HTTPS and login.",
     "Owner completes real staff login and permitted read/write/audit qualification; send a real staff invitation only when explicitly requested"
   ],
   "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist. User removed the old support123 project-domain association; the domain was added to gridex-support and now awaits its new DNS ownership challenge. No DNS record was changed.",

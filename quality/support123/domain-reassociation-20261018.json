@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-18T17:47:18.592303+00:00",
+  "checked_at": "2026-10-18T17:50:36.705068+00:00",
   "domain": "support123.gridex.se",
   "old_project_id": "prj_M9CISqPbBmmX7L83lvqiAJDJfhGS",
   "old_association_exists": false,
@@ -31,11 +31,18 @@
       "name": "_vercel.gridex.se",
       "value": "vc-domain-verify=support123.gridex.se,1c940708e74e16620520"
     },
-    "public_txt_lookup": "Expected new challenge absent; historical support123 value remains. Other verification records retained.",
-    "changed_by_this_task": false
+    "public_txt_lookup": "Both Google and Cloudflare resolve the new support123 TXT with an extra trailing dot in its literal value; exact challenge match fails.",
+    "changed_by_this_task": false,
+    "observed_new_value": "vc-domain-verify=support123.gridex.se,1c940708e74e16620520.",
+    "exact_match": false,
+    "resolvers_checked": [
+      "dns.google",
+      "cloudflare-dns.com"
+    ]
   },
   "ready_target_deployment": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
-  "next_action": "Add additional TXT at authoritative Strato DNS, verify project domain, assign existing READY support deployment alias, repeat HTTPS/login checks.",
+  "next_action": "Remove the extra trailing dot from the new TXT value at authoritative Strato DNS, then verify project domain, assign the existing READY support deployment alias and repeat public HTTPS/login checks.",
   "marketing_protection": "Anonymous gridex.se requests still reach Vercel SSO as explicitly requested",
-  "status": "WAITING_FOR_EXTERNAL_DNS_RECORD"
+  "status": "WAITING_FOR_EXTERNAL_DNS_VALUE_CORRECTION",
+  "ready_target_authorized_https_status": 200
 }
