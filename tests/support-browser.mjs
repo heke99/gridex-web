@@ -23,7 +23,7 @@ async function login(email) {
   await page.getByRole('button', { name: 'Logga in', exact: true }).click()
 }
 try {
-  await check('anonymous inbox requires own staff login', async () => { await page.goto(origin); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByRole('heading', { name: 'Logga in till kundtjänsten' })).toBeVisible() })
+  await check('anonymous inbox requires own staff login', async () => { await page.goto(origin); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByRole('heading', { name: 'Logga in', exact: true })).toBeVisible() })
   await check('anonymous contact request list and detail require verified staff access', async () => { for (const path of ['/contact-requests', `/contact-requests/${FIXTURE_PUBLIC_INQUIRY}`]) { await page.goto(`${origin}${path}`); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByText('Fråga från kontaktformuläret', { exact: true })).toHaveCount(0) } })
   await check('login layout has no marketing or OPS navigation', async () => { await expect(page.getByRole('navigation')).toHaveCount(0); await expect(page.locator('a[href*="app.gridex.se"]')).toHaveCount(0); await page.screenshot({ path: `${output}/login.png`, fullPage: true }) })
   await check('mobile login fits viewport', async () => { await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await page.screenshot({ path: `${output}/login-mobile.png`, fullPage: true }); await page.setViewportSize({ width: 1440, height: 1000 }) })

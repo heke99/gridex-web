@@ -23,9 +23,7 @@ export default function LoginForm({ action }: { action: FormAction }) {
       {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
       <button type="submit" className="primary staff-login-submit" disabled={pending}>
         {pending ? "Loggar in…" : "Logga in"}
-        {!pending ? <span aria-hidden="true">→</span> : null}
       </button>
-      <p className="staff-login-help">Behöver du hjälp med ditt personalkonto?<br />Kontakta din bolagsadministratör.</p>
     </form>
   );
 }

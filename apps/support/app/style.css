@@ -389,43 +389,18 @@ tbody tr:last-child td {
   color: var(--muted);
   margin-top: 22px;
 }
-.staff-login { min-height: 100svh; display: flex; flex-direction: column; background: radial-gradient(ellipse at 8% 58%, #e8f4ed 0, transparent 54%), #f7f9f7; }
-.staff-login-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; width: min(1160px, 100%); margin: 0 auto; padding: 36px 30px; }
-.staff-login-header img { display: block; height: auto; }
-.staff-login-label { display: flex; align-items: center; gap: 9px; border: 1px solid #d9e5dd; padding: 8px 13px; border-radius: 30px; color: #52645b; font-size: 12px; }
-.staff-login-label > span { height: 6px; width: 6px; border-radius: 50%; background: #16734e; }
-.staff-login-content { flex: 1; width: min(1100px, 100%); padding: 40px 30px 64px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 80px; align-items: center; }
-.staff-login-intro h2 { font-size: clamp(32px, 3.5vw, 45px); line-height: 1.18; letter-spacing: -1.8px; margin: 18px 0 22px; font-weight: 600; }
-.staff-login-intro h2 span { color: #16734e; }
-.staff-login-intro > p:not(.eyebrow) { color: #58706c; line-height: 1.8; }
-.staff-login-features { list-style: none; display: grid; gap: 23px; margin: 38px 0 0; padding: 0; }
-.staff-login-features li { display: flex; align-items: center; gap: 16px; }
-.staff-login-features li > span { font-size: 11px; color: #49705c; border: 1px solid #d3e4d8; height: 35px; width: 35px; display: grid; place-items: center; border-radius: 10px; }
-.staff-login-features strong { display: block; font-size: 14px; font-weight: 600; }
-.staff-login-features small { display: block; color: #58706c; font-size: 12px; margin-top: 3px; }
-.staff-login-card { background: #fff; border: 1px solid #e0e8e2; border-radius: 20px; padding: 36px; box-shadow: 0 12px 45px #193c2610; }
-.staff-login-card h1 { font-size: 25px; line-height: 1.25; letter-spacing: -.7px; margin: 9px 0 13px; }
-.staff-login-card > .muted { font-size: 13px; line-height: 1.75; }
-.staff-login-icon { display: grid; place-items: center; height: 44px; width: 44px; background: #edf6ef; color: #166650; border-radius: 12px; margin-bottom: 22px; }
-.staff-login-icon svg { height: 26px; width: 26px; }
-.staff-login-form { margin-top: 27px; display: grid; gap: 9px; }
+.staff-login { min-height: 100svh; display: grid; place-items: center; padding: 24px; background: #f5f7f5; }
+.staff-login-card { width: min(100%, 420px); padding: 36px; background: #fff; border: 1px solid #e0e8e2; border-radius: 16px; box-shadow: 0 12px 45px #193c260a; }
+.staff-login-card > img { display: block; height: auto; margin: 0 auto 28px; }
+.staff-login-card h1 { text-align: center; font-size: 25px; line-height: 1.25; letter-spacing: -.7px; margin: 0 0 24px; }
+.staff-login-form { display: grid; gap: 9px; }
 .staff-login-form > label { display: block; font-size: 12px; font-weight: 600; margin-top: 8px; }
 .staff-login-form input { height: 46px; border: 1px solid #cedbd2; background: #fdfefd; border-radius: 8px; padding: 11px 13px; width: 100%; min-width: 0; }
 .staff-password { position: relative; }
 .staff-password input { padding-right: 65px; }
 .staff-password button { position: absolute; right: 6px; top: 5px; height: 36px; background: transparent; border: 0; color: #426653; font-size: 11px; padding: 0 9px; }
-.staff-login-submit { width: 100%; height: 46px; margin-top: 16px; justify-content: space-between; padding: 10px 17px; }
-.staff-login-submit > span { font-size: 21px; font-weight: 400; }
-.staff-login-help { text-align: center; font-size: 11px; line-height: 1.8; color: #58706c; margin: 15px 0 0; }
-.staff-login-footer { width: min(1160px, 100%); padding: 24px 30px; margin: auto; display: flex; justify-content: space-between; gap: 16px; color: #66796e; font-size: 11px; border-top: 1px solid #e0e8e2; }
-@media (max-width: 800px) {
-  .staff-login-header { padding: 24px; }
-  .staff-login-header img { width: 145px; }
-  .staff-login-content { grid-template-columns: 1fr; padding: 25px 24px 40px; gap: 30px; max-width: 490px; }
-  .staff-login-intro { display: none; }
-  .staff-login-card { padding: 28px 24px; }
-  .staff-login-footer { flex-direction: column; gap: 5px; text-align: center; padding: 20px; }
-}
+.staff-login-submit { width: 100%; height: 46px; margin-top: 16px; justify-content: center; padding: 10px 17px; }
+@media (max-width: 480px) { .staff-login { padding: 20px; } .staff-login-card { padding: 28px 24px; } }
 .skip {
   position: absolute;
   left: -9999px;
