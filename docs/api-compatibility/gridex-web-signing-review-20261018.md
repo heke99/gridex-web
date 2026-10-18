@@ -1,5 +1,7 @@
 # Gridex Web: signering, PDF och fullmaktsbevis
 
+Senaste fullständiga efterkontroll: [API- och databasgenomgång](gridex-web-full-reaudit-20261018.md). Den redovisar senare publicerad kod och verkligt autentiserat Mina sidor-prov.
+
 Källa: https://app.gridex.se/developers/customer-portal-api. Dokumentation
 2026-10-12.1 och runtime 2026-10-09.1. Samtliga 142 operationer i Website-,
 Customer- och Staff-specifikationerna är klassificerade i endpointmatrisen.

@@ -345,6 +345,7 @@
     "new_behavior_tests": 93,
     "live_agreement_and_email_pdf_delivery_verified": true,
     "live_poa_pdf_delivery_verified": false,
-    "production_deployment": "dpl_DKN6bDQLZC2N9fNgfhRRSXgkSTnC"
+    "production_deployment": "dpl_GHAv3SEErU8VCrJV3i1qSYix8cDG",
+    "latest_reaudit": "quality/api-compatibility/full-reaudit-20261018.json"
   }
 }

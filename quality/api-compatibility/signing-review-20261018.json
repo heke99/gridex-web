@@ -10,9 +10,9 @@
       "gridex.se",
       "www.gridex.se"
     ],
-    "deployment_id": "dpl_DKN6bDQLZC2N9fNgfhRRSXgkSTnC",
+    "deployment_id": "dpl_GHAv3SEErU8VCrJV3i1qSYix8cDG",
     "ready_state": "READY",
-    "source_commit": "ffa37ac4d34f320d2fe98110961a82bf3fc69403",
+    "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
     "new_fixes_deployed": true,
     "vercel_protection": "enabled for all deployments; ordinary unauthenticated request redirects to Vercel login",
     "authenticated_production_functional_probe": "Automatic approval review denied connector access because it may create/reuse a protection bypass; no workaround attempted. Identical source verified in protected preview, production readiness/source/aliases and anonymous protection verified."
@@ -254,5 +254,6 @@
     "evidence": "quality/api-compatibility/live-web-verification-20261018.json",
     "result": "PASS",
     "protected_preview_only": true
-  }
+  },
+  "latest_reaudit": "quality/api-compatibility/full-reaudit-20261018.json"
 }

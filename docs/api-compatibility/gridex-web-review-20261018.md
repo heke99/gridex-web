@@ -1,5 +1,7 @@
 # Gridex Web: genomgång av API-dokumentationen 2026-10-18
 
+Senaste fullständiga efterkontroll: [API- och databasgenomgång](gridex-web-full-reaudit-20261018.md). Den redovisar senare publicerad kod och verkligt autentiserat Mina sidor-prov.
+
 Källa: https://app.gridex.se/developers/customer-portal-api. Dokumentationsrelease
 2026-10-12.1, svarsschema 2026-10-09.1, separat personalintroduktion 2026-10-05.2.
 Website-, Customer- och Staff-specifikationerna synkroniseras och kontrolleras
