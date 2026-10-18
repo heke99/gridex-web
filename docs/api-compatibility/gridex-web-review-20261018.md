@@ -143,11 +143,8 @@ alternativa API-ytor är uttryckligen klassificerade. Varje affärsoperation har
 kopplats till adapter och relevanta kontrakts-/beteendeprov. Det påstås inte att
 142 skarpa mutationer har körts.
 
-Testkunden [testkundsreferens utelämnad] har skapats efter användarens uttryckliga instruktion, med
-`is_test_data=true` och utan verklig elanläggning. Autentiserade läsningar via
-befintlig verifierad webbklient fungerar. Fullmaktssynken avvisades med
-`409 LEGAL_BUNDLE_NOT_READY` eftersom kunden ännu saknar ett aktivt juridiskt
-paket. Inget avtal, fullmakt, PDF eller mejl skapades. Automatisk
-godkännandegranskning stoppade därefter provet genom den riktiga kundansökan
-eftersom det kan starta externa OPS-processer. Slutprov kräver uttryckligt
-godkännande för den åtgärden eller en avsedd isolerad testmiljö.
+Det uttryckligen godkända riktiga avtalsprovet är genomfört. Avtal/fullmakt
+är signerade; samma ansökan och signeringshash återanvänds vid omförsök,
+original-IP stämmer och avtals-PDF har levererats till vald mottagare.
+Fullmaktsarkivet i OPS är däremot JSON utan verifieringsnummer. Se den
+fördjupade rapporten för bevis och kvarvarande backend-avvikelse.

@@ -337,7 +337,7 @@
     "contract_sync": "W4 fixed in branch; deployed product behavior unchanged",
     "support_domain_affected": false
   },
-  "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_API_FINDINGS_FIXED_PDF_TEST_PENDING",
+  "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_FIXES_VERIFIED_REAL_APPLICATION_PASS_OPS_ARCHIVE_GAP",
   "web_api_completion": {
     "date": "2026-10-18",
     "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
@@ -345,6 +345,9 @@
     "code_findings": "W1-W4 resolved in branch; delivery evidence records live source separately",
     "live_test_customer": "[testkundsreferens utelämnad]",
     "live_pdf_delivery_verified": false,
-    "remaining": "Explicit approval for an actual test Website application or isolated OPS staging environment; automatic review rejected potential external side effects."
+    "remaining": "Confirmed OPS backend gap: POA archived as JSON without verification number.",
+    "new_behavior_tests": 80,
+    "live_agreement_and_email_pdf_delivery_verified": true,
+    "live_poa_pdf_delivery_verified": false
   }
 }

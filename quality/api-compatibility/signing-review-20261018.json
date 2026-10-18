@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-10-18T18:48:23.591165+00:00",
-  "status": "CODE_FINDINGS_FIXED_LIVE_PDF_TEST_AWAITING_EXPLICIT_APPLICATION_APPROVAL",
+  "checked_at": "2026-10-18T19:03:15.639150+00:00",
+  "status": "WEB_FIXES_VERIFIED_LIVE_AGREEMENT_AND_DELIVERY_PASS_OPS_POA_ARCHIVE_GAP_CONFIRMED",
   "guide": "https://app.gridex.se/developers/customer-portal-api",
   "documentation_version": "2026-10-12.1",
   "runtime_version": "2026-10-09.1",
@@ -72,6 +72,16 @@
       "issue": "Durable retries shortened OPS Retry-After to local exponential backoff.",
       "original_proof": "Actual worker scheduled a two-hour OPS wait after two minutes, for both root and nested retry guidance.",
       "current_verification": "Six actual-worker behavior tests: root/nested long hold, invalid/missing guidance, shorter guidance, permanent error and unschedulable hold."
+    },
+    {
+      "id": "W6",
+      "severity": "medium",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
+      "file": "lib/website/pricingSnapshotStore.ts",
+      "issue": "Replaying an identical canonical quote failed with a pricing snapshot unique-key error; idempotent renewal could silently ignore conflicting content.",
+      "proof": "Live preview returned 200 then503 for the same quote_attempt_id. Runtime log confirmed duplicate pricing_snapshot_reference.",
+      "fix": "On duplicate, read and verify original quote, offer, customer type, calculation hash and totals, preserve first audit row; reject conflicts or unavailable original.",
+      "verification": "18 actual persistence behavior tests; final live preview retest recorded separately."
     }
   ],
   "checks": [
@@ -132,7 +142,7 @@
     "result": "REGRESSIONS_FIXED",
     "explicit_acceptance_required": true,
     "original_server_evidence_persisted": true,
-    "new_behavioral_tests": 62,
+    "new_behavioral_tests": 80,
     "fixtures": "tests/customer-consent-evidence.test.mjs, tests/customer-write-boundary.test.mjs, tests/customer-sync-route-evidence.test.mjs"
   },
   "new_sha256": {
@@ -145,8 +155,10 @@
     "documentation_requires": "Stable verification number on each page of the private accepted-text/scopes/evidence PDF; API server IP recorded separately.",
     "website_generates_number": false,
     "live_pdf_retrieved": false,
-    "real_signature_or_email_tested": false,
-    "customer_portal_has_separate_number_display": false
+    "real_signature_or_email_tested": true,
+    "customer_portal_has_separate_number_display": false,
+    "live_agreement_pdf_retrieved": true,
+    "live_poa_pdf_retrieved": false
   },
   "bankid": {
     "website_method": "website_acceptance",
@@ -159,8 +171,8 @@
     "Description drift does not imply a breaking request-schema change."
   ],
   "limits": [
-    "Live PDF/archive/verification-number/delivery qualification remains blocked pending explicit application authorization or an isolated environment.",
-    "No test agreement, POA, document or email has been created; marked test customer only.",
+    "OPS POA archive remains JSON with no verification number; a separate backend correction is required before full qualification.",
+    "No real electricity facility was used; supplier switch was not created. Test identities are not BankID-verified.",
     "Full live database/RLS/query-plan/load audit not performed."
   ],
   "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
@@ -181,33 +193,42 @@
   },
   "live_customer_test": {
     "authorized_by_user": true,
-    "customer_number": "[testkundsreferens utelämnad]",
-    "is_test_data": true,
-    "status": "draft",
+    "real_application_explicitly_approved": true,
+    "private_fixture_identifiers_omitted": true,
+    "canonical_test_customer_marked": true,
     "real_facility_used": false,
-    "existing_verified_client_reads": {
-      "integration/context": 200,
-      "website/public-contracts": 200,
-      "website/legal-bundle": 200
+    "agreement_status": "signed",
+    "poa_status": "signed",
+    "workflow_state": "canonical_data_committed",
+    "same_application_contract_and_signature_hash_on_replay": true,
+    "original_ip_fingerprint_matches_persisted_poa": true,
+    "legal_bundle_exact": true,
+    "signed_scopes": [
+      "supplier_switch"
+    ],
+    "supplier_switch_created": false,
+    "email_events_delivered": [
+      "contract.application_received",
+      "contract.confirmation_sent",
+      "contract.cooling_off_sent"
+    ],
+    "provider_independently_confirmed_delivery_and_recipient": true,
+    "agreement_pdf": {
+      "provider_attachment_bytes": 4437,
+      "pages": 2,
+      "valid_pdf": true,
+      "provider_file_matches_exact_queued_bytes": true,
+      "contains_contract_number": true,
+      "signature_evidence": "Stored separately in OPS; agreement PDF states this explicitly."
     },
-    "power_of_attorney_sync": {
-      "status": 409,
-      "code": "LEGAL_BUNDLE_NOT_READY"
+    "power_of_attorney_archive": {
+      "format": "JSON",
+      "pdf_generated": false,
+      "verification_number_present": false,
+      "document_checksum_present": false
     },
-    "post_probe_database_counts": {
-      "customer_contracts": 0,
-      "website_applications": 0,
-      "powers_of_attorney": 0,
-      "documents": 0
-    },
-    "test_email_sent": false,
     "temporary_client_revoked": true,
-    "preview_share_access_revoked": true,
-    "next_step": "Ordinary Website application or isolated test environment",
-    "approval_review": {
-      "action": "Submit a controlled test supplier-switch customer application",
-      "status": "REJECTED_NOT_EXECUTED",
-      "reason": "The request may trigger real supplier/network-operator processes; previous test-customer/PDF authorization does not clearly authorize these side effects."
-    }
+    "initial_preview_share_access_revoked": true,
+    "historical_approval_rejection": "Resolved by explicit user approval before the real application was submitted."
   }
 }

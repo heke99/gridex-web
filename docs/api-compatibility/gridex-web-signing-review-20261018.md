@@ -2,8 +2,8 @@
 
 Kundsynkens bekräftade kodfel är rättade. Webbens hela testsvit och de nya
 beteendeproven verifierar samtycke, signerare, betrodd IP, återförsök och
-requestgränser. Ett verkligt slutprov av OPS PDF, verifikationsnummer och
-leverans är fortfarande inte godkänt. Det har inte ersatts med en lokalt skapad
+requestgränser. Det verkliga avtalsprovet och avtals-PDF-leveransen är godkända; OPS fullmakts-PDF
+och verifikationsnummer saknas fortfarande. Det har inte ersatts med en lokalt skapad
 PDF eller ett påhittat verifikationsnummer.
 
 Källa: https://app.gridex.se/developers/customer-portal-api. Dokumentation
@@ -53,31 +53,38 @@ på Vercel en gång per timme.
 
 ## Verkligt kundprov
 
-Efter användarens godkännande skapades testkunden **[testkundsreferens utelämnad]** i Gridex El AB,
-med `is_test_data=true`, status `draft` och extern referens
-`[extern testreferens utelämnad]`. Ingen verklig anläggning eller annan kund användes.
-Den av användaren valda mottagaren gäller endast det planerade provutskicket.
+Användaren godkände uttryckligen en riktig testansökan och möjliga externa
+OPS-processer efter den inledande automatiska avvisningen. Provet har nu körts.
+Kund- och ansökningsreferenser utelämnas ur Git-artifakter. OPS skapade en egen
+kanonisk testkund i ansökningsflödet; både den och den första förberedande
+fixturekunden är testmarkerade. Ingen verklig elanläggning användes.
 
-En tidsbegränsad, tokenkontrollerad förhandsfunktion använde den befintliga
-verifierade webbklienten utan att hämta ut dess hemlighet. Autentiserade anrop
-till integration/context, website/public-contracts och website/legal-bundle
-svarade 200. Fullmaktsprovet via customer/sync svarade
-**409 LEGAL_BUNDLE_NOT_READY**: den nya testkunden har ännu inget aktivt juridiskt
-paket. Detta är ett korrekt stopp och inget lyckat signeringsprov.
+Det verkliga Website-flödet klarade konfiguration, publicerat erbjudande,
+adress/elområde, kanonisk offert, offertvalidering, exakt juridikpaket och
+ansökan. Avtal och fullmakt är signerade med `website_acceptance`; arbetsflödet
+är `canonical_data_committed`. Samma ansöknings-/avtalsreferenser och samma
+signeringshash återkom vid identiskt omförsök. Original-IP:s SHA-256 från
+betrodd ingång matchar den IP som sparats på fullmakten. Signerad omfattning
+är exakt `supplier_switch`; ingen leverantörsbytesbegäran skapades.
 
-Efterkontroll i databasen visar noll kundavtal, Website-ansökningar, fullmakter
-och dokument för testkunden. Inget PDF-utskick eller verifierad leverans påstås.
-En separat temporär testklient accepterades inte av OPS integrationspolicy och
-återkallades. Förhandsfunktionens delningsåtkomst är återkallad och funktionen
-har även en fast tidsgräns. Vercels befintliga besökarskydd är kvar.
+Tre mejlhändelser är `delivered` i OPS. Leverantören bekräftar rätt mottagare
+och leverans. Avtalsbekräftelsen innehåller en PDF på två A4-sidor, 4437 byte.
+Den hämtade leverantörsbilagan är byteidentisk med originalbilagan i kön och
+kan textutvinnas. Avtalets privata signeringsbevis är uttryckligen separat.
 
-Nästa planerade prov använder den ordinarie Website-ansökan för att skapa det
-juridiska sammanhanget. **Automatisk godkännandegranskning avvisade åtgärden**
-eftersom en kundansökan kan starta verkliga leverantörs-/nätägarprocesser även
-med en fiktiv anläggning. Godkännandet för testkund och PDF-leverans bedömdes
-inte täcka dessa sidoeffekter. Åtgärden har inte körts via någon annan väg.
-Det kräver uttryckligt godkännande eller en isolerad OPS-miljö innan provet kan
-slutföras.
+Slutprovet bekräftar också ett kvarstående OPS-fel: fullmaktens
+`customer_authorization_documents`-arkiv är ett `.json`-underlag, utan
+PDF-mimetyp, dokumentchecksumma eller stabilt verifikationsnummer.
+`customer_documents` exponerar ingen separat fullmakts-PDF för provet. Detta
+är inte ett komplett godkänt fullmaktsarkiv och åtgärdas inte genom att webben
+hittar på ett eget verifieringsnummer.
+
+En verklig förhandskontroll upptäckte dessutom W6: identisk offert gav först
+200 och sedan503 på ett duplicerat prissnapshot. Persistensen accepterar nu
+endast verifierat likvärdiga omförsök, bevarar första audit-raden och avvisar
+kollisioner. 18 nya beteendeprov skyddar normala och samtidiga omförsök,
+ändrade transport-ID:n, innehållskonflikter samt skriv-/läsfel i databasen.
+Totalt omfattar den nya regressionssviten 80 beteendeprov.
 
 ## PDF och signeringens gräns
 

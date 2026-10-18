@@ -1,5 +1,5 @@
 {
-  "status": "PREPARED_NOT_SUBMITTED_APPROVAL_REVIEW_REJECTED",
+  "status": "EXPLICITLY_APPROVED_AND_EXECUTED",
   "customer_number": "[testkundsreferens utelämnad]",
   "customer_external_reference": "[extern testreferens utelämnad]",
   "company": "Gridex El AB",
@@ -28,5 +28,12 @@
     "OPS may initiate supplier/network-operator processes; absence of a facility identifier is not a guaranteed outbound safeguard",
     "Messages to the user-confirmed recipient may be sent"
   ],
-  "approval_requirement": "Automatic approval review rejected the application action because test-customer/PDF authorization did not clearly authorize these external effects; do not execute without explicit approval or an isolated test environment."
+  "approval_requirement": "Initial automatic rejection was resolved by the user expressly approving a real test application and possible external processing; execution occurred afterward.",
+  "result": {
+    "signed_agreement": true,
+    "idempotency_verified": true,
+    "original_ip_verified": true,
+    "confirmation_pdf_delivered": true,
+    "poa_pdf_and_verification_number": "Missing in current OPS archive; remains open."
+  }
 }
