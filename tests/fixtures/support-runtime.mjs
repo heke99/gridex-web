@@ -217,8 +217,9 @@ export function createSupportRuntime(settings) {
       if (url.pathname === '/auth/v1/recover' && method === 'POST') {
         const u = [...users.values()].find(u => u.email === body.email)
         if (url.searchParams.get('redirect_to') !== 'https://support123.gridex.se/auth/invitation?flow=password-recovery'
-          || body.code_challenge_method !== 's256' || !body.code_challenge) throw new Error('Recovery requires fixed callback and native PKCE')
-        recovery = u ? { user: u, challenge: body.code_challenge } : null
+          || body.code_challenge_method || body.code_challenge) throw new Error('Cross-browser recovery requires fixed callback without a browser-bound challenge')
+        // Synthetic email delivery credentials, never production tokens.
+        if (u) { tokens.set('offline-cross-browser-access-token', u.id); refresh.set('offline-cross-browser-refresh-token', u.id) }
         return json({}, 200, true)
       }
       if (url.pathname === '/auth/v1/token' && method === 'POST') {
@@ -229,7 +230,9 @@ export function createSupportRuntime(settings) {
           recovery = null
           return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_grant', msg: 'Invalid or consumed recovery' }, 400, true)
         }
-        const u = url.searchParams.get('grant_type') === 'refresh_token' ? users.get(refresh.get(body.refresh_token)) : [...users.values()].find(u => u.email === body.email && u.password === body.password)
+        const refreshing = url.searchParams.get('grant_type') === 'refresh_token'
+        const u = refreshing ? users.get(refresh.get(body.refresh_token)) : [...users.values()].find(u => u.email === body.email && u.password === body.password)
+        if (refreshing) refresh.delete(body.refresh_token)
         return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_credentials', msg: 'Invalid offline credentials' }, 400, true)
       }
       const token = headers.get('authorization')?.replace(/^Bearer /, ''); const u = users.get(tokens.get(token))

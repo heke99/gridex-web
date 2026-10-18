@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import {
   createSupportAuthClient,
+  createSupportRecoveryRequestClient,
   requireSupportSession,
   SupportAuthError,
 } from "@/support/lib/session";
@@ -10,7 +11,7 @@ import type { FormState } from "@/support/components/ActionForm";
 import { requestSupportPasswordRecovery, acceptSupportPasswordRecovery } from "@/support/lib/password-recovery";
 
 export async function requestPasswordRecovery(_previous: FormState, data: FormData): Promise<FormState> {
-  return requestSupportPasswordRecovery(data, { authClient: createSupportAuthClient });
+  return requestSupportPasswordRecovery(data, { authClient: createSupportRecoveryRequestClient });
 }
 
 export async function acceptPasswordRecovery(_previous: FormState, data: FormData): Promise<FormState> {

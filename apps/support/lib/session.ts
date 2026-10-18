@@ -1,6 +1,6 @@
 import 'server-only'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
@@ -35,6 +35,15 @@ export function writeSupportAuthCookies(store: Pick<SupportCookieStore, 'set'>, 
 }
 
 export type SupportAuthDependencies = { config?: SupportAuthConfig; cookieStore?: SupportCookieStore; serverClient?: typeof createServerClient }
+/** Email recovery must work without a cookie from the requesting browser.
+ * Only the public Auth client requests the native one-time email; verified
+ * sessions are established later through the host-bound SSR client. */
+export async function createSupportRecoveryRequestClient(): Promise<SupabaseClient> {
+  const config = readSupportAuthConfig()
+  return createClient(config.url, config.anonKey, { auth: {
+    flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
+  } })
+}
 export async function createSupportAuthClient(dependencies: SupportAuthDependencies = {}): Promise<SupabaseClient> {
   const config = dependencies.config ?? readSupportAuthConfig()
   const cookieStore = dependencies.cookieStore ?? await cookies()

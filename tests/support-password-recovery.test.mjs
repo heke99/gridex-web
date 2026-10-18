@@ -5,9 +5,11 @@ import {
   acceptSupportPasswordRecovery,
 } from '../apps/support/lib/password-recovery.ts'
 
-const user = { id: '11111111-1111-4111-8111-111111111111', email: 'staff@example.invalid' }
-const foreignUser = { id: '22222222-2222-4222-8222-222222222222', email: 'other@example.invalid' }
+const user = { id: '11111111-1111-4111-8111-111111111111', email: 'staff@example.invalid', email_confirmed_at: '2026-10-18T12:00:00Z' }
+const foreignUser = { id: '22222222-2222-4222-8222-222222222222', email: 'other@example.invalid', email_confirmed_at: '2026-10-18T12:00:00Z' }
 const code = 'synthetic-native-pkce-code_123-456'
+const accessToken = 'synthetic-fragment-access-token'
+const refreshToken = 'synthetic-fragment-refresh-token'
 const redirectTo = 'https://support123.gridex.se/auth/invitation?flow=password-recovery'
 const privateMessage = 'provider-private-token-123 should never reach the browser'
 let previousFetch
@@ -39,8 +41,17 @@ function recoveryExchange() {
     error: null,
   }
 }
+function recoveryRefresh() {
+  return {
+    data: {
+      user: { ...user },
+      session: { user: { ...user }, access_token: 'synthetic-rotated-access-token', refresh_token: 'synthetic-rotated-refresh-token' },
+    },
+    error: null,
+  }
+}
 function fixture(options = {}) {
-  const state = { clients: 0, events: [], resetRequests: [], codes: [], signOuts: [], redirects: [], forbidden: [], sessionLive: false }
+  const state = { clients: 0, events: [], resetRequests: [], codes: [], accessChecks: [], refreshes: [], signOuts: [], redirects: [], forbidden: [], sessionLive: false }
   const authMethods = {
     async resetPasswordForEmail(email, settings) {
       state.events.push('reset')
@@ -56,10 +67,23 @@ function fixture(options = {}) {
       if (options.exchangeThrows) throw new Error(privateMessage)
       return Object.hasOwn(options, 'exchangeResult') ? options.exchangeResult : recoveryExchange()
     },
-    async getUser() {
+    async getUser(token) {
+      if (token !== undefined) {
+        state.events.push('verified-access-user')
+        state.accessChecks.push(token)
+        if (options.accessUserThrows) throw new Error(privateMessage)
+        return options.accessUserResult ?? { data: { user: { ...user } }, error: null }
+      }
       state.events.push('verified-user')
       if (options.userThrows) throw new Error(privateMessage)
       return options.userResult ?? { data: { user: { ...user } }, error: null }
+    },
+    async refreshSession(settings) {
+      state.events.push('refresh')
+      state.refreshes.push(structuredClone(settings))
+      state.sessionLive = true
+      if (options.refreshThrows) throw new Error(privateMessage)
+      return Object.hasOwn(options, 'refreshResult') ? options.refreshResult : recoveryRefresh()
     },
     async signOut(settings) {
       state.events.push('sign-out')
@@ -96,6 +120,9 @@ function safeError(result) {
   assert.equal(JSON.stringify(result).includes('provider-private-token-123'), false)
   assert.equal(JSON.stringify(result).includes('synthetic-access-token'), false)
   assert.equal(JSON.stringify(result).includes('synthetic-refresh-token'), false)
+  assert.equal(JSON.stringify(result).includes(accessToken), false)
+  assert.equal(JSON.stringify(result).includes(refreshToken), false)
+  assert.equal(JSON.stringify(result).includes('synthetic-rotated-'), false)
 }
 function noBusinessChanges(state) {
   assert.deepEqual(state.forbidden, [])
@@ -122,6 +149,13 @@ test('password recovery normalizes email and always uses the fixed Support123 ca
   assert.deepEqual(f.state.resetRequests, [{ email: 'staff.name@example.invalid', settings: { redirectTo } }])
   assert.deepEqual(f.state.redirects, [])
   noBusinessChanges(f.state)
+})
+
+test('the generic recovery confirmation allows opening the email link in another browser', async () => {
+  const f = fixture()
+  const result = await requestSupportPasswordRecovery(form({ email: user.email }), f.deps)
+  assert.equal(typeof result.success, 'string')
+  assert.doesNotMatch(result.success, /samma webbläsare/i)
 })
 
 test('an email at the documented 320-character maximum can request recovery', async () => {
@@ -266,4 +300,154 @@ test('an unsuccessful local cleanup never turns a rejected recovery into success
   assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
   assert.deepEqual(f.state.redirects, [])
   noBusinessChanges(f.state)
+})
+
+test('fragment recovery verifies access, rotates native refresh and verifies the resulting session without PKCE', async () => {
+  const f = fixture()
+  await assert.rejects(() => acceptSupportPasswordRecovery(form({
+    access_token: accessToken, refresh_token: refreshToken,
+    password: 'do-not-update-this', role: 'admin', next: 'https://untrusted.example.invalid',
+  }), f.deps), /REDIRECT \/login\/update-password$/)
+  assert.deepEqual(f.state.events, ['client', 'verified-access-user', 'refresh', 'verified-user'])
+  assert.deepEqual(f.state.accessChecks, [accessToken])
+  assert.deepEqual(f.state.refreshes, [{ refresh_token: refreshToken }])
+  assert.deepEqual(f.state.codes, [])
+  assert.deepEqual(f.state.redirects, ['/login/update-password'])
+  assert.deepEqual(f.state.signOuts, [])
+  assert.equal(f.state.sessionLive, true)
+  noBusinessChanges(f.state)
+})
+
+test('fragment recovery accepts both tokens at the 16384-character limit', async () => {
+  const f = fixture()
+  const access = 'a'.repeat(16_384)
+  const refresh = 'r'.repeat(16_384)
+  await assert.rejects(() => acceptSupportPasswordRecovery(form({ access_token: access, refresh_token: refresh }), f.deps), /REDIRECT \/login\/update-password$/)
+  assert.deepEqual(f.state.accessChecks, [access])
+  assert.deepEqual(f.state.refreshes, [{ refresh_token: refresh }])
+  assert.deepEqual(f.state.codes, [])
+  noBusinessChanges(f.state)
+})
+
+test('fragment recovery rejects incomplete, blank, whitespace or oversized tokens before Auth access', async () => {
+  for (const values of [
+    { access_token: accessToken }, { refresh_token: refreshToken },
+    { access_token: '', refresh_token: refreshToken }, { access_token: accessToken, refresh_token: '' },
+    { access_token: '   ', refresh_token: refreshToken }, { access_token: accessToken, refresh_token: '   ' },
+    { access_token: 'embedded whitespace', refresh_token: refreshToken }, { access_token: accessToken, refresh_token: 'embedded\nwhitespace' },
+    { access_token: 'a'.repeat(16_385), refresh_token: refreshToken }, { access_token: accessToken, refresh_token: 'r'.repeat(16_385) },
+  ]) {
+    const f = fixture()
+    safeError(await acceptSupportPasswordRecovery(form(values), f.deps))
+    assert.equal(f.state.clients, 0)
+    assert.deepEqual(f.state.accessChecks, [])
+    assert.deepEqual(f.state.refreshes, [])
+    assert.deepEqual(f.state.signOuts, [])
+    assert.deepEqual(f.state.redirects, [])
+    noBusinessChanges(f.state)
+  }
+})
+
+test('mixed PKCE code and fragment credentials are rejected before an Auth client or session mutation', async () => {
+  for (const values of [
+    { code, access_token: accessToken, refresh_token: refreshToken },
+    { code, access_token: accessToken }, { code, refresh_token: refreshToken },
+  ]) {
+    const f = fixture()
+    safeError(await acceptSupportPasswordRecovery(form(values), f.deps))
+    assert.equal(f.state.clients, 0)
+    assert.deepEqual(f.state.codes, [])
+    assert.deepEqual(f.state.accessChecks, [])
+    assert.deepEqual(f.state.refreshes, [])
+    assert.deepEqual(f.state.signOuts, [])
+    assert.deepEqual(f.state.redirects, [])
+    noBusinessChanges(f.state)
+  }
+})
+
+test('fragment access-token verification must return a confirmed user before refresh is attempted', async () => {
+  for (const options of [
+    { accessUserResult: { data: { user: null }, error: null } },
+    { accessUserResult: { data: { user: { ...user, email_confirmed_at: null } }, error: null } },
+    { accessUserResult: { data: { user: { ...user, email_confirmed_at: undefined } }, error: null } },
+    { accessUserResult: { data: { user }, error: { status: 401, message: privateMessage } } },
+    { accessUserResult: { data: { user: null }, error: { status: 503, message: privateMessage } } },
+    { accessUserThrows: true },
+  ]) {
+    const f = fixture(options)
+    safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+    assert.deepEqual(f.state.accessChecks, [accessToken])
+    assert.deepEqual(f.state.refreshes, [])
+    assert.deepEqual(f.state.codes, [])
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
+})
+
+test('fragment refresh rejects missing session/user and mismatched access/refresh identities', async () => {
+  const invalid = []
+  for (const part of ['user', 'session']) {
+    const refreshed = recoveryRefresh()
+    refreshed.data[part] = null
+    invalid.push(refreshed)
+  }
+  const foreignRefreshUser = recoveryRefresh()
+  foreignRefreshUser.data.user = { ...foreignUser }
+  invalid.push(foreignRefreshUser)
+  const foreignSessionUser = recoveryRefresh()
+  foreignSessionUser.data.session.user = { ...foreignUser }
+  invalid.push(foreignSessionUser)
+  const entirelyForeign = recoveryRefresh()
+  entirelyForeign.data.user = { ...foreignUser }
+  entirelyForeign.data.session.user = { ...foreignUser }
+  invalid.push(entirelyForeign)
+  for (const refreshResult of invalid) {
+    const f = fixture({ refreshResult })
+    safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+    assert.deepEqual(f.state.accessChecks, [accessToken])
+    assert.deepEqual(f.state.refreshes, [{ refresh_token: refreshToken }])
+    assert.deepEqual(f.state.codes, [])
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
+})
+
+test('fragment refresh SDK errors and throws clear only local state and never expose token details', async () => {
+  for (const options of [
+    { refreshResult: { data: { user: null, session: null }, error: { status: 401, message: privateMessage } } },
+    { refreshResult: { data: { user: null, session: null }, error: { status: 503, message: privateMessage } } },
+    { refreshThrows: true },
+  ]) {
+    const f = fixture(options)
+    safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+    assert.deepEqual(f.state.refreshes, [{ refresh_token: refreshToken }])
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.codes, [])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
+})
+
+test('the canonical getUser after fragment refresh must verify the same recovered identity', async () => {
+  for (const options of [
+    { userResult: { data: { user: foreignUser }, error: null } },
+    { userResult: { data: { user: null }, error: null } },
+    { userResult: { data: { user }, error: { status: 401, message: privateMessage } } },
+    { userResult: { data: { user: null }, error: { status: 503, message: privateMessage } } },
+    { userThrows: true },
+  ]) {
+    const f = fixture(options)
+    safeError(await acceptSupportPasswordRecovery(form({ access_token: accessToken, refresh_token: refreshToken }), f.deps))
+    assert.deepEqual(f.state.events, ['client', 'verified-access-user', 'refresh', 'verified-user', 'sign-out'])
+    assert.deepEqual(f.state.signOuts, [{ scope: 'local' }])
+    assert.deepEqual(f.state.codes, [])
+    assert.deepEqual(f.state.redirects, [])
+    assert.equal(f.state.sessionLive, false)
+    noBusinessChanges(f.state)
+  }
 })

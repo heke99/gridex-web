@@ -254,3 +254,25 @@ Marketing commit `1f60c9f` remains released as deployment
 `dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27`. Its existing Vercel protection is intentionally
 retained at the user's request. Complete evidence and remaining live-session
 qualification limits are in `quality/support123/verification-20261018.json`.
+
+### Password recovery across browsers
+
+`/login/forgot-password` requests the native one-time Auth recovery email with
+an isolated public client in implicit mode. The fixed redirect is
+`https://support123.gridex.se/auth/invitation?flow=password-recovery`, covered by
+the existing Auth redirect allowlist. This request creates no PKCE verifier
+cookie, so the email can be opened in another browser or device.
+
+The callback captures credentials from the fragment into uncontrolled fields,
+removes them from the displayed URL and waits for an explicit POST. The server
+verifies the access token with the fixed gridex-prod Auth project, rotates and
+verifies the refresh token, checks both user IDs and verifies the resulting
+session again. Mismatched/invalid credentials clear only the local session.
+The existing password-update action then changes only that user's password;
+staff bindings, active membership and canonical API permissions still gate
+workspace access. Previously issued PKCE links keep their original flow.
+
+The isolated browser regression closes the requesting context and completes
+recovery in a fresh context, then verifies replay denial. It sends no email and
+uses only synthetic tokens. Real recovery credentials must never be logged,
+shared, copied into evidence or retrieved from an existing user's session.
