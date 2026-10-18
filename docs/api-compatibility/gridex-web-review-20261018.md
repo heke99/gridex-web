@@ -22,11 +22,12 @@ slutna affärsscheman.
 | 9. Fel | Strukturerade felkoder, status, korrelations-/request-id och retryability används. Proxy-HTML, autentiseringsfel och interna feltexter skickas inte vidare som kundinformation. |
 | 10. Endpointreferens | Följande resurser är genomgångna mot de incheckade specifikationerna. Historiska OpenAPI-URL:er är dokumentationsarkiv, inte extra affärsflöden att implementera. |
 
-Den fördjupade efterkontrollen av signering och fullmakt hittade öppna fel i den
-separata kundsynken. Tabellen beskriver implementationens avsedda täckning och
-är inte ett intyg om fullständig efterlevnad. Se
-`gridex-web-signing-review-20261018.md` för bekräftade fynd, beteendeprov och
-skillnaden mellan webbens inskickade bevis och OPS PDF-arkiv.
+Efterkontrollens fel i kundsynk och requestläsning är rättade i koden och täcks
+av beteendeprov. Samtliga 142 operationer är klassificerade i
+`gridex-web-endpoints-20261018.md`, med scopes, implementation och prov per rad i
+`quality/api-compatibility/endpoint-review-20261018.json`. Ett verkligt slutprov av
+fullmakts-PDF, verifikationsnummer och leverans återstår; se
+`gridex-web-signing-review-20261018.md`.
 
 ## Adress, geolokalisering och priser
 
@@ -67,7 +68,7 @@ API-revisionen. API:et avgör signering, fryst signeringshash och eventuell
 | --- | --- |
 | `me`, `contracts`, `sites`, `invoices`, `invoices/{id}`, `metering-values`, `events`, `documents`, `legal-acceptances`, `powers-of-attorney`, `notifications` | `lib/ops/client/portal.ts` och `lib/customerPortal/service.ts`, verifierad kundägare och slutna API-svar. |
 | `portal-bundle` | Befintlig kombinerad adapter. Granulära vyer använder sina egna resurser för att undvika onödiga krav på alla scopes samtidigt. |
-| `customer-portal/sync`, `customer/sync`, `profile-update`, `move-out`, `notifications/read` | Befintliga serverflöden med identitetsbindning och skrivnycklar. Efterkontrollen fann att kundsynkens fullmaktsnormalisering tappar signeringsbevis och antar godkännande när flaggan saknas. Dessa fem routes saknar också den gemensamma begränsade JSON-/origin-läsaren. Fynden är öppna. |
+| `customer-portal/sync`, `customer/sync`, `profile-update`, `move-out`, `notifications/read` | Verifierad sessionsidentitet och stabila skrivnycklar. Samtliga använder nu begränsad JSON-/origin-läsning. Kundsynken kräver uttryckligt samtycke och komplett signerare; första betrodda IP, tid och webbläsarheader fryses i en privat kvittens före OPS-anropet. |
 | `support/cases`, ärendedetalj, `messages` | Kanoniska API-flöden för lista, skapa och svara; kund kan inte ange staff-aktör eller intern synlighet. |
 | Ärendets `attachments` och `attachments/{attachmentReference}` | Nya råa uppladdningar och verifierade nedladdningar. Endast släppta kundsynliga filer listas av Customer API. |
 | `website/customer-events`, `events` | Befintliga serveradaptrar för kundhändelser och domänhändelser; alternativ POST-alias används inte för en andra leverans av samma händelse. |
@@ -98,7 +99,7 @@ Separat identity/resolve och invitations/accept använder sin egen version.
   bilageuppladdning, kundkontakt, roller och utloggning. Det är inte ett skarpt
   konto-/avtalstest.
 
-## Skarpa åtgärder och återstående verifiering
+## Drift och återstående verifiering
 
 Separat Vercel-projekt `gridex-support` är skapat med Node 22 och rot
 `apps/support`. Dedikerad staff-nyckel, publik provider och uttrycklig bindning
@@ -133,3 +134,20 @@ webbläsarkvittona i `quality/support123/live-evidence-20261018-domain-final`.
 Ett skarpt signerat kundavtal, verklig
 personalinloggning, inbjudningsmejl och fullständig last-/databasprestandakvalificering
 har inte påståtts utifrån enbart lokala tester.
+
+## Fortsatt API-kontroll och godkänt kundprov
+
+Den fullständiga endpointmatrisen omfattar Website 63, Customer 52 och Staff 27
+operationer (117 unika metod/sökvägspar). Historiska dokumentations-URL:er och
+alternativa API-ytor är uttryckligen klassificerade. Varje affärsoperation har
+kopplats till adapter och relevanta kontrakts-/beteendeprov. Det påstås inte att
+142 skarpa mutationer har körts.
+
+Testkunden K00100065 har skapats efter användarens uttryckliga instruktion, med
+`is_test_data=true` och utan verklig elanläggning. Autentiserade läsningar via
+befintlig verifierad webbklient fungerar. Fullmaktssynken avvisades med
+`409 LEGAL_BUNDLE_NOT_READY` eftersom kunden ännu saknar ett aktivt juridiskt
+paket. Inget avtal, fullmakt, PDF eller mejl skapades. Automatisk
+godkännandegranskning stoppade därefter provet genom den riktiga kundansökan
+eftersom det kan starta externa OPS-processer. Slutprov kräver uttryckligt
+godkännande för den åtgärden eller en avsedd isolerad testmiljö.

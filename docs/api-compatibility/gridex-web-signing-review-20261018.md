@@ -1,119 +1,100 @@
-# Gridex Web: efterkontroll av signering, PDF och fullmaktsbevis
+# Gridex Web: signering, PDF och fullmaktsbevis
 
-Slutsats: den publika teckningens kontrollerade kodväg följer OPS kontrakt för
-elektroniskt godkännande, men hela projektet är inte färdigverifierat. Den separata
-kundsynken har bekräftade fel. Ett verkligt slutprov av PDF, verifikationsnummer
-och extern leverans återstår. Gröna kontraktstester ersätter inte dessa kontroller.
+Kundsynkens bekräftade kodfel är rättade. Webbens hela testsvit och de nya
+beteendeproven verifierar samtycke, signerare, betrodd IP, återförsök och
+requestgränser. Ett verkligt slutprov av OPS PDF, verifikationsnummer och
+leverans är fortfarande inte godkänt. Det har inte ersatts med en lokalt skapad
+PDF eller ett påhittat verifikationsnummer.
 
-Källa: https://app.gridex.se/developers/customer-portal-api och dess publicerade
-release-manifest. Dokumentation 2026-10-12.1, runtime 2026-10-09.1. Granskningen
-utgår från webbbranchens `3148745` och aktuell produktionskälla `1f60c9f`.
-Vid kontrollen pekade gridex.se på READY `dpl_HqSDrDHQUa9xGaX1mTuXg6pmiUks`
-med exakt den produktionskällan. Fyndens hjälpfunktion och fem kundroutes är
-oförändrade mellan produktionskällan och den granskade branchen.
+Källa: https://app.gridex.se/developers/customer-portal-api. Dokumentation
+2026-10-12.1 och runtime 2026-10-09.1. Endpointmatrisen i
+`gridex-web-endpoints-20261018.md` omfattar alla 142 operationer i de tre
+publicerade specifikationerna och skiljer aktiva integrationer från alternativa
+ytor och dokumentationsarkiv.
 
-## Vad som kontrollerats
+## Rättningar
 
-| Del | Underlag och resultat |
+| Fynd | Status och beteende |
 | --- | --- |
-| Adress, elområde och geolokalisering | Befintlig granskning och kontraktstester: OPS upplösnings-ID, entydigt område och `pricing_ready` krävs. GPS används inte som bevis för anläggningens område. |
-| Priser och offert | OPS offert och validering binds till samma adress, produkt, komponenter, förbrukning, startdatum och juridik. Avräkningsmodell skiljs från indikativ prisvisning. |
-| Juridiska dokument | Checkout binder kundens godkännande till exakt paket, referenser, versioner och dokumenthashar. Fullmaktens textVersionId kommer från det accepterade erbjudandets juridiska underlag. |
-| Ursprunglig kund-IP | Servern läser inkommande headers och sparar IP, user agent och tid i en oföränderlig submission. Beteendeprov med syntetiskt datalager bekräftar att ett omförsök med annan IP/user agent behåller första beviset. |
-| Payload till OPS | Anrop av den faktiska payloadbyggaren bekräftar att original-IP, tid, user agent, metod och textVersionId bevaras. Inget produktionsanrop görs av provet. |
-| Avtalets signering | `assertAcceptedApplication` kräver bland annat signerat avtal, giltig signed_at, SHA-256-bevis, rätt checkout-status och kanoniskt committat arbetsflöde. |
-| Signeringsmetod | Publik teckning skickar `website_acceptance`. BankID-routes svarar 404; någon aktiverad BankID-tjänst påstås inte. BankID är valfritt i OPS guide. |
-| Publika nummer | Kund-, avtals- och ansökningsnummer läses från OPS. Fullmaktens verifikationsnummer är en egen OPS-uppgift och genereras inte av webben. |
-| PDF | OPS guide anger privat arkiv av accepterad text, scopes och bevis, med stabilt verifikationsnummer på varje sida. Tenantpersonal hämtar fullmakts-PDF i OPS under Fullmakter. Detta har inte kvalificerats med ett verkligt dokument i denna granskning. |
-| Mina dokument | Webben visar OPS-returnerad HTTPS `secure_url`. Det är inte bevis för att varje arkiverad fullmakts-PDF exponeras i Customer API. Mina sidor har ingen separat visning av fullmaktens verifikationsnummer. |
-| Transport och webhooks | Befintliga läsdeadlines, svarsgränser, Retry-After och stabila skrivnycklar kvarstår. Generella OPS-händelser tas emot på `/webhooks/gridex`; publiceringshändelser på `/webhooks/contracts.publication.changed`. Den gamla `/api/ops/webhooks` svarar 410. |
+| W1: förlorade signeringsbevis | Rättat. Kundsynken bevarar signerare, identitet, faktisk metod och exakt omfattning. Browserflödet kräver `website_acceptance`; fritt angiven BankID-status godtas inte. Första betrodda IP, serverns godkännandetid och hela inkommande user-agent sparas i en privat, hashbunden kvittens innan OPS skrivs. Omförsök använder ursprunglig kropp, identitet och nyckel. |
+| W2: antaget samtycke | Rättat. Endast `accepted === true` godtas. Saknad/otillräcklig signerare, otillåten omfattning och avkortade identitetsfält avvisas; felaktig fullmakt göms inte bakom en samtidig profiluppdatering. |
+| W3: obegränsad requestläsning | Rättat för fem kundskrivningar och publik marknadsprisläsning. Gemensam JSON-läsare begränsar MIME, origin, byteantal och lästid, inklusive strömmar utan Content-Length. Kundens session kontrolleras före kroppsläsning. |
+| W4: dokumentationsdrift | Återsynkroniserat och livekontrollerat mot manifest. OPS har under granskningen bytt tillbaka beskrivningar under samma versionsnummer. Endpoints, obligatoriska fält och valideringsregler är oförändrade. Ny kontrollsumma och genererad proveniens följer den senast kontrollerade driftsättningen. |
+| W5: för tidigt köomförsök | Rättat. Bakgrundskön väntar minst hela OPS Retry-After och minst ordinarie backoff. Två timmars väntan kan inte bli två minuter; om väntetiden inte kan lagras krävs manuell hantering i dead letter. |
+| Felhantering | OPS-fel går nu genom rätt serializer. Request-id, korrelations-id, retryability och hela numeriska Retry-After bevaras. |
 
-## Bekräftade fynd
+Kvittensen använder befintlig `customer_portal_write_outbox`; ingen ny
+migrering behövs. Tabellen har verifierad unik idempotensnyckel, behövda
+kolumner, RLS och service_role-policy. Saknad/otillgänglig lagring stoppar
+OPS-skrivningen. Samtidiga första försök konvergerar på samma kvittens.
+Avbrutna skrivningar kan återupptas av den befintliga outbox-arbetaren med
+samma ursprungliga bevis och API-nyckel. Den autentiserade cron-körningen finns
+på Vercel en gång per timme.
 
-### W1: kundsynken tappar fullmaktens signeringsbevis — medel, öppet
+## Övriga kontroller
 
-`lib/customerPortal/writeValidation.ts:147` returnerar en whitelist som saknar
-`signer_name`, `signer_identity_number`, `method`, `ip_address` och `user_agent`.
-`app/api/web/customer/sync/route.ts:26` använder resultatet som fullmakt i
-`submitOpsCustomerSync`. Ett direkt anrop av den verkliga normaliseraren med alla
-fem fälten bekräftar att samtliga försvinner.
+- Adress/elområde kommer från OPS upplösnings-ID och `pricing_ready`.
+  Webbläsarens GPS-position används inte som bevis för elanläggningen.
+- Pris, produkt, komponenter, moms, förbrukning, start och leveranssätt binds
+  till samma kanoniska offert och validering. Indikativa marknadspriser är
+  skilda från slutlig avräkning.
+- Juridiska referenser, versioner och hashar kommer från exakt publicerat
+  erbjudande. Fullmaktens `textVersionId` är det accepterade juridiska dokumentet.
+- Website-checkout har separat oföränderlig kvittens. Faktiska payloadbyggaren
+  och submission-lagringen har provats med syntetiskt datalager: första tid/IP
+  och metod bevaras.
+- Avtalets signerade status, signed_at, signeringshash, kanoniska commit och
+  dokumenterade checkout-status krävs innan webben visar en färdig teckning.
+- Website-klienten har alla använda scopes, inklusive de uttryckligen godkända
+  supportscopes. Den är aktiv, har 120 anrop/minut och är organisationsbunden.
+  Personal har egen klient och sina sex personalrättigheter.
+- Vercels produktionsinställningar och befintliga databasfält/policyer är
+  kontrollerade utan att läsa existerande hemligheters värden.
 
-OPS dokumenterar att signerande namn, identitet och metod behövs för signerad,
-externt sändbar fullmakt. Saknade bevis kan därför lämna denna synkvägs fullmakt
-ofullständig och hålla extern e-post eller leverantörsbyte. Detta är en separat
-väg från den publika Website-checkouten. Ingen skarp fullmakt skapades för att
-bekräfta serverns sidoeffekter.
+## Verkligt kundprov
 
-Rättning behöver bevara verifierade originalbevis från betrodd serverkälla,
-med oförändrad tid/IP vid omförsök. Klientens fritt angivna IP eller BankID-sträng
-får inte upphöjas till verifierat signeringsbevis.
+Efter användarens godkännande skapades testkunden **K00100065** i Gridex El AB,
+med `is_test_data=true`, status `draft` och extern referens
+`gridex-web-api-e2e-20261018`. Ingen verklig anläggning eller annan kund användes.
+Den av användaren valda mottagaren gäller endast det planerade provutskicket.
 
-### W2: samma normaliserare antar godkännande — medel, öppet
+En tidsbegränsad, tokenkontrollerad förhandsfunktion använde den befintliga
+verifierade webbklienten utan att hämta ut dess hemlighet. Autentiserade anrop
+till integration/context, website/public-contracts och website/legal-bundle
+svarade 200. Fullmaktsprovet via customer/sync svarade
+**409 LEGAL_BUNDLE_NOT_READY**: den nya testkunden har ännu inget aktivt juridiskt
+paket. Detta är ett korrekt stopp och inget lyckat signeringsprov.
 
-Vid `writeValidation.ts:168` avvisas bara `accepted === false`; frånvarande
-`accepted` ger ändå `accepted: true` på rad 173. Ett beteendeprov utan flaggan
-bekräftar resultatet. Det betyder att utgående payload kan ange uttryckligt
-godkännande utan att inkommande data innehöll det. Ingen lyckad extern signering
-eller leverans har demonstrerats utifrån detta.
+Efterkontroll i databasen visar noll kundavtal, Website-ansökningar, fullmakter
+och dokument för testkunden. Inget PDF-utskick eller verifierad leverans påstås.
+En separat temporär testklient accepterades inte av OPS integrationspolicy och
+återkallades. Förhandsfunktionens delningsåtkomst är återkallad och funktionen
+har även en fast tidsgräns. Vercels befintliga besökarskydd är kvar.
 
-Rättning behöver kräva uttryckligt godkännande och avvisa ogiltigt underlag utan
-att tyst göra om det till en annan juridisk handling.
+Nästa planerade prov använder den ordinarie Website-ansökan för att skapa det
+juridiska sammanhanget. **Automatisk godkännandegranskning avvisade åtgärden**
+eftersom en kundansökan kan starta verkliga leverantörs-/nätägarprocesser även
+med en fiktiv anläggning. Godkännandet för testkund och PDF-leverans bedömdes
+inte täcka dessa sidoeffekter. Åtgärden har inte körts via någon annan väg.
+Det kräver uttryckligt godkännande eller en isolerad OPS-miljö innan provet kan
+slutföras.
 
-### W3: fem kundskrivningar använder obegränsad JSON-läsning — medel, öppet
+## PDF och signeringens gräns
 
-Följande routes använder direkt `req.json()` eller `request.json()` i stället för
-projektets `readWebJson`: `customer/sync`, `customer-portal/sync`,
-`customer/profile-update`, `customer/move-out`, `customer/notifications/read`
-under `app/api/web`. Autentisering finns, men den gemensamma läsbudgeten,
-bytegränsen, MIME-kontrollen och origin-kontrollen saknas i dessa routes.
-Den publika `app/api/web/market-price/current/route.ts` använder också direkt
-JSON-läsning, men har egen rate limit. Root-proxyn tillför inte dessa kontroller.
+OPS äger det privata fullmaktsarkivet och eventuellt stabilt verifikationsnummer.
+Den tidigare observerade dokumentationstexten beskrev accepterad text, scopes,
+originaltid och kund-IP i PDF, med numret på varje sida. Just denna beskrivning
+har ändrats fram och tillbaka under samma versionsnummer under granskningen.
+Ett verkligt dokument måste därför inspekteras i den avsedda OPS-versionen;
+enbart ett schemasvar eller en kund-/avtalsreferens bevisar inte detta.
 
-Detta är en bekräftad kontrollucka i koden, inte ett demonstrerat CSRF-intrång
-eller obegränsad storlek hos Vercels underliggande plattform. Rättning behöver
-använda samma begränsade läsare och behålla befintlig identitetskontroll och
-idempotens.
+BankID är valfritt. Webben använder elektroniskt godkännande och påstår varken
+verifierad BankID eller inbäddad kryptografisk PDF-signatur. Kund-, avtals- och
+ansökningsnummer ersätter inte fullmaktens eget verifikationsnummer. Kundportalens
+HTTPS-dokumentlänkar bevisar inte att alla interna fullmakts-PDF:er exponeras av
+Customer API.
 
-### W4: sparade kontrakt hade ändrats under samma versionsnummer — rättat i kod
-
-Live-manifesten innehöll nya SHA-256 för Website och Customer API. Skillnaden
-gäller beskrivningar av metod/IP i `PowerOfAttorneyInput` och
-`CustomerSyncRequest`; endpointar, obligatoriska fält och affärsvalidering är
-oförändrade. Staff-specifikationen är oförändrad.
-
-Officiell synk har uppdaterat snapshots, manifest, genererade typer och
-hashkonstanter. Efterföljande livekontroll godkänner alla tre exakta specifikationer.
-Denna efterkontroll publicerar ingen ny produktionskod. De beskrivande
-kontraktsuppdateringarna och rapporten finns i PR #53; W1–W3 är fortfarande öppna.
-
-## Avgränsningar och avfärdade antaganden
-
-- Vercels dokumentation anger att `x-forwarded-for` normalt skrivs över för att
-  motverka IP-spoofing. Skillnaden mot projektets andra IP-helper räcker därför
-  inte för att hävda en bekräftad sårbarhet i Vercel-checkouten. En extern proxy
-  före Vercel skulle kräva egen verifiering av kedjan.
-- Den äldre `lib/contracts/pdf.ts` skapar ett lokalt avtalsunderlag. Sökning i
-  app/lib/tests hittar inget anrop av generatorn; den är inte bevis på att
-  Website-checkouten skapar OPS fullmaktsarkiv. Admins äldre PDF-route läser ett
-  annat lokalt arkiv.
-- Webbsidans kund-, avtals- eller ärendenummer ska inte användas som påhittat
-  verifikationsnummer. Det publicerade API-kontraktet kräver ingen lokalt skapad
-  sådan uppgift.
-- En PDF med elektroniskt godkännandebevis innebär inget verifierat påstående
-  om BankID eller inbäddad kryptografisk PDF-signatur.
-- Inget verkligt kundkonto, fullmakts-PDF, kund-IP eller personnummer hämtades.
-  Inga avtal, mejl, databasposter eller behörigheter skapades av dessa prov.
-
-## Verifiering och kvarvarande slutprov
-
-Godkänt efter synk: `npm run api:check:live`, `npm run api:compatibility`,
-`npm run api:contract`, `npm run test:portal`, `npm run typecheck` och
-`git diff --check`. Syntetiska beteendeprov bekräftar bevarat Website-bevis och
-reproducerar W1/W2. Bevis: `quality/api-compatibility/signing-review-20261018.json`.
-
-Fullständigt driftgodkännande kräver därefter ett kontrollerat slutprov som
-följer en verklig godkännandetransaktion till OPS arkiv: rätt tenant/person,
-exakt accepterad text och scopes, originaltid och kund-IP, PDF på alla sidor,
-samma stabila verifikationsnummer vid omförsök, korrekt åtkomst samt faktisk
-signerings- och leveransstatus. Databaslast, query-planer och fullständig live-RLS
-ingår inte i dessa kod-/kontraktsprov.
+Fullständigt slutprov ska följa exakt accepterad text och scopes, ursprunglig
+kund-IP och tid, privat PDF på samtliga sidor, stabilt verifikationsnummer vid
+omförsök, rätt åtkomst samt faktisk leveransstatus. Full databaslast och alla
+query-planer är inte kvalificerade genom dessa tester.

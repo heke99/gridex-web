@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-10-18T18:06:57.062328+00:00",
-  "status": "PARTIAL_COMPLIANCE_OPEN_CUSTOMER_SYNC_FINDINGS",
+  "checked_at": "2026-10-18T18:48:23.591165+00:00",
+  "status": "CODE_FINDINGS_FIXED_LIVE_PDF_TEST_AWAITING_EXPLICIT_APPLICATION_APPROVAL",
   "guide": "https://app.gridex.se/developers/customer-portal-api",
   "documentation_version": "2026-10-12.1",
   "runtime_version": "2026-10-09.1",
@@ -10,36 +10,37 @@
     "deployment_id": "dpl_HqSDrDHQUa9xGaX1mTuXg6pmiUks",
     "ready_state": "READY",
     "source_commit": "1f60c9fbd2d6db778bc0406369dbfda8446c6367",
-    "finding_source_files_match_branch": true
+    "finding_source_files_match_branch": false,
+    "new_fixes_deployed": false
   },
-  "current_ops_alias_deployment": "dpl_3nPZpu9tE9MH6rXM6X9f6eyjoZaR",
+  "current_ops_alias_deployment": "dpl_3CgvvFjSdJ2uauzzXPnFRzJ9PXBz",
   "findings": [
     {
       "id": "W1",
       "severity": "medium",
-      "status": "OPEN",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
       "file": "lib/customerPortal/writeValidation.ts",
-      "line": 147,
       "issue": "Customer sync drops signer_name, signer_identity_number, method, ip_address and user_agent.",
-      "proof": "Direct local call of syncPowerOfAttorney with all five fields returns none of them.",
       "impact": "This path cannot forward a complete signed/external-sendable POA; OPS documents draft/blocked delivery when evidence is missing. No live side effect tested.",
-      "remediation": "Preserve trusted original signing evidence with stable acceptance time/IP across retries; do not trust browser-supplied IP or BankID metadata."
+      "remediation": "Preserve trusted original signing evidence with stable acceptance time/IP across retries; do not trust browser-supplied IP or BankID metadata.",
+      "original_proof": "Direct local call of syncPowerOfAttorney with all five fields returns none of them.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
     },
     {
       "id": "W2",
       "severity": "medium",
-      "status": "OPEN",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
       "file": "lib/customerPortal/writeValidation.ts",
-      "line": 168,
       "issue": "Omitted accepted flag becomes accepted:true.",
-      "proof": "Remove accepted from an otherwise normalizable synthetic input: actual normalizer returns accepted:true.",
       "impact": "Outgoing sync payload can claim explicit acceptance absent from its input. This does not prove a successful external signature or delivery.",
-      "remediation": "Require explicit acceptance and return a field-level validation error for incomplete evidence."
+      "remediation": "Require explicit acceptance and return a field-level validation error for incomplete evidence.",
+      "original_proof": "Remove accepted from an otherwise normalizable synthetic input: actual normalizer returns accepted:true.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
     },
     {
       "id": "W3",
       "severity": "medium",
-      "status": "OPEN",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
       "files": [
         "app/api/web/customer/sync/route.ts",
         "app/api/web/customer-portal/sync/route.ts",
@@ -49,42 +50,37 @@
         "app/api/web/market-price/current/route.ts"
       ],
       "issue": "Direct JSON reading omits the shared application byte limit, read deadline, MIME and origin checks.",
-      "proof": "Source inspection: direct req.json/request.json; no equivalent global proxy controls.",
       "impact": "Application-level hardening coverage is incomplete; no CSRF exploit or bypass of platform request limits is claimed.",
-      "remediation": "Use the common bounded reader while preserving authentication and original operation keys."
+      "remediation": "Use the common bounded reader while preserving authentication and original operation keys.",
+      "original_proof": "Source inspection: direct req.json/request.json; no equivalent global proxy controls.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
     },
     {
       "id": "W4",
       "severity": "low",
-      "status": "FIXED_IN_BRANCH_NOT_DEPLOYED",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
       "issue": "Two published specifications changed descriptive signing/IP text under the same version.",
-      "proof": "Initial live drift check failed; manifest-verified sync and subsequent exact live check pass.",
-      "validation_rules_changed": false
+      "validation_rules_changed": false,
+      "original_proof": "Initial live drift check failed; manifest-verified sync and subsequent exact live check pass.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
+    },
+    {
+      "id": "W5",
+      "severity": "medium",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
+      "file": "lib/customerPortal/outbox.ts",
+      "issue": "Durable retries shortened OPS Retry-After to local exponential backoff.",
+      "original_proof": "Actual worker scheduled a two-hour OPS wait after two minutes, for both root and nested retry guidance.",
+      "current_verification": "Six actual-worker behavior tests: root/nested long hold, invalid/missing guidance, shorter guidance, permanent error and unschedulable hold."
     }
   ],
   "checks": [
     {
-      "command": "npm run api:sync",
-      "result": "PASS",
-      "detail": "Description-only upstream changes; no path or validation-rule changes."
-    },
-    {
-      "command": "npm run api:check:live",
-      "result": "PASS",
-      "specifications": 3
-    },
-    {
-      "command": "npm run api:compatibility",
-      "result": "PASS",
-      "upstream_gaps": [],
-      "environment_blockers": []
-    },
-    {
-      "command": "npm run api:contract",
+      "command": "npm test",
       "result": "PASS"
     },
     {
-      "command": "npm run test:portal",
+      "command": "npm run test:support",
       "result": "PASS"
     },
     {
@@ -92,8 +88,34 @@
       "result": "PASS"
     },
     {
+      "command": "npm run typecheck:support",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run verify:delivery",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run api:check:live",
+      "result": "PASS"
+    },
+    {
+      "command": "scoped ESLint --max-warnings 0",
+      "result": "PASS"
+    },
+    {
       "command": "git diff --check",
       "result": "PASS"
+    },
+    {
+      "command": "npm run build -- --webpack",
+      "result": "PASS",
+      "detail": "Sandbox child-process EPERM required the ordinary local build to run with child processes permitted."
+    },
+    {
+      "command": "new customer write and outbox behavioral regressions",
+      "result": "PASS",
+      "tests": 62
     }
   ],
   "website_evidence_probe": {
@@ -107,21 +129,16 @@
     "production_writes": 0
   },
   "customer_sync_behavior_probe": {
-    "result": "CONFIRMED_W1_W2",
-    "discarded_fields": [
-      "signer_name",
-      "signer_identity_number",
-      "method",
-      "ip_address",
-      "user_agent"
-    ],
-    "omitted_accepted_becomes_true": true,
-    "production_calls": 0
+    "result": "REGRESSIONS_FIXED",
+    "explicit_acceptance_required": true,
+    "original_server_evidence_persisted": true,
+    "new_behavioral_tests": 62,
+    "fixtures": "tests/customer-consent-evidence.test.mjs, tests/customer-write-boundary.test.mjs, tests/customer-sync-route-evidence.test.mjs"
   },
   "new_sha256": {
-    "website": "ce141a8c6dc9f93c04043102dca42c8145baa1a2d9c1139c6f4f1c6b516343b5",
-    "customer_portal": "e30b2b4bc589b3ada7124312f973a891bd469f0ef15ac184884dfaa6f2d80f6c",
-    "staff": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b"
+    "staff": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
+    "website": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
+    "customer_portal": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185"
   },
   "pdf_verification_number": {
     "owner": "OPS",
@@ -142,10 +159,55 @@
     "Description drift does not imply a breaking request-schema change."
   ],
   "limits": [
-    "No new product behavior changed or production deployment performed in this review.",
-    "No real customer data, account, PDF, IP or identity number read; no email/agreement/database write performed.",
-    "Full production signing/PDF/archive/number/tenant-isolation/delivery qualification remains.",
+    "Live PDF/archive/verification-number/delivery qualification remains blocked pending explicit application authorization or an isolated environment.",
+    "No test agreement, POA, document or email has been created; marked test customer only.",
     "Full live database/RLS/query-plan/load audit not performed."
   ],
-  "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md"
+  "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
+  "previous_review_checked_at": "2026-10-18T18:06:57.062328+00:00",
+  "endpoint_inventory": {
+    "artifact": "quality/api-compatibility/endpoint-review-20261018.json",
+    "operations": 142,
+    "distinct_method_path_pairs": 117
+  },
+  "database_configuration": {
+    "new_migration_required": false,
+    "outbox_columns_unique_key_and_rls_verified": true,
+    "service_role_can_select_insert_update": true,
+    "ordinary_roles_have_no_outbox_row_policy": true,
+    "website_client_active_and_scopes_verified": true,
+    "website_client_rate_limit_per_minute": 120,
+    "cron_authentication_configured": true
+  },
+  "live_customer_test": {
+    "authorized_by_user": true,
+    "customer_number": "K00100065",
+    "is_test_data": true,
+    "status": "draft",
+    "real_facility_used": false,
+    "existing_verified_client_reads": {
+      "integration/context": 200,
+      "website/public-contracts": 200,
+      "website/legal-bundle": 200
+    },
+    "power_of_attorney_sync": {
+      "status": 409,
+      "code": "LEGAL_BUNDLE_NOT_READY"
+    },
+    "post_probe_database_counts": {
+      "customer_contracts": 0,
+      "website_applications": 0,
+      "powers_of_attorney": 0,
+      "documents": 0
+    },
+    "test_email_sent": false,
+    "temporary_client_revoked": true,
+    "preview_share_access_revoked": true,
+    "next_step": "Ordinary Website application or isolated test environment",
+    "approval_review": {
+      "action": "Submit a controlled test supplier-switch customer application",
+      "status": "REJECTED_NOT_EXECUTED",
+      "reason": "The request may trigger real supplier/network-operator processes; previous test-customer/PDF authorization does not clearly authorize these side effects."
+    }
+  }
 }

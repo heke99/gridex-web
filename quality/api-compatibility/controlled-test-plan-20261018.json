@@ -1,0 +1,32 @@
+{
+  "status": "PREPARED_NOT_SUBMITTED_APPROVAL_REVIEW_REJECTED",
+  "customer_number": "K00100065",
+  "customer_external_reference": "gridex-web-api-e2e-20261018",
+  "company": "Gridex El AB",
+  "customer_marked_test_data": true,
+  "recipient": "User-confirmed test recipient (not serialized in Git)",
+  "method": "website_acceptance",
+  "scope": [
+    "supplier_switch"
+  ],
+  "facility_id": null,
+  "metering_point_id": null,
+  "address_is_fictitious": true,
+  "requested_start": "Specific date 45 days after execution, validated against the chosen offer",
+  "flow": [
+    "Get integration context and current published offer",
+    "Resolve a clearly fictitious test address for pricing only",
+    "Create and validate a canonical quote",
+    "Retrieve exact legal bundle",
+    "Submit one labeled test application with stable idempotency key and exact legal acceptances",
+    "Replay identical request to verify idempotency",
+    "Check canonical contract signature, original IP/time, private POA PDF, stable verification number and each PDF page",
+    "Check controlled confirmation/PDF delivery and audit attribution"
+  ],
+  "possible_effects": [
+    "A canonical signed test contract and workflow may be created",
+    "OPS may initiate supplier/network-operator processes; absence of a facility identifier is not a guaranteed outbound safeguard",
+    "Messages to the user-confirmed recipient may be sent"
+  ],
+  "approval_requirement": "Automatic approval review rejected the application action because test-customer/PDF authorization did not clearly authorize these external effects; do not execute without explicit approval or an isolated test environment."
+}

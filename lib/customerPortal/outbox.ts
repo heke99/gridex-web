@@ -86,6 +86,15 @@ function backoffMinutes(attempt: number): number {
   return Math.min(12 * 60, Math.max(1, 2 ** Math.min(attempt, 9)))
 }
 
+function opsRetryAfterMilliseconds(error: unknown): number {
+  if (!isOpsError(error)) return 0
+  const details = recordPayload(error.details)
+  const seconds = details?.retry_after_seconds ?? recordPayload(details?.error)?.retry_after_seconds
+  return typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
+    ? seconds * 1_000
+    : 0
+}
+
 export async function enqueuePortalWrite(input: {
   userId: string
   operationType: PortalOutboxOperation
@@ -282,7 +291,13 @@ export async function processPortalWriteOutbox(limit = 50) {
       const errorCode = outboxErrorCode(dispatchError)
       const permanent = isOpsError(dispatchError) && !dispatchError.retryable
       const maxAttempts = Math.max(1, row.max_attempts ?? 10)
-      const deadLetter = permanent || attempt >= maxAttempts
+      const nextAttemptAt = Math.ceil(Date.now() + Math.max(
+        backoffMinutes(attempt) * 60_000, opsRetryAfterMilliseconds(dispatchError),
+      ))
+      // A server hold that cannot be represented in the durable schedule must
+      // require manual review, never an earlier retry or an invalid SQL date.
+      const unschedulable = !Number.isSafeInteger(nextAttemptAt) || nextAttemptAt > Date.parse('9999-12-31T00:00:00.000Z')
+      const deadLetter = permanent || attempt >= maxAttempts || unschedulable
       const failedAt = new Date().toISOString()
       const { data: failedRow, error: failureStateError } = await supabase
         .from('customer_portal_write_outbox')
@@ -290,7 +305,7 @@ export async function processPortalWriteOutbox(limit = 50) {
           status: deadLetter ? 'dead_letter' : 'failed',
           next_attempt_at: deadLetter
             ? new Date('9999-12-31T00:00:00.000Z').toISOString()
-            : new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString(),
+            : new Date(nextAttemptAt).toISOString(),
           dead_letter_at: deadLetter ? failedAt : null,
           updated_at: failedAt,
           last_http_status: isOpsError(dispatchError) ? dispatchError.status : null,

@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-10-18T17:59:48.366Z",
+  "synced_at": "2026-10-18T18:42:41.543Z",
   "contract_version": "2026-10-09.1",
   "documentation_version": "2026-10-12.1",
   "release_manifest": {
@@ -11,7 +11,7 @@
     "guide_version": "2026-10-12.1",
     "released_at": "2026-10-12T12:00:00.000Z",
     "generated_at": "2026-10-12T12:00:00.000Z",
-    "build_commit": "",
+    "build_commit": "987b970108061f98eacfbbf3e2761f4892dabd85",
     "compatibility_classification": "backward-compatible",
     "deprecated_features": [
       {
@@ -50,7 +50,7 @@
         "contract_version": "2026-10-12.1",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
         "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-12.1/website-integration-v1.json",
-        "sha256": "ce141a8c6dc9f93c04043102dca42c8145baa1a2d9c1139c6f4f1c6b516343b5",
+        "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
         "compatibility": "backward-compatible"
       },
       "customer_portal": {
@@ -58,14 +58,14 @@
         "contract_version": "2026-10-12.1",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
         "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
-        "sha256": "e30b2b4bc589b3ada7124312f973a891bd469f0ef15ac184884dfaa6f2d80f6c",
+        "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185",
         "compatibility": "backward-compatible"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "ce141a8c6dc9f93c04043102dca42c8145baa1a2d9c1139c6f4f1c6b516343b5",
+      "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
       "semantic_diff": {
         "previous_version": "2026-10-12.1",
         "next_version": "2026-10-12.1",
@@ -80,7 +80,7 @@
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "e30b2b4bc589b3ada7124312f973a891bd469f0ef15ac184884dfaa6f2d80f6c",
+      "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185",
       "semantic_diff": {
         "previous_version": "2026-10-12.1",
         "next_version": "2026-10-12.1",

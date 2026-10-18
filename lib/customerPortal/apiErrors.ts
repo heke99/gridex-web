@@ -56,6 +56,7 @@ export function customerApiErrorResponse(
   }
 
   if (
+    !isOpsError(error) &&
     error instanceof Error &&
     'status' in error &&
     'code' in error &&
@@ -72,6 +73,12 @@ export function customerApiErrorResponse(
 
   if (isOpsError(error)) {
     const details = opsErrorDetails(error)
+    const root = record(error.details)
+    const retryAfter = root?.retry_after_seconds ?? record(root?.error)?.retry_after_seconds
+    const retryHeaders = typeof retryAfter === 'number' && Number.isFinite(retryAfter) &&
+      retryAfter >= 0 && retryAfter <= Number.MAX_SAFE_INTEGER
+      ? { 'Retry-After': String(Math.ceil(retryAfter)) }
+      : undefined
     console.error(`[customer portal] ${options.logLabel} OPS error`, {
       status: error.status,
       message: error.message,
@@ -91,6 +98,7 @@ export function customerApiErrorResponse(
         retryable: error.retryable,
       },
       error.status || 502,
+      retryHeaders,
     )
   }
 

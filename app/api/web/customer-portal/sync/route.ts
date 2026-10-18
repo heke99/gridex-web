@@ -4,6 +4,7 @@ import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { customerApiErrorResponse, validationError } from '@/lib/customerPortal/apiErrors'
 import { submitOpsCustomerPortalSync } from '@/lib/ops/client'
 import { clientOperationId, object } from '@/lib/customerPortal/writeValidation'
+import { privateJsonResponse, readWebJson } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,7 +16,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { code: 'unauthorized', message: 'Du behöver logga in.' } }, { status: 401 })
   }
 
-  const body = object(await req.json().catch(() => ({}))) ?? {}
+  const parsed = await readWebJson<unknown>(req)
+  if (!parsed.ok) return parsed.response
+  const body = object(parsed.value)
+  if (!body) return validationError('Ogiltig request-body.')
   const operationId = clientOperationId(body.client_operation_id)
   if (!operationId) return validationError('client_operation_id krävs.', 'client_operation_id')
 
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
       email: identity.email,
       metadata: { source: 'tenant_website_customer_portal_sync_route' },
     })
-    return NextResponse.json({ data: result, queued: false })
+    return privateJsonResponse({ data: result, queued: false })
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'customer-portal-sync',

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchOpsCurrentMarketPrice, isOpsError } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
+import { readWebJson } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -25,7 +26,9 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json().catch(() => null) as Payload | null
+  const parsed = await readWebJson<Payload | null>(request)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
   const resolutionId = text(body?.resolution_id)
   if (!resolutionId) {
     return NextResponse.json(

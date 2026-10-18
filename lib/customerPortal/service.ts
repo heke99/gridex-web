@@ -828,8 +828,8 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
 export async function markCustomerNotificationsRead(input: {
   notificationIds: string[]
   operationId?: string | null
-}): Promise<{ ok: true; opsSynced: true; localSynced: boolean; queued: false }> {
-  const { supabase, user } = await getPortalSession()
+}, session?: { supabase: SupabaseClient; user: User }): Promise<{ ok: true; opsSynced: true; localSynced: boolean; queued: false }> {
+  const { supabase, user } = session ?? await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
   const ids = [...new Set(input.notificationIds.map((id) => id.trim()).filter(Boolean))]
