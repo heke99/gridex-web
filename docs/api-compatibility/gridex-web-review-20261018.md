@@ -25,8 +25,8 @@ slutna affärsscheman.
 Efterkontrollens fel i kundsynk och requestläsning är rättade i koden och täcks
 av beteendeprov. Samtliga 142 operationer är klassificerade i
 `gridex-web-endpoints-20261018.md`, med scopes, implementation och prov per rad i
-`quality/api-compatibility/endpoint-review-20261018.json`. Ett verkligt slutprov av
-fullmakts-PDF, verifikationsnummer och leverans återstår; se
+`quality/api-compatibility/endpoint-review-20261018.json`. Det riktiga avtals- och PDF-leveransprovet är genomfört. Separat fullmakts-PDF
+och verifikationsnummer är ännu inte kvalificerade; se
 `gridex-web-signing-review-20261018.md`.
 
 ## Adress, geolokalisering och priser
@@ -60,7 +60,7 @@ Dokumentreferens, version, hash, godkännandetid och obligatoriska krav kommer
 från exakt publicerat paket. Fullmaktens `textVersionId` är enligt aktuellt
 schema obligatorisk och måste avse dokumentversionen kunden såg; det är inte
 API-revisionen. API:et avgör signering, fryst signeringshash och eventuell
-ångerfrist. Inget nytt skarpt elavtal har skapats som test.
+ångerfrist. Ett uttryckligen godkänt, märkt testavtal har skapats genom det riktiga OPS-flödet, utan verklig elanläggning.
 
 ## Kundportalens endpointgrupper
 
@@ -104,7 +104,7 @@ Separat identity/resolve och invitations/accept använder sin egen version.
 Separat Vercel-projekt `gridex-support` är skapat med Node 22 och rot
 `apps/support`. Dedikerad staff-nyckel, publik provider och uttrycklig bindning
 för det valda befintliga kontot `hekmat.h@div3rsa.com` är registrerade.
-Befintligt OPS-medlemskap har bevarats. Ingen inbjudan eller annat mejl har
+Befintligt OPS-medlemskap har bevarats. Ingen personalinbjudan har
 skickats. Den inbyggda bindningskontrollen i avsedd OPS-databas godkänner
 aktör/bindning/version. Detta ersätter inte en riktig lösenordsinloggning.
 
@@ -131,7 +131,7 @@ inloggningssidan. Upprepade webbläsarkontroller godkänner dator, mobil och
 inloggningskrav på fyra skyddade sidor utan applikationsfel. Driftstatus finns i
 `quality/support123/domain-reassociation-20261018.json` och de nya
 webbläsarkvittona i `quality/support123/live-evidence-20261018-domain-final`.
-Ett skarpt signerat kundavtal, verklig
+Verklig
 personalinloggning, inbjudningsmejl och fullständig last-/databasprestandakvalificering
 har inte påståtts utifrån enbart lokala tester.
 
@@ -146,5 +146,6 @@ kopplats till adapter och relevanta kontrakts-/beteendeprov. Det påstås inte a
 Det uttryckligen godkända riktiga avtalsprovet är genomfört. Avtal/fullmakt
 är signerade; samma ansökan och signeringshash återanvänds vid omförsök,
 original-IP stämmer och avtals-PDF har levererats till vald mottagare.
-Fullmaktsarkivet i OPS är däremot JSON utan verifieringsnummer. Se den
-fördjupade rapporten för bevis och kvarvarande backend-avvikelse.
+Det kontrollerade fullmaktsunderlaget är JSON utan separat verifikationsnummer.
+Aktuell dokumentation lovar inte automatisk Website-fullmakts-PDF. Den
+fördjupade rapporten skiljer detta från det verifierade avtalsprovet.

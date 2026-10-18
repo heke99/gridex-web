@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import type { OpsWebsiteEnergyResolution } from '@/lib/ops/client'
+import { canonicalJson } from '@/lib/ops/canonicalJson'
 
 const OPS_REFERENCE_UNIQUE_CONSTRAINT = 'website_price_area_resolutions_ops_reference_uidx'
 const AUDIT_MATCH_FIELDS = [
@@ -11,8 +12,15 @@ const AUDIT_MATCH_FIELDS = [
   'resolver_version',
   'ops_resolution_id',
   'ops_resolution_reference',
-  'ops_resolution_payload_sha256',
-  'ops_valid_until',
+  'ops_resolution_status',
+  'grid_owner_name',
+  'confidence',
+  'assurance_level',
+  'assurance_source',
+  'assurance_candidate_count',
+  'assurance_unique_price_area_count',
+  'assurance_source_version',
+  'assurance_evidence',
 ] as const
 
 function serviceClient() {
@@ -49,7 +57,20 @@ export function energyAreaAuditRetryMatches(
   expected: Record<string, unknown>,
 ): boolean {
   if (!existing) return false
-  return AUDIT_MATCH_FIELDS.every((field) => existing[field] === expected[field])
+  const expiry = (value: unknown) => typeof value === 'string' ? Date.parse(value) : Number.NaN
+  const expectedExpiry = expiry(expected.ops_valid_until)
+  if (!Number.isFinite(expectedExpiry) || expiry(existing.ops_valid_until) !== expectedExpiry) return false
+  return AUDIT_MATCH_FIELDS.every((field) => {
+    const left = existing[field]
+    const right = expected[field]
+    if (left === right) return true
+    if (['confidence', 'assurance_candidate_count', 'assurance_unique_price_area_count'].includes(field)) {
+      const numeric = (value: unknown) =>
+        typeof value === 'number' || (typeof value === 'string' && value.trim()) ? Number(value) : Number.NaN
+      return Number.isFinite(numeric(left)) && numeric(left) === numeric(right)
+    }
+    return field === 'assurance_evidence' && canonicalJson(left) === canonicalJson(right)
+  })
 }
 
 export async function persistOpsEnergyAreaResolution(input: {
@@ -101,9 +122,9 @@ export async function persistOpsEnergyAreaResolution(input: {
   // Verify the existing row instead of weakening the unique constraint or silently upserting.
   const { data: existing, error: lookupError } = await client
     .from('website_price_area_resolutions')
-    .select('address_fingerprint,postal_code,price_area_code,grid_area_code,resolver_version,ops_resolution_id,ops_resolution_reference,ops_resolution_payload_sha256,ops_valid_until')
+    .select([...AUDIT_MATCH_FIELDS, 'ops_valid_until'].join(','))
     .eq('ops_resolution_reference', record.ops_resolution_reference)
-    .maybeSingle()
+    .maybeSingle<Record<string, unknown>>()
 
   if (lookupError) {
     throw new Error(`Website energy-area audit retry verification failed: ${lookupError.message}`)
@@ -111,4 +132,7 @@ export async function persistOpsEnergyAreaResolution(input: {
   if (!energyAreaAuditRetryMatches(existing, record)) {
     throw new Error('Website energy-area audit reference collision detected; existing audit row does not match the OPS resolution.')
   }
+  // Preserve the first raw-response hash as audit evidence. Request/correlation
+  // IDs, cache diagnostics and warning repetitions can change on a legitimate
+  // replay; equivalence is established by the canonical area/assurance above.
 }

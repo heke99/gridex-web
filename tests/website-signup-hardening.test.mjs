@@ -117,7 +117,7 @@ const auditExpected = {
   ops_valid_until: '2026-09-02T15:00:00.000Z',
 }
 assert.equal(energyAreaAuditRetryMatches({ ...auditExpected }, auditExpected), true)
-assert.equal(energyAreaAuditRetryMatches({ ...auditExpected, ops_resolution_payload_sha256: 'payload-b' }, auditExpected), false)
+assert.equal(energyAreaAuditRetryMatches({ ...auditExpected, ops_resolution_payload_sha256: 'payload-b' }, auditExpected), true)
 assert.equal(energyAreaAuditRetryMatches({ ...auditExpected, address_fingerprint: 'address-b' }, auditExpected), false)
 assert.equal(energyAreaAuditRetryMatches(null, auditExpected), false)
 

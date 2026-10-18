@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-10-18T19:03:15.639150+00:00",
-  "status": "WEB_FIXES_VERIFIED_LIVE_AGREEMENT_AND_DELIVERY_PASS_OPS_POA_ARCHIVE_GAP_CONFIRMED",
+  "checked_at": "2026-10-18T19:16:24.988853+00:00",
+  "status": "WEB_FIXES_VERIFIED_AGREEMENT_PDF_DELIVERED_POA_READ_QUALIFICATION_PENDING",
   "guide": "https://app.gridex.se/developers/customer-portal-api",
   "documentation_version": "2026-10-12.1",
   "runtime_version": "2026-10-09.1",
@@ -82,6 +82,15 @@
       "proof": "Live preview returned 200 then503 for the same quote_attempt_id. Runtime log confirmed duplicate pricing_snapshot_reference.",
       "fix": "On duplicate, read and verify original quote, offer, customer type, calculation hash and totals, preserve first audit row; reject conflicts or unavailable original.",
       "verification": "18 actual persistence behavior tests; final live preview retest recorded separately."
+    },
+    {
+      "id": "W7",
+      "severity": "medium",
+      "status": "FIXED_IN_BRANCH_PENDING_DEPLOYMENT",
+      "file": "lib/website/energyAreaStore.ts",
+      "issue": "A cached canonical OPS address resolution failed a duplicate audit comparison when PostgreSQL normalized its timestamp or transport request/correlation IDs changed.",
+      "fix": "Compare canonical identity, address, area and assurance, normalize equivalent instants/numbers, preserve the first raw-response hash and audit time; reject business/evidence collisions.",
+      "verification": "13 actual persistence behavior tests; final live preview retest recorded separately."
     }
   ],
   "checks": [
@@ -125,7 +134,7 @@
     {
       "command": "new customer write and outbox behavioral regressions",
       "result": "PASS",
-      "tests": 62
+      "tests": 93
     }
   ],
   "website_evidence_probe": {
@@ -142,7 +151,7 @@
     "result": "REGRESSIONS_FIXED",
     "explicit_acceptance_required": true,
     "original_server_evidence_persisted": true,
-    "new_behavioral_tests": 80,
+    "new_behavioral_tests": 93,
     "fixtures": "tests/customer-consent-evidence.test.mjs, tests/customer-write-boundary.test.mjs, tests/customer-sync-route-evidence.test.mjs"
   },
   "new_sha256": {
@@ -152,13 +161,14 @@
   },
   "pdf_verification_number": {
     "owner": "OPS",
-    "documentation_requires": "Stable verification number on each page of the private accepted-text/scopes/evidence PDF; API server IP recorded separately.",
+    "documentation_requires": "Current guide documents POA reads and separate Partner PDF upload; it does not promise automatic Website POA PDF or an independent verification number. Earlier descriptive wording changed within the same version.",
     "website_generates_number": false,
     "live_pdf_retrieved": false,
     "real_signature_or_email_tested": true,
     "customer_portal_has_separate_number_display": false,
     "live_agreement_pdf_retrieved": true,
-    "live_poa_pdf_retrieved": false
+    "live_poa_pdf_retrieved": false,
+    "current_guide_reread": true
   },
   "bankid": {
     "website_method": "website_acceptance",
@@ -171,7 +181,7 @@
     "Description drift does not imply a breaking request-schema change."
   ],
   "limits": [
-    "OPS POA archive remains JSON with no verification number; a separate backend correction is required before full qualification.",
+    "Automatic private POA PDF and separate verification number have not been verified. They are a user requirement beyond the explicit current Website/Customer API description; do not fabricate them in the website.",
     "No real electricity facility was used; supplier switch was not created. Test identities are not BankID-verified.",
     "Full live database/RLS/query-plan/load audit not performed."
   ],
@@ -225,7 +235,8 @@
       "format": "JSON",
       "pdf_generated": false,
       "verification_number_present": false,
-      "document_checksum_present": false
+      "document_checksum_present": false,
+      "qualification": "Stored test record is JSON with null PDF path/hash and no verification number; documented read must also be checked before concluding feature availability."
     },
     "temporary_client_revoked": true,
     "initial_preview_share_access_revoked": true,

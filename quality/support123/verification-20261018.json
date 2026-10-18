@@ -326,27 +326,23 @@
     "Real electricity agreement signing and full production load/query-plan qualification"
   ],
   "website_reaudit": {
-    "status": "PARTIAL_COMPLIANCE_OPEN_CUSTOMER_SYNC_FINDINGS",
+    "status": "WEB_FINDINGS_FIXED_PENDING_PRODUCTION_PUBLICATION",
     "checked_at": "2026-10-18T18:06:57.062328+00:00",
     "evidence": "quality/api-compatibility/signing-review-20261018.json",
-    "open_findings": [
-      "W1",
-      "W2",
-      "W3"
-    ],
-    "contract_sync": "W4 fixed in branch; deployed product behavior unchanged",
+    "open_findings": [],
+    "contract_sync": "All published manifests verified; W1-W7 code fixes covered by behavioral regressions",
     "support_domain_affected": false
   },
-  "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_FIXES_VERIFIED_REAL_APPLICATION_PASS_OPS_ARCHIVE_GAP",
+  "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_FIXES_VERIFIED_REAL_APPLICATION_PDF_DELIVERED",
   "web_api_completion": {
     "date": "2026-10-18",
     "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
     "endpoint_operations_reviewed": 142,
-    "code_findings": "W1-W4 resolved in branch; delivery evidence records live source separately",
+    "code_findings": "W1-W7 fixed in branch; final live source recorded separately",
     "live_test_customer": "[testkundsreferens utelämnad]",
     "live_pdf_delivery_verified": false,
-    "remaining": "Confirmed OPS backend gap: POA archived as JSON without verification number.",
-    "new_behavior_tests": 80,
+    "remaining": "Separate POA PDF and verification number not yet qualified against documented read routes",
+    "new_behavior_tests": 93,
     "live_agreement_and_email_pdf_delivery_verified": true,
     "live_poa_pdf_delivery_verified": false
   }

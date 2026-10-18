@@ -1,107 +1,65 @@
 # Gridex Web: signering, PDF och fullmaktsbevis
 
-Kundsynkens bekräftade kodfel är rättade. Webbens hela testsvit och de nya
-beteendeproven verifierar samtycke, signerare, betrodd IP, återförsök och
-requestgränser. Det verkliga avtalsprovet och avtals-PDF-leveransen är godkända; OPS fullmakts-PDF
-och verifikationsnummer saknas fortfarande. Det har inte ersatts med en lokalt skapad
-PDF eller ett påhittat verifikationsnummer.
-
 Källa: https://app.gridex.se/developers/customer-portal-api. Dokumentation
-2026-10-12.1 och runtime 2026-10-09.1. Endpointmatrisen i
-`gridex-web-endpoints-20261018.md` omfattar alla 142 operationer i de tre
-publicerade specifikationerna och skiljer aktiva integrationer från alternativa
-ytor och dokumentationsarkiv.
+2026-10-12.1 och runtime 2026-10-09.1. Samtliga 142 operationer i Website-,
+Customer- och Staff-specifikationerna är klassificerade i endpointmatrisen.
+Det betyder inte att 142 skarpa mutationer har körts.
 
-## Rättningar
+## Rättningar och verifiering
 
-| Fynd | Status och beteende |
+| Fynd | Resultat |
 | --- | --- |
-| W1: förlorade signeringsbevis | Rättat. Kundsynken bevarar signerare, identitet, faktisk metod och exakt omfattning. Browserflödet kräver `website_acceptance`; fritt angiven BankID-status godtas inte. Första betrodda IP, serverns godkännandetid och hela inkommande user-agent sparas i en privat, hashbunden kvittens innan OPS skrivs. Omförsök använder ursprunglig kropp, identitet och nyckel. |
-| W2: antaget samtycke | Rättat. Endast `accepted === true` godtas. Saknad/otillräcklig signerare, otillåten omfattning och avkortade identitetsfält avvisas; felaktig fullmakt göms inte bakom en samtidig profiluppdatering. |
-| W3: obegränsad requestläsning | Rättat för fem kundskrivningar och publik marknadsprisläsning. Gemensam JSON-läsare begränsar MIME, origin, byteantal och lästid, inklusive strömmar utan Content-Length. Kundens session kontrolleras före kroppsläsning. |
-| W4: dokumentationsdrift | Återsynkroniserat och livekontrollerat mot manifest. OPS har under granskningen bytt tillbaka beskrivningar under samma versionsnummer. Endpoints, obligatoriska fält och valideringsregler är oförändrade. Ny kontrollsumma och genererad proveniens följer den senast kontrollerade driftsättningen. |
-| W5: för tidigt köomförsök | Rättat. Bakgrundskön väntar minst hela OPS Retry-After och minst ordinarie backoff. Två timmars väntan kan inte bli två minuter; om väntetiden inte kan lagras krävs manuell hantering i dead letter. |
-| Felhantering | OPS-fel går nu genom rätt serializer. Request-id, korrelations-id, retryability och hela numeriska Retry-After bevaras. |
+| W1: förlorade signeringsbevis | Kundsynken bevarar signerare, identitet, metod och exakt scope. Första betrodda ingress-IP, serverns tid och hela user-agent fryses i en privat, hashbunden kvittens före OPS-anropet. Samma kvittens används vid återförsök och köåterhämtning. |
+| W2: implicit samtycke | `accepted === true` och kompletta signeringsuppgifter krävs. Webbläsaren får inte ange en påhittad BankID-signering. |
+| W3: obegränsad requestläsning | Sex kund-/prisskrivvägar använder gemensam JSON-/origin-kontroll, 64 KiB-gräns och tolv sekunders läsbudget. |
+| W4: dokumentationsdrift | Alla tre specifikationer synkroniserade mot live-manifestets SHA-256. Beskrivande signeringstext har ändrats fram och tillbaka under samma version; valideringsreglerna har inte ändrats. |
+| W5: förkortad Retry-After | Den beständiga kön respekterar hela OPS-väntetiden. Oplanerbar väntetid stoppas för hantering. Sex beteendeprov verifierar faktiska workerbeslut. |
+| W6: offertomförsök gav 503 | Dubblett kräver verifierat samma offert, erbjudande, kundtyp, beräkningshash och belopp. Första kontrollposten bevaras. 18 beteendeprov täcker återförsök, samtidighet, innehållskollision och databasfel. |
+| W7: adressomförsök gav 503 | PostgreSQLs tidsformat och nya transport-ID:n får inte ändra identiteten hos samma kanoniska OPS-upplösning. Adress, elområde, giltighet och assurance måste fortfarande matcha. Första råsvarshash och kontrolltid bevaras. 13 beteendeprov täcker detta. |
 
-Kvittensen använder befintlig `customer_portal_write_outbox`; ingen ny
-migrering behövs. Tabellen har verifierad unik idempotensnyckel, behövda
-kolumner, RLS och service_role-policy. Saknad/otillgänglig lagring stoppar
-OPS-skrivningen. Samtidiga första försök konvergerar på samma kvittens.
-Avbrutna skrivningar kan återupptas av den befintliga outbox-arbetaren med
-samma ursprungliga bevis och API-nyckel. Den autentiserade cron-körningen finns
-på Vercel en gång per timme.
+Hela webbtestsviten, personaltester, båda typkontrollerna, produktionsbygget,
+leveranskontrollen, manifestkontrollen och ändringsbegränsad ESLint har körts.
+De nya beteendeproven omfattar 93 fall. Databaskontrollen verifierar befintliga
+outboxkolumner, unik nyckel, RLS och service-rollens åtkomst; ingen migration
+behövdes. Detta är inte ett fullständigt last- eller query-planprov.
 
-## Övriga kontroller
+## Verkligt godkänt avtalsprov
 
-- Adress/elområde kommer från OPS upplösnings-ID och `pricing_ready`.
-  Webbläsarens GPS-position används inte som bevis för elanläggningen.
-- Pris, produkt, komponenter, moms, förbrukning, start och leveranssätt binds
-  till samma kanoniska offert och validering. Indikativa marknadspriser är
-  skilda från slutlig avräkning.
-- Juridiska referenser, versioner och hashar kommer från exakt publicerat
-  erbjudande. Fullmaktens `textVersionId` är det accepterade juridiska dokumentet.
-- Website-checkout har separat oföränderlig kvittens. Faktiska payloadbyggaren
-  och submission-lagringen har provats med syntetiskt datalager: första tid/IP
-  och metod bevaras.
-- Avtalets signerade status, signed_at, signeringshash, kanoniska commit och
-  dokumenterade checkout-status krävs innan webben visar en färdig teckning.
-- Website-klienten har alla använda scopes, inklusive de uttryckligen godkända
-  supportscopes. Den är aktiv, har 120 anrop/minut och är organisationsbunden.
-  Personal har egen klient och sina sex personalrättigheter.
-- Vercels produktionsinställningar och befintliga databasfält/policyer är
-  kontrollerade utan att läsa existerande hemligheters värden.
+Användaren godkände uttryckligen ett riktigt OPS-avtalsprov, möjliga externa
+processer och leverans till vald mottagare. Provet kördes därefter genom
+Website-flödet: aktuell offert, adressupplösning, offertvalidering, exakt juridiskt
+paket, en märkt testansökan och ett identiskt återförsök. Interna testreferenser
+och signeringsfingeravtryck publiceras inte i Git.
 
-## Verkligt kundprov
+OPS skapade ett signerat testavtal och en signerad fullmakt med exakt scope
+`supplier_switch`. Ansökan, avtal, kund, signeringstid och signeringshash är
+oförändrade vid återförsök. Ursprunglig kund-IP matchar det lagrade beviset.
+Ingen verklig elanläggning användes och ingen leverantörsbytesbegäran skapades.
 
-Användaren godkände uttryckligen en riktig testansökan och möjliga externa
-OPS-processer efter den inledande automatiska avvisningen. Provet har nu körts.
-Kund- och ansökningsreferenser utelämnas ur Git-artifakter. OPS skapade en egen
-kanonisk testkund i ansökningsflödet; både den och den första förberedande
-fixturekunden är testmarkerade. Ingen verklig elanläggning användes.
+Tre mejlhändelser är `delivered` i OPS. E-postleverantören bekräftar rätt
+mottagare och leverans. Avtalsbekräftelsen innehåller en giltig PDF på två
+A4-sidor, 4437 byte. Den hämtade leverantörsbilagan är byteidentisk med
+originalbilagan i kön och kan textutvinnas. PDF:en innehåller avtalsnummer och
+anger uttryckligen att det privata signeringsbeviset lagras separat.
 
-Det verkliga Website-flödet klarade konfiguration, publicerat erbjudande,
-adress/elområde, kanonisk offert, offertvalidering, exakt juridikpaket och
-ansökan. Avtal och fullmakt är signerade med `website_acceptance`; arbetsflödet
-är `canonical_data_committed`. Samma ansöknings-/avtalsreferenser och samma
-signeringshash återkom vid identiskt omförsök. Original-IP:s SHA-256 från
-betrodd ingång matchar den IP som sparats på fullmakten. Signerad omfattning
-är exakt `supplier_switch`; ingen leverantörsbytesbegäran skapades.
+## Fullmakts-PDF och verifikationsnummer
 
-Tre mejlhändelser är `delivered` i OPS. Leverantören bekräftar rätt mottagare
-och leverans. Avtalsbekräftelsen innehåller en PDF på två A4-sidor, 4437 byte.
-Den hämtade leverantörsbilagan är byteidentisk med originalbilagan i kön och
-kan textutvinnas. Avtalets privata signeringsbevis är uttryckligen separat.
+Den aktuella guiden har lästs igen. Customer API dokumenterar läsning av
+fullmaktsstatus; Partner API har separat uppladdning/hämtning av en partners
+PDF. Webben använder Website-checkout och ska inte skapa ett andra avtal
+eller ladda upp ett påhittat signeringsbevis via Partner API.
 
-Slutprovet bekräftar också ett kvarstående OPS-fel: fullmaktens
-`customer_authorization_documents`-arkiv är ett `.json`-underlag, utan
-PDF-mimetyp, dokumentchecksumma eller stabilt verifikationsnummer.
-`customer_documents` exponerar ingen separat fullmakts-PDF för provet. Detta
-är inte ett komplett godkänt fullmaktsarkiv och åtgärdas inte genom att webben
-hittar på ett eget verifieringsnummer.
+Den nuvarande guiden lovar inte automatisk fullmakts-PDF med separat
+verifikationsnummer i Website-flödet. Tidigare observerad beskrivande text
+innehöll sådana påståenden, men har ändrats under samma versionsnummer.
+Önskemålet om PDF, IP-bevis och ett stabilt verifikationsnummer kvarstår ändå
+som användarkrav och måste verifieras i ett faktiskt dokument.
 
-En verklig förhandskontroll upptäckte dessutom W6: identisk offert gav först
-200 och sedan503 på ett duplicerat prissnapshot. Persistensen accepterar nu
-endast verifierat likvärdiga omförsök, bevarar första audit-raden och avvisar
-kollisioner. 18 nya beteendeprov skyddar normala och samtidiga omförsök,
-ändrade transport-ID:n, innehållskonflikter samt skriv-/läsfel i databasen.
-Totalt omfattar den nya regressionssviten 80 beteendeprov.
+Det lagrade provets fullmaktsunderlag är JSON; PDF-sökväg, PDF-checksumma och
+separat verifikationsnummer saknas i de kontrollerade posterna. Detta bevisar
+inte ensamt om en dokumenterad läsväg kan generera en PDF vid hämtning.
+Den kompletterande läskontrollen redovisas i JSON-beviset när den är färdig.
 
-## PDF och signeringens gräns
-
-OPS äger det privata fullmaktsarkivet och eventuellt stabilt verifikationsnummer.
-Den tidigare observerade dokumentationstexten beskrev accepterad text, scopes,
-originaltid och kund-IP i PDF, med numret på varje sida. Just denna beskrivning
-har ändrats fram och tillbaka under samma versionsnummer under granskningen.
-Ett verkligt dokument måste därför inspekteras i den avsedda OPS-versionen;
-enbart ett schemasvar eller en kund-/avtalsreferens bevisar inte detta.
-
-BankID är valfritt. Webben använder elektroniskt godkännande och påstår varken
-verifierad BankID eller inbäddad kryptografisk PDF-signatur. Kund-, avtals- och
-ansökningsnummer ersätter inte fullmaktens eget verifikationsnummer. Kundportalens
-HTTPS-dokumentlänkar bevisar inte att alla interna fullmakts-PDF:er exponeras av
-Customer API.
-
-Fullständigt slutprov ska följa exakt accepterad text och scopes, ursprunglig
-kund-IP och tid, privat PDF på samtliga sidor, stabilt verifikationsnummer vid
-omförsök, rätt åtkomst samt faktisk leveransstatus. Full databaslast och alla
-query-planer är inte kvalificerade genom dessa tester.
+BankID är valfritt. Webben använder elektroniskt godkännande och påstår ingen
+BankID-verifiering eller inbäddad kryptografisk PDF-signatur. Kund-, avtals-
+och ansökningsnummer ersätter inte ett separat fullmaktsverifikationsnummer.
