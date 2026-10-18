@@ -4,6 +4,7 @@ import addFormats from 'ajv-formats'
 import websiteOpenApi from '@/docs/openapi/website-integration-v1.json'
 import customerPortalOpenApi from '@/docs/openapi/customer-portal-v1.json'
 import { OpsError, OpsSchemaError } from '@/lib/ops/errors'
+import { withSupportedResponseProfiles } from '@/lib/ops/responseProfiles'
 
 type ContractName = 'website' | 'customer-portal'
 type Stage = 'request' | 'response'
@@ -19,8 +20,8 @@ type OpenApiDocument = {
 }
 
 const documents: Record<ContractName, OpenApiDocument> = {
-  website: websiteOpenApi as OpenApiDocument,
-  'customer-portal': customerPortalOpenApi as OpenApiDocument,
+  website: withSupportedResponseProfiles(websiteOpenApi) as OpenApiDocument,
+  'customer-portal': withSupportedResponseProfiles(customerPortalOpenApi) as OpenApiDocument,
 }
 
 const roots: Record<ContractName, string> = {
@@ -41,8 +42,8 @@ function createAjv() {
 
 const websiteAjv = createAjv()
 const customerPortalAjv = createAjv()
-websiteAjv.addSchema(websiteOpenApi, roots.website)
-customerPortalAjv.addSchema(customerPortalOpenApi, roots['customer-portal'])
+websiteAjv.addSchema(withSupportedResponseProfiles(websiteOpenApi), roots.website)
+customerPortalAjv.addSchema(withSupportedResponseProfiles(customerPortalOpenApi), roots['customer-portal'])
 
 const ajvs: Record<ContractName, ReturnType<typeof createAjv>> = {
   website: websiteAjv,

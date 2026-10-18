@@ -24,7 +24,8 @@ const websiteOpenApi = JSON.parse(read('docs/openapi/website-integration-v1.json
 const canonicalQuoteValidation = read('lib/website/canonicalQuoteValidation.ts')
 const stagingFlow = read('tests/staging-canonical-ops-flow.mjs')
 
-assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.release_version}'`), 'canonical API version must match the synchronized release')
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${releaseManifest.release_version}'`), 'documentation version must match the synchronized release')
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.runtime_contract_version}'`), 'response schema must match the synchronized runtime revision')
 assert.ok(!contract.includes('2026-07-28.1'), 'old version must not remain in canonical contract')
 
 assert.match(client, /opsRequest as transportOpsRequest/, 'client must use canonical transport')
@@ -132,7 +133,7 @@ assert.match(readiness, /!portalIdentityGap/, 'checkout readiness must block uns
 assert.match(readiness, /!legalAcceptanceGap/, 'checkout readiness must block non-dynamic legal contract')
 assert.match(readiness, /!priceOptionsGap/, 'checkout readiness must block unpublished price options')
 assert.equal(typeof verification.live_sync_verified, 'boolean', 'verification status must expose a boolean live_sync_verified flag')
-assert.equal(verification.contract_version, releaseManifest.release_version, 'verification status must retain the checked-in contract version')
+assert.equal(verification.contract_version, releaseManifest.runtime_contract_version, 'verification status must retain the checked-in response schema revision')
 assert.ok(Object.hasOwn(verification, 'verified_at'), 'verification status must always expose verified_at')
 if (verification.live_sync_verified) {
   assert.equal(typeof verification.verified_at, 'string', 'verified live sync must include verified_at')

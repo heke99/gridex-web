@@ -20,6 +20,7 @@ import {
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import { isCompatibleAdditiveResponseSchemaError } from '@/lib/ops/schemaCompatibility'
+import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   env,
   getOpsApiBaseUrl,
@@ -1466,7 +1467,7 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
       retryable: false,
     })
   }
-  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(contractVersion)) {
     throw new OpsError('OPS integration context använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_integration_contract_version_mismatch',
       expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import ActionForm from "@/support/components/ActionForm";
+import Image from "next/image";
+import LoginForm from "@/support/components/LoginForm";
 import { signIn, signOut } from "./actions";
 export default async function Login({
   searchParams,
@@ -8,22 +8,31 @@ export default async function Login({
 }) {
   const { reason } = await searchParams;
   return (
-    <main className="login-wrap">
-      <div className="login">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            G
-          </span>
-          <span>
-            Gridex Support<small>Arbetsyta för kundtjänst</small>
-          </span>
-        </div>
-        <section className="panel">
+    <main className="staff-login">
+      <header className="staff-login-header">
+        <Image src="/brand/gridex-logo.svg" alt="Gridex" width={184} height={53} priority />
+        <span className="staff-login-label"><span aria-hidden="true" />Personalportal</span>
+      </header>
+      <div className="staff-login-content">
+        <section className="staff-login-intro" aria-labelledby="staff-workspace-title">
+          <p className="eyebrow">Gridex Support</p>
+          <h2 id="staff-workspace-title">En gemensam arbetsyta.<br /><span>Med kunden i fokus.</span></h2>
+          <p>Kundärenden, kunduppgifter och uppföljning.<br />Samlat för dig som arbetar på Gridex.</p>
+          <ul className="staff-login-features">
+            <li><span aria-hidden="true">01</span><div><strong>Kundärenden</strong><small>Håll ihop dialogen och nästa steg.</small></div></li>
+            <li><span aria-hidden="true">02</span><div><strong>Kundöversikt</strong><small>Hitta rätt kund och rätt uppgifter.</small></div></li>
+            <li><span aria-hidden="true">03</span><div><strong>Trygg åtkomst</strong><small>Personliga konton och tilldelade behörigheter.</small></div></li>
+          </ul>
+        </section>
+        <section className="staff-login-card" aria-labelledby="staff-login-title">
+          <div className="staff-login-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+          </div>
           <p className="eyebrow">Personalinloggning</p>
-          <h1>Logga in till kundtjänsten</h1>
+          <h1 id="staff-login-title">Logga in till kundtjänsten</h1>
           <p className="muted">
-            Hantera Gridex kundärenden, kunder och uppföljning med ditt
-            personliga konto.
+            Endast för behörig kundtjänst och Gridex personal. Logga in med
+            ditt personliga personalkonto.
           </p>
           {reason === "access_denied" ? (
             <>
@@ -36,44 +45,11 @@ export default async function Login({
               </form>
             </>
           ) : (
-            <div style={{ marginTop: 25 }}>
-              <ActionForm
-                action={signIn}
-                submit="Logga in"
-                idempotencyKey={randomUUID()}
-              >
-                <label>
-                  E-post
-                  <input
-                    name="email"
-                    type="email"
-                    autoComplete="username"
-                    required
-                    maxLength={320}
-                  />
-                </label>
-                <label>
-                  Lösenord
-                  <input
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    maxLength={1024}
-                  />
-                </label>
-              </ActionForm>
-            </div>
+            <LoginForm action={signIn} />
           )}
-          <p className="small muted" style={{ marginTop: 22 }}>
-            Kontakta din bolagsadministratör om du behöver ett konto eller hjälp
-            med inloggningen.
-          </p>
         </section>
-        <p className="login-footer">
-          Gridex egen support · Endast behörig personal
-        </p>
       </div>
+      <footer className="staff-login-footer"><span>Gridex El AB</span><span>Endast för kundtjänst och behörig Gridex personal</span></footer>
     </main>
   );
 }

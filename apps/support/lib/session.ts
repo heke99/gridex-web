@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
 import { createStaffApiClient, StaffApiError, type StaffApiClient } from '../../../lib/staff-api/client'
 import { STAFF_SUBJECT_UUID } from '../../../lib/staff-api/config'
 import { resolveStaffIdentity } from '../../../lib/staff-api/identity'
@@ -98,8 +99,10 @@ export async function resolveSupportSession(dependencies: SupportSessionDependen
   }
 }
 
-export async function requireSupportSession(): Promise<SupportSession> {
+// React cache deduplicates only within one server render; every new request and
+// action still resolves current Auth, binding and authoritative API permission.
+export const requireSupportSession = cache(async (): Promise<SupportSession> => {
   return resolveSupportSession({ authClient: createSupportAuthClient,
     resolveIdentity: (subject, token) => resolveStaffIdentity(subject, token, `${readSupportAuthConfig().url}/auth/v1`),
     apiClient: (subject, binding) => createStaffApiClient(subject, { binding }), redirect })
-}
+})

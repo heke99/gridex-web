@@ -81,6 +81,7 @@ export function createSupportRuntime(settings) {
   ] }
   const bytes = Buffer.from('%PDF-1.7\nOffline support fixture\n%%EOF')
   const attachment = { attachment_reference: FIXTURE_ATTACHMENT, file_name: 'syntetisk-bilaga.pdf', mime_type: 'application/pdf', byte_size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), uploaded_by: 'customer', created_at: now(), visibility: 'customer', scan_status: 'released', scan_reason: null }
+  const uploadedAttachments = new Map()
   const traffic = []; const assertions = new Set(); const tokens = new Map(); const refresh = new Map(); const idempotent = new Map()
   const authUser = u => ({ id: u.authId, email: u.email, email_confirmed_at: '2026-10-05T09:00:00Z', aud: 'authenticated', role: 'authenticated', user_metadata: clone(u.user_metadata), app_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' })
   function authSession(u) {
@@ -255,7 +256,8 @@ export function createSupportRuntime(settings) {
         || claims.staff_binding_version !== currentBinding.bindingVersion || claims.local_auth_subject !== currentBinding.localAuthSubject
         || claims.local_auth_issuer !== currentBinding.localAuthIssuer || !identities.has(actor.id)) return failure(403, 'staff_identity_binding_invalid')
     } catch { return failure(401, 'staff_assertion_invalid') }
-    let payload = {}; try { payload = init.body ? JSON.parse(String(init.body)) : {} } catch { return failure(422, 'invalid_request') }
+    const binary = init.body && ['application/pdf', 'image/png', 'image/jpeg'].includes(headers.get('content-type')) ? Buffer.from(init.body) : null
+    let payload = {}; try { payload = binary ? { binary_sha256: createHash('sha256').update(binary).digest('hex'), visibility: headers.get('x-attachment-visibility') } : init.body ? JSON.parse(String(init.body)) : {} } catch { return failure(422, 'invalid_request') }
     const path = url.pathname.slice('/api/v1/staff'.length)
     traffic.push({ boundary: 'staff', method, path, actor: actor.id, company: claims.company_id, idempotencyKey: headers.get('idempotency-key'), payload: clone(payload) })
     const permissions = roles.find(r => r.key === actor.role_key)?.permissions ?? []
@@ -321,9 +323,17 @@ export function createSupportRuntime(settings) {
     if (casePath) {
       const ref = casePath[1]; const current = cases.get(ref); if (!current) return failure(404, 'support_case_not_found')
       const operation = casePath[2]
-      if (!operation && method === 'GET') return done({ ...current, events: events.get(ref), attachments: ref === FIXTURE_CASE ? [attachment] : [], events_page: { limit: 50, offset: 0, returned: events.get(ref).length, has_more: false, next_cursor: null }, attachments_page: { limit: 50, offset: 0, returned: ref === FIXTURE_CASE ? 1 : 0, has_more: false, next_cursor: null } })
+      const files = [...(ref === FIXTURE_CASE ? [attachment] : []), ...(uploadedAttachments.get(ref) ?? [])]
+      if (!operation && method === 'GET') return done({ ...current, events: events.get(ref), attachments: files, events_page: { limit: 50, offset: 0, returned: events.get(ref).length, has_more: false, next_cursor: null }, attachments_page: { limit: 50, offset: 0, returned: files.length, has_more: false, next_cursor: null } })
       if (operation === 'events' && method === 'GET') return collection(events.get(ref), url)
-      if (operation === 'attachments' && method === 'GET') return collection(ref === FIXTURE_CASE ? [attachment] : [], url)
+      if (operation === 'attachments' && method === 'GET') return collection(files, url)
+      if (operation === 'attachments' && method === 'POST') {
+        if (!binary || !binary.length || binary.length > 4194304 || !binary.toString().startsWith('%PDF-')) return failure(422, 'attachment_rejected')
+        const uploaded = { ...attachment, attachment_reference: `attachment_${String(++sequence).padStart(24, '0')}`, file_name: decodeURIComponent(headers.get('x-file-name') ?? 'bilaga.pdf'),
+          byte_size: binary.length, sha256: payload.binary_sha256, uploaded_by: 'staff', visibility: headers.get('x-attachment-visibility') ?? 'internal' }
+        uploadedAttachments.set(ref, [...(uploadedAttachments.get(ref) ?? []), uploaded])
+        return done(uploaded, 201)
+      }
       if (operation === `attachments/${FIXTURE_ATTACHMENT}/file` && ref === FIXTURE_CASE && method === 'GET') return new Response(bytes, { headers: { 'content-type': 'application/pdf', 'content-disposition': "attachment; filename*=UTF-8''syntetisk-bilaga.pdf", 'x-gridex-sha256': attachment.sha256, 'x-gridex-project-ref': PROJECT_REF, 'x-request-id': randomUUID() } })
       const requestSchema = { messages: 'StaffMessageRequest', notes: 'StaffNoteRequest', 'phone-interactions': 'StaffPhoneRequest', status: 'StaffStatusRequest', assignee: 'StaffAssigneeRequest' }[operation]
       if (!requestSchema || !valid(requestSchema, payload)) return failure(422, 'invalid_request')

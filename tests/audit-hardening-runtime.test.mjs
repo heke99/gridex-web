@@ -25,10 +25,12 @@ try {
  globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({error:{code:'permanent',message:'permanent',retryable:false}}),{status:503,headers:{'Content-Type':'application/json'}})}
  await assert.rejects(()=>opsRequest('/api/v1/customer/me'),e=>e.status===503&&!e.retryable)
  assert.equal(calls,1)
- globalThis.fetch=async()=>({status:200,ok:true,headers:new Headers({'content-type':'application/json'}),json:()=>new Promise(()=>{})})
+ let stalledBodyCancelled=false
+ globalThis.fetch=async()=>new Response(new ReadableStream({cancel(){stalledBodyCancelled=true}}),{headers:{'content-type':'application/json'}})
  const before=Date.now()
  await assert.rejects(()=>opsRequest('/api/v1/customer/me'),e=>e.status===504&&e.code==='ops_request_timeout')
  assert.ok(Date.now()-before<1800,'body read must remain inside the configured deadline')
+ assert.equal(stalledBodyCancelled,true,'the timed-out upstream body must be cancelled')
  const controller=new AbortController();controller.abort(new Error('caller cancelled'))
  await assert.rejects(()=>opsRequest('/api/v1/customer/me',{signal:controller.signal}),/caller cancelled/)
  const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048})

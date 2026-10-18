@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { after, beforeEach, test } from 'node:test'
 
 process.env.GRIDEX_API_KEY = 'customer-support-api-test-machine-key'
@@ -22,6 +23,9 @@ const {
   listOpsCustomerSupportMessages,
   createOpsCustomerSupportCase,
   sendOpsCustomerSupportMessage,
+  listOpsCustomerSupportAttachments,
+  uploadOpsCustomerSupportAttachment,
+  downloadOpsCustomerSupportAttachment,
 } = await import('../lib/ops/client/customerSupport.ts')
 
 const version = '2026-10-04.1'
@@ -58,6 +62,44 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 beforeEach(() => {
   requests = []
   responseForRequest = undefined
+})
+
+const attachmentBytes = Buffer.from('%PDF-1.7\nSynthetic attachment\n%%EOF')
+const attachment = { attachment_reference: `attachment_${'a'.repeat(32)}`, file_name: 'test.pdf', mime_type: 'application/pdf',
+  byte_size: attachmentBytes.length, sha256: createHash('sha256').update(attachmentBytes).digest('hex'), uploaded_by: 'customer', created_at: '2026-10-18T12:00:00Z' }
+
+test('uploads raw bytes once with verified customer identity and lists only closed attachment records', async () => {
+  responseForRequest = req => req.init.method === 'POST' ? json(envelope(attachment), 201) : json(envelope([attachment]))
+  await uploadOpsCustomerSupportAttachment(identity, caseReference, attachmentBytes, 'application/pdf', 'test.pdf', 'attachment-operation-1')
+  assert.deepEqual(Buffer.from(requests[0].init.body), attachmentBytes)
+  assert.equal(requests[0].headers.get('content-type'), 'application/pdf')
+  assert.equal(requests[0].headers.get('idempotency-key'), 'attachment-operation-1')
+  assert.equal(requests[0].headers.get('x-gridex-auth-user-id'), identity.userId)
+  assert.deepEqual(await listOpsCustomerSupportAttachments(identity, caseReference), envelope([attachment]))
+  assert.equal(requests.length, 2)
+})
+
+test('customer attachment downloads require correct MIME, size and SHA-256; raw proxy content never reaches the caller', async () => {
+  responseForRequest = () => new Response(attachmentBytes, { headers: { 'Content-Type': 'application/pdf', 'X-Gridex-Sha256': attachment.sha256 } })
+  const file = await downloadOpsCustomerSupportAttachment(identity, caseReference, attachment.attachment_reference)
+  assert.deepEqual(Buffer.from(file.bytes), attachmentBytes)
+  assert.equal(file.mimeType, 'application/pdf')
+  for (const headers of [{ 'Content-Type': 'text/html', 'X-Gridex-Sha256': attachment.sha256 },
+    { 'Content-Type': 'application/pdf', 'X-Gridex-Sha256': '0'.repeat(64) },
+    { 'Content-Type': 'application/pdf', 'X-Gridex-Sha256': attachment.sha256, 'Content-Length': String(4 * 1024 * 1024 + 1) }]) {
+    responseForRequest = () => new Response(attachmentBytes, { headers })
+    await assert.rejects(() => downloadOpsCustomerSupportAttachment(identity, caseReference, attachment.attachment_reference), e => e.code === 'attachment_response_invalid')
+  }
+})
+
+test('invalid attachment input cannot reach transport, and rejected uploads are never retried', async () => {
+  for (const [bytes, mime] of [[new Uint8Array(), 'application/pdf'], [new Uint8Array(4 * 1024 * 1024 + 1), 'application/pdf'], [attachmentBytes, 'text/html']]) {
+    await assert.rejects(() => uploadOpsCustomerSupportAttachment(identity, caseReference, bytes, mime, 'test.pdf', 'attachment-operation-1'))
+  }
+  assert.equal(requests.length, 0)
+  responseForRequest = () => json({ error: { code: 'attachment_rejected', message: 'Rejected', retryable: false } }, 422)
+  await assert.rejects(() => uploadOpsCustomerSupportAttachment(identity, caseReference, attachmentBytes, 'application/pdf', 'test.pdf', 'attachment-operation-1'), e => e.status === 422)
+  assert.equal(requests.length, 1)
 })
 
 test('lists canonical support cases with verified customer headers and preserves pagination', async () => {

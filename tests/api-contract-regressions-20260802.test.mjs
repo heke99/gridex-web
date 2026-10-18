@@ -24,8 +24,8 @@ assert.equal(release.specifications.website.sha256, sha256(read('docs/openapi/we
 assert.equal(release.specifications.customer_portal.sha256, sha256(read('docs/openapi/customer-portal-v1.json')))
 assert.equal(website.info.version, release.release_version)
 assert.equal(portal.info.version, release.release_version)
-assert.equal(website['x-contract-schema-version'], release.release_version)
-assert.equal(portal['x-contract-schema-version'], release.release_version)
+assert.equal(website['x-contract-schema-version'], release.runtime_contract_version)
+assert.equal(portal['x-contract-schema-version'], release.runtime_contract_version)
 
 const publicFeedSchema = website.paths['/api/v1/website/public-contracts'].get.responses['200']
   .content['application/json'].schema

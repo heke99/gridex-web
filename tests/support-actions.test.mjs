@@ -200,6 +200,33 @@ test('actual login action verifies issued session before API admission and wrong
   assert.equal(staff(runtime)[0].actor, FIXTURE_ADMIN); assert.equal(staff(runtime)[0].company, FIXTURE_COMPANY)
 })
 
+test('missing staff Auth configuration produces a safe login error without a backend call', async t => {
+  const runtime = setup(t, null)
+  delete process.env.GRIDEX_SUPPORT_SUPABASE_ANON_KEY
+  const result = await signIn({}, form({ email: 'support@example.invalid', password: FIXTURE_PASSWORD }))
+  assert.match(result.error, /Försök igen senare/)
+  assert.equal(runtime.state.traffic.length, 0)
+})
+
+test('Auth throttling is displayed as a temporary login error without credential disclosure', async t => {
+  const runtime = setup(t, null)
+  globalThis.fetch = async () => Response.json({ code: 'over_request_rate_limit', msg: 'private provider text' }, { status: 429 })
+  const result = await signIn({}, form({ email: 'support@example.invalid', password: FIXTURE_PASSWORD }))
+  assert.match(result.error, /många|Vänta/)
+  assert.doesNotMatch(result.error, /private provider/)
+  assert.equal(staff(runtime).length, 0)
+})
+
+test('an Auth outage during password verification returns a safe retry message without changing the password', async t => {
+  const runtime = setup(t)
+  const password = runtime.state.users.get(FIXTURE_ADMIN).password
+  globalThis.fetch = async () => Response.json({ msg: 'private provider text' }, { status: 500 })
+  const result = await updatePassword({}, form({ password: 'ReplacementFixture!123', confirm: 'ReplacementFixture!123' }))
+  assert.match(result.error, /Försök igen senare/)
+  assert.doesNotMatch(result.error, /private provider/)
+  assert.equal(runtime.state.users.get(FIXTURE_ADMIN).password, password)
+})
+
 test('actual login does not admit authenticated other-company users or temporary-password credentials', async t => {
   const runtime = setup(t, null)
   await assert.rejects(() => signIn({}, form({ email: 'foreign@example.invalid', password: FIXTURE_PASSWORD, FIXTURE_OPS_PROJECT_REF, FIXTURE_LOCAL_ADMIN })), redirect('/login?reason=access_denied'))

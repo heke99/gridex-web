@@ -33,7 +33,8 @@ for (const spec of [website, portal]) {
 }
 assert.equal(sha256(websiteRaw), release.specifications.website.sha256)
 assert.equal(sha256(portalRaw), release.specifications.customer_portal.sha256)
-assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.release_version}'`))
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${release.release_version}'`))
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.runtime_contract_version}'`))
 assert.ok(contract.includes(`GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION = '${release.minimum_tenant_integration_version}'`))
 assert.ok(contract.includes(`GRIDEX_WEBSITE_OPENAPI_SHA256 = '${release.specifications.website.sha256}'`))
 assert.ok(contract.includes(`GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '${release.specifications.customer_portal.sha256}'`))
@@ -53,7 +54,9 @@ assert.equal(quoteHeader.required, true)
 assert.equal(quoteHeader.schema.minLength, 8)
 assert.equal(quoteHeader.schema.maxLength, 200)
 assert.ok(quoteOperation.responses['503'])
-for (const response of Object.values(quoteOperation.responses)) {
+for (const [status, response] of Object.entries(quoteOperation.responses)) {
+  // Organization closed/paused responses precede quote/idempotency processing.
+  if (status === '410' || status === '423') continue
   assert.ok(response.headers?.['Idempotency-Replayed'])
 }
 assert.match(client, /'Idempotency-Key': \['website-quote', input\.quote_attempt_id, canonicalSha256\(requestBody\)\]\.join\(':'\)/)

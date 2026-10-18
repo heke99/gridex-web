@@ -215,6 +215,7 @@ export async function opsCustomerFetch(
   path: string,
   identity: OpsPortalIdentity,
   init?: RequestInit,
+  attachment?: 'upload' | 'download',
 ): Promise<unknown> {
   const headers = new Headers(init?.headers)
   portalHeaders(identity).forEach((value, key) => headers.set(key, value))
@@ -229,8 +230,11 @@ export async function opsCustomerFetch(
       retryable: false,
     })
   }
-  assertCustomerPortalOperationRequest(path, method, jsonRequestBody(requestInit), headers)
-  const response = await opsRequest(path, requestInit)
+  // Binary size/type are checked by the dedicated attachment wrapper. The
+  // OpenAPI validator still checks the exact operation, identity and headers.
+  assertCustomerPortalOperationRequest(path, method, attachment ? undefined : jsonRequestBody(requestInit), headers)
+  const response = await opsRequest(path, requestInit, attachment === 'download' ? { responseFormat: 'attachment' } : {})
+  if (attachment === 'download') return { bytes: response.payload, mimeType: response.headers.get('content-type')?.split(';', 1)[0] }
   observeRuntimeSchemaValidation({
     endpoint: path.split('?', 1)[0],
     schema: 'customer-portal-operation-response',

@@ -17,7 +17,8 @@ const contractVersionMatch = contractSource.match(
 assert.ok(contractVersionMatch, 'Gridex Web must expose a canonical local OPS contract version')
 const localContractVersion = contractVersionMatch[1]
 
-assert.equal(websiteOpenApi.info.version, localContractVersion)
+const documentationVersion = contractSource.match(/GRIDEX_API_DOCUMENTATION_VERSION = '([^']+)' as const/)?.[1]
+assert.equal(websiteOpenApi.info.version, documentationVersion)
 assert.equal(websiteOpenApi['x-contract-schema-version'], localContractVersion)
 
 const integrationContext = websiteOpenApi.components.schemas.IntegrationContext

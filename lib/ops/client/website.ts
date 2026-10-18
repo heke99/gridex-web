@@ -20,6 +20,7 @@ import {
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import { isCompatibleAdditiveResponseSchemaError } from '@/lib/ops/schemaCompatibility'
+import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   env,
   getOpsApiBaseUrl,
@@ -533,7 +534,7 @@ export async function fetchOpsCurrentMarketPrice(
       retryable: false,
     })
   }
-  if (normalizeText(response.contract_schema_version) !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(normalizeText(response.contract_schema_version))) {
     throw new OpsError('OPS marknadspris använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_market_price_contract_version_mismatch',
       endpoint,
@@ -697,7 +698,7 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
     })
   }
 
-  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(contractVersion)) {
     throw new OpsError('OPS portfoliorespons använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_portfolio_contract_version_mismatch',
       endpoint: '/api/v1/website/portfolio-prices',
@@ -948,7 +949,7 @@ export async function fetchOpsPublicContractsSnapshot(
         retryable: false,
       })
     }
-    if (responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    if (!isSupportedResponseVersion(responseContractVersion)) {
       throw new OpsError('OPS public-contracts använder en annan kontraktsversion än Gridex Web.', 502, {
         code: 'ops_public_contracts_contract_version_mismatch',
         endpoint: '/api/v1/website/public-contracts',

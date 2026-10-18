@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-18",
+  "repository": "gridex-web",
+  "base_commit": "1fc033ef791b5bb62ac6672576e64c83727c17d0",
+  "source_status": "local_changes_not_deployed",
+  "runtime": "Node.js 22.23.3",
+  "story": "Only verified Gridex staff with a current tenant identity binding and authoritative API permissions can use support123; customer and staff requests stay on their respective API surfaces.",
+  "instructions_applied": [
+    "apps/support/AGENTS.md and installed Next.js 16.3.8 authentication/redirect documentation",
+    "Cloud environment runtime and networking",
+    "Supabase Auth/security and Postgres best practices",
+    "Repository Node.js backend, error handling, defect review and Next.js guidance",
+    "Vercel React quality, full-flow verification and environment/protected-deployment guidance"
+  ],
+  "scope": {
+    "authentication": "Dedicated tenant Auth, verified getUser, central identity resolution, signed Staff assertions, API RBAC and host-only cookies",
+    "interfaces": [
+      "Website API",
+      "Customer Portal API",
+      "Staff API",
+      "independent Staff onboarding"
+    ],
+    "data": "Canonical business records stay in OPS; tenant Auth, invitation delivery and anonymous contact intake stay in gridex-prod",
+    "production_inspection": "Read-only metadata, RLS policies, function definitions, security advisors and Vercel project/environment names; no customer records or secret values retrieved",
+    "excluded": "Unrelated repositories, OPS application changes, new accounts, real emails, production writes and a full database performance audit"
+  },
+  "api": {
+    "guide": "https://app.gridex.se/developers/customer-portal-api",
+    "documentation_version": "2026-10-12.1",
+    "runtime_schema_version": "2026-10-09.1",
+    "supported_response_profiles": [
+      "2026-10-04.1",
+      "2026-10-09.1"
+    ],
+    "staff_onboarding_version": "2026-10-05.2",
+    "live_drift": "PASS: Website, Customer Portal and Staff snapshots match the SHA-256 release manifest",
+    "staff_types": "Generated schemas supply the Staff DTOs; local contact-update constraints remain stricter",
+    "limits_bytes": {
+      "website_customer_json": 8388608,
+      "staff_json": 2097152,
+      "staff_identity_onboarding_json": 16384,
+      "staff_attachment": 4194304
+    },
+    "retries": "Reads honor integer and HTTP-date Retry-After without shortening the requested wait; waits outside the deadline return the API error. Writes are submitted once with the original idempotency key."
+  },
+  "verified_fixes": [
+    {
+      "severity": "high",
+      "issue": "The synchronizer incorrectly equated documentation and runtime revisions",
+      "fix": "Track and validate the two revisions separately, synchronize Staff too, and retain the documented earlier response profile without relaxing business-field validation"
+    },
+    {
+      "severity": "medium",
+      "issue": "Retry-After was truncated to ten seconds and HTTP dates were ignored",
+      "fix": "Respect the complete server wait; skip automatic retries that cannot fit the request budget"
+    },
+    {
+      "severity": "medium",
+      "issue": "Staff/identity/onboarding stream reads could outlive their timeout when the transport ignored its abort signal",
+      "fix": "Abort-aware bounded streams cancel and return a safe timeout/failure without reporting a successful write"
+    },
+    {
+      "severity": "medium",
+      "issue": "Website/Customer JSON had no byte limit",
+      "fix": "Cancel oversized streams and return a non-retryable transport error"
+    },
+    {
+      "severity": "medium",
+      "issue": "A non-JSON proxy rate-limit page became a generic schema error",
+      "fix": "Preserve safe HTTP status, request identifier and Retry-After while excluding raw proxy content"
+    },
+    {
+      "severity": "medium",
+      "issue": "Missing Auth configuration and provider outages could escape the login form or appear as incorrect credentials",
+      "fix": "Return safe Swedish configuration/outage/throttling errors and preserve authentication redirects"
+    },
+    {
+      "severity": "medium",
+      "issue": "Checkout JSON body was read completely before enforcing its size and malformed origins could throw",
+      "fix": "Bound and cancel streaming input with a read deadline and reject malformed origins safely"
+    }
+  ],
+  "authorization_evidence": [
+    "Customer credentials or forged user metadata do not establish a Staff binding",
+    "Foreign-company, revoked and unbound staff are refused before protected writes",
+    "Read-only staff cannot perform denied commands",
+    "Role ceilings, last-administrator guards, optimistic versions and idempotency remain API controlled",
+    "Cookies remain host-only, HttpOnly, SameSite=Lax and Secure in production",
+    "React session deduplication lasts only for one server render, with no cross-request identity/role cache"
+  ],
+  "verification": [
+    {
+      "command": "npm test",
+      "status": "PASS",
+      "scope": "All registered launch, runtime, contract, audit, database and independent Web regressions"
+    },
+    {
+      "command": "npm run test:support",
+      "status": "PASS",
+      "tests": 143,
+      "suites": 9,
+      "failures": 0
+    },
+    {
+      "command": "npm run test:support:browser",
+      "status": "PASS",
+      "checks": 25,
+      "application_errors": 0,
+      "backend": "Synthetic schema-faithful Auth/API fixture; no production data or email"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run typecheck:support",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build -- --webpack",
+      "status": "PASS",
+      "limitation": "Local build without deployed organization credentials; this is not live business-flow qualification"
+    },
+    {
+      "command": "npm run build:support",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run verify:delivery",
+      "status": "PASS",
+      "immutable_migrations_checked": 46
+    },
+    {
+      "command": "npm run api:check:live",
+      "status": "PASS",
+      "specifications": 3
+    },
+    {
+      "command": "npm run test:ops-transport",
+      "status": "PASS",
+      "new_reliability_tests": 6
+    },
+    {
+      "command": "Scoped ESLint for changed source/test files, --max-warnings=0",
+      "status": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "command": "Customer/Staff attachment and incoming request boundary tests",
+      "status": "PASS",
+      "scope": "Raw bytes, verified customer identity, type/size/origin limits, stable write keys, no write retries, download SHA-256 and early streamed overflow cancellation"
+    }
+  ],
+  "database_inspection": {
+    "project": "gridex-prod",
+    "observed_status": "ACTIVE_HEALTHY",
+    "rls": "Enabled on inspected admin_users, customer_profiles, customer_support_tickets, customer_support_messages and public_support_receipts tables",
+    "owner_checks": "Profiles and customer support policies bind reads/writes to auth.uid; administrative access is permission gated. Anonymous receipt access is revoked.",
+    "definer_review": "The nine advisor-listed functions deny anon EXECUTE and use auth.uid, active memberships or guarded self-service wrappers. This read-only review found no reason to revoke their intended authenticated RPC access.",
+    "advisor_information": "23 RLS-enabled/no-policy notices include server-only/private tables; absence of a policy denies ordinary roles rather than opening access",
+    "open_auth_setting": {
+      "issue": "Supabase leaked-password protection is disabled",
+      "status": "Configuration unchanged; evaluate enabling before staff activation",
+      "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    },
+    "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
+  },
+  "live_blockers": [
+    "Real staff password login has not been performed; no password or user session was requested or fabricated",
+    "Tenant service key is not readable from existing sensitive Vercel configuration; anonymous contact inbox requires secure server configuration",
+    "Signed invitation delivery bridge and OPS worker signing key are not registered; no real invitation email sent"
+  ],
+  "next_production_steps": [
+    "Deploy verified branch to separate support project and verify public login and denied protected requests",
+    "Assign support domain to tested deployment",
+    "Configure tenant-only server service key and signed invitation bridge securely",
+    "Owner completes a real staff login; qualify a permitted read/write with audit attribution before claiming full live business flow"
+  ],
+  "external_mutations": "Dedicated support Vercel project/environment, staff client/provider/explicit existing-owner binding; exact two approved Customer support scopes with audit. No account/password/membership/contract change or email.",
+  "status": "SOURCE_VERIFIED_SUPPORT_PROVISIONED_PENDING_DEPLOYMENT",
+  "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
+  "production_changes": {
+    "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
+    "support_project": "gridex-support",
+    "root_directory": "apps/support",
+    "node_version": "22.x",
+    "dedicated_production_env_variables": 9,
+    "staff_client_id": "7db896df-8c42-4338-a422-37f6e0c7a487",
+    "staff_provider_id": "56473ec1-ab97-412d-9601-d3fba6d89780",
+    "staff_binding_id": "b77a8df3-7eda-4cde-8977-f204094968d9",
+    "nominated_admin": "hekmat.h@div3rsa.com",
+    "membership_changed": false,
+    "native_binding_validation": "PASS: exact current binding resolves to existing active central actor, version 1; not a password login test",
+    "website_client_id": "bf2f3755-4a84-446a-b361-b6aa7149c39a",
+    "website_added_scopes": [
+      "customer_support.read",
+      "customer_support.write"
+    ],
+    "scope_authorization": "Explicit user approval after initial automatic review rejection",
+    "audit_attribution": "codex_automation; no human actor impersonated",
+    "email_sent": false
+  }
+}

@@ -77,8 +77,9 @@ include the current binding ID/version and tenant issuer/subject. They cannot
 exchange identity-resolution or invitation-acceptance proof for Staff access.
 OPS rechecks current binding and authority for each request; native mutation
 guards repeat their checks under existing transaction locks. The portal also
-runs a case-read authorization probe before privileged actions. There is no
-cached identity or role shortcut.
+runs a case-read authorization probe before privileged actions. React deduplicates
+the session checks within a single server render; no identity or role is cached
+across requests or actions. Main navigation disables speculative prefetching.
 
 Cookies use `gridex-support-auth` and are host-only, HttpOnly, SameSite=Lax and
 Secure in production. Browser-supplied actor, company and role fields cannot
@@ -99,9 +100,10 @@ are surfaced without writing a second local support record.
 The website's server-only `GRIDEX_API_KEY` needs `customer_support.read` and
 `customer_support.write` in its central tenant client. The existing Customer
 transport supplies paired Auth-user headers and stable customer references.
-It does **not** sign Customer-provider assertions: an enrolled Customer provider
-in enforce mode needs its own assertion integration before activation. An API
-403 must not be bypassed by a Staff credential or local persistence fallback.
+It signs a fresh Customer-provider assertion when the dedicated server-side
+Customer signing settings are configured. An enrolled Customer provider in
+enforce mode requires that configuration before activation. An API 403 must
+not be bypassed by a Staff credential or local persistence fallback.
 
 Anonymous website contacts have no verified customer identity. They remain
 tenant-owned records in **gridex-prod** and appear in the staff application's
@@ -154,25 +156,57 @@ account. It grants no access and is not a native password-rotation policy.
 ## Deployment and evidence
 
 The app provides login, case queue/details/history/replies/notes/phone logging,
-status and assignment, attachment download, customer search/detail/contact
+status and assignment, attachment upload/download, customer search/detail/contact
 updates, anonymous contact intake, invitations, role changes and disable/re-enable commands. OPS supplies
-assignable role definitions. This interface does not yet create arbitrary new
-role definitions or upload attachments.
+assignable role definitions. This interface does not create arbitrary new
+role definitions.
 
-**The corrected code is being qualified; the live domain has not changed.**
-Before activation, verify the existing central Gridex company, enroll its first
-tenant Auth identity explicitly, register the dedicated client/provider/Auth
-issuer/bridge, apply each reviewed migration only to its owning database and
-verify an actual invitation and staff session against the intended services.
-The tenant database does not need the central Staff/RBAC/case migration history.
+The separate Vercel project `gridex-support` is configured with root
+`apps/support`, Node 22 and dedicated production Auth/Staff settings. The
+operator explicitly bound the user-nominated existing tenant account
+`hekmat.h@div3rsa.com` to its already active OPS owner. This did not create or
+change a membership, reset a password or send an email. The native OPS binding
+validation accepts the exact current registration. New personnel still use the
+canonical invitation/acceptance engine; email matching does not grant access.
 
-Deploy the support app with Vercel root `apps/support` and its own environment,
-then assign `support123.gridex.se`. The marketing app continues to serve
-`gridex.se` and `www.gridex.se`. Legacy marketing support-ticket storage has not
-been merged into canonical API cases. No hosted migration, account, email,
-environment or domain change has occurred during source correction.
+Production deployment/domain results and pending configuration are recorded in
+`quality/support123/verification-20261018.json`. The tenant service key for the
+anonymous contact inbox and the signed invitation delivery bridge are separate
+prerequisites; source checks do not qualify those unconfigured live features.
 
 Previous offline/native receipts describe their exact historical sources and
 targets. Their earlier interpretation requiring all OPS data in tenant Prod is
 superseded by this architecture; preserve the evidence, never relabel it as
 qualification of corrected code. New verification must identify its own source.
+
+## API and verification update — 2026-10-18
+
+`npm run api:sync` now synchronizes Website, Customer Portal and Staff OpenAPI
+files, generated types and the Staff runtime validator from the published
+SHA-256 manifest. Documentation release `2026-10-12.1` and business response
+schema `2026-10-09.1` are tracked separately. The previously supported
+`2026-10-04.1` response profile still passes the closed business schemas;
+unknown profiles and malformed/extra business fields remain rejected.
+Independent Staff onboarding retains its separate `2026-10-05.2` contract.
+
+Read retries respect both integer and HTTP-date `Retry-After` values. If that
+wait cannot fit within the request deadline, the API error is returned without
+an early retry. Writes are submitted once with their original idempotency key.
+Streaming response limits are 8 MiB for the Website/Customer transport, 2 MiB
+for Staff JSON, 16 KiB for identity resolution/invitation acceptance and 4 MiB
+for Staff attachment downloads. Stalled reads are cancelled at the deadline.
+Auth throttling, unavailable configuration and password-update outages return
+safe Swedish error messages.
+
+Node `22.23.3` verification includes the full project suite, 143 support tests,
+both TypeScript checks, both production builds, 25 offline browser checks and
+the exact live OpenAPI hashes. The browser uses synthetic accounts/data and
+tests login, denied access, customer/case workflows and logout. See
+`quality/support123/verification-20261018.json` for the detailed scope and limits.
+
+The existing website client has received the two documented Customer support
+scopes with explicit user approval and an audit entry. The comprehensive guide
+review is `docs/api-compatibility/gridex-web-review-20261018.md`. Attachment
+requests are raw bytes, capped at 4 MiB, content checked by OPS, and every
+download validates its SHA-256. Uploads use a stable key for the same file and
+visibility; writes are never retried automatically.

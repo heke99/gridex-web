@@ -12,8 +12,10 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '
 const checks = [], errors = []
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await context.newPage()
+page.setDefaultTimeout(12_000)
+page.setDefaultNavigationTimeout(20_000)
 page.on('pageerror', error => errors.push(error.message))
-const check = async (name, fn) => { await fn(); checks.push(name) }
+const check = async (name, fn) => { await fn(); checks.push(name); console.log('PASS:', name) }
 async function login(email) {
   await page.goto(`${origin}/login`)
   await page.getByLabel('E-post', { exact: true }).fill(email)
@@ -25,6 +27,13 @@ try {
   await check('anonymous contact request list and detail require verified staff access', async () => { for (const path of ['/contact-requests', `/contact-requests/${FIXTURE_PUBLIC_INQUIRY}`]) { await page.goto(`${origin}${path}`); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByText('Fråga från kontaktformuläret', { exact: true })).toHaveCount(0) } })
   await check('login layout has no marketing or OPS navigation', async () => { await expect(page.getByRole('navigation')).toHaveCount(0); await expect(page.locator('a[href*="app.gridex.se"]')).toHaveCount(0); await page.screenshot({ path: `${output}/login.png`, fullPage: true }) })
   await check('mobile login fits viewport', async () => { await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await page.screenshot({ path: `${output}/login-mobile.png`, fullPage: true }); await page.setViewportSize({ width: 1440, height: 1000 }) })
+  await check('password visibility toggles without changing the entered password', async () => {
+    const input = page.getByLabel('Lösenord', { exact: true }); await input.fill('synthetic-visibility-test')
+    await page.getByRole('button', { name: 'Visa lösenord', exact: true }).click(); await expect(input).toHaveAttribute('type', 'text')
+    await expect(input).toHaveValue('synthetic-visibility-test')
+    await page.getByRole('button', { name: 'Dölj lösenord', exact: true }).click(); await expect(input).toHaveAttribute('type', 'password')
+    await input.fill('')
+  })
   await check('own invitation page captures and removes Auth fragment without granting access on GET', async () => { await page.goto(`${origin}/auth/invitation?token=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee#access_token=synthetic-browser-access-token&refresh_token=synthetic-browser-refresh-token`); await expect(page.getByRole('heading', { name: 'Acceptera din inbjudan' })).toBeVisible(); await expect(page.locator('input[name="access_token"]')).toHaveValue('synthetic-browser-access-token'); await expect(page).toHaveURL(`${origin}/auth/invitation?token=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee`); await expect(page.getByLabel('Nytt lösenord', { exact: true })).toBeVisible(); await expect(page.locator('a[href*="app.gridex.se"]')).toHaveCount(0); await page.goto(origin); await expect(page).toHaveURL(`${origin}/login`) })
   await check('invalid invitation does not expose an acceptance form', async () => { await page.goto(`${origin}/auth/invitation?token=invalid`); await expect(page.locator('p[role="alert"]')).toContainText('Inbjudningslänken är ogiltig'); await expect(page.getByRole('button', { name: 'Välj lösenord och acceptera inbjudan' })).toHaveCount(0) })
   await check('verified Gridex staff login opens real case inbox', async () => { await login('support@example.invalid'); await expect(page).toHaveURL(`${origin}/`); await expect(page.getByRole('link', { name: 'Inkommande kundärende', exact: true })).toBeVisible(); await page.screenshot({ path: `${output}/inbox.png`, fullPage: true }) })
@@ -35,6 +44,13 @@ try {
   await check('case detail and attachment available', async () => { await page.getByRole('link', { name: 'Inkommande kundärende', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Inkommande kundärende', exact: true })).toBeVisible(); await expect(page.getByRole('link', { name: 'Ladda ner' })).toBeVisible(); const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Ladda ner' }).click()]); expect(download.suggestedFilename()).toBe('syntetisk-bilaga.pdf'); await download.saveAs(`${output}/synthetic-attachment.pdf`) })
   await check('reply creates customer-visible history', async () => { const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Svara kunden', exact: true }) }); await panel.getByLabel('Meddelande').fill('Webbläsartest: svar till kunden.'); await panel.getByRole('button', { name: 'Spara svar till kunden' }).click(); const event = page.locator('li.event').filter({ hasText: 'Webbläsartest: svar till kunden.' }); await expect(event).toHaveCount(1); await expect(event.getByText('Synligt för kunden', { exact: true })).toBeVisible() })
   await check('internal note remains staff-only', async () => { const details = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Intern anteckning' }) }); await details.locator('summary').click(); await details.getByLabel('Anteckning', { exact: true }).fill('Webbläsartest: intern anteckning.'); await details.getByRole('button', { name: 'Spara anteckning' }).click(); const event = page.locator('li.event').filter({ hasText: 'Webbläsartest: intern anteckning.' }); await expect(event.getByText('Endast personal', { exact: true })).toBeVisible() })
+  await check('staff attachment upload preserves explicit visibility and refreshes the canonical case', async () => {
+    await page.locator('input[name="file"]').setInputFiles({ name: 'syntetiskt-personalunderlag.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nSynthetic staff upload\n%%EOF') })
+    await page.getByRole('combobox', { name: 'Synlighet', exact: true }).selectOption('internal')
+    await page.getByRole('button', { name: 'Skicka bilaga', exact: true }).click()
+    const item = page.locator('li').filter({ has: page.getByText('syntetiskt-personalunderlag.pdf', { exact: true }) })
+    await expect(item).toBeVisible(); await expect(item).toContainText('Endast personal')
+  })
   await check('status action updates case', async () => { const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Status', exact: true }) }); await panel.getByLabel('Ärendestatus').selectOption('resolved'); await panel.getByRole('button', { name: 'Ändra status' }).click(); await expect(page.locator('.heading .badge')).toHaveText('Löst'); await page.screenshot({ path: `${output}/case.png`, fullPage: true }) })
   await check('customer contact mutation is version-bound', async () => { await page.goto(`${origin}/customers/${FIXTURE_CUSTOMER}`); await expect(page.getByRole('heading', { name: 'Anna Testkund' })).toBeVisible(); await page.getByRole('combobox', { name: /^Uppgift/ }).selectOption('phone'); await page.getByLabel('Nytt värde').fill('+46 70 999 88 77'); await page.getByRole('button', { name: 'Spara', exact: true }).click(); await expect(page.getByRole('status')).toContainText('Kontaktuppgiften är sparad.'); await expect(page.locator('dd').filter({ hasText: '+46 70 999 88 77' })).toBeVisible() })
   await check('team lists tenant staff and assigned RBAC roles', async () => { await page.goto(`${origin}/team`); await expect(page.getByRole('heading', { name: 'Personal och roller' })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Supportadministratör', exact: true })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Annan organisation' })).toHaveCount(0) })

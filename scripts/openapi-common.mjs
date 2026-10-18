@@ -5,6 +5,7 @@ export const RELEASE_MANIFEST_URL = `${BASE_URL}/release-manifest.json`
 export const SPECS = [
   ['website-integration-v1.json', 'website-api.d.ts'],
   ['customer-portal-v1.json', 'customer-portal-api.d.ts'],
+  ['staff-v1.json', 'staff-api.d.ts'],
 ]
 
 export function canonical(value) {
@@ -61,7 +62,7 @@ export async function fetchReleaseManifest() {
   const versions = [
     manifest?.website_openapi_version,
     manifest?.customer_portal_openapi_version,
-    manifest?.runtime_contract_version,
+    manifest?.staff_openapi_version,
     manifest?.guide_version,
   ]
   if (
@@ -70,21 +71,32 @@ export async function fetchReleaseManifest() {
   ) {
     throw new Error('OpenAPI release manifest contains mixed contract versions')
   }
+  const revision = /^\d{4}-\d{2}-\d{2}\.\d+$/
+  if (!revision.test(version) || !revision.test(manifest.runtime_contract_version ?? '')) {
+    throw new Error('OpenAPI release manifest contains an invalid runtime revision')
+  }
   if (
     typeof manifest?.minimum_tenant_integration_version !== 'string' ||
     !manifest.minimum_tenant_integration_version.trim()
   ) {
     throw new Error('OpenAPI release manifest is missing minimum_tenant_integration_version')
   }
-  for (const key of ['website', 'customer_portal']) {
+  for (const key of ['website', 'customer_portal', 'staff']) {
     const specification = manifest?.specifications?.[key]
     if (
       typeof specification?.url !== 'string' ||
+      specification.contract_version !== version ||
       !specification.url.startsWith(`${BASE_URL}/`) ||
       !/^[a-f0-9]{64}$/.test(specification?.sha256 ?? '')
     ) {
       throw new Error(`OpenAPI release manifest contains an invalid ${key} specification`)
     }
+  }
+  if (manifest.specifications.staff && (manifest.staff_openapi_version !== version
+    || manifest.specifications.staff.contract_version !== version
+    || manifest.specifications.staff.url !== `${BASE_URL}/staff-v1.json`
+    || !/^[a-f0-9]{64}$/.test(manifest.specifications.staff.sha256 ?? ''))) {
+    throw new Error('OpenAPI release manifest contains an invalid staff specification')
   }
   return manifest
 }

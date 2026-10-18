@@ -1,7 +1,152 @@
 {
-  "release": "2026-10-04.1",
-  "source_sha256": "460cf343a397c99f1173482ceb4c0045828399172fd47dd8c078e7d611e16de7",
+  "documentation_version": "2026-10-12.1",
+  "runtime_version": "2026-10-09.1",
+  "source_sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Server-side Gridex API credential with the required staff scope."
+      },
+      "staffAssertion": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-gridex-staff-assertion",
+        "description": "Compact JWT signed by your backend with RS256, PS256 or ES256. iss/aud must equal the configured staff identity provider. sub identifies the central OPS staff actor. iat/exp define a lifetime of at most 900 seconds; jti is unique and accepted only once. Each request checks the central account state, company membership and server-calculated permissions. Independent tenant Auth identities also require the current registered local-to-central binding ID/version and verified local identity claims. Tenant Auth getUser verifies the login during identity resolution, invitation acceptance and backend session verification; normal Staff API calls validate the already signed proof and current central binding without calling tenant Auth getUser again."
+      }
+    },
+    "parameters": {
+      "RequestId": {
+        "name": "x-request-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "description": "Optional client correlation value (1-128 characters of A-Z, a-z, 0-9, \".\", \"_\", \":\" or \"-\"). It is recorded separately for support as the client correlation id and never replaces the server request id."
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9._:+~-]+$"
+        },
+        "description": "Reuse the same key and unchanged body for a retry. Sign a fresh assertion with a new jti for every attempt."
+      },
+      "ExpectedProjectRef": {
+        "name": "x-gridex-expected-project-ref",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9]{20}$"
+        },
+        "description": "Optional 20-character storage project reference you expect to serve this call. A malformed value, or a value that differs from the project served by this deployment, returns 412 storage_project_mismatch before authentication, rate limiting, audit or any write; nothing is executed."
+      },
+      "QueryParsing": {
+        "name": "x-gridex-query-parsing",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "compatible",
+            "strict"
+          ],
+          "default": "compatible"
+        },
+        "description": "List query parsing profile. compatible (default) keeps the parsing each endpoint has always accepted. strict applies one rule to every Staff list endpoint: each query parameter at most once, and page, page_size and limit only as plain decimal digits without sign, whitespace, exponent, fraction, hexadecimal prefix or leading zero. Violations, and unknown profile values, return 422 invalid_field with error.field naming the parameter, before any data is read."
+      }
+    },
+    "headers": {
+      "GridexContractVersion": {
+        "description": "Canonical contract version used for this response.",
+        "schema": {
+          "type": "string",
+          "const": "2026-10-09.1"
+        }
+      },
+      "RequestId": {
+        "description": "Server-issued request id for this call. The same value is returned as request_id in the body (including errors) and recorded in the request log. A client-supplied x-request-id is never echoed here.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RateLimitLimit": {
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "RateLimitRemaining": {
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "RateLimitReset": {
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "RetryAfter": {
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "ETag": {
+        "description": "Strong entity tag for conditional retrieval.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CacheControl": {
+        "description": "Caching policy for this document.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ContentType": {
+        "description": "Response media type.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ContentDisposition": {
+        "description": "Suggested inline filename.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Vary": {
+        "description": "Request headers that affect cache validation.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ProjectRef": {
+        "description": "Storage project reference that served this call. Present when the deployment serves an identified project; compare it with x-gridex-expected-project-ref.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9]{20}$"
+        }
+      },
+      "GridexDocumentationVersion": {
+        "description": "Optional documentation revision associated with this business response. It does not change contract_schema_version or the supported wire schema.",
+        "schema": {
+          "type": "string",
+          "const": "2026-10-12.1"
+        }
+      }
+    },
     "schemas": {
       "OpenApiReleaseManifest": {
         "type": "object",
@@ -24,27 +169,27 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "staff_openapi_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "runtime_contract_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "released_at": {
             "type": "string",
@@ -132,7 +277,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-12.1"
           },
           "url": {
             "type": "string",
@@ -224,7 +369,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -1798,7 +1943,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           },
           "pagination": {
             "$ref": "#/components/schemas/StaffPagination"
@@ -1828,7 +1973,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -1855,7 +2000,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -1882,7 +2027,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -1909,7 +2054,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -1939,7 +2084,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -1982,7 +2127,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2018,7 +2163,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2045,7 +2190,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2072,7 +2217,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2103,7 +2248,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           },
           "page": {
             "$ref": "#/components/schemas/StaffCasePage"
@@ -2133,7 +2278,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2160,7 +2305,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2187,7 +2332,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2214,7 +2359,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2241,7 +2386,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2268,7 +2413,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2295,7 +2440,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2326,7 +2471,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           },
           "page": {
             "$ref": "#/components/schemas/StaffCasePage"
@@ -2356,7 +2501,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2381,7 +2526,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         }
       },
@@ -2493,7 +2638,7 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           }
         },
         "description": "Canonical error envelope. Business and provider failures use one nested error object; no parallel top-level aliases are emitted."
@@ -2549,10 +2694,75 @@
           },
           "contract_schema_version": {
             "type": "string",
-            "const": "2026-10-04.1"
+            "const": "2026-10-09.1"
           },
           "page": {
             "$ref": "#/components/schemas/StaffCasePage"
+          }
+        }
+      }
+    },
+    "responses": {
+      "OrganizationGone": {
+        "description": "Organization is closed or inactive. Error codes: organization_closed, organization_inactive.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "headers": {
+          "X-Gridex-Contract-Version": {
+            "$ref": "#/components/headers/GridexContractVersion"
+          },
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "X-Gridex-Documentation-Version": {
+            "$ref": "#/components/headers/GridexDocumentationVersion"
+          }
+        }
+      },
+      "OrganizationPaused": {
+        "description": "Organization API access is paused. Error codes: organization_paused.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "headers": {
+          "X-Gridex-Contract-Version": {
+            "$ref": "#/components/headers/GridexContractVersion"
+          },
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "X-Gridex-Documentation-Version": {
+            "$ref": "#/components/headers/GridexDocumentationVersion"
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "JSON body exceeds the allowed size (payload_too_large).",
+        "headers": {
+          "X-Gridex-Contract-Version": {
+            "$ref": "#/components/headers/GridexContractVersion"
+          },
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "X-Gridex-Documentation-Version": {
+            "$ref": "#/components/headers/GridexDocumentationVersion"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
           }
         }
       }
