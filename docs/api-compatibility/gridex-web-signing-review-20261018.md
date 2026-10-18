@@ -53,9 +53,9 @@ på Vercel en gång per timme.
 
 ## Verkligt kundprov
 
-Efter användarens godkännande skapades testkunden **K00100065** i Gridex El AB,
+Efter användarens godkännande skapades testkunden **[testkundsreferens utelämnad]** i Gridex El AB,
 med `is_test_data=true`, status `draft` och extern referens
-`gridex-web-api-e2e-20261018`. Ingen verklig anläggning eller annan kund användes.
+`[extern testreferens utelämnad]`. Ingen verklig anläggning eller annan kund användes.
 Den av användaren valda mottagaren gäller endast det planerade provutskicket.
 
 En tidsbegränsad, tokenkontrollerad förhandsfunktion använde den befintliga

@@ -1,7 +1,7 @@
 {
   "status": "PREPARED_NOT_SUBMITTED_APPROVAL_REVIEW_REJECTED",
-  "customer_number": "K00100065",
-  "customer_external_reference": "gridex-web-api-e2e-20261018",
+  "customer_number": "[testkundsreferens utelämnad]",
+  "customer_external_reference": "[extern testreferens utelämnad]",
   "company": "Gridex El AB",
   "customer_marked_test_data": true,
   "recipient": "User-confirmed test recipient (not serialized in Git)",

@@ -343,7 +343,7 @@
     "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
     "endpoint_operations_reviewed": 142,
     "code_findings": "W1-W4 resolved in branch; delivery evidence records live source separately",
-    "live_test_customer": "K00100065",
+    "live_test_customer": "[testkundsreferens utelämnad]",
     "live_pdf_delivery_verified": false,
     "remaining": "Explicit approval for an actual test Website application or isolated OPS staging environment; automatic review rejected potential external side effects."
   }

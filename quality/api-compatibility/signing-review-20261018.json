@@ -181,7 +181,7 @@
   },
   "live_customer_test": {
     "authorized_by_user": true,
-    "customer_number": "K00100065",
+    "customer_number": "[testkundsreferens utelämnad]",
     "is_test_data": true,
     "status": "draft",
     "real_facility_used": false,

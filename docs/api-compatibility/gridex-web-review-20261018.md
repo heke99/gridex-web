@@ -143,7 +143,7 @@ alternativa API-ytor är uttryckligen klassificerade. Varje affärsoperation har
 kopplats till adapter och relevanta kontrakts-/beteendeprov. Det påstås inte att
 142 skarpa mutationer har körts.
 
-Testkunden K00100065 har skapats efter användarens uttryckliga instruktion, med
+Testkunden [testkundsreferens utelämnad] har skapats efter användarens uttryckliga instruktion, med
 `is_test_data=true` och utan verklig elanläggning. Autentiserade läsningar via
 befintlig verifierad webbklient fungerar. Fullmaktssynken avvisades med
 `409 LEGAL_BUNDLE_NOT_READY` eftersom kunden ännu saknar ett aktivt juridiskt
