@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-10-18T17:47:18.592303+00:00",
+  "domain": "support123.gridex.se",
+  "old_project_id": "prj_M9CISqPbBmmX7L83lvqiAJDJfhGS",
+  "old_association_exists": false,
+  "target_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
+  "target_association_created": true,
+  "verified": false,
+  "verification_attempt": {
+    "status": 400,
+    "code": "incorrect_txt_record"
+  },
+  "alias_assignment_attempt": {
+    "status": 400,
+    "code": "domain_not_verified"
+  },
+  "public_https": {
+    "path": "/login",
+    "status": 404,
+    "vercel_error": "DEPLOYMENT_NOT_FOUND"
+  },
+  "dns": {
+    "service_type": "external",
+    "nameservers": [
+      "docks01.rzone.de",
+      "shades02.rzone.de"
+    ],
+    "routing_misconfigured": false,
+    "expected_record": {
+      "type": "TXT",
+      "name": "_vercel.gridex.se",
+      "value": "vc-domain-verify=support123.gridex.se,1c940708e74e16620520"
+    },
+    "public_txt_lookup": "Expected new challenge absent; historical support123 value remains. Other verification records retained.",
+    "changed_by_this_task": false
+  },
+  "ready_target_deployment": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+  "next_action": "Add additional TXT at authoritative Strato DNS, verify project domain, assign existing READY support deployment alias, repeat HTTPS/login checks.",
+  "marketing_protection": "Anonymous gridex.se requests still reach Vercel SSO as explicitly requested",
+  "status": "WAITING_FOR_EXTERNAL_DNS_RECORD"
+}

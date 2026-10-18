@@ -116,8 +116,12 @@ ogiltig token utan att skapa session eller skicka mejl. Osignerade anrop till
 bryggan nekas. Inloggningssidan är förenklad till själva inloggningen enligt
 användarens instruktion och verifierad i både lokal och skarp webbläsare.
 
-Den bestående projektdomänkopplingen återstår: aliaset fungerar redan, men
-Vercels gamla projektregistrering behöver tas bort och läggas till på support
-när UI-funktionen Move inte finns. Ett skarpt signerat kundavtal, verklig
+Den gamla projektdomänkopplingen har tagits bort av användaren och domänen är
+tillagd på rätt supportprojekt. Vercel kräver nu en ny TXT-verifiering hos
+Strato innan aliaset får kopplas in; support123 svarar därför tillfälligt 404.
+Exakt post och driftstatus finns i
+`quality/support123/domain-reassociation-20261018.json`. Befintliga publika
+webbläsarkvitton gäller den fungerande kopplingen före denna omkoppling.
+Ett skarpt signerat kundavtal, verklig
 personalinloggning, inbjudningsmejl och fullständig last-/databasprestandakvalificering
 har inte påståtts utifrån enbart lokala tester.

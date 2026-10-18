@@ -214,7 +214,8 @@ visibility; writes are never retried automatically.
 ## Current production release
 
 Support deployment `dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr` (commit `e63a349`)
-is READY and serves `support123.gridex.se`. The requested minimal page contains
+is READY. Its custom-domain alias is temporarily unavailable pending the new
+ownership verification described below. The requested minimal page contains
 only the Gridex brand, login heading, email/password fields and sign-in controls.
 The introductory text, feature blocks, help text and footer were removed.
 The 25 offline browser checks, support typecheck, scoped ESLint and production
@@ -236,12 +237,18 @@ No real invitation, email, membership or password change was used for testing.
 Authenticated invitation delivery still needs qualification through an explicitly
 requested real staff invitation.
 
-The persistent Vercel Project Domain record still belongs to `gridex-web`.
-The live alias points to support. The connector lacks domain Move/Remove, and
-adding an already registered domain returns 409. Since the operator cannot Move
-it in the UI, remove only the `support123.gridex.se` project association from
-marketing, then add it to support; keep DNS and domain registration intact.
-The intended target is ready before that short reassignment.
+The operator removed the old `support123.gridex.se` project association from
+`gridex-web`. The domain was then added to `gridex-support`; its persistent
+project ID now matches `prj_zyESgah9KJLBtFAD7pzygH3i3pp8`. Vercel issued a new
+ownership challenge, so `verified` is currently false and the alias cannot be
+assigned. Public HTTPS returns 404 `DEPLOYMENT_NOT_FOUND` during this interval.
+The authoritative DNS is external (Strato/rzone); the connected tools cannot
+edit it. Add an additional TXT record at `_vercel.gridex.se` with value
+`vc-domain-verify=support123.gridex.se,1c940708e74e16620520`, preserving existing
+records. Once it resolves, verify the project domain, assign the alias to the
+READY support deployment and repeat public HTTPS/login checks. The existing
+support verification TXT value is for the removed association and does not
+satisfy this new challenge. See `quality/support123/domain-reassociation-20261018.json`.
 
 Marketing commit `1f60c9f` remains released as deployment
 `dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27`. Its existing Vercel protection is intentionally
