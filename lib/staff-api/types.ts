@@ -1,5 +1,5 @@
 /** Staff DTOs derive from the synchronized OpenAPI; local helpers preserve stricter form constraints. */
-import type { components } from '../ops/generated/staff-api'
+import type { components, paths } from '../ops/generated/staff-api'
 import type { SupportedResponseVersion } from '../ops/responseProfiles'
 import { GRIDEX_API_CONTRACT_VERSION } from '../ops/contract'
 type StaffSchema<K extends keyof components['schemas']> = components['schemas'][K] extends { contract_schema_version: string }
@@ -131,5 +131,5 @@ export type StaffMutableStatus = StaffStatusRequest['status']
 export type StaffCursorQuery = { limit?: number; cursor?: string | null }
 export type StaffCaseQuery = StaffCursorQuery & { status?: StaffCaseStatus; customer_reference?: string; query?: string }
 export type StaffUserQuery = { page?: number; page_size?: number; status?: 'active' | 'disabled' | 'removed' | 'invited' | 'pending' | 'suspended' | 'removed_from_company' | 'invitation_revoked' | 'locked_security' | 'revoked' }
-export type StaffCustomerQuery = { q?: string; page?: number; page_size?: number; status?: 'all' | 'draft' | 'pending_verification' | 'active' | 'inactive' | 'moved' | 'terminated' | 'blocked' | 'archived'; customer_type?: 'all' | 'private' | 'business' }
+export type StaffCustomerQuery = paths['/api/v1/staff/customers']['get']['parameters']['query']
 export type StaffDownloadedAttachment = { bytes: Uint8Array; mimeType: 'application/pdf' | 'image/png' | 'image/jpeg'; sha256: string; requestId: string | null; contentDisposition: string | null }
