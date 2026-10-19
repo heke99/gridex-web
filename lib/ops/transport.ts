@@ -28,7 +28,8 @@ export type OpsHttpResponse = {
 }
 
 export type OpsRequestOptions = {
-  responseFormat?: 'attachment'
+  responseFormat?: 'attachment' | 'poa-archive'
+  validateRequest?: (headers: Headers) => void
   allowNotModified?: boolean
   cache?: RequestCache
   revalidateSeconds?: number
@@ -234,7 +235,8 @@ export async function opsRequest(
   }
 
   const headers = new Headers(init?.headers)
-  headers.set('Accept', options.responseFormat === 'attachment' ? 'application/pdf, image/png, image/jpeg' : 'application/json')
+  headers.set('Accept', options.responseFormat === 'poa-archive' ? 'application/pdf'
+    : options.responseFormat === 'attachment' ? 'application/pdf, image/png, image/jpeg' : 'application/json')
   headers.set('Authorization', `Bearer ${apiKey.value}`)
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
 
@@ -257,6 +259,7 @@ export async function opsRequest(
         if (assertion) headers.set('x-gridex-customer-assertion', assertion)
         else headers.delete('x-gridex-customer-assertion')
       }
+      options.validateRequest?.(headers)
       let response: Response
       let payload: unknown = null
       try {
@@ -278,15 +281,16 @@ export async function opsRequest(
           })
         }
         const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
-        if (response.ok && options.responseFormat === 'attachment') {
+        if (response.ok && (options.responseFormat === 'attachment' || options.responseFormat === 'poa-archive')) {
+          const poa = options.responseFormat === 'poa-archive'
           const mime = contentType.split(';', 1)[0].trim()
-          const digest = response.headers.get('x-gridex-sha256')
-          if (!['application/pdf', 'image/png', 'image/jpeg'].includes(mime) || !digest || !/^[0-9a-f]{64}$/.test(digest)) {
+          const digest = response.headers.get(poa ? 'x-gridex-document-sha256' : 'x-gridex-sha256')
+          if (!(poa ? mime === 'application/pdf' : ['application/pdf', 'image/png', 'image/jpeg'].includes(mime)) || !digest || !/^[0-9a-f]{64}$/.test(digest)) {
             void response.body?.cancel().catch(() => undefined)
             throw new OpsError('Bilagan kunde inte verifieras.', 502, { code: 'attachment_response_invalid', retryable: false })
           }
           let bytes: Uint8Array
-          try { bytes = await bounded(readBoundedBytes(response, 4 * 1024 * 1024, timeout.signal)) }
+          try { bytes = await bounded(readBoundedBytes(response, (poa ? 15 : 4) * 1024 * 1024, timeout.signal)) }
           catch (error) {
             if (!(error instanceof RangeError)) throw error
             throw new OpsError('Bilagan är för stor.', 502, { code: 'attachment_response_invalid', retryable: false })

@@ -1,4 +1,4 @@
-import { isOpsError } from '@/lib/ops/client'
+import { isOpsError } from '@/lib/ops/errors'
 import { CustomerPortalAccessError } from '@/lib/customerPortal/service'
 import { webErrorResponse } from '@/lib/api/webBoundary'
 
