@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import { readCustomerWriteResponse, pendingCustomerWrite } from '@/lib/customerPortal/writeResponse'
 
 export default function DashboardError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -37,6 +38,7 @@ export default function DashboardError({ reset }: { error: Error & { digest?: st
           {state === 'working' ? 'Uppdaterar…' : 'Uppdatera kopplingen'}
         </button>
         <button type="button" onClick={reset} className="rounded-full border border-white/15 px-4 py-2 text-sm">Försök igen</button>
+        <Link href="/aktivera-kundkonto" className="rounded-full border border-white/15 px-4 py-2 text-sm">Koppla med kundnummer</Link>
       </div>
       {state === 'pending' ? <p className="mt-3 text-sm text-amber-200">Kopplingen inväntar behandling. Tillgången är ännu inte bekräftad.</p> : null}
       {state === 'done' ? <p className="mt-3 text-sm text-emerald-200">Kopplingen är uppdaterad.</p> : null}

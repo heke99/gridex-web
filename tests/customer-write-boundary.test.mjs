@@ -25,7 +25,8 @@ const operationId = '33333333-3333-4333-8333-333333333333'
 
 // Run actual route, validation, error mapping and bounded-reader modules using
 // the repository's TypeScript VM convention. Only Auth, OPS and rate limiting
-// are replaced; no production account, network, email or database is reachable.
+// are replaced; first-link activation is isolated and tested separately. No
+// production account, network, email or database is reachable.
 function harness(route, { authenticated = true } = {}) {
   const state = { attempts: [], mutations: new Map(), priceReads: [], rateKeys: [] }
   class CustomerPortalAccessError extends Error {
@@ -78,6 +79,9 @@ function harness(route, { authenticated = true } = {}) {
         state.priceReads.push(resolutionId)
         return { resolution_id: resolutionId, price: 123.45, raw: {}, request_id: 'price-request-1', contract_schema_version: '2026-10-09.1' }
       },
+    },
+    '@/lib/customerPortal/existingCustomerLink': {
+      async linkExistingPortalCustomer() { throw new Error('Existing-account recovery must not enter first-link activation') },
     },
     '@/lib/customerPortal/syncReceipt': {
       async prepareCustomerSyncReceipt() { throw new Error('Profile-only sync must not create a consent receipt') },
@@ -173,7 +177,9 @@ test('customer rate-limit errors forward the OPS Retry-After without losing erro
 
 const routes = [
   { path: 'customer/sync', body: { profile: { phone: '+46701234567' } } },
-  { path: 'customer-portal/sync', body: {} },
+  // An explicit customer_number now selects first-link activation; this suite
+  // keeps testing the existing recovery path, whose identity comes from Auth.
+  { path: 'customer-portal/sync', body: { customer_number: undefined } },
   { path: 'customer/profile-update', body: { profile: { invoice_email: 'invoice@example.invalid' } } },
   { path: 'customer/move-out', body: { move_out: { facility_reference: 'facility-opaque-1', requested_move_out_date: '2026-12-01' } } },
   { path: 'customer/notifications/read', body: { notification_ids: ['notification-opaque-1'] } },

@@ -49,3 +49,24 @@ Ingen GET skapar fullmakt, samtycke eller PDF, och inga OPS-lagringssökvägar e
 API-nycklar lämnas till webbläsaren. Installation av OPS arkiv-/databasberoenden,
 publicering av båda sidorna och det tidigare godkända verkliga kundprovet krävs
 innan hela flödet kan godkännas i drift.
+
+## Befintliga API-kunder utan webbansökan
+
+`/aktivera-kundkonto` använder den riktiga verifierade webbinloggningen och ett
+uttryckligt kundnummer. E-postadressen hämtas från Auth och måste vara bekräftad.
+Den befintliga portal-sync-vägen kontrollerar samma origin, en liten request-body
+och delade gränser per användare och IP. Inga användar-ID:n eller roller tas från
+formuläret. Ett befintligt stabilt kundnummer får inte bytas genom aktiveringen.
+
+Först används OPS ordinarie kundsynk med kundnummer, verifierad mejl och färskt
+kundintyg. Därefter används den kanoniska externreferensen i portal-sync; endast
+`linked`, `access_granted: true` och ägarrollen godtas. Kundnummer, externreferens
+och mejl läses tillbaka från `/customer/me` innan den lokala profilen skrivs med
+befintligt skydd mot samtidiga identitetsändringar. Återförsök behåller samma
+operationsnycklar och samma ursprungliga request-body även efter lokal skrivning.
+Saknad kanonisk externreferens eller motstridigt underlag kräver kundservice.
+
+Flödet skapar ingen Auth-användare/session, webbansökan, fullmakt eller personalroll.
+Det gör det möjligt att använda en befintlig OPS-kund utan att fabricera historiska
+onboardingjobb. Det tidigare npm-kommandot `backfill:portal-customer` togs bort
+eftersom dess skript saknades. Aktiveringen sker genom den verifierade kundsessionen.

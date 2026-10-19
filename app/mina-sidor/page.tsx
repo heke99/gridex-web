@@ -94,6 +94,12 @@ export default async function MinaSidorPage() {
           </div>
         </header>
 
+        {!portalLinkPending && !profile?.customer_number && !profile?.external_customer_id ? (
+          <Link href="/aktivera-kundkonto" className="mt-6 block rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 text-cyan-200 underline">
+            Har du redan ett kundnummer? Koppla ditt kundkonto.
+          </Link>
+        ) : null}
+
         {!overview.opsAvailable ? (
           <div className="mt-6 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
             Vi visar senast lokalt sparade uppgifter. Uppgifter från Gridex kan vara äldre tills anslutningen är återställd.
