@@ -384,8 +384,9 @@ export function normalizeWarnings(row: Record<string, unknown>): string[] {
 }
 
 export function responseObject(payload: unknown): Record<string, unknown> {
-  const row = extractObject(payload);
-  return row && typeof row === "object" ? row : {};
+  // Write adapters read data and diagnostics separately. extractObject unwraps
+  // data and would discard the envelope before those adapters read it.
+  return recordValue(payload) ?? {};
 }
 
 export async function submitOpsCustomerSync(

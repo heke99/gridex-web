@@ -53,7 +53,7 @@
     "typecheck:support": "tsc --noEmit --pretty false -p apps/support/tsconfig.json",
     "test:customer-support": "node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/customer-support-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs && node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/support-attachment-boundary.test.mjs",
     "test:portal-existing-auth": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs",
-    "test:portal-first-link": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-first-link.test.mjs",
+    "test:portal-first-link": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-first-link.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-write-response-runtime.test.mjs",
     "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs && npm run test:web-independent && npm run test:admin-users",
     "release:audit:manifest": "node scripts/check-audit-release.mjs --snapshot",
     "release:audit:check": "node scripts/check-audit-release.mjs",
