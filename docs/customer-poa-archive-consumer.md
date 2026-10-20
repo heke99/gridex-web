@@ -4,10 +4,12 @@ Webben använder det oberoende OPS-kontraktet `poa-archive-v1.json`, version
 `2026-10-19.1`. Den incheckade filen är byteidentisk med den granskade OPS-källan
 och har SHA-256
 `ec70eafa96d77563771af0b20eaa71ef2134eff96f75abfd4bb1942c94295d37`.
-Den förberedda oföränderliga dokumentvägen är
+Den publicerade oföränderliga dokumentvägen är
 `https://app.gridex.se/api/v1/openapi/2026-10-19.1/poa-archive-v1.json`.
 Denna separata kontraktsversion ersätter inte de tre befintliga API-paketen eller
-deras gemensamma release-manifest. Slutlig liveparitet kontrolleras efter OPS-release.
+deras gemensamma release-manifest. Den 20 oktober 2026 cirka 07:51 UTC svarade
+den publicerade filen med HTTP 200. Faktiska svarsbytes har samma SHA-256 som
+ovan och är identiska med den incheckade filen.
 
 Mina dokument visar arkivets fullmakter med verifikationsnummer, en lokal
 inloggningsskyddad nedladdningslänk och sidindelning om 20 poster. Metadata märks
@@ -46,9 +48,21 @@ de ersätts inte med aktuella värden. Referens och kontrollsumma är inte en
 kryptografisk PDF-signatur eller bevis om BankID.
 
 Ingen GET skapar fullmakt, samtycke eller PDF, och inga OPS-lagringssökvägar eller
-API-nycklar lämnas till webbläsaren. Installation av OPS arkiv-/databasberoenden,
-publicering av båda sidorna och det tidigare godkända verkliga kundprovet krävs
-innan hela flödet kan godkännas i drift.
+API-nycklar lämnas till webbläsaren.
+
+## Aktuell verifieringsstatus
+
+Web och OPS är publicerade och OPS-ägaren har kvitterat databasinstallationen.
+Den verkliga kundkopplingen är verifierad av användaren och av databasläsning.
+Publicering av kontraktet är också byteverifierad enligt ovan.
+
+Vid kontroll den 20 oktober 2026 07:50 UTC saknade den avskilda testfullmakten
+fortfarande PDF-sökväg, arkivmetadata, arkivhash och verifikationsreferens.
+Ursprunglig tid och sparad IP finns kvar oförändrade, men IP-källan är inte
+dokumenterad i `ip_address_source`. Det redan godkända originalanropet hos den
+befintliga skyddade klienten och efterföljande verkliga arkivläsningar återstår.
+PDF-bytes, SHA-256, verifikationsnummer och IP-/tidskällor måste kontrolleras
+tillsammans innan hela fullmaktsflödet kan godkännas i drift.
 
 ## Befintliga API-kunder utan webbansökan
 

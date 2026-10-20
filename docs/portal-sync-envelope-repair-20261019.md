@@ -35,13 +35,40 @@ och testets lokala intygssignerare är isolerade testgränser.
   TypeScript, riktad ESLint, `npm run verify:delivery` och filstorlekskontroll passerar.
 
 Det nya testet ingår i `test:portal-first-link` och därmed i den befintliga
-kundskrivningssviten. Ett verkligt inloggat produktionsprov av förstakopplingen
-återstår efter publicering; isolerade tester ersätter inte den kundsessionen.
+kundskrivningssviten.
+
+## Verifierat driftläge den 20 oktober 2026
+
+Efter användarens uttryckliga publiceringsgodkännande publicerades kodversion
+`7c3cbb477c6ce86b6e4dba59d669e52e3f7ec2b9` på `gridex.se` i deployment
+`dpl_97HJJ4SbZjN86HvqNMFvjWL4Z29v`. Samma version och READY-status lästes
+tillbaka den 20 oktober cirka 07:50 UTC.
+
+Användaren genomförde det verkliga inloggade kundkopplingsprovet den 19 oktober
+och bekräftade att Mina sidor öppnades. Oberoende Web-läsning 14:53:20 UTC
+bekräftade rätt kundnummer, sparad externreferens och `onboarding_state = verified`.
+Motsvarande OPS-synk slutfördes med HTTP 200 och `synced` 14:52:45 UTC.
+Kundkopplingen är därmed verifierad i den verkliga kundsessionen.
 
 ## Fullmaktens separata leverans
 
-Den kontrollerade testfullmakten har redan ursprunglig godkännandetid och IP i
-OPS. Kontrollen 14:40 UTC visar att dokumenthash, PDF-sökväg och arkivmetadata
-ännu saknas. Ingen ny tid/IP eller nytt samtycke skapas för att fylla dessa fält.
-Den pågående OPS-leveransen i PR 828 äger arkivering och originalprov. Denna
-webbrättning startar ingen parallell OPS-publicering eller originalreplay.
+OPS-versionen från PR 828, `6db93e76da9337b4bfa36e091fe7d0a1d2d9b008`,
+publicerades den 19 oktober i deployment `dpl_DfYURUHz2f5M1iJKSnfFRTnvJ2DS`.
+Ägarens releasekvitto bekräftar fyra installerade migrationer och godkänd
+katalogkontroll. Ordinarie migrationstest och certifiering har terminal SUCCESS.
+Den publicerade arkivspecifikationen kontrollerades separat den 20 oktober;
+HTTP 200 och faktisk SHA-256 matchar Webs incheckade kontrakt byte för byte.
+
+Den kontrollerade testfullmakten har ursprunglig godkännandetid och sparad IP.
+Databasläsningen den 20 oktober 07:50 UTC visar fortfarande att PDF-sökväg,
+arkivmetadata, arkivhash och verifikationsreferens saknas. IP-värdet i evidensen
+matchar sparad IP, men `ip_address_source` saknas. Det är inte en slutverifierad
+IP-källa. Kontrollsumman för det oföränderliga ursprungsunderlaget är identisk
+med föregående kontroll; inget nytt samtycke, IP eller klockslag har lagts till.
+
+Ägaren för originalklientens skyddade runtime behöver slutföra det redan
+godkända anropet med exakt ursprungligt underlag och idempotensnyckel. Därefter
+återstår verklig arkiv-/PDF-läsning i behörig kundsession, jämförelse av faktiska
+PDF-bytes med SHA-256 och verifikationsreferens samt kontroll av ursprunglig
+IP/tid och deras källor. Denna webbrättning utför ingen parallell originalreplay.
+Hela fullmaktsflödet är ännu inte godkänt i drift.
