@@ -59,16 +59,33 @@ katalogkontroll. Ordinarie migrationstest och certifiering har terminal SUCCESS.
 Den publicerade arkivspecifikationen kontrollerades separat den 20 oktober;
 HTTP 200 och faktisk SHA-256 matchar Webs incheckade kontrakt byte för byte.
 
-Den kontrollerade testfullmakten har ursprunglig godkännandetid och sparad IP.
-Databasläsningen den 20 oktober 07:50 UTC visar fortfarande att PDF-sökväg,
-arkivmetadata, arkivhash och verifikationsreferens saknas. IP-värdet i evidensen
-matchar sparad IP, men `ip_address_source` saknas. Det är inte en slutverifierad
-IP-källa. Kontrollsumman för det oföränderliga ursprungsunderlaget är identisk
-med föregående kontroll; inget nytt samtycke, IP eller klockslag har lagts till.
+Den kontrollerade testfullmakten hade ursprunglig godkännandetid och sparad IP.
+Förkontrollen den 20 oktober 07:50 UTC visade att PDF-sökväg,
+arkivmetadata, arkivhash och verifikationsreferens saknades. IP-värdet i evidensen
+matchade sparad IP, men `ip_address_source` saknades. Ursprungsunderlagets
+kontrollsumma var då identisk med kontrollen den 19 oktober.
 
-Ägaren för originalklientens skyddade runtime behöver slutföra det redan
-godkända anropet med exakt ursprungligt underlag och idempotensnyckel. Därefter
-återstår verklig arkiv-/PDF-läsning i behörig kundsession, jämförelse av faktiska
-PDF-bytes med SHA-256 och verifikationsreferens samt kontroll av ursprunglig
-IP/tid och deras källor. Denna webbrättning utför ingen parallell originalreplay.
-Hela fullmaktsflödet är ännu inte godkänt i drift.
+## Originalanrop och skapad PDF den 20 oktober
+
+Den befintliga klienten återhämtade det sparade originalet i sin skyddade runtime.
+Råunderlagets och den ursprungliga idempotensnyckelns kontrollsummor matchade de
+tidigare låsta värdena och begäran passerade API-valideringen. Det enda
+godkända originalanropet är nu genomfört och svarade HTTP 200. Klientens
+efterkontroll rapporterar samma ansökan/fullmakt utan dubbletter samt bevarad
+ursprunglig IP och godkännandetid. Originalanropet ska inte köras igen för att
+slutföra läskontrollerna.
+
+Oberoende databasläsningar 08:36:12–08:36:23 UTC bekräftar att PDF-objektet finns
+i `customer-documents` och att arkivets sökväg, bucket och verifikationsnummer
+matchar fullmaktsposten. Arkivets SHA-256 är
+`be9eb63b1c7cf276dee3838a9712c981cd06f3515e39b3a671e179140bb50e58`.
+Evidensens IP matchar sparad IP, källan anges nu som `signer_reported`, och
+sparad IP-hash matchar SHA-256 av den IP-adressen. Den frysta fullmaktstextens
+och omfattningens gemensamma kontrollsumma är oförändrad före/efter anropet.
+`signer_reported` anger klientrapporterad IP och är inte bevis om BankID.
+
+Faktiska PDF-bytes och dokumentinnehåll ska fortfarande verifieras via läs-API:t.
+Nedladdningsprov från kundens verkliga inloggning i Mina dokument är efterfrågat.
+Hela fullmaktsflödet är ännu inte slutgodkänt; ett skapat arkiv eller HTTP 200
+ersätter inte dessa läskontroller. Denna webbrättning har inte utfört någon
+parallell originalreplay.

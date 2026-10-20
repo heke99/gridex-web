@@ -56,13 +56,21 @@ Web och OPS är publicerade och OPS-ägaren har kvitterat databasinstallationen.
 Den verkliga kundkopplingen är verifierad av användaren och av databasläsning.
 Publicering av kontraktet är också byteverifierad enligt ovan.
 
-Vid kontroll den 20 oktober 2026 07:50 UTC saknade den avskilda testfullmakten
-fortfarande PDF-sökväg, arkivmetadata, arkivhash och verifikationsreferens.
-Ursprunglig tid och sparad IP finns kvar oförändrade, men IP-källan är inte
-dokumenterad i `ip_address_source`. Det redan godkända originalanropet hos den
-befintliga skyddade klienten och efterföljande verkliga arkivläsningar återstår.
-PDF-bytes, SHA-256, verifikationsnummer och IP-/tidskällor måste kontrolleras
-tillsammans innan hela fullmaktsflödet kan godkännas i drift.
+Det redan godkända originalanropet har genomförts en gång av den befintliga
+skyddade klienten och svarade HTTP 200. Klientens före-/efterkontroll rapporterar
+samma originalansökan och fullmakt, bevarad ursprunglig IP och godkännandetid
+samt inga dubbletter.
+
+Oberoende databasläsning den 20 oktober 2026 cirka 08:36 UTC bekräftar att den
+avskilda testfullmakten nu har PDF-objekt, arkivmetadata, SHA-256 och
+verifikationsreferens med matchande sökväg/bucket/referens. Evidensens IP matchar
+sparad IP och `ip_address_source` är `signer_reported`. Den frysta texten och
+omfattningen har samma kontrollsumma före/efter anropet.
+
+Läsning av faktiska PDF-bytes med kontroll av hash och dokumentinnehåll samt
+nedladdningsprovet i kundens verkliga inloggning återstår. Hela fullmaktsflödet
+är därför ännu inte slutgodkänt i drift. Originalanropet är slutfört och ska
+inte upprepas för dessa läsprov.
 
 ## Befintliga API-kunder utan webbansökan
 
