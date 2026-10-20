@@ -1,6 +1,6 @@
 # Kundens personuppgiftsbegäranden
 
-Mina sidor har ett gemensamt flöde för registerutdrag och radering på `/dashboard/privacy`. Begäran lagras tillsammans med sitt köjobb i en lokal databastransaktion. Den befintliga outbox-processen överför den till OPS dokumenterade kundsupport-API. Kundservice hanterar begäran i Support123 och återkommer till kunden.
+Mina sidor har ett gemensamt flöde för registerutdrag och radering på `/dashboard/privacy`. Begäran lagras tillsammans med sitt köjobb i en lokal databastransaktion. För en kopplad kund överför den befintliga outbox-processen begäran till OPS dokumenterade kundsupport-API. Ett Auth-konto som ännu saknar kundkoppling får i stället ett riktigt ärende i den befintliga Web-inkorgen, synligt i Support123. Kundservice hanterar begäran och återkommer till kunden.
 
 ## Webbens API
 
@@ -21,8 +21,9 @@ Felkoder: `400` ogiltig begäran, `401` saknad session, `403` obekräftad e-post
 ## Databas och överföring
 
 - `gridex_enqueue_privacy_request_v1` sparar `customer_privacy_requests` och ett `privacy_request`-jobb i `customer_portal_write_outbox` atomiskt. Per-användare-lås, unik nyckel och kvotkontroll finns i samma transaktion.
+- Saknas båda kundreferenserna anropar samma RPC den befintliga `gridex_create_public_inquiry_v1`. Begäran, Web-ärende, kundmeddelande, köat e-postkvitto och slutförd lokal överföring sparas i samma transaktion. Support123:s befintliga personalgräns visar ärendet med kategorin `data_protection`. Inget OPS-kundärende eller påhittad OPS-referens skapas. Kvittooperatören använder begärans unika ID, så lika klient-UUID från olika användare inte delar ärende.
 - RPC-funktionerna är `SECURITY INVOKER` med tom `search_path` och får endast köras av `service_role`. Browserroller kan varken läsa eller skriva tabellen eller anropa funktionerna. Den inloggade användaren verifieras i BFF-gränsen.
-- Worker kontrollerar den aktuella Auth-identiteten, bekräftad mejl, spärr/radering och båda normaliserade kundreferenserna innan överföring. Ändrad kundkoppling får inte styra om en köad begäran.
+- För OPS-överföring kontrollerar worker den aktuella Auth-identiteten, bekräftad mejl, spärr/radering och båda normaliserade kundreferenserna. Ändrad kundkoppling får inte styra om en köad begäran. Den lokala vägen bygger på BFF-gränsens verifierade, bekräftade session vid mottagningen.
 - Överföringen använder befintliga `POST /api/v1/customer/support/cases`, kategorin `data_protection`, ordinarie tenantklient och kundheaders samt samma `Idempotency-Key` vid varje försök. Inga nya OPS-endpoints eller rättigheter införs.
 - `gridex_complete_privacy_request_v1` sparar OPS ärendereferens och slutför köjobbet i samma transaktion. Både försöksnummer och låstid måste stämma. En gammal worker kan inte slutföra en ersättningslease.
 - Vid nätverksfel efter OPS-acceptans kan samma anrop upprepas med originalnyckeln. Det är inte en gemensam ACID-transaktion över HTTP och två databaser. OPS måste behålla idempotenskvittot enligt sitt kontrakt; okända utfall får inte hanteras med en ny nyckel.
@@ -30,7 +31,7 @@ Felkoder: `400` ogiltig begäran, `401` saknad session, `403` obekräftad e-post
 
 ## Hantering och avgränsning
 
-Statusarna är `queued` (sparad), `submitted` (OPS-ärende skapat) och `needs_attention` (överföring behöver hjälp). `submitted` betyder aldrig att personuppgifterna är raderade eller att ett fullständigt utdrag har levererats. OPS-ärendets fortsatta dialog finns under Kundservice.
+Statusarna är `queued` (sparad), `submitted` (riktigt ärende skapat i rätt inkorg) och `needs_attention` (överföring behöver hjälp). `submitted` betyder aldrig att personuppgifterna är raderade eller att ett fullständigt utdrag har levererats. Lokal handläggningsstatus läses direkt från det kopplade Web-ärendet. Kundservice återkommer via kontaktuppgifterna; ett OPS-ärendes fortsatta dialog finns även under Kundservice på Mina sidor. Det lokala ärendets interna UUID lämnas inte ut som en OPS-referens.
 
 Handläggaren behöver inhämta och bedöma uppgifter från Web/Auth, OPS, dokumentlagring och berörda leveranssystem. Lagstadgat bevarande och andra rättsliga grunder bedöms innan radering. Ingen allmän purge-RPC, kundstyrd Auth-adminfunktion, automatisk personalradering eller automatisk avtalsradering exponeras.
 

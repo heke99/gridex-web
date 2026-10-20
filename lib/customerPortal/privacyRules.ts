@@ -6,6 +6,14 @@ export const PRIVACY_REQUEST_LABELS: Record<PrivacyRequestKind, string> = {
   erasure: 'Radering av personuppgifter',
 }
 
+export const PRIVACY_HANDLING_LABELS: Record<string, string> = {
+  open: 'Nytt ärende hos kundservice',
+  waiting_on_customer: 'Kundservice inväntar ditt svar',
+  waiting_on_internal: 'Under handläggning',
+  resolved: 'Ärendet har hanterats',
+  closed: 'Ärendet har avslutats',
+}
+
 export function parsePrivacyIntent(value: unknown): { kind: PrivacyRequestKind; operationId: string } | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const row = value as Record<string, unknown>

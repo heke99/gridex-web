@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-20T09:57:01.193Z",
-  "migration_count": 47,
+  "generated_at": "2026-10-20T10:59:42.653Z",
+  "migration_count": 49,
   "version_collisions": [],
   "migrations": [
     {
@@ -238,6 +238,16 @@
       "file": "20261020095158_customer_privacy_requests.sql",
       "version": "20261020095158",
       "sha256": "42359c66b05d77e357379d88b43a7fa377696a583385d1d122ed1b73047b301a"
+    },
+    {
+      "file": "20261020104944_customer_registration_default_role.sql",
+      "version": "20261020104944",
+      "sha256": "09052b4c936fe2056bc6a62fa7d39a7562fa1c6077d540995ddd97713f703f73"
+    },
+    {
+      "file": "20261020105722_unlinked_customer_privacy_requests.sql",
+      "version": "20261020105722",
+      "sha256": "2f3c1eeebb95b4655c62fd7ec85af961b6e85b3529d7d34485f057199ff9ae8e"
     }
   ]
 }

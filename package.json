@@ -10,6 +10,8 @@
     "node": "22.x"
   },
   "scripts": {
+    "test:public-support-boundary": "node --experimental-strip-types --experimental-loader ./tests/public-support-boundary-loader.mjs tests/public-support-boundary.test.mjs",
+    "test:registration-role": "node tests/customer-registration-role-sql.test.mjs",
     "test:privacy": "node tests/customer-privacy-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-loader.mjs tests/customer-privacy-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-loader.mjs tests/customer-privacy-boundary.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-worker-loader.mjs tests/customer-privacy-worker.test.mjs",
     "dev": "next dev",
     "build": "next build",

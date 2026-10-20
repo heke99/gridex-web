@@ -29,10 +29,13 @@ export default async function PrivacyPage() {
         <ul className="space-y-4">{requests.map(request => <li key={request.id} className="rounded-xl bg-white/5 p-4 text-sm">
           <p className="font-semibold">{PRIVACY_REQUEST_LABELS[request.kind]}</p>
           <p>{statusLabels[request.status]}</p>
+          {request.handling_label ? <p>{request.handling_label}</p> : null}
           <p className="mt-1 text-white/60">{new Intl.DateTimeFormat('sv-SE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' }).format(new Date(request.created_at))}</p>
           <p className="mt-1 break-all text-xs text-white/60">Referens: {request.case_reference ?? request.id}</p>
         </li>)}</ul>}
-      <Link href="/dashboard/support" className="mt-5 inline-block text-sm text-cyan-300 underline">Kontakta kundservice och följ ditt ärende</Link>
+      <p className="mt-5 text-sm text-white/60">Kundservice återkommer via dina kontaktuppgifter med besked om din begäran.</p>
+      <Link href="/kundservice" className="mt-3 inline-block text-sm text-cyan-300 underline">Kontakta kundservice</Link>
+      {requests?.some(request => request.case_reference) ? <Link href="/dashboard/support" className="ml-4 mt-3 inline-block text-sm text-cyan-300 underline">Följ ditt kundärende</Link> : null}
     </section>
   </div>
 }
