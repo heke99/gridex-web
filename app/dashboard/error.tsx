@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { readCustomerWriteResponse, pendingCustomerWrite } from '@/lib/customerPortal/writeResponse'
 
-export default function DashboardError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function DashboardError({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
   const operation = useRef<string | null>(null)
   const [state, setState] = useState<'idle' | 'working' | 'pending' | 'done' | 'error'>('idle')
 
@@ -23,7 +23,7 @@ export default function DashboardError({ reset }: { error: Error & { digest?: st
       }
       operation.current = null
       setState('done')
-      reset()
+      retry()
     } catch {
       setState('error')
     }
@@ -37,7 +37,7 @@ export default function DashboardError({ reset }: { error: Error & { digest?: st
         <button type="button" onClick={repairLink} disabled={state === 'working'} className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50">
           {state === 'working' ? 'Uppdaterar…' : 'Uppdatera kopplingen'}
         </button>
-        <button type="button" onClick={reset} className="rounded-full border border-white/15 px-4 py-2 text-sm">Försök igen</button>
+        <button type="button" onClick={retry} className="rounded-full border border-white/15 px-4 py-2 text-sm">Försök igen</button>
         <Link href="/aktivera-kundkonto" className="rounded-full border border-white/15 px-4 py-2 text-sm">Koppla med kundnummer</Link>
       </div>
       {state === 'pending' ? <p className="mt-3 text-sm text-amber-200">Kopplingen inväntar behandling. Tillgången är ännu inte bekräftad.</p> : null}

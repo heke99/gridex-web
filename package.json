@@ -64,13 +64,15 @@
     "perf:web": "node scripts/measure-web-performance.mjs",
     "test:performance": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/performance-snapshot.test.mjs",
     "test:performance:browser": "node tests/run-performance-browser.mjs",
-    "test:web-independent": "node tests/web-independent-regression.mjs && node tests/web-customer-readiness.test.mjs && npm run test:customer-writes",
+    "test:web-independent": "node tests/web-independent-regression.mjs && node tests/web-customer-readiness.test.mjs && npm run test:customer-writes && npm run test:customer-journey",
     "test:customer-writes": "npm run test:portal-first-link && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-consent-evidence.test.mjs && node tests/customer-write-boundary.test.mjs && node tests/customer-sync-route-evidence.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/portal-outbox-retry-after.test.mjs && node tests/pricing-snapshot-idempotency.test.mjs && node tests/energy-area-audit-idempotency.test.mjs",
     "test:admin-users": "node tests/admin-user-database-compatibility.test.mjs",
     "test:support:recovery": "node --experimental-strip-types --experimental-loader ./tests/support-auth-loader.mjs tests/support-password-recovery.test.mjs",
     "test:poa-archive": "node --experimental-strip-types --experimental-loader ./tests/poa-archive-loader.mjs tests/poa-archive-consumer.test.mjs",
     "test:admin-context": "node --experimental-strip-types --experimental-loader ./tests/admin-context-loader.mjs tests/admin-context-boundary.test.mjs",
-    "test:invoice-intake": "node --experimental-strip-types --experimental-loader ./tests/invoice-intake-loader.mjs tests/invoice-intake-validation.test.mjs"
+    "test:invoice-intake": "node --experimental-strip-types --experimental-loader ./tests/invoice-intake-loader.mjs tests/invoice-intake-validation.test.mjs",
+    "test:customer-journey": "node --experimental-strip-types --experimental-loader ./tests/customer-journey-loader.mjs tests/customer-journey.test.mjs",
+    "test:customer-journey:browser": "node tests/run-customer-journey-browser.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",

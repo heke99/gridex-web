@@ -399,7 +399,8 @@ export default function CustomerApplicationForm({
 
   function nextStep() {
     if (!validateDetails()) return;
-    rotateSubmissionAttempt();
+    // Reviewing unchanged details is the same submission intent. Actual field
+    // and consent changes already rotate the operation identifier.
     setStep(1);
     window.requestAnimationFrame(() => document.getElementById('signup-review')?.focus());
   }
@@ -611,7 +612,9 @@ export default function CustomerApplicationForm({
       ) : null}
 
       {step === 1 ? (
-        <form action={formAction} className="space-y-6">
+        <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-6">
+          {/* React resets forms after returned actions. Keep the controlled
+              review/consent state intact for an unchanged failed retry. */}
           <input type="hidden" name="company_website" value="" />
           <input type="hidden" name="submission_attempt_id" value={submissionAttemptId} />
           <input type="hidden" name="pricing_snapshot_token" value={pricingPreview?.pricing_token ?? ""} />

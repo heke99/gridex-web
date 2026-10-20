@@ -8,6 +8,8 @@ import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 import { statusLabel, nextStepDescription } from '@/lib/customerPortal/statusHelper'
 import { hasPendingPortalOnboardingForUser } from '@/lib/customerPortal/onboarding'
 import { hasPendingAuthProfileSync } from '@/lib/customerPortal/authProfileSync'
+import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
+import ContractPricing from '@/components/customer/ContractPricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,15 +21,6 @@ function buildLoginRedirect() {
   const qs = new URLSearchParams()
   qs.set('next', '/mina-sidor')
   return `/login?${qs.toString()}`
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
 }
 
 function displayName(
@@ -79,7 +72,10 @@ export default async function MinaSidorPage() {
               anläggning, fakturor, dokument, godkännanden och fullmakt.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Link href="/dashboard/support" className="rounded-xl border border-white/10 px-4 py-2 text-center text-sm text-white/80 hover:bg-white/5">
+              Mina supportärenden
+            </Link>
             <Link href="/dashboard/privacy" className="rounded-xl border border-white/10 px-4 py-2 text-center text-sm text-white/80 hover:bg-white/5">
               Mina personuppgifter
             </Link>
@@ -173,18 +169,21 @@ export default async function MinaSidorPage() {
               <p className="mt-1 text-sm text-white/60">Avtalsuppgifter hämtas från Gridex kundsystem.</p>
             </div>
             <Link href="/dashboard/contracts" className="text-sm text-cyan-300 hover:text-cyan-200">
-              Visa mer
+              Visa alla avtal och priser
             </Link>
           </div>
           {latestContract ? (
-            <div className="mt-5 grid gap-3 md:grid-cols-4">
-              <InfoCard label="Avtal" value={latestContract.contract_name || latestContract.contract_slug || 'Elavtal'} />
-              <InfoCard label="Avtalsnummer" value={latestContract.contract_number || latestContract.contract_external_ref || '—'} />
-              <InfoCard label="Startdatum" value={formatDate(latestContract.starts_at)} />
-              <InfoCard label="Status" value={statusLabel(latestContract.status)} />
+            <div>
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <InfoCard label="Avtal" value={latestContract.contract_name || latestContract.contract_slug || 'Elavtal'} />
+                <InfoCard label="Avtalsnummer" value={latestContract.contract_number || latestContract.contract_external_ref || '—'} />
+                <InfoCard label="Startdatum" value={formatDate(latestContract.starts_at)} />
+                <InfoCard label="Status" value={statusLabel(latestContract.status)} />
+              </div>
+              <ContractPricing contract={latestContract} />
             </div>
           ) : (
-            <EmptyText>Inget elavtal visas ännu.</EmptyText>
+            <EmptyText>Inget elavtal visas ännu. <Link href="/teckna-avtal" className="text-cyan-300 underline">Teckna ett elavtal</Link> eller <Link href="/aktivera-kundkonto" className="text-cyan-300 underline">koppla ett befintligt kundkonto</Link>.</EmptyText>
           )}
         </section>
 
@@ -285,9 +284,10 @@ export default async function MinaSidorPage() {
               Du kan begära hjälp med dina personuppgifter. Vissa åtgärder behöver hanteras av kundservice för att vi ska kunna identifiera dig korrekt.
             </p>
             <div className="mt-4 grid gap-3">
-              <ActionLink href="/dashboard/support" title="Begär datautdrag" text="Få en sammanställning av uppgifter kopplade till din kundprofil." />
+              <ActionLink href="/dashboard/privacy" title="Begär datautdrag" text="Få en sammanställning av uppgifter kopplade till din kundprofil." />
               <ActionLink href="/dashboard/profile" title="Begär rättelse" text="Uppdatera uppgifter eller be oss rätta felaktig information." />
-              <ActionLink href="/dashboard/support" title="Begär radering eller avslut" text="Kontakta kundservice om du vill avsluta kundrelation eller begära radering där det är möjligt enligt lag." />
+              <ActionLink href="/dashboard/privacy" title="Begär radering av personuppgifter" text="Skicka en begäran om radering och följ dess status. Vissa uppgifter måste sparas enligt lag." />
+              <ActionLink href="/dashboard/support" title="Frågor om att avsluta avtal" text="Kontakta kundservice om du vill avsluta ett avtal." />
             </div>
           </section>
 

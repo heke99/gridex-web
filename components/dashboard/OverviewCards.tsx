@@ -1,14 +1,5 @@
 import type { CustomerPortalOverview } from '@/lib/customerPortal/types'
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
-}
+import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 
 export default function OverviewCards({
   overview,

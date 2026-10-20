@@ -105,6 +105,15 @@ test('beacon rejection uses fetch fallback without interrupting click',()=>{
 test('dashboard repair retains intent and does not reset while pending',async()=>{
  let resets=0;const ids=[];
  const h=harness('app/dashboard/error.tsx',{'@/lib/customerPortal/writeResponse':writes},{fetch:async(_,r)=>{ids.push(JSON.parse(r.body).client_operation_id);return ok({data:{ok:false,status:'pending_review'}})}});
- for(let i=0;i<2;i++)await nodes(h.render({reset:()=>resets++})).find(n=>n.type==='button').props.onClick();
+ for(let i=0;i<2;i++)await nodes(h.render({retry:()=>resets++})).find(n=>n.type==='button').props.onClick();
  assert.equal(h.states[0],'pending');assert.equal(resets,0);assert.equal(ids[0],ids[1]);
+});
+test('dashboard retry re-fetches without a write; only confirmed repair retries the data read',async()=>{
+ let retries=0,requests=0;
+ const h=harness('app/dashboard/error.tsx',{'@/lib/customerPortal/writeResponse':writes},{fetch:async()=>{requests++;return ok({data:{ok:true,status:'linked',synced:{access_granted:true}}})}});
+ const props={retry:()=>retries++};
+ nodes(h.render(props)).find(n=>n.type==='button'&&text(n)==='Försök igen').props.onClick();
+ assert.equal(retries,1);assert.equal(requests,0);
+ await nodes(h.render(props)).find(n=>n.type==='button'&&text(n)==='Uppdatera kopplingen').props.onClick();
+ assert.equal(retries,2);assert.equal(requests,1);
 });
