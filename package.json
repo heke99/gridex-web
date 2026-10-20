@@ -10,6 +10,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "test:privacy": "node tests/customer-privacy-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-loader.mjs tests/customer-privacy-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-loader.mjs tests/customer-privacy-boundary.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-privacy-worker-loader.mjs tests/customer-privacy-worker.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

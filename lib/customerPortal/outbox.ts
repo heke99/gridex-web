@@ -20,6 +20,7 @@ export type PortalOutboxOperation =
   | 'customer_portal_sync'
   | 'move_out'
   | 'facility_data_update'
+  | 'privacy_request'
 
 export class PortalOutboxConflictError extends Error {
   readonly status = 409
@@ -133,7 +134,11 @@ export async function enqueuePortalWrite(input: {
   if (!sameOperation) throw new PortalOutboxConflictError()
 }
 
-async function dispatch(row: OutboxRow): Promise<void> {
+async function dispatch(row: OutboxRow, supabase: ReturnType<typeof serviceClient>): Promise<string | void> {
+  if (row.operation_type === 'privacy_request') {
+    const { dispatchPrivacyRequest } = await import('./privacyDispatch')
+    return dispatchPrivacyRequest(row, supabase)
+  }
   const operationId = typeof row.payload.operation_id === 'string'
     ? row.payload.operation_id
     : row.idempotency_key
@@ -268,24 +273,31 @@ export async function processPortalWriteOutbox(limit = 50) {
     if (!claimed.data) continue
 
     try {
-      await dispatch({ ...row, attempt_count: attempt })
-      const { data: completedRow, error: completeError } = await supabase
-        .from('customer_portal_write_outbox')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_error_code: null,
-          last_error_message: null,
+      const receipt = await dispatch({ ...row, attempt_count: attempt }, supabase)
+      if (row.operation_type === 'privacy_request') {
+        const { data: completedReceipt, error: receiptError } = await supabase.rpc('gridex_complete_privacy_request_v1', {
+          p_outbox_id: row.id, p_attempt: attempt, p_locked_at: now, p_case_reference: receipt,
         })
-        .eq('id', row.id)
-        .eq('status', 'processing')
-        .eq('attempt_count', attempt)
-        .eq('last_attempt_at', now)
-        .select('id')
-        .maybeSingle<{ id: string }>()
-      if (completeError) throw new Error(completeError.message)
-      if (!completedRow?.id) throw new Error('Outbox completion state was lost to a concurrent worker.')
+        if (receiptError || completedReceipt !== true) throw new Error('Privacy receipt lease or atomic completion was lost.')
+      } else {
+        const { data: completedRow, error: completeError } = await supabase
+          .from('customer_portal_write_outbox')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_error_code: null,
+            last_error_message: null,
+          })
+          .eq('id', row.id)
+          .eq('status', 'processing')
+          .eq('attempt_count', attempt)
+          .eq('last_attempt_at', now)
+          .select('id')
+          .maybeSingle<{ id: string }>()
+        if (completeError) throw new Error(completeError.message)
+        if (!completedRow?.id) throw new Error('Outbox completion state was lost to a concurrent worker.')
+      }
       completed += 1
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)

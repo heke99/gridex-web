@@ -80,6 +80,9 @@ export default async function MinaSidorPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            <Link href="/dashboard/privacy" className="rounded-xl border border-white/10 px-4 py-2 text-center text-sm text-white/80 hover:bg-white/5">
+              Mina personuppgifter
+            </Link>
             <Link
               href="/dashboard/profile"
               className="rounded-xl border border-white/10 px-4 py-2 text-center text-sm text-white/80 transition hover:bg-white/5"

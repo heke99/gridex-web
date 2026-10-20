@@ -58,6 +58,11 @@ const BASE_NAV: NavItem[] = [
     href: '/dashboard/profile',
     description: 'Konto och kontaktuppgifter',
   },
+  {
+    label: 'Personuppgifter',
+    href: '/dashboard/privacy',
+    description: 'Registerutdrag och radering',
+  },
 ]
 
 const ROLE_NAV: NavItem[] = [

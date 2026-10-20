@@ -1,4 +1,5 @@
 import { supabaseService } from '@/lib/supabase/service'
+import { portalCustomerReferences } from './identityReferences'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient, getVerifiedServerUser } from '@/lib/supabase/server'
 import {
@@ -648,16 +649,6 @@ export async function getCustomerNotifications(
   return (data ?? []) as CustomerNotification[]
 }
 
-function stableExternalCustomerId(profile: CustomerProfile | null): string | null {
-  const customerNumber = profile?.customer_number ?? profile?.contract_customer_ref ?? null
-  const externalCustomerId = profile?.external_customer_id ?? null
-  if (!externalCustomerId) return null
-  if (externalCustomerId === customerNumber) return null
-  if (/^DX-\d+$/i.test(externalCustomerId)) return null
-  return externalCustomerId
-}
-
-
 export function portalIdentityFromProfile(
   user: User,
   profile: CustomerProfile | null
@@ -665,8 +656,7 @@ export function portalIdentityFromProfile(
   return {
     userId: user.id,
     email: user.email ?? profile?.email ?? null,
-    customerNumber: profile?.customer_number ?? profile?.contract_customer_ref ?? null,
-    externalCustomerId: stableExternalCustomerId(profile),
+    ...portalCustomerReferences(profile),
   }
 }
 
