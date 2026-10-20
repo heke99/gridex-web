@@ -1,5 +1,6 @@
 import type { OpsPublicContractsSnapshot } from '@/lib/ops/client'
 import { supabaseService } from '@/lib/supabase/service'
+import { recordApiCache } from '@/lib/observability/apiPerformance'
 
 type SnapshotWriteResult = {
   result: string
@@ -181,10 +182,12 @@ export async function readWebsitePublicContractSnapshot(
   const { data, error } = await query.maybeSingle<StoredSnapshotRow>()
 
   if (error) {
+    recordApiCache('public_contract_snapshot', 'error')
     throw new Error(`Website public-contract snapshot read failed: ${error.message}`)
   }
-  if (!data) return null
-  return parseStoredSnapshot(data.snapshot, expected)
+  const snapshot = data ? parseStoredSnapshot(data.snapshot, expected) : null
+  recordApiCache('public_contract_snapshot', snapshot ? 'hit' : 'miss')
+  return snapshot
 }
 
 export async function storeWebsitePublicContractSnapshot(input: {

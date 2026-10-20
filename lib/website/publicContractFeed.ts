@@ -18,6 +18,7 @@ import { emitPublicContractMetrics } from '@/lib/website/publicContractObservabi
 import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
 import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
 import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
+import { observeApiOperation, recordApiCache } from '@/lib/observability/apiPerformance'
 
 const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
 const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
@@ -119,6 +120,7 @@ const readCachedPublicContractSnapshot = unstable_cache(
     _cacheIdentity: string,
     customerType: WebsiteCustomerType | null,
   ): Promise<OpsPublicContractsSnapshot> => {
+    recordApiCache('public_contract_data', 'fill')
     const stored = await readFastPublicContractSnapshot(customerType)
     if (stored) return stored
     return fetchOpsPublicContractsSnapshot(customerType)
@@ -138,8 +140,12 @@ function schedulePublicContractRevalidation(
   if (Date.now() - Date.parse(snapshot.fetched_at) < FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS) return
 
   const cacheKey = publicContractsCacheKey(customerType)
-  if (publicContractRevalidations.has(cacheKey)) return
+  if (publicContractRevalidations.has(cacheKey)) {
+    recordApiCache('public_contract_refresh', 'join')
+    return
+  }
   publicContractRevalidations.add(cacheKey)
+  recordApiCache('public_contract_refresh', 'scheduled')
 
   after(async () => {
     try {
@@ -152,17 +158,25 @@ function schedulePublicContractRevalidation(
   })
 }
 
-export async function loadWebsitePublicContractFeed(input: {
+type FeedInput = {
   context: string
   customerType?: WebsiteCustomerType | null
   forceFresh?: boolean
-}): Promise<WebsitePublicContractFeed> {
+}
+
+export async function loadWebsitePublicContractFeed(input: FeedInput): Promise<WebsitePublicContractFeed> {
+  return observeApiOperation('contracts_feed', () => readWebsitePublicContractFeed(input))
+}
+
+async function readWebsitePublicContractFeed(input: FeedInput): Promise<WebsitePublicContractFeed> {
   const customerType = input.customerType ?? null
   let snapshot: OpsPublicContractsSnapshot
 
   if (input.forceFresh) {
+    recordApiCache('public_contract_data', 'bypass')
     snapshot = await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
   } else {
+    recordApiCache('public_contract_data', 'lookup')
     snapshot = await readCachedPublicContractSnapshot(
       publicContractsCacheKey(customerType),
       customerType,

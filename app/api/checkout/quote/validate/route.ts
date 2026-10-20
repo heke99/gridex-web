@@ -1,3 +1,4 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsPublicContractsFresh, isOpsError } from '@/lib/ops/client'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
@@ -14,7 +15,7 @@ function text(value: unknown, max = 12_000): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const rate = await checkRateLimit(`quote-validate:${clientIpFromHeaders(req.headers)}`, { limit: 30, windowMs: 10 * 60_000 })
   if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
   const parsedBody = await readWebJson<Record<string, unknown>>(req)
@@ -92,4 +93,8 @@ export async function POST(req: Request) {
       headers: { 'Cache-Control': 'private, no-store' },
     })
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('quote_validation', () => handlePost(request))
 }

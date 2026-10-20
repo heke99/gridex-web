@@ -64,6 +64,7 @@ import {
 
 import type { OpsPublicContract, OpsAuthorizationProbeResult, OpsPublicContractDiagnostic, OpsWebsitePriceArea, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsWebsiteQuoteSettlement, OpsQuoteAssumption, OpsQuoteMarketSource, OpsQuoteMarketReference, OpsWebsitePricingPreview, OpsClientStatus, OpsIntegrationContext, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractFeedState, OpsEmptyFeedAuthorizationReason, OpsEmptyFeedAuthorization, OpsPublicContractsSnapshot } from './types'
 import { opsErrorCodeValue } from './portal'
+import { recordApiCache } from '@/lib/observability/apiPerformance'
 
 export function opsBaseUrl(): string {
   return getOpsApiBaseUrl()
@@ -1543,12 +1544,17 @@ export async function getVerifiedOpsIntegrationContext(forceFresh = false): Prom
   const key = opsOrganizationCacheKey();
   const now = Date.now();
   if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
+    recordApiCache('integration_context', 'hit');
     return integrationContextCache.value;
   }
   // Only this API-key/base-URL identity may share a pending public context read.
   // Fresh verification bypasses both the completed cache and pending reads.
   const pending = !forceFresh ? integrationContextRequests.get(key) : undefined;
-  if (pending) return pending;
+  if (pending) {
+    recordApiCache('integration_context', 'join');
+    return pending;
+  }
+  recordApiCache('integration_context', forceFresh ? 'bypass' : 'miss');
 
   const requestVersion = ++integrationContextRequestVersion;
   const request = (async () => {

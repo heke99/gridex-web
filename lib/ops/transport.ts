@@ -13,6 +13,7 @@ import {
 } from '@/lib/ops/config'
 import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
 import { readBoundedBytes, retryAfterMilliseconds, withAbort } from '@/lib/ops/httpSafety'
+import { recordOpsPerformance } from '@/lib/observability/apiPerformance'
 
 const DEFAULT_TIMEOUT_MS = 12_000
 const MIN_TIMEOUT_MS = 1_000
@@ -251,6 +252,11 @@ export async function opsRequest(
   const timeout = timeoutSignal(init?.signal)
   const deadline = Date.now() + timeoutMs()
   const bounded = <T>(promise: Promise<T>): Promise<T> => withAbort(promise, timeout.signal)
+  const started = performance.now()
+  let networkAttempts = 0
+  let rateLimitedResponses = 0
+  let lastStatus: number | null = null
+  let success = false
   try {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       const subject = headers.get('x-gridex-customer-portal-user-id')
@@ -263,13 +269,19 @@ export async function opsRequest(
       let response: Response
       let payload: unknown = null
       try {
+        networkAttempts += 1
         response = await bounded(fetch(requestUrl, {
           ...init, headers, signal: timeout.signal, redirect: 'manual',
           cache: options.cache ?? 'no-store',
           ...(Object.keys(nextOptions).length === 0 ? {} : { next: nextOptions }),
         }))
+        lastStatus = response.status
+        if (response.status === 429) rateLimitedResponses += 1
         if (response.status === 304) {
-          if (options.allowNotModified) return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
+          if (options.allowNotModified) {
+            success = true
+            return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
+          }
           throw new OpsError('Gridex API returnerade 304 för ett anrop som inte tillåter cacheåteranvändning.', 502, {
             code: 'ops_not_modified_unexpected', endpoint: path, status: 304, retryable: false,
           })
@@ -341,6 +353,7 @@ export async function opsRequest(
         }
         throw new OpsError(customerSafeMessage(details), response.status, details)
       }
+      success = true
       return { status: response.status, headers: new Headers(response.headers), payload, contractVersion }
     }
     throw new OpsError('Gridex API gav inget svar.', 503)
@@ -350,7 +363,13 @@ export async function opsRequest(
       code: 'ops_request_timeout', endpoint: path, retryable: true,
     })
     throw error
-  } finally { timeout.cleanup() }
+  } finally {
+    timeout.cleanup()
+    recordOpsPerformance({
+      path, method, durationMs: performance.now() - started,
+      attempts: networkAttempts, rateLimitedResponses, status: lastStatus, success,
+    })
+  }
 
 }
 

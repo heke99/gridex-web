@@ -111,6 +111,7 @@ function harness(route, { authenticated = true } = {}) {
         if (Object.hasOwn(boundaries, specifier)) return boundaries[specifier]
         if (specifier === 'next/server') return nativeRequire('next/server.js')
         if (specifier === 'node:net') return { isIP: nativeRequire('node:net').isIP }
+        if (specifier === 'node:async_hooks') return nativeRequire(specifier)
         if (specifier.startsWith('@/') || specifier.startsWith('.')) {
           const candidate = specifier.startsWith('@/')
             ? resolve(root, specifier.slice(2)) : resolve(dirname(file), specifier)
@@ -123,7 +124,7 @@ function harness(route, { authenticated = true } = {}) {
       Request, Response, Headers, ReadableStream, TextEncoder, TextDecoder,
       AbortSignal, AbortController, Uint8Array, ArrayBuffer, URL,
       Error, TypeError, RangeError, SyntaxError, crypto: webcrypto,
-      console, setTimeout, clearTimeout,
+      console, performance, setTimeout, clearTimeout,
       fetch() { throw new Error('Unexpected outbound network request') },
     }, { filename: file })
     return cjsModule.exports

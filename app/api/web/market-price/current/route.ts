@@ -1,3 +1,4 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsCurrentMarketPrice, isOpsError } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
@@ -14,7 +15,7 @@ function text(value: unknown): string | null {
   return normalized && normalized.length <= 200 ? normalized : null
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const rate = await checkRateLimit(
     `website-market-price-current:${clientIpFromHeaders(new Headers(request.headers))}`,
     { limit: 30, windowMs: 5 * 60_000 },
@@ -60,4 +61,8 @@ export async function POST(request: Request) {
       { status, headers: { 'Cache-Control': 'private, no-store' } },
     )
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('market_price', () => handlePost(request))
 }

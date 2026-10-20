@@ -33,6 +33,11 @@ genom denna cache.
 
 ## Nästa optimeringar att prioritera efter mätning
 
+Central servermätning och rapportsammanställning finns nu enligt
+[driftguiden för API-prestanda](../operations/api-performance.md). Den visar
+organisations-/snapshotcache, faktiska OPS-försök och svarstider. Next-cachefyllningar
+redovisas separat från exakta cacheträffar.
+
 1. Följ träffar/missar, antal externa uppslag, 429-svar och p50/p95 per API-route.
    Logga inte fullständiga adresser, personnummer eller signerade tokens.
 2. Mät revalidering av avtalskatalogen och rätta onödiga återhämtningar innan
