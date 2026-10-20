@@ -57,7 +57,7 @@
     "test:customer-support": "node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/customer-support-api.test.mjs && node --experimental-strip-types --experimental-loader ./tests/customer-support-handoff-loader.mjs tests/customer-support-handoff.test.mjs && node --experimental-strip-types --experimental-loader ./tests/staff-api-loader.mjs tests/support-attachment-boundary.test.mjs",
     "test:portal-existing-auth": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-existing-auth-onboarding-runtime.test.mjs",
     "test:portal-first-link": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-first-link.test.mjs && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/portal-write-response-runtime.test.mjs",
-    "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs && npm run test:web-independent && npm run test:admin-users",
+    "test:audit-hardening": "node tests/audit-lint-glob.test.mjs && node tests/audit-policy-deduplication.test.mjs && node tests/audit-hardening-sql.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-regressions-loader.mjs tests/audit-hardening-runtime.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/audit-outbox-regression.test.mjs && npm run test:web-independent && npm run test:admin-users && npm run test:admin-context && npm run test:invoice-intake",
     "release:audit:manifest": "node scripts/check-audit-release.mjs --snapshot",
     "release:audit:check": "node scripts/check-audit-release.mjs",
     "test:audit:browser": "node tests/run-audit-browser.mjs",
@@ -68,7 +68,9 @@
     "test:customer-writes": "npm run test:portal-first-link && node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/customer-consent-evidence.test.mjs && node tests/customer-write-boundary.test.mjs && node tests/customer-sync-route-evidence.test.mjs && node --experimental-strip-types --experimental-loader ./tests/audit-outbox-loader.mjs tests/portal-outbox-retry-after.test.mjs && node tests/pricing-snapshot-idempotency.test.mjs && node tests/energy-area-audit-idempotency.test.mjs",
     "test:admin-users": "node tests/admin-user-database-compatibility.test.mjs",
     "test:support:recovery": "node --experimental-strip-types --experimental-loader ./tests/support-auth-loader.mjs tests/support-password-recovery.test.mjs",
-    "test:poa-archive": "node --experimental-strip-types --experimental-loader ./tests/poa-archive-loader.mjs tests/poa-archive-consumer.test.mjs"
+    "test:poa-archive": "node --experimental-strip-types --experimental-loader ./tests/poa-archive-loader.mjs tests/poa-archive-consumer.test.mjs",
+    "test:admin-context": "node --experimental-strip-types --experimental-loader ./tests/admin-context-loader.mjs tests/admin-context-boundary.test.mjs",
+    "test:invoice-intake": "node --experimental-strip-types --experimental-loader ./tests/invoice-intake-loader.mjs tests/invoice-intake-validation.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",

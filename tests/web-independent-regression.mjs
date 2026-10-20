@@ -25,6 +25,9 @@ const policy=harness('lib/auth/passwordPolicy.ts').exports;
 const business=harness('lib/website/businessDate.ts').exports;
 const display=harness('lib/customerPortal/display.ts',{'@/lib/website/businessDate':business}).exports;
 const writes=harness('lib/customerPortal/writeResponse.ts').exports;
+const { NextResponse } = await import('next/server.js');
+const httpSafety=harness('lib/ops/httpSafety.ts',{}, {AbortSignal}).exports;
+const webBoundary=harness('lib/api/webBoundary.ts',{'next/server':{NextResponse},'../ops/httpSafety':httpSafety},{Headers,Response,TextDecoder,AbortSignal,URL}).exports;
 const memory=()=>{const map=new Map();return {map,getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)}};
 const props={site:null,userId:'test-user',latestUnreadNotificationId:'test-notification'};
 const portal=(response,storage=memory())=>harness('components/customer/CustomerPortalSelfService.tsx',{
@@ -41,10 +44,11 @@ test('recovery hides only account existence, never delivery and rate-limit failu
 });
 test('support rejects excess input before RPC and preserves the complete allowed message',async()=>{
  let calls=0;
- const h=harness('app/api/support/public/route.ts',{'next/server':{NextResponse:{json:(body,o)=>({body,status:o?.status??200})}},'next/headers':{headers:async()=>new Headers()},'@/lib/supabase/service':{supabaseService:{rpc:async(_,args)=>{calls++;assert.equal(args.p_message.length,4000);return {data:'ticket',error:null}}}},'@/lib/security/rateLimit':{clientIpFromHeaders:()=>null,checkRateLimit:async()=>({allowed:true})},'@/lib/ops/client':{hashIp:()=>null},'node:crypto':nodeCrypto},{Headers});
+ const h=harness('app/api/support/public/route.ts',{'next/server':{NextResponse},'@/lib/api/webBoundary':webBoundary,'@/lib/supabase/service':{supabaseService:{rpc:async(_,args)=>{calls++;assert.equal(args.p_message.length,4000);return {data:'ticket',error:null}}}},'@/lib/security/rateLimit':{clientIpFromHeaders:()=>null,checkRateLimit:async()=>({allowed:true})},'@/lib/ops/client':{hashIp:()=>null},'node:crypto':nodeCrypto},{Headers});
  const payload={client_operation_id:webcrypto.randomUUID(),name:'Test',email:'test@example.invalid',subject:'Test',message:'A'.repeat(4001)};
- assert.equal((await h.exports.POST({json:async()=>payload})).status,400);assert.equal(calls,0);
- payload.message='A'.repeat(4000);assert.equal((await h.exports.POST({json:async()=>payload})).status,200);assert.equal(calls,1);
+ const request=()=>new Request('https://gridex.se/api/support/public',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://gridex.se'},body:JSON.stringify(payload)});
+ assert.equal((await h.exports.POST(request())).status,400);assert.equal(calls,0);
+ payload.message='A'.repeat(4000);assert.equal((await h.exports.POST(request())).status,200);assert.equal(calls,1);
 });
 test('support retries across remount with same ID and retains it for malformed success',async()=>{
  const storage=memory(),requests=[],payload={name:'Test',email:'test@example.invalid',subject:'Test',message:'Test'};

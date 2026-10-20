@@ -15,11 +15,6 @@ type RoleRow = {
   is_active: boolean | null
 }
 
-const ADMIN_CONSOLE_PERMISSIONS = new Set<string>([
-  'admin.access',
-  'support_tickets.manage',
-])
-
 export async function getAdminContext(): Promise<AdminContext> {
   const supabase = await createSupabaseServerClient()
 
@@ -81,9 +76,7 @@ export async function getAdminContext(): Promise<AdminContext> {
 
   const isAdmin =
     roles.includes('admin') ||
-    permissions.some((permission) =>
-      ADMIN_CONSOLE_PERMISSIONS.has(permission)
-    )
+    permissions.includes('admin.access')
 
   return {
     userId: user.id,
