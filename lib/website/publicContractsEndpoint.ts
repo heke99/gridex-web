@@ -1,3 +1,4 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { isOpsError, getOpsClientStatus } from '@/lib/ops/client'
@@ -76,7 +77,7 @@ function publicError(error: unknown): { status: number; code: string; state: str
   }
 }
 
-export async function publicContractsResponse(request: Request) {
+async function handlePublicContractsResponse(request: Request) {
   const requestId = request.headers.get('x-request-id')?.trim() || randomUUID()
   const correlationId = request.headers.get('x-correlation-id')?.trim() || requestId
   const filter = customerType(request)
@@ -156,4 +157,8 @@ export async function publicContractsResponse(request: Request) {
       { status: mapped.status },
     )
   }
+}
+
+export async function publicContractsResponse(request: Request) {
+  return observeApiOperation('contracts_endpoint', () => handlePublicContractsResponse(request))
 }

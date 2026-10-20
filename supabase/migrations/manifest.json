@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-07T09:59:58.633Z",
-  "migration_count": 46,
+  "generated_at": "2026-10-20T19:18:27.432Z",
+  "migration_count": 50,
   "version_collisions": [],
   "migrations": [
     {
@@ -233,6 +233,26 @@
       "file": "20261007095931_web_customer_release_readiness.sql",
       "version": "20261007095931",
       "sha256": "f6b57b468a469b9fd458755302b825d16a0a5243efb654bf9af2062fc5178ee2"
+    },
+    {
+      "file": "20261020095158_customer_privacy_requests.sql",
+      "version": "20261020095158",
+      "sha256": "42359c66b05d77e357379d88b43a7fa377696a583385d1d122ed1b73047b301a"
+    },
+    {
+      "file": "20261020104944_customer_registration_default_role.sql",
+      "version": "20261020104944",
+      "sha256": "09052b4c936fe2056bc6a62fa7d39a7562fa1c6077d540995ddd97713f703f73"
+    },
+    {
+      "file": "20261020105722_unlinked_customer_privacy_requests.sql",
+      "version": "20261020105722",
+      "sha256": "2f3c1eeebb95b4655c62fd7ec85af961b6e85b3529d7d34485f057199ff9ae8e"
+    },
+    {
+      "file": "20261020190229_public_contract_snapshot_revision_race.sql",
+      "version": "20261020190229",
+      "sha256": "8eef2b7c29e12a39994d67e828529d36ca435ba8fcc1c6b47c413bd42f2f4586"
     }
   ]
 }

@@ -1,0 +1,92 @@
+{
+  "checked_at": "2026-10-18T17:53:47.363518+00:00",
+  "domain": "support123.gridex.se",
+  "old_project_id": "prj_M9CISqPbBmmX7L83lvqiAJDJfhGS",
+  "old_association_exists": false,
+  "target_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
+  "target_association_created": true,
+  "verified": true,
+  "verification_attempt": {
+    "status": 200,
+    "verified": true
+  },
+  "alias_assignment_attempt": {
+    "status": 200,
+    "deployment_id": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+    "project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8"
+  },
+  "public_https": {
+    "status": 200,
+    "final_url": "https://support123.gridex.se/login",
+    "deployment_id": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+    "heading": "Logga in",
+    "inputs": [
+      {
+        "type": "hidden",
+        "name": "$ACTION_REF_1"
+      },
+      {
+        "type": "hidden",
+        "name": "$ACTION_1:0"
+      },
+      {
+        "type": "hidden",
+        "name": "$ACTION_1:1"
+      },
+      {
+        "type": "hidden",
+        "name": "$ACTION_KEY"
+      },
+      {
+        "type": "email",
+        "name": "email"
+      },
+      {
+        "type": "password",
+        "name": "password"
+      }
+    ],
+    "tls": "System CA verified"
+  },
+  "dns": {
+    "service_type": "external",
+    "nameservers": [
+      "docks01.rzone.de",
+      "shades02.rzone.de"
+    ],
+    "routing_misconfigured": false,
+    "expected_record": {
+      "type": "TXT",
+      "name": "_vercel.gridex.se",
+      "value": "vc-domain-verify=support123.gridex.se,1c940708e74e16620520"
+    },
+    "public_txt_lookup": "Expected new TXT value resolves exactly after the operator removed the trailing dot.",
+    "changed_by_this_task": false,
+    "observed_new_value": "vc-domain-verify=support123.gridex.se,1c940708e74e16620520",
+    "exact_match": true,
+    "resolvers_checked": [
+      "dns.google"
+    ],
+    "extra_dot_present": false,
+    "changed_by_user": true
+  },
+  "ready_target_deployment": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+  "next_action": "Infrastructure reassociation complete. Real owner login and explicitly requested invitation/business writes remain separate production qualification.",
+  "marketing_protection": {
+    "final_host": "vercel.com",
+    "sso_gate_retained": true
+  },
+  "status": "PASS_PERMANENT_SUPPORT_DOMAIN_ASSOCIATION_AND_PUBLIC_LOGIN",
+  "ready_target_authorized_https_status": 200,
+  "browser": {
+    "checks": 3,
+    "application_errors": 0,
+    "evidence": "quality/support123/live-evidence-20261018-domain-final/browser-verification.json",
+    "real_account_login": false
+  },
+  "resolved_history": [
+    "New ownership challenge required after old marketing project association removal.",
+    "New external TXT initially had a literal trailing dot; user corrected it.",
+    "Vercel verified the corrected challenge; alias assigned and persistent/active project IDs independently read back."
+  ]
+}

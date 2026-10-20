@@ -8,6 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const targets = [
   ['docs/openapi/website-integration-v1.json', 'lib/ops/generated/website-api.d.ts'],
   ['docs/openapi/customer-portal-v1.json', 'lib/ops/generated/customer-portal-api.d.ts'],
+  ['docs/openapi/staff-v1.json', 'lib/ops/generated/staff-api.d.ts'],
 ]
 
 function quoteKey(key) {
@@ -152,6 +153,12 @@ async function generate(inputPath, outputPath) {
   const version = document.info?.version ?? 'unknown'
   const text = `/**\n * Generated from ${inputPath}.\n * Contract version: ${version}.\n * Source SHA-256: ${sourceHash}.\n * Run \`npm run api:refresh\` after the public OpenAPI documents change.\n */\n\nexport interface paths {\n${pathsType(document.paths, document)}\n}\n\nexport interface components {\n  schemas: {\n${schemas}\n  }\n}\n\nexport type operations = Record<string, never>\n`
   await writeFile(output, text)
+  if (inputPath.endsWith('/staff-v1.json')) {
+    await writeFile(resolve(root, 'lib/staff-api/contract.json'), `${JSON.stringify({
+      documentation_version: version, runtime_version: document['x-contract-schema-version'], source_sha256: sourceHash,
+      components: document.components,
+    }, null, 2)}\n`)
+  }
   console.log(`generated ${outputPath} (${version})`)
 }
 

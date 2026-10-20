@@ -20,6 +20,7 @@ export type PortalOutboxOperation =
   | 'customer_portal_sync'
   | 'move_out'
   | 'facility_data_update'
+  | 'privacy_request'
 
 export class PortalOutboxConflictError extends Error {
   readonly status = 409
@@ -86,6 +87,15 @@ function backoffMinutes(attempt: number): number {
   return Math.min(12 * 60, Math.max(1, 2 ** Math.min(attempt, 9)))
 }
 
+function opsRetryAfterMilliseconds(error: unknown): number {
+  if (!isOpsError(error)) return 0
+  const details = recordPayload(error.details)
+  const seconds = details?.retry_after_seconds ?? recordPayload(details?.error)?.retry_after_seconds
+  return typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
+    ? seconds * 1_000
+    : 0
+}
+
 export async function enqueuePortalWrite(input: {
   userId: string
   operationType: PortalOutboxOperation
@@ -124,7 +134,11 @@ export async function enqueuePortalWrite(input: {
   if (!sameOperation) throw new PortalOutboxConflictError()
 }
 
-async function dispatch(row: OutboxRow): Promise<void> {
+async function dispatch(row: OutboxRow, supabase: ReturnType<typeof serviceClient>): Promise<string | void> {
+  if (row.operation_type === 'privacy_request') {
+    const { dispatchPrivacyRequest } = await import('./privacyDispatch')
+    return dispatchPrivacyRequest(row, supabase)
+  }
   const operationId = typeof row.payload.operation_id === 'string'
     ? row.payload.operation_id
     : row.idempotency_key
@@ -259,30 +273,43 @@ export async function processPortalWriteOutbox(limit = 50) {
     if (!claimed.data) continue
 
     try {
-      await dispatch({ ...row, attempt_count: attempt })
-      const { data: completedRow, error: completeError } = await supabase
-        .from('customer_portal_write_outbox')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_error_code: null,
-          last_error_message: null,
+      const receipt = await dispatch({ ...row, attempt_count: attempt }, supabase)
+      if (row.operation_type === 'privacy_request') {
+        const { data: completedReceipt, error: receiptError } = await supabase.rpc('gridex_complete_privacy_request_v1', {
+          p_outbox_id: row.id, p_attempt: attempt, p_locked_at: now, p_case_reference: receipt,
         })
-        .eq('id', row.id)
-        .eq('status', 'processing')
-        .eq('attempt_count', attempt)
-        .eq('last_attempt_at', now)
-        .select('id')
-        .maybeSingle<{ id: string }>()
-      if (completeError) throw new Error(completeError.message)
-      if (!completedRow?.id) throw new Error('Outbox completion state was lost to a concurrent worker.')
+        if (receiptError || completedReceipt !== true) throw new Error('Privacy receipt lease or atomic completion was lost.')
+      } else {
+        const { data: completedRow, error: completeError } = await supabase
+          .from('customer_portal_write_outbox')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_error_code: null,
+            last_error_message: null,
+          })
+          .eq('id', row.id)
+          .eq('status', 'processing')
+          .eq('attempt_count', attempt)
+          .eq('last_attempt_at', now)
+          .select('id')
+          .maybeSingle<{ id: string }>()
+        if (completeError) throw new Error(completeError.message)
+        if (!completedRow?.id) throw new Error('Outbox completion state was lost to a concurrent worker.')
+      }
       completed += 1
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)
       const permanent = isOpsError(dispatchError) && !dispatchError.retryable
       const maxAttempts = Math.max(1, row.max_attempts ?? 10)
-      const deadLetter = permanent || attempt >= maxAttempts
+      const nextAttemptAt = Math.ceil(Date.now() + Math.max(
+        backoffMinutes(attempt) * 60_000, opsRetryAfterMilliseconds(dispatchError),
+      ))
+      // A server hold that cannot be represented in the durable schedule must
+      // require manual review, never an earlier retry or an invalid SQL date.
+      const unschedulable = !Number.isSafeInteger(nextAttemptAt) || nextAttemptAt > Date.parse('9999-12-31T00:00:00.000Z')
+      const deadLetter = permanent || attempt >= maxAttempts || unschedulable
       const failedAt = new Date().toISOString()
       const { data: failedRow, error: failureStateError } = await supabase
         .from('customer_portal_write_outbox')
@@ -290,7 +317,7 @@ export async function processPortalWriteOutbox(limit = 50) {
           status: deadLetter ? 'dead_letter' : 'failed',
           next_attempt_at: deadLetter
             ? new Date('9999-12-31T00:00:00.000Z').toISOString()
-            : new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString(),
+            : new Date(nextAttemptAt).toISOString(),
           dead_letter_at: deadLetter ? failedAt : null,
           updated_at: failedAt,
           last_http_status: isOpsError(dispatchError) ? dispatchError.status : null,

@@ -9,6 +9,7 @@ import {
 import { signLocalStaffAssertion } from "../../../lib/staff-api/assertion";
 import type { FormState } from "../components/ActionForm";
 import { createSupportAuthClient } from "./session";
+import { readBoundedBytes, withAbort } from "../../../lib/ops/httpSafety";
 
 export type InvitationDependencies = {
   authClient: () => Promise<SupabaseClient>;
@@ -33,7 +34,7 @@ function verifiedUser(
     Number.isFinite(Date.parse(user.email_confirmed_at))
   );
 }
-async function boundedJson(response: Response): Promise<unknown> {
+async function boundedJson(response: Response, signal: AbortSignal): Promise<unknown> {
   if (
     !response.body ||
     !response.headers
@@ -43,24 +44,7 @@ async function boundedJson(response: Response): Promise<unknown> {
     Number(response.headers.get("content-length") ?? "0") > 16_384
   )
     throw new Error("Invalid onboarding response");
-  const reader = response.body.getReader(),
-    chunks: Uint8Array[] = [];
-  let bytes = 0;
-  try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      bytes += chunk.value.byteLength;
-      if (bytes > 16_384) {
-        await reader.cancel();
-        throw new Error("Invalid onboarding response");
-      }
-      chunks.push(chunk.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return JSON.parse(Buffer.from(await withAbort(readBoundedBytes(response, 16_384, signal), signal)).toString("utf8"));
 }
 
 /** All account and membership effects occur on explicit Server Action POST only. */
@@ -152,7 +136,7 @@ export async function submitSupportInvitation(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
-      const response = await (dependencies.fetchImpl ?? fetch)(
+      const response = await withAbort((dependencies.fetchImpl ?? fetch)(
         ONBOARDING_ENDPOINT,
         {
           method: "POST",
@@ -173,13 +157,13 @@ export async function submitSupportInvitation(
           },
           body: JSON.stringify({ invitation_token: token }),
         },
-      );
+      ), controller.signal);
       if (
         response.status !== 200 ||
         response.headers.get("x-gridex-project-ref") !== config.opsProjectRef
       )
         return { error: FAILURE };
-      const payload = (await boundedJson(response)) as {
+      const payload = (await boundedJson(response, controller.signal)) as {
         data?: { status?: unknown };
         request_id?: unknown;
         contract_schema_version?: unknown;

@@ -15,6 +15,7 @@ export async function GET(
         "Content-Disposition": file.contentDisposition ?? "attachment",
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
       },
     });
   } catch (error) {

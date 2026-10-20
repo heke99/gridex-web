@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { supabaseService } from '@/lib/supabase/service'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { hashIp } from '@/lib/ops/client'
 import { createHash } from 'node:crypto'
+import { readWebJson } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,8 +30,20 @@ function isEmail(value: string): boolean {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as PublicSupportPayload
-    const h = await headers()
+    const parsed = await readWebJson<unknown>(req, { maxBytes: 24 * 1024 })
+    if (!parsed.ok) {
+      const result = await parsed.response.json()
+      return NextResponse.json({ error: result.error.message }, { status: parsed.response.status, headers: parsed.response.headers })
+    }
+    if (!parsed.value || typeof parsed.value !== 'object' || Array.isArray(parsed.value)) {
+      return NextResponse.json({ error: 'Begäran måste vara ett JSON-objekt.' }, { status: 400 })
+    }
+    const body = parsed.value as PublicSupportPayload
+    const allowedFields = new Set(['client_operation_id', 'name', 'email', 'phone', 'category', 'subject', 'message', 'website'])
+    if (Object.keys(body).some(field => !allowedFields.has(field))) {
+      return NextResponse.json({ error: 'Begäran innehåller okända fält.' }, { status: 400 })
+    }
+    const h = req.headers
 
     const honeypot = asText(body.website, 200)
     if (honeypot) {

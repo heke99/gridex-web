@@ -5,6 +5,7 @@ import {
   type ExternalInvoicePayload,
 } from '@/lib/integrations/invoices'
 import { supabaseService } from '@/lib/supabase/service'
+import { readWebJson } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -22,8 +23,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const payload = (await req.json()) as ExternalInvoicePayload
-    const result = await importExternalInvoice(supabaseService, payload)
+    const parsed = await readWebJson<ExternalInvoicePayload>(req, { maxBytes: 256 * 1024, requireSameOrigin: false })
+    if (!parsed.ok) {
+      const body = await parsed.response.json()
+      return NextResponse.json({ error: body.error.message }, { status: parsed.response.status, headers: parsed.response.headers })
+    }
+    const result = await importExternalInvoice(supabaseService, parsed.value)
 
     return NextResponse.json({
       ok: true,

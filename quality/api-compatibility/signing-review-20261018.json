@@ -1,0 +1,259 @@
+{
+  "checked_at": "2026-10-18T19:22:18.980412+00:00",
+  "status": "WEB_FIXES_PUBLISHED_LIVE_PREVIEW_PASS_AGREEMENT_PDF_DELIVERED_POA_DOCUMENT_NOT_AVAILABLE",
+  "guide": "https://app.gridex.se/developers/customer-portal-api",
+  "documentation_version": "2026-10-12.1",
+  "runtime_version": "2026-10-09.1",
+  "reviewed_base_commit": "3148745",
+  "production_marketing": {
+    "observed_aliases": [
+      "gridex.se",
+      "www.gridex.se"
+    ],
+    "deployment_id": "dpl_GHAv3SEErU8VCrJV3i1qSYix8cDG",
+    "ready_state": "READY",
+    "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+    "new_fixes_deployed": true,
+    "vercel_protection": "enabled for all deployments; ordinary unauthenticated request redirects to Vercel login",
+    "authenticated_production_functional_probe": "Automatic approval review denied connector access because it may create/reuse a protection bypass; no workaround attempted. Identical source verified in protected preview, production readiness/source/aliases and anonymous protection verified."
+  },
+  "current_ops_alias_deployment": "dpl_3CgvvFjSdJ2uauzzXPnFRzJ9PXBz",
+  "findings": [
+    {
+      "id": "W1",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "file": "lib/customerPortal/writeValidation.ts",
+      "issue": "Customer sync drops signer_name, signer_identity_number, method, ip_address and user_agent.",
+      "impact": "Previous code lost required evidence; complete original evidence is now preserved. A separately authorized real Website application and delivery were verified.",
+      "remediation": "Preserve trusted original signing evidence with stable acceptance time/IP across retries; do not trust browser-supplied IP or BankID metadata.",
+      "original_proof": "Direct local call of syncPowerOfAttorney with all five fields returns none of them.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
+    },
+    {
+      "id": "W2",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "file": "lib/customerPortal/writeValidation.ts",
+      "issue": "Omitted accepted flag becomes accepted:true.",
+      "impact": "Outgoing sync payload can claim explicit acceptance absent from its input. This does not prove a successful external signature or delivery.",
+      "remediation": "Require explicit acceptance and return a field-level validation error for incomplete evidence.",
+      "original_proof": "Remove accepted from an otherwise normalizable synthetic input: actual normalizer returns accepted:true.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
+    },
+    {
+      "id": "W3",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "files": [
+        "app/api/web/customer/sync/route.ts",
+        "app/api/web/customer-portal/sync/route.ts",
+        "app/api/web/customer/profile-update/route.ts",
+        "app/api/web/customer/move-out/route.ts",
+        "app/api/web/customer/notifications/read/route.ts",
+        "app/api/web/market-price/current/route.ts"
+      ],
+      "issue": "Direct JSON reading omits the shared application byte limit, read deadline, MIME and origin checks.",
+      "impact": "Application-level hardening coverage is incomplete; no CSRF exploit or bypass of platform request limits is claimed.",
+      "remediation": "Use the common bounded reader while preserving authentication and original operation keys.",
+      "original_proof": "Source inspection: direct req.json/request.json; no equivalent global proxy controls.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
+    },
+    {
+      "id": "W4",
+      "severity": "low",
+      "status": "FIXED_AND_PUBLISHED",
+      "issue": "Two published specifications changed descriptive signing/IP text under the same version.",
+      "validation_rules_changed": false,
+      "original_proof": "Initial live drift check failed; manifest-verified sync and subsequent exact live check pass.",
+      "current_verification": "Behavioral regression coverage; see current report and test evidence."
+    },
+    {
+      "id": "W5",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "file": "lib/customerPortal/outbox.ts",
+      "issue": "Durable retries shortened OPS Retry-After to local exponential backoff.",
+      "original_proof": "Actual worker scheduled a two-hour OPS wait after two minutes, for both root and nested retry guidance.",
+      "current_verification": "Six actual-worker behavior tests: root/nested long hold, invalid/missing guidance, shorter guidance, permanent error and unschedulable hold."
+    },
+    {
+      "id": "W6",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "file": "lib/website/pricingSnapshotStore.ts",
+      "issue": "Replaying an identical canonical quote failed with a pricing snapshot unique-key error; idempotent renewal could silently ignore conflicting content.",
+      "proof": "Live preview returned 200 then503 for the same quote_attempt_id. Runtime log confirmed duplicate pricing_snapshot_reference.",
+      "fix": "On duplicate, read and verify original quote, offer, customer type, calculation hash and totals, preserve first audit row; reject conflicts or unavailable original.",
+      "verification": "18 actual persistence behavior tests; final live preview retest recorded separately."
+    },
+    {
+      "id": "W7",
+      "severity": "medium",
+      "status": "FIXED_AND_PUBLISHED",
+      "file": "lib/website/energyAreaStore.ts",
+      "issue": "A cached canonical OPS address resolution failed a duplicate audit comparison when PostgreSQL normalized its timestamp or transport request/correlation IDs changed.",
+      "fix": "Compare canonical identity, address, area and assurance, normalize equivalent instants/numbers, preserve the first raw-response hash and audit time; reject business/evidence collisions.",
+      "verification": "13 actual persistence behavior tests; final live preview retest recorded separately."
+    }
+  ],
+  "checks": [
+    {
+      "command": "npm test",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run test:support",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run typecheck:support",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run verify:delivery",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run api:check:live",
+      "result": "PASS"
+    },
+    {
+      "command": "scoped ESLint --max-warnings 0",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build -- --webpack",
+      "result": "PASS",
+      "detail": "Sandbox child-process EPERM required the ordinary local build to run with child processes permitted."
+    },
+    {
+      "command": "new customer write and outbox behavioral regressions",
+      "result": "PASS",
+      "tests": 93
+    }
+  ],
+  "website_evidence_probe": {
+    "status": "PASS_SYNTHETIC_WEBSITE_EVIDENCE_PROBE",
+    "checks": [
+      "Original IP and user agent preserved across repeated immutable submission",
+      "Original server acceptance timestamp preserved",
+      "Website payload builder preserves original IP, time, user agent, consent method and exact textVersionId"
+    ],
+    "production_data": false,
+    "production_writes": 0
+  },
+  "customer_sync_behavior_probe": {
+    "result": "REGRESSIONS_FIXED",
+    "explicit_acceptance_required": true,
+    "original_server_evidence_persisted": true,
+    "new_behavioral_tests": 93,
+    "fixtures": "tests/customer-consent-evidence.test.mjs, tests/customer-write-boundary.test.mjs, tests/customer-sync-route-evidence.test.mjs"
+  },
+  "new_sha256": {
+    "staff": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
+    "website": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
+    "customer_portal": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185"
+  },
+  "pdf_verification_number": {
+    "owner": "OPS",
+    "documentation_requires": "Current guide documents POA reads and separate Partner PDF upload; it does not promise automatic Website POA PDF or an independent verification number. Earlier descriptive wording changed within the same version.",
+    "website_generates_number": false,
+    "live_pdf_retrieved": false,
+    "real_signature_or_email_tested": true,
+    "customer_portal_has_separate_number_display": false,
+    "live_agreement_pdf_retrieved": true,
+    "live_poa_pdf_retrieved": false,
+    "current_guide_reread": true
+  },
+  "bankid": {
+    "website_method": "website_acceptance",
+    "public_provider_enabled": false,
+    "optional_in_documentation": true
+  },
+  "false_positive_controls": [
+    "Vercel documents x-forwarded-for as overwritten by default; helper mismatch alone does not prove spoofing.",
+    "The legacy local PDF generator has no caller found in app/lib/tests and is not the canonical Website PDF archive.",
+    "Description drift does not imply a breaking request-schema change."
+  ],
+  "limits": [
+    "Separate POA PDF and independent verification number are not available for the test through the documented Partner read. Current Website/Customer description does not promise automatic generation. This user requirement remains unresolved in OPS; website does not fabricate these artifacts.",
+    "No real electricity facility was used; supplier switch was not created. Test identities are not BankID-verified.",
+    "Full live database/RLS/query-plan/load audit not performed."
+  ],
+  "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
+  "previous_review_checked_at": "2026-10-18T18:06:57.062328+00:00",
+  "endpoint_inventory": {
+    "artifact": "quality/api-compatibility/endpoint-review-20261018.json",
+    "operations": 142,
+    "distinct_method_path_pairs": 117
+  },
+  "database_configuration": {
+    "new_migration_required": false,
+    "outbox_columns_unique_key_and_rls_verified": true,
+    "service_role_can_select_insert_update": true,
+    "ordinary_roles_have_no_outbox_row_policy": true,
+    "website_client_active_and_scopes_verified": true,
+    "website_client_rate_limit_per_minute": 120,
+    "cron_authentication_configured": true
+  },
+  "live_customer_test": {
+    "authorized_by_user": true,
+    "real_application_explicitly_approved": true,
+    "private_fixture_identifiers_omitted": true,
+    "canonical_test_customer_marked": true,
+    "real_facility_used": false,
+    "agreement_status": "signed",
+    "poa_status": "signed",
+    "workflow_state": "canonical_data_committed",
+    "same_application_contract_and_signature_hash_on_replay": true,
+    "original_ip_fingerprint_matches_persisted_poa": true,
+    "legal_bundle_exact": true,
+    "signed_scopes": [
+      "supplier_switch"
+    ],
+    "supplier_switch_created": false,
+    "email_events_delivered": [
+      "contract.application_received",
+      "contract.confirmation_sent",
+      "contract.cooling_off_sent"
+    ],
+    "provider_independently_confirmed_delivery_and_recipient": true,
+    "agreement_pdf": {
+      "provider_attachment_bytes": 4437,
+      "pages": 2,
+      "valid_pdf": true,
+      "provider_file_matches_exact_queued_bytes": true,
+      "contains_contract_number": true,
+      "signature_evidence": "Stored separately in OPS; agreement PDF states this explicitly."
+    },
+    "power_of_attorney_archive": {
+      "format": "JSON",
+      "pdf_generated": false,
+      "verification_number_present": false,
+      "document_checksum_present": false,
+      "qualification": "Partner GET using this surface's own customer/site references returned 200 with file_base64:null and file_extension:null. No POA PDF or independent verification number is available from this tested route; current guide does not explicitly promise automatic Website PDF generation.",
+      "documented_partner_read_status": 200
+    },
+    "temporary_client_revoked": true,
+    "initial_preview_share_access_revoked": true,
+    "historical_approval_rejection": "Resolved by explicit user approval before the real application was submitted.",
+    "temporary_test_share_links_revoked": true
+  },
+  "live_preview_verification": {
+    "deployment_id": "dpl_5VRBKoR1u81N1Gzv6kSYk6mGRc4x",
+    "source_commit": "ffa37ac4d34f320d2fe98110961a82bf3fc69403",
+    "evidence": "quality/api-compatibility/live-web-verification-20261018.json",
+    "result": "PASS",
+    "protected_preview_only": true
+  },
+  "latest_reaudit": "quality/api-compatibility/full-reaudit-20261018.json"
+}

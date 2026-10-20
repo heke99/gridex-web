@@ -25,6 +25,9 @@ const policy=harness('lib/auth/passwordPolicy.ts').exports;
 const business=harness('lib/website/businessDate.ts').exports;
 const display=harness('lib/customerPortal/display.ts',{'@/lib/website/businessDate':business}).exports;
 const writes=harness('lib/customerPortal/writeResponse.ts').exports;
+const { NextResponse } = await import('next/server.js');
+const httpSafety=harness('lib/ops/httpSafety.ts',{}, {AbortSignal}).exports;
+const webBoundary=harness('lib/api/webBoundary.ts',{'next/server':{NextResponse},'../ops/httpSafety':httpSafety},{Headers,Response,TextDecoder,AbortSignal,URL}).exports;
 const memory=()=>{const map=new Map();return {map,getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)}};
 const props={site:null,userId:'test-user',latestUnreadNotificationId:'test-notification'};
 const portal=(response,storage=memory())=>harness('components/customer/CustomerPortalSelfService.tsx',{
@@ -41,10 +44,11 @@ test('recovery hides only account existence, never delivery and rate-limit failu
 });
 test('support rejects excess input before RPC and preserves the complete allowed message',async()=>{
  let calls=0;
- const h=harness('app/api/support/public/route.ts',{'next/server':{NextResponse:{json:(body,o)=>({body,status:o?.status??200})}},'next/headers':{headers:async()=>new Headers()},'@/lib/supabase/service':{supabaseService:{rpc:async(_,args)=>{calls++;assert.equal(args.p_message.length,4000);return {data:'ticket',error:null}}}},'@/lib/security/rateLimit':{clientIpFromHeaders:()=>null,checkRateLimit:async()=>({allowed:true})},'@/lib/ops/client':{hashIp:()=>null},'node:crypto':nodeCrypto},{Headers});
+ const h=harness('app/api/support/public/route.ts',{'next/server':{NextResponse},'@/lib/api/webBoundary':webBoundary,'@/lib/supabase/service':{supabaseService:{rpc:async(_,args)=>{calls++;assert.equal(args.p_message.length,4000);return {data:'ticket',error:null}}}},'@/lib/security/rateLimit':{clientIpFromHeaders:()=>null,checkRateLimit:async()=>({allowed:true})},'@/lib/ops/client':{hashIp:()=>null},'node:crypto':nodeCrypto},{Headers});
  const payload={client_operation_id:webcrypto.randomUUID(),name:'Test',email:'test@example.invalid',subject:'Test',message:'A'.repeat(4001)};
- assert.equal((await h.exports.POST({json:async()=>payload})).status,400);assert.equal(calls,0);
- payload.message='A'.repeat(4000);assert.equal((await h.exports.POST({json:async()=>payload})).status,200);assert.equal(calls,1);
+ const request=()=>new Request('https://gridex.se/api/support/public',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://gridex.se'},body:JSON.stringify(payload)});
+ assert.equal((await h.exports.POST(request())).status,400);assert.equal(calls,0);
+ payload.message='A'.repeat(4000);assert.equal((await h.exports.POST(request())).status,200);assert.equal(calls,1);
 });
 test('support retries across remount with same ID and retains it for malformed success',async()=>{
  const storage=memory(),requests=[],payload={name:'Test',email:'test@example.invalid',subject:'Test',message:'Test'};
@@ -101,6 +105,15 @@ test('beacon rejection uses fetch fallback without interrupting click',()=>{
 test('dashboard repair retains intent and does not reset while pending',async()=>{
  let resets=0;const ids=[];
  const h=harness('app/dashboard/error.tsx',{'@/lib/customerPortal/writeResponse':writes},{fetch:async(_,r)=>{ids.push(JSON.parse(r.body).client_operation_id);return ok({data:{ok:false,status:'pending_review'}})}});
- for(let i=0;i<2;i++)await nodes(h.render({reset:()=>resets++})).find(n=>n.type==='button').props.onClick();
+ for(let i=0;i<2;i++)await nodes(h.render({retry:()=>resets++})).find(n=>n.type==='button').props.onClick();
  assert.equal(h.states[0],'pending');assert.equal(resets,0);assert.equal(ids[0],ids[1]);
+});
+test('dashboard retry re-fetches without a write; only confirmed repair retries the data read',async()=>{
+ let retries=0,requests=0;
+ const h=harness('app/dashboard/error.tsx',{'@/lib/customerPortal/writeResponse':writes},{fetch:async()=>{requests++;return ok({data:{ok:true,status:'linked',synced:{access_granted:true}}})}});
+ const props={retry:()=>retries++};
+ nodes(h.render(props)).find(n=>n.type==='button'&&text(n)==='Försök igen').props.onClick();
+ assert.equal(retries,1);assert.equal(requests,0);
+ await nodes(h.render(props)).find(n=>n.type==='button'&&text(n)==='Uppdatera kopplingen').props.onClick();
+ assert.equal(retries,2);assert.equal(requests,1);
 });

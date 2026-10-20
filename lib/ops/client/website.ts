@@ -20,6 +20,7 @@ import {
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import { isCompatibleAdditiveResponseSchemaError } from '@/lib/ops/schemaCompatibility'
+import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   env,
   getOpsApiBaseUrl,
@@ -59,6 +60,7 @@ import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContract
 import {
   readWebsitePublicContractSnapshot,
   storeWebsitePublicContractSnapshot,
+  maxWebsitePublicContractSnapshotAgeMs,
 } from '@/lib/website/publicContractSnapshotStore'
 
 import type { OpsWebsiteQuoteRequestDto, OpsWebsiteQuoteValidationRequestDto, OpsCurrentMarketPriceResponseDto, OpsCustomerApplicationStatusDto, OpsWebsiteEnergyAreaResolveResponseDto, OpsWebsiteEnergyAreaResolutionDto, OpsSwitchStatusDto, OpsPublicContract, OpsPublicContractDiagnostics, OpsLegalText, OpsWebsitePriceArea, OpsWebsiteEnergyResolutionInput, OpsResolutionBlocker, OpsResolutionSource, OpsPriceAreaAssuranceStatus, OpsPriceAreaAssuranceSource, OpsPriceAreaAssurance, OpsWebsiteEnergyResolution, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsWebsiteQuoteValidationInput, OpsWebsiteQuoteValidation, OpsWebsitePricingPreview, OpsCurrentMarketPrice, OpsWebsitePortfolioPrices, OpsWebsiteApplicationStatus, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractsSnapshot } from './types'
@@ -533,7 +535,7 @@ export async function fetchOpsCurrentMarketPrice(
       retryable: false,
     })
   }
-  if (normalizeText(response.contract_schema_version) !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(normalizeText(response.contract_schema_version))) {
     throw new OpsError('OPS marknadspris använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_market_price_contract_version_mismatch',
       endpoint,
@@ -697,7 +699,7 @@ export async function fetchOpsWebsitePortfolioPrices(input: {
     })
   }
 
-  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(contractVersion)) {
     throw new OpsError('OPS portfoliorespons använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_portfolio_contract_version_mismatch',
       endpoint: '/api/v1/website/portfolio-prices',
@@ -822,6 +824,7 @@ export function integrationContextSnapshotFallbackEligible(error: unknown): bool
 
 export async function persistentPublicContractsCacheEntry(
   cacheKey: string,
+  options: { forRevalidationOnly?: boolean } = {},
 ): Promise<PublicContractsCacheEntry | null> {
   let organizationReference: string | null = null
   try {
@@ -848,6 +851,7 @@ export async function persistentPublicContractsCacheEntry(
       contractVersion: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
       parserVersion: CONTRACT_PARSER_VERSION,
       schemaSha256: WEBSITE_OPENAPI_SCHEMA_SHA256,
+      ...(options.forRevalidationOnly ? { maxAgeMs: 86_400_000 } : {}),
     })
     if (!snapshot) return null
     const entry: PublicContractsCacheEntry = { ...snapshot, cache_key: cacheKey }
@@ -861,14 +865,39 @@ export async function persistentPublicContractsCacheEntry(
   }
 }
 
+function publicContractOpaqueEtag(value: string | null): string | null {
+  // If-None-Match uses weak comparison (RFC9110§13.1.2). CDN compression
+  // may add W/ to the200 tag while the origin's304 retains its strong form.
+  return value?.match(/^(?:W\/)?("[\x21\x23-\x7E\x80-\xFF]*")$/)?.[1] ?? null
+}
+
 export async function fetchOpsPublicContractsSnapshot(
   customerType?: WebsiteCustomerType | null,
-  options: { forceFresh?: boolean } = {},
+  options: { forceFresh?: boolean; allowStaleFallback?: boolean } = {},
 ): Promise<OpsPublicContractsSnapshot> {
   const cacheKey = publicContractsCacheKey(customerType)
+  // Quote checks can use a live304, but must never continue on outage data.
+  // forceFresh retains its separate unconditional/no-candidate semantics.
+  const allowStaleFallback = !options.forceFresh && options.allowStaleFallback !== false
   let cached = options.forceFresh ? undefined : publicContractsCache.get(cacheKey)
+  // An ETag may verify an older representation without serving it. Keep the
+  // bounded validation candidate separate from the much shorter outage budget.
+  if (cached && (!Number.isFinite(Date.parse(cached.fetched_at)) || Date.now() - Date.parse(cached.fetched_at) > 86_400_000)) {
+    publicContractsCache.delete(cacheKey)
+    cached = undefined
+  }
   if (!options.forceFresh && !cached) {
-    cached = (await persistentPublicContractsCacheEntry(cacheKey)) ?? undefined
+    cached = (await persistentPublicContractsCacheEntry(cacheKey, { forRevalidationOnly: true })) ?? undefined
+  }
+  const withinFallbackBudget = (entry: PublicContractsCacheEntry) =>
+    Date.now() - Date.parse(entry.fetched_at) <= maxWebsitePublicContractSnapshotAgeMs()
+  const eligibleFallback = async (): Promise<PublicContractsCacheEntry | undefined> => {
+    // Recheck at the failure/return boundary, after network or persistence I/O.
+    // Another invocation may have durably renewed this entry since our memory
+    // copy was read; its successful atomic write must remain usable.
+    if (cached && withinFallbackBudget(cached)) return cached
+    const latest = await persistentPublicContractsCacheEntry(cacheKey)
+    return latest && withinFallbackBudget(latest) ? latest : undefined
   }
 
   const headers = new Headers()
@@ -888,8 +917,11 @@ export async function fetchOpsPublicContractsSnapshot(
       },
     )
   } catch (error) {
-    if (!options.forceFresh && cached && publicContractsFallbackEligible(error)) {
-      return snapshotFromCacheEntry(cached, {
+    const fallbackCached = allowStaleFallback && publicContractsFallbackEligible(error)
+      ? await eligibleFallback()
+      : undefined
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
+      return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
         staleReason: isOpsError(error) ? error.code ?? `http_${error.status}` : 'ops_transport_error',
@@ -902,6 +934,13 @@ export async function fetchOpsPublicContractsSnapshot(
     if (!cached) {
       throw new OpsError('OPS svarade 304 utan en lokal eller persistent avtalsrevision.', 502, {
         code: 'ops_public_contracts_304_without_cache',
+      })
+    }
+    const expectedOpaqueEtag = publicContractOpaqueEtag(cached.etag)
+    if (options.allowStaleFallback === false && (!expectedOpaqueEtag || publicContractOpaqueEtag(response.headers.get('etag')) !== expectedOpaqueEtag)) {
+      throw new OpsError('OPS bekräftade inte den förväntade avtalsrevisionens ETag.', 502, {
+        code: 'ops_public_contracts_304_validator_mismatch',
+        retryable: false,
       })
     }
     return snapshotFromCacheEntry(cached, {
@@ -948,7 +987,7 @@ export async function fetchOpsPublicContractsSnapshot(
         retryable: false,
       })
     }
-    if (responseContractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+    if (!isSupportedResponseVersion(responseContractVersion)) {
       throw new OpsError('OPS public-contracts använder en annan kontraktsversion än Gridex Web.', 502, {
         code: 'ops_public_contracts_contract_version_mismatch',
         endpoint: '/api/v1/website/public-contracts',
@@ -966,14 +1005,17 @@ export async function fetchOpsPublicContractsSnapshot(
     }
     feedMetadata = publicContractFeedMetadata(response.payload, responseRevision)
   } catch (error) {
-    if (!options.forceFresh && cached && publicContractsFallbackEligible(error)) {
-      return snapshotFromCacheEntry(cached, {
+    const fallbackCached = allowStaleFallback && publicContractsFallbackEligible(error)
+      ? await eligibleFallback()
+      : undefined
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
+      return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
         staleReason: isOpsError(error) ? error.code ?? 'ops_public_contracts_invalid' : 'ops_public_contracts_invalid',
         upstreamStatus: response.status,
-        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
+        upstreamRequestId: response.headers.get('x-request-id') ?? fallbackCached.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? fallbackCached.upstream_correlation_id,
       })
     }
     throw error
@@ -981,17 +1023,18 @@ export async function fetchOpsPublicContractsSnapshot(
 
   const allBlocked = parsed.contracts.length === 0 && parsed.blockedContracts.length > 0
   if (allBlocked) {
-    if (!options.forceFresh && cached) {
-      return snapshotFromCacheEntry(cached, {
+    const fallbackCached = allowStaleFallback ? await eligibleFallback() : undefined
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached)) {
+      return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
         staleReason: 'ops_public_contracts_all_blocked',
         upstreamStatus: response.status,
-        upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-        blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
-        warnings: [...cached.warnings, ...parsed.warnings],
-        compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+        upstreamRequestId: response.headers.get('x-request-id') ?? fallbackCached.upstream_request_id,
+        upstreamCorrelationId: response.headers.get('x-correlation-id') ?? fallbackCached.upstream_correlation_id,
+        blockedContracts: [...fallbackCached.blocked_contracts, ...parsed.blockedContracts],
+        warnings: [...fallbackCached.warnings, ...parsed.warnings],
+        compatibilityIssues: [...fallbackCached.compatibility_issues, ...parsed.compatibilityIssues],
       })
     }
     throw new OpsError('Alla avtal i OPS public-contracts blockerades av canonical validering.', 502, {
@@ -1050,9 +1093,14 @@ export async function fetchOpsPublicContractsSnapshot(
     })
   }
 
+  const fallbackCached = allowStaleFallback && feedMetadata.feedState === 'canonical_empty' &&
+    (persistenceFailed || persistenceResult?.stored !== true)
+    ? await eligibleFallback()
+    : undefined
   if (
-    !options.forceFresh &&
-    cached &&
+    allowStaleFallback &&
+    fallbackCached &&
+    withinFallbackBudget(fallbackCached) &&
     feedMetadata.feedState === 'canonical_empty' &&
     (persistenceFailed || persistenceResult?.stored !== true)
   ) {
@@ -1060,27 +1108,27 @@ export async function fetchOpsPublicContractsSnapshot(
       ? 'persistent_snapshot_write_failed_for_empty_feed'
       : persistenceResult?.result ?? 'empty_feed_not_persisted'
     console.warn('[gridex-public-contracts] retained last-known-good snapshot', {
-      cached_publication_revision: cached.publication_revision,
+      cached_publication_revision: fallbackCached.publication_revision,
       response_publication_revision: responseRevision,
       reason,
     })
-    return snapshotFromCacheEntry(cached, {
+    return snapshotFromCacheEntry(fallbackCached, {
       source: 'stale-cache',
       stale: true,
       staleReason: reason,
       upstreamStatus: response.status,
-      upstreamRequestId: response.headers.get('x-request-id') ?? cached.upstream_request_id,
-      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? cached.upstream_correlation_id,
-      blockedContracts: [...cached.blocked_contracts, ...parsed.blockedContracts],
-      warnings: [...cached.warnings, ...parsed.warnings],
-      compatibilityIssues: [...cached.compatibility_issues, ...parsed.compatibilityIssues],
+      upstreamRequestId: response.headers.get('x-request-id') ?? fallbackCached.upstream_request_id,
+      upstreamCorrelationId: response.headers.get('x-correlation-id') ?? fallbackCached.upstream_correlation_id,
+      blockedContracts: [...fallbackCached.blocked_contracts, ...parsed.blockedContracts],
+      warnings: [...fallbackCached.warnings, ...parsed.warnings],
+      compatibilityIssues: [...fallbackCached.compatibility_issues, ...parsed.compatibilityIssues],
     })
   }
 
   if (persistenceResult && !persistenceResult.stored) {
-    if (!options.forceFresh) {
+    if (allowStaleFallback) {
       const latest = await persistentPublicContractsCacheEntry(cacheKey)
-      if (latest) {
+      if (latest && withinFallbackBudget(latest)) {
         return snapshotFromCacheEntry(latest, {
           source: 'stale-cache',
           stale: true,

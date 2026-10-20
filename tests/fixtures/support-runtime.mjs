@@ -81,7 +81,9 @@ export function createSupportRuntime(settings) {
   ] }
   const bytes = Buffer.from('%PDF-1.7\nOffline support fixture\n%%EOF')
   const attachment = { attachment_reference: FIXTURE_ATTACHMENT, file_name: 'syntetisk-bilaga.pdf', mime_type: 'application/pdf', byte_size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), uploaded_by: 'customer', created_at: now(), visibility: 'customer', scan_status: 'released', scan_reason: null }
+  const uploadedAttachments = new Map()
   const traffic = []; const assertions = new Set(); const tokens = new Map(); const refresh = new Map(); const idempotent = new Map()
+  let recovery = null
   const authUser = u => ({ id: u.authId, email: u.email, email_confirmed_at: '2026-10-05T09:00:00Z', aud: 'authenticated', role: 'authenticated', user_metadata: clone(u.user_metadata), app_metadata: {}, identities: [], created_at: '2026-10-05T09:00:00Z' })
   function authSession(u) {
     const access = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: u.authId, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.${Buffer.from(randomUUID()).toString('base64url')}`
@@ -209,11 +211,28 @@ export function createSupportRuntime(settings) {
     const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined))
     const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
     if (url.origin === AUTH_ORIGIN && url.pathname === '/rest/v1/customer_support_tickets') return publicInquiryBoundary(url, headers, method)
-    if (url.origin === AUTH_ORIGIN && ['/auth/v1/token', '/auth/v1/user', '/auth/v1/logout'].includes(url.pathname)) {
+    if (url.origin === AUTH_ORIGIN && ['/auth/v1/token', '/auth/v1/user', '/auth/v1/logout', '/auth/v1/recover'].includes(url.pathname)) {
       traffic.push({ boundary: 'auth', method, path: url.pathname })
       let body = {}; try { body = init.body ? JSON.parse(String(init.body)) : {} } catch { return json({ msg: 'Invalid fixture body' }, 400, true) }
+      if (url.pathname === '/auth/v1/recover' && method === 'POST') {
+        const u = [...users.values()].find(u => u.email === body.email)
+        if (url.searchParams.get('redirect_to') !== 'https://support123.gridex.se/auth/invitation?flow=password-recovery'
+          || body.code_challenge_method || body.code_challenge) throw new Error('Cross-browser recovery requires fixed callback without a browser-bound challenge')
+        // Synthetic email delivery credentials, never production tokens.
+        if (u) { tokens.set('offline-cross-browser-access-token', u.id); refresh.set('offline-cross-browser-refresh-token', u.id) }
+        return json({}, 200, true)
+      }
       if (url.pathname === '/auth/v1/token' && method === 'POST') {
-        const u = url.searchParams.get('grant_type') === 'refresh_token' ? users.get(refresh.get(body.refresh_token)) : [...users.values()].find(u => u.email === body.email && u.password === body.password)
+        if (url.searchParams.get('grant_type') === 'pkce') {
+          const valid = recovery && body.auth_code === 'offline-native-recovery-code'
+            && createHash('sha256').update(body.code_verifier ?? '').digest('base64url') === recovery.challenge
+          const u = valid ? recovery.user : null
+          recovery = null
+          return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_grant', msg: 'Invalid or consumed recovery' }, 400, true)
+        }
+        const refreshing = url.searchParams.get('grant_type') === 'refresh_token'
+        const u = refreshing ? users.get(refresh.get(body.refresh_token)) : [...users.values()].find(u => u.email === body.email && u.password === body.password)
+        if (refreshing) refresh.delete(body.refresh_token)
         return u ? json(authSession(u), 200, true) : json({ error_code: 'invalid_credentials', msg: 'Invalid offline credentials' }, 400, true)
       }
       const token = headers.get('authorization')?.replace(/^Bearer /, ''); const u = users.get(tokens.get(token))
@@ -255,7 +274,8 @@ export function createSupportRuntime(settings) {
         || claims.staff_binding_version !== currentBinding.bindingVersion || claims.local_auth_subject !== currentBinding.localAuthSubject
         || claims.local_auth_issuer !== currentBinding.localAuthIssuer || !identities.has(actor.id)) return failure(403, 'staff_identity_binding_invalid')
     } catch { return failure(401, 'staff_assertion_invalid') }
-    let payload = {}; try { payload = init.body ? JSON.parse(String(init.body)) : {} } catch { return failure(422, 'invalid_request') }
+    const binary = init.body && ['application/pdf', 'image/png', 'image/jpeg'].includes(headers.get('content-type')) ? Buffer.from(init.body) : null
+    let payload = {}; try { payload = binary ? { binary_sha256: createHash('sha256').update(binary).digest('hex'), visibility: headers.get('x-attachment-visibility') } : init.body ? JSON.parse(String(init.body)) : {} } catch { return failure(422, 'invalid_request') }
     const path = url.pathname.slice('/api/v1/staff'.length)
     traffic.push({ boundary: 'staff', method, path, actor: actor.id, company: claims.company_id, idempotencyKey: headers.get('idempotency-key'), payload: clone(payload) })
     const permissions = roles.find(r => r.key === actor.role_key)?.permissions ?? []
@@ -321,9 +341,17 @@ export function createSupportRuntime(settings) {
     if (casePath) {
       const ref = casePath[1]; const current = cases.get(ref); if (!current) return failure(404, 'support_case_not_found')
       const operation = casePath[2]
-      if (!operation && method === 'GET') return done({ ...current, events: events.get(ref), attachments: ref === FIXTURE_CASE ? [attachment] : [], events_page: { limit: 50, offset: 0, returned: events.get(ref).length, has_more: false, next_cursor: null }, attachments_page: { limit: 50, offset: 0, returned: ref === FIXTURE_CASE ? 1 : 0, has_more: false, next_cursor: null } })
+      const files = [...(ref === FIXTURE_CASE ? [attachment] : []), ...(uploadedAttachments.get(ref) ?? [])]
+      if (!operation && method === 'GET') return done({ ...current, events: events.get(ref), attachments: files, events_page: { limit: 50, offset: 0, returned: events.get(ref).length, has_more: false, next_cursor: null }, attachments_page: { limit: 50, offset: 0, returned: files.length, has_more: false, next_cursor: null } })
       if (operation === 'events' && method === 'GET') return collection(events.get(ref), url)
-      if (operation === 'attachments' && method === 'GET') return collection(ref === FIXTURE_CASE ? [attachment] : [], url)
+      if (operation === 'attachments' && method === 'GET') return collection(files, url)
+      if (operation === 'attachments' && method === 'POST') {
+        if (!binary || !binary.length || binary.length > 4194304 || !binary.toString().startsWith('%PDF-')) return failure(422, 'attachment_rejected')
+        const uploaded = { ...attachment, attachment_reference: `attachment_${String(++sequence).padStart(24, '0')}`, file_name: decodeURIComponent(headers.get('x-file-name') ?? 'bilaga.pdf'),
+          byte_size: binary.length, sha256: payload.binary_sha256, uploaded_by: 'staff', visibility: headers.get('x-attachment-visibility') ?? 'internal' }
+        uploadedAttachments.set(ref, [...(uploadedAttachments.get(ref) ?? []), uploaded])
+        return done(uploaded, 201)
+      }
       if (operation === `attachments/${FIXTURE_ATTACHMENT}/file` && ref === FIXTURE_CASE && method === 'GET') return new Response(bytes, { headers: { 'content-type': 'application/pdf', 'content-disposition': "attachment; filename*=UTF-8''syntetisk-bilaga.pdf", 'x-gridex-sha256': attachment.sha256, 'x-gridex-project-ref': PROJECT_REF, 'x-request-id': randomUUID() } })
       const requestSchema = { messages: 'StaffMessageRequest', notes: 'StaffNoteRequest', 'phone-interactions': 'StaffPhoneRequest', status: 'StaffStatusRequest', assignee: 'StaffAssigneeRequest' }[operation]
       if (!requestSchema || !valid(requestSchema, payload)) return failure(422, 'invalid_request')

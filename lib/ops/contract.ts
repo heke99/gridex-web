@@ -1,4 +1,6 @@
-export const GRIDEX_API_CONTRACT_VERSION = '2026-10-04.1' as const
+export const GRIDEX_API_CONTRACT_VERSION = '2026-10-09.1' as const
+// Documentation releases and business response schemas have separate revisions.
+export const GRIDEX_API_DOCUMENTATION_VERSION = '2026-10-12.1' as const
 export const GRIDEX_WEBSITE_API_CONTRACT_VERSION = GRIDEX_API_CONTRACT_VERSION
 export const GRIDEX_CUSTOMER_PORTAL_API_CONTRACT_VERSION = GRIDEX_API_CONTRACT_VERSION
 export const GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION = '2026-10-02.3' as const
@@ -7,10 +9,10 @@ export const GRIDEX_CANONICAL_OPS_API_URL = 'https://app.gridex.se/api/v1' as co
 export const GRIDEX_OPENAPI_RELEASE_MANIFEST_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/release-manifest.json` as const
 export const GRIDEX_WEBSITE_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/website-integration-v1.json` as const
 export const GRIDEX_CUSTOMER_PORTAL_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/customer-portal-v1.json` as const
-export const GRIDEX_WEBSITE_IMMUTABLE_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/${GRIDEX_API_CONTRACT_VERSION}/website-integration-v1.json` as const
-export const GRIDEX_CUSTOMER_PORTAL_IMMUTABLE_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/${GRIDEX_API_CONTRACT_VERSION}/customer-portal-v1.json` as const
-export const GRIDEX_WEBSITE_OPENAPI_SHA256 = '311c1fd85a82aec158bc5e391bcd380a8a944d7762a7fdeebb24cc0ae7da6a47' as const
-export const GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '2ada64c650234d8cf8e5191c68d6b6ab8b47586c5fef13feeb611a9bddb79294' as const
+export const GRIDEX_WEBSITE_IMMUTABLE_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/${GRIDEX_API_DOCUMENTATION_VERSION}/website-integration-v1.json` as const
+export const GRIDEX_CUSTOMER_PORTAL_IMMUTABLE_OPENAPI_URL = `${GRIDEX_CANONICAL_OPS_API_URL}/openapi/${GRIDEX_API_DOCUMENTATION_VERSION}/customer-portal-v1.json` as const
+export const GRIDEX_WEBSITE_OPENAPI_SHA256 = 'd400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c' as const
+export const GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185' as const
 
 export const GRIDEX_WEBSITE_CHECKOUT_SCOPES = [
   'integration_context.read',

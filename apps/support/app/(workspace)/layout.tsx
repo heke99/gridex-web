@@ -16,7 +16,7 @@ export default async function Workspace({
       </a>
       <header className="topbar">
         <div className="topbar-inner">
-          <Link href="/" className="brand">
+          <Link href="/" className="brand" prefetch={false}>
             <span className="brand-mark" aria-hidden="true">
               G
             </span>
@@ -25,10 +25,10 @@ export default async function Workspace({
             </span>
           </Link>
           <nav aria-label="Huvudnavigation">
-            <Link href="/">Ärenden</Link>
-            <Link href="/contact-requests">Kontaktförfrågningar</Link>
-            <Link href="/customers">Kunder</Link>
-            <Link href="/team">Personal</Link>
+            <Link href="/" prefetch={false}>Ärenden</Link>
+            <Link href="/contact-requests" prefetch={false}>Kontaktförfrågningar</Link>
+            <Link href="/customers" prefetch={false}>Kunder</Link>
+            <Link href="/team" prefetch={false}>Personal</Link>
           </nav>
           <div className="account">
             <span title={session.email ?? undefined}>{session.email}</span>

@@ -5,6 +5,7 @@ import {
   fetchOpsPublicContractsSnapshot,
   isOpsError,
   isTransientOpsError,
+  OpsError,
   publicContractsCacheKey,
   WEBSITE_OPENAPI_SCHEMA_SHA256,
   type OpsBlockedPublicContract,
@@ -16,12 +17,15 @@ import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
 import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
-import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+import { readWebsitePublicContractSnapshot, storeWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
+import { observeApiOperation, recordApiCache } from '@/lib/observability/apiPerformance'
 
 const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
 const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
 const PUBLIC_CONTRACT_DATA_CACHE_SECONDS = 15
 const publicContractRevalidations = new Set<string>()
+const publicContractRefreshRequests = new Map<string, Promise<boolean>>()
 
 export type WebsitePublicContractFeedState =
   | 'feed_loaded_with_contracts'
@@ -118,12 +122,65 @@ const readCachedPublicContractSnapshot = unstable_cache(
     _cacheIdentity: string,
     customerType: WebsiteCustomerType | null,
   ): Promise<OpsPublicContractsSnapshot> => {
+    recordApiCache('public_contract_data', 'fill')
     const stored = await readFastPublicContractSnapshot(customerType)
     if (stored) return stored
     return fetchOpsPublicContractsSnapshot(customerType)
   },
   ['gridex-public-contract-snapshot-v1'],
-  { revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS },
+  {
+    revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS,
+    tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
+  },
+)
+
+// after() inherits the ISR render's work-unit. Run the no-store upstream read
+// inside Next's supported cache scope so static rendering does not abort it.
+// Cache only a successful marker, scoped like the snapshot and invalidated by
+// the same publication webhook; final forceFresh validation bypasses this path.
+const refreshPublicContractSnapshot = unstable_cache(
+  async (cacheIdentity: string, customerType: WebsiteCustomerType | null): Promise<boolean> => {
+    // On dynamic requests Next can return a stale marker before its callback
+    // finishes. Coalesce the provider promise itself until that work settles.
+    const pending = publicContractRefreshRequests.get(cacheIdentity)
+    if (pending) return pending
+    const request = fetchOpsPublicContractsSnapshot(customerType).then(async (snapshot) => {
+      // The regular client always contacts OPS and can validate an existing
+      // representation with ETag/304 instead of repeating the full feed reads.
+      // A fallback is useful for display, but is not a confirmed refresh.
+      if (snapshot.stale) {
+        throw new OpsError('OPS kunde inte bekräfta avtalskatalogens aktualitet.', 503, {
+          code: 'ops_public_contracts_revalidation_unconfirmed', retryable: true,
+        })
+      }
+      if (snapshot.upstream_status === 304) {
+        const result = await storeWebsitePublicContractSnapshot({
+          cacheKey: cacheIdentity,
+          customerType: customerType ?? 'all',
+          snapshot: { ...snapshot, fetched_at: new Date().toISOString() },
+        })
+        if (!result.stored) {
+          throw new OpsError('Avtalskatalogens bekräftade revision kunde inte sparas.', 503, {
+            code: 'ops_public_contracts_revalidation_unconfirmed', retryable: true,
+          })
+        }
+      }
+      return true
+    })
+    publicContractRefreshRequests.set(cacheIdentity, request)
+    try {
+      return await request
+    } finally {
+      if (publicContractRefreshRequests.get(cacheIdentity) === request) {
+        publicContractRefreshRequests.delete(cacheIdentity)
+      }
+    }
+  },
+  ['gridex-public-contract-refresh-v1'],
+  {
+    revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS,
+    tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
+  },
 )
 
 function schedulePublicContractRevalidation(
@@ -134,12 +191,16 @@ function schedulePublicContractRevalidation(
   if (Date.now() - Date.parse(snapshot.fetched_at) < FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS) return
 
   const cacheKey = publicContractsCacheKey(customerType)
-  if (publicContractRevalidations.has(cacheKey)) return
+  if (publicContractRevalidations.has(cacheKey)) {
+    recordApiCache('public_contract_refresh', 'join')
+    return
+  }
   publicContractRevalidations.add(cacheKey)
+  recordApiCache('public_contract_refresh', 'scheduled')
 
   after(async () => {
     try {
-      await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
+      await refreshPublicContractSnapshot(cacheKey, customerType ?? null)
     } catch (error) {
       console.warn(`[${context}] public contracts post-response revalidation failed`, safeOpsError(error))
     } finally {
@@ -148,17 +209,25 @@ function schedulePublicContractRevalidation(
   })
 }
 
-export async function loadWebsitePublicContractFeed(input: {
+type FeedInput = {
   context: string
   customerType?: WebsiteCustomerType | null
   forceFresh?: boolean
-}): Promise<WebsitePublicContractFeed> {
+}
+
+export async function loadWebsitePublicContractFeed(input: FeedInput): Promise<WebsitePublicContractFeed> {
+  return observeApiOperation('contracts_feed', () => readWebsitePublicContractFeed(input))
+}
+
+async function readWebsitePublicContractFeed(input: FeedInput): Promise<WebsitePublicContractFeed> {
   const customerType = input.customerType ?? null
   let snapshot: OpsPublicContractsSnapshot
 
   if (input.forceFresh) {
+    recordApiCache('public_contract_data', 'bypass')
     snapshot = await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
   } else {
+    recordApiCache('public_contract_data', 'lookup')
     snapshot = await readCachedPublicContractSnapshot(
       publicContractsCacheKey(customerType),
       customerType,

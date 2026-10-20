@@ -1,0 +1,2849 @@
+{
+  "review_date": "2026-10-18",
+  "basis": "Published Website, Customer and Staff OpenAPI snapshots; documentation and alternate routes classified explicitly. A mapping is not a live end-to-end certificate.",
+  "counts": {
+    "website-integration": 63,
+    "customer-portal": 52,
+    "staff": 27
+  },
+  "total_operations": 142,
+  "distinct_method_path_pairs": 117,
+  "additional_profile": "Staff identity/resolve and invitations/accept have an independent onboarding profile and are covered by support-onboarding and tenant-delivery tests.",
+  "operations": [
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/integration/context",
+      "operation_id": "getApiV1IntegrationContext",
+      "required_scopes": [
+        "integration_context.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/core.ts"
+      ],
+      "verification": [
+        "tests/api-reliability.test.mjs",
+        "tests/website-api.contract.test.mjs"
+      ],
+      "review": "Gemensam organisations-/scopekontroll; samma endpoint förekommer i två specifikationer.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/public-contracts",
+      "operation_id": "getApiV1WebsitePublicContracts",
+      "required_scopes": [
+        "website_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs",
+        "tests/public-contract-v4-runtime.test.mjs",
+        "tests/public-contract-canonical-area-prices.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/public-contracts/diagnostics",
+      "operation_id": "getApiV1WebsitePublicContractsDiagnostics",
+      "required_scopes": [
+        "website_contracts.diagnostics"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs",
+        "tests/public-contract-v4-runtime.test.mjs",
+        "tests/public-contract-canonical-area-prices.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/contracts",
+      "operation_id": "getApiV1Contracts",
+      "required_scopes": [
+        "api_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "documented_alternative",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/public-contract-contract.test.mjs"
+      ],
+      "review": "Alternativ API-yta. Gridex Web använder kanoniska /website/public-contracts och dess diagnostics, utan dubbla affärsskrivningar.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/quote",
+      "operation_id": "postApiV1WebsiteQuote",
+      "required_scopes": [
+        "website_quotes.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs",
+        "tests/quote-validation-canonical-tuple.test.mjs",
+        "tests/non-expiring-canonical-quotes.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/quote/validate",
+      "operation_id": "postApiV1WebsiteQuoteValidate",
+      "required_scopes": [
+        "website_quotes.validate"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs",
+        "tests/quote-validation-canonical-tuple.test.mjs",
+        "tests/non-expiring-canonical-quotes.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/customer-applications",
+      "operation_id": "postApiV1WebsiteCustomerApplications",
+      "required_scopes": [
+        "website_applications.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/application.ts",
+        "lib/website/submissionStore.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-signup-hardening.test.mjs",
+        "tests/checkout-post-commit-durability.test.mjs",
+        "tests/live-application-number-contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/energy-area/resolve",
+      "operation_id": "postApiV1WebsiteEnergyAreaResolve",
+      "required_scopes": [
+        "website_energy_area.resolve"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/switch-status",
+      "operation_id": "getApiV1WebsiteSwitchStatus",
+      "required_scopes": [
+        "website_switch_status.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/website-integration-v1.json",
+      "operation_id": "getApiV1OpenapiWebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/customer-portal-v1.json",
+      "operation_id": "getApiV1OpenapiCustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/market-price/current",
+      "operation_id": "postApiV1WebsiteMarketPriceCurrent",
+      "required_scopes": [
+        "website_market_prices.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/portfolio-prices",
+      "operation_id": "getApiV1WebsitePortfolioPrices",
+      "required_scopes": [
+        "website_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/legal-bundle",
+      "operation_id": "getApiV1WebsiteLegalBundle",
+      "required_scopes": [
+        "website_legal.read",
+        "website_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "POST",
+      "path": "/api/v1/website/customer-events",
+      "operation_id": "postApiV1WebsiteCustomerEvents",
+      "required_scopes": [
+        "website_events.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Dokumenterade händelseytor; samma logiska händelse skrivs endast en gång med stabil idempotensnyckel.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/release-manifest.json",
+      "operation_id": "getApiV1OpenapiReleaseManifestJson",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/public-contracts",
+      "operation_id": "getApiV1PublicContracts",
+      "required_scopes": [
+        "api_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "documented_alternative",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/public-contract-contract.test.mjs"
+      ],
+      "review": "Alternativ API-yta. Gridex Web använder kanoniska /website/public-contracts och dess diagnostics, utan dubbla affärsskrivningar.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/public-contracts/diagnostics",
+      "operation_id": "getApiV1PublicContractsDiagnostics",
+      "required_scopes": [
+        "api_contracts.diagnostics"
+      ],
+      "idempotency_required": false,
+      "category": "documented_alternative",
+      "implementation": [
+        "lib/ops/client/website.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/public-contract-contract.test.mjs"
+      ],
+      "review": "Alternativ API-yta. Gridex Web använder kanoniska /website/public-contracts och dess diagnostics, utan dubbla affärsskrivningar.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/website/customer-applications/{application_number}",
+      "operation_id": "getApiV1WebsiteCustomerApplicationsApplicationNumber",
+      "required_scopes": [
+        "website_switch_status.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/application.ts",
+        "lib/website/submissionStore.ts"
+      ],
+      "verification": [
+        "tests/website-api.contract.test.mjs",
+        "tests/website-signup-hardening.test.mjs",
+        "tests/checkout-post-commit-durability.test.mjs",
+        "tests/live-application-number-contract.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-03.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608031WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608031CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-02.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608021WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608021CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608041WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608041CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608042WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608042CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.3/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608043WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608043CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608051WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608051CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608052WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608052CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-10.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608101WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608101CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-14.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608141WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-14.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608141CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608191WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608191CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608192WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608192CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608201WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608201CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608202WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608202CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-22.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202608222WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-01.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610011WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610021WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.2/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610022WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.3/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610023WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608222CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610011CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610021CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610022CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610023CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.4/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610024WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610024CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-04.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610041WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-04.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610041CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-09.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610091WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610091CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-12.1/website-integration-v1.json",
+      "operation_id": "getApiV1Openapi202610121WebsiteIntegrationV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "website-integration",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610121CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer-portal/sync",
+      "operation_id": "postApiV1CustomerPortalSync",
+      "required_scopes": [
+        "customer_sync.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/contracts",
+      "operation_id": "getApiV1CustomerContracts",
+      "required_scopes": [
+        "customer_contracts.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/documents",
+      "operation_id": "getApiV1CustomerDocuments",
+      "required_scopes": [
+        "customer_documents.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/events",
+      "operation_id": "getApiV1CustomerEvents",
+      "required_scopes": [
+        "customer_events.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/invoices",
+      "operation_id": "getApiV1CustomerInvoices",
+      "required_scopes": [
+        "customer_invoices.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/invoices/{id}",
+      "operation_id": "getApiV1CustomerInvoicesId",
+      "required_scopes": [
+        "customer_invoices.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/legal-acceptances",
+      "operation_id": "getApiV1CustomerLegalAcceptances",
+      "required_scopes": [
+        "customer_legal.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/me",
+      "operation_id": "getApiV1CustomerMe",
+      "required_scopes": [
+        "customer_profile.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/metering-values",
+      "operation_id": "getApiV1CustomerMeteringValues",
+      "required_scopes": [
+        "customer_metering.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/move-out",
+      "operation_id": "postApiV1CustomerMoveOut",
+      "required_scopes": [
+        "customer_facility_data.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/notifications",
+      "operation_id": "getApiV1CustomerNotifications",
+      "required_scopes": [
+        "customer_notifications.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/notifications/read",
+      "operation_id": "postApiV1CustomerNotificationsRead",
+      "required_scopes": [
+        "customer_notifications.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/portal-bundle",
+      "operation_id": "getApiV1CustomerPortalBundle",
+      "required_scopes": [
+        "customer_profile.read",
+        "customer_sites.read",
+        "customer_contracts.read",
+        "customer_invoices.read",
+        "customer_metering.read",
+        "customer_legal.read",
+        "customer_events.read",
+        "customer_documents.read",
+        "customer_notifications.read",
+        "customer_power_of_attorney.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Dokumenterad kombinerad adapter; normala vyer väljer granulära resurser för att undvika onödiga scopekrav.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/portal-bundle",
+      "operation_id": "postApiV1CustomerPortalBundle",
+      "required_scopes": [
+        "customer_profile.read",
+        "customer_sites.read",
+        "customer_contracts.read",
+        "customer_invoices.read",
+        "customer_metering.read",
+        "customer_legal.read",
+        "customer_events.read",
+        "customer_documents.read",
+        "customer_notifications.read",
+        "customer_power_of_attorney.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Dokumenterad kombinerad adapter; normala vyer väljer granulära resurser för att undvika onödiga scopekrav.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/powers-of-attorney",
+      "operation_id": "getApiV1CustomerPowersOfAttorney",
+      "required_scopes": [
+        "customer_power_of_attorney.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/profile-update",
+      "operation_id": "postApiV1CustomerProfileUpdate",
+      "required_scopes": [
+        "customer_contact.write",
+        "customer_facility_data.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/sites",
+      "operation_id": "getApiV1CustomerSites",
+      "required_scopes": [
+        "customer_sites.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/sync",
+      "operation_id": "postApiV1CustomerSync",
+      "required_scopes": [
+        "customer_sync.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts",
+        "lib/customerPortal/service.ts",
+        "lib/customerPortal/writeValidation.ts",
+        "lib/customerPortal/syncReceipt.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/api-contract-regressions-20260801.test.mjs",
+        "tests/customer-write-boundary.test.mjs",
+        "tests/customer-consent-evidence.test.mjs",
+        "tests/customer-sync-route-evidence.test.mjs"
+      ],
+      "review": "Uttryckligt samtycke, komplett signerare och oföränderlig kvittens före OPS; första betrodda IP/tid bevaras vid omförsök.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/events",
+      "operation_id": "getApiV1Events",
+      "required_scopes": [
+        "events.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Dokumenterade händelseytor; samma logiska händelse skrivs endast en gång med stabil idempotensnyckel.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/events",
+      "operation_id": "postApiV1Events",
+      "required_scopes": [
+        "website_events.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/portal.ts"
+      ],
+      "verification": [
+        "tests/customer-portal-api-hardening.test.mjs",
+        "tests/website-api-runtime.contract.test.mjs"
+      ],
+      "review": "Dokumenterade händelseytor; samma logiska händelse skrivs endast en gång med stabil idempotensnyckel.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/integration/context",
+      "operation_id": "getApiV1IntegrationContext",
+      "required_scopes": [
+        "integration_context.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/core.ts"
+      ],
+      "verification": [
+        "tests/api-reliability.test.mjs",
+        "tests/website-api.contract.test.mjs"
+      ],
+      "review": "Gemensam organisations-/scopekontroll; samma endpoint förekommer i två specifikationer.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/customer-portal-v1.json",
+      "operation_id": "getApiV1OpenapiCustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608021CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608031CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608041CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608043CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608042CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608051CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608052CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608101CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-14.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608141CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608191CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608192CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608201CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608202CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202608222CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610011CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610021CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610022CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610023CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/support/cases",
+      "operation_id": "getApiV1CustomerSupportCases",
+      "required_scopes": [
+        "customer_support.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/support/cases",
+      "operation_id": "postApiV1CustomerSupportCases",
+      "required_scopes": [
+        "customer_support.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/support/cases/{reference}",
+      "operation_id": "getApiV1CustomerSupportCasesReference",
+      "required_scopes": [
+        "customer_support.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/support/cases/{reference}/messages",
+      "operation_id": "getApiV1CustomerSupportCasesReferenceMessages",
+      "required_scopes": [
+        "customer_support.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/support/cases/{reference}/messages",
+      "operation_id": "postApiV1CustomerSupportCasesReferenceMessages",
+      "required_scopes": [
+        "customer_support.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/support/cases/{reference}/attachments",
+      "operation_id": "getApiV1CustomerSupportCasesReferenceAttachments",
+      "required_scopes": [
+        "customer_support.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "POST",
+      "path": "/api/v1/customer/support/cases/{reference}/attachments",
+      "operation_id": "postApiV1CustomerSupportCasesReferenceAttachments",
+      "required_scopes": [
+        "customer_support.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/customer/support/cases/{reference}/attachments/{attachmentReference}",
+      "operation_id": "getApiV1CustomerSupportCasesReferenceAttachmentsAttachmentReference",
+      "required_scopes": [
+        "customer_support.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/ops/client/customerSupport.ts",
+        "app/api/customer-support"
+      ],
+      "verification": [
+        "tests/customer-support-api.test.mjs",
+        "tests/customer-support-handoff.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610024CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-04.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610041CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610091CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "customer-portal",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
+      "operation_id": "getApiV1Openapi202610121CustomerPortalV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/users",
+      "operation_id": "getApiV1StaffUsers",
+      "required_scopes": [
+        "staff_users.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/users",
+      "operation_id": "postApiV1StaffUsers",
+      "required_scopes": [
+        "staff_users.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "PATCH",
+      "path": "/api/v1/staff/users/{id}",
+      "operation_id": "patchApiV1StaffUsersId",
+      "required_scopes": [
+        "staff_users.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/users/{id}/disable",
+      "operation_id": "postApiV1StaffUsersIdDisable",
+      "required_scopes": [
+        "staff_users.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/users/{id}/enable",
+      "operation_id": "postApiV1StaffUsersIdEnable",
+      "required_scopes": [
+        "staff_users.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/roles",
+      "operation_id": "getApiV1StaffRoles",
+      "required_scopes": [
+        "staff_users.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/customers",
+      "operation_id": "getApiV1StaffCustomers",
+      "required_scopes": [
+        "staff_customers.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/customers/{ref}",
+      "operation_id": "getApiV1StaffCustomersRef",
+      "required_scopes": [
+        "staff_customers.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "PATCH",
+      "path": "/api/v1/staff/customers/{ref}/contact",
+      "operation_id": "patchApiV1StaffCustomersRefContact",
+      "required_scopes": [
+        "staff_customers.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/customers/{ref}/identity-change",
+      "operation_id": "postApiV1StaffCustomersRefIdentityChange",
+      "required_scopes": [
+        "staff_customers.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/cases",
+      "operation_id": "getApiV1StaffCases",
+      "required_scopes": [
+        "staff_cases.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/cases",
+      "operation_id": "postApiV1StaffCases",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/cases/{reference}",
+      "operation_id": "getApiV1StaffCasesReference",
+      "required_scopes": [
+        "staff_cases.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/cases/{reference}/messages",
+      "operation_id": "postApiV1StaffCasesReferenceMessages",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/cases/{reference}/notes",
+      "operation_id": "postApiV1StaffCasesReferenceNotes",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/cases/{reference}/phone-interactions",
+      "operation_id": "postApiV1StaffCasesReferencePhoneInteractions",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "PATCH",
+      "path": "/api/v1/staff/cases/{reference}/status",
+      "operation_id": "patchApiV1StaffCasesReferenceStatus",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "PATCH",
+      "path": "/api/v1/staff/cases/{reference}/assignee",
+      "operation_id": "patchApiV1StaffCasesReferenceAssignee",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/cases/{reference}/attachments",
+      "operation_id": "getApiV1StaffCasesReferenceAttachments",
+      "required_scopes": [
+        "staff_cases.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "POST",
+      "path": "/api/v1/staff/cases/{reference}/attachments",
+      "operation_id": "postApiV1StaffCasesReferenceAttachments",
+      "required_scopes": [
+        "staff_cases.write"
+      ],
+      "idempotency_required": true,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/cases/{reference}/attachments/{attachmentReference}/file",
+      "operation_id": "getApiV1StaffCasesReferenceAttachmentsAttachmentReferenceFile",
+      "required_scopes": [
+        "staff_cases.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/openapi/release-manifest.json",
+      "operation_id": "getApiV1OpenapiReleaseManifestJson",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/openapi/staff-v1.json",
+      "operation_id": "getApiV1OpenapiStaffV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-04.1/staff-v1.json",
+      "operation_id": "getApiV1Openapi202610041StaffV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/staff/cases/{reference}/events",
+      "operation_id": "getApiV1StaffCasesReferenceEvents",
+      "required_scopes": [
+        "staff_cases.read"
+      ],
+      "idempotency_required": false,
+      "category": "implemented",
+      "implementation": [
+        "lib/staff-api/client.ts",
+        "apps/support"
+      ],
+      "verification": [
+        "tests/staff-api-client.test.mjs",
+        "tests/support-auth-session.test.mjs",
+        "tests/support-actions.test.mjs",
+        "tests/support-attachment-boundary.test.mjs"
+      ],
+      "review": "Typad serveradapter och kontrakts-/beteendeprov. Ingen separat skarp mutation påstås.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-09.1/staff-v1.json",
+      "operation_id": "getApiV1Openapi202610091StaffV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    },
+    {
+      "surface": "staff",
+      "method": "GET",
+      "path": "/api/v1/openapi/2026-10-12.1/staff-v1.json",
+      "operation_id": "getApiV1Openapi202610121StaffV1Json",
+      "required_scopes": [],
+      "idempotency_required": false,
+      "category": "documentation_archive",
+      "implementation": [
+        "scripts/sync-openapi.mjs",
+        "scripts/check-openapi-drift.mjs"
+      ],
+      "verification": [
+        "tests/openapi-sync-contract.test.mjs"
+      ],
+      "review": "Publicerat kontraktsarkiv. Aktuell pinnad release konsumeras av synkverktygen; äldre revisions-URL:er är inga extra produktflöden.",
+      "live_operation_exercised_by_this_matrix": false
+    }
+  ]
+}

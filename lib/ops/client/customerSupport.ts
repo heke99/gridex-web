@@ -1,6 +1,7 @@
 import { OpsError } from '@/lib/ops/errors'
 import type { components, paths } from '@/lib/ops/generated/customer-portal-api'
 import { opsCustomerFetch, type OpsPortalIdentity } from './portal'
+import { isSupportAttachmentType, MAX_SUPPORT_ATTACHMENT_BYTES } from '../../support/attachmentRules'
 
 export type OpsCustomerSupportCase = components['schemas']['CustomerSupportCase']
 export type OpsCustomerSupportCaseDetail = components['schemas']['CustomerSupportCaseDetail']
@@ -25,6 +26,32 @@ const CASES_PATH = '/api/v1/customer/support/cases'
 // Public references and retry keys use the frozen Customer Portal contract.
 const PUBLIC_REFERENCE = /^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$/
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:+~-]{8,200}$/
+
+export type OpsCustomerSupportAttachment = components['schemas']['CustomerSupportAttachment']
+type AttachmentListResponse = paths['/api/v1/customer/support/cases/{reference}/attachments']['get']['responses']['200']['content']['application/json']
+type AttachmentResponse = paths['/api/v1/customer/support/cases/{reference}/attachments']['post']['responses']['201']['content']['application/json']
+
+export async function listOpsCustomerSupportAttachments(identity: OpsPortalIdentity, reference: string): Promise<AttachmentListResponse> {
+  return await opsCustomerFetch(`${casePath(reference)}/attachments`, identity) as AttachmentListResponse
+}
+
+export async function uploadOpsCustomerSupportAttachment(identity: OpsPortalIdentity, reference: string,
+  bytes: Uint8Array, mimeType: string, fileName: string, key: string): Promise<AttachmentResponse> {
+  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_SUPPORT_ATTACHMENT_BYTES
+    || !isSupportAttachmentType(mimeType) || fileName.length > 200 || /[\u0000-\u001f\u007f]/.test(fileName)) {
+    throw supportInputError('invalid_customer_support_attachment', 'file')
+  }
+  const headers = writeHeaders(key)
+  headers.set('Content-Type', mimeType); headers.set('X-File-Name', fileName)
+  return await opsCustomerFetch(`${casePath(reference)}/attachments`, identity,
+    { method: 'POST', headers, body: Buffer.from(bytes) }, 'upload') as AttachmentResponse
+}
+
+export async function downloadOpsCustomerSupportAttachment(identity: OpsPortalIdentity, reference: string, attachmentReference: string) {
+  if (!PUBLIC_REFERENCE.test(attachmentReference)) throw supportInputError('invalid_customer_support_reference', 'attachment_reference')
+  return await opsCustomerFetch(`${casePath(reference)}/attachments/${encodeURIComponent(attachmentReference)}`, identity,
+    undefined, 'download') as { bytes: Uint8Array; mimeType: string }
+}
 
 function supportInputError(code: string, field: string): OpsError {
   return new OpsError('Ogiltig begäran för kundens supportärende.', 400, {

@@ -1,0 +1,351 @@
+{
+  "date": "2026-10-18",
+  "repository": "gridex-web",
+  "base_commit": "1fc033ef791b5bb62ac6672576e64c83727c17d0",
+  "source_status": "Marketing commit 1f60c9f, minimal support commit e63a349, and unchanged existing OPS source 3034e14 deployed to their respective production projects",
+  "runtime": "Node.js 22.23.3",
+  "story": "Only verified Gridex staff with a current tenant identity binding and authoritative API permissions can use support123; customer and staff requests stay on their respective API surfaces.",
+  "instructions_applied": [
+    "apps/support/AGENTS.md and installed Next.js 16.3.8 authentication/redirect documentation",
+    "Cloud environment runtime and networking",
+    "Supabase Auth/security and Postgres best practices",
+    "Repository Node.js backend, error handling, defect review and Next.js guidance",
+    "Vercel React quality, full-flow verification and environment/protected-deployment guidance"
+  ],
+  "scope": {
+    "authentication": "Dedicated tenant Auth, verified getUser, central identity resolution, signed Staff assertions, API RBAC and host-only cookies",
+    "interfaces": [
+      "Website API",
+      "Customer Portal API",
+      "Staff API",
+      "independent Staff onboarding"
+    ],
+    "data": "Canonical business records stay in OPS; tenant Auth, invitation delivery and anonymous contact intake stay in gridex-prod",
+    "production_inspection": "Metadata, scoped RLS/function/advisor review, named account readiness and explicit staff binding/configuration; no canonical customer record or existing secret value retrieved",
+    "excluded": "Unrelated application changes, new Auth accounts, password/membership changes, real emails or electricity agreements, and full database performance qualification"
+  },
+  "api": {
+    "guide": "https://app.gridex.se/developers/customer-portal-api",
+    "documentation_version": "2026-10-12.1",
+    "runtime_schema_version": "2026-10-09.1",
+    "supported_response_profiles": [
+      "2026-10-04.1",
+      "2026-10-09.1"
+    ],
+    "staff_onboarding_version": "2026-10-05.2",
+    "live_drift": "PASS: Website, Customer Portal and Staff snapshots match the SHA-256 release manifest",
+    "staff_types": "Generated schemas supply the Staff DTOs; local contact-update constraints remain stricter",
+    "limits_bytes": {
+      "website_customer_json": 8388608,
+      "staff_json": 2097152,
+      "staff_identity_onboarding_json": 16384,
+      "staff_attachment": 4194304
+    },
+    "retries": "Reads honor integer and HTTP-date Retry-After without shortening the requested wait; waits outside the deadline return the API error. Writes are submitted once with the original idempotency key.",
+    "latest_live_recheck": "Subsequent user-requested signing review found description-only drift under the same version. Re-synchronized Website/Customer snapshots and generated provenance; all three live SHA-256 specifications now match again in the branch. No new production deployment by this review."
+  },
+  "verified_fixes": [
+    {
+      "severity": "high",
+      "issue": "The synchronizer incorrectly equated documentation and runtime revisions",
+      "fix": "Track and validate the two revisions separately, synchronize Staff too, and retain the documented earlier response profile without relaxing business-field validation"
+    },
+    {
+      "severity": "medium",
+      "issue": "Retry-After was truncated to ten seconds and HTTP dates were ignored",
+      "fix": "Respect the complete server wait; skip automatic retries that cannot fit the request budget"
+    },
+    {
+      "severity": "medium",
+      "issue": "Staff/identity/onboarding stream reads could outlive their timeout when the transport ignored its abort signal",
+      "fix": "Abort-aware bounded streams cancel and return a safe timeout/failure without reporting a successful write"
+    },
+    {
+      "severity": "medium",
+      "issue": "Website/Customer JSON had no byte limit",
+      "fix": "Cancel oversized streams and return a non-retryable transport error"
+    },
+    {
+      "severity": "medium",
+      "issue": "A non-JSON proxy rate-limit page became a generic schema error",
+      "fix": "Preserve safe HTTP status, request identifier and Retry-After while excluding raw proxy content"
+    },
+    {
+      "severity": "medium",
+      "issue": "Missing Auth configuration and provider outages could escape the login form or appear as incorrect credentials",
+      "fix": "Return safe Swedish configuration/outage/throttling errors and preserve authentication redirects"
+    },
+    {
+      "severity": "medium",
+      "issue": "Checkout JSON body was read completely before enforcing its size and malformed origins could throw",
+      "fix": "Bound and cancel streaming input with a read deadline and reject malformed origins safely"
+    }
+  ],
+  "authorization_evidence": [
+    "Customer credentials or forged user metadata do not establish a Staff binding",
+    "Foreign-company, revoked and unbound staff are refused before protected writes",
+    "Read-only staff cannot perform denied commands",
+    "Role ceilings, last-administrator guards, optimistic versions and idempotency remain API controlled",
+    "Cookies remain host-only, HttpOnly, SameSite=Lax and Secure in production",
+    "React session deduplication lasts only for one server render, with no cross-request identity/role cache"
+  ],
+  "verification": [
+    {
+      "command": "npm test",
+      "status": "PASS",
+      "scope": "All registered launch, runtime, contract, audit, database and independent Web regressions"
+    },
+    {
+      "command": "npm run test:support",
+      "status": "PASS",
+      "tests": 143,
+      "suites": 9,
+      "failures": 0
+    },
+    {
+      "command": "npm run test:support:browser",
+      "status": "PASS",
+      "checks": 25,
+      "application_errors": 0,
+      "backend": "Synthetic schema-faithful Auth/API fixture; no production data or email"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run typecheck:support",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build -- --webpack",
+      "status": "PASS",
+      "limitation": "Local build without deployed organization credentials; this is not live business-flow qualification"
+    },
+    {
+      "command": "npm run build:support",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run verify:delivery",
+      "status": "PASS",
+      "immutable_migrations_checked": 46
+    },
+    {
+      "command": "npm run api:check:live",
+      "status": "PASS",
+      "specifications": 3
+    },
+    {
+      "command": "npm run test:ops-transport",
+      "status": "PASS",
+      "new_reliability_tests": 6
+    },
+    {
+      "command": "Scoped ESLint for changed source/test files, --max-warnings=0",
+      "status": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "command": "Customer/Staff attachment and incoming request boundary tests",
+      "status": "PASS",
+      "scope": "Raw bytes, verified customer identity, type/size/origin limits, stable write keys, no write retries, download SHA-256 and early streamed overflow cancellation"
+    },
+    {
+      "command": "Live public support123 browser and TLS/HTML checks",
+      "status": "PASS",
+      "checks": 3,
+      "application_errors": 0,
+      "scope": "Real custom-domain login, mobile layout and anonymous denial on four protected routes; no staff login or business write",
+      "evidence": "quality/support123/live-evidence-20261018/browser-verification.json"
+    },
+    {
+      "command": "Minimal login support typecheck, production build, scoped ESLint and 25 offline browser checks",
+      "status": "PASS",
+      "source_commit": "e63a349a7863b1c2584b1a679de8ec93c03b2b3b",
+      "live_browser_checks": 3,
+      "application_errors": 0,
+      "evidence": "quality/support123/live-evidence-20261018-minimal/browser-verification.json"
+    },
+    {
+      "command": "Final permanent domain readback, system-CA HTTPS and public browser checks",
+      "status": "PASS",
+      "checks": 3,
+      "application_errors": 0,
+      "scope": "Persistent support project association verified; correct active deployment alias; minimal desktop/mobile login and anonymous denial on four protected routes. Marketing SSO gate retained.",
+      "evidence": "quality/support123/live-evidence-20261018-domain-final/browser-verification.json"
+    }
+  ],
+  "database_inspection": {
+    "project": "gridex-prod",
+    "observed_status": "ACTIVE_HEALTHY",
+    "rls": "Enabled on inspected admin_users, customer_profiles, customer_support_tickets, customer_support_messages and public_support_receipts tables",
+    "owner_checks": "Profiles and customer support policies bind reads/writes to auth.uid; administrative access is permission gated. Anonymous receipt access is revoked.",
+    "definer_review": "The nine advisor-listed functions deny anon EXECUTE and use auth.uid, active memberships or guarded self-service wrappers. This read-only review found no reason to revoke their intended authenticated RPC access.",
+    "advisor_information": "23 RLS-enabled/no-policy notices include server-only/private tables; absence of a policy denies ordinary roles rather than opening access",
+    "open_auth_setting": {
+      "issue": "Supabase leaked-password protection is disabled",
+      "status": "Configuration unchanged; evaluate enabling before staff activation",
+      "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    },
+    "limits": "No live canonical OPS RLS/advisor audit, query plans, load test or production migration application is claimed"
+  },
+  "live_blockers": [],
+  "next_production_steps": [
+    "Owner completes real staff login and permitted read/write/audit qualification; send a real staff invitation only when explicitly requested"
+  ],
+  "external_mutations": "User-approved marketing production deployment, dedicated support project/environment/deployment, staff client/provider/explicit existing-owner binding, exact two approved Customer support scopes with audit, and approved support domain alias cutover. No Auth account, password, membership, signed agreement or email changed. Explicitly approved OPS signing secret, public delivery metadata with audit, unchanged OPS production-code redeployment and minimal support UI release; user changed the Supabase callback allowlist. User removed the old support123 project-domain association; the domain was added to gridex-support and now awaits its new DNS ownership challenge. No DNS record was changed. User corrected the external DNS TXT challenge; Vercel ownership verification and support alias assignment completed. No DNS write was performed by this task.",
+  "status": "SUPPORT_DOMAIN_LIVE_WEBSITE_REAUDIT_FINDINGS_OPEN",
+  "guide_review": "docs/api-compatibility/gridex-web-review-20261018.md",
+  "production_changes": {
+    "support_project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
+    "support_project": "gridex-support",
+    "root_directory": "apps/support",
+    "node_version": "22.x",
+    "dedicated_production_env_variables": 15,
+    "staff_client_id": "7db896df-8c42-4338-a422-37f6e0c7a487",
+    "staff_provider_id": "56473ec1-ab97-412d-9601-d3fba6d89780",
+    "staff_binding_id": "b77a8df3-7eda-4cde-8977-f204094968d9",
+    "nominated_admin": "hekmat.h@div3rsa.com",
+    "membership_changed": false,
+    "native_binding_validation": "PASS: exact current binding resolves to existing active central actor, version 1; not a password login test",
+    "website_client_id": "bf2f3755-4a84-446a-b361-b6aa7149c39a",
+    "website_added_scopes": [
+      "customer_support.read",
+      "customer_support.write"
+    ],
+    "scope_authorization": "Explicit user approval after initial automatic review rejection",
+    "audit_attribution": "codex_automation; no human actor impersonated",
+    "email_sent": false,
+    "marketing_deployment": "User-approved production release completed",
+    "support_deployment": "Minimal login and all 15 production variables active in dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+    "support_domain_alias": "Verified persistent Project Domain and live alias both belong to gridex-support; alias serves dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr, public HTTPS 200 and 3 live browser checks pass after final reassociation.",
+    "nominated_account_readiness": "Existing confirmed tenant account has a password credential and is not deleted/banned; the password was never retrieved or reset",
+    "marketing_vercel_protection": "Existing all-deployment Vercel protection intentionally retained after user declined opening the marketing custom domains",
+    "tenant_service_key": "Sensitive production variable saved by user on gridex-support and active; value never read",
+    "staff_delivery_signing": {
+      "explicit_user_approval": true,
+      "ops_secret": "GRIDEX_STAFF_DELIVERY_PRIVATE_KEY",
+      "ops_secret_type": "sensitive",
+      "key_id": "ops-staff-delivery-20261018",
+      "public_registration_added_with_audit": true,
+      "native_onboarding_readiness": true,
+      "tenant_key_shared_with_ops": false,
+      "email_sent": false
+    }
+  },
+  "deployments": {
+    "marketing": {
+      "id": "dpl_D8iAVXDzhNh9oaGpQYQTvqufYv27",
+      "url": "https://gridex-3at0zgnry-div3rsa.vercel.app",
+      "source_commit": "1f60c9fbd2d6db778bc0406369dbfda8446c6367",
+      "target": "production",
+      "state": "READY",
+      "user_approval": "Explicitly approved production release to gridex.se and www.gridex.se",
+      "live_readback": {
+        "gridex_se_checkout_status": 200,
+        "checkout_calculator_present": true,
+        "html_deployment_id_matches": true,
+        "www_elavtal_status": 308,
+        "www_uses_canonical_redirect": true,
+        "authentication_context": "Caller-authorized Vercel fetch. Anonymous public requests redirect to Vercel SSO; user explicitly chose to retain that gate."
+      }
+    },
+    "support": {
+      "id": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+      "url": "https://gridex-support-ey91dudwk-div3rsa.vercel.app",
+      "source_commit": "e63a349a7863b1c2584b1a679de8ec93c03b2b3b",
+      "target": "production",
+      "state": "READY",
+      "live_readback": {
+        "custom_domain_login_status": 200,
+        "minimal_form_only": true,
+        "intro_features_help_footer_removed": true,
+        "anonymous_browser_routes_redirect_to_login": [
+          "/",
+          "/team",
+          "/customers",
+          "/contact-requests"
+        ],
+        "evidence": "quality/support123/live-evidence-20261018-domain-final/browser-verification.json",
+        "unsigned_delivery_status": 403,
+        "signed_email_delivery_tested": false,
+        "timing": "Repeated successfully after permanent domain reassociation and DNS verification; historical screenshots retained separately."
+      },
+      "domain_cutover": "Complete: old marketing association absent, support persistent domain verified=true, live alias points to the correct READY support deployment.",
+      "build_fix": "Workspace now declares TypeScript/types and has an explicit root install command in apps/support/vercel.json",
+      "previous_verified_deployment_id": "dpl_DqPcEJofXi4XnAZnvLkt41Uj5fWS",
+      "environment_scope": "All 15 configured Auth, Staff and signed delivery variables active",
+      "current_domain_readback": {
+        "checked_at": "2026-10-18T17:53:47.363518+00:00",
+        "project_id": "prj_zyESgah9KJLBtFAD7pzygH3i3pp8",
+        "verified": true,
+        "public_login_status": 200,
+        "deployment_id_matches": true,
+        "browser_checks": 3,
+        "application_errors": 0,
+        "evidence": "quality/support123/domain-reassociation-20261018.json"
+      }
+    },
+    "ops_signing_activation": {
+      "id": "dpl_CwFDvmb8qxUkrsohcVHFJafvbbK6",
+      "url": "https://gridex-ops-platform-ra12tygg4-div3rsa.vercel.app",
+      "source_commit": "3034e14d194dbf6d8add1b23a5de1d2924f3a1a7",
+      "source_changed_by_this_task": false,
+      "state": "READY",
+      "target": "production",
+      "app_gridex_se_alias_verified": true,
+      "authorization": "User explicitly approved signing secret and redeployment of existing OPS production code"
+    }
+  },
+  "pull_request": "https://github.com/heke99/gridex-web/pull/53",
+  "tenant_delivery_database": {
+    "table": "support_private.staff_invitation_deliveries",
+    "exists": true,
+    "rls_enabled": true,
+    "claim_and_complete_functions": "Present; EXECUTE restricted to postgres/service_role",
+    "existing_invitation_subject_lookup": "Present",
+    "migration_applied_by_this_task": false
+  },
+  "invitation_callback_probe": {
+    "http_status": 303,
+    "redirect_origin": "https://support123.gridex.se",
+    "redirect_path": "/auth/invitation",
+    "token_parameter_preserved": true,
+    "expected_support_callback_allowed": true,
+    "real_token": false,
+    "email_sent": false,
+    "auth_session_created": false
+  },
+  "remaining_qualification": [
+    "Real nominated-owner password login and authenticated anonymous-contact read",
+    "Explicitly requested real staff invitation and acceptance, with email/durable receipt/audit attribution",
+    "Real electricity agreement signing and full production load/query-plan qualification"
+  ],
+  "website_reaudit": {
+    "status": "WEB_FINDINGS_PUBLISHED",
+    "checked_at": "2026-10-18T19:22:18.980412+00:00",
+    "evidence": "quality/api-compatibility/signing-review-20261018.json",
+    "open_findings": [],
+    "contract_sync": "All published manifests verified; W1-W7 fixed and published",
+    "support_domain_affected": false
+  },
+  "overall_status": "SUPPORT_DOMAIN_LIVE_WEB_FIXES_VERIFIED_REAL_APPLICATION_PDF_DELIVERED",
+  "web_api_completion": {
+    "date": "2026-10-18",
+    "report": "docs/api-compatibility/gridex-web-signing-review-20261018.md",
+    "endpoint_operations_reviewed": 142,
+    "code_findings": "W1-W7 fixed and published from ffa37ac4d34f320d2fe98110961a82bf3fc69403",
+    "live_test_customer": "[testkundsreferens utelämnad]",
+    "live_pdf_delivery_verified": false,
+    "remaining": "Separate POA PDF and verification number: documented Partner read succeeds but returns no file",
+    "new_behavior_tests": 93,
+    "live_agreement_and_email_pdf_delivery_verified": true,
+    "live_poa_pdf_delivery_verified": false,
+    "production_deployment": "dpl_GHAv3SEErU8VCrJV3i1qSYix8cDG",
+    "latest_reaudit": "quality/api-compatibility/full-reaudit-20261018.json"
+  }
+}

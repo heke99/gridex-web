@@ -6,8 +6,9 @@ export class StaffApiError extends Error {
   readonly code: string
   readonly requestId: string | null
   readonly retryable: boolean
+  readonly retryAfterSeconds: number | null
 
-  constructor(status: number, code: string, requestId: string | null = null, retryable = false) {
+  constructor(status: number, code: string, requestId: string | null = null, retryable = false, retryAfterSeconds: number | null = null) {
     const message = status === 401 ? 'Logga in igen för att fortsätta.'
       : status === 403 ? 'Du saknar behörighet för den här åtgärden.'
       : status === 404 ? 'Ärendet eller uppgiften kunde inte hittas.'
@@ -21,9 +22,10 @@ export class StaffApiError extends Error {
     this.code = code
     this.requestId = requestId
     this.retryable = retryable
+    this.retryAfterSeconds = retryAfterSeconds
   }
 
   toJSON() {
-    return { name: this.name, message: this.message, status: this.status, code: this.code, request_id: this.requestId, retryable: this.retryable }
+    return { name: this.name, message: this.message, status: this.status, code: this.code, request_id: this.requestId, retryable: this.retryable, retry_after_seconds: this.retryAfterSeconds }
   }
 }

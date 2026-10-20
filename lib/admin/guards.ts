@@ -38,7 +38,7 @@ export function canAccessByRule(
 export async function requireAdminAccess(): Promise<AdminContext> {
   const ctx = await getAdminContext()
 
-  if (!ctx.isAdmin) {
+  if (!ctx.isAdmin && !ctx.permissions.includes('support_tickets.manage')) {
     redirect('/')
   }
 

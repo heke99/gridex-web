@@ -114,6 +114,29 @@ try {
     (error) => error.code === 'ops_public_contracts_all_blocked',
     'incorrect commercial types must still block public offers',
   )
+
+  publicPayload = structuredClone(fixture)
+  const realClientFetch = globalThis.fetch
+  const conditionalHeaders = []
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(String(url)).pathname === '/api/v1/website/public-contracts') {
+      const conditional = new Headers(init.headers).get('If-None-Match')
+      conditionalHeaders.push(conditional)
+      if (conditional) return new Response(null, { status: 304, headers: {
+        ETag: conditional, 'X-Gridex-Contract-Version': version,
+      } })
+    }
+    return realClientFetch(url, init)
+  }
+  const confirmed = await fetchOpsPublicContractsSnapshot(null)
+  assert.equal(confirmed.upstream_status, 304)
+  assert.equal(confirmed.stale, false)
+  assert.deepEqual(confirmed.contracts, snapshot.contracts)
+  const finalFresh = await fetchOpsPublicContractsSnapshot(null, { forceFresh: true })
+  assert.equal(finalFresh.upstream_status, 200)
+  assert.equal(finalFresh.stale, false)
+  assert.deepEqual(conditionalHeaders, ['"public-v4-fixture"', null],
+    'the actual catalogue client validates cached representations while final validation bypasses ETag')
 } finally {
   globalThis.fetch = originalFetch
   console.error = originalError

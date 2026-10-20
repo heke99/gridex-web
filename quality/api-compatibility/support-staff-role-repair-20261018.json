@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-18T21:47:14.439900+00:00",
+  "scope": "User-nominated first Support123 administrator in Gridex El AB",
+  "confirmed_finding": {
+    "native_password_login": "succeeded at 21:10 UTC",
+    "staff_identity_resolution": "200 at 21:10:01.555Z",
+    "staff_cases": "403 staff_permission_denied at 21:10:02.080Z",
+    "cause": "Existing active membership and tenant role used legacy owner, absent from the Staff API permission profiles. Auth identity and explicit binding existed."
+  },
+  "repair": {
+    "command": "canonical_change_tenant_user_access",
+    "idempotency_key": "support123-approved-owner-role-repair-20261018",
+    "role_key": "company_admin",
+    "membership_role": "company_admin",
+    "scope": "Existing nominated account and Gridex El AB membership only",
+    "canonical_audit_events": 1,
+    "preexisting_permissions_preserved": true,
+    "company_ownership_record_unchanged": true,
+    "confirmed_auth_identity_and_binding_unchanged": true,
+    "first_attempt": "An incompatible owner/company_admin pair was rejected by the canonical mapping guard; entire transaction rolled back. Corrected command lets canonical mapping derive the supported membership role.",
+    "password_reset_or_human_session_retrieval": false
+  },
+  "user_verification": {
+    "status": "CONFIRMED_SUCCESS",
+    "reply": "Ja, jag kommer in",
+    "scope": "Actual nominated staff account logging into support123.gridex.se after canonical role repair"
+  },
+  "post_repair_request_log": {
+    "source": "OPS integration_api_requests",
+    "window": "2026-10-18 around 21:25 UTC",
+    "staff_identity_resolution": 200,
+    "staff_cases": 200,
+    "staff_customers": 200
+  }
+}
