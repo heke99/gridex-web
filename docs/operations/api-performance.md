@@ -68,3 +68,24 @@ Räknarna avser Web → OPS. De mäter inte OPS → Papilite/andra geografilever
 deras träffgrad eller deras debitering. Browserns lokala återanvändning ger inget
 serveranrop och kan därför inte räknas direkt i serverloggen. Teckningsflöde,
 slutlig avtalsvalidering, signeringsbevis och kundbehörigheter ändras inte.
+
+## Kontrollerade samtidighetsprov och anropsbudget
+
+OPS-kvoten räknas med vikt per anrop, inte bara antal HTTP-förfrågningar.
+Den aktuella OPS-registreringen använder `read=1`, `write=3` och `expensive=10`;
+en ny website-quote kostar10. Läs den aktiva klientens minutgräns före ett prov.
+Räkna också organisationskontroll, katalogrevalidering, marknadspris och legal-
+läsningar som Web gör bakom en enda browserförfrågan. Webbens egna gränser per
+IP/endpoint gäller parallellt och ersätter inte OPS gemensamma klientkvot.
+
+Ett prov ska ha en fast övre gräns för samtidighet och viktad trafik per minut,
+avbryta ny schemaläggning vid första429/5xx och aldrig spela om en skrivning.
+Fördela större prov över separata kvotfönster med marginal för bakgrundsarbete.
+Ett429-svar är inte ett lyckat kapacitetsprov; spara även den avbrutna körningen.
+Slutsatser om högsta kapacitet kräver ett separat representativt underlag.
+
+Prisberäkning och prisvalidering vidarebefordrar nu OPS validerade `Retry-After`
+till browsern, genom samma hjälpfunktion som kundportalens felhantering.
+Väntetiden avrundas uppåt och ogiltiga värden avvisas. Lokal begränsning av
+prisvalideringen returnerar sitt eget återställningsintervall. Detta skapar
+inga automatiska omförsök av quote-/avtalsanrop och ändrar inga kvoter.

@@ -1,5 +1,6 @@
 import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
+import { opsRetryAfterHeaders } from '@/lib/ops/errors'
 import { fetchOpsPublicContractsSnapshot, isOpsError } from '@/lib/ops/client'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
@@ -17,7 +18,13 @@ function text(value: unknown, max = 12_000): string {
 
 async function handlePost(req: Request) {
   const rate = await checkRateLimit(`quote-validate:${clientIpFromHeaders(req.headers)}`, { limit: 30, windowMs: 10 * 60_000 })
-  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
+  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, {
+    status: 429,
+    headers: {
+      'Cache-Control': 'private, no-store',
+      'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
+    },
+  })
   const parsedBody = await readWebJson<Record<string, unknown>>(req)
   if (!parsedBody.ok) return parsedBody.response
   const body = parsedBody.value
@@ -92,7 +99,7 @@ async function handlePost(req: Request) {
       correlation_id: isOpsError(error) ? error.correlationId : null,
     }, {
       status,
-      headers: { 'Cache-Control': 'private, no-store' },
+      headers: { 'Cache-Control': 'private, no-store', ...opsRetryAfterHeaders(error) },
     })
   }
 }
