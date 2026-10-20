@@ -24,6 +24,7 @@ const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
 const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
 const PUBLIC_CONTRACT_DATA_CACHE_SECONDS = 15
 const publicContractRevalidations = new Set<string>()
+const publicContractRefreshRequests = new Map<string, Promise<boolean>>()
 
 export type WebsitePublicContractFeedState =
   | 'feed_loaded_with_contracts'
@@ -132,6 +133,33 @@ const readCachedPublicContractSnapshot = unstable_cache(
   },
 )
 
+// after() inherits the ISR render's work-unit. Run the no-store upstream read
+// inside Next's supported cache scope so static rendering does not abort it.
+// Cache only a successful marker, scoped like the snapshot and invalidated by
+// the same publication webhook; final forceFresh validation bypasses this path.
+const refreshPublicContractSnapshot = unstable_cache(
+  async (cacheIdentity: string, customerType: WebsiteCustomerType | null): Promise<boolean> => {
+    // On dynamic requests Next can return a stale marker before its callback
+    // finishes. Coalesce the provider promise itself until that work settles.
+    const pending = publicContractRefreshRequests.get(cacheIdentity)
+    if (pending) return pending
+    const request = fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true }).then(() => true)
+    publicContractRefreshRequests.set(cacheIdentity, request)
+    try {
+      return await request
+    } finally {
+      if (publicContractRefreshRequests.get(cacheIdentity) === request) {
+        publicContractRefreshRequests.delete(cacheIdentity)
+      }
+    }
+  },
+  ['gridex-public-contract-refresh-v1'],
+  {
+    revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS,
+    tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
+  },
+)
+
 function schedulePublicContractRevalidation(
   context: string,
   snapshot: OpsPublicContractsSnapshot,
@@ -149,7 +177,7 @@ function schedulePublicContractRevalidation(
 
   after(async () => {
     try {
-      await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
+      await refreshPublicContractSnapshot(cacheKey, customerType ?? null)
     } catch (error) {
       console.warn(`[${context}] public contracts post-response revalidation failed`, safeOpsError(error))
     } finally {
