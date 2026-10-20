@@ -26,6 +26,14 @@ publiceringswebhooken återvaliderar efter databasens atomiska eventhantering.
 Tidigare saknades taggen på själva `unstable_cache`-posten. Den befintliga
 15-sekunderspolicyn och webhookens stale-while-revalidate-beteende behålls.
 
+Bakgrundsuppdateringen använder nu klientens villkorade OPS-hämtning med ETag.
+Ett oförändrat innehåll kan då bekräftas med HTTP304 genom OPS billiga
+fingeravtrycks-RPC, utan en ny fullständig katalogläsning. Efter bekräftad304
+förnyas snapshotens tid genom befintlig atomisk lagrings-RPC. Ett stale-fallbacksvar
+eller en avvisad lagring får inte bli en lyckad uppdateringsmarkör. Tenant-,
+revisions-, schema- och kundtypskontrollerna behålls. Slutlig pris-/avtalsvalidering
+använder fortfarande `forceFresh` utan ETag eller stale-fallback.
+
 En långsam äldre organisationskontroll får inte skriva över en nyare verifiering.
 Varken denna optimering eller katalogcachen ersätter den slutliga kanoniska
 pris-/avtalskontrollen. Kunddata, signerade underlag och skrivningar delas inte

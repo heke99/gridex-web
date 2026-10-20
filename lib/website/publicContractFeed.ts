@@ -5,6 +5,7 @@ import {
   fetchOpsPublicContractsSnapshot,
   isOpsError,
   isTransientOpsError,
+  OpsError,
   publicContractsCacheKey,
   WEBSITE_OPENAPI_SCHEMA_SHA256,
   type OpsBlockedPublicContract,
@@ -16,7 +17,7 @@ import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
 import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
-import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+import { readWebsitePublicContractSnapshot, storeWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
 import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 import { observeApiOperation, recordApiCache } from '@/lib/observability/apiPerformance'
 
@@ -143,7 +144,29 @@ const refreshPublicContractSnapshot = unstable_cache(
     // finishes. Coalesce the provider promise itself until that work settles.
     const pending = publicContractRefreshRequests.get(cacheIdentity)
     if (pending) return pending
-    const request = fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true }).then(() => true)
+    const request = fetchOpsPublicContractsSnapshot(customerType).then(async (snapshot) => {
+      // The regular client always contacts OPS and can validate an existing
+      // representation with ETag/304 instead of repeating the full feed reads.
+      // A fallback is useful for display, but is not a confirmed refresh.
+      if (snapshot.stale) {
+        throw new OpsError('OPS kunde inte bekräfta avtalskatalogens aktualitet.', 503, {
+          code: 'ops_public_contracts_revalidation_unconfirmed', retryable: true,
+        })
+      }
+      if (snapshot.upstream_status === 304) {
+        const result = await storeWebsitePublicContractSnapshot({
+          cacheKey: cacheIdentity,
+          customerType: customerType ?? 'all',
+          snapshot: { ...snapshot, fetched_at: new Date().toISOString() },
+        })
+        if (!result.stored) {
+          throw new OpsError('Avtalskatalogens bekräftade revision kunde inte sparas.', 503, {
+            code: 'ops_public_contracts_revalidation_unconfirmed', retryable: true,
+          })
+        }
+      }
+      return true
+    })
     publicContractRefreshRequests.set(cacheIdentity, request)
     try {
       return await request

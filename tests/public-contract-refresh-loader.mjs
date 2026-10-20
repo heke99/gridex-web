@@ -14,6 +14,7 @@ export async function resolve(specifier, context, nextResolve) {
       import { opsRequest } from ${JSON.stringify(transport)};
       import { isOpsError } from ${JSON.stringify(errors)};
       export { isOpsError };
+      export { OpsError } from ${JSON.stringify(errors)};
       export function isTransientOpsError(error) {
         return isOpsError(error) && error.retryable;
       }
@@ -24,7 +25,7 @@ export async function resolve(specifier, context, nextResolve) {
       export async function fetchOpsPublicContractsSnapshot(type, options) {
         globalThis.__contractRefreshFixture.providerOptions.push({type, options});
         await opsRequest('/api/v1/website/public-contracts', {}, {cache: 'no-store'});
-        return structuredClone(globalThis.__contractRefreshFixture.snapshot);
+        return structuredClone(globalThis.__contractRefreshFixture.providerSnapshot ?? globalThis.__contractRefreshFixture.snapshot);
       }
       export function fetchOpsPublicContractDiagnostics() { throw new Error('Unexpected diagnostics'); }
     `
@@ -34,6 +35,10 @@ export async function resolve(specifier, context, nextResolve) {
     return { url: `data:text/javascript,${encodeURIComponent(`
       export async function readWebsitePublicContractSnapshot() {
         return structuredClone(globalThis.__contractRefreshFixture.snapshot);
+      }
+      export async function storeWebsitePublicContractSnapshot(input) {
+        globalThis.__contractRefreshFixture.persisted.push(structuredClone(input));
+        return globalThis.__contractRefreshFixture.storeResult;
       }
     `)}`, shortCircuit: true }
   }

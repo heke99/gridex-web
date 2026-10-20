@@ -21,14 +21,25 @@ coalescing remains; the provider promise itself also stays shared when Next's
 dynamic stale-while-revalidate path returns an expired marker early. This is
 not a distributed lock or a second catalogue store.
 
-Five behavior tests execute the real feed, Next cache/async stores/patched fetch,
+Nine behavior tests execute the real feed, Next cache/async stores/patched fetch,
 and application transport. Only snapshot/provider I/O and incremental-cache
 persistence are synthetic. The baseline fails with zero native requests; the
 correction passes ISR delivery, refresh interval, tenant/type separation, tag
 invalidation, recovery, static/dynamic coalescing and final fresh-validation checks. The suite
 is included in `npm test` through `test:public-contract-refresh`.
 
-## OPS finding and delivery boundary
+## OPS finding and verification
+
+A later production probe after OPS publication observed database statement
+timeout57014 and12-second Web transport timeouts under concurrent public reads.
+The sequential browser comparison passed. A read-only database check confirmed
+the production client and cheap fingerprint function; no schema or data mutation
+was performed. Background refresh now uses the existing conditional client path
+instead of a forced full catalogue read. A confirmed304 renews freshness through
+the existing atomic snapshot RPC; stale fallback or rejected durable writes cannot
+create a successful marker. The real client regression proves ETag/304 behavior
+and the final forceFresh200 bypass independently. This reduces avoidable full
+reads; it does not establish that every upstream capacity limit is resolved.
 
 A distinct real HTTP500 was traced to lost Supabase/PostgREST gateway status.
 The existing F43 author patch at
@@ -38,13 +49,27 @@ review executed 330 assertions, including real canonical response formatting and
 preservation of typed validation/auth/tenant/legal failures. The deployed baseline
 failed the corresponding lost-gateway case.
 
-The three catalogue production files are a bounded reusable subset; the author's
-application POST change and unrelated branch work are excluded. The existing
-author test does not execute catalogue GET and cannot be imported unchanged into
-that subset. The author's active exact-file claim requires a positive bounded
-handoff and verified custody under OPS `AGENTS.md`. Neither a source rewrite nor
-OPS publication is implied by this review. Exact current delivery state and Web
-production probes are recorded in PR53 and the private task checkpoint.
+The three catalogue production files form a bounded subset; the application POST
+change and unrelated branch work are excluded. Thirty-eight new route tests
+exercise the real GET handler. OPS production source
+`2a234c415a8bb4eaac784ab044230735733559e2` is deployed as
+`dpl_7ropoDXHqydvxNr2vfGC4Z763Z3f`. Its full supported Node22 suite passed
+21,233 tests across1,237 files. The same five changed files have a separate
+main-integration review in OPS PR876; its normal merge remains separate.
 
-No database migration, tenant authorization change, original signing replay,
-customer creation, agreement submission, or email is part of this correction.
+## Atomic snapshot revision guard
+
+Review also reproduced an existing missing-row race in the Web snapshot RPC.
+If a webhook creates a newer publication state after the first SELECT finds no
+row, the guarded UPSERT preserves that newer state, but the old function assumed
+its own revision won and could store an older snapshot. A forward migration now
+reads and locks the actual state after the UPSERT and rejects an older revision
+before changing the snapshot. It refuses to replace an unexpected function body
+and preserves service-role-only execution. Five in-memory PostgreSQL tests cover
+the faulty baseline, deterministic interleaving for full and canonical-empty
+feeds, ordinary renewal, revision advancement, organization conflicts and source
+guard. The interleaving is instrumented; two parallel live DB sessions were not
+used. No historical migration is edited.
+
+No tenant authorization change, original signing replay, customer creation,
+agreement submission, or email is part of this correction.

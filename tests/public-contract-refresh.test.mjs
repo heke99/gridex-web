@@ -22,7 +22,7 @@ function fixture(t) {
   const entries = new Map(), warnings = [], errors = [], nativeScopes = []
   let calls = 0, status = 200, gate = null, clock = 0
   const state = globalThis.__contractRefreshFixture = {
-    identity: 'synthetic-tenant-a', providerOptions: [],
+    identity: 'synthetic-tenant-a', providerOptions: [], persisted: [], storeResult: { stored: true, result: 'stored' },
     snapshot: {
       contracts: [], blocked_contracts: [], warnings: [], compatibility_issues: [],
       stale: false, feed_state: 'canonical_empty', publication_revision: 42,
@@ -146,7 +146,50 @@ test('overlapping background work coalesces while explicit fresh validation alwa
   await loadWebsitePublicContractFeed({ context: 'fresh-test', forceFresh: true })
   await loadWebsitePublicContractFeed({ context: 'fresh-test', forceFresh: true })
   assert.equal(f.calls, 3)
-  assert.ok(f.state.providerOptions.every(call => call.options.forceFresh === true))
+  assert.ok(f.state.providerOptions.slice(-2).every(call => call.options.forceFresh === true))
+})
+
+test('background refresh uses the conditional catalogue path while final validation stays fresh', async t => {
+  const f = fixture(t), r = f.request()
+  await r.load(); await r.drain()
+  assert.notEqual(f.state.providerOptions[0].options?.forceFresh, true)
+})
+
+test('validated 304 refreshes freshness only through the existing atomic snapshot guard', async t => {
+  const f = fixture(t)
+  f.state.providerSnapshot = { ...f.state.snapshot, upstream_status: 304, not_modified: true }
+  const oldTime = Date.parse(f.state.snapshot.fetched_at)
+  const r = f.request(); await r.load({ customerType: 'private' }); await r.drain()
+  assert.equal(f.state.persisted.length, 1)
+  const stored = f.state.persisted[0]
+  assert.equal(stored.cacheKey, 'synthetic-tenant-a:private')
+  assert.equal(stored.customerType, 'private')
+  assert.ok(Date.parse(stored.snapshot.fetched_at) > oldTime)
+  assert.equal(stored.snapshot.etag, f.state.snapshot.etag)
+  assert.equal(stored.snapshot.publication_revision, 42)
+  assert.deepEqual(stored.snapshot.contracts, f.state.snapshot.contracts)
+  assert.equal(f.warnings.length, 0)
+})
+
+test('a rejected durable 304 refresh cannot become a cached success marker', async t => {
+  const f = fixture(t)
+  f.state.providerSnapshot = { ...f.state.snapshot, upstream_status: 304, not_modified: true }
+  f.state.storeResult = { stored: false, result: 'rejected_older_than_local_publication_state' }
+  const first = f.request(); await first.load(); await first.drain()
+  const second = f.request(); await second.load(); await second.drain()
+  assert.equal(f.calls, 2)
+  assert.equal(f.state.persisted.length, 2)
+  assert.equal(f.warnings.length, 2)
+})
+
+test('a transient stale fallback cannot become a cached success or renew durable freshness', async t => {
+  const f = fixture(t)
+  f.state.providerSnapshot = { ...f.state.snapshot, stale: true, stale_reason: 'ops_request_timeout' }
+  const first = f.request(); await first.load(); await first.drain()
+  const second = f.request(); await second.load(); await second.drain()
+  assert.equal(f.calls, 2)
+  assert.equal(f.state.persisted.length, 0)
+  assert.equal(f.warnings.length, 2)
 })
 
 test('expired markers retain upstream coalescing across dynamic stale-while-revalidate requests', async t => {

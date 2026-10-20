@@ -78,7 +78,7 @@
     "test:ops-context-cache": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/ops-integration-context-cache.test.mjs",
     "test:api-performance": "node --experimental-strip-types --experimental-loader ./tests/typescript-alias-loader.mjs tests/api-performance.test.mjs",
     "perf:api:report": "node --experimental-strip-types scripts/summarize-api-performance.mjs",
-    "test:public-contract-refresh": "node --experimental-strip-types --experimental-loader ./tests/public-contract-refresh-loader.mjs tests/public-contract-refresh.test.mjs"
+    "test:public-contract-refresh": "node --experimental-strip-types --experimental-loader ./tests/public-contract-refresh-loader.mjs tests/public-contract-refresh.test.mjs && node tests/public-contract-snapshot-revision-sql.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",
