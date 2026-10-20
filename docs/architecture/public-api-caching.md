@@ -31,8 +31,12 @@ Ett oförändrat innehåll kan då bekräftas med HTTP304 genom OPS billiga
 fingeravtrycks-RPC, utan en ny fullständig katalogläsning. Efter bekräftad304
 förnyas snapshotens tid genom befintlig atomisk lagrings-RPC. Ett stale-fallbacksvar
 eller en avvisad lagring får inte bli en lyckad uppdateringsmarkör. Tenant-,
-revisions-, schema- och kundtypskontrollerna behålls. Slutlig pris-/avtalsvalidering
-använder fortfarande `forceFresh` utan ETag eller stale-fallback.
+revisions-, schema- och kundtypskontrollerna behålls. Den publika prisvalideringen
+gör nu också ett eget, icke-cachat OPS-anrop med ETag. Endast ett lyckat200-svar
+eller ett304-svar med samma validator får bekräfta katalogen; stale-fallback är
+avstängd för hela anropet. Den efterföljande kanoniska OPS-offertvalideringen
+utförs fortfarande. Själva avtalsansökan behåller sin separata `forceFresh`-
+hämtning utan ETag eller stale-fallback.
 
 En långsam äldre organisationskontroll får inte skriva över en nyare verifiering.
 Varken denna optimering eller katalogcachen ersätter den slutliga kanoniska

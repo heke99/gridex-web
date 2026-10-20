@@ -16,6 +16,7 @@ const version = fixture.meta.contract_schema_version
 const organization = fixture.meta.organization_reference
 const OriginalDate = Date, nativeFetch = globalThis.fetch
 let clock = OriginalDate.now(), durable = null, upstreamStatus = 200, requestAdvanceMs = 0
+let notModifiedEtag = '"cold-catalogue"'
 const calls = [], reads = []
 globalThis.Date = class extends OriginalDate {
   constructor(...args) { super(...(args.length ? args : [clock])) }
@@ -62,7 +63,7 @@ globalThis.fetch = async (input, init = {}) => {
   clock += requestAdvanceMs
   requestAdvanceMs = 0
   if (upstreamStatus === 503) return json({ error: { code: 'PUBLIC_CONTRACTS_TEMPORARILY_UNAVAILABLE', message: 'Synthetic outage', retryable: true }, request_id: fixture.request_id, contract_schema_version: version }, 503, { 'Retry-After': '120' })
-  if (calls.at(-1)) return new Response(null, { status: 304, headers: { ETag: '"cold-catalogue"', 'X-Gridex-Contract-Version': version } })
+  if (calls.at(-1)) return new Response(null, { status: 304, headers: { ETag: notModifiedEtag, 'X-Gridex-Contract-Version': version } })
   return json(fixture, 200, { ETag: '"cold-catalogue"' })
 }
 try {
@@ -70,6 +71,18 @@ try {
   const { publicContractsCache } = await import('../lib/ops/client/core.ts')
   const first = await fetchOpsPublicContractsSnapshot(null, { forceFresh: true })
   assert.equal(first.upstream_status, 200)
+  const revalidated = await fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false })
+  assert.equal(revalidated.upstream_status, 304, 'strict quote checks can use an actual live conditional response')
+  assert.equal(revalidated.stale, false)
+  notModifiedEtag = '"unexpected-validator"'
+  await assert.rejects(fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false }),
+    error => error.code === 'ops_public_contracts_304_validator_mismatch',
+    'strict checks reject a304 that does not confirm the sent validator')
+  notModifiedEtag = '"cold-catalogue"'
+  upstreamStatus = 503
+  await assert.rejects(fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false }),
+    error => error.status === 503,
+    'strict quote checks must reject an outage even when a fresh cached snapshot exists')
   const initialClock = clock
   clock += 60_000
   upstreamStatus = 503
@@ -86,6 +99,9 @@ try {
   assert.equal(confirmed.stale, false)
   assert.deepEqual(confirmed.contracts, first.contracts)
   assert.ok(Date.parse(reads.at(-1).searchParams.get('fetched_at').slice(4)) < Date.parse(first.fetched_at))
+  const strictExpired = await fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false })
+  assert.equal(strictExpired.upstream_status, 304, 'an older compatible candidate still requires live confirmation')
+  assert.equal(strictExpired.stale, false)
 
   upstreamStatus = 503
   await assert.rejects(fetchOpsPublicContractsSnapshot(null), error => error.status === 503,

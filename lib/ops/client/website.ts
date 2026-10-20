@@ -867,9 +867,12 @@ export async function persistentPublicContractsCacheEntry(
 
 export async function fetchOpsPublicContractsSnapshot(
   customerType?: WebsiteCustomerType | null,
-  options: { forceFresh?: boolean } = {},
+  options: { forceFresh?: boolean; allowStaleFallback?: boolean } = {},
 ): Promise<OpsPublicContractsSnapshot> {
   const cacheKey = publicContractsCacheKey(customerType)
+  // Quote checks can use a live304, but must never continue on outage data.
+  // forceFresh retains its separate unconditional/no-candidate semantics.
+  const allowStaleFallback = !options.forceFresh && options.allowStaleFallback !== false
   let cached = options.forceFresh ? undefined : publicContractsCache.get(cacheKey)
   // An ETag may verify an older representation without serving it. Keep the
   // bounded validation candidate separate from the much shorter outage budget.
@@ -908,10 +911,10 @@ export async function fetchOpsPublicContractsSnapshot(
       },
     )
   } catch (error) {
-    const fallbackCached = !options.forceFresh && publicContractsFallbackEligible(error)
+    const fallbackCached = allowStaleFallback && publicContractsFallbackEligible(error)
       ? await eligibleFallback()
       : undefined
-    if (!options.forceFresh && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
       return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
@@ -925,6 +928,12 @@ export async function fetchOpsPublicContractsSnapshot(
     if (!cached) {
       throw new OpsError('OPS svarade 304 utan en lokal eller persistent avtalsrevision.', 502, {
         code: 'ops_public_contracts_304_without_cache',
+      })
+    }
+    if (options.allowStaleFallback === false && (!cached.etag || response.headers.get('etag') !== cached.etag)) {
+      throw new OpsError('OPS bekräftade inte den förväntade avtalsrevisionens ETag.', 502, {
+        code: 'ops_public_contracts_304_validator_mismatch',
+        retryable: false,
       })
     }
     return snapshotFromCacheEntry(cached, {
@@ -989,10 +998,10 @@ export async function fetchOpsPublicContractsSnapshot(
     }
     feedMetadata = publicContractFeedMetadata(response.payload, responseRevision)
   } catch (error) {
-    const fallbackCached = !options.forceFresh && publicContractsFallbackEligible(error)
+    const fallbackCached = allowStaleFallback && publicContractsFallbackEligible(error)
       ? await eligibleFallback()
       : undefined
-    if (!options.forceFresh && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached) && publicContractsFallbackEligible(error)) {
       return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
@@ -1007,8 +1016,8 @@ export async function fetchOpsPublicContractsSnapshot(
 
   const allBlocked = parsed.contracts.length === 0 && parsed.blockedContracts.length > 0
   if (allBlocked) {
-    const fallbackCached = !options.forceFresh ? await eligibleFallback() : undefined
-    if (!options.forceFresh && fallbackCached && withinFallbackBudget(fallbackCached)) {
+    const fallbackCached = allowStaleFallback ? await eligibleFallback() : undefined
+    if (allowStaleFallback && fallbackCached && withinFallbackBudget(fallbackCached)) {
       return snapshotFromCacheEntry(fallbackCached, {
         source: 'stale-cache',
         stale: true,
@@ -1077,12 +1086,12 @@ export async function fetchOpsPublicContractsSnapshot(
     })
   }
 
-  const fallbackCached = !options.forceFresh && feedMetadata.feedState === 'canonical_empty' &&
+  const fallbackCached = allowStaleFallback && feedMetadata.feedState === 'canonical_empty' &&
     (persistenceFailed || persistenceResult?.stored !== true)
     ? await eligibleFallback()
     : undefined
   if (
-    !options.forceFresh &&
+    allowStaleFallback &&
     fallbackCached &&
     withinFallbackBudget(fallbackCached) &&
     feedMetadata.feedState === 'canonical_empty' &&
@@ -1110,7 +1119,7 @@ export async function fetchOpsPublicContractsSnapshot(
   }
 
   if (persistenceResult && !persistenceResult.stored) {
-    if (!options.forceFresh) {
+    if (allowStaleFallback) {
       const latest = await persistentPublicContractsCacheEntry(cacheKey)
       if (latest && withinFallbackBudget(latest)) {
         return snapshotFromCacheEntry(latest, {

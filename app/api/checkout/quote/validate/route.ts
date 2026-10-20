@@ -1,6 +1,6 @@
 import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
-import { fetchOpsPublicContractsFresh, isOpsError } from '@/lib/ops/client'
+import { fetchOpsPublicContractsSnapshot, isOpsError } from '@/lib/ops/client'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
 import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
@@ -50,7 +50,9 @@ async function handlePost(req: Request) {
   }
 
   try {
-    const contracts = await fetchOpsPublicContractsFresh(customerType)
+    // Revalidate with OPS on every check. An authenticated304 confirms the
+    // unchanged representation; errors must never fall back to cached prices.
+    const { contracts } = await fetchOpsPublicContractsSnapshot(customerType, { allowStaleFallback: false })
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (!contract || !contractSupportsCustomerType(contract.customer_types, customerType)) {
       return NextResponse.json({ ok: false, error: { code: 'offer_not_available' } }, { status: 409 })
