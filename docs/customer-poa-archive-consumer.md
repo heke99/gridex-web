@@ -67,10 +67,16 @@ verifikationsreferens med matchande sökväg/bucket/referens. Evidensens IP matc
 sparad IP och `ip_address_source` är `signer_reported`. Den frysta texten och
 omfattningen har samma kontrollsumma före/efter anropet.
 
-Läsning av faktiska PDF-bytes med kontroll av hash och dokumentinnehåll samt
-nedladdningsprovet i kundens verkliga inloggning återstår. Hela fullmaktsflödet
-är därför ännu inte slutgodkänt i drift. Originalanropet är slutfört och ska
-inte upprepas för dessa läsprov.
+Originalklientens slutrapport den 20 oktober 2026 08:48:31 UTC godkänner 35 av
+35 kontroller. Den hämtade tvåsidiga PDF-filen är läsbar; dess faktiskt beräknade
+SHA-256 matchar OPS-arkivet exakt. Verifikationsnumret finns på båda sidorna.
+Ursprunglig IP och godkännandetid har också verifierats inne i dokumentet.
+
+Användaren har därefter bekräftat att PDF-filen laddas ned och öppnas från
+Mina dokument genom den vanliga kundinloggningen. Originalanrop, arkivering,
+faktisk fil/hash/verifikation och kundens nedladdningsväg är därmed godkända i
+drift för den kontrollerade testfullmakten. Originalanropet är slutfört och
+ska inte upprepas för läskontrollerna.
 
 ## Befintliga API-kunder utan webbansökan
 

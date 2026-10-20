@@ -84,8 +84,18 @@ sparad IP-hash matchar SHA-256 av den IP-adressen. Den frysta fullmaktstextens
 och omfattningens gemensamma kontrollsumma är oförändrad före/efter anropet.
 `signer_reported` anger klientrapporterad IP och är inte bevis om BankID.
 
-Faktiska PDF-bytes och dokumentinnehåll ska fortfarande verifieras via läs-API:t.
-Nedladdningsprov från kundens verkliga inloggning i Mina dokument är efterfrågat.
-Hela fullmaktsflödet är ännu inte slutgodkänt; ett skapat arkiv eller HTTP 200
-ersätter inte dessa läskontroller. Denna webbrättning har inte utfört någon
-parallell originalreplay.
+## Godkända slutprov
+
+Originalklientens slutrapport den 20 oktober 08:48:31 UTC godkänner 35 av 35
+kontroller. PDF-filen har hämtats via OPS läs-API, öppnats och verifierats som
+läsbar på båda sidorna. SHA-256 beräknad på de hämtade filbytesen matchar
+arkivets kontrollsumma ovan exakt. Verifikationsnumret finns på båda sidorna,
+och ursprunglig IP och godkännandetid är verifierade inne i PDF-filen.
+
+Användaren har därefter genom sin vanliga kundinloggning öppnat Mina dokument,
+valt fullmaktens PDF-nedladdning och bekräftat: ”PDF-filen laddas ned och öppnas”.
+Det verifierar också den verkliga kundvägen från Web till OPS och PDF-filen.
+De efterfrågade original-, arkiv-, fil- och kundåtkomstproven är därmed godkända
+för den kontrollerade testfullmakten. Denna webbrättning har inte utfört någon
+parallell originalreplay. Den granskade arkivspecifikationen är separat
+byteverifierad i drift enligt ovan.
