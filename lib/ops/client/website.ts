@@ -865,6 +865,12 @@ export async function persistentPublicContractsCacheEntry(
   }
 }
 
+function publicContractOpaqueEtag(value: string | null): string | null {
+  // If-None-Match uses weak comparison (RFC9110§13.1.2). CDN compression
+  // may add W/ to the200 tag while the origin's304 retains its strong form.
+  return value?.match(/^(?:W\/)?("[\x21\x23-\x7E\x80-\xFF]*")$/)?.[1] ?? null
+}
+
 export async function fetchOpsPublicContractsSnapshot(
   customerType?: WebsiteCustomerType | null,
   options: { forceFresh?: boolean; allowStaleFallback?: boolean } = {},
@@ -930,7 +936,8 @@ export async function fetchOpsPublicContractsSnapshot(
         code: 'ops_public_contracts_304_without_cache',
       })
     }
-    if (options.allowStaleFallback === false && (!cached.etag || response.headers.get('etag') !== cached.etag)) {
+    const expectedOpaqueEtag = publicContractOpaqueEtag(cached.etag)
+    if (options.allowStaleFallback === false && (!expectedOpaqueEtag || publicContractOpaqueEtag(response.headers.get('etag')) !== expectedOpaqueEtag)) {
       throw new OpsError('OPS bekräftade inte den förväntade avtalsrevisionens ETag.', 502, {
         code: 'ops_public_contracts_304_validator_mismatch',
         retryable: false,

@@ -33,7 +33,9 @@ förnyas snapshotens tid genom befintlig atomisk lagrings-RPC. Ett stale-fallbac
 eller en avvisad lagring får inte bli en lyckad uppdateringsmarkör. Tenant-,
 revisions-, schema- och kundtypskontrollerna behålls. Den publika prisvalideringen
 gör nu också ett eget, icke-cachat OPS-anrop med ETag. Endast ett lyckat200-svar
-eller ett304-svar med samma validator får bekräfta katalogen; stale-fallback är
+eller ett304-svar med samma opaka ETag-värde får bekräfta katalogen. Jämförelsen
+följer `If-None-Match` i RFC9110 och tillåter att CDN-komprimering lägger till
+`W/` utan att innehållets identifierare ändras. Stale-fallback är
 avstängd för hela anropet. Den efterföljande kanoniska OPS-offertvalideringen
 utförs fortfarande. Själva avtalsansökan behåller sin separata `forceFresh`-
 hämtning utan ETag eller stale-fallback.

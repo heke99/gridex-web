@@ -79,6 +79,16 @@ try {
     error => error.code === 'ops_public_contracts_304_validator_mismatch',
     'strict checks reject a304 that does not confirm the sent validator')
   notModifiedEtag = '"cold-catalogue"'
+  // A CDN may weaken a200 ETag after compression while the origin returns
+  // its strong form on304. If-None-Match uses weak comparison (RFC9110).
+  for (const [candidate, received] of [['W/"cold-catalogue"', '"cold-catalogue"'], ['"cold-catalogue"', 'W/"cold-catalogue"']]) {
+    for (const cached of (await import('../lib/ops/client/core.ts')).publicContractsCache.values()) cached.etag = candidate
+    notModifiedEtag = received
+    const weakRevalidated = await fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false })
+    assert.equal(weakRevalidated.upstream_status, 304, 'strong and weak forms with the same opaque tag confirm the representation')
+  }
+  for (const cached of (await import('../lib/ops/client/core.ts')).publicContractsCache.values()) cached.etag = '"cold-catalogue"'
+  notModifiedEtag = '"cold-catalogue"'
   upstreamStatus = 503
   await assert.rejects(fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false }),
     error => error.status === 503,
