@@ -60,3 +60,14 @@ redovisas separat från exakta cacheträffar.
 Ingen ny cachetjänst, betald infrastruktur eller databasändring behövs för
 ändringarna ovan. Besparing i kronor kräver faktisk trafik, träffgrad och
 leverantörernas debitering.
+
+Katalogens visnings-/reservbudget är fortsatt normalt15 minuter. Ett kallt
+serverexemplar kan läsa en kompatibel, credential-/organisationsbunden snapshot
+i högst24 timmar enbart som underlag för ETag-verifiering hos OPS. Den äldre
+representationen får användas först efter ett lyckat200/304-svar; vid fel får
+endast data inom den kortare reservbudgeten levereras. Slutlig forceFresh
+använder varken denna kandidat eller dess ETag. Schemat, parsern, publicerings-
+revisionen och den atomiska304-förnyelsen har samma kontroller som tidigare.
+Reservbudgeten kontrolleras igen efter nätverks-/databasväntan och vid retur.
+Om processens kopia är gammal kontrolleras en möjlig färsk, durabel304-förnyelse
+innan reservdata nekas; en misslyckad förnyelse räknas inte som färsk data.

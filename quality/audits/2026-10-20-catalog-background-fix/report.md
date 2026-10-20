@@ -73,3 +73,24 @@ used. No historical migration is edited.
 
 No tenant authorization change, original signing replay, customer creation,
 agreement submission, or email is part of this correction.
+
+## Cold ETag retention
+
+Further concurrent native probes retained a capacity failure while standalone
+resolution passed. The same service-role point lookup measured116ms directly,
+245ms through the PostgREST query shape and208ms with a forced generic plan;
+JIT is off and no blocking lock was observed. No speculative geometry/schema
+rewrite was made. The Web client did have a proven cold-cache amplification:
+it discarded compatible durable ETags after the15-minute display budget and
+retrieved the entire catalogue again. A new real-client/store/transport test
+reproduces200 instead of304 on a cold instance. Compatible ETag candidates now
+have a separate24-hour verification horizon; unconfirmed expired data cannot
+be an outage fallback, including from process memory. The normal configurable
+fallback budget and all identity/schema/empty-feed guards remain. Final
+forceFresh bypasses both candidates and ETags. Native capacity requires a
+further bounded observation after publication; previous failed windows remain.
+
+Two independent reviews also reproduced expiry during an upstream wait and a
+fresh durable renewal hidden by an older process entry. Fallbacks now recheck
+age at the return boundary and reread eligible durable data before rejecting
+an old memory entry. The actual-client regression covers both cases.
