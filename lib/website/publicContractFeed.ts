@@ -17,6 +17,7 @@ import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
 import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
 import { readWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 
 const FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS = 60_000
 const FAST_PUBLIC_CONTRACT_REVALIDATE_AFTER_MS = 10_000
@@ -123,7 +124,10 @@ const readCachedPublicContractSnapshot = unstable_cache(
     return fetchOpsPublicContractsSnapshot(customerType)
   },
   ['gridex-public-contract-snapshot-v1'],
-  { revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS },
+  {
+    revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS,
+    tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
+  },
 )
 
 function schedulePublicContractRevalidation(

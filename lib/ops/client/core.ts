@@ -1350,6 +1350,8 @@ export let integrationContextCache: {
   expiresAt: number;
   value: OpsIntegrationContext;
 } | null = null;
+const integrationContextRequests = new Map<string, Promise<OpsIntegrationContext>>();
+let integrationContextRequestVersion = 0;
 
 export function integrationContextFromPayload(payload: unknown): OpsIntegrationContext {
   const root = recordValue(payload) ?? {}
@@ -1543,10 +1545,28 @@ export async function getVerifiedOpsIntegrationContext(forceFresh = false): Prom
   if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
     return integrationContextCache.value;
   }
-  const payload = await opsFetch("/api/v1/integration/context");
-  const value = integrationContextFromPayload(payload);
-  integrationContextCache = { key, expiresAt: now + 60_000, value };
-  return value;
+  // Only this API-key/base-URL identity may share a pending public context read.
+  // Fresh verification bypasses both the completed cache and pending reads.
+  const pending = !forceFresh ? integrationContextRequests.get(key) : undefined;
+  if (pending) return pending;
+
+  const requestVersion = ++integrationContextRequestVersion;
+  const request = (async () => {
+    const payload = await opsFetch("/api/v1/integration/context");
+    const value = integrationContextFromPayload(payload);
+    // A slow earlier response must not replace a newer verification.
+    if (requestVersion === integrationContextRequestVersion) {
+      integrationContextCache = { key, expiresAt: now + 60_000, value };
+    }
+    return value;
+  })();
+  if (!forceFresh) integrationContextRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    // Remove failures as well as successes; later requests may retry normally.
+    if (integrationContextRequests.get(key) === request) integrationContextRequests.delete(key);
+  }
 }
 
 export const fetchOpsIntegrationContext = getVerifiedOpsIntegrationContext;
