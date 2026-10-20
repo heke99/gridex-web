@@ -8,7 +8,7 @@ import {
   CUSTOMER_VERIFIED_PRICE_BASIS_LABEL,
 } from "@/lib/website/customerFacingCopy";
 
-type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; continueHref?: string };
+type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; onCompare?: () => void; continueHref?: string };
 function hasNumber(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
 function formatNumber(value: number, maximumFractionDigits = 0) { return new Intl.NumberFormat("sv-SE", { maximumFractionDigits }).format(value); }
 function lineUnit(unit: string) { return ({sek_per_month:'kr/mån',sek_per_invoice:'kr/faktura',sek_per_kwh:'kr/kWh',ore_per_kwh:'öre/kWh',kwh:'kWh',sek:'kr'} as Record<string,string>)[unit] ?? unit; }
@@ -40,7 +40,7 @@ function isCustomerVisibleAssumption(label: string) {
 }
 
 // Legacy customer wording "Bindande pris" is intentionally not rendered here: is_binding verifies the checkout price basis, not a future variable/spot settlement price.
-export default function PriceResultCard({ data, updatedAt, onSelect, continueHref }: Props) {
+export default function PriceResultCard({ data, updatedAt, onSelect, onCompare, continueHref }: Props) {
   const { totalMonthlyCostSek, totalMonthlyCostInclVatSek, pricePerKwhOre, priceArea, kwh, specification, contract } = data;
   const fees = specification?.fees ?? {};
   const canonicalLines = specification?.canonicalLines ?? [];
@@ -67,7 +67,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
             </div>
             <div>
               <div className="text-lg font-semibold text-white">{contract.name}</div>
-              <div className="text-sm text-gray-400">{priceArea} • {formatNumber(kwh)} kWh/månad • {formatNumber(data.annual_consumption_kwh ?? kwh * 12)} kWh/år</div>
+              <div className="text-sm text-gray-400">Elområde: {priceArea} • {formatNumber(kwh)} kWh/månad • {formatNumber(data.annual_consumption_kwh ?? kwh * 12)} kWh/år</div>
             </div>
           </div>
           {updatedAt ? <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-gray-300">Visad {updatedAt.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</div> : null}
@@ -113,7 +113,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, continueHre
 
         <div className="grid gap-3 md:grid-cols-2">
           {onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} prefetch={true} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">{production ? 'Teckna produktionsavtal' : 'Teckna elavtal'}</Link>}
-          <Link href="/elavtal" className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</Link>
+          {onCompare ? <button type="button" onClick={onCompare} className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</button> : <Link href="/elavtal" className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</Link>}
         </div>
       </div>
     </div>

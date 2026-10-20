@@ -283,7 +283,7 @@ function HowItWorks() {
             Ange adress och postnummer
           </div>
           <p className="mt-2 text-sm text-gray-400">
-            Börja med att ange postnummer eller välj elområde manuellt.
+            Ange adress, postnummer och ort så visas ditt elområde automatiskt.
           </p>
         </div>
 
