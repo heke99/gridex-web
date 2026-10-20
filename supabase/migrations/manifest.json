@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-20T19:00:42.735Z",
+  "generated_at": "2026-10-20T19:18:27.432Z",
   "migration_count": 50,
   "version_collisions": [],
   "migrations": [
@@ -250,8 +250,8 @@
       "sha256": "2f3c1eeebb95b4655c62fd7ec85af961b6e85b3529d7d34485f057199ff9ae8e"
     },
     {
-      "file": "20261020190500_public_contract_snapshot_revision_race.sql",
-      "version": "20261020190500",
+      "file": "20261020190229_public_contract_snapshot_revision_race.sql",
+      "version": "20261020190229",
       "sha256": "8eef2b7c29e12a39994d67e828529d36ca435ba8fcc1c6b47c413bd42f2f4586"
     }
   ]

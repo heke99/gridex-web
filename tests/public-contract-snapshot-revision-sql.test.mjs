@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite'
 const read = (file) => readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8')
 const schema = await read('20260803102000_public_contract_snapshot_portable_schema.sql')
 const legacy = await read('20260819193000_ops_organization_reference_expand.sql')
-const migration = await read('20261020190500_public_contract_snapshot_revision_race.sql')
+const migration = await read('20261020190229_public_contract_snapshot_revision_race.sql')
 const rpcStart = 'create or replace function public.store_website_public_contract_snapshot_v2('
 const originalRpc = legacy.slice(legacy.indexOf(rpcStart), legacy.indexOf('create or replace function public.apply_ops_publication_event_v2('))
 const fixedRpc = migration.slice(migration.indexOf(rpcStart), migration.lastIndexOf('commit;'))
