@@ -35,13 +35,67 @@ och testets lokala intygssignerare är isolerade testgränser.
   TypeScript, riktad ESLint, `npm run verify:delivery` och filstorlekskontroll passerar.
 
 Det nya testet ingår i `test:portal-first-link` och därmed i den befintliga
-kundskrivningssviten. Ett verkligt inloggat produktionsprov av förstakopplingen
-återstår efter publicering; isolerade tester ersätter inte den kundsessionen.
+kundskrivningssviten.
+
+## Verifierat driftläge den 20 oktober 2026
+
+Efter användarens uttryckliga publiceringsgodkännande publicerades kodversion
+`7c3cbb477c6ce86b6e4dba59d669e52e3f7ec2b9` på `gridex.se` i deployment
+`dpl_97HJJ4SbZjN86HvqNMFvjWL4Z29v`. Samma version och READY-status lästes
+tillbaka den 20 oktober cirka 07:50 UTC.
+
+Användaren genomförde det verkliga inloggade kundkopplingsprovet den 19 oktober
+och bekräftade att Mina sidor öppnades. Oberoende Web-läsning 14:53:20 UTC
+bekräftade rätt kundnummer, sparad externreferens och `onboarding_state = verified`.
+Motsvarande OPS-synk slutfördes med HTTP 200 och `synced` 14:52:45 UTC.
+Kundkopplingen är därmed verifierad i den verkliga kundsessionen.
 
 ## Fullmaktens separata leverans
 
-Den kontrollerade testfullmakten har redan ursprunglig godkännandetid och IP i
-OPS. Kontrollen 14:40 UTC visar att dokumenthash, PDF-sökväg och arkivmetadata
-ännu saknas. Ingen ny tid/IP eller nytt samtycke skapas för att fylla dessa fält.
-Den pågående OPS-leveransen i PR 828 äger arkivering och originalprov. Denna
-webbrättning startar ingen parallell OPS-publicering eller originalreplay.
+OPS-versionen från PR 828, `6db93e76da9337b4bfa36e091fe7d0a1d2d9b008`,
+publicerades den 19 oktober i deployment `dpl_DfYURUHz2f5M1iJKSnfFRTnvJ2DS`.
+Ägarens releasekvitto bekräftar fyra installerade migrationer och godkänd
+katalogkontroll. Ordinarie migrationstest och certifiering har terminal SUCCESS.
+Den publicerade arkivspecifikationen kontrollerades separat den 20 oktober;
+HTTP 200 och faktisk SHA-256 matchar Webs incheckade kontrakt byte för byte.
+
+Den kontrollerade testfullmakten hade ursprunglig godkännandetid och sparad IP.
+Förkontrollen den 20 oktober 07:50 UTC visade att PDF-sökväg,
+arkivmetadata, arkivhash och verifikationsreferens saknades. IP-värdet i evidensen
+matchade sparad IP, men `ip_address_source` saknades. Ursprungsunderlagets
+kontrollsumma var då identisk med kontrollen den 19 oktober.
+
+## Originalanrop och skapad PDF den 20 oktober
+
+Den befintliga klienten återhämtade det sparade originalet i sin skyddade runtime.
+Råunderlagets och den ursprungliga idempotensnyckelns kontrollsummor matchade de
+tidigare låsta värdena och begäran passerade API-valideringen. Det enda
+godkända originalanropet är nu genomfört och svarade HTTP 200. Klientens
+efterkontroll rapporterar samma ansökan/fullmakt utan dubbletter samt bevarad
+ursprunglig IP och godkännandetid. Originalanropet ska inte köras igen för att
+slutföra läskontrollerna.
+
+Oberoende databasläsningar 08:36:12–08:36:23 UTC bekräftar att PDF-objektet finns
+i `customer-documents` och att arkivets sökväg, bucket och verifikationsnummer
+matchar fullmaktsposten. Arkivets SHA-256 är
+`be9eb63b1c7cf276dee3838a9712c981cd06f3515e39b3a671e179140bb50e58`.
+Evidensens IP matchar sparad IP, källan anges nu som `signer_reported`, och
+sparad IP-hash matchar SHA-256 av den IP-adressen. Den frysta fullmaktstextens
+och omfattningens gemensamma kontrollsumma är oförändrad före/efter anropet.
+`signer_reported` anger klientrapporterad IP och är inte bevis om BankID.
+
+## Godkända slutprov
+
+Originalklientens slutrapport den 20 oktober 08:48:31 UTC godkänner 35 av 35
+kontroller. PDF-filen har hämtats via OPS läs-API, öppnats och verifierats som
+läsbar på båda sidorna. SHA-256 beräknad på de hämtade filbytesen matchar
+arkivets kontrollsumma ovan exakt. Verifikationsnumret finns på båda sidorna,
+och ursprunglig IP och godkännandetid är verifierade inne i PDF-filen.
+
+Användaren har därefter genom sin vanliga kundinloggning öppnat Mina dokument,
+valt fullmaktens PDF-nedladdning och bekräftat: ”PDF-filen laddas ned och öppnas”.
+Det verifierar också den verkliga kundvägen från Web till OPS och PDF-filen.
+De efterfrågade original-, arkiv-, fil- och kundåtkomstproven är därmed godkända
+för den kontrollerade testfullmakten. Denna webbrättning har inte utfört någon
+parallell originalreplay. Den granskade arkivspecifikationen är separat
+byteverifierad i drift enligt ovan.

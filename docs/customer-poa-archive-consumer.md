@@ -4,10 +4,12 @@ Webben använder det oberoende OPS-kontraktet `poa-archive-v1.json`, version
 `2026-10-19.1`. Den incheckade filen är byteidentisk med den granskade OPS-källan
 och har SHA-256
 `ec70eafa96d77563771af0b20eaa71ef2134eff96f75abfd4bb1942c94295d37`.
-Den förberedda oföränderliga dokumentvägen är
+Den publicerade oföränderliga dokumentvägen är
 `https://app.gridex.se/api/v1/openapi/2026-10-19.1/poa-archive-v1.json`.
 Denna separata kontraktsversion ersätter inte de tre befintliga API-paketen eller
-deras gemensamma release-manifest. Slutlig liveparitet kontrolleras efter OPS-release.
+deras gemensamma release-manifest. Den 20 oktober 2026 cirka 07:51 UTC svarade
+den publicerade filen med HTTP 200. Faktiska svarsbytes har samma SHA-256 som
+ovan och är identiska med den incheckade filen.
 
 Mina dokument visar arkivets fullmakter med verifikationsnummer, en lokal
 inloggningsskyddad nedladdningslänk och sidindelning om 20 poster. Metadata märks
@@ -46,9 +48,35 @@ de ersätts inte med aktuella värden. Referens och kontrollsumma är inte en
 kryptografisk PDF-signatur eller bevis om BankID.
 
 Ingen GET skapar fullmakt, samtycke eller PDF, och inga OPS-lagringssökvägar eller
-API-nycklar lämnas till webbläsaren. Installation av OPS arkiv-/databasberoenden,
-publicering av båda sidorna och det tidigare godkända verkliga kundprovet krävs
-innan hela flödet kan godkännas i drift.
+API-nycklar lämnas till webbläsaren.
+
+## Aktuell verifieringsstatus
+
+Web och OPS är publicerade och OPS-ägaren har kvitterat databasinstallationen.
+Den verkliga kundkopplingen är verifierad av användaren och av databasläsning.
+Publicering av kontraktet är också byteverifierad enligt ovan.
+
+Det redan godkända originalanropet har genomförts en gång av den befintliga
+skyddade klienten och svarade HTTP 200. Klientens före-/efterkontroll rapporterar
+samma originalansökan och fullmakt, bevarad ursprunglig IP och godkännandetid
+samt inga dubbletter.
+
+Oberoende databasläsning den 20 oktober 2026 cirka 08:36 UTC bekräftar att den
+avskilda testfullmakten nu har PDF-objekt, arkivmetadata, SHA-256 och
+verifikationsreferens med matchande sökväg/bucket/referens. Evidensens IP matchar
+sparad IP och `ip_address_source` är `signer_reported`. Den frysta texten och
+omfattningen har samma kontrollsumma före/efter anropet.
+
+Originalklientens slutrapport den 20 oktober 2026 08:48:31 UTC godkänner 35 av
+35 kontroller. Den hämtade tvåsidiga PDF-filen är läsbar; dess faktiskt beräknade
+SHA-256 matchar OPS-arkivet exakt. Verifikationsnumret finns på båda sidorna.
+Ursprunglig IP och godkännandetid har också verifierats inne i dokumentet.
+
+Användaren har därefter bekräftat att PDF-filen laddas ned och öppnas från
+Mina dokument genom den vanliga kundinloggningen. Originalanrop, arkivering,
+faktisk fil/hash/verifikation och kundens nedladdningsväg är därmed godkända i
+drift för den kontrollerade testfullmakten. Originalanropet är slutfört och
+ska inte upprepas för läskontrollerna.
 
 ## Befintliga API-kunder utan webbansökan
 
