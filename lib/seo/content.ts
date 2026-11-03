@@ -1057,10 +1057,10 @@ function competitorSeoPage(input: CompetitorSeoPageInput): SeoPageContent {
   return { ...input, lastModified: input.lastModified ?? SEO_COMPETITOR_BATCH_MODIFIED }
 }
 
-function elavtalCompetitorPage(input: Omit<CompetitorSeoPageInput, 'primaryCta' | 'secondaryCta'>): SeoPageContent {
+function elavtalCompetitorPage(input: Omit<CompetitorSeoPageInput, 'primaryCta' | 'secondaryCta'> & Partial<Pick<SeoPageContent, 'primaryCta'>>): SeoPageContent {
   return competitorSeoPage({
     ...input,
-    primaryCta: { label: 'Teckna elavtal', href: '/teckna-avtal' },
+    primaryCta: input.primaryCta ?? { label: 'Teckna elavtal', href: '/teckna-avtal' },
     secondaryCta: { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal' },
   })
 }
