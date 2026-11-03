@@ -17,7 +17,7 @@ export const metadata: Metadata = {
         title: page.title,
         description: page.description,
         url: `${SITE_URL}/elbolag/gridex-el-ab`,
-        siteName: 'Gridex AB',
+        siteName: 'Gridex El AB',
         locale: 'sv_SE',
         type: 'website',
       }

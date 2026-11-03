@@ -1509,10 +1509,13 @@ export const marketPages: SeoPageContent[] = [
     eyebrow: 'Gridex El AB',
     h1: 'Gridex El AB som elleverantör',
     lead: 'Gridex El AB erbjuder elavtal med fokus på tydlighet, digital hantering och öppen information om pris, avgifter och nästa steg.',
+    lastModified: new Date('2026-11-03T00:00:00.000Z'),
     intent: 'Varumärkessida för kunder som söker Gridex som elbolag.',
     primaryCta: { label: 'Se Gridex elavtal', href: '/elavtal' },
     secondaryCta: { label: 'Teckna elavtal', href: '/teckna-avtal' },
     sections: [
+      { title: 'Om Gridex El AB', body: ['Gridex El AB är ett svenskt elhandelsbolag med organisationsnummer 559416-7149. Vi erbjuder elavtal för privatpersoner och företag i Sveriges fyra elområden, SE1–SE4. Gridex är elhandlaren; ditt lokala elnätsföretag ansvarar för anslutningen och elnätet.'] },
+      { title: 'Kontakta Gridex El', body: ['Du når Gridex kundservice på support@gridex.se. Via kundservicesidan kan du få hjälp med elavtal, fakturor, flytt och Mina sidor. Ange vad ärendet gäller så hjälper vi dig vidare.'] },
       { title: 'Tydliga elavtal', body: ['Gridex visar elhandelspris, avtalsform och viktiga avgifter innan kunden tecknar. Målet är att kunden ska förstå vad som händer före och efter teckning.'] },
       { title: 'Digital kundresa', body: ['Teckning skickas online och Gridex återkommer om anläggningsuppgifter eller andra delar behöver kompletteras innan avtalsstart.'] },
     ],

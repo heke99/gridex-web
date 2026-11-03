@@ -29,8 +29,8 @@ const GOOGLE_CONSENT_DEFAULTS = `
 `
 
 export const metadata = {
-  title: 'Gridex AB – Elhandelsbolag',
-  description: 'Gridex AB erbjuder tydliga elavtal och prisberäkning för svenska elområden (SE1–SE4).',
+  title: 'Gridex El AB – Elhandelsbolag',
+  description: 'Gridex El AB erbjuder tydliga elavtal och prisberäkning för svenska elområden (SE1–SE4).',
   icons: {
     icon: [{ url: '/icon.svg?v=20260820', type: 'image/svg+xml' }],
     shortcut: '/icon.svg?v=20260820',

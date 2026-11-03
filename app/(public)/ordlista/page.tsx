@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     title: 'Ordlista för elavtal och elpris',
     description: 'Gridex förklarar vanliga elbegrepp på enkel svenska.',
     url: `${SITE_URL}/ordlista`,
-    siteName: 'Gridex AB',
+    siteName: 'Gridex El AB',
     locale: 'sv_SE',
     type: 'website',
   },

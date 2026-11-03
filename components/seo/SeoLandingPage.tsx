@@ -71,7 +71,7 @@ export default function SeoLandingPage({
           </p>
           {schemaType === 'article' ? (
             <p className="mt-4 text-sm text-gray-400">
-              Av Gridex AB
+              Av Gridex El AB
               {modified ? <> · Uppdaterad <time dateTime={modified}>{modified}</time></> : null}
             </p>
           ) : null}
