@@ -28,6 +28,7 @@ export default function Footer() {
           <Link href="/elavtal/rorligt-elpris" className="block hover:text-white">Rörligt elpris</Link>
           <Link href="/elavtal/fast-elpris" className="block hover:text-white">Fast elpris</Link>
           <Link href="/elavtal/kvartspris-el" className="block hover:text-white">Kvartspris el</Link>
+          <Link href="/elavtal/fastighetsagare" className="block hover:text-white">Elavtal för fastighetsägare</Link>
           <Link href="/elavtal/foretag" className="block hover:text-white">Elavtal företag</Link>
           <Link href="/elavtal/villa" className="block hover:text-white">Elavtal villa</Link>
           <Link href="/teckna-avtal" className="block hover:text-white">Teckna elavtal</Link>
