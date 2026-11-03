@@ -12,19 +12,19 @@ import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from
 export const revalidate = 15;
 
 export const metadata: Metadata = {
-  title: "Elavtal med tydliga priser och avgifter | Gridex",
+  title: { absolute: "Gridex El AB – elavtal för privatpersoner och företag" },
   description:
-    "Se Gridex elavtal och räkna på din elkostnad i SE1–SE4. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar elavtal online.",
+    "Gridex El AB är ett svenskt elbolag för privatpersoner och företag. Jämför våra elavtal, se priser och avgifter i SE1–SE4 och kontakta vår kundservice.",
   alternates: {
     canonical: "https://gridex.se",
   },
   openGraph: {
-    title: "Elavtal med tydliga priser och avgifter | Gridex",
+    title: "Gridex El AB – elavtal för privatpersoner och företag",
     description: "Se Gridex elavtal och räkna på din elkostnad. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar.",
     url: "https://gridex.se",
     type: "website",
     locale: "sv_SE",
-    siteName: "Gridex AB",
+    siteName: "Gridex El AB",
     images: [{ url: "https://gridex.se/brand/gridex-og.png", width: 1200, height: 630, alt: "Gridex elleverantör" }],
   },
 };
@@ -104,7 +104,7 @@ function HeroBlock() {
       <div className="max-w-3xl">
         <div className="flex items-center gap-3 text-sm font-medium text-[var(--gx-text-muted)]">
           <span className="h-2 w-2 shrink-0 bg-[var(--gx-accent)]" aria-hidden="true" />
-          <span>Gridex AB · Elhandel i hela Sverige · SE1–SE4</span>
+          <span>Gridex El AB · Elhandel i hela Sverige · SE1–SE4</span>
         </div>
 
         <h1 className="mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl md:text-6xl lg:text-[4.65rem]">
@@ -113,7 +113,7 @@ function HeroBlock() {
         </h1>
 
         <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--gx-text-muted)] md:text-xl">
-          Räkna på föregående månads spotpris och se påslag, avgifter och moms
+          Gridex El AB erbjuder elavtal för privatpersoner och företag i hela Sverige. Räkna på föregående månads spotpris och se påslag, avgifter och moms
           innan du går vidare. En tydligare prisbild från början, utan att du
           behöver leta efter detaljerna.
         </p>
@@ -386,7 +386,7 @@ function ArticleColumns() {
     },
     {
       title: "Så byter du elavtal",
-      text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.",
+      text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex El AB hanterar uppstarten enligt ditt valda startdatum.",
       href: "/guider/byta-elbolag",
       cta: "Så fungerar bytet",
     },

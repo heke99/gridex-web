@@ -42,12 +42,12 @@ export function webPageJsonLd({
     inLanguage: 'sv-SE',
     isPartOf: {
       '@type': 'WebSite',
-      name: 'Gridex AB',
+      name: 'Gridex El AB',
       url: 'https://gridex.se',
     },
     publisher: {
       '@type': 'Organization',
-      name: 'Gridex AB',
+      name: 'Gridex El AB',
       url: 'https://gridex.se',
       logo: 'https://gridex.se/brand/gridex-logo.png',
     },
@@ -79,12 +79,12 @@ export function articleJsonLd({
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Organization',
-      name: 'Gridex AB',
+      name: 'Gridex El AB',
       url: 'https://gridex.se',
     },
     publisher: {
       '@type': 'Organization',
-      name: 'Gridex AB',
+      name: 'Gridex El AB',
       url: 'https://gridex.se',
       logo: 'https://gridex.se/brand/gridex-logo.png',
     },
@@ -108,7 +108,7 @@ export function serviceJsonLd({
     url,
     provider: {
       '@type': 'Organization',
-      name: 'Gridex AB',
+      name: 'Gridex El AB',
       url: 'https://gridex.se',
       logo: 'https://gridex.se/brand/gridex-logo.png',
     },
