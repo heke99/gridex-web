@@ -40,6 +40,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [{ url: BRAND_OG_URL, width: 1200, height: 630, alt: 'Gridex elleverantör' }],
   },
+  twitter: { card: 'summary_large_image', images: [BRAND_OG_URL] },
   robots: {
     index: true,
     follow: true,
