@@ -89,6 +89,20 @@ export default async function HomePage() {
         showCustomerTypeSelector
         persistCheckoutContext
       />
+      <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
+        <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
+        <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Link href="/elavtal/foretag" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Företag, produktion och industri</h3>
+            <p className="mt-2 text-gray-400">Jämför avtalet utifrån drift, förbrukningsprofil och årskostnad. Läs om elavtal för företag →</p>
+          </Link>
+          <Link href="/elavtal/fastighetsagare" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Privata hyresvärdar och fastighetsägare</h3>
+            <p className="mt-2 text-gray-400">Gå igenom fastighetselen och elhandelsavgifterna per anläggning. Läs om elavtal för fastighetsägare →</p>
+          </Link>
+        </div>
+      </section>
       <HowItWorks />
       <ValueBlocks />
       <ArticleColumns />

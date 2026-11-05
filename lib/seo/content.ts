@@ -1101,6 +1101,7 @@ elavtalPages.push(
     }),
     elavtalCompetitorPage({
       slug: 'fastighetsagare',
+      lastModified: new Date('2026-11-05T00:00:00.000Z'),
       path: '/elavtal/fastighetsagare',
       title: 'Elavtal för fastighetsägare och privata hyresvärdar',
       description: 'Få en genomgång av elhandelskostnaden för ditt hyreshus. Gridex hjälper dig att jämföra elavtal, påslag och fasta avgifter.',
@@ -1110,6 +1111,7 @@ elavtalPages.push(
       intent: 'För privata hyresvärdar som vill se över sin elhandel.',
       primaryCta: { label: 'Få en genomgång av er elfaktura', href: '/kundservice' },
       sections: [
+        { title: 'Jämför kostnaden per fastighet', body: ['För en fastighet med 50 000 kWh i årsförbrukning motsvarar 2 öre/kWh i prisskillnad 1 000 kronor per år. En skillnad på 50 kronor i månadsavgift motsvarar 600 kronor per år. Exemplet använder samma momsgrund och visar hur kostnadsdelarna kan jämföras.', 'Samla anläggningarna i en översikt med årsförbrukning, elhandelsavgifter och avtalets slutdatum. Då går det att se vilka avtal som bör ses över först.'] },
         { title: 'Börja med fastighetselen', body: ['Gå igenom elen till exempelvis ventilation, tvättstuga, belysning och gemensamma utrymmen. Har ni flera fastigheter kan ni jämföra årsförbrukning, påslag och fasta avgifter per anläggning.'] },
         { title: 'Skilj elhandeln från nätavgiften', body: ['Gridex jämför elhandelsdelen. Nätavgiften faktureras av nätägaren. Om hyresgästerna har egna avtal gäller genomgången de anläggningar som ni själva står för.'] },
         { title: 'Underlag för ett förslag', body: ['Börja med en aktuell elhandelsfaktura, uppskattad årsförbrukning och uppgift om när nuvarande avtal kan löpa ut. Kontakta oss först så går vi igenom vilket underlag som behövs.'] },
@@ -1120,15 +1122,17 @@ elavtalPages.push(
     }),
     elavtalCompetitorPage({
       slug: 'foretag',
+      lastModified: new Date('2026-11-05T00:00:00.000Z'),
       path: '/elavtal/foretag',
-      title: 'Elavtal för företag, produktion och industri',
-      description: 'Gridex erbjuder elavtal för företag med tydliga priser, avtalsvillkor och digital hantering från teckning till start.',
+      title: 'Elavtal för företag – få ert avtal genomgånget',
+      description: 'Se över företagets elavtal med Gridex. Jämför påslag, fasta avgifter och förbrukningsprofil för produktion, verkstad och industri.',
       eyebrow: 'Företagsavtal',
       h1: 'Elavtal för företag, produktion och industri',
       primaryCta: { label: 'Få en genomgång av ert elavtal', href: '/kundservice' },
       lead: 'Företag behöver elavtal som är begripliga, enkla att följa upp och tydliga i budgeten. Gridex gör pris, avgifter och nästa steg synliga innan du tecknar.',
       intent: 'För företag som söker ny elleverantör eller vill få bättre kontroll över elhandelsdelen.',
       sections: [
+        { title: 'Så får ni ett jämförbart förslag', body: ['Kontakta Gridex med företagets årsförbrukning, elområde och när det befintliga avtalet kan avslutas. Vi går igenom vilka uppgifter från elhandelsfakturan som behövs för att jämföra kostnaden.', 'Vid 100 000 kWh per år motsvarar en skillnad på 1 öre/kWh 1 000 kronor per år. Det är ett räkneexempel på samma momsgrund, inte en prognos för er besparing. Lägg till månadsavgifter och övriga avtalskostnader när ni jämför.'] },
         { title: 'Utgå från när produktionen använder el', body: ['För verkstäder, tillverkare och andra produktionsföretag kan skift, driftstopp och säsonger påverka kostnaden. Ta fram tolv månaders förbrukning och gärna mätvärden per timme eller kvart om ni har dem. Jämför avtalsformer med samma förbrukningsprofil och räkna med både fasta avgifter och påslag.'] },
         { title: 'Företag behöver rätt kostnadsbild', body: ['Elkostnaden påverkas av förbrukningsprofil, elområde, avtalsform och avgifter. Därför ska företagsavtal jämföras på total kostnad, inte bara ett kWh-pris.', 'Gridex kan stödja både rörliga och mer förutsägbara upplägg beroende på vad som är publicerat för kunden.'] },
         { title: 'Separera elhandel från elnät', body: ['Elnätsavgiften kommer från nätägaren. Gridex elhandelsavtal gäller elhandelsdelen och visar avgifterna som hör till det avtalet.'] },
@@ -1187,14 +1191,16 @@ elavtalPages.push(
     elavtalCompetitorPage({
       slug: page.slug,
       path: `/elavtal/${page.slug}`,
-      title: `Elavtal för ${page.label} – jämför rätt pris och avgifter`,
+      title: page.slug === 'bostadsratt' ? 'Elavtal bostadsrätt – eget avtal eller gemensam el?' : `Elavtal för ${page.label} – jämför rätt pris och avgifter`,
       description: `Se vad du bör tänka på när du väljer elavtal för ${page.label}. Gridex visar pris, avgifter och avtalsform tydligt innan teckning.`,
       eyebrow: `Elavtal för ${page.label}`,
       h1: `Elavtal för ${page.label}`,
       lead: page.lead,
       intent: `För kunder som söker elavtal anpassat efter boendeformen ${page.label}.`,
-      lastModified: new Date('2026-10-07T00:00:00.000Z'),
-      sections: homeContent[page.slug].sections,
+      lastModified: new Date(page.slug === 'bostadsratt' ? '2026-11-05T00:00:00.000Z' : '2026-10-07T00:00:00.000Z'),
+      sections: page.slug === 'bostadsratt'
+        ? [{ title: 'Kontrollera vem som har elavtalet', body: ['Fråga föreningen om lägenheten har ett eget elnätsabonnemang eller om elen köps in gemensamt och debiteras av föreningen. Det avgör om du själv ska välja elhandelsavtal.', 'Har du eget abonnemang kan du jämföra elhandelsavtal utifrån din årsförbrukning och ditt elområde. Kontrollera särskilt månadsavgiften om du använder lite el. Vid gemensam el behöver du först stämma av föreningens upplägg.'] }, ...homeContent[page.slug].sections]
+        : homeContent[page.slug].sections,
       bullets: page.bullets,
       faq: homeContent[page.slug].faq,
       related: [
@@ -1225,7 +1231,7 @@ elavtalPages.push(
     elavtalCompetitorPage({
       slug: page.slug,
       path: `/elavtal/${page.slug}`,
-      title: `${page.h1} – guide från Gridex`,
+      title: page.slug === 'byta-elleverantor' ? 'Byta elleverantör – checklista inför ditt byte' : `${page.h1} – guide från Gridex`,
       description: `Lär dig mer om ${page.label}. Gridex förklarar pris, villkor och vad du bör kontrollera innan du väljer elavtal.`,
       eyebrow: page.h1,
       h1: page.h1,
