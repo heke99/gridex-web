@@ -1,4 +1,8 @@
-/** Public presentation configuration only. Never put tenant credentials here. */
+/**
+ * Public presentation configuration only. Never put tenant credentials here.
+ * @param {import("./brand").MobileBrand} input
+ * @returns {import("./brand").MobileBrand}
+ */
 export function defineMobileBrand(input) {
   const fields = ['id', 'displayName', 'supportUrl', 'theme'];
   if (!input || typeof input !== 'object' || Array.isArray(input)
@@ -26,6 +30,6 @@ export function defineMobileBrand(input) {
     id: input.id,
     displayName: input.displayName.trim(),
     supportUrl: supportUrl.href,
-    theme: Object.freeze(Object.fromEntries(tokens.map(key => [key, input.theme[key]]))),
+    theme: Object.freeze({ ...input.theme }),
   });
 }

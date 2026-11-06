@@ -2,9 +2,12 @@
 
 The mobile app lives in the same repository as the website and support app.
 The portable foundation is in `packages/mobile-foundation`; public Gridex
-presentation is in `brands/gridex.mjs`. These files establish the separation;
-native screens, authentication adapters and OPS-backed customer flows are not
-implemented by this first increment.
+presentation is in `brands/gridex.mjs`. The Expo native shell now provides five navigation tabs and a brand-driven layout.
+Authentication adapters and OPS-backed customer flows are not implemented yet.
+
+Install with `npm ci --workspaces=false` in apps/mobile, then run `npm start`
+or `npm run typecheck`. Dependencies are isolated from the website to avoid
+React-version conflicts. Test builds have OTA updates disabled.
 
 ## Data boundaries
 

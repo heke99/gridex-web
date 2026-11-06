@@ -30,3 +30,21 @@ jobs:
         with:
           node-version: '22'
       - run: node --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs
+
+  native-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run export:android
+      - run: npx expo export --platform ios --output-dir dist-ios

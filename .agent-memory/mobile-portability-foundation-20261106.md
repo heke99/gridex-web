@@ -28,3 +28,10 @@ Next: integrate Expo runtime, actual shared mobile layout and guarded per-brand
 build configuration; then Supabase Auth adapter against existing Gridex accounts
 and server-verified OPS customer overview. Test every added package in standalone
 export. API gaps for contract change, price series and summaries remain in plan.
+
+
+Continuation: added Expo 58 native shell, independent locked dependency install,
+brand-driven five-tab layout, isolated TypeScript config and Metro sibling-package
+watch boundary. Typecheck PASS; Android JS/Hermes export PASS (not an APK).
+Six portability tests remain PASS. Added native CI typecheck and platform bundles.
+Physical-device UI/Auth/OPS verification remains pending. No database changes.

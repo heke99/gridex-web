@@ -292,3 +292,14 @@ För projektstart används befintliga gridex-web-repot, verifierad testmiljö i 
 - [Supabase – React Native Auth](https://supabase.com/docs/guides/auth/quickstarts/react-native). Underlag för mobil kontohantering och sessionslivscykel.
 - [Apple – App Review Guidelines, särskilt 4.2 och 4.2.6](https://developer.apple.com/app-store/review/guidelines/). Regler för appfunktionalitet och kommersiella mallappar.
 - [Google Play – Spam / Repetitive content](https://support.google.com/googleplay/android-developer/answer/9899034/spam?hl=en-GB). Regler för repetitiva appar och tjänstevärde.
+
+
+## Genomförandeläge – native-grund, 6 november 2026
+
+Expo SDK 58-grund tillagd under apps/mobile, med egen låsfil för beroenden för
+att hålla mobilens React-version åtskild från hemsidans. Fem flikar och en
+varumärkesstyrd layout finns. OTA-uppdateringar är avstängda i utvecklingskonfigurationen.
+Typkontroll och Android-bundling är verifierade lokalt. Detta är inte ett
+signerat installationspaket eller en testad kundresa på fysisk telefon.
+Nästa funktionella del är befintlig kundinloggning och serververifierad kundöversikt
+mot OPS. Inga nya databaser eller kundposter har skapats av denna grund.
