@@ -1,0 +1,32 @@
+{
+  "checks": [
+    {
+      "name": "Native hook: real login and empty own contracts",
+      "passed": true
+    },
+    {
+      "name": "Real session persisted through chunked storage adapter; memory backing only",
+      "passed": true
+    },
+    {
+      "name": "Background clears private rows",
+      "passed": true
+    },
+    {
+      "name": "Foreground revalidates real session and rereads own contracts",
+      "passed": true
+    },
+    {
+      "name": "Hook remount restores and refreshes persisted real session",
+      "passed": true
+    },
+    {
+      "name": "Logout clears session storage and customer rows",
+      "passed": true
+    }
+  ],
+  "nativeDeviceVerified": false,
+  "storageBacking": "in-memory SecureStore port",
+  "realAuth": true,
+  "realMobileApi": true
+}

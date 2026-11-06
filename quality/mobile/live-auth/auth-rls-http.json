@@ -1,0 +1,170 @@
+{
+  "started": "2026-11-06T23:40:50.428964+00:00",
+  "deployment": "dpl_3zHRj3GSEoz8s7BMkZh3rBbgfp9r",
+  "checks": [
+    {
+      "name": "account-1-password-login",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-2-password-login",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-1-verified-subject",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-1-own-profile",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-1-other-profile-denied",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-1-other-profile-write-denied",
+      "passed": true,
+      "http": 403
+    },
+    {
+      "name": "account-1-mobile-contracts",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.87,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-1-mobile-sites",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.87,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-1-mobile-profile",
+      "passed": true,
+      "http": 503,
+      "expected": 503,
+      "seconds": 6.64,
+      "note": "Unlinked profile unavailable"
+    },
+    {
+      "name": "account-1-mobile-invoices",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.64,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-1-mobile-foreign-override",
+      "passed": true,
+      "http": 400,
+      "expected": 400,
+      "seconds": 6.19,
+      "note": "Identity override rejected"
+    },
+    {
+      "name": "account-1-session-refresh",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-1-logout",
+      "passed": true,
+      "http": 204
+    },
+    {
+      "name": "account-1-refresh-after-logout-rejected",
+      "passed": true,
+      "http": 400
+    },
+    {
+      "name": "account-2-verified-subject",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-2-own-profile",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-2-other-profile-denied",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-2-other-profile-write-denied",
+      "passed": true,
+      "http": 403
+    },
+    {
+      "name": "account-2-mobile-contracts",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.14,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-2-mobile-sites",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.29,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-2-mobile-profile",
+      "passed": true,
+      "http": 503,
+      "expected": 503,
+      "seconds": 6.3,
+      "note": "Unlinked profile unavailable"
+    },
+    {
+      "name": "account-2-mobile-invoices",
+      "passed": true,
+      "http": 200,
+      "expected": 200,
+      "seconds": 6.13,
+      "note": "Confirmed empty own list; no foreign records"
+    },
+    {
+      "name": "account-2-mobile-foreign-override",
+      "passed": true,
+      "http": 400,
+      "expected": 400,
+      "seconds": 5.99,
+      "note": "Identity override rejected"
+    },
+    {
+      "name": "account-2-session-refresh",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "name": "account-2-logout",
+      "passed": true,
+      "http": 204
+    },
+    {
+      "name": "account-2-refresh-after-logout-rejected",
+      "passed": true,
+      "http": 400
+    }
+  ],
+  "scope": "Real Supabase Auth/RLS and production mobile HTTP; no device/UI claims",
+  "finished": "2026-11-06T23:43:10.314654+00:00",
+  "realCustomerDataVerified": false,
+  "nativeDeviceVerified": false
+}
