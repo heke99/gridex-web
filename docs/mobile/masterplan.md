@@ -605,3 +605,10 @@ Paket1 gäller den publika serveranslutningen; verifiering med ett riktigt kundk
 är en separat öppen kontroll. Signerade butiksversioner hör till paket4.
 Aktuell leverans och de två egengranskningarna dokumenteras i
 `docs/mobile/release-package-1-2.md`.
+
+Produktionsbasen visade sig vara7c215d13,47 levererade commits efter nuvarande
+GitHub main1fc033e. Appkandidaten förenas med denna faktiska produktionshistorik
+före publicering. Befintlig kundaktivering, integritetsflöden, supportåterställning,
+cache- och SEO-arbete behålls. Webs uttryckligen stödda svarsprofiler4.1/9.1
+behålls med fulla krav på affärsfälten; godtyckliga äldre profiler avvisas.
+Staff-specifikationens verifiering behålls tillsammans med webb- och kund-API:t.

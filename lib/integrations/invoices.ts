@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isStrictCalendarDate } from '@/lib/website/businessDate'
 
 type JsonRecord = Record<string, unknown>
 
@@ -74,18 +75,23 @@ function requiredString(value: unknown, name: string): string {
 }
 
 function asNumber(value: unknown, fallback = 0): number {
+  if (value === undefined || value === null || value === '') return fallback
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
     const parsed = Number(value.replace(/\s+/g, '').replace(',', '.'))
-    if (Number.isFinite(parsed)) return parsed
+    if (value.trim() && Number.isFinite(parsed)) return parsed
   }
-  return fallback
+  throw Object.assign(new Error('Invalid invoice amount'), { status: 400 })
 }
 
 function asIso(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null
   const str = asString(value)
-  if (!str) return null
+  if (!str) throw Object.assign(new Error('Invalid invoice date'), { status: 400 })
 
+  if (/^\d{4}-\d{2}-\d{2}(?:T|\s|$)/.test(str) && !isStrictCalendarDate(str.slice(0, 10))) {
+    throw Object.assign(new Error('Invalid invoice calendar date'), { status: 400 })
+  }
   const parsed = new Date(str)
   if (!Number.isFinite(parsed.getTime())) {
     throw Object.assign(new Error(`Invalid date value: ${str}`), { status: 400 })
@@ -287,12 +293,31 @@ export async function importExternalInvoice(
   supabase: SupabaseClient,
   payload: ExternalInvoicePayload
 ): Promise<ImportedInvoiceResult> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw Object.assign(new Error('Invoice payload must be an object'), { status: 400 })
+  }
+  for (const nested of [payload.customer, payload.contract]) {
+    if (nested !== undefined && nested !== null && (typeof nested !== 'object' || Array.isArray(nested))) {
+      throw Object.assign(new Error('Invalid invoice customer or contract'), { status: 400 })
+    }
+  }
   const providerKey = requiredString(payload.providerKey, 'providerKey')
   const externalInvoiceRef = requiredString(
     payload.externalInvoiceRef,
     'externalInvoiceRef'
   )
   const idempotencyKey = `${providerKey}:invoice:${externalInvoiceRef}`
+  // Reject malformed financial/date values before updating a profile or
+  // recording any synchronization outcome.
+  const validatedFields = {
+    invoice_period_start: asDate(payload.invoicePeriodStart),
+    invoice_period_end: asDate(payload.invoicePeriodEnd),
+    issued_at: asIso(payload.issuedAt),
+    due_at: asIso(payload.dueAt),
+    paid_at: asIso(payload.paidAt),
+    total_amount: asNumber(payload.totalAmount),
+    vat_amount: asNumber(payload.vatAmount),
+  }
   const profile = await findCustomerProfile(supabase, payload)
 
   if (!profile) {
@@ -329,14 +354,8 @@ export async function importExternalInvoice(
     external_invoice_ref: externalInvoiceRef,
     invoice_number: asString(payload.invoiceNumber),
     currency_code: asString(payload.currencyCode) ?? 'SEK',
-    invoice_period_start: asDate(payload.invoicePeriodStart),
-    invoice_period_end: asDate(payload.invoicePeriodEnd),
-    issued_at: asIso(payload.issuedAt),
-    due_at: asIso(payload.dueAt),
-    paid_at: asIso(payload.paidAt),
+    ...validatedFields,
     status: asString(payload.status) ?? 'issued',
-    total_amount: asNumber(payload.totalAmount),
-    vat_amount: asNumber(payload.vatAmount),
     ocr_number: asString(payload.ocrNumber),
     payment_reference: asString(payload.paymentReference),
     pdf_url: asString(payload.pdfUrl),

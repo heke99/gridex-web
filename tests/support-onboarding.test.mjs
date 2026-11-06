@@ -98,6 +98,24 @@ function boundary(changes = {}) {
   };
 }
 
+test("a stalled acceptance response is cancelled and never reports membership success", async () => {
+  let calls = 0, cancelled = false;
+  const { dependencies } = boundary({ dependencies: {
+    config: { ...config, timeoutMs: 20 },
+    fetchImpl: async () => {
+      calls++;
+      return new Response(new ReadableStream({ cancel() { cancelled = true; } }), {
+        headers: { "content-type": "application/json", "x-gridex-project-ref": opsProject },
+      });
+    },
+  } });
+  const result = await submitSupportInvitation(form(), dependencies);
+  assert.ok(result.error);
+  assert.equal(result.success, undefined);
+  assert.equal(cancelled, true);
+  assert.equal(calls, 1);
+});
+
 test("pre-membership acceptance uses actual verified Prod Auth and fresh signed proof; first password precedes canonical API acceptance", async () => {
   const { calls, requests, dependencies } = boundary();
   assert.deepEqual(await submitSupportInvitation(form(), dependencies), {

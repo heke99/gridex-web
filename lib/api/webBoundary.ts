@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { readBoundedBytes } from '../ops/httpSafety'
 
 export type WebApiErrorInput = {
   code: string
@@ -62,7 +63,7 @@ export async function readWebJson<T>(
 ): Promise<{ ok: true; value: T } | { ok: false; response: NextResponse }> {
   const maxBytes = options.maxBytes ?? 64 * 1024
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
-  if (!contentType.startsWith('application/json')) {
+  if (contentType.split(';', 1)[0].trim() !== 'application/json') {
     return {
       ok: false,
       response: webErrorResponse(
@@ -84,8 +85,13 @@ export async function readWebJson<T>(
   if (options.requireSameOrigin !== false) {
     const origin = request.headers.get('origin')
     const fetchSite = request.headers.get('sec-fetch-site')
+    let foreignOrigin = false
+    if (origin) {
+      try { foreignOrigin = new URL(origin).origin !== new URL(request.url).origin }
+      catch { foreignOrigin = true }
+    }
     if (
-      (origin && new URL(origin).origin !== new URL(request.url).origin) ||
+      foreignOrigin ||
       fetchSite === 'cross-site'
     ) {
       return {
@@ -97,13 +103,17 @@ export async function readWebJson<T>(
       }
     }
   }
-  const raw = await request.text()
-  if (Buffer.byteLength(raw, 'utf8') > maxBytes) {
+  let raw: string
+  try {
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(12_000)])
+    raw = new TextDecoder().decode(await readBoundedBytes(new Response(request.body, { headers: request.headers }), maxBytes, signal))
+  } catch (error) {
+    const tooLarge = error instanceof RangeError
     return {
       ok: false,
       response: webErrorResponse(
-        { code: 'request_too_large', message: 'Request-body är för stor.', retryable: false },
-        413,
+        { code: tooLarge ? 'request_too_large' : 'request_body_unavailable', message: tooLarge ? 'Request-body är för stor.' : 'Begäran kunde inte läsas. Försök igen.', retryable: false },
+        tooLarge ? 413 : 408,
       ),
     }
   }

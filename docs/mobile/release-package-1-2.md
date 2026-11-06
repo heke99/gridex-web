@@ -53,3 +53,24 @@ blocked by the upstream delivery authorization contract. Production API guard
 activation can be released separately, without enabling unverified meter access.
 No real customer mutation has been made. Package3 signing/switching and package4
 signed app/store distribution remain separate.
+
+## Production lineage reconciliation
+
+The live Web deployment discovered during release inspection is
+`dpl_2GViT9JPSAXMb14HHV8mxuVz4feP`, source
+`7c215d13f2086afd5328c472d5ed91eb25525a3a`. It contains47 deployed commits beyond
+GitHub main1fc033e. The candidate therefore merges that exact production lineage
+with09b84de before release. Deploying the original feature tree would regress
+customer linking/privacy, support recovery, invoice intake, cache safeguards and
+SEO. All those deployed runtime paths are retained; no production SQL is replayed.
+
+The second review was repeated against that production baseline. Shared OPS SDK,
+transport, response-profile policy, Staff runtime schemas, portal business logic,
+existing Web pages/SEO, Support runtime and migrations match the deployed source.
+The merged tooling retains strict documentation/wire separation while including
+all three published Website, Customer Portal and Staff specs, exact hashes,
+canonical immutable URLs and source provenance. Live sync/preflight are rerun.
+Regression fixtures now cover the deployed explicitly supported4.1 and9.1 response
+profiles, reject an unsupported older profile and still reject missing required
+business identity fields. This preserves deployed compatibility; it does not
+weaken runtime schema validation. Original commercial fixtures remain unchanged.

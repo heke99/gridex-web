@@ -1,0 +1,129 @@
+{
+  "checked_at": "2026-10-18T19:55:39.656187+00:00",
+  "status": "WEB_CODE_AND_SCHEMA_FIXED_PUBLISHED_OPS_LIMITATIONS_REMAIN",
+  "guide": "https://app.gridex.se/developers/customer-portal-api",
+  "documentation_version": "2026-10-12.1",
+  "runtime_version": "2026-10-09.1",
+  "operations_reviewed": 142,
+  "live_contract_hashes_match": true,
+  "production": {
+    "deployment_id": "dpl_GHAv3SEErU8VCrJV3i1qSYix8cDG",
+    "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+    "ready_state": "READY",
+    "aliases": [
+      "gridex.se",
+      "www.gridex.se"
+    ],
+    "vercel_protection_retained": true,
+    "live_http_functional_checks_environment": "Protected preview running the same source. Production source, readiness, aliases and anonymous protection verified."
+  },
+  "database": {
+    "project": "ayiuxjlfazkjmmtlvhsl",
+    "regular_tables_checked": 138,
+    "all_checked_tables_have_rls": true,
+    "views_checked": 48,
+    "all_checked_views_security_invoker": true,
+    "private_storage_buckets": 7,
+    "application_schema_comparison": {
+      "static_sdk_calls": 250,
+      "actual_tables_checked": 48,
+      "missing_columns": [],
+      "missing_rpc": [],
+      "missing_required_tables": [],
+      "excluded": "Buffer.from audit label; optional legacy spot fallback; unreferenced legacy setRBACClaims/set_config helper"
+    },
+    "customer_readiness_rpc": {
+      "ready": true,
+      "missing": []
+    },
+    "applied_existing_migration": "20261006205014_legacy_pricing_atomic_writes.sql",
+    "restored_rpc": [
+      "gridex_create_pricing_version_v1",
+      "gridex_save_pricing_rows_v1",
+      "gridex_publish_pricing_v1"
+    ],
+    "restored_rpc_execute_roles": [
+      "service_role"
+    ],
+    "actual_pricing_rows_or_publications_changed": false,
+    "security_advisor_errors": 0,
+    "security_advisor_warnings": [
+      "9 intentional authenticated security-definer helpers reviewed: identity/company/permission checks; no anonymous privileged execution",
+      "Auth leaked-password policy is disabled"
+    ],
+    "performance_advisories": {
+      "unindexed_foreign_keys": 61,
+      "unused_indexes": 195,
+      "multiple_permissive_role_action_findings": 537,
+      "duplicate_index_groups": 6,
+      "note": "Advisories span the legacy database and are not equivalent to proven API failures. No blanket index/policy removal.",
+      "timing": "Initial advisory snapshot before the targeted migration"
+    },
+    "critical_queue_and_audit_unique_indexes_verified": true,
+    "queue_plan_checked_without_execution": true
+  },
+  "new_findings_fixed": [
+    {
+      "id": "W8",
+      "issue": "Three admin pricing RPCs and their actor columns were absent in live database",
+      "fix": "Applied existing tested migration; server-only privileges verified. No prices published."
+    },
+    {
+      "id": "W9",
+      "issue": "Admin user listing called service-only Auth RPC with session role and selected missing profile is_active",
+      "fix": "Verify admin first, use lazy service client and actual user_status column; restrict displayed legacy roles to global roles."
+    },
+    {
+      "id": "W10",
+      "issue": "Account creation ignored profile/role failures and used nonexistent UNIQUE(user_id,role); activation ignored failures and did not update Auth ban",
+      "fix": "Checked initialization with rollback limited to newly created account; global-role insert/update with race verification and tenant separation; validated targets, self-deactivation prevention, actual Auth activation with compensation on profile failure."
+    }
+  ],
+  "checks": {
+    "full_npm_test": "PASS",
+    "new_admin_behavioral_tests": 24,
+    "typecheck": "PASS",
+    "production_build": "PASS",
+    "delivery_check": "PASS",
+    "scoped_eslint": "PASS",
+    "git_diff_check": "PASS",
+    "live_manifest_check": "PASS"
+  },
+  "authenticated_portal_evidence": "quality/api-compatibility/live-portal-reaudit-20261018.json",
+  "price_area_evidence": "quality/api-compatibility/live-area-reaudit-20261018.json",
+  "observed_ops_limitations": [
+    {
+      "id": "OPS-POA",
+      "status": "UNRESOLVED",
+      "evidence": "Authenticated Customer documents lists the signed POA but mime_type/secure_url are null. Archive remains JSON, no PDF path/hash or independent verification number. Earlier Partner GET also returned no file.",
+      "contract_context": "Current guide does not promise automatic Website POA PDF/verification number; it remains an explicit user requirement distinct from the verified delivered agreement PDF."
+    },
+    {
+      "id": "OPS-TIMEOUT",
+      "status": "RECOVERED_DURING_CHECK_ROOT_CAUSE_NOT_ESTABLISHED",
+      "evidence": "Several website quote/address/customer calls exceeded the existing 12-second OPS transport deadline. One direct management DB connection also timed out. Later GET me/documents/POA returned200 in1068/650/592ms and the13 portal checks passed. A separate short503 interrupted one validation; the identical original quote subsequently validated200.",
+      "remediation_boundary": "Did not lengthen timeouts blindly, replay writes automatically, or claim a permanent upstream fix. No active DB query backlog was observed in the subsequent catalog check."
+    },
+    {
+      "id": "OPS-CRON",
+      "status": "OBSERVED_UNRESOLVED",
+      "evidence": "Existing OPS customer-operations cron logged permissionMarketDeadlines ->42501 permission_execution_actor_unqualified before and during this probe.",
+      "remediation_boundary": "No arbitrary actor qualification or provider permissions were assigned."
+    }
+  ],
+  "qualification_limits": [
+    "No real electricity facility or actual supplier/network dispatch was used; synthetic address may price while facility/dispatch capabilities remain false.",
+    "Invoices/metering returned valid empty lists for this test customer. No real invoice payment, meter delivery, actual staff-password session or full production load test was performed.",
+    "Synthetic Auth account used admin-confirmed email for a bounded test; this does not qualify customer invitation/SMTP delivery. Previous approved agreement/PDF email delivery evidence remains separate."
+  ],
+  "temporary_preview_access_revoked": true,
+  "followup": "quality/api-compatibility/live-production-followup-20261018.json",
+  "support_password_recovery": "quality/api-compatibility/support-password-recovery-20261018.json",
+  "latest_support_followup": {
+    "evidence": "support-password-recovery-20261018.json",
+    "native_evidence": "native-support-recovery-20261018.json",
+    "user_staff_login": "CONFIRMED_SUCCESS",
+    "runtime_source": "9a7a82e338130a6055ed5ed65aaa99a168cc1798",
+    "scope": "Later follow-up; does not change the qualification limits or historical results of the original full audit"
+  }
+}

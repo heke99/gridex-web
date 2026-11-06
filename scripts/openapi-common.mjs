@@ -5,6 +5,7 @@ export const RELEASE_MANIFEST_URL = `${BASE_URL}/release-manifest.json`
 export const SPECS = [
   ['website-integration-v1.json', 'website-api.d.ts'],
   ['customer-portal-v1.json', 'customer-portal-api.d.ts'],
+  ['staff-v1.json', 'staff-api.d.ts'],
 ]
 
 export function canonical(value) {
@@ -76,12 +77,18 @@ const greater = (a, b) => a[0] > b[0] || a[0] === b[0] && a[1] > b[1]
 export function assertReleaseManifest(manifest) {
   const version = manifest?.release_version
   const doc = revision(version), wire = revision(manifest?.runtime_contract_version), floor = revision(manifest?.minimum_tenant_integration_version)
-  if ([manifest?.website_openapi_version, manifest?.customer_portal_openapi_version, manifest?.guide_version].some(v => v !== version)) throw new Error('OpenAPI release manifest contains mixed documentation versions')
+  if ([manifest?.website_openapi_version, manifest?.customer_portal_openapi_version, manifest?.staff_openapi_version, manifest?.guide_version].some(v => v !== version)) throw new Error('OpenAPI release manifest contains mixed documentation versions')
   if (greater(wire, doc) || greater(floor, wire)) throw new Error('Invalid runtime compatibility bounds')
   if (!['backward-compatible', 'breaking-client-update-required', 'breaking'].includes(manifest.compatibility_classification) || version !== manifest.runtime_contract_version && manifest.compatibility_classification !== 'backward-compatible') throw new Error('Incompatible documentation-only release')
-  for (const [key, file] of [['website','website-integration-v1.json'], ['customer_portal','customer-portal-v1.json']]) {
+  for (const [key, file] of [['website','website-integration-v1.json'], ['customer_portal','customer-portal-v1.json'], ['staff','staff-v1.json']]) {
     const spec = manifest?.specifications?.[key]
     if (spec?.contract_version !== version || spec?.url !== `${BASE_URL}/${file}` || spec?.immutable_url !== `${BASE_URL}/${version}/${file}` || !/^[a-f0-9]{64}$/.test(spec?.sha256 ?? '')) throw new Error(`OpenAPI release manifest contains an invalid ${key} specification`)
+  }
+  if (manifest.specifications.staff && (manifest.staff_openapi_version !== version
+    || manifest.specifications.staff.contract_version !== version
+    || manifest.specifications.staff.url !== `${BASE_URL}/staff-v1.json`
+    || !/^[a-f0-9]{64}$/.test(manifest.specifications.staff.sha256 ?? ''))) {
+    throw new Error('OpenAPI release manifest contains an invalid staff specification')
   }
   return manifest
 }

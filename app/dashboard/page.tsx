@@ -2,6 +2,7 @@ import { formatCustomerDate } from '@/lib/customerPortal/display'
 import Link from 'next/link'
 import OverviewCards from '@/components/dashboard/OverviewCards'
 import CustomerPortalSelfService from '@/components/customer/CustomerPortalSelfService'
+import ContractPricing from '@/components/customer/ContractPricing'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
 import type { Metadata } from 'next'
 
@@ -134,10 +135,11 @@ export default async function DashboardPage() {
                   Avtalsnummer: {latestContract.contract_number || latestContract.contract_external_ref || '—'}
                 </div>
               </div>
+              <ContractPricing contract={latestContract} />
             </div>
           ) : (
             <div className="mt-5 rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-sm text-white/60">
-              Inget avtal visas ännu.
+              Inget avtal visas ännu. <Link href="/teckna-avtal" className="text-cyan-300 underline">Teckna ett elavtal</Link> eller <Link href="/aktivera-kundkonto" className="text-cyan-300 underline">koppla ett befintligt kundkonto</Link>.
             </div>
           )}
         </section>

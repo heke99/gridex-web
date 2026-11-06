@@ -163,3 +163,5 @@ assert.equal(issueWebsiteEnergyAreaToken({
 }), null)
 
 console.log(`${release.release_version} Gridex price-area API regressions passed`)
+
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${release.release_version}'`))

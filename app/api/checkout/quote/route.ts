@@ -1,4 +1,6 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
+import { opsRetryAfterHeaders } from '@/lib/ops/errors'
 import {
   fetchOpsPublicContractsSnapshot,
   fetchOpsWebsiteQuoteAutoSelect,
@@ -70,7 +72,7 @@ function requestedPriceArea(value: unknown): OpsWebsitePriceArea | null {
   return AREAS.has(area as OpsWebsitePriceArea) ? area as OpsWebsitePriceArea : null
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const requestId = globalThis.crypto.randomUUID()
   const rateLimit = await checkRateLimit(
     `website-pricing-preview:${clientIpFromHeaders(new Headers(req.headers))}`,
@@ -291,7 +293,9 @@ export async function POST(req: Request) {
         ? opsDetails.response_data_keys
         : [],
     })
-    const publicCode = opsCode === 'resolution_pricing_not_ready' || opsCode === 'resolution_not_ready'
+    const publicCode = isOpsError(error) && error.status === 429
+      ? 'rate_limited'
+      : opsCode === 'resolution_pricing_not_ready' || opsCode === 'resolution_not_ready'
       ? 'resolution_pricing_not_ready'
       : opsCode === 'resolution_quote_not_ready'
         ? 'resolution_quote_not_ready'
@@ -302,7 +306,9 @@ export async function POST(req: Request) {
             : isOpsError(error)
               ? 'ops_quote_failed'
               : 'website_quote_failed'
-    const publicMessage = publicCode === 'resolution_pricing_not_ready'
+    const publicMessage = publicCode === 'rate_limited'
+      ? 'För många prisförfrågningar. Vänta en stund och försök igen.'
+      : publicCode === 'resolution_pricing_not_ready'
       ? 'Adressen behöver kompletteras eller kontrolleras innan priset kan hämtas.'
       : publicCode === 'resolution_quote_not_ready'
         ? 'Elområdet är identifierat, men prisunderlaget kan inte skapas just nu.'
@@ -313,7 +319,14 @@ export async function POST(req: Request) {
             : `Elområdet hittades, men priset kunde inte hämtas för valt avtal. Referens: ${requestId.slice(0, 8)}.`
     return NextResponse.json(
       { error: publicMessage, code: publicCode, request_id: requestId },
-      { status: isOpsError(error) ? error.status : 503 },
+      {
+        status: isOpsError(error) ? error.status : 503,
+        headers: { 'Cache-Control': 'private, no-store', ...opsRetryAfterHeaders(error) },
+      },
     )
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('quote', () => handlePost(request))
 }

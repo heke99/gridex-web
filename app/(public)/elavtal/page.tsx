@@ -147,6 +147,21 @@ export default async function AvtalPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
       <FaqJsonLd items={faqItems} />
+      <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
+        <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
+        <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Link href="/elavtal/foretag" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Företag, produktion och industri</h3>
+            <p className="mt-2 text-gray-400">Jämför avtalet utifrån drift, förbrukningsprofil och årskostnad. Läs om elavtal för företag →</p>
+          </Link>
+          <Link href="/elavtal/fastighetsagare" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Privata hyresvärdar och fastighetsägare</h3>
+            <p className="mt-2 text-gray-400">Gå igenom fastighetselen och elhandelsavgifterna per anläggning. Läs om elavtal för fastighetsägare →</p>
+          </Link>
+        </div>
+      </section>
+
 
       <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-[120px]" />

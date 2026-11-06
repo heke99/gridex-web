@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   fetchOpsIntegrationContext,
   fetchOpsPublicContractDiagnostics,
@@ -369,10 +370,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
     authentication_ready: check(probeReady('integration_context'), probeReady('integration_context') ? 'authenticated' : 'authentication_unverified', 'API-nyckeln har verifierats mot integration/context.'),
     organization_binding_ready: check(Boolean(contextReadiness), contextReadiness ? 'organization_verified' : 'organization_unverified', 'Organisationsidentiteten härleds och verifieras från serverns API-nyckel.'),
     contract_version_ready: check(
-      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION,
-      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION ? 'contract_version_verified' : 'contract_version_mismatch',
-      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION
-        ? `OPS svarar med godkänd kontraktsversion ${GRIDEX_API_CONTRACT_VERSION}.`
+      isSupportedResponseVersion(resolvedContractVersion),
+      isSupportedResponseVersion(resolvedContractVersion) ? 'contract_version_verified' : 'contract_version_mismatch',
+      isSupportedResponseVersion(resolvedContractVersion)
+        ? `OPS svarar med stödd kontraktsversion ${resolvedContractVersion}.`
         : 'OPS-kontraktsversionen är inte runtimeverifierad eller matchar inte klienten.',
       { expected: GRIDEX_API_CONTRACT_VERSION, received: resolvedContractVersion },
     ),
@@ -403,9 +404,9 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       },
     ),
     runtime_schema_ready: check(
-      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION &&
+      isSupportedResponseVersion(resolvedContractVersion) &&
         upstreamContractGaps.length === 0,
-      resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION
+      isSupportedResponseVersion(resolvedContractVersion)
         ? 'runtime_schema_verified'
         : 'runtime_schema_unverified',
       'Runtimeversionen ska matcha den verifierade wire-revisionen i maskinkontraktet.',

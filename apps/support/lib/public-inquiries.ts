@@ -106,7 +106,7 @@ function visibleRow(value: unknown): PublicInquiry {
     updatedAt: row.updated_at,
     contact: {
       name: incoming("customer_name", 120),
-      email: incoming("customer_email", 180),
+      email: incoming("customer_email", 320),
       phone: incoming("customer_phone", 60),
     },
   };

@@ -1,5 +1,6 @@
 import type { OpsPublicContractsSnapshot } from '@/lib/ops/client'
 import { supabaseService } from '@/lib/supabase/service'
+import { recordApiCache } from '@/lib/observability/apiPerformance'
 
 type SnapshotWriteResult = {
   result: string
@@ -89,7 +90,7 @@ type SnapshotReadExpectations = {
   maxAgeMs?: number
 }
 
-function maxSnapshotAgeMs(input?: number): number {
+export function maxWebsitePublicContractSnapshotAgeMs(input?: number): number {
   if (typeof input === 'number' && Number.isFinite(input)) return Math.max(1_000, input)
   const configured = Number(process.env.GRIDEX_PUBLIC_CONTRACT_MAX_STALE_SECONDS ?? '900')
   const seconds = Number.isFinite(configured) ? Math.max(30, Math.min(86_400, configured)) : 900
@@ -137,7 +138,7 @@ function parseStoredSnapshot(
   if (row.contract_version !== expected.contractVersion) return null
   if (row.parser_version !== expected.parserVersion) return null
   if (row.schema_sha256 !== expected.schemaSha256) return null
-  if (Date.now() - Date.parse(row.fetched_at) > maxSnapshotAgeMs(expected.maxAgeMs)) return null
+  if (Date.now() - Date.parse(row.fetched_at) > maxWebsitePublicContractSnapshotAgeMs(expected.maxAgeMs)) return null
 
   return {
     contracts: row.contracts as OpsPublicContractsSnapshot['contracts'],
@@ -176,15 +177,17 @@ export async function readWebsitePublicContractSnapshot(
     .eq('contract_version', expected.contractVersion)
     .eq('parser_version', expected.parserVersion)
     .eq('schema_sha256', expected.schemaSha256)
-    .gte('fetched_at', new Date(Date.now() - maxSnapshotAgeMs(expected.maxAgeMs)).toISOString())
+    .gte('fetched_at', new Date(Date.now() - maxWebsitePublicContractSnapshotAgeMs(expected.maxAgeMs)).toISOString())
   if (expected.organizationReference) query = query.eq('organization_reference', expected.organizationReference)
   const { data, error } = await query.maybeSingle<StoredSnapshotRow>()
 
   if (error) {
+    recordApiCache('public_contract_snapshot', 'error')
     throw new Error(`Website public-contract snapshot read failed: ${error.message}`)
   }
-  if (!data) return null
-  return parseStoredSnapshot(data.snapshot, expected)
+  const snapshot = data ? parseStoredSnapshot(data.snapshot, expected) : null
+  recordApiCache('public_contract_snapshot', snapshot ? 'hit' : 'miss')
+  return snapshot
 }
 
 export async function storeWebsitePublicContractSnapshot(input: {

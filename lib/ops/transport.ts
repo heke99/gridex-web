@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   GRIDEX_WEBSITE_API_CONTRACT_VERSION,
   GRIDEX_WEBSITE_API_VERSION_HEADER,
@@ -11,11 +12,14 @@ import {
   getGridexRuntimeSetting,
 } from '@/lib/ops/config'
 import { logContractVersionDrift } from '@/lib/ops/contractCompatibility'
+import { readBoundedBytes, retryAfterMilliseconds, withAbort } from '@/lib/ops/httpSafety'
+import { recordOpsPerformance } from '@/lib/observability/apiPerformance'
 
 const DEFAULT_TIMEOUT_MS = 12_000
 const MIN_TIMEOUT_MS = 1_000
 const MAX_TIMEOUT_MS = 60_000
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504])
+const MAX_JSON_BYTES = 8 * 1024 * 1024
 
 export type OpsHttpResponse = {
   status: number
@@ -25,6 +29,8 @@ export type OpsHttpResponse = {
 }
 
 export type OpsRequestOptions = {
+  responseFormat?: 'attachment' | 'poa-archive'
+  validateRequest?: (headers: Headers) => void
   allowNotModified?: boolean
   cache?: RequestCache
   revalidateSeconds?: number
@@ -124,6 +130,7 @@ function safeErrorDetails(payload: unknown, response: Response, path: string) {
   const nested = root.error && typeof root.error === 'object' && !Array.isArray(root.error)
     ? root.error as Record<string, unknown>
     : {}
+  const retryAfter = retryAfterMilliseconds(response.headers.get('retry-after'))
   return {
     code: typeof nested.code === 'string'
       ? nested.code
@@ -172,6 +179,7 @@ function safeErrorDetails(payload: unknown, response: Response, path: string) {
       : typeof root.retryable === 'boolean'
         ? root.retryable
         : response.status === 429 || response.status >= 500,
+    retry_after_seconds: retryAfter === null ? null : Math.ceil(retryAfter / 1000),
     endpoint: path,
   }
 }
@@ -188,14 +196,13 @@ function customerSafeMessage(details: ReturnType<typeof safeErrorDetails>): stri
 }
 
 async function waitBeforeRetry(response: Response | null, attempt: number, signal: AbortSignal) {
-  const retryAfter = response?.headers.get('retry-after') ?? ''
-  const seconds = /^\d+$/.test(retryAfter) ? Number(retryAfter) : null
+  const retryAfter = retryAfterMilliseconds(response?.headers.get('retry-after') ?? null)
   const exponential = 250 * 2 ** Math.max(0, attempt - 1)
-  const wait = seconds === null ? exponential : seconds * 1_000
+  const wait = retryAfter ?? exponential
   await new Promise<void>((resolve, reject) => {
     if (signal.aborted) { reject(signal.reason); return }
     const abort = () => { clearTimeout(timer); signal.removeEventListener('abort', abort); reject(signal.reason) }
-    const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve() }, Math.min(wait + Math.random() * 125, 10_000))
+    const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve() }, Math.min(wait + Math.random() * 125, 2_147_483_647))
     signal.addEventListener('abort', abort, { once: true })
   })
 }
@@ -229,7 +236,8 @@ export async function opsRequest(
   }
 
   const headers = new Headers(init?.headers)
-  headers.set('Accept', 'application/json')
+  headers.set('Accept', options.responseFormat === 'poa-archive' ? 'application/pdf'
+    : options.responseFormat === 'attachment' ? 'application/pdf, image/png, image/jpeg' : 'application/json')
   headers.set('Authorization', `Bearer ${apiKey.value}`)
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
 
@@ -242,12 +250,13 @@ export async function opsRequest(
   if (options.tags?.length) nextOptions.tags = [...new Set(options.tags)]
   // One deadline covers connection, response body and all read retries.
   const timeout = timeoutSignal(init?.signal)
-  const bounded = <T>(promise: Promise<T>): Promise<T> => new Promise((resolve, reject) => {
-    const abort = () => reject(timeout.signal.reason ?? new Error('OPS request aborted.'))
-    if (timeout.signal.aborted) { abort(); return }
-    timeout.signal.addEventListener('abort', abort, { once: true })
-    promise.then(resolve, reject).finally(() => timeout.signal.removeEventListener('abort', abort))
-  })
+  const deadline = Date.now() + timeoutMs()
+  const bounded = <T>(promise: Promise<T>): Promise<T> => withAbort(promise, timeout.signal)
+  const started = performance.now()
+  let networkAttempts = 0
+  let rateLimitedResponses = 0
+  let lastStatus: number | null = null
+  let success = false
   try {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       const subject = headers.get('x-gridex-customer-portal-user-id')
@@ -256,16 +265,23 @@ export async function opsRequest(
         if (assertion) headers.set('x-gridex-customer-assertion', assertion)
         else headers.delete('x-gridex-customer-assertion')
       }
+      options.validateRequest?.(headers)
       let response: Response
       let payload: unknown = null
       try {
+        networkAttempts += 1
         response = await bounded(fetch(requestUrl, {
           ...init, headers, signal: timeout.signal, redirect: 'manual',
           cache: options.cache ?? 'no-store',
           ...(Object.keys(nextOptions).length === 0 ? {} : { next: nextOptions }),
         }))
+        lastStatus = response.status
+        if (response.status === 429) rateLimitedResponses += 1
         if (response.status === 304) {
-          if (options.allowNotModified) return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
+          if (options.allowNotModified) {
+            success = true
+            return { status: 304, headers: new Headers(response.headers), payload: null, contractVersion: null }
+          }
           throw new OpsError('Gridex API returnerade 304 för ett anrop som inte tillåter cacheåteranvändning.', 502, {
             code: 'ops_not_modified_unexpected', endpoint: path, status: 304, retryable: false,
           })
@@ -277,10 +293,31 @@ export async function opsRequest(
           })
         }
         const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
-        if (contentType.includes('application/json')) {
-          try { payload = await bounded(response.json()) }
+        if (response.ok && (options.responseFormat === 'attachment' || options.responseFormat === 'poa-archive')) {
+          const poa = options.responseFormat === 'poa-archive'
+          const mime = contentType.split(';', 1)[0].trim()
+          const digest = response.headers.get(poa ? 'x-gridex-document-sha256' : 'x-gridex-sha256')
+          if (!(poa ? mime === 'application/pdf' : ['application/pdf', 'image/png', 'image/jpeg'].includes(mime)) || !digest || !/^[0-9a-f]{64}$/.test(digest)) {
+            void response.body?.cancel().catch(() => undefined)
+            throw new OpsError('Bilagan kunde inte verifieras.', 502, { code: 'attachment_response_invalid', retryable: false })
+          }
+          let bytes: Uint8Array
+          try { bytes = await bounded(readBoundedBytes(response, (poa ? 15 : 4) * 1024 * 1024, timeout.signal)) }
+          catch (error) {
+            if (!(error instanceof RangeError)) throw error
+            throw new OpsError('Bilagan är för stor.', 502, { code: 'attachment_response_invalid', retryable: false })
+          }
+          if (!bytes.length || createHash('sha256').update(bytes).digest('hex') !== digest) {
+            throw new OpsError('Bilagan kunde inte verifieras.', 502, { code: 'attachment_response_invalid', retryable: false })
+          }
+          payload = bytes
+        } else if (contentType.includes('application/json')) {
+          try { payload = JSON.parse(new TextDecoder().decode(await bounded(readBoundedBytes(response, MAX_JSON_BYTES, timeout.signal)))) }
           catch (error) {
             if (timeout.signal.aborted) throw error
+            if (error instanceof RangeError) throw new OpsError('Gridex API returnerade ett för stort svar.', 502, {
+              code: 'ops_response_too_large', endpoint: path, retryable: false,
+            })
             if (response.ok) throw new OpsError('Gridex API returnerade ogiltig JSON.', 502, {
               code: 'ops_response_json_invalid', endpoint: path, retryable: false,
             })
@@ -308,12 +345,15 @@ export async function opsRequest(
       const contractVersion = observeVersionHeader(path, response)
       if (!response.ok) {
         const details = safeErrorDetails(payload, response, path)
-        if (details.retryable && RETRYABLE_STATUSES.has(response.status) && attempt < attempts) {
+        const requestedWait = retryAfterMilliseconds(response.headers.get('retry-after'))
+        if (details.retryable && RETRYABLE_STATUSES.has(response.status) && attempt < attempts
+          && (requestedWait === null || requestedWait + 125 < deadline - Date.now())) {
           await bounded(waitBeforeRetry(response, attempt, timeout.signal))
           continue
         }
         throw new OpsError(customerSafeMessage(details), response.status, details)
       }
+      success = true
       return { status: response.status, headers: new Headers(response.headers), payload, contractVersion }
     }
     throw new OpsError('Gridex API gav inget svar.', 503)
@@ -323,7 +363,13 @@ export async function opsRequest(
       code: 'ops_request_timeout', endpoint: path, retryable: true,
     })
     throw error
-  } finally { timeout.cleanup() }
+  } finally {
+    timeout.cleanup()
+    recordOpsPerformance({
+      path, method, durationMs: performance.now() - started,
+      attempts: networkAttempts, rateLimitedResponses, status: lastStatus, success,
+    })
+  }
 
 }
 

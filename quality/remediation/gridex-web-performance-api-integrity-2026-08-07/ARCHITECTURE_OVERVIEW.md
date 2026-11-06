@@ -38,6 +38,8 @@ OPS ändrade website-specens hash inom samma `.2`-versionsnummer. Därför räck
 
 OPS transport är `no-store` som default. Public contracts använder explicit ETag/304 + verifierad last-known-good snapshot där kontraktet tillåter det. Cache-/snapshotbindning verifierar tenant/customer type och får inte bli en andra source of truth.
 
+Katalogens `after()`-uppdatering körs i en separat, taggad Next-cachefunktion. Den lagrar endast en lyckad uppdateringsmarkör i 15 sekunder, med samma tenant-, API-klient- och kundtypsbindning som katalogen. Därmed tillåts OPS-anropet även när `after()` ärver startsidans ISR-kontext. Publiceringswebhooken invaliderar både katalogdata och markör. Slutlig offert- och avtalsvalidering använder fortfarande den direkta `forceFresh`-vägen.
+
 ## CI
 
 `main` har två read-only gates:

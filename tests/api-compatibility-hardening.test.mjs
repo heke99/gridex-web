@@ -132,7 +132,8 @@ assert.match(readiness, /!portalIdentityGap/, 'checkout readiness must block uns
 assert.match(readiness, /!legalAcceptanceGap/, 'checkout readiness must block non-dynamic legal contract')
 assert.match(readiness, /!priceOptionsGap/, 'checkout readiness must block unpublished price options')
 assert.equal(typeof verification.live_sync_verified, 'boolean', 'verification status must expose a boolean live_sync_verified flag')
-assert.equal(verification.contract_version, releaseManifest.release_version, 'verification status must retain the checked-in contract version')
+assert.equal(verification.contract_version, releaseManifest.release_version, 'verification status must retain the documentation revision')
+assert.equal(verification.runtime_contract_version, releaseManifest.runtime_contract_version, 'verification status must retain the checked-in response schema revision')
 assert.ok(Object.hasOwn(verification, 'verified_at'), 'verification status must always expose verified_at')
 if (verification.live_sync_verified) {
   assert.equal(typeof verification.verified_at, 'string', 'verified live sync must include verified_at')
@@ -156,3 +157,5 @@ assert.match(webhookMigration, /dead_letter_at/, 'migration must persist dead-le
 assert.match(webhookMigration, /max_attempts/, 'migration must enforce retry budget')
 
 console.log('API compatibility hardening static checks passed.')
+
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${releaseManifest.release_version}'`))

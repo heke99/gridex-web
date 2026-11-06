@@ -363,3 +363,5 @@ assert.throws(
 )
 
 console.log(`Website API contract tests passed (${contractVersion})`)
+
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${contractVersion}'`))

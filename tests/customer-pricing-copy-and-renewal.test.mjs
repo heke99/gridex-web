@@ -12,7 +12,6 @@ const canonical = read('lib/website/canonicalQuoteValidation.ts')
 const quoteToken = read('lib/website/pricingQuote.ts')
 const areaToken = read('lib/website/energyAreaToken.ts')
 const contextRoute = read('app/api/checkout/context/route.ts')
-const snapshotStore = read('lib/website/pricingSnapshotStore.ts')
 
 for (const removedCopy of [
   'Marknadskällor:',
@@ -58,7 +57,8 @@ assert.ok(areaToken.includes('allowExpired?: boolean'))
 assert.ok(contextRoute.includes('verified.value.pricingToken'))
 assert.ok(contextRoute.includes('verified.value.resolutionToken'))
 assert.ok(contextRoute.includes('verified.value.displayedQuote.quote_attempt_id !== quoteAttemptId'))
-assert.ok(snapshotStore.includes('ignoreDuplicates: true'))
+// Snapshot replay/concurrency and conflicting input are exercised against the
+// actual persistence function in pricing-snapshot-idempotency.test.mjs.
 
 const failedCanonicalStart = signup.indexOf('if (!verifiedQuote.ok)')
 const failedCanonicalEnd = signup.indexOf('if (!matchesGridexWebsiteCheckoutPolicy', failedCanonicalStart)

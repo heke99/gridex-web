@@ -7,6 +7,9 @@ import {
   getTicketMessages,
 } from '@/lib/customerPortal/service'
 import { addSupportMessageAction, createSupportTicketAction } from './actions'
+import AttachmentUpload from '@/components/support/AttachmentUpload'
+import { listOpsCustomerSupportAttachments } from '@/lib/ops/client/customerSupport'
+import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,11 +107,13 @@ export default async function DashboardSupportPage({
     ...(params.cursor ? { cursor: params.cursor } : {}),
   }, user)
   const tickets = result.data
+  const identity = tickets.length ? await getOpsPortalIdentityForUser(supabase, user) : null
 
   const expanded = await Promise.all(
     tickets.map(async (ticket) => ({
       ticket,
       messages: await getTicketMessages(supabase, ticket.case_reference, user),
+      attachments: identity ? (await listOpsCustomerSupportAttachments(identity, ticket.case_reference)).data : [],
       replyRequestId: randomUUID(),
     }))
   )
@@ -188,7 +193,7 @@ export default async function DashboardSupportPage({
       </form>
 
       <div className="space-y-4">
-        {expanded.map(({ ticket, messages, replyRequestId }) => {
+        {expanded.map(({ ticket, messages, attachments, replyRequestId }) => {
           const closed = isTicketClosed(ticket.status)
 
           return (
@@ -279,6 +284,14 @@ export default async function DashboardSupportPage({
                   </button>
                 </form>
               )}
+              <div className="mt-5 space-y-3">
+                <h3 className="font-semibold">Bilagor</h3>
+                {attachments.length ? <ul>{attachments.map(file => <li key={file.attachment_reference}>
+                  <a className="underline" href={`/api/customer-support/cases/${ticket.case_reference}/attachments/${file.attachment_reference}`}>{file.file_name}</a>
+                  {' · '}{Math.ceil(file.byte_size / 1024)} kB
+                </li>)}</ul> : <p className="text-sm text-white/60">Inga godkända bilagor ännu.</p>}
+                {!closed ? <AttachmentUpload endpoint={`/api/customer-support/cases/${ticket.case_reference}/attachments`} /> : null}
+              </div>
             </section>
           )
         })}

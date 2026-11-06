@@ -20,6 +20,7 @@ import {
 } from '@/lib/ops/contract';
 import { OpsError, OpsSchemaError, isOpsError } from '@/lib/ops/errors'
 import { isCompatibleAdditiveResponseSchemaError } from '@/lib/ops/schemaCompatibility'
+import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   env,
   getOpsApiBaseUrl,
@@ -63,6 +64,7 @@ import {
 
 import type { OpsPublicContract, OpsAuthorizationProbeResult, OpsPublicContractDiagnostic, OpsWebsitePriceArea, OpsWebsiteQuoteInput, OpsInvoiceDeliveryMethod, OpsWebsiteQuoteSettlement, OpsQuoteAssumption, OpsQuoteMarketSource, OpsQuoteMarketReference, OpsWebsitePricingPreview, OpsClientStatus, OpsIntegrationContext, OpsPublicContractIssue, OpsBlockedPublicContract, OpsPublicContractFeedState, OpsEmptyFeedAuthorizationReason, OpsEmptyFeedAuthorization, OpsPublicContractsSnapshot } from './types'
 import { opsErrorCodeValue } from './portal'
+import { recordApiCache } from '@/lib/observability/apiPerformance'
 
 export function opsBaseUrl(): string {
   return getOpsApiBaseUrl()
@@ -1349,6 +1351,8 @@ export let integrationContextCache: {
   expiresAt: number;
   value: OpsIntegrationContext;
 } | null = null;
+const integrationContextRequests = new Map<string, Promise<OpsIntegrationContext>>();
+let integrationContextRequestVersion = 0;
 
 export function integrationContextFromPayload(payload: unknown): OpsIntegrationContext {
   const root = recordValue(payload) ?? {}
@@ -1466,7 +1470,7 @@ export function integrationContextFromPayload(payload: unknown): OpsIntegrationC
       retryable: false,
     })
   }
-  if (contractVersion !== GRIDEX_WEBSITE_API_CONTRACT_VERSION) {
+  if (!isSupportedResponseVersion(contractVersion)) {
     throw new OpsError('OPS integration context använder en annan kontraktsversion än Gridex Web.', 502, {
       code: 'ops_integration_contract_version_mismatch',
       expected: GRIDEX_WEBSITE_API_CONTRACT_VERSION,
@@ -1540,12 +1544,35 @@ export async function getVerifiedOpsIntegrationContext(forceFresh = false): Prom
   const key = opsOrganizationCacheKey();
   const now = Date.now();
   if (!forceFresh && integrationContextCache?.key === key && integrationContextCache.expiresAt > now) {
+    recordApiCache('integration_context', 'hit');
     return integrationContextCache.value;
   }
-  const payload = await opsFetch("/api/v1/integration/context");
-  const value = integrationContextFromPayload(payload);
-  integrationContextCache = { key, expiresAt: now + 60_000, value };
-  return value;
+  // Only this API-key/base-URL identity may share a pending public context read.
+  // Fresh verification bypasses both the completed cache and pending reads.
+  const pending = !forceFresh ? integrationContextRequests.get(key) : undefined;
+  if (pending) {
+    recordApiCache('integration_context', 'join');
+    return pending;
+  }
+  recordApiCache('integration_context', forceFresh ? 'bypass' : 'miss');
+
+  const requestVersion = ++integrationContextRequestVersion;
+  const request = (async () => {
+    const payload = await opsFetch("/api/v1/integration/context");
+    const value = integrationContextFromPayload(payload);
+    // A slow earlier response must not replace a newer verification.
+    if (requestVersion === integrationContextRequestVersion) {
+      integrationContextCache = { key, expiresAt: now + 60_000, value };
+    }
+    return value;
+  })();
+  if (!forceFresh) integrationContextRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    // Remove failures as well as successes; later requests may retry normally.
+    if (integrationContextRequests.get(key) === request) integrationContextRequests.delete(key);
+  }
 }
 
 export const fetchOpsIntegrationContext = getVerifiedOpsIntegrationContext;

@@ -8,6 +8,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 text-sm text-gray-400 md:grid-cols-4">
         <div className="space-y-3">
           <GridexLogo className="h-auto w-[128px] max-w-none" inverted />
+          <div className="font-semibold text-white">Gridex El AB</div>
           <div>Org.nr: 559416-7149</div>
           <div>Svenskt elhandelsbolag</div>
           <div>
@@ -27,6 +28,7 @@ export default function Footer() {
           <Link href="/elavtal/rorligt-elpris" className="block hover:text-white">Rörligt elpris</Link>
           <Link href="/elavtal/fast-elpris" className="block hover:text-white">Fast elpris</Link>
           <Link href="/elavtal/kvartspris-el" className="block hover:text-white">Kvartspris el</Link>
+          <Link href="/elavtal/fastighetsagare" className="block hover:text-white">Elavtal för fastighetsägare</Link>
           <Link href="/elavtal/foretag" className="block hover:text-white">Elavtal företag</Link>
           <Link href="/elavtal/villa" className="block hover:text-white">Elavtal villa</Link>
           <Link href="/teckna-avtal" className="block hover:text-white">Teckna elavtal</Link>
@@ -63,7 +65,7 @@ export default function Footer() {
       </div>
 
       <div className="pb-6 text-center text-xs text-gray-600">
-        © {new Date().getFullYear()} Gridex AB. Alla rättigheter förbehållna.
+        © {new Date().getFullYear()} Gridex El AB. Alla rättigheter förbehållna.
       </div>
     </footer>
   )

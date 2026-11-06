@@ -15,6 +15,8 @@ try {
     if (url.hostname !== '127.0.0.1') return route.abort()
     if (url.pathname === '/api/checkout/energy-area/resolve') return route.fulfill({json:{data:{
       status:'verified',price_area_code:'SE3',resolution_id:'resolution_audit',resolution_token:'synthetic-area-token',
+      valid_until:new Date(Date.now()+30*60_000).toISOString(), capabilities:{pricing_ready:true},
+      price_area_assurance:{status:'verified',price_area:'SE3',unique_price_area_count:1},
     }}})
     if (url.pathname === '/api/checkout/quote') {
       requested = route.request().postDataJSON(); receivedQuote(); await quoteRelease
