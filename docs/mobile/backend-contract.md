@@ -64,3 +64,36 @@ and Idempotency-Key and prohibit query identities/unexpected fields. Gridex adds
 canonical public-reference validation and a read-after-write ownership check.
 The provider-neutral adapter delegates writes as kind phone / notificationRead;
 its provider must implement the same confirmation and durable idempotency rules.
+
+## Consumption (optional provider capability)
+
+`GET /consumption?facility=<owned reference>&from=<UTC ISO instant>&to=<UTC ISO instant>`
+uses the same verified bearer identity. Only these three query keys, exactly once,
+are accepted; periods must be positive and at most32 days. Instants use canonical
+millisecond UTC ISO format. The native screen selects7/30 Stockholm calendar days,
+including DST transitions. A facility selection is never an ownership grant.
+
+The provider-neutral adapter invokes `provider.read(verifiedBinding,
+{kind:'consumption',facility,from,to})`. Return `{deliveryWindows,items,complete}`.
+Every window has `{facility,from,to}` and MUST come from authoritative delivery
+rights for this authenticated tenant/customer/facility. Clip open-ended rights to
+the requested period on the provider side. Move-in, installation, an unrelated
+contract or request parameters are not proof. Recheck ownership on every call.
+Items use `{reference,facility,from,to,kwh}` with nonnegative finite consumption.
+Negative production/export quantities need a separate explicit energy direction
+contract and must not be disguised as consumption.
+
+The adapter requires verified windows, strips raw fields and excludes any whole
+interval crossing a rights/selection boundary. It rejects mixed facilities,
+duplicate references, overlapping revisions, invalid dates/quantities and more
+than4000 rows. Resolve authoritative revisions before returning data. Never mark
+`complete:true` after a truncated page; `complete` means the available authorized
+readings were fully fetched, not that every expected meter interval exists.
+Gaps are not synthesized as zero. Returned data is
+`{data:{consumption:{facility,from,to,items,totalKwh,complete}}}`; rights are not
+returned to the device. The demo has no authoritative consumption capability.
+
+Gridex currently returns503 for authenticated consumption requests without
+fetching raw meter values. The reviewed OPS route does not enforce delivery
+windows, and its public DTO has no authoritative facility delivery rights. This
+is an explicit integration blocker, not a completed live consumption feature.

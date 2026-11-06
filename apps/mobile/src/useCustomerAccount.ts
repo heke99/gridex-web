@@ -182,5 +182,21 @@ export function useCustomerAccount(brand: string) {
     generation.current++; pending.current?.abort(); clear(); setError('');
     if (!inFlight.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
   };
-  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout };
+  const readConsumption = useCallback(async (kind: 'sites' | 'consumption', query: Record<string, string>, signal: AbortSignal): Promise<unknown> => {
+    if (!client || AppState.currentState !== 'active') throw new Error('Login required');
+    const epoch = generation.current;
+    const saved = await client.auth.getSession();
+    if (signal.aborted || epoch !== generation.current) throw new Error('Cancelled');
+    if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('Login required'); }
+    const url = new URL(customerEndpoint(customerApi, kind, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH));
+    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
+    const response = await fetch(url.href, { headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal });
+    if (signal.aborted || epoch !== generation.current || AppState.currentState !== 'active') throw new Error('Cancelled');
+    if (response.status === 401) { clear(); await signOut(); throw new Error('Login required'); }
+    if (!response.ok) throw new Error('Consumption unavailable');
+    const body: unknown = await response.json();
+    if (signal.aborted || epoch !== generation.current || AppState.currentState !== 'active') throw new Error('Cancelled');
+    return body;
+  }, [client, clear, signOut]);
+  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout, readConsumption };
 }

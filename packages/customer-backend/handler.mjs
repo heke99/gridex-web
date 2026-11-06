@@ -1,3 +1,4 @@
+import {createConsumptionHandler} from './consumption.mjs';
 import {projectCustomerItems} from './projection.mjs';
 export class CustomerBackendError extends Error {
  constructor(status){super('Provider operation rejected');if(![403,404,409,429].includes(status))throw new Error('Unsupported public status');this.status=status;}
@@ -11,8 +12,10 @@ const ref=/^[A-Za-z0-9_-]{1,240}$/;
 export function createCustomerBackend({authenticate,provider,prefix='/customer/v1',documentOrigins=[]}) {
  if(typeof authenticate!=='function'||typeof provider?.read!=='function')throw new Error('Backend adapters required');
  if(!/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(prefix))throw new Error('Invalid prefix');
+ const consumption=createConsumptionHandler({authenticate:async token=>{const i=await authenticate(token);return i&&typeof i.subject==='string'&&i.subject&&typeof i.tenantId==='string'&&i.tenantId&&typeof i.customerReference==='string'&&i.customerReference?Object.freeze({subject:i.subject,tenantId:i.tenantId,customerReference:i.customerReference}):null;},load:(binding,selection)=>provider.read(binding,{kind:'consumption',...selection})});
  return async request=>{
   const url=new URL(request.url);
+  if(url.pathname===`${prefix}/consumption`)return consumption(request);
   if(!url.pathname.startsWith(`${prefix}/`))return reply(404,{error:'Not found'});
   const parts=url.pathname.slice(prefix.length+1).split('/');
   const [resource,reference,third,fourth]=parts;

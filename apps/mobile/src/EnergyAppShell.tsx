@@ -13,7 +13,7 @@ const copy: Record<Tab, { title: string; body: string }> = {
 };
 
 /** Presentation-only shell. Never treats a chosen brand as authorization. */
-export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel }: { brand: MobileBrand; customerPanel?: React.ReactNode; contractPanel?: React.ReactNode; pricePanel?: React.ReactNode }) {
+export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel }: { brand: MobileBrand; customerPanel?: React.ReactNode | ((tab: Tab) => React.ReactNode); contractPanel?: React.ReactNode; pricePanel?: React.ReactNode }) {
   const [active, setActive] = useState<Tab>('Hem');
   const t = brand.theme;
   return <View style={[styles.root, { backgroundColor: t.canvas }]}>
@@ -24,7 +24,7 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
       <Text style={[styles.body, { color: t.muted }]}>{copy[active].body}</Text>
       {active === 'Elpriser' && pricePanel}
       {(active === 'Hem' || active === 'Avtal') && contractPanel}
-      {customerPanel ?? <View style={[styles.card, { backgroundColor: t.surface }]}>
+      {(typeof customerPanel === 'function' ? customerPanel(active) : customerPanel) ?? <View style={[styles.card, { backgroundColor: t.surface }]}>
         <Text style={[styles.cardTitle, { color: t.text }]}>Mobilappen tar form</Text>
         <Text style={[styles.body, { color: t.muted }]}>Kundinloggning och anslutning till dina uppgifter är inte aktiverade i denna testversion.</Text>
       </View>}

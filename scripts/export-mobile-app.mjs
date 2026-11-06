@@ -7,8 +7,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const native = ['index.ts','tsconfig.json','metro.config.mjs','package.json','package-lock.json',
  'src/accountClient.ts','src/CustomerAccess.tsx','src/customerData.ts','src/CustomerDetailPanels.tsx',
  'src/CustomerExtraPanel.tsx','src/detailData.ts','src/EnergyAppShell.tsx','src/secureSessionStorage.ts',
- 'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPrices.ts','src/MarketPrices.tsx','src/PhoneEditor.tsx','src/listTools.ts','src/CustomerList.tsx'];
-const backend = ['package.json','handler.mjs','projection.mjs','demo.mjs','README.md'];
+ 'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPrices.ts','src/MarketPrices.tsx','src/PhoneEditor.tsx','src/listTools.ts','src/CustomerList.tsx','src/ConsumptionPanel.tsx'];
+const backend = ['package.json','handler.mjs','projection.mjs','demo.mjs','README.md','consumption.mjs','consumption.d.mts'];
 const foundation = ['package.json','README.md','src/brand.mjs','src/brand.d.ts','src/ports.d.ts','src/customerDetails.ts'];
 const defaultBrand = {id:'energy-demo',displayName:'Energy Demo',supportUrl:'https://example.com/support',theme:{canvas:'#08090b',surface:'#0f1115',text:'#f4f6f7',muted:'#a7afb8',accent:'#35c9d7',accentText:'#041113'}};
 
@@ -39,7 +39,7 @@ export async function exportMobileApp(destination, options = {}) {
   }
   const generated={
    'apps/mobile/brands/active.mjs':`import { defineMobileBrand } from '../../../packages/mobile-foundation/src/brand.mjs';\nexport const activeBrand = defineMobileBrand(${JSON.stringify(brand,null,2)});\n`,
-   'apps/mobile/App.tsx':"import React from 'react';\nimport { activeBrand } from './brands/active.mjs';\nimport { EnergyAppShell } from './src/EnergyAppShell';\nimport { CustomerAccess } from './src/CustomerAccess';\nimport { ContractActions } from './src/ContractActions';\nimport { MarketPrices } from './src/MarketPrices';\nexport default function App(){return <EnergyAppShell brand={activeBrand} pricePanel={<MarketPrices origin={process.env.EXPO_PUBLIC_PRICES_ORIGIN} theme={activeBrand.theme}/>} contractPanel={<ContractActions origin={process.env.EXPO_PUBLIC_CONTRACT_WEB_ORIGIN} theme={activeBrand.theme}/>} customerPanel={<CustomerAccess brand={activeBrand}/>} />;}\n",
+   'apps/mobile/App.tsx':"import React from 'react';\nimport { activeBrand } from './brands/active.mjs';\nimport { EnergyAppShell } from './src/EnergyAppShell';\nimport { CustomerAccess } from './src/CustomerAccess';\nimport { ContractActions } from './src/ContractActions';\nimport { MarketPrices } from './src/MarketPrices';\nexport default function App(){return <EnergyAppShell brand={activeBrand} pricePanel={<MarketPrices origin={process.env.EXPO_PUBLIC_PRICES_ORIGIN} theme={activeBrand.theme}/>} contractPanel={<ContractActions origin={process.env.EXPO_PUBLIC_CONTRACT_WEB_ORIGIN} theme={activeBrand.theme}/>} customerPanel={tab=><CustomerAccess brand={activeBrand} consumption={tab==='Förbrukning'}/>} />;}\n",
    'apps/mobile/app.config.ts':`import type { ExpoConfig } from 'expo/config';\nconst config: ExpoConfig = ${JSON.stringify({name:brand.displayName,slug:brand.id,version:'0.1.0',orientation:'portrait',userInterfaceStyle:'dark',scheme,ios:{bundleIdentifier:applicationId},android:{package:applicationId},updates:{enabled:false},plugins:['expo-secure-store']},null,2)};\nexport default config;\n`,
    '.gitignore':'node_modules/\n.expo/\ndist-android/\ndist-ios/\n.env*\n*.tsbuildinfo\n',
    'README.md':await readFile(await reviewedSource('docs/mobile/portable-app.md'),'utf8'),

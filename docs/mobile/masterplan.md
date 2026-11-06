@@ -582,3 +582,26 @@ att hitta på saknade avtalsvillkor. Listöversikten visar antal och statusförd
 för hämtade poster, uttryckligen inte totalen i OPS. Filter kan rensas; listans
 sökstate försvinner när kundvyn avmonteras vid utloggning. Ingen extra kunddata
 hämtas eller skickas till söktjänst. Förbättringarna följer med mallexporten.
+
+### Paket1–2: produktionskoppling och förbrukning (6 november, pågående leverans)
+
+Förbrukningsfliken har anläggningsval,7/30 kalenderdagar i Europe/Stockholm,
+startdygnsdiagram, summering av hämtade värden, delvis/komplett källstatus, tomläge
+och återförsök. Sena svar efter anläggningsbyte, utloggning eller bakgrund visas
+inte. Perioder kring båda tidsomställningarna testas. Inga luckor fylls med noll.
+Den fristående mallexporten innehåller samma UI och ett OPS-oberoende,
+leverantörsneutralt förbrukningskontrakt med verifierade leveransfönster.
+
+**Gridex förbrukning är fortfarande blockerad**, trots färdigt gränssnitt och
+syntetiskt verifierad provider. Den aktuella OPS-mätvärdesrutten filtrerar på
+bolag/kund, men inte på kundens leveransperiod. DTO:n saknar auktoritativa
+leveransfönster per anläggning. Mobilservern svarar därför503 före mätvärdeshämtning.
+Inflyttningsdatum, mätarinstallation eller ett annat avtal används inte som
+ersättning. OPS måste först leverera verifierbara tidsgränser och korrekt
+anläggningskoppling samt hantera revisioner/paginering. Detta får inte döljas bakom
+en grön versions-/OpenAPI-kontroll. OPS har inte ändrats eller produktionssatts här.
+
+Paket1 gäller den publika serveranslutningen; verifiering med ett riktigt kundkonto
+är en separat öppen kontroll. Signerade butiksversioner hör till paket4.
+Aktuell leverans och de två egengranskningarna dokumenteras i
+`docs/mobile/release-package-1-2.md`.

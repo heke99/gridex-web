@@ -214,3 +214,19 @@ test('notification read keeps retry identity when success lacks a trustworthy ti
  await act(async()=>{assert.equal(await current.markNotificationRead('notification-own'),false);});stamp=true;
  await act(async()=>{assert.equal(await current.markNotificationRead('notification-own'),true);});assert.equal(keys[0],keys[1]);await unmount();
 });
+
+test('consumption request uses verified session and rejects late data after logout', async () => {
+  const unmount=await mount(true);let resolve;
+  handler=(url,init)=>{assert.equal(new URL(url).pathname,'/api/mobile/customer/consumption');assert.equal(init.headers.Authorization,'Bearer remembered-token');assert.equal(new URL(url).searchParams.get('facility'),'own-site');return new Promise(r=>{resolve=r;});};
+  const controller=new AbortController();let pending;
+  await act(async()=>{pending=current.readConsumption('consumption',{facility:'own-site'},controller.signal);});
+  const rejected=assert.rejects(pending,/Cancelled/);
+  await act(async()=>current.logout());
+  await act(async()=>{resolve(Response.json({private:'late'}));await rejected;});
+  assert.equal(current.authenticated,false);await unmount();
+});
+test('consumption expired auth clears private account state',async()=>{
+  const unmount=await mount(true);handler=async()=>new Response('',{status:401});
+  await act(async()=>{await assert.rejects(current.readConsumption('sites',{},new AbortController().signal),/Login required/);});
+  assert.equal(current.authenticated,false);assert.equal(current.rows,null);assert.equal(session,null);await unmount();
+});
