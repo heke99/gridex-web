@@ -1,9 +1,14 @@
-export type Resource = 'contracts' | 'sites' | 'invoices' | 'support';
+export type Resource = 'contracts' | 'sites' | 'invoices' | 'support' | 'profile' | 'notifications' | 'documents' | 'powers' | 'acceptances';
 export type CustomerRow = { reference: string; [key: string]: string | number | null };
 const fields: Record<Resource, string[]> = {
   contracts: ['name', 'status', 'startDate'],
   sites: ['address', 'postalCode', 'city', 'facilityId', 'priceArea', 'status'],
   invoices: ['number', 'status', 'currency', 'dueDate', 'paidAt'],
+  profile: ['name','email','phone','customerNumber','customerType','status'],
+  notifications: ['title','message','severity','status','readAt','createdAt'],
+  documents: ['title','type','version','status','createdAt','availability'],
+  powers: ['scope','status','acceptedAt','validFrom','validTo'],
+  acceptances: ['type','documentCode','version','acceptedAt','source'],
   support: ['title', 'description', 'status', 'createdAt', 'updatedAt'],
 };
 export function parseCustomerRows(resource: Resource, body: unknown): CustomerRow[] {

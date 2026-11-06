@@ -87,3 +87,12 @@ sends a real support message or email. Mobile/API activation remains gated.
 The frozen local messages OpenAPI operation has no cursor parameter; native
 message continuation waits for qualified contract synchronization rather than
 adding an undocumented query. Cases already expose a documented cursor.
+
+Customer account now includes five additional read views: profile, notifications,
+documents, powers of attorney and legal acceptance history. They use existing
+OPS resources through the same verified-user server adapter. General documents
+are opened only after a fresh customer ownership check and HTTPS origin validation;
+no bearer header is passed to the external reader. These views do not edit profiles,
+mark notifications read or sign new agreements. Counts mean loaded rows; pagination
+outside support cases is not yet qualified. Keep the production API feature flag off
+until live customer/device checks and the OPS manifest release gate pass.

@@ -161,3 +161,20 @@ test('support continuation appends and deduplicates pages without changing ident
  await act(async()=>{await current.loadMore();});assert.deepEqual(current.rows.map(r=>r.reference),['one','two']);assert.equal(current.nextCursor,null);
  await unmount();
 });
+
+test('all five extra views use the authenticated loader and clear on logout', async () => {
+ const {extraRows}=await import('../lib/mobile/customerExtras.ts');
+ const keys={profile:'customer_reference',notifications:'notification_reference',documents:'document_reference',powers:'power_of_attorney_reference',acceptances:'acceptance_reference'};
+ const unmount=await mount(true);
+ for(const [kind,key] of Object.entries(keys)) {
+  handler=async (url,options)=>{assert.ok(url.endsWith(`/customer/${kind}`));assert.ok(options.headers.Authorization);return Response.json({data:{[kind]:extraRows(kind,{data:kind==='profile'?{[key]:'own'}:[{[key]:'own'}]})}});};
+  await act(async()=>current.select(kind)); assert.equal(current.rows[0].reference,'own');
+ }
+ await act(async()=>current.logout());assert.equal(current.rows,null);await unmount();
+});
+test('general document opening uses the scoped endpoint and a URL-only external handoff', async () => {
+ const unmount=await mount(true);let opened;
+ handler=async(url)=>{assert.ok(url.endsWith('/customer/documents/owned-doc/open'));return Response.json({data:{customerDocument:[{reference:'owned-doc',url:'https://files.test/a'}]}});};
+ await act(async()=>current.openDocument(null,'owned-doc',(...args)=>{opened=args;}));
+ assert.deepEqual(opened,['https://files.test/a']);await unmount();
+});

@@ -106,3 +106,15 @@ Auth/OPS PASS (69 total). Root/native TypeScript, full ESLint, Next production
 build and Android/iOS Hermes exports PASS. No real customer mutation/email sent.
 Native write attempts are process-local; no durable outbox guarantee. Case cursor
 is documented; message cursor is not in the frozen spec and remains pending.
+
+Next packet: five native read views (profile, notifications, documents, powers,
+legal acceptances) plus fresh scoped general-document opening. API whitelist,
+verified subject/RLS binding and disabled-by-default flag preserved. Sixteen actual
+route tests + six projection tests pass against synthetic providers; eighteen
+actual-hook/adapter tests pass including all five view transitions and URL-only
+document handoff. Existing pure regressions pass. Native typecheck, root typecheck
+and lint pass; Android/iOS Hermes export pass. Initial Next build hit a corrupt
+local persistence cache; moved generated .next aside and reran clean. No live
+customer/provider writes, new DB or production activation. Release qualification
+and full-app extraction remain outstanding.
+Clean Next production build passed; built-server HTTP checks passed (18 requests across all six new endpoints: unauthenticated401, query override400, unconfigured provider503, private/no-store). Total targeted tests: 83 (43 pure, 22 route/projection, 18 hook/adapter).

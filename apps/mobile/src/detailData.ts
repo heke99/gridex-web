@@ -26,12 +26,12 @@ export function parseSupportDetail(body: unknown, expected: string): SupportDeta
     }),
   };
 }
-export function parseDocumentLink(body: unknown, expected: string): string {
-  const r = item(body, 'invoiceDocument'); if (string(r, 'reference') !== expected) throw new Error('Wrong document');
+export function parseDocumentLink(body: unknown, expected: string, key: 'invoiceDocument' | 'customerDocument' = 'invoiceDocument'): string {
+  const r = item(body, key); if (string(r, 'reference') !== expected) throw new Error('Wrong document');
   const url = new URL(string(r, 'url')); if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('Unsafe document link');
   return url.href;
 }
-export type CustomerView = 'contracts' | 'sites' | 'invoices' | 'support' | 'invoiceDetail' | 'supportDetail';
+export type CustomerView = 'contracts' | 'sites' | 'invoices' | 'support' | 'invoiceDetail' | 'supportDetail' | 'profile' | 'notifications' | 'documents' | 'powers' | 'acceptances';
 /** References are opaque; they cannot introduce a path segment, query or origin. */
 export function customerViewPath(view: CustomerView, reference?: string) {
   if (view !== 'invoiceDetail' && view !== 'supportDetail') return view;

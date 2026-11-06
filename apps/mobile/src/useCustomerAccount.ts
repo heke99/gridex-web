@@ -117,21 +117,21 @@ export function useCustomerAccount(brand: string) {
   }, reference, cursor);
   const loadMore = () => nextCursor ? select('support', undefined, nextCursor) : Promise.resolve();
   const retry = () => select(selected.current.view, selected.current.reference);
-  const openDocument = async (invoiceRef: string, documentRef: string, open: (url: string) => Promise<unknown>) => {
+  const openDocument = async (invoiceRef: string | null, documentRef: string, open: (url: string) => Promise<unknown>) => {
     if (!client || inFlight.current) return;
-    if (![invoiceRef, documentRef].every(ref => /^[A-Za-z0-9_-]{1,240}$/.test(ref))) { setError('Ogiltig dokumentreferens.'); return; }
+    if (![...(invoiceRef ? [invoiceRef] : []), documentRef].every(ref => /^[A-Za-z0-9_-]{1,240}$/.test(ref))) { setError('Ogiltig dokumentreferens.'); return; }
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
     try {
       const saved = await client.auth.getSession();
       if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('expired'); }
-      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}`, {
+      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`}`, {
         headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
       });
       if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
       if (!response.ok) throw new Error('document unavailable');
-      const url = parseDocumentLink(await response.json(), documentRef);
+      const url = parseDocumentLink(await response.json(), documentRef, invoiceRef ? 'invoiceDocument' : 'customerDocument');
       if (attempt === generation.current && AppState.currentState === 'active') await open(url);
     } catch { if (attempt === generation.current) setError('Dokumentet kunde inte öppnas. Hämta fakturan igen och försök på nytt.'); }
     finally {

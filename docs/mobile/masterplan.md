@@ -391,3 +391,27 @@ utloggning ignoreras. Native-vyn erbjuder också Visa fler ärenden med OPS-curs
 och sammanslagning utan duplicerade referenser. Meddelandepaginering inväntar
 kontraktskvalificering: låst lokal GET messages-specifikation saknar cursor.
 Ingen faktisk kundmutation, e-post eller produktionsaktivering har utförts här.
+
+### Fem kundvyer – profil, meddelanden, dokument, fullmakter och godkännanden
+
+Fem separata native-vyer hämtar nu befintliga OPS-resurser via mobilens
+serveradapter: me, notifications, documents, powers-of-attorney och
+legal-acceptances. Samma verifierade Supabase-subject och kundprofil används;
+telefonen väljer aldrig kund eller tenant. Endast uttryckligen tillåtna fält
+returneras. Profilen visas enligt OPS me-svar (data direkt); meddelanden använder
+message/read_at. Fullmakter visar omfattning och giltighet; godkännanden visar
+registrerad dokumentversion, tid och källa utan att tillskriva BankID-verifiering.
+
+Dokumentlistan lämnar inte ut länkar. Öppna dokument gör en ny Auth-/RLS-/OPS-kontroll,
+kräver en unik dokumentreferens i kundens egna dokument och en tillåten HTTPS-origin.
+Den externa läsaren får enbart länken, ingen sessionsheader. Appen rensar även
+dessa vyer vid utloggning och när den går i bakgrunden.
+
+Detta paket ger läsning, inte profiländring, markera som läst eller ny signering.
+Listantalet avser hämtade poster, inte ett garanterat totalt antal i OPS. Endast
+supportärenden har kvalificerad cursor-fortsättning i nuvarande mobiladapter.
+Vyerna och kundisoleringen är kontrollerade med syntetisk Auth/OPS; faktisk
+kundinloggning, signerade enhetsbyggen och produktionskoppling återstår.
+Den tidigare dokumenterade OPS-manifests versionskonflikt kvarstår som releasegrind.
+Samma repo och befintliga databas används. Appmallens konfiguration och UI hålls
+separerade från Gridex, men export av hela appen är ännu inte verifierad.

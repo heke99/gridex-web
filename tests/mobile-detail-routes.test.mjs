@@ -19,6 +19,7 @@ globalThis.__mobileReadFixture = {
   }),
   resource: async (identity, resource, reference) => {
     assertIdentity(identity); calls.push(`ops:${identity.userId}:${resource}:${reference}`);
+    if (resource !== 'invoices') { const ref = `ref-${identity.userId}`; const row = { customer_reference: ref, notification_reference: ref, document_reference: ref, power_of_attorney_reference: ref, acceptance_reference: ref, display_name: 'Own name', title: 'Own title', message: 'Own message', scope: ['read'], secure_url: documentUrl, portal_identity: 'must-not-leak' }; return { data: resource === 'me' ? row : [row] }; }
     if (identity.userId !== 'customer-one' || reference !== invoiceId) throw new Error('foreign or missing invoice');
     const p = invoicePayload(); p.data.documents[0].secure_url = documentUrl; return p;
   },
@@ -92,4 +93,21 @@ test('actual reply route delegates ownership to canonical OPS and never creates 
   const req = new Request('https://tenant.test/support',{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json','idempotency-key':'reply-attempt-123'},body:JSON.stringify({message:'Reply'})});
   assert.equal((await post(req,context(caseId))).status,status);
  }
+});
+
+for (const kind of ['profile','notifications','documents','powers','acceptances']) test(`actual ${kind} route isolates verified customers and rejects overrides`, async () => {
+ const get = (await import(`../app/api/mobile/customer/${kind}/route.ts`)).GET;
+ const first = await get(request()); assert.equal(first.status,200); assert.equal(first.headers.get('cache-control'),'private, no-store');
+ const body = await first.json(); assert.equal(body.data[kind][0].reference,'ref-customer-one'); assert.ok(!JSON.stringify(body).includes('must-not-leak')); assert.ok(!JSON.stringify(body).includes('signature'));
+ const second = await (await get(request('mobile-session-two-123456'))).json(); assert.equal(second.data[kind][0].reference,'ref-customer-two');
+ assert.equal((await get(request(undefined,'?customerId=foreign'))).status,400);
+ assert.equal((await get(request('invalid-token-1234567'))).status,401);
+ process.env.GRIDEX_MOBILE_API_ENABLED='false'; assert.equal((await get(request())).status,404);
+});
+test('general document opening rechecks ownership and approved origins', async () => {
+ const get = (await import('../app/api/mobile/customer/documents/[id]/open/route.ts')).GET;
+ const ctx = {params:Promise.resolve({id:'ref-customer-one'})};
+ assert.equal((await get(request(),ctx)).status,200);
+ assert.equal((await get(request('mobile-session-two-123456'),ctx)).status,503);
+ documentUrl='https://evil.test/a'; assert.equal((await get(request(),ctx)).status,503);
 });

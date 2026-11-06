@@ -1,3 +1,4 @@
+import { extraRows, extraResources, customerDocumentLink, type Extra } from './customerExtras';
 import { createClient } from '@supabase/supabase-js';
 import { fetchOpsCustomerResource } from '@/lib/ops/client';
 import { createContractsHandler } from './contractsHandler';
@@ -59,4 +60,14 @@ export function customerDetailRoute(kind: 'invoiceDetail' | 'invoiceDocument' | 
       return [invoiceDetail(payload, reference, origins)];
     },
   }, kind, kind === 'support');
+}
+
+export function customerExtraRoute(kind: Extra) {
+ return createContractsHandler({enabled:()=>process.env.GRIDEX_MOBILE_API_ENABLED==='true',authenticate:authenticateMobile,
+ contracts:async(subject,token)=>extraRows(kind,await fetchOpsCustomerResource(await mobileIdentity(subject,token),extraResources[kind]),documentOrigins())},kind);
+}
+function documentOrigins() {return (process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS??'').split(',').map(v=>v.trim()).filter(Boolean);}
+export function customerDocumentRoute(reference:string) {
+ return createContractsHandler({enabled:()=>process.env.GRIDEX_MOBILE_API_ENABLED==='true',authenticate:authenticateMobile,
+ contracts:async(subject,token)=>[customerDocumentLink(await fetchOpsCustomerResource(await mobileIdentity(subject,token),'documents'),reference,documentOrigins())]},'customerDocument');
 }
