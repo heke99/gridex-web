@@ -612,3 +612,13 @@ före publicering. Befintlig kundaktivering, integritetsflöden, supportåterst�
 cache- och SEO-arbete behålls. Webs uttryckligen stödda svarsprofiler4.1/9.1
 behålls med fulla krav på affärsfälten; godtyckliga äldre profiler avvisas.
 Staff-specifikationens verifiering behålls tillsammans med webb- och kund-API:t.
+
+
+Produktionsstatus efter paket1–2: PR #56 är mergad som84278b7 och den granskade
+applikationskoden är driftsatt på gridex.se (dpl_97r9w3PvvjavCfpHgJiUEVyjBujw).
+Mobil-API:t är produktionsaktiverat.30 publika HTTP-grindtester går grönt och dagens
+skarpa SE3-priser har96 intervall som godkänns av appens parser. CI:s webb-, support-,
+webbläsar-, isolerings- och mallexportkontroller är gröna på samma applikationsträd.
+Förbrukningsvyn/mallkontraktet är byggda, men Gridex verkliga förbrukning är spärrad
+tills OPS levererar rätt leveransgränser. Riktig kundinloggning/återläsning är ännu
+inte verifierad. Hela paket1–2 ska därför inte beskrivas som fullt färdigt.

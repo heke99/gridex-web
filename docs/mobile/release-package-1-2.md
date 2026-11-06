@@ -41,7 +41,7 @@ records, signing flow or store installation are included in this packet.
 | Gridex Android + iOS exports | PASS | Hermes bundles; not signed device binaries |
 | Fresh OPS-free extracted app | PASS | offline clean install, types, Android/iOS Hermes exports |
 | Built local HTTP guard matrix | PASS |30 read/write/query/auth checks against actual production server |
-| Production HTTP guard matrix | PENDING | must be checked after exact-source deployment |
+| Production HTTP guard matrix | PASS |30/30 on public gridex.se; private/no-store,401/400, no authenticated mutations |
 | Real customer login/read/write | BLOCKED | no customer account/session provisioned; no private credentials requested again |
 | Gridex live consumption | BLOCKED | authoritative delivery-window API absent; authenticated route deliberately503 |
 
@@ -50,7 +50,7 @@ records, signing flow or store installation are included in this packet.
 Automated implementation checks pass. Full packages1–2 must NOT be called done:
 real customer/provider readback is unverified and Gridex live consumption remains
 blocked by the upstream delivery authorization contract. Production API guard
-activation can be released separately, without enabling unverified meter access.
+activation is released, without enabling unverified meter access.
 No real customer mutation has been made. Package3 signing/switching and package4
 signed app/store distribution remain separate.
 
@@ -74,3 +74,43 @@ Regression fixtures now cover the deployed explicitly supported4.1 and9.1 respon
 profiles, reject an unsupported older profile and still reject missing required
 business identity fields. This preserves deployed compatibility; it does not
 weaken runtime schema validation. Original commercial fixtures remain unchanged.
+
+
+## Observed production activation
+
+PR #56 merged as 84278b717029424c3cb4b7d6e6e08a9d293f72b5. Its tree is exactly the
+reviewed/CI-green921aca405b48524d33a7b5dea6fdd5a63ce0cb8b tree
+061c623722a1730146118b6bbe36a914ccce4ce5. All executed CI jobs passed: verify
+(including browser/auth-isolation/performance/build/security), contract, support
+(including browser/build), native-shell, standalone-export and portable-native-export.
+CodeRabbit was skipped and is not counted as a review.
+
+Production deployment dpl_97r9w3PvvjavCfpHgJiUEVyjBujw is READY in the existing
+Gridex Web project. gridex.se andwww.gridex.se point to it. Production flag
+GRIDEX_MOBILE_API_ENABLED=true is active. The published API origin is
+https://gridex.se and path/api/mobile/customer. No protection bypass, customer
+secret, direct OPS credential or second database is required in the app.
+
+At20:31:47Z all30 public HTTP guard checks passed. At20:33:45Z the signup handoff
+returned the expected308 to/teckna-avtal; that page, login and public contracts
+returned200. The actual native market parser accepted96 real SE3 intervals for
+2026-11-06. Homepage also returned200. Runtime error inspection after activation
+reported no errors in its selected window; this is a short observation window,
+not a claim about future operation or authenticated customer flows.
+
+Reports are in quality/mobile/package-1-2/. automated-verification.json records
+its own scope and does not infer production activation; deployment evidence is
+this section and the separate production reports. Root clean Turbopack and
+webpack builds and the Support production build passed after reconciliation.
+An old local Turbopack persistence cache initially failed; a fresh generated build
+directory resolved it. No product code or release gate was weakened.
+
+The OPS production source 8969f01a31e34a494e4f7c80a593cd4693235cf1 was also read:
+metering route blob 843392e550c42009e9f80411a2be1998f0e776bf and public DTO
+blob 310712e0938ac7c8a0095afe2c85ed840a6c4217 have the same missing authoritative
+delivery-window contract as the reviewed main source. Live Gridex consumption
+therefore remains blocked deliberately. No OPS deployment was changed.
+
+This final evidence update changes documentation/test reports only. The
+application-code qualification remains bound to the exact reviewed/deployed tree
+above. It does not turn blocked customer/consumption checks into passes.

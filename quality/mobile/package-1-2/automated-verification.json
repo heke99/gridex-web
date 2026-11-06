@@ -1,0 +1,44 @@
+{
+  "head": "921aca405b48524d33a7b5dea6fdd5a63ce0cb8b",
+  "sourceDirty": false,
+  "checkedAt": "2026-11-06T20:24:23.779Z",
+  "results": [
+    {
+      "name": "customer-routes",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 373
+    },
+    {
+      "name": "account-and-provider",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 617
+    },
+    {
+      "name": "native-lifecycle",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 827
+    },
+    {
+      "name": "native-types",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "name": "web-types",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "name": "lint",
+      "passed": true,
+      "exitCode": 0
+    }
+  ],
+  "automatedPassed": true,
+  "realCustomerVerified": false,
+  "signedDeviceBuildVerified": false,
+  "productionActivated": false
+}

@@ -192,3 +192,38 @@ route/projection tests,28 native hook/adapter/UI tests and4 release-revision tes
 build passed. Six built-server POST guard checks passed (unauth, identity query,
 unconfigured provider on both profile and notification read). Gridex Android/iOS
 Hermes exports passed. Isolated export verification started from locked dependencies.
+
+
+2026-11-06 continuation: user explicitly authorized packages1–2 to production,
+multiple testing methods and two reviews. Implemented ConsumptionPanel with facility,
+7/30 Stockholm calendar-day selection, DST tests, chart/fetched totals, partial-state,
+retry and stale/logout/background guards. Portable backend consumption contract
+requires authoritative verified delivery windows, excludes crossing intervals,
+rejects duplicates/overlapping revisions/foreign facilities. Gridex route fails503
+BEFORE raw readings because main AND deployed OPS source 8969f01 lack the required
+facility delivery-right DTO/guard. No direct OPS DB access and no OPS edits/deploys.
+
+Release inspection caught production Web7c215d13 containing47 commits beyond
+GitHub main1fc033e. Merged actual deployed lineage, retaining all portal/privacy,
+Support recovery, invoice, cache and SEO code/modes. Shared deployed OPS SDK,
+Staff runtime, response profiles4.1/9.1 and migrations are byte-identical to deployed
+baseline. Strict three-spec docs/wire/hash/source checks retained and live-resynced.
+Updated fixtures to represent supported profiles and correct canonical URLs;
+unsupported versions, missing business identity and mixed header/payload still fail.
+
+Two self-reviews (security/data and UI/integration/export) completed and repeated
+against actual production base. All executed CI green at 921aca405b48524d33a7b5dea6fdd5a63ce0cb8b.
+PR #56 merged 84278b717029424c3cb4b7d6e6e08a9d293f72b5, identical tree 061c6237.
+Production mobile flag true, existing Web deployment dpl_97r9w3PvvjavCfpHgJiUEVyjBujw
+READY, gridex.se/www aliases confirmed.30/30 public HTTP guards PASS. Signup canonical
+redirect, login, public contracts and96 real SE3 intervals PASS. Short production
+error scan found no runtime errors. No real customer account, mutation or signed
+device qualification. Local/CI root/native types, lint, regression/browser/security,
+Turbopack+webpack/Support builds, Gridex and extracted Android/iOS exports pass.
+
+Next: authoritative OPS facility delivery windows/revision-safe readings adapter
+under current OPS custody protocol; then authenticated two-customer readback with
+provisioned customer identities. Do not claim complete packages1–2 until these
+blocked checks pass. No credential handoff re-request. Native signing/switching
+and signed store builds remain packages3–4. Evidence docs/mobile/release-package-1-2.md
+and quality/mobile/package-1-2/. Final evidence commit is docs/reports only.

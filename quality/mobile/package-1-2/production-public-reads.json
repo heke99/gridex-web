@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-11-06T20:33:45.088Z",
+  "checks": [
+    {
+      "path": "/teckna",
+      "status": 308,
+      "passed": true
+    },
+    {
+      "path": "/teckna-avtal",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/api/web/contracts",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "priceArea": "SE3",
+      "intervals": 96,
+      "date": "2026-11-06",
+      "passed": true
+    }
+  ]
+}
