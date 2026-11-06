@@ -1,0 +1,32 @@
+name: Mobile portability foundation
+
+on:
+  pull_request:
+    paths:
+      - 'packages/mobile-foundation/**'
+      - 'apps/mobile/**'
+      - 'scripts/export-mobile-foundation.mjs'
+      - 'tests/mobile-foundation-export.test.mjs'
+      - '.github/workflows/mobile-portability.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mobile-foundation/**'
+      - 'apps/mobile/**'
+      - 'scripts/export-mobile-foundation.mjs'
+      - 'tests/mobile-foundation-export.test.mjs'
+      - '.github/workflows/mobile-portability.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs

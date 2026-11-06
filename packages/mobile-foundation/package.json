@@ -1,0 +1,14 @@
+{
+  "name": "@energy-app/mobile-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable public brand configuration and integration contracts for the energy customer app",
+  "exports": {
+    ".": { "types": "./src/brand.d.ts", "import": "./src/brand.mjs" },
+    "./ports": { "types": "./src/ports.d.ts" }
+  },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "files": ["src", "README.md"],
+  "engines": { "node": ">=22" }
+}
