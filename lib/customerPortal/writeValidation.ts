@@ -1,4 +1,5 @@
 import { isStrictCalendarDate } from '@/lib/website/businessDate'
+import { isIP } from 'node:net'
 
 export function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -148,8 +149,14 @@ export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | n
   const source = object(value)
   if (!source) return null
 
+  const evidenceText = (value: unknown, max: number): string | null => {
+    if (typeof value !== 'string') return null
+    const normalized = value.trim()
+    return normalized && normalized.length <= max ? normalized : null
+  }
+
   const document = object(source.document)
-  const documentReference = text(
+  const documentReference = evidenceText(
     source.document_reference ??
       document?.document_reference ??
       document?.external_document_id ??
@@ -158,21 +165,37 @@ export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | n
   )
   const acceptedAt = validIsoDate(source.accepted_at ?? source.signed_at)
   const rawScope = source.scope ?? source.scopes
+  if (Array.isArray(rawScope) && rawScope.some(item => typeof item !== 'string')) return null
   const scope = (Array.isArray(rawScope) ? rawScope : typeof rawScope === 'string' ? [rawScope] : [])
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim().slice(0, 160))
     .filter(Boolean)
     .slice(0, 20)
 
-  if (!documentReference || !acceptedAt || scope.length === 0) return null
-  if (source.accepted === false) return null
+  if (!documentReference || !acceptedAt || source.accepted !== true) return null
+  if (scope.length < 1 || scope.length > 2 || new Set(scope).size !== scope.length ||
+    !scope.includes('supplier_switch') ||
+    scope.some(item => !['supplier_switch', 'facility_information_lookup'].includes(item))) return null
+  const signerName = evidenceText(source.signer_name, 240)
+  const signerIdentity = evidenceText(source.signer_identity_number, 120)
+  const method = evidenceText(source.method, 40)
+  if (!signerName || !signerIdentity || signerIdentity.length < 6 || !method ||
+    !['website_acceptance', 'bankid', 'electronic_signature', 'manual_signature'].includes(method)) return null
+  const ip = source.ip_address === undefined ? null : text(source.ip_address, 64)
+  if (source.ip_address !== undefined && (!ip || !isIP(ip))) return null
 
   const result: Record<string, unknown> = {
     document_reference: documentReference,
     scope,
     accepted: true,
     accepted_at: acceptedAt,
+    signer_name: signerName,
+    signer_identity_number: signerIdentity,
+    method,
   }
+  if (ip) result.ip_address = ip
+  const userAgent = text(source.user_agent, 1024)
+  if (userAgent) result.user_agent = userAgent
   const reference = text(source.power_of_attorney_reference ?? source.reference, 200)
   if (reference) result.power_of_attorney_reference = reference
   const validFrom = validCalendarDate(source.valid_from)

@@ -1,0 +1,101 @@
+{
+  "checked_at": "2026-10-18T19:48:45.318751+00:00",
+  "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+  "dedicated_test_auth_account": true,
+  "real_customer_account_used": false,
+  "ops_sync_linked": true,
+  "auth_password_signin_verified": true,
+  "checks": [
+    {
+      "path": "/api/web/customer/me",
+      "status": 200,
+      "redirected": false,
+      "error": null
+    },
+    {
+      "path": "/api/web/customer/contracts",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 1
+    },
+    {
+      "path": "/api/web/customer/sites",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 1
+    },
+    {
+      "path": "/api/web/customer/invoices",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 0
+    },
+    {
+      "path": "/api/web/customer/documents",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 1
+    },
+    {
+      "path": "/api/web/customer/legal-acceptances",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 21
+    },
+    {
+      "path": "/api/web/customer/powers-of-attorney",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 1
+    },
+    {
+      "path": "/api/web/customer/events",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 14
+    },
+    {
+      "path": "/api/web/customer/metering-values",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 0
+    },
+    {
+      "path": "/api/web/customer/notifications",
+      "status": 200,
+      "redirected": false,
+      "error": null,
+      "items": 0
+    },
+    {
+      "path": "/api/web/customer/portal-bundle",
+      "status": 200,
+      "redirected": false,
+      "error": null
+    },
+    {
+      "path": "/dashboard/support",
+      "status": 200,
+      "redirected": false,
+      "error": null
+    },
+    {
+      "path": "/mina-sidor",
+      "status": 200,
+      "redirected": false,
+      "error": null
+    }
+  ],
+  "test_auth_fixture_deleted": true,
+  "test_identity_disabled": true,
+  "test_contact_restored": true,
+  "deleted_session_rejected": true
+}

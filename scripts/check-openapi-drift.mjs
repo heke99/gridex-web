@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import {
   assertOpenApiDocument,
+  assertReleaseManifest,
+  assertReleaseSpecification,
   fetchManifestSpecification,
   fetchReleaseManifest,
   sha,
@@ -14,6 +16,11 @@ const contractSource = await readFile('lib/ops/contract.ts', 'utf8')
 const contractMatch = contractSource.match(/GRIDEX_API_CONTRACT_VERSION = ['"]([^'"]+)['"]/)
 if (!contractMatch) throw new Error('GRIDEX_API_CONTRACT_VERSION is missing from lib/ops/contract.ts')
 const sourceContractVersion = contractMatch[1]
+const runtimeVersion = sourceContractVersion
+const documentationVersion = contractSource.match(/GRIDEX_API_DOCUMENTATION_VERSION = ['"]([^'"]+)['"]/)?.[1]
+if (!documentationVersion) throw new Error('Documentation revision missing')
+const approvedRelease = assertReleaseManifest(JSON.parse(await readFile('docs/openapi/release-manifest.json', 'utf8')))
+if (approvedRelease.release_version !== documentationVersion || approvedRelease.runtime_contract_version !== sourceContractVersion) throw new Error('Approved release does not match configured documentation/runtime revisions')
 
 function semanticDiff(previous, next) {
   const keys = (value) => new Set(Object.keys(value ?? {}))
@@ -37,9 +44,12 @@ for (const [specName, typeName] of SPECS) {
   const localSpec = JSON.parse(localRaw)
   const version = assertOpenApiDocument(localSpec, specName, 'local', sharedVersion)
   sharedVersion ??= version
-  if (sourceContractVersion !== version) {
+  assertReleaseSpecification(localSpec, approvedRelease, specName)
+  if (documentationVersion !== version) {
     throw new Error(`${specName} contract version ${version} does not match lib/ops/contract.ts ${sourceContractVersion}`)
   }
+  if (!runtimeVersion || localSpec['x-contract-schema-version'] !== runtimeVersion
+    || manifest.runtime_contract_version !== runtimeVersion) throw new Error(`${specName} response schema revision is inconsistent`)
   const localHash = sha(localRaw)
   if (
     manifest.contract_version !== version ||
@@ -56,17 +66,16 @@ for (const [specName, typeName] of SPECS) {
     throw new Error(`${typeName} was not generated from the checked-in ${specName}; run npm run api:generate`)
   }
   if (!localOnly) {
-    const manifestKey = specName.startsWith('website')
-      ? 'website'
-      : 'customer_portal'
+    const manifestKey = specName.startsWith('website') ? 'website' : specName.startsWith('staff') ? 'staff' : 'customer_portal'
     const live = await fetchManifestSpecification(
       liveManifest.specifications[manifestKey],
     )
-    const liveSpec = live.document
+    const liveSpec = assertReleaseSpecification(live.document, liveManifest, specName)
     const liveVersion = assertOpenApiDocument(liveSpec, specName, 'live')
     if (
       liveVersion !== liveManifest.release_version ||
-      liveManifest.release_version !== sourceContractVersion
+      liveManifest.release_version !== documentationVersion ||
+      liveManifest.runtime_contract_version !== sourceContractVersion
     ) {
       throw new Error(
         `${specName} release mismatch: local=${sourceContractVersion} manifest=${liveManifest.release_version} live=${liveVersion}`,
@@ -81,4 +90,13 @@ for (const [specName, typeName] of SPECS) {
     }
   }
   console.log(`${specName}: ${localOnly ? 'local snapshot/types consistent' : 'no live drift'} (${version})`)
+}
+const staff = JSON.parse(await readFile('docs/openapi/staff-v1.json', 'utf8'))
+const staffRuntime = JSON.parse(await readFile('lib/staff-api/contract.json', 'utf8'))
+if (JSON.stringify(staff.components) !== JSON.stringify(staffRuntime.components)) {
+  throw new Error('Staff runtime schemas differ from the synchronized Staff API contract')
+}
+if (staffRuntime.source_sha256 !== sha(await readFile('docs/openapi/staff-v1.json', 'utf8'))
+  || staffRuntime.runtime_version !== runtimeVersion || staffRuntime.documentation_version !== documentationVersion) {
+  throw new Error('Staff runtime source provenance is inconsistent')
 }

@@ -1,0 +1,409 @@
+{
+  "checked_at": "2026-10-18T19:55:39.656187+00:00",
+  "source_commit": "7f650231442ac6b745aeb3a625415453d846f241",
+  "deployment_id": "dpl_9H7X2SGMrtVV9Ej2Wper5fuYjGZi",
+  "areas": [
+    "SE1",
+    "SE2",
+    "SE3",
+    "SE4"
+  ],
+  "published_offer_types": [
+    "fixed",
+    "variable_monthly"
+  ],
+  "private_customer_observations": [
+    {
+      "path": "/api/web/contracts",
+      "status": 200
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "expected_area": "SE1",
+      "area": "SE1",
+      "pricing_ready": true,
+      "facility_lookup_ready": false,
+      "switch_dispatch_ready": false,
+      "grid_owner_known": false
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "replay": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE1",
+      "offer_type": "fixed",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "fixed_price",
+        "customer_accepts": "fixed_energy_price",
+        "energy_price_locked_at_signup": true,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "not_applicable",
+        "settlement_resolution": "fixed"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE1",
+      "offer_type": "variable_monthly",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "market_monthly",
+        "customer_accepts": "pricing_model",
+        "energy_price_locked_at_signup": false,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "indicative_preview_only",
+        "settlement_resolution": "month"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 200,
+      "area": "SE1"
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "expected_area": "SE2",
+      "area": "SE2",
+      "pricing_ready": true,
+      "facility_lookup_ready": false,
+      "switch_dispatch_ready": false,
+      "grid_owner_known": false
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "replay": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE2",
+      "offer_type": "fixed",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "fixed_price",
+        "customer_accepts": "fixed_energy_price",
+        "energy_price_locked_at_signup": true,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "not_applicable",
+        "settlement_resolution": "fixed"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE2",
+      "offer_type": "variable_monthly",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "market_monthly",
+        "customer_accepts": "pricing_model",
+        "energy_price_locked_at_signup": false,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "indicative_preview_only",
+        "settlement_resolution": "month"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 200,
+      "area": "SE2"
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "expected_area": "SE3",
+      "area": "SE3",
+      "pricing_ready": true,
+      "facility_lookup_ready": false,
+      "switch_dispatch_ready": false,
+      "grid_owner_known": false
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "replay": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE3",
+      "offer_type": "fixed",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "fixed_price",
+        "customer_accepts": "fixed_energy_price",
+        "energy_price_locked_at_signup": true,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "not_applicable",
+        "settlement_resolution": "fixed"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE3",
+      "offer_type": "variable_monthly",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "market_monthly",
+        "customer_accepts": "pricing_model",
+        "energy_price_locked_at_signup": false,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "indicative_preview_only",
+        "settlement_resolution": "month"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 200,
+      "area": "SE3"
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "expected_area": "SE4",
+      "area": "SE4",
+      "pricing_ready": true,
+      "facility_lookup_ready": false,
+      "switch_dispatch_ready": false,
+      "grid_owner_known": false
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "replay": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE4",
+      "offer_type": "fixed",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "fixed_price",
+        "customer_accepts": "fixed_energy_price",
+        "energy_price_locked_at_signup": true,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "not_applicable",
+        "settlement_resolution": "fixed"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "area": "SE4",
+      "offer_type": "variable_monthly",
+      "canonical_quote": true,
+      "settlement": {
+        "model": "market_monthly",
+        "customer_accepts": "pricing_model",
+        "energy_price_locked_at_signup": false,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "indicative_preview_only",
+        "settlement_resolution": "month"
+      }
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 503
+    }
+  ],
+  "interrupted_validation_recovery": {
+    "path": "/api/checkout/quote/validate",
+    "status": 200,
+    "valid": true,
+    "area": "SE4",
+    "same_original_quote_revalidated": true
+  },
+  "remaining_flow_checks": [
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200,
+      "invalid_postal_code": false
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 200,
+      "invalid_postal_code": false
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 409,
+      "invalid_postal_code": true,
+      "correctly_blocked": true
+    },
+    {
+      "path": "/teckna-avtal",
+      "status": 200,
+      "invalid_postal_code": false
+    },
+    {
+      "path": "/avtal",
+      "status": 200,
+      "invalid_postal_code": false
+    },
+    {
+      "path": "/elpris",
+      "status": 404,
+      "invalid_postal_code": false
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "invalid_postal_code": false
+    }
+  ],
+  "correct_price_page_routes": [
+    {
+      "path": "/elpriser",
+      "status": 200
+    },
+    {
+      "path": "/elpriser/se1",
+      "status": 200
+    },
+    {
+      "path": "/elpriser/se2",
+      "status": 200
+    },
+    {
+      "path": "/elpriser/se3",
+      "status": 200
+    },
+    {
+      "path": "/elpriser/se4",
+      "status": 200
+    },
+    {
+      "path": "/elpriser/elpris-idag",
+      "status": 200
+    }
+  ],
+  "informational_chart_apis": [
+    {
+      "path": "/api/elpris/live",
+      "status": 200,
+      "price_area": "SE3",
+      "source": "elprisetjustnu",
+      "error": null
+    },
+    {
+      "path": "/api/elpris/day",
+      "status": 200,
+      "price_area": "SE3",
+      "source": "elprisetjustnu",
+      "error": null
+    },
+    {
+      "path": "/api/elpris/monthly",
+      "status": 200,
+      "price_area": "SE3",
+      "source": "elprisetjustnu_api",
+      "error": null
+    }
+  ],
+  "route_corrections": "The probe initially tried nonexistent /elpris and /api/customer-support/cases; actual linked routes are /elpriser and server-rendered /dashboard/support. Those incorrect probe URLs are not product failures.",
+  "no_new_electricity_agreement_or_supplier_request": true,
+  "business_customer_checks": [
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "customer_type": "business",
+      "offer_type": "fixed",
+      "valid": null
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "customer_type": "business",
+      "offer_type": "fixed",
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "customer_type": "business",
+      "offer_type": "variable_monthly",
+      "valid": null
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "customer_type": "business",
+      "offer_type": "variable_monthly",
+      "valid": true
+    }
+  ]
+}

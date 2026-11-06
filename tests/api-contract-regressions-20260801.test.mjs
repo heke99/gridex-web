@@ -92,16 +92,22 @@ assert.deepEqual(moveOutPayload({
   requested_move_out_date: '2026-08-31',
 })
 
-assert.deepEqual(syncPowerOfAttorney({
+assert.equal(syncPowerOfAttorney({
   document_reference: 'poa_doc_1',
   scope: ['request_grid_data'],
   accepted: true,
   accepted_at: '2026-08-01T18:00:00.000Z',
+}), null, 'obsolete scopes and incomplete signing evidence must not become a signed POA')
+assert.deepEqual(syncPowerOfAttorney({
+  document_reference: 'poa_doc_1', scope: ['supplier_switch', 'facility_information_lookup'],
+  accepted: true, accepted_at: '2026-08-01T18:00:00.000Z',
+  signer_name: 'Synthetic Customer', signer_identity_number: '199001011234', method: 'website_acceptance',
 }), {
   document_reference: 'poa_doc_1',
-  scope: ['request_grid_data'],
+  scope: ['supplier_switch', 'facility_information_lookup'],
   accepted: true,
   accepted_at: '2026-08-01T18:00:00.000Z',
+  signer_name: 'Synthetic Customer', signer_identity_number: '199001011234', method: 'website_acceptance',
 })
 
 assert.equal(syncLegalAcceptances([{

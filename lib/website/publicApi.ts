@@ -274,11 +274,13 @@ export function isWebsitePriceArea(value: unknown): value is WebsitePriceArea {
 
 export async function resolveWebsiteEnergyArea(
   input: WebsiteEnergyResolveInput,
+  options?: { signal?: AbortSignal },
 ): Promise<WebsiteEnergyResolution> {
   const res = await fetch("/api/checkout/energy-area/resolve", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
+    signal: options?.signal,
   });
   const data = await readJsonResponse(res);
   assertOkResponse(res, data, "Kunde inte kontrollera elområde just nu.");

@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 import { SITE_URL, canonicalPublicRoutes, elavtalPages, elprisPages, guidePages, glossaryPages, marketPages } from '@/lib/seo/content'
 
 const LAST_MODIFIED_BY_ROUTE: Record<string, string> = {
-  '/': '2026-10-07',
+  '/': '2026-11-03',
   '/elavtal/billigt-elavtal': '2026-10-07',
   '/elavtal/jamfor-elavtal': '2026-10-07',
   '/elavtal/byta-elbolag': '2026-10-07',

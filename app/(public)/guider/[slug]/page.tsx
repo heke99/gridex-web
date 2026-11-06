@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: `${SITE_URL}${page.path}`,
       type: 'article',
       locale: 'sv_SE',
-      siteName: 'Gridex AB',
+      siteName: 'Gridex El AB',
     },
     robots: { index: true, follow: true },
   }

@@ -1,0 +1,16 @@
+{
+  "status": "PASS_LIVE_MINIMAL_LOGIN",
+  "deployment": "dpl_8uGuD3M26GPcvkY1cq1LwgMxDzMr",
+  "source": "e63a349a7863b1c2584b1a679de8ec93c03b2b3b",
+  "checks": [
+    "Minimal live login contains only brand, title, fields and sign-in controls",
+    "Minimal live mobile login fits viewport",
+    "Anonymous workspace, staff administration, customers and contact inbox redirect to login"
+  ],
+  "errors": [],
+  "real_account_login": false,
+  "environment": "Managed network proxy: browser certificate verification skipped; independent curl passed system CA verification",
+  "limitations": [
+    "No real staff password/session or invitation email was used"
+  ]
+}

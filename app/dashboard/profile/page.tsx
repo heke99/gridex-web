@@ -129,8 +129,8 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
           <p className="mt-2 text-sm leading-6 text-white/60">
             Du kan begära datautdrag, rättelse eller radering/avslut där det är möjligt enligt lag. Vissa uppgifter måste sparas för avtal, fakturering och bokföring.
           </p>
-          <Link href="/dashboard/support" className="mt-4 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white transition hover:border-cyan-500/40 hover:bg-white/5">
-            Skapa ärende om personuppgifter
+          <Link href="/dashboard/privacy" className="mt-4 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white transition hover:border-cyan-500/40 hover:bg-white/5">
+            Begär registerutdrag eller radering
           </Link>
         </section>
 

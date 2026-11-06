@@ -6,6 +6,8 @@ import contract from './contract.json'
 import { signStaffAssertion, type StaffIdentityBinding } from './assertion'
 import { readStaffApiConfig, requireStaffSubject, validateStaffApiConfig, STAFF_API_BASE_URL, STAFF_SUBJECT_UUID, type StaffApiConfig } from './config'
 import { StaffApiError } from './errors'
+import { readBoundedBytes, retryAfterMilliseconds, withAbort } from '../ops/httpSafety'
+import { withSupportedResponseProfiles } from '../ops/responseProfiles'
 import type {
   StaffCaseQuery, StaffCursorQuery, StaffUserQuery, StaffCustomerQuery, StaffDownloadedAttachment,
   StaffContactChangeRequest, StaffIdentityChangeRequest, StaffInviteRequest, StaffRoleChangeRequest, StaffDisableRequest,
@@ -18,6 +20,7 @@ import type {
   postApiV1StaffCasesResponse, postApiV1StaffCasesReferenceMessagesResponse, postApiV1StaffCasesReferenceNotesResponse,
   postApiV1StaffCasesReferencePhoneInteractionsResponse, patchApiV1StaffCasesReferenceStatusResponse,
   patchApiV1StaffCasesReferenceAssigneeResponse,
+  postApiV1StaffCasesReferenceAttachmentsResponse,
 } from './types'
 
 export { StaffApiError } from './errors'
@@ -30,11 +33,12 @@ const REFERENCE = /^[a-z][a-z0-9_]{1,31}_[A-Za-z0-9_-]{20,64}$/
 const ajv = new Ajv({ strict: false, allowUnionTypes: true })
 addFormats(ajv)
 const validators = new Map<string, ReturnType<typeof ajv.compile>>()
+const runtimeComponents = withSupportedResponseProfiles(contract.components)
 
 function matches(schema: string, value: unknown): boolean {
   let validate = validators.get(schema)
   if (!validate) {
-    validate = ajv.compile({ $ref: `#/components/schemas/${schema}`, components: contract.components })
+    validate = ajv.compile({ $ref: `#/components/schemas/${schema}`, components: runtimeComponents })
     validators.set(schema, validate)
   }
   return validate(value) === true
@@ -69,26 +73,9 @@ function idempotency(value: string): string {
   if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/.test(value)) invalidInput()
   return value
 }
-async function boundedBody(response: Response, maximum: number): Promise<Uint8Array> {
-  const length = response.headers.get('content-length')
-  if (length !== null && (!/^\d+$/.test(length) || Number(length) > maximum)) invalidResponse()
-  if (!response.body) return new Uint8Array()
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
-  let size = 0
-  try {
-    while (true) {
-      const result = await reader.read()
-      if (result.done) break
-      size += result.value.length
-      if (size > maximum) { await reader.cancel(); invalidResponse() }
-      chunks.push(result.value)
-    }
-  } finally { reader.releaseLock() }
-  const body = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length }
-  return body
+async function boundedBody(response: Response, maximum: number, signal: AbortSignal): Promise<Uint8Array> {
+  try { return await withAbort(readBoundedBytes(response, maximum, signal), signal) }
+  catch (error) { if (error instanceof RangeError) invalidResponse(); throw error }
 }
 
 export type StaffApiDependencies = { config?: StaffApiConfig; fetchImpl?: typeof fetch; now?: () => Date; binding?: StaffIdentityBinding }
@@ -99,43 +86,51 @@ export function createStaffApiClient(verifiedSubject: string, dependencies: Staf
   const config = dependencies.config ? validateStaffApiConfig(dependencies.config) : readStaffApiConfig()
   const fetchImpl = dependencies.fetchImpl ?? fetch
 
-  async function request<T>(path: string, schema: string | null, method = 'GET', body?: unknown, key?: string): Promise<T> {
+  async function request<T>(path: string, schema: string | null, method = 'GET', body?: unknown, key?: string,
+    upload?: { mimeType: string; fileName: string; visibility: 'internal' | 'customer' }): Promise<T> {
     // No public raw URL/path method exists. All paths below are literal staff routes
     // with validated opaque references and URLSearchParams-encoded query values.
     const assertion = signStaffAssertion(config, verifiedSubject, dependencies.now?.() ?? new Date(), dependencies.binding)
     const headers = new Headers({ Accept: schema === null ? 'application/pdf, image/png, image/jpeg' : 'application/json',
       Authorization: `Bearer ${config.apiKey}`, 'x-gridex-staff-assertion': assertion, 'x-request-id': randomUUID(), 'x-gridex-expected-project-ref': config.opsProjectRef })
-    if (body !== undefined) headers.set('Content-Type', 'application/json')
+    if (body !== undefined) headers.set('Content-Type', upload?.mimeType ?? 'application/json')
+    if (upload) { headers.set('X-File-Name', upload.fileName); headers.set('X-Attachment-Visibility', upload.visibility) }
     if (key !== undefined) headers.set('Idempotency-Key', idempotency(key))
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), config.timeoutMs)
     try {
       // Every invocation is submitted once. In particular, writes never retry and
       // any future retry must sign a new assertion rather than replay its jti.
-      const response = await fetchImpl(`${STAFF_API_BASE_URL}${path}`, { method, headers, cache: 'no-store', redirect: 'manual',
-        signal: controller.signal, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+      const response = await withAbort(fetchImpl(`${STAFF_API_BASE_URL}${path}`, { method, headers, cache: 'no-store', redirect: 'manual',
+        signal: controller.signal, ...(body === undefined ? {} : { body: upload ? Buffer.from(body as Uint8Array) : JSON.stringify(body) }) }), controller.signal)
       const requestId = safeIdentifier(response.headers.get('x-request-id'))
       if (response.status >= 300 && response.status < 400) throw new StaffApiError(502, 'staff_api_redirect_blocked', requestId)
       if (response.ok && response.headers.get('x-gridex-project-ref') !== config.opsProjectRef) throw new StaffApiError(503, 'staff_storage_target_unverified', requestId)
       const mimeType = response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase()
       if (response.ok && schema === null) {
         if (!['application/pdf', 'image/png', 'image/jpeg'].includes(mimeType ?? '')) invalidResponse(requestId)
-        const bytes = await boundedBody(response, MAX_ATTACHMENT_BYTES)
+        const bytes = await boundedBody(response, MAX_ATTACHMENT_BYTES, controller.signal)
         const sha256 = response.headers.get('x-gridex-sha256')
         if (!bytes.length || !sha256 || !/^[0-9a-f]{64}$/.test(sha256) || createHash('sha256').update(bytes).digest('hex') !== sha256) invalidResponse(requestId)
         const disposition = response.headers.get('content-disposition')
         const contentDisposition = disposition && disposition.length <= 1024 && !/[\u0000-\u001f\u007f]/.test(disposition) && disposition.startsWith('attachment;') ? disposition : null
         return { bytes, mimeType, sha256, requestId, contentDisposition } as T
       }
-      if (mimeType !== 'application/json') invalidResponse(requestId)
+      const retryAfter = retryAfterMilliseconds(response.headers.get('retry-after'))
+      const retryAfterSeconds = retryAfter === null ? null : Math.ceil(retryAfter / 1000)
+      if (mimeType !== 'application/json') {
+        void response.body?.cancel().catch(() => undefined)
+        if (!response.ok) throw new StaffApiError(response.status, 'staff_api_request_failed', requestId, response.status === 429 || response.status >= 500, retryAfterSeconds)
+        invalidResponse(requestId)
+      }
       let payload: unknown
-      try { payload = JSON.parse(Buffer.from(await boundedBody(response, MAX_JSON_BYTES)).toString('utf8')) }
-      catch (error) { if (error instanceof StaffApiError) throw error; invalidResponse(requestId) }
+      try { payload = JSON.parse(Buffer.from(await boundedBody(response, MAX_JSON_BYTES, controller.signal)).toString('utf8')) }
+      catch (error) { if (controller.signal.aborted || error instanceof StaffApiError) throw error; invalidResponse(requestId) }
       if (!response.ok) {
         const record = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
         const nested = record.error && typeof record.error === 'object' ? record.error as Record<string, unknown> : {}
         const code = typeof nested.code === 'string' && /^[a-z][a-z0-9_]{0,95}$/.test(nested.code) ? nested.code : 'staff_api_request_failed'
-        throw new StaffApiError(response.status, code, requestId ?? safeIdentifier(record.request_id), nested.retryable === true)
+        throw new StaffApiError(response.status, code, requestId ?? safeIdentifier(record.request_id), nested.retryable === true, retryAfterSeconds)
       }
       if (!schema || !matches(schema, payload)) invalidResponse(requestId)
       const result = payload as { data?: unknown; page?: { limit: number; returned: number; has_more: boolean; next_cursor: string | null } }
@@ -158,6 +153,13 @@ export function createStaffApiClient(verifiedSubject: string, dependencies: Staf
     listEvents: async (value: string, query: StaffCursorQuery = {}) => request<getApiV1StaffCasesReferenceEventsResponse>(`/cases/${reference(value)}/events${queryString(query, ['limit', 'cursor'])}`, 'getApiV1StaffCasesReferenceEventsResponse'),
     listAttachments: async (value: string, query: StaffCursorQuery = {}) => request<getApiV1StaffCasesReferenceAttachmentsResponse>(`/cases/${reference(value)}/attachments${queryString(query, ['limit', 'cursor'])}`, 'getApiV1StaffCasesReferenceAttachmentsResponse'),
     downloadAttachment: async (value: string, attachment: string) => request<StaffDownloadedAttachment>(`/cases/${reference(value)}/attachments/${reference(attachment)}/file`, null),
+    uploadAttachment: async (value: string, bytes: Uint8Array, mimeType: string, fileName: string, visibility: 'internal' | 'customer', key: string) => {
+      if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_ATTACHMENT_BYTES
+        || !['application/pdf', 'image/png', 'image/jpeg'].includes(mimeType) || typeof fileName !== 'string' || !fileName.length || fileName.length > 200
+        || /[\u0000-\u001f\u007f]/.test(fileName) || !['internal', 'customer'].includes(visibility)) invalidInput()
+      return request<postApiV1StaffCasesReferenceAttachmentsResponse>(`/cases/${reference(value)}/attachments`, 'postApiV1StaffCasesReferenceAttachmentsResponse',
+        'POST', bytes, idempotency(key), { mimeType, fileName, visibility })
+    },
     searchCustomers: async (query: StaffCustomerQuery = {}) => request<getApiV1StaffCustomersResponse>(`/customers${queryString(query, ['q', 'page', 'page_size', 'status', 'customer_type'])}`, 'getApiV1StaffCustomersResponse'),
     listUsers: async (query: StaffUserQuery = {}) => request<getApiV1StaffUsersResponse>(`/users${queryString(query, ['page', 'page_size', 'status'])}`, 'getApiV1StaffUsersResponse'),
     getCustomer: async (value: string) => request<getApiV1StaffCustomersRefResponse>(`/customers/${reference(value)}`, 'getApiV1StaffCustomersRefResponse'),

@@ -109,3 +109,14 @@ export function isOpsError(value: unknown): value is OpsError {
   return value instanceof OpsError
 }
 
+/** Preserve OPS admission/recovery delays without accepting malformed headers. */
+export function opsRetryAfterHeaders(error: unknown): Record<string, string> {
+  if (!isOpsError(error)) return {}
+  const root = record(error.details)
+  const wait = root?.retry_after_seconds ?? record(root?.error)?.retry_after_seconds
+  return typeof wait === 'number' && Number.isFinite(wait) &&
+    wait >= 0 && wait <= Number.MAX_SAFE_INTEGER
+    ? { 'Retry-After': String(Math.ceil(wait)) }
+    : {}
+}
+

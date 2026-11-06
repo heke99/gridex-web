@@ -92,6 +92,14 @@ function handleCustomerNotFound<T>(
   identity: OpsPortalIdentity,
   notLinked: () => T,
 ): T {
+  // Strict OPS read enforcement reports an auth-only account as403 until
+  // controlled customer linking. This is a normal registration start state,
+  // never permission to bypass a missing/revoked link for a known customer.
+  if (
+    isOpsError(error) && error.status === 403 &&
+    opsErrorCodeValue(error) === 'customer_portal_link_required' &&
+    !hasStableCustomerReference(identity)
+  ) return notLinked()
   if (!isCustomerNotFound(error)) throw error
   if (hasStableCustomerReference(identity)) throw outOfSyncError(identity)
   return notLinked()
@@ -100,7 +108,8 @@ function handleCustomerNotFound<T>(
 /**
  * Canonical BFF read semantics:
  * - OPS is always queried first with the verified auth user id.
- * - An auth-only account with no stable customer reference is a valid not-linked state.
+ * - An auth-only account with no stable customer reference is a valid not-linked state,
+ *   including the strict OPS403 customer_portal_link_required response.
  * - Once Web holds a stable OPS customer reference, customer_not_found is an integrity
  *   failure and must never be hidden as an empty portal.
  * - No email-only or cross-tenant customer fallback is introduced here.

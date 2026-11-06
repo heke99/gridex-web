@@ -10,6 +10,7 @@ import {
 import ActionForm from "@/support/components/ActionForm";
 import { caseCommand } from "@/support/app/actions";
 import { StaffApiError } from "@/staff-api/client";
+import AttachmentUpload from '../../../../../../components/support/AttachmentUpload';
 
 export default async function Case({
   params,
@@ -120,6 +121,7 @@ export default async function Case({
           </section>
           <section className="panel">
             <h2>Bilagor</h2>
+            {!['closed', 'resolved', 'cancelled'].includes(item.status) ? <AttachmentUpload endpoint={`/cases/${reference}/attachments`} staff /> : null}
             <ul className="attachments">
               {attachments.data.map((file) => (
                 <li className="row" key={file.attachment_reference}>

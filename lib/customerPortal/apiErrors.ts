@@ -1,4 +1,4 @@
-import { isOpsError } from '@/lib/ops/client'
+import { isOpsError, opsRetryAfterHeaders } from '@/lib/ops/errors'
 import { CustomerPortalAccessError } from '@/lib/customerPortal/service'
 import { webErrorResponse } from '@/lib/api/webBoundary'
 
@@ -56,6 +56,7 @@ export function customerApiErrorResponse(
   }
 
   if (
+    !isOpsError(error) &&
     error instanceof Error &&
     'status' in error &&
     'code' in error &&
@@ -91,6 +92,7 @@ export function customerApiErrorResponse(
         retryable: error.retryable,
       },
       error.status || 502,
+      opsRetryAfterHeaders(error),
     )
   }
 

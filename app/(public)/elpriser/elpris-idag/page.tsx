@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/elpriser/elpris-idag`,
     type: 'website',
     locale: 'sv_SE',
-    siteName: 'Gridex AB',
+    siteName: 'Gridex El AB',
   },
   robots: { index: true, follow: true },
 }

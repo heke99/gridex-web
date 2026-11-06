@@ -33,7 +33,7 @@ for (const spec of [website, portal]) {
 }
 assert.equal(sha256(websiteRaw), release.specifications.website.sha256)
 assert.equal(sha256(portalRaw), release.specifications.customer_portal.sha256)
-assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.release_version}'`))
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${release.runtime_contract_version}'`))
 assert.ok(contract.includes(`GRIDEX_MINIMUM_TENANT_INTEGRATION_VERSION = '${release.minimum_tenant_integration_version}'`))
 assert.ok(contract.includes(`GRIDEX_WEBSITE_OPENAPI_SHA256 = '${release.specifications.website.sha256}'`))
 assert.ok(contract.includes(`GRIDEX_CUSTOMER_PORTAL_OPENAPI_SHA256 = '${release.specifications.customer_portal.sha256}'`))
@@ -53,8 +53,15 @@ assert.equal(quoteHeader.required, true)
 assert.equal(quoteHeader.schema.minLength, 8)
 assert.equal(quoteHeader.schema.maxLength, 200)
 assert.ok(quoteOperation.responses['503'])
-for (const response of Object.values(quoteOperation.responses)) {
-  assert.ok(response.headers?.['Idempotency-Replayed'])
+for (const [status, response] of Object.entries(quoteOperation.responses)) {
+  if (status === '410' || status === '423') {
+    // Tenant lifecycle rejection happens before the quote/idempotency handler.
+    const expected = status === '410' ? 'OrganizationGone' : 'OrganizationPaused'
+    assert.equal(response.$ref, `#/components/responses/${expected}`)
+    const common = website.components.responses[expected]
+    assert.ok(common.headers['X-Gridex-Contract-Version'])
+    assert.ok(common.headers['X-Request-ID'])
+  } else assert.ok(response.headers?.['Idempotency-Replayed'])
 }
 assert.match(client, /'Idempotency-Key': \['website-quote', input\.quote_attempt_id, canonicalSha256\(requestBody\)\]\.join\(':'\)/)
 
@@ -156,3 +163,5 @@ assert.equal(issueWebsiteEnergyAreaToken({
 }), null)
 
 console.log(`${release.release_version} Gridex price-area API regressions passed`)
+
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${release.release_version}'`))

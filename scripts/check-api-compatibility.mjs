@@ -7,7 +7,8 @@ const contract = await readFile('lib/ops/contract.ts', 'utf8')
 const verification = JSON.parse(await readFile('docs/openapi/verification-status.json', 'utf8'))
 const expected = contract.match(/GRIDEX_API_CONTRACT_VERSION = ['"]([^'"]+)['"]/)?.[1]
 if (!expected) throw new Error('Canonical contract version is missing.')
-if (website.info?.version !== expected || portal.info?.version !== expected) {
+const documentation = contract.match(/GRIDEX_API_DOCUMENTATION_VERSION = ['"]([^'"]+)['"]/)?.[1]
+if (website.info?.version !== documentation || portal.info?.version !== documentation || website['x-contract-schema-version'] !== expected || portal['x-contract-schema-version'] !== expected) {
   throw new Error(`Mixed API versions: code=${expected}, website=${website.info?.version}, portal=${portal.info?.version}`)
 }
 
@@ -100,7 +101,7 @@ for (const file of [
 if (oldVersionMatches.length) throw new Error(`Stale contract version remains in: ${oldVersionMatches.join(', ')}`)
 
 const environmentBlockers = []
-if (verification.live_sync_verified !== true || verification.contract_version !== expected) {
+if (verification.live_sync_verified !== true || verification.contract_version !== documentation || verification.runtime_contract_version !== expected) {
   environmentBlockers.push('live_openapi_sync_not_verified')
 }
 console.log(JSON.stringify({ contract_version: expected, upstream_contract_gaps: gaps, environment_blockers: environmentBlockers }, null, 2))

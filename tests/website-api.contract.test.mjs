@@ -27,7 +27,7 @@ const energySchema = websiteOpenApi.components.schemas.WebsiteEnergyAreaResoluti
 const quoteSchema = websiteOpenApi.components.schemas.WebsiteQuoteRequest
 
 assert.equal(typeof contractVersion, 'string')
-assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${contractVersion}'`))
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.runtime_contract_version}'`))
 assert.ok(contract.includes("GRIDEX_CANONICAL_OPS_API_URL = 'https://app.gridex.se/api/v1'"))
 assert.ok(ops.includes('observeRuntimeSchemaValidation'))
 assert.ok(ops.includes('logContractVersionDrift'))
@@ -363,3 +363,5 @@ assert.throws(
 )
 
 console.log(`Website API contract tests passed (${contractVersion})`)
+
+assert.ok(contract.includes(`GRIDEX_API_DOCUMENTATION_VERSION = '${contractVersion}'`))

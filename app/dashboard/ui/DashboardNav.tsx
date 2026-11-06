@@ -54,9 +54,19 @@ const BASE_NAV: NavItem[] = [
     description: 'Villkor och fullmakt',
   },
   {
+    label: 'Kundservice',
+    href: '/dashboard/support',
+    description: 'Dina ärenden och meddelanden',
+  },
+  {
     label: 'Profil',
     href: '/dashboard/profile',
     description: 'Konto och kontaktuppgifter',
+  },
+  {
+    label: 'Personuppgifter',
+    href: '/dashboard/privacy',
+    description: 'Registerutdrag och radering',
   },
 ]
 

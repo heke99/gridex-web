@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { OpsPublicContract } from '@/lib/ops/client'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import type { WebsitePricingPreview } from '@/lib/website/publicApi'
+import { OpsError } from '@/lib/ops/errors'
 
 function env(name: string): string | null {
   const value = process.env[name]?.trim()
@@ -94,15 +95,28 @@ export async function persistWebsitePricingSnapshot(input: {
     status: 'issued',
   }
 
-  const table = serviceClient().from('website_pricing_snapshots')
-  const { error } = input.idempotent
-    ? await table.upsert(row, {
-        onConflict: 'pricing_snapshot_reference',
-        ignoreDuplicates: true,
+  const supabase = serviceClient()
+  const { error } = await supabase.from('website_pricing_snapshots').insert(row)
+  if (error) {
+    if (error.code !== '23505') throw new Error(`Website pricing snapshot storage failed: ${error.message}`)
+    // OPS returns the original canonical reference on an idempotent quote
+    // replay. Keep the first audit row (including issued/validated times), and
+    // only accept an equivalent calculation under that same reference.
+    const { data: original, error: readError } = await supabase.from('website_pricing_snapshots')
+      .select('snapshot_sha256,ops_quote_reference,offer_reference,customer_type,subtotal_ex_vat,total_inc_vat,calculation_version')
+      .eq('pricing_snapshot_reference', reference)
+      .maybeSingle()
+    if (readError) throw new Error('Website pricing snapshot audit could not be read.')
+    if (!original || original.snapshot_sha256 !== hash ||
+      original.ops_quote_reference !== row.ops_quote_reference ||
+      original.offer_reference !== row.offer_reference || original.customer_type !== row.customer_type ||
+      Number(original.subtotal_ex_vat) !== subtotalExVat || Number(original.total_inc_vat) !== totalIncVat ||
+      original.calculation_version !== row.calculation_version) {
+      throw new OpsError('Prisreferensen har redan använts för ett annat underlag.', 409, {
+        code: 'pricing_snapshot_conflict', retryable: false,
       })
-    : await table.insert(row)
-
-  if (error) throw new Error(`Website pricing snapshot storage failed: ${error.message}`)
+    }
+  }
   return reference
 }
 

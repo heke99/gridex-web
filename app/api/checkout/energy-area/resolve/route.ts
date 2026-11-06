@@ -1,3 +1,4 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteEnergyArea, getOpsClientStatus, isOpsError } from '@/lib/ops/client'
 import { issueWebsiteEnergyAreaToken, energyAreaTokenConfigured } from '@/lib/website/energyAreaToken'
@@ -49,7 +50,7 @@ function publicBlockers(blockers: Array<{ code: string; message?: string | null;
   }))
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const requestId = globalThis.crypto.randomUUID()
   const rateLimit = await checkRateLimit(
     `website-energy-resolve:${clientIpFromHeaders(new Headers(req.headers))}`,
@@ -213,4 +214,8 @@ export async function POST(req: Request) {
       { status: isOpsError(error) ? error.status : 503 },
     )
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('energy_area', () => handlePost(request))
 }

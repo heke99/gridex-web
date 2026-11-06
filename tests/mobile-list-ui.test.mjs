@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import React from '../apps/mobile/node_modules/react/index.js';import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
+import {CustomerList,ContractSummary} from '../apps/mobile/src/CustomerList.tsx';import {gridexBrand} from '../apps/mobile/brands/gridex.mjs';
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;const {act}=Renderer;
+const rows=[{reference:'ref-one',number:'INV-1',title:'First',status:'open'},{reference:'ref-two',number:'INV-2',title:'Second',status:'closed'}];
+test('native invoice search, status selection and reset operate on visible rows',async()=>{let view;await act(async()=>{view=Renderer.create(React.createElement(CustomerList,{resource:'invoices',rows,theme:gridexBrand.theme},row=>React.createElement('Row',{reference:row.reference})));});assert.equal(view.root.findAllByType('Row').length,2);
+await act(async()=>view.root.findByType('TextInput').props.onChangeText('INV-2'));assert.equal(view.root.findAllByType('Row')[0].props.reference,'ref-two');
+await act(async()=>view.root.findAllByType('Pressable').find(v=>v.props.children.props.children==='open').props.onPress());assert.equal(view.root.findAllByType('Row').length,0);
+await act(async()=>view.root.findAllByType('Pressable').at(-1).props.onPress());assert.equal(view.root.findAllByType('Row').length,2);await act(async()=>view.unmount());});
+test('native contract summary shows reference and a real calendar date',async()=>{let view;await act(async()=>{view=Renderer.create(React.createElement(ContractSummary,{row:{reference:'own-contract',startDate:'2026-11-06'},theme:gridexBrand.theme}));});const text=JSON.stringify(view.toJSON());assert.ok(text.includes('own-contract'));assert.ok(text.includes('november'));await act(async()=>view.unmount());});

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import {
   assertOpenApiDocument,
+  assertReleaseSpecification,
   fetchManifestSpecification,
   fetchReleaseManifest,
   SPECS,
@@ -61,17 +62,18 @@ let contractVersion = null
 const releaseManifest = await fetchReleaseManifest()
 const downloaded = []
 for (const [specName] of SPECS) {
-  const manifestKey = specName.startsWith('website')
-    ? 'website'
-    : 'customer_portal'
+  const manifestKey = specName.startsWith('website') ? 'website' : specName.startsWith('staff') ? 'staff' : 'customer_portal'
   const specification = releaseManifest.specifications[manifestKey]
   const downloadedSpec = await fetchManifestSpecification(specification)
-  const spec = downloadedSpec.document
+  const spec = assertReleaseSpecification(downloadedSpec.document, releaseManifest, specName)
   const version = assertOpenApiDocument(spec, specName, 'live', contractVersion)
   if (version !== releaseManifest.release_version) {
     throw new Error(
       `${specName} version ${version} does not match release manifest ${releaseManifest.release_version}`,
     )
+  }
+  if (spec['x-contract-schema-version'] !== releaseManifest.runtime_contract_version) {
+    throw new Error(`${specName} runtime schema differs from the release manifest`)
   }
   contractVersion ??= version
   let previous = null
@@ -101,6 +103,7 @@ const managedFiles = [
   path.join(outputDirectory, 'release-manifest.json'),
   verificationPath,
   diffPath,
+  path.join('lib', 'staff-api', 'contract.json'),
 ]
 const backups = new Map()
 for (const file of managedFiles) backups.set(file, await maybeRead(file))
@@ -136,6 +139,11 @@ try {
   let nextContractSource = replaceContractConstant(
     contractSource,
     'GRIDEX_API_CONTRACT_VERSION',
+    releaseManifest.runtime_contract_version,
+  )
+  nextContractSource = replaceContractConstant(
+    nextContractSource,
+    'GRIDEX_API_DOCUMENTATION_VERSION',
     contractVersion,
   )
   nextContractSource = replaceContractConstant(
@@ -158,6 +166,7 @@ try {
   const report = {
     synced_at: new Date().toISOString(),
     contract_version: contractVersion,
+    runtime_contract_version: releaseManifest.runtime_contract_version,
     release_manifest: releaseManifest,
     specifications: Object.fromEntries(downloaded.map(({ specName, sha256, previous, spec }) => [
       specName,
@@ -172,6 +181,7 @@ try {
     live_sync_verified: false,
     verified_at: null,
     contract_version: contractVersion,
+    runtime_contract_version: releaseManifest.runtime_contract_version,
     reason: 'Live files were downloaded, but generated artifacts and local consistency checks have not completed yet.',
   }, null, 2)}\n`)
 
@@ -185,6 +195,7 @@ try {
     live_sync_verified: true,
     verified_at: report.synced_at,
     contract_version: contractVersion,
+    runtime_contract_version: releaseManifest.runtime_contract_version,
     specifications: Object.fromEntries(downloaded.map(({ specName, sha256 }) => [
       specName,
       { sha256 },

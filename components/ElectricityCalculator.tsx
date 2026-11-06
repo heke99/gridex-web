@@ -17,12 +17,13 @@ import {
 import {
   normalizeWebsitePostalCode,
   previewWebsitePricing,
-  resolveWebsiteEnergyArea,
+  type WebsiteEnergyResolveInput,
   type WebsiteEnergyResolution,
   type WebsitePriceArea,
   type WebsitePricingPreview,
   type WebsitePricingQuoteContext,
 } from "@/lib/website/publicApi";
+import { assertQuoteMatchesArea, createEnergyAreaLookup, energyAreaLookupKey } from '@/lib/website/energyAreaLookup';
 import {
   contractSupportsCustomerType,
   type WebsiteCustomerType,
@@ -129,16 +130,16 @@ function normalizeContractType(
   return "spot_monthly";
 }
 
-function customerSafeError(error: unknown) {
+function customerSafeError(error: unknown, stage: 'area' | 'price' = 'price') {
   const message =
     error instanceof Error ? error.message : "Kunde inte hämta pris just nu.";
   if (
     /NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|redirect/i.test(message) ||
     /<!doctype|<html|text\/html/i.test(message)
   ) {
-    return "Priset kunde inte hämtas just nu. Kontrollera uppgifterna och försök igen.";
+    return stage === 'area' ? 'Elområdet kunde inte kontrolleras just nu. Försök igen.' : "Priset kunde inte hämtas just nu. Kontrollera uppgifterna och försök igen.";
   }
-  if (/Tjänsten kunde inte slutföra åtgärden just nu/i.test(message)) {
+  if (stage === 'price' && /Tjänsten kunde inte slutföra åtgärden just nu/i.test(message)) {
     return "Elområdet hittades, men priset kunde inte hämtas för det valda avtalet. Försök igen eller kontakta kundservice om felet kvarstår.";
   }
   return message || "Kunde inte hämta pris just nu.";
@@ -263,6 +264,18 @@ export default function ElectricityCalculator({
   );
   const [loading, setLoading] = useState(false);
   const calculationGeneration = useRef(0);
+  const areaGeneration = useRef(0);
+  const areaLookup = useMemo(() => createEnergyAreaLookup(), []);
+  const [areaState, setAreaState] = useState<{ state: 'idle' | 'checking' | 'ready' | 'error'; message: string | null }>({
+    state: initialQuoteContext ? 'ready' : 'idle', message: null,
+  });
+  const areaInput = useMemo<WebsiteEnergyResolveInput>(() => ({
+    postal_code: normalizeWebsitePostalCode(postalCode), city: city.trim(),
+    address: address.trim(), street: address.trim(), requested_start_mode: requestedStartMode,
+    requested_start_date: requestedStartMode === 'specific_date' ? requestedStartDate : null,
+  }), [postalCode, city, address, requestedStartMode, requestedStartDate]);
+  const restoredAreaKey = useRef(initialPricingPreview && initialQuoteContext ? energyAreaLookupKey(areaInput) : null);
+  useEffect(() => () => { areaGeneration.current += 1; areaLookup.clear(); }, [areaLookup]);
   useEffect(() => () => { calculationGeneration.current += 1; }, []);
   const [error, setError] = useState<string | null>(null);
   const [continueHref, setContinueHref] = useState<string | null>(null);
@@ -457,10 +470,45 @@ export default function ElectricityCalculator({
     setError(null);
   }, [resetSignal]);
 
-  function setResolution(value: WebsiteEnergyResolution | null) {
+  const setResolution = useCallback((value: WebsiteEnergyResolution | null) => {
     setResolutionState(value);
     onEnergyResolutionChange?.(value);
+  }, [onEnergyResolutionChange]);
+
+  function invalidateArea() {
+    areaGeneration.current += 1;
+    areaLookup.clear();
+    restoredAreaKey.current = null;
+    setResolution(null);
+    setAreaState({ state: 'idle', message: null });
   }
+
+  const lookupArea = useCallback(async () => {
+    const generation = areaGeneration.current;
+    setAreaState({ state: 'checking', message: null });
+    try {
+      const value = await areaLookup.get(areaInput);
+      if (generation !== areaGeneration.current) throw new Error('calculation_superseded');
+      setResolution(value);
+      setAreaState({ state: 'ready', message: null });
+      return value;
+    } catch (reason) {
+      if (generation === areaGeneration.current) {
+        setAreaState({ state: 'error', message: customerSafeError(reason, 'area') });
+      }
+      throw reason;
+    }
+  }, [areaInput, areaLookup, setResolution]);
+
+  useEffect(() => {
+    if (!/^\d{5}$/.test(areaInput.postal_code ?? '') || !areaInput.city || !areaInput.address ||
+        (areaInput.requested_start_mode === 'specific_date' && !isStrictCalendarDate(areaInput.requested_start_date ?? '')) ||
+        restoredAreaKey.current === energyAreaLookupKey(areaInput)) return;
+    // No polling/retry loop: one lookup after typing settles. Price retrieval
+    // shares this request and its still-valid result.
+    const timer = window.setTimeout(() => { void lookupArea().catch(() => {}); }, 800);
+    return () => window.clearTimeout(timer);
+  }, [areaInput, lookupArea]);
 
   function setResult(value: WebsitePricingPreview | null) {
     setResultState(value);
@@ -517,14 +565,7 @@ export default function ElectricityCalculator({
       );
     }
 
-    const resolved = await resolveWebsiteEnergyArea({
-      postal_code: normalizedPostalCode,
-      city: city.trim(),
-      address: address.trim(),
-      street: address.trim(),
-      requested_start_mode: requestedStartMode,
-      requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
-    });
+    const resolved = await lookupArea();
     if (generation !== calculationGeneration.current) throw new Error('calculation_superseded');
     setResolution(resolved);
     if (!resolved.price_area_code) {
@@ -583,6 +624,7 @@ export default function ElectricityCalculator({
         quote_attempt_id: quoteAttemptId,
       });
       if (generation !== calculationGeneration.current) return;
+      assertQuoteMatchesArea(preview, resolved, selectedContract.offerReference);
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
         throw new Error("Prisberäkningen returnerade en annan förbrukning än den du godkände.");
       }
@@ -739,7 +781,7 @@ export default function ElectricityCalculator({
               value={postalCode}
               onChange={(event) => {
                 setPostalCode(event.target.value);
-                setResolution(null);
+                invalidateArea();
                 clearQuote();
               }}
               aria-describedby={postalCodeHelpId}
@@ -759,7 +801,7 @@ export default function ElectricityCalculator({
               value={city}
               onChange={(event) => {
                 setCity(event.target.value);
-                setResolution(null);
+                invalidateArea();
                 clearQuote();
               }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
@@ -775,17 +817,22 @@ export default function ElectricityCalculator({
               value={address}
               onChange={(event) => {
                 setAddress(event.target.value);
-                setResolution(null);
+                invalidateArea();
                 clearQuote();
               }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
             />
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
-            <div className="font-medium text-white">Elområdet verifieras automatiskt</div>
-            <p className="mt-2 text-xs leading-5 text-gray-400">
-              För teckningen används alltid det elområde som servern fastställer från adressen.
-            </p>
+            <div role="status" aria-live="polite" aria-busy={areaState.state === 'checking'}>
+              <div className="font-medium text-white">
+                {areaState.state === 'checking' ? 'Kontrollerar ditt elområde…' : resolution?.price_area_code ? `Ditt elområde: ${resolution.price_area_code}` : 'Se ditt elområde'}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-400">
+                {areaState.message ?? (resolution?.price_area_code ? 'Området gäller adressen ovan och används för din prisjämförelse.' : 'Fyll i adress, postnummer och ort. Då visas ditt elområde automatiskt, innan du hämtar pris.')}
+              </p>
+              {areaState.state === 'error' ? <button type="button" onClick={() => { void lookupArea().catch(() => {}); }} className="mt-3 text-sm text-cyan-300 underline">Kontrollera elområdet igen</button> : null}
+            </div>
           </div>
         </div>
 
@@ -1004,6 +1051,7 @@ export default function ElectricityCalculator({
                       onChange={() => {
                         setRequestedStartMode(value);
                         if (value === "earliest_possible") setRequestedStartDate("");
+                        invalidateArea();
                         clearQuote();
                       }}
                     />
@@ -1020,6 +1068,7 @@ export default function ElectricityCalculator({
                     value={requestedStartDate}
                     onChange={(event) => {
                       setRequestedStartDate(event.target.value);
+                      invalidateArea();
                       clearQuote();
                     }}
                     className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
@@ -1063,6 +1112,11 @@ export default function ElectricityCalculator({
               updatedAt={new Date()}
               continueHref={continueHref ?? undefined}
               onSelect={onContinue}
+              onCompare={() => {
+                const control = document.getElementById('calculator-contract');
+                control?.focus({ preventScroll: true });
+                control?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
             />
           </div>
         ) : (

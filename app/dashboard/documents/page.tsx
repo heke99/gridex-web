@@ -1,5 +1,6 @@
 import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 import EventLink from '@/components/customer/EventLink'
+import PoaArchiveDocuments, { loadPoaArchiveDocuments } from '@/components/customer/PoaArchiveDocuments'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerDocument } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
@@ -27,7 +28,9 @@ function statusLabel(status: string | null | undefined) {
   }
 }
 
-export default async function DashboardDocumentsPage() {
+export default async function DashboardDocumentsPage({ searchParams }: { searchParams: Promise<{ poa_cursor?: string | string[] }> }) {
+  const { poa_cursor: cursor } = await searchParams
+  const archive = loadPoaArchiveDocuments(cursor)
   const resource = await getCanonicalCustomerResource('documents')
   const documents = resource.data as CustomerDocument[]
 
@@ -39,6 +42,8 @@ export default async function DashboardDocumentsPage() {
           Här visas avtal, fullmakter, villkor, ångerrättsinformation och andra dokument som är kopplade till din kundprofil.
         </p>
       </div>
+
+      <PoaArchiveDocuments data={archive} />
 
       <div className="space-y-4">
         {documents.map((doc) => (

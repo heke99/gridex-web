@@ -1,6 +1,8 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsCurrentMarketPrice, isOpsError } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
+import { readWebJson } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -13,7 +15,7 @@ function text(value: unknown): string | null {
   return normalized && normalized.length <= 200 ? normalized : null
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const rate = await checkRateLimit(
     `website-market-price-current:${clientIpFromHeaders(new Headers(request.headers))}`,
     { limit: 30, windowMs: 5 * 60_000 },
@@ -25,7 +27,9 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json().catch(() => null) as Payload | null
+  const parsed = await readWebJson<Payload | null>(request)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
   const resolutionId = text(body?.resolution_id)
   if (!resolutionId) {
     return NextResponse.json(
@@ -57,4 +61,8 @@ export async function POST(request: Request) {
       { status, headers: { 'Cache-Control': 'private, no-store' } },
     )
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('market_price', () => handlePost(request))
 }

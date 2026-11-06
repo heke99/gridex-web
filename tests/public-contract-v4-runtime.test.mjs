@@ -5,13 +5,12 @@ import {
   integrationContextFromPayload,
 } from '../lib/ops/client.ts'
 import { assertWebsiteOperationResponse } from '../lib/ops/validators/openapi.ts'
-import { GRIDEX_WEBSITE_OPENAPI_SHA256 } from '../lib/ops/contract.ts'
+import { GRIDEX_WEBSITE_OPENAPI_SHA256, GRIDEX_API_CONTRACT_VERSION } from '../lib/ops/contract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
 
-// Frozen upstream release, independent of the implementation's local version.
-// Before the hotfix, the production validator rejects /data/contract_version
-// with canonical_response_schema_invalid before processing these offers.
-const version = '2026-10-04.1'
+// Frozen commercial producer fixture; apply the current verified wire metadata
+// in memory. The original file remains unchanged; deployed explicit response profiles remain supported.
+const version = GRIDEX_API_CONTRACT_VERSION
 const baseUrl = 'https://app.gridex.se/api/v1'
 const organization = 'organization_hotfix_0123456789abcdef'
 const fixture = JSON.parse(readFileSync(new URL(
@@ -48,13 +47,20 @@ const context = {
 
 assertWebsiteOperationResponse('/api/v1/integration/context', 'get', 200, context)
 assert.equal(integrationContextFromPayload(context).contract_version, version)
+assertWebsiteOperationResponse('/api/v1/integration/context', 'get', 200, {...context,data:{...context.data,contract_version:'2026-10-04.1'}})
+assert.throws(() => assertWebsiteOperationResponse('/api/v1/integration/context', 'get', 200, {...context,data:{...context.data,contract_version:'2026-10-01.1'}}), /godkända kontraktet/)
+const invalidSupportedContext = structuredClone(context)
+invalidSupportedContext.data.contract_version = '2026-10-04.1'
+delete invalidSupportedContext.data.organization_reference
+assert.throws(() => assertWebsiteOperationResponse('/api/v1/integration/context', 'get', 200, invalidSupportedContext), /godkända kontraktet/)
 
 const names = ['GRIDEX_API_KEY', 'GRIDEX_OPS_API_URL', 'VERCEL_ENV',
   'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
 const previous = names.map((name) => process.env[name])
 const originalFetch = globalThis.fetch
 const originalError = console.error
-let publicPayload = structuredClone(fixture)
+const currentFixture = () => { const value = structuredClone(fixture); value.meta.contract_schema_version = version; return value }
+let publicPayload = currentFixture()
 const requests = []
 process.env.GRIDEX_API_KEY = 'gridex_public_v4_runtime_fixture'
 process.env.GRIDEX_OPS_API_URL = baseUrl
@@ -98,7 +104,7 @@ try {
     'a synchronized schema must preserve tenant isolation',
   )
 
-  publicPayload = structuredClone(fixture)
+  publicPayload = currentFixture()
   publicPayload.meta.contract_schema_version = '2026-08-22.2'
   await assert.rejects(
     fetchOpsPublicContractsSnapshot(null, { forceFresh: true }),
@@ -106,7 +112,7 @@ try {
     'mixed response header/payload releases must fail closed',
   )
 
-  publicPayload = structuredClone(fixture)
+  publicPayload = currentFixture()
   publicPayload.data[0].price_options[0].markup = '1'
   publicPayload.contracts = structuredClone(publicPayload.data)
   await assert.rejects(
@@ -114,6 +120,29 @@ try {
     (error) => error.code === 'ops_public_contracts_all_blocked',
     'incorrect commercial types must still block public offers',
   )
+
+  publicPayload = currentFixture()
+  const realClientFetch = globalThis.fetch
+  const conditionalHeaders = []
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(String(url)).pathname === '/api/v1/website/public-contracts') {
+      const conditional = new Headers(init.headers).get('If-None-Match')
+      conditionalHeaders.push(conditional)
+      if (conditional) return new Response(null, { status: 304, headers: {
+        ETag: conditional, 'X-Gridex-Contract-Version': version,
+      } })
+    }
+    return realClientFetch(url, init)
+  }
+  const confirmed = await fetchOpsPublicContractsSnapshot(null)
+  assert.equal(confirmed.upstream_status, 304)
+  assert.equal(confirmed.stale, false)
+  assert.deepEqual(confirmed.contracts, snapshot.contracts)
+  const finalFresh = await fetchOpsPublicContractsSnapshot(null, { forceFresh: true })
+  assert.equal(finalFresh.upstream_status, 200)
+  assert.equal(finalFresh.stale, false)
+  assert.deepEqual(conditionalHeaders, ['"public-v4-fixture"', null],
+    'the actual catalogue client validates cached representations while final validation bypasses ETag')
 } finally {
   globalThis.fetch = originalFetch
   console.error = originalError

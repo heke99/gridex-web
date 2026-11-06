@@ -12,19 +12,19 @@ import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from
 export const revalidate = 15;
 
 export const metadata: Metadata = {
-  title: "Elavtal med tydliga priser och avgifter | Gridex",
+  title: { absolute: "Gridex El AB – elavtal för privatpersoner och företag" },
   description:
-    "Se Gridex elavtal och räkna på din elkostnad i SE1–SE4. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar elavtal online.",
+    "Gridex El AB är ett svenskt elbolag för privatpersoner och företag. Jämför våra elavtal, se priser och avgifter i SE1–SE4 och kontakta vår kundservice.",
   alternates: {
     canonical: "https://gridex.se",
   },
   openGraph: {
-    title: "Elavtal med tydliga priser och avgifter | Gridex",
+    title: "Gridex El AB – elavtal för privatpersoner och företag",
     description: "Se Gridex elavtal och räkna på din elkostnad. Jämför våra avtalsformer, påslag och månadsavgifter innan du tecknar.",
     url: "https://gridex.se",
     type: "website",
     locale: "sv_SE",
-    siteName: "Gridex AB",
+    siteName: "Gridex El AB",
     images: [{ url: "https://gridex.se/brand/gridex-og.png", width: 1200, height: 630, alt: "Gridex elleverantör" }],
   },
 };
@@ -89,6 +89,20 @@ export default async function HomePage() {
         showCustomerTypeSelector
         persistCheckoutContext
       />
+      <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
+        <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
+        <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Link href="/elavtal/foretag" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Företag, produktion och industri</h3>
+            <p className="mt-2 text-gray-400">Jämför avtalet utifrån drift, förbrukningsprofil och årskostnad. Läs om elavtal för företag →</p>
+          </Link>
+          <Link href="/elavtal/fastighetsagare" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Privata hyresvärdar och fastighetsägare</h3>
+            <p className="mt-2 text-gray-400">Gå igenom fastighetselen och elhandelsavgifterna per anläggning. Läs om elavtal för fastighetsägare →</p>
+          </Link>
+        </div>
+      </section>
       <HowItWorks />
       <ValueBlocks />
       <ArticleColumns />
@@ -104,7 +118,7 @@ function HeroBlock() {
       <div className="max-w-3xl">
         <div className="flex items-center gap-3 text-sm font-medium text-[var(--gx-text-muted)]">
           <span className="h-2 w-2 shrink-0 bg-[var(--gx-accent)]" aria-hidden="true" />
-          <span>Gridex AB · Elhandel i hela Sverige · SE1–SE4</span>
+          <span>Gridex El AB · Elhandel i hela Sverige · SE1–SE4</span>
         </div>
 
         <h1 className="mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl md:text-6xl lg:text-[4.65rem]">
@@ -113,7 +127,7 @@ function HeroBlock() {
         </h1>
 
         <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--gx-text-muted)] md:text-xl">
-          Räkna på föregående månads spotpris och se påslag, avgifter och moms
+          Gridex El AB erbjuder elavtal för privatpersoner och företag i hela Sverige. Räkna på föregående månads spotpris och se påslag, avgifter och moms
           innan du går vidare. En tydligare prisbild från början, utan att du
           behöver leta efter detaljerna.
         </p>
@@ -283,7 +297,7 @@ function HowItWorks() {
             Ange adress och postnummer
           </div>
           <p className="mt-2 text-sm text-gray-400">
-            Börja med att ange postnummer eller välj elområde manuellt.
+            Ange adress, postnummer och ort så visas ditt elområde automatiskt.
           </p>
         </div>
 
@@ -386,7 +400,7 @@ function ArticleColumns() {
     },
     {
       title: "Så byter du elavtal",
-      text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex AB hanterar uppstarten enligt ditt valda startdatum.",
+      text: "Du väljer avtal, fyller i dina uppgifter och godkänner villkoren. Gridex El AB hanterar uppstarten enligt ditt valda startdatum.",
       href: "/guider/byta-elbolag",
       cta: "Så fungerar bytet",
     },

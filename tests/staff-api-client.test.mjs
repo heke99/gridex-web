@@ -14,6 +14,28 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 20
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
 const GRIDEX_OPS_PROJECT_REF = 'piidsfebjqjmnepdpnas'
 const config = { opsProjectRef: GRIDEX_OPS_PROJECT_REF, apiKey: 'gxk_staff_example_full_secret_1234567890', companyId: company, issuer: 'https://support123.gridex.se', audience: 'gridex-staff', keyId: 'support-key-1', privateKey: pem, timeoutMs: 1000 }
+
+test('staff uploads send raw bytes, explicit visibility and one stable operation; invalid files never leave the server', async () => {
+  const observed = []
+  const api = createStaffApiClient(subject, { config, fetchImpl: async (_url, init) => {
+    observed.push(init)
+    return json({ error: { code: 'attachment_rejected', message: 'Rejected', retryable: false } }, 422)
+  } })
+  const bytes = Buffer.from('%PDF-1.7\nSynthetic\n%%EOF')
+  await assert.rejects(() => api.uploadAttachment(reference, bytes, 'application/pdf', 'test.pdf', 'internal', 'upload-operation-1'), e => e.status === 422)
+  assert.equal(observed.length, 1)
+  assert.deepEqual(Buffer.from(observed[0].body), bytes)
+  const headers = new Headers(observed[0].headers)
+  assert.equal(headers.get('content-type'), 'application/pdf')
+  assert.equal(headers.get('x-attachment-visibility'), 'internal')
+  assert.equal(headers.get('idempotency-key'), 'upload-operation-1')
+  for (const args of [[new Uint8Array(), 'application/pdf', 'test.pdf', 'internal'],
+    [new Uint8Array(4194305), 'application/pdf', 'test.pdf', 'internal'], [bytes, 'text/html', 'test.pdf', 'internal'],
+    [bytes, 'application/pdf', 'bad\nname', 'internal'], [bytes, 'application/pdf', 'test.pdf', 'public']]) {
+    await assert.rejects(() => api.uploadAttachment(reference, ...args, 'upload-operation-1'), e => e.code === 'staff_api_invalid_input')
+  }
+  assert.equal(observed.length, 1)
+})
 const environment = { GRIDEX_STAFF_API_PROJECT_REF: config.opsProjectRef, GRIDEX_STAFF_API_KEY: config.apiKey, GRIDEX_STAFF_COMPANY_ID: company, GRIDEX_STAFF_ASSERTION_ISSUER: config.issuer, GRIDEX_STAFF_ASSERTION_AUDIENCE: config.audience, GRIDEX_STAFF_ASSERTION_KID: config.keyId, GRIDEX_STAFF_ASSERTION_PRIVATE_KEY: pem }
 const page = { limit: 1, offset: 0, returned: 0, has_more: false, next_cursor: null }
 const envelope = data => ({ data, request_id: 'request-1', contract_schema_version: '2026-10-04.1' })
@@ -126,6 +148,44 @@ test('network rejection is redacted and aborted requests finish at the configure
   await assert.rejects(() => client(async () => { throw new Error(pem) }).listCases(), error => error.code === 'staff_api_unavailable' && !error.message.includes('PRIVATE KEY'))
   const api = client(async (_url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })), { config: { ...config, timeoutMs: 20 } })
   await assert.rejects(() => api.listCases(), error => error.code === 'staff_api_timeout' && error.status === 504)
+})
+
+test('current and previous supported Staff response profiles pass the same closed business schema', async () => {
+  for (const version of ['2026-10-04.1', '2026-10-09.1']) {
+    const api = client(async () => json({ ...envelope([]), contract_schema_version: version, page }))
+    assert.equal((await api.listCases()).contract_schema_version, version)
+  }
+})
+
+test('a stalled response body still finishes at the Staff deadline and is cancelled', async () => {
+  let cancelled = false
+  const api = client(async () => new Response(new ReadableStream({ cancel() { cancelled = true } }), {
+    headers: { 'content-type': 'application/json', 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF },
+  }), { config: { ...config, timeoutMs: 20 } })
+  await assert.rejects(() => api.listCases(), error => error.status === 504 && error.code === 'staff_api_timeout')
+  assert.equal(cancelled, true)
+})
+
+test('identity resolution also cancels a stalled body at its deadline', async () => {
+  let cancelled = false
+  await assert.rejects(() => resolveStaffIdentity(subject, 'synthetic-bearer-token-for-offline-test',
+    'https://ayiuxjlfazkjmmtlvhsl.supabase.co/auth/v1', {
+      config: { ...config, timeoutMs: 20 },
+      fetchImpl: async () => new Response(new ReadableStream({ cancel() { cancelled = true } }), {
+        headers: { 'content-type': 'application/json', 'x-gridex-project-ref': GRIDEX_OPS_PROJECT_REF },
+      }),
+    }), error => error.status === 504 && error.code === 'staff_api_timeout')
+  assert.equal(cancelled, true)
+})
+
+test('a proxy rate-limit page preserves 429 and Retry-After without following redirects or retrying', async () => {
+  let calls = 0
+  const api = client(async () => { calls++; return new Response('<html>private proxy text</html>', {
+    status: 429, headers: { 'content-type': 'text/html', 'retry-after': '120', 'x-request-id': 'proxy-limit' },
+  }) })
+  await assert.rejects(() => api.listCases(), error => error.status === 429 && error.retryAfterSeconds === 120
+    && error.requestId === 'proxy-limit' && !error.message.includes('private proxy'))
+  assert.equal(calls, 1)
 })
 
 test('JSON content type, schema/version, closed DTO and page consistency are checked before returning data', async () => {

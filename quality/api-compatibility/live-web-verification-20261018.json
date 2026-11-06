@@ -1,0 +1,87 @@
+{
+  "checked_at": "2026-10-18T19:17:54.641351+00:00",
+  "deployment": "dpl_5VRBKoR1u81N1Gzv6kSYk6mGRc4x",
+  "scope": "public website pricing and boundary checks only; no customer application, POA or email submission",
+  "observations": [
+    {
+      "path": "/api/web/contracts",
+      "status": 200,
+      "error": null
+    },
+    {
+      "path": "/api/checkout/energy-area/resolve",
+      "status": 200,
+      "error": null,
+      "price_area": "SE3",
+      "pricing_ready": true,
+      "quote_ready": true,
+      "signed_resolution_token": true
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "error": null,
+      "canonical_quote": true,
+      "pricing_token": true,
+      "settlement": {
+        "model": "fixed_price",
+        "customer_accepts": "fixed_energy_price",
+        "energy_price_locked_at_signup": true,
+        "uses_actual_metered_consumption": true,
+        "market_data_role": "not_applicable",
+        "settlement_resolution": "fixed"
+      },
+      "price_area": "SE3"
+    },
+    {
+      "path": "/api/checkout/quote",
+      "status": 200,
+      "error": null,
+      "same_quote_on_replay": true
+    },
+    {
+      "path": "/api/checkout/quote/validate",
+      "status": 200,
+      "error": null,
+      "valid": true
+    },
+    {
+      "path": "/api/checkout/legal-bundle",
+      "status": 200,
+      "error": null
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 200,
+      "error": null
+    },
+    {
+      "path": "/api/web/customer/sync",
+      "status": 401,
+      "error": {
+        "code": "unauthorized"
+      }
+    },
+    {
+      "path": "/api/web/market-price/current",
+      "status": 403,
+      "error": {
+        "code": "cross_site_request_blocked"
+      }
+    }
+  ],
+  "source_commit": "ffa37ac4d34f320d2fe98110961a82bf3fc69403",
+  "result": "PASS",
+  "expected_statuses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    401,
+    403
+  ],
+  "no_test_application_or_email_submitted_by_this_probe": true
+}

@@ -1,5 +1,7 @@
+import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
-import { fetchOpsPublicContractsFresh, isOpsError } from '@/lib/ops/client'
+import { opsRetryAfterHeaders } from '@/lib/ops/errors'
+import { fetchOpsPublicContractsSnapshot, isOpsError } from '@/lib/ops/client'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
 import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
@@ -14,9 +16,15 @@ function text(value: unknown, max = 12_000): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const rate = await checkRateLimit(`quote-validate:${clientIpFromHeaders(req.headers)}`, { limit: 30, windowMs: 10 * 60_000 })
-  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
+  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, {
+    status: 429,
+    headers: {
+      'Cache-Control': 'private, no-store',
+      'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
+    },
+  })
   const parsedBody = await readWebJson<Record<string, unknown>>(req)
   if (!parsedBody.ok) return parsedBody.response
   const body = parsedBody.value
@@ -49,7 +57,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const contracts = await fetchOpsPublicContractsFresh(customerType)
+    // Revalidate with OPS on every check. An authenticated304 confirms the
+    // unchanged representation; errors must never fall back to cached prices.
+    const { contracts } = await fetchOpsPublicContractsSnapshot(customerType, { allowStaleFallback: false })
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (!contract || !contractSupportsCustomerType(contract.customer_types, customerType)) {
       return NextResponse.json({ ok: false, error: { code: 'offer_not_available' } }, { status: 409 })
@@ -89,7 +99,11 @@ export async function POST(req: Request) {
       correlation_id: isOpsError(error) ? error.correlationId : null,
     }, {
       status,
-      headers: { 'Cache-Control': 'private, no-store' },
+      headers: { 'Cache-Control': 'private, no-store', ...opsRetryAfterHeaders(error) },
     })
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiOperation('quote_validation', () => handlePost(request))
 }

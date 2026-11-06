@@ -1,5 +1,7 @@
 import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
+import ContractPricing from '@/components/customer/ContractPricing'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 // Import status helper to translate raw status codes
 import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
@@ -64,20 +66,17 @@ export default async function DashboardContractsPage() {
               <Info label="Avtalsreferens" value={contract.contract_number || contract.contract_external_ref || '—'} />
               <Info label="Skapat" value={formatDate(contract.created_at)} />
               <Info label="Energiriktning" value={contract.pricing_snapshot.energy_direction === 'production' ? 'Produktion' : contract.pricing_snapshot.energy_direction === 'consumption' ? 'Förbrukning' : 'Inväntas'} />
-              <Info label="Månadsavgift" value={priceValue(contract.pricing_snapshot.monthly_fee_sek, 'kr/mån')} />
-              <Info label="Fast energipris" value={priceValue(contract.pricing_snapshot.fixed_price_ore_per_kwh, 'öre/kWh')} />
-              <Info label="Påslag" value={priceValue(contract.pricing_snapshot.markup_ore_per_kwh, 'öre/kWh')} />
               <Info label="Bindningstid" value={priceValue(contract.pricing_snapshot.binding_months, 'mån')} />
               <Info label="Uppsägningstid" value={priceValue(contract.pricing_snapshot.notice_months, 'mån')} />
               <Info label="Automatisk förlängning" value={contract.pricing_snapshot.auto_renew_enabled === true ? 'Ja' : contract.pricing_snapshot.auto_renew_enabled === false ? 'Nej' : 'Inväntas'} />
             </div>
-            <p className="mt-3 text-xs text-white/50">Priserna är dina avtalsuppgifter. Momshanteringen framgår av avtalsdokumentet.</p>
+            <ContractPricing contract={contract} />
           </article>
         ))}
 
         {contracts.length === 0 && (
           <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/60">
-            Du har ännu inga avtal att visa.
+            Du har ännu inga avtal att visa. <Link href="/teckna-avtal" className="text-cyan-300 underline">Teckna ett elavtal</Link> eller <Link href="/aktivera-kundkonto" className="text-cyan-300 underline">koppla ett befintligt kundkonto</Link>.
           </div>
         )}
       </div>

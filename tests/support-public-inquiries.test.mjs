@@ -187,6 +187,15 @@ test("public DTO exposes only incoming contact and inquiry fields, never audit o
   assert.equal(JSON.stringify(item).includes("private"), false);
   assert.equal("customer_reference" in item, false);
 });
+test("inquiry contact preserves a valid long address accepted by the public and privacy intake", async () => {
+  const email = `${"a".repeat(60)}@${"b".repeat(63)}.${"c".repeat(63)}.example.com`;
+  assert.ok(email.length > 180 && email.length <= 320);
+  const incoming = row();
+  incoming.metadata.customer_email = email;
+  const r = reader(service([incoming]));
+  assert.equal((await r.detail(id)).contact.email, email);
+  assert.equal((await r.list()).items[0].contact.email, email);
+});
 test("fresh canonical session gate runs on every list/detail read without cached permission or local-role fallback", async () => {
   const s = service([row()]);
   let checks = 0;
