@@ -63,7 +63,8 @@
     "test:performance:browser": "node tests/run-performance-browser.mjs",
     "test:web-independent": "node tests/web-independent-regression.mjs && node tests/web-customer-readiness.test.mjs",
     "mobile:export": "node scripts/export-mobile-app.mjs",
-    "mobile:readiness": "node scripts/check-mobile-readiness.mjs"
+    "mobile:readiness": "node scripts/check-mobile-readiness.mjs",
+    "mobile:verify": "node scripts/verify-mobile.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.8.0",

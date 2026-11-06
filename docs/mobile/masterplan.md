@@ -562,3 +562,13 @@ Gridex Android/iOS-paketering. Sex HTTP-kontroller mot byggda POST-vägar gick o
 grönt. Tester använder syntetisk identitet och provider; detta är inget påstående
 om ändringar i en riktig kundprofil. Riktigt kundkonto behövs först för senare
 skarp kundverifiering, inte för att fortsätta kodarbetet.
+
+### Samlad testkörning
+
+npm run mobile:verify kör kundroutes, konto-/provider-/export-/pristester,
+verkliga native-hooks och UI-komponenter med syntetiska beroenden samt native/web
+typkontroll och lint. Oberoende testgrupper fortsätter efter fel. JSON-rapporten
+binder resultatet till HEAD och anger om arbetskopian har ändringar. Riktig
+kundverifiering, signerad enhetsinstallation och produktionsaktivering markeras
+uttryckligen som ej verifierade; gröna syntetiska tester ersätter inte dessa.
+Standardrapporten skrivs till /tmp/gridex-mobile-verification.json.
