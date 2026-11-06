@@ -7,6 +7,9 @@ on:
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
       - 'tests/mobile-foundation-export.test.mjs'
+      - 'tests/mobile-contracts-handler.test.mjs'
+      - 'lib/mobile/**'
+      - 'app/api/mobile/**'
       - '.github/workflows/mobile-portability.yml'
   push:
     branches: [main]
@@ -15,6 +18,9 @@ on:
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
       - 'tests/mobile-foundation-export.test.mjs'
+      - 'tests/mobile-contracts-handler.test.mjs'
+      - 'lib/mobile/**'
+      - 'app/api/mobile/**'
       - '.github/workflows/mobile-portability.yml'
 
 permissions:
@@ -29,7 +35,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs
+      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest

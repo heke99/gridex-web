@@ -303,3 +303,18 @@ Typkontroll och Android-bundling är verifierade lokalt. Detta är inte ett
 signerat installationspaket eller en testad kundresa på fysisk telefon.
 Nästa funktionella del är befintlig kundinloggning och serververifierad kundöversikt
 mot OPS. Inga nya databaser eller kundposter har skapats av denna grund.
+
+
+### Kundinloggning och avtalsläsning – kodad testkandidat
+
+Appen har nu e-post/lösenordsformulär mot samma konfigurerade Supabase-projekt
+som hemsidan och en avtalsvy mot den nya servervägen. Sessionen är endast i minnet;
+återställning av lösenord, beständig säker lagring och automatisk förnyelse återstår.
+Servervägen verifierar bearer-token genom Auth, läser kundprofil med användarens
+RLS och anropar befintligt OPS-API. Den tar inga kund-ID:n från mobilen och är
+avstängd som standard tills testmiljön kvalificerats.
+
+Verifierat lokalt: sex serverbeteendetester, sex portabilitetstester, tre riktiga
+HTTP-kontroller, typkontroller, riktad lint, Next-produktionsbygge samt Android-
+och iOS-bundling. Riktiga provideruppgifter och en testkund behövs för att verifiera
+hela lyckade inloggningsresan och den faktiska kundbindningen; det är ännu inte gjort.

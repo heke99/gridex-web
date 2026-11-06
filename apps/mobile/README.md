@@ -38,3 +38,27 @@ The next increment is the Expo runtime/native shell, followed by the Supabase
 identity adapter and a verified OPS-backed customer overview. All later portable
 packages and app assets must be added to the reviewed export manifest and tested
 from a clean directory, without importing this repository's web application.
+
+
+## Customer login and contracts
+
+The app now includes a password login form and a read-only contracts view.
+Configure public build values (same project as Gridex Web):
+
+- EXPO_PUBLIC_SUPABASE_URL: existing tenant Auth project URL.
+- EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public publishable/anon key only.
+- EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS origin of this app's tenant backend.
+
+Never add OPS API keys or service-role/secret keys to the mobile build. Sessions
+are memory-only in this increment; users log in again after app restart. Persistent
+SecureStore sessions, renewal and password recovery are separate pending work.
+
+The server GET /api/mobile/customer/contracts verifies the bearer token through
+Auth and reads only the verified subject's RLS-scoped customer profile before
+calling OPS. The route defaults to disabled. Enable GRIDEX_MOBILE_API_ENABLED
+only in the qualified test environment first. No identity or customer-id query
+parameters are accepted. No cookie fallback is used on this route.
+
+Code verification does not establish live provider binding, physical-device
+behavior or production readiness. Native builds must be configured explicitly;
+missing configuration shows an unavailable message without fake customer data.

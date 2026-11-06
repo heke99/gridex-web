@@ -13,7 +13,7 @@ const copy: Record<Tab, { title: string; body: string }> = {
 };
 
 /** Presentation-only shell. Never treats a chosen brand as authorization. */
-export function EnergyAppShell({ brand }: { brand: MobileBrand }) {
+export function EnergyAppShell({ brand, customerPanel }: { brand: MobileBrand; customerPanel?: React.ReactNode }) {
   const [active, setActive] = useState<Tab>('Hem');
   const t = brand.theme;
   return <View style={[styles.root, { backgroundColor: t.canvas }]}>
@@ -22,10 +22,10 @@ export function EnergyAppShell({ brand }: { brand: MobileBrand }) {
       <Text style={[styles.brand, { color: t.accent }]}>{brand.displayName}</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: t.text }]}>{copy[active].title}</Text>
       <Text style={[styles.body, { color: t.muted }]}>{copy[active].body}</Text>
-      <View style={[styles.card, { backgroundColor: t.surface }]}>
+      {customerPanel ?? <View style={[styles.card, { backgroundColor: t.surface }]}>
         <Text style={[styles.cardTitle, { color: t.text }]}>Mobilappen tar form</Text>
         <Text style={[styles.body, { color: t.muted }]}>Kundinloggning och anslutning till dina uppgifter är inte aktiverade i denna testversion.</Text>
-      </View>
+      </View>}
       {active === 'Hem' && <View style={styles.tiles}>
         {(['Elpriser', 'Förbrukning', 'Avtal'] as const).map(tab => <Pressable key={tab} accessibilityRole="button" onPress={() => setActive(tab)} style={[styles.tile, { borderColor: t.muted }]}>
           <Text style={[styles.cardTitle, { color: t.text }]}>{tab}</Text>

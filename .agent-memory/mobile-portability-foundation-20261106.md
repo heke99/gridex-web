@@ -35,3 +35,19 @@ brand-driven five-tab layout, isolated TypeScript config and Metro sibling-packa
 watch boundary. Typecheck PASS; Android JS/Hermes export PASS (not an APK).
 Six portability tests remain PASS. Added native CI typecheck and platform bundles.
 Physical-device UI/Auth/OPS verification remains pending. No database changes.
+
+
+Customer-flow increment: added memory-only Supabase login adapter/form, a contracts
+view and a disabled-by-default bearer-authenticated BFF contracts route. BFF checks
+Auth via getUser(token), reads customer_profiles with subject filter and user RLS,
+and uses existing OPS customer transport. No client-selected customer identity.
+Tests: six handler behavior checks PASS; root and native typecheck PASS. Live
+Auth/OPS, portal binding and physical-device E2E remain unverified. No production
+enablement, DB changes or customer creation. Mobile sessions are not yet persistent.
+
+Final validation for customer-flow increment: root typecheck, focused ESLint,
+Next production build (without provider credentials), Android and iOS Hermes
+exports PASS. Six handler tests + six portability tests PASS. Three actual
+production HTTP checks PASS in a child-server harness: absent bearer 401,
+customer override 400, missing provider config 503, private/no-store responses.
+No successful live Auth/OPS call or device-rendering evidence is claimed.
