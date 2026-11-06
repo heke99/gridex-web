@@ -377,3 +377,17 @@ Kvar: full paginering, native stöd för att skriva i ärenden/ladda upp bilagor
 inbyggd PDF-läsare, förbrukning och elprisserier, avtalsteckning/avtalsbyte samt
 fortsatt bevis för export av hela appen. Publicerat OPS-manifests versionsskillnad
 är fortsatt separat releaseblockerare; integritetsgrinden har inte försvagats.
+
+
+### Nästa supportsteg – ärendeskapande, svar och ärendepaginering
+
+Appen har nu native-formulär för nya ärenden och svar, kopplade till befintliga
+OPS-writeoperationer. Servern verifierar samma Auth-subject/RLS-profil och accepterar
+inte author, visibility eller kund-ID från mobilen. Body begränsas vid strömläsning.
+Samma osäkra skickförsök behåller idempotensnyckel vid oförändrad användare/text;
+nyckeln är än så länge processlokal, inte en beständig kö över appomstarter.
+Lyckat svar måste bekräftas av servern innan formuläret rensas. Sena svar efter
+utloggning ignoreras. Native-vyn erbjuder också Visa fler ärenden med OPS-cursor
+och sammanslagning utan duplicerade referenser. Meddelandepaginering inväntar
+kontraktskvalificering: låst lokal GET messages-specifikation saknar cursor.
+Ingen faktisk kundmutation, e-post eller produktionsaktivering har utförts här.

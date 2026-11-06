@@ -44,3 +44,9 @@ test('the same handler never reuses one customer response for another session', 
   assert.equal(first.data.contracts[0].reference, 'contract-for-customer-one');
   assert.equal(second.data.contracts[0].reference, 'contract-for-customer-two');
 });
+
+test('support cursor paging accepts only one bounded cursor and returns explicit continuation',async()=>{
+ const handler=createContractsHandler({enabled:()=>true,authenticate:async()=> 'own',contracts:async(_subject,_token,cursor)=>{assert.equal(cursor,'opaque+/=');return{items:[],page:{hasMore:false,nextCursor:null}};}},'support',true);
+ const response=await handler(req('?cursor=opaque%2B%2F%3D'));assert.equal(response.status,200);assert.deepEqual((await response.json()).page,{hasMore:false,nextCursor:null});
+ for(const suffix of ['?cursor=a&cursor=b','?cursor=','?cursor=a&customerId=foreign'])assert.equal((await handler(req(suffix))).status,400);
+});

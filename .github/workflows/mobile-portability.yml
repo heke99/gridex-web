@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Actual mobile routes with synthetic Auth and OPS
         run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test tests/mobile-detail-routes.test.mjs
-      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs
+      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest

@@ -134,3 +134,30 @@ test('background while document request is pending suppresses external navigatio
   assert.equal(opened, false); assert.equal(current.invoice, null);
   await unmount();
 });
+
+test('uncertain support submission retries the same key and confirmed new intent gets a new key', async () => {
+ const unmount = await mount(true);session.user={id:'own-user'};const keys=[];let fail=true;
+ handler=async (_url,init)=>{keys.push(init.headers['Idempotency-Key']);return fail?new Response('',{status:503}):Response.json({data:{accepted:true}},{status:201});};
+ await act(async()=>{assert.equal(await current.submitSupport('Question','Hello'),false);});
+ fail=false;await act(async()=>{assert.equal(await current.submitSupport('Question','Hello'),true);});
+ assert.equal(keys[0],keys[1]);
+ await act(async()=>{assert.equal(await current.submitSupport('Question','Hello'),true);});assert.notEqual(keys[1],keys[2]);
+ await unmount();
+});
+test('late support-write confirmation after logout never reports success to the new screen', async () => {
+ const unmount=await mount(true);session.user={id:'own-user'};let resolve;
+ handler=()=>new Promise(r=>{resolve=r;});let pending;
+ await act(async()=>{pending=current.submitSupport('Question','Hello');});
+ await act(async()=>current.logout());
+ await act(async()=>{resolve(Response.json({data:{accepted:true}},{status:201}));assert.equal(await pending,false);});
+ assert.equal(current.authenticated,false);await unmount();
+});
+
+test('support continuation appends and deduplicates pages without changing identity',async()=>{
+ const unmount=await mount(true);let page=0;
+ const row=reference=>({reference,title:'Question',description:null,status:'received',createdAt:null,updatedAt:null});
+ handler=async url=>{page++;if(page===2)assert.ok(url.endsWith('?cursor=opaque%2B%2F%3D'));return Response.json({data:{support:page===1?[row('one')]:[row('one'),row('two')]},page:{hasMore:page===1,nextCursor:page===1?'opaque+/=':null}});};
+ await act(async()=>{await current.select('support');});assert.equal(current.nextCursor,'opaque+/=');
+ await act(async()=>{await current.loadMore();});assert.deepEqual(current.rows.map(r=>r.reference),['one','two']);assert.equal(current.nextCursor,null);
+ await unmount();
+});

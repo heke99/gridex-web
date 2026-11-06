@@ -78,3 +78,18 @@ test('disabled mobile routes do not query providers', async () => {
   process.env.GRIDEX_MOBILE_API_ENABLED = 'false';
   assert.equal((await invoice(request(), context())).status, 404); assert.equal(calls.length, 0);
 });
+
+test('actual support POST binds verified subject and preserves retry key', async () => {
+ const post = (await import('../app/api/mobile/customer/support/route.ts')).POST;
+ globalThis.__mobileReadFixture.createCase = async (identity, input, key) => { assert.equal(identity.userId,'customer-one'); assert.deepEqual(input,{title:'Question',message:'Hello'}); assert.equal(key,'create-attempt-123'); return {data:{}}; };
+ const req = new Request('https://tenant.test/support',{method:'POST',headers:{authorization:'Bearer mobile-session-one-123456','content-type':'application/json','idempotency-key':'create-attempt-123'},body:JSON.stringify({title:'Question',message:'Hello'})});
+ assert.equal((await post(req)).status,201);
+});
+test('actual reply route delegates ownership to canonical OPS and never creates a foreign message', async () => {
+ const post = (await import('../app/api/mobile/customer/support/[id]/messages/route.ts')).POST;
+ globalThis.__mobileReadFixture.reply = async (identity, reference) => { assert.equal(reference,caseId); if(identity.userId !== 'customer-one')throw Object.assign(Error('foreign'),{status:403}); return {data:{}}; };
+ for(const [token,status] of [['mobile-session-one-123456',201],['mobile-session-two-123456',403]]) {
+  const req = new Request('https://tenant.test/support',{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json','idempotency-key':'reply-attempt-123'},body:JSON.stringify({message:'Reply'})});
+  assert.equal((await post(req,context(caseId))).status,status);
+ }
+});

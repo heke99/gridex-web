@@ -92,3 +92,17 @@ Limits: document reader/provider URLs require staging qualification, support is
 read-only natively and message/list pagination remains bounded. OPS release-manifest
 mismatch remains a release blocker, not waived. Next: pagination/writes and data
 flows, plus actual provider/dev-build E2E; no production-ready claim.
+
+
+Support-write/cursor packet: added bounded closed-body authenticated create/reply
+BFF routes, OPS SDK mutations, native composer with stable process-local attempts
+and confirmation-only reset, stale confirmation suppression, and case cursor paging
+with deduplicated append. Messages cursor is absent from frozen local OpenAPI, so
+no undocumented messages paging added. Native views/read boundaries retained.
+No hosted writes, email delivery or API activation; all mutation tests synthetic.
+Validation for support write/case-pagination packet: 43 pure tests, 16 real hook/
+adapter tests with synthetic providers and 10 actual-route tests with synthetic
+Auth/OPS PASS (69 total). Root/native TypeScript, full ESLint, Next production
+build and Android/iOS Hermes exports PASS. No real customer mutation/email sent.
+Native write attempts are process-local; no durable outbox guarantee. Case cursor
+is documented; message cursor is not in the frozen spec and remains pending.

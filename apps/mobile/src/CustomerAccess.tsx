@@ -3,6 +3,7 @@ import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 're
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
 import { useCustomerAccount } from './useCustomerAccount';
 import { customerApi } from './accountClient';
+import { SupportComposer } from './SupportComposer';
 import { InvoicePanel, SupportPanel } from './CustomerDetailPanels';
 import { recoveryUrl, type Resource } from './customerData';
 
@@ -62,6 +63,9 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
         </>}
         <Text style={{ color: t.muted }}>Status: {row.status ?? 'Uppgift saknas'}</Text>
       </View>)}
+      {a.resource === 'support' && <SupportComposer theme={t} busy={a.busy} submit={(title, message) => a.submitSupport(title, message)} />}
+      {a.support && a.support.status !== 'closed' && <SupportComposer key={a.support.reference} theme={t} busy={a.busy} reply submit={(title, message) => a.submitSupport(title, message, a.support!.reference)} />}
+      {a.resource === 'support' && a.nextCursor && <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.loadMore()} style={button}><Text style={{ color: t.accentText }}>Visa fler ärenden</Text></Pressable>}
       {a.invoice && <InvoicePanel invoice={a.invoice} theme={t} busy={a.busy} back={() => void a.select('invoices')} openDocument={reference => void a.openDocument(a.invoice!.reference, reference, url => Linking.openURL(url))} />}
       {a.support && <SupportPanel detail={a.support} theme={t} busy={a.busy} back={() => void a.select('support')} openWeb={() => void openSupportWeb()} />}
       <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.retry()} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>Hämta igen</Text></Pressable>

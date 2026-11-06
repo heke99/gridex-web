@@ -47,6 +47,6 @@ export function SupportPanel({ detail, theme: t, busy, back, openWeb }: { detail
       <Text style={{ color: t.text, fontSize: 16, lineHeight: 24 }}>{message.body}</Text>
     </View>)}
     {detail.moreMessages !== false && <Text style={{ color: t.muted }}>{detail.moreMessages === true ? 'Fler meddelanden finns. Du kan också öppna ärendet på Mina sidor på webben.' : 'Här visas de meddelanden som finns tillgängliga för appen.'}</Text>}
-    <Pressable accessibilityRole="link" disabled={busy} onPress={openWeb} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: t.accent }}>Öppna kundservice på webben för att skriva ett meddelande</Text></Pressable>
+    <Pressable accessibilityRole="link" disabled={busy} onPress={openWeb} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: t.accent }}>Öppna kundservice på webben</Text></Pressable>
   </View>;
 }

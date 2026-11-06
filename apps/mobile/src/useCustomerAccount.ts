@@ -13,6 +13,7 @@ export function useCustomerAccount(brand: string) {
   const [resource, setResource] = useState<CustomerView>('contracts');
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [support, setSupport] = useState<SupportDetail | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [active, setActive] = useState(AppState.currentState === 'active');
   const [restoreTick, setRestoreTick] = useState(0);
@@ -21,10 +22,11 @@ export function useCustomerAccount(brand: string) {
   const selected = useRef<{ view: CustomerView; reference?: string }>({ view: 'contracts' });
   const needsRestore = useRef(true); const wantsLogout = useRef(false);
   const expectedSignout = useRef(false);
+  const mutationAttempt = useRef<{ signature: string; key: string } | null>(null);
 
   const invalidate = useCallback(() => { generation.current++; pending.current?.abort(); }, []);
-  const clearDetails = useCallback(() => { setRows(null); setInvoice(null); setSupport(null); }, []);
-  const clear = useCallback(() => { clearDetails(); setAuthenticated(false); }, [clearDetails]);
+  const clearDetails = useCallback(() => { setRows(null); setInvoice(null); setSupport(null); setNextCursor(null); }, []);
+  const clear = useCallback(() => { clearDetails(); setAuthenticated(false); mutationAttempt.current = null; }, [clearDetails]);
   const signOut = useCallback(async () => {
     expectedSignout.current = true;
     try { const result = await client?.auth.signOut({ scope: 'local' }); if (result?.error) throw result.error; }
@@ -32,11 +34,11 @@ export function useCustomerAccount(brand: string) {
     finally { wantsLogout.current = false; expectedSignout.current = false; }
   }, [client]);
 
-  const run = useCallback(async (next: CustomerView, sessionAction: () => Promise<string | null>, reference?: string) => {
+  const run = useCallback(async (next: CustomerView, sessionAction: () => Promise<string | null>, reference?: string, cursor?: string) => {
     if (!client || inFlight.current) return;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
-    setBusy(true); setError(''); clearDetails(); selected.current = { view: next, reference }; setResource(next);
+    setBusy(true); setError(''); if (!cursor) clearDetails(); selected.current = { view: next, reference }; setResource(next);
     try {
       const token = await sessionAction();
       if (attempt !== generation.current) return;
@@ -44,7 +46,7 @@ export function useCustomerAccount(brand: string) {
       setAuthenticated(true);
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${customerViewPath(next, reference)}`, {
+        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${customerViewPath(next, reference)}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
         if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
@@ -53,7 +55,15 @@ export function useCustomerAccount(brand: string) {
         if (attempt !== generation.current) return;
         if (next === 'invoiceDetail') setInvoice(parseInvoiceDetail(body, reference!));
         else if (next === 'supportDetail') setSupport(parseSupportDetail(body, reference!));
-        else setRows(parseCustomerRows(next, body));
+        else {
+          const parsed = parseCustomerRows(next, body);
+          const page = body.page;
+          if (next === 'support' && page && ![true, false, null].includes(page.hasMore)) throw new Error('Invalid pagination');
+          if (next === 'support' && page && (page.nextCursor !== null && (typeof page.nextCursor !== 'string' || page.nextCursor.length > 2048))) throw new Error('Invalid pagination');
+          if (next === 'support' && page?.hasMore === true && !page.nextCursor) throw new Error('Incomplete pagination');
+          setRows(previous => cursor ? [...new Map([...(previous ?? []), ...parsed].map(row => [row.reference, row])).values()] : parsed);
+          setNextCursor(next === 'support' && typeof page?.nextCursor === 'string' ? page.nextCursor : null);
+        }
       } finally { clearTimeout(timeout); }
     } catch {
       if (attempt === generation.current) setError('Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.');
@@ -100,11 +110,12 @@ export function useCustomerAccount(brand: string) {
     if (result.error || !result.data.session) { clear(); await signOut(); throw new Error('login'); }
     return result.data.session.access_token;
   });
-  const select = (next: CustomerView, reference?: string) => run(next, async () => {
+  const select = (next: CustomerView, reference?: string, cursor?: string) => run(next, async () => {
     const result = await client!.auth.getSession();
     if (result.error) throw result.error;
     return result.data.session?.access_token ?? null;
-  }, reference);
+  }, reference, cursor);
+  const loadMore = () => nextCursor ? select('support', undefined, nextCursor) : Promise.resolve();
   const retry = () => select(selected.current.view, selected.current.reference);
   const openDocument = async (invoiceRef: string, documentRef: string, open: (url: string) => Promise<unknown>) => {
     if (!client || inFlight.current) return;
@@ -129,10 +140,37 @@ export function useCustomerAccount(brand: string) {
       if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1);
     }
   };
+  const submitSupport = async (title: string, message: string, reference?: string) => {
+    if (!client || inFlight.current) return false;
+    inFlight.current = true; const attempt = ++generation.current;
+    const controller = new AbortController(); pending.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
+    try {
+      const saved = await client.auth.getSession();
+      if (!saved.data.session || saved.error) throw new Error('login');
+      const signature = JSON.stringify([saved.data.session.user.id, reference ?? null, title, message]);
+      if (mutationAttempt.current?.signature !== signature) mutationAttempt.current = { signature, key: `support-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+      const suffix = reference ? `support/${encodeURIComponent(reference)}/messages` : 'support';
+      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${suffix}`, { method: 'POST', signal: controller.signal,
+        headers: { Authorization: `Bearer ${saved.data.session.access_token}`, 'Content-Type': 'application/json', 'Idempotency-Key': mutationAttempt.current.key },
+        body: JSON.stringify(reference ? { message } : { title, message }),
+      });
+      if (attempt !== generation.current) return false;
+      if (response.status === 401) { clear(); await signOut(); throw new Error('login'); }
+      if (response.status === 409) { setError('Begäran behöver kontrolleras. Hämta ärendet igen innan du ändrar texten eller försöker på nytt.'); return false; }
+      if (response.status === 429) { setError('För många försök. Vänta en stund och försök igen med samma text.'); return false; }
+      if (!response.ok) throw new Error('support');
+      const body = await response.json(); if (body?.data?.accepted !== true) throw new Error('response');
+      if (attempt !== generation.current) return false;
+      mutationAttempt.current = null;
+      return true;
+    } catch { if (attempt === generation.current) setError('Kunde inte bekräfta att meddelandet sparats. Försök igen med samma text för att undvika dubbletter.'); return false; }
+    finally { clearTimeout(timeout); if (wantsLogout.current) await signOut(); inFlight.current = false; setBusy(false); if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1); }
+  };
   const logout = () => {
     needsRestore.current = false; wantsLogout.current = true;
     generation.current++; pending.current?.abort(); clear(); setError('');
     if (!inFlight.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
   };
-  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, logout };
+  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, nextCursor, loadMore, logout };
 }

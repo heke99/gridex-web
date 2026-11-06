@@ -36,9 +36,10 @@ adapter rejects secret/service-role keys and shares one SDK instance per brand.
   invoice. Only a document attached to that invoice can yield an existing approved
   HTTPS provider link. The app opens it externally without forwarding the API
   bearer token. Logout/background invalidates pending external navigation.
-- Read-only customer support list, case detail and public messages. Staff identity
-  and internal notes are not forwarded. Writing is available through a handoff to
-  the existing customer support web page.
+- Customer support list, case detail, public messages, new-case form and replies.
+  Staff identity/internal notes are not forwarded. Case continuation uses OPS
+  cursors, with deduplication when another page is loaded. Uncertain writes retain
+  the same attempt key for the same user/content while this app process survives.
 
 Retry and foreground restore preserve the selected invoice/case. Resource
 failures are independent, so unavailable invoices do not block site/support views.
@@ -63,7 +64,7 @@ Successful live Auth/OPS customer reads, actual device/keychain behavior, signed
 builds and the external document/recovery handoffs still require verification.
 The published OPS version mismatch remains a release blocker; no gate is relaxed.
 Lists/messages are the bounded API result and do not prove complete history.
-Full pagination, native support writes/attachments, in-app PDF rendering, price
+Message pagination, attachments, in-app PDF rendering, price
 series, consumption summaries and contractual changes remain later work.
 
 ## Extraction proof
@@ -74,3 +75,15 @@ not .env files, provider keys, Gridex branding or customer data. This proves the
 portable foundation only; complete app extraction remains to be demonstrated.
 A buyer needs its own Auth/storage and OPS tenant or compatible adapter. App-owned
 schema migrations will be versioned when needed in the same existing database.
+
+
+Support writes use the existing tenant customer_support.write scope. Only title
+and message (new case) or message (reply) cross the mobile boundary; identity,
+author and visibility cannot be overridden. The body is bounded while streaming.
+Attempt keys are not a durable queue: after process termination, check the
+canonical case/message history before intentionally sending again. No test here
+sends a real support message or email. Mobile/API activation remains gated.
+
+The frozen local messages OpenAPI operation has no cursor parameter; native
+message continuation waits for qualified contract synchronization rather than
+adding an undocumented query. Cases already expose a documented cursor.

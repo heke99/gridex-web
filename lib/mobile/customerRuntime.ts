@@ -15,11 +15,11 @@ function authClient(token?: string) {
   });
 }
 
-async function authenticate(token: string) {
+export async function authenticateMobile(token: string) {
   const { data, error } = await authClient().auth.getUser(token);
   return !error && data.user?.email_confirmed_at ? data.user.id : null;
 }
-async function identity(subject: string, token: string) {
+export async function mobileIdentity(subject: string, token: string) {
   const { data: profile, error } = await authClient(token).from('customer_profiles')
     .select('customer_number,external_customer_id').eq('user_id', subject).maybeSingle();
   if (error || !profile) throw new Error('Customer binding unavailable');
@@ -27,17 +27,24 @@ async function identity(subject: string, token: string) {
 }
 export function customerResourceRoute(resource: Resource) {
   return createContractsHandler({
-    enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true', authenticate,
+    enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true', authenticate: authenticateMobile,
     contracts: async (subject, token) => normalizeResource(resource,
-      await fetchOpsCustomerResource(await identity(subject, token), resource)),
+      await fetchOpsCustomerResource(await mobileIdentity(subject, token), resource)),
   }, resource);
 }
 export function customerDetailRoute(kind: 'invoiceDetail' | 'invoiceDocument' | 'support' | 'supportDetail', reference?: string, documentReference?: string) {
   return createContractsHandler({
-    enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true', authenticate,
-    contracts: async (subject, token) => {
-      const customer = await identity(subject, token);
-      if (kind === 'support') return supportCases(await listOpsCustomerSupportCases(customer, { limit: 50 }));
+    enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true', authenticate: authenticateMobile,
+    contracts: async (subject, token, cursor) => {
+      const customer = await mobileIdentity(subject, token);
+      if (kind === 'support') {
+        const payload = await listOpsCustomerSupportCases(customer, { limit: 50, ...(cursor ? { cursor } : {}) });
+        const page = (payload as unknown as { page?: { has_more?: unknown; next_cursor?: unknown } }).page;
+        const hasMore = typeof page?.has_more === 'boolean' ? page.has_more : null;
+        const nextCursor = typeof page?.next_cursor === 'string' && page.next_cursor.length <= 2048 ? page.next_cursor : null;
+        if (hasMore === true && !nextCursor) throw new Error('Incomplete pagination');
+        return { items: supportCases(payload), page: { hasMore, nextCursor: hasMore === false ? null : nextCursor } };
+      }
       if (!reference || !/^[A-Za-z0-9_-]{1,240}$/.test(reference)) throw new Error('Invalid reference');
       if (kind === 'supportDetail') {
         const [detail, messages] = await Promise.all([fetchOpsCustomerSupportCase(customer, reference), listOpsCustomerSupportMessages(customer, reference)]);
@@ -51,5 +58,5 @@ export function customerDetailRoute(kind: 'invoiceDetail' | 'invoiceDocument' | 
       }
       return [invoiceDetail(payload, reference, origins)];
     },
-  }, kind);
+  }, kind, kind === 'support');
 }
