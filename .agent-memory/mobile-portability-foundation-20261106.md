@@ -129,3 +129,15 @@ npm ci --offline, tsc, Android Hermes and iOS Hermes without original repo impor
 Five new export regressions pass. CI adds a separate extracted-native job.
 This supersedes the earlier full-native-source-extraction gap; backend migration,
 real provider/device qualification and signed builds remain open.
+
+Four-part continuation: configurable validated native API prefix; exported
+OPS-free Request/Response customer backend (verified binding, field projection,
+body bounds, safe provider status codes, optional writes, read-only synthetic demo);
+actual native web contract action buttons; Gridex preview activation/readiness.
+GRIDEX_MOBILE_API_ENABLED=true added to Vercel gridex-web ONLY preview branch
+codex/mobile-portability-20261106 (team_e3htkJPyBNSw3Ix1KQLlf180). Existing env key
+names checked without disclosing values. Production remains disabled. Native hook
+successfully read profile through independent handler without OPS; real Gridex
+customer/device test not performed. Live API gate still fails mixed versions:
+release/spec/guide2026-10-12.1 vs runtime2026-10-09.1. Do not weaken it. Generic
+native template uses optional EXPO_PUBLIC_CONTRACT_WEB_ORIGIN (no web assumption).

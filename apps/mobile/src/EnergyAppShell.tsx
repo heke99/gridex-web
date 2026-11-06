@@ -8,12 +8,12 @@ const copy: Record<Tab, { title: string; body: string }> = {
   Hem: { title: 'Din el. Samlad på ett ställe.', body: 'Här får du överblick över dina avtal, din förbrukning och dina fakturor.' },
   Elpriser: { title: 'Följ elpriset', body: 'När pristjänsten är ansluten visas aktuella priser och deras källa här.' },
   Förbrukning: { title: 'Förstå din förbrukning', body: 'Logga in för att se mätvärden för dina egna anläggningar.' },
-  Avtal: { title: 'Dina elavtal', body: 'Här ska du kunna se dina avtal, teckna nytt och följa ett avtalsbyte.' },
+  Avtal: { title: 'Dina elavtal', body: 'Se dina avtal i Mina sidor eller fortsätt till webbplatsen för att teckna och hantera avtal.' },
   Mer: { title: 'Vi hjälper dig', body: 'Fakturor, dokument, kontaktuppgifter och support samlas här.' },
 };
 
 /** Presentation-only shell. Never treats a chosen brand as authorization. */
-export function EnergyAppShell({ brand, customerPanel }: { brand: MobileBrand; customerPanel?: React.ReactNode }) {
+export function EnergyAppShell({ brand, customerPanel, contractPanel }: { brand: MobileBrand; customerPanel?: React.ReactNode; contractPanel?: React.ReactNode }) {
   const [active, setActive] = useState<Tab>('Hem');
   const t = brand.theme;
   return <View style={[styles.root, { backgroundColor: t.canvas }]}>
@@ -22,6 +22,7 @@ export function EnergyAppShell({ brand, customerPanel }: { brand: MobileBrand; c
       <Text style={[styles.brand, { color: t.accent }]}>{brand.displayName}</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: t.text }]}>{copy[active].title}</Text>
       <Text style={[styles.body, { color: t.muted }]}>{copy[active].body}</Text>
+      {(active === 'Hem' || active === 'Avtal') && contractPanel}
       {customerPanel ?? <View style={[styles.card, { backgroundColor: t.surface }]}>
         <Text style={[styles.cardTitle, { color: t.text }]}>Mobilappen tar form</Text>
         <Text style={[styles.body, { color: t.muted }]}>Kundinloggning och anslutning till dina uppgifter är inte aktiverade i denna testversion.</Text>

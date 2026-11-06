@@ -1,7 +1,8 @@
 # Portable energy customer app
 
 This source template contains the Expo native application and its shared foundation.
-It has no Gridex database, customer records, server credentials or deployed backend.
+It includes a provider-neutral reference backend with a synthetic read-only example.
+It has no Gridex database, customer records, server credentials or deployed service.
 Copying the UI does not grant access to any tenant. Do not ship the demo application
 identifier: choose your own bundle/package identifier and URL scheme before signing.
 
@@ -20,7 +21,9 @@ Configure these public build variables for your own environment:
 
 Never put service-role keys, OPS credentials or customer data in public build variables.
 The app is usable as a shell without configuration; customer login remains unavailable.
-Customer screens require the API contract in backend-contract.md. Provision your own
+Set EXPO_PUBLIC_CUSTOMER_API_PATH=/customer/v1 for your own provider-neutral adapter
+(default /api/mobile/customer for Gridex). Customer screens require the API contract
+in backend-contract.md. Provision your own
 Auth/database/backend and validate tenant isolation before accepting real users.
 
 ## Branding
@@ -66,3 +69,14 @@ argument after the destination):
 From the source repository: `npm run mobile:export -- /absolute/new-directory
 /absolute/brand-config.json`. The destination's parent must already exist. Keep
 this configuration public; unknown properties and privileged keys are rejected.
+
+The included packages/customer-backend adapter can use a buyer’s own data provider
+without OPS API. See its README for verified identity, canonical read rows, optional
+support writes and deployment requirements. The synthetic backend demo is not a
+production login or database. Supabase Auth remains the current native identity
+adapter; OPS is not required. Replace the identity adapter separately if needed.
+
+Optional EXPO_PUBLIC_CONTRACT_WEB_ORIGIN enables the web contract actions, pointing
+to /teckna, /dashboard/contracts and /dashboard/support on that HTTPS origin. Leave
+it unset if the purchaser has no corresponding web flows. These actions hand off
+to the browser without bearer tokens; native signing/switching remains future work.

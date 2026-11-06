@@ -40,3 +40,14 @@ enforce customer ownership and delegate idempotency to its authoritative service
 Do not send success before the write is confirmed. Native parsing, lifecycle tests
 and fake-provider route tests are included in the source repository; real-provider
 contract qualification is a separate requirement for every installation.
+
+## Alternative to OPS
+
+The exported packages/customer-backend handler is a separate provider-neutral
+implementation. It requires authenticate(token) and provider.read(binding,operation),
+and optionally provider.write. It can connect directly to a buyer’s own database
+or ERP without OPS. Set the native EXPO_PUBLIC_CUSTOMER_API_PATH=/customer/v1
+and configure the handler under that prefix. Reference code validates requests,
+projects public fields and document origins; production auth, durable storage,
+provider ownership checks, rate limits and deployment are installation-specific.
+The included demo has synthetic fixed tokens and no write implementation.

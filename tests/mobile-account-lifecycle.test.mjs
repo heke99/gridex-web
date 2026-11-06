@@ -178,3 +178,16 @@ test('general document opening uses the scoped endpoint and a URL-only external 
  await act(async()=>current.openDocument(null,'owned-doc',(...args)=>{opened=args;}));
  assert.deepEqual(opened,['https://files.test/a']);await unmount();
 });
+
+test('native customer loader operates against an independent backend without OPS',async()=>{
+ const {createCustomerBackend}=await import('../packages/customer-backend/handler.mjs');
+ const previous=process.env.EXPO_PUBLIC_CUSTOMER_API_PATH;
+ const unmount=await mount(true);
+ try{
+  process.env.EXPO_PUBLIC_CUSTOMER_API_PATH='/customer/v1';
+  const backend=createCustomerBackend({authenticate:async token=>{assert.equal(token,'remembered-token');return {subject:'independent-user',tenantId:'buyer',customerReference:'independent-customer'};},provider:{read:async(binding,{kind})=>{assert.equal(binding.tenantId,'buyer');assert.equal(kind,'profile');return {items:[{reference:binding.customerReference,name:'Own backend',email:null,phone:null,customerNumber:null,customerType:null,status:null}]};}}});
+  handler=async(url,options)=>{assert.ok(url.includes('/customer/v1/profile'));return backend(new Request(url,options));};
+  await act(async()=>current.select('profile'));assert.equal(current.rows[0].name,'Own backend');assert.equal(current.error,'');
+  await act(async()=>current.logout());assert.equal(current.rows,null);
+ }finally{if(previous===undefined)delete process.env.EXPO_PUBLIC_CUSTOMER_API_PATH;else process.env.EXPO_PUBLIC_CUSTOMER_API_PATH=previous;await unmount();}
+});

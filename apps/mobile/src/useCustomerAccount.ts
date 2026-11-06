@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { customerEndpoint } from './customerEndpoint';
 import { createAccountClient, customerApi } from './accountClient';
 import { parseCustomerRows, type CustomerRow } from './customerData';
 import { customerViewPath, parseInvoiceDetail, parseSupportDetail, parseDocumentLink, type CustomerView } from './detailData';
@@ -46,7 +47,7 @@ export function useCustomerAccount(brand: string) {
       setAuthenticated(true);
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${customerViewPath(next, reference)}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
+        const response = await fetch(customerEndpoint(customerApi, customerViewPath(next, reference), cursor, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
         if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
@@ -126,14 +127,14 @@ export function useCustomerAccount(brand: string) {
     try {
       const saved = await client.auth.getSession();
       if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('expired'); }
-      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`}`, {
+      const response = await fetch(customerEndpoint(customerApi, invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
         headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
       });
       if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
       if (!response.ok) throw new Error('document unavailable');
       const url = parseDocumentLink(await response.json(), documentRef, invoiceRef ? 'invoiceDocument' : 'customerDocument');
       if (attempt === generation.current && AppState.currentState === 'active') await open(url);
-    } catch { if (attempt === generation.current) setError('Dokumentet kunde inte öppnas. Hämta fakturan igen och försök på nytt.'); }
+    } catch { if (attempt === generation.current) setError('Dokumentet kunde inte öppnas. Hämta dokumentlistan eller fakturan igen och försök på nytt.'); }
     finally {
       clearTimeout(timeout); if (wantsLogout.current) await signOut();
       inFlight.current = false; setBusy(false);
@@ -151,7 +152,7 @@ export function useCustomerAccount(brand: string) {
       const signature = JSON.stringify([saved.data.session.user.id, reference ?? null, title, message]);
       if (mutationAttempt.current?.signature !== signature) mutationAttempt.current = { signature, key: `support-${Date.now()}-${Math.random().toString(36).slice(2)}` };
       const suffix = reference ? `support/${encodeURIComponent(reference)}/messages` : 'support';
-      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${suffix}`, { method: 'POST', signal: controller.signal,
+      const response = await fetch(customerEndpoint(customerApi, suffix, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), { method: 'POST', signal: controller.signal,
         headers: { Authorization: `Bearer ${saved.data.session.access_token}`, 'Content-Type': 'application/json', 'Idempotency-Key': mutationAttempt.current.key },
         body: JSON.stringify(reference ? { message } : { title, message }),
       });

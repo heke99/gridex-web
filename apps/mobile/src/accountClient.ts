@@ -6,7 +6,7 @@ import { secureSessionStorage } from './secureSessionStorage';
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const customerApi = process.env.EXPO_PUBLIC_CUSTOMER_API_URL;
-const validUrl = (value?: string) => { try { const u = new URL(value ?? ''); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash; } catch { return false; } };
+const validUrl = (value?: string) => { try { const u = new URL(value ?? ''); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash && u.pathname === '/'; } catch { return false; } };
 function publicKey(value?: string) {
   if (!value) return false;
   if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(value)) return true;

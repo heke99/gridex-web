@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'packages/mobile-foundation/**'
+      - 'packages/customer-backend/**'
+      - 'scripts/check-mobile-readiness.mjs'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
       - 'scripts/export-mobile-app.mjs'
@@ -16,6 +18,8 @@ on:
     branches: [main]
     paths:
       - 'packages/mobile-foundation/**'
+      - 'packages/customer-backend/**'
+      - 'scripts/check-mobile-readiness.mjs'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
       - 'scripts/export-mobile-app.mjs'
@@ -39,7 +43,7 @@ jobs:
           node-version: '22'
       - name: Actual mobile routes with synthetic Auth and OPS
         run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test tests/mobile-detail-routes.test.mjs tests/mobile-extras.test.mjs
-      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-app-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
+      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-app-export.test.mjs tests/mobile-backend-neutral.test.mjs tests/mobile-readiness.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest
@@ -56,7 +60,7 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
       - name: Account lifecycle with synthetic Auth
-        run: node --experimental-strip-types --experimental-loader ../../tests/mobile-account-loader.mjs --test ../../tests/mobile-account-lifecycle.test.mjs ../../tests/mobile-account-adapter.test.mjs
+        run: node --experimental-strip-types --experimental-loader ../../tests/mobile-account-loader.mjs --test ../../tests/mobile-account-lifecycle.test.mjs ../../tests/mobile-account-adapter.test.mjs ../../tests/mobile-contract-actions.test.mjs
       - run: npm run typecheck
       - run: npm run export:android
       - run: npx expo export --platform ios --output-dir dist-ios

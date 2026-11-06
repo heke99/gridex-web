@@ -103,3 +103,12 @@ See docs/mobile/portable-app.md and docs/mobile/backend-contract.md. Extraction
 has been checked with isolated install, TypeScript and both Hermes platform exports.
 It includes a neutral brand, optional customer identity/theme configuration and a
 source hash manifest. It does not provision or migrate the server/database.
+
+OPS is optional for purchasers: the exported packages/customer-backend adapter
+accepts a buyer's own authentication verifier and data provider, with a synthetic
+read-only standalone demo. EXPO_PUBLIC_CUSTOMER_API_PATH changes the endpoint
+prefix (Gridex default /api/mobile/customer; reference server /customer/v1).
+Native identity currently uses Supabase Auth independently of the data provider.
+EXPO_PUBLIC_CONTRACT_WEB_ORIGIN optionally enables web signup/contracts/support
+handoffs in the exported app. Gridex itself defaults these links to gridex.se.
+Those handoffs do not implement native signing or automatic contract switching.

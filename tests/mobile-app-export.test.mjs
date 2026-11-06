@@ -11,7 +11,7 @@ const fixture={brand:{id:'other-energy',displayName:'Other Energy',supportUrl:'h
 async function temporary(fn){const base=await mkdtemp(join(tmpdir(),'mobile-app-export-'));try{await fn(base);}finally{await rm(base,{recursive:true,force:true});}}
 test('whole native source exports with neutral branding and a verified source manifest',()=>temporary(async base=>{
  const target=await exportMobileApp(join(base,'app'));const manifest=JSON.parse(await readFile(join(target,'source-manifest.json'),'utf8'));
- assert.equal(manifest.backendIncluded,false);assert.equal(manifest.customerDataIncluded,false);
+ assert.equal(manifest.backendIncluded,true);assert.equal(manifest.backendKind,'provider-neutral-adapter');assert.equal(manifest.customerDataIncluded,false);
  assert.ok(manifest.files.some(f=>f.path==='apps/mobile/src/useCustomerAccount.ts'));
  assert.ok(manifest.files.some(f=>f.path==='apps/mobile/package-lock.json'));
  for(const entry of manifest.files){assert.ok(!/(^|\/)(node_modules|\.env[^/]*|dist[^/]*|\.git|supabase)(\/|$)/.test(entry.path));const bytes=await readFile(join(target,entry.path));assert.equal(createHash('sha256').update(bytes).digest('hex'),entry.sha256);}
@@ -36,4 +36,11 @@ test('export rejects repository destinations, including symlinked parents',()=>t
 test('invalid branding, secrets and application identifiers fail before creating output',()=>temporary(async base=>{
  for(const options of [{...fixture,applicationId:'../../escape'},{...fixture,scheme:'bad scheme'},{...fixture,serviceRole:'secret'},{...fixture,brand:{...fixture.brand,apiKey:'secret'}},{...fixture,brand:{...fixture.brand,supportUrl:'http://unsafe.test'}}])await assert.rejects(exportMobileApp(join(base,'invalid'),options));
  assert.deepEqual(await readdir(base),[]);
+}));
+test('export includes a runnable provider-neutral backend without OPS dependencies',()=>temporary(async base=>{
+ const target=await exportMobileApp(join(base,'independent'));
+ const {createDemoBackend}=await import(pathToFileURL(join(target,'packages/customer-backend/demo.mjs')).href);
+ const response=await createDemoBackend()(new Request('https://buyer.test/customer/v1/profile',{headers:{authorization:'Bearer demo-customer-one-token'}}));
+ assert.equal(response.status,200);assert.equal((await response.json()).data.profile[0].reference,'demo-one');
+ const pkg=JSON.parse(await readFile(join(target,'packages/customer-backend/package.json'),'utf8'));assert.equal(pkg.dependencies,undefined);
 }));

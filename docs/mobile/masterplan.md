@@ -443,3 +443,35 @@ produktionsaktivering eller kunddataöverföring har gjorts.
 Kvar: kvalificerad riktig Auth/OPS/enhet, signerade mobilbyggen, pris-/förbrukningsvyer,
 avtalsteckning/byte, fler kvalificerade sidindelningar och beständiga supportförsök.
 OPS:s tidigare dokumenterade manifestkonflikt kvarstår som releasegrind.
+
+### Fyra fortsatta delar – valfri backend, referensserver, avtalslänkar och Gridex-koppling
+
+1. Mobilen använder nu en gemensam validerad endpoint-byggare. API-origin ska vara
+   en ren HTTPS-origin; EXPO_PUBLIC_CUSTOMER_API_PATH kan bytas från Gridex-standard
+   /api/mobile/customer till exempelvis /customer/v1. Identitetsvärden accepterar
+   inte URL/path-injektion. Samma kundladdare är testad mot en backend utan OPS.
+2. Exporten inkluderar packages/customer-backend: en Request/Response-adapter utan
+   OPS- eller databas-SDK. En köpare implementerar tokenverifiering, kundbindning,
+   dataläsning och eventuell supportskrivning mot egna system. Adaptern validerar
+   identitet och input, projicerar publika fält och kontrollerar dokumentorigins.
+   Den körbara demonstrationen använder syntetiska data, är läsbar utan externa
+   paket och har ingen produktionsauth eller databas. Den ersätter inte köparens
+   produktionsintegration. Native-auth använder fortfarande Supabase-adaptern.
+3. Gridex-appen har nu konkreta webblänkar för Teckna nytt avtal, Visa befintliga
+   avtal och Få hjälp att byta avtal. Dessa skickar inga sessionstoken till webben.
+   Signering och eventuellt stödärende slutförs där. Detta är inte native
+   BankID-signering eller ett automatiskt avtalsbyte. Exporterad mall visar dessa
+   länkar endast med EXPO_PUBLIC_CONTRACT_WEB_ORIGIN konfigurerad.
+4. Gridex Vercel-konfiguration har granskats utan att exponera nyckelvärden.
+   Mobilaktivering saknades. GRIDEX_MOBILE_API_ENABLED=true har lagts till endast
+   för preview på codex/mobile-portability-20261106. Produktionsflaggan är inte
+   aktiverad. scripts/check-mobile-readiness.mjs kontrollerar API-skydd utan att
+   påstå att en riktig kund har verifierats. Skyddade preview-URL:er kräver även
+   Vercel-åtkomst och är inte färdiga publika mobil-API-adresser.
+
+Skarp OPS-kontroll 2026-11-06 misslyckas fortfarande: release/specifikation/guide
+är 2026-10-12.1 medan runtime_contract_version är 2026-10-09.1. Grinden behålls.
+Riktig kundinloggning, kundbindning och dokumentåtkomst i enheten samt signerade
+byggen återstår före produktionsbesked. Inga riktiga kundmutationer har körts.
+Tidigare text om att ingen backendkod alls följer med exporten ersätts av den
+neutrala referensadaptern ovan; automatisk backend-/databasmigrering återstår.
