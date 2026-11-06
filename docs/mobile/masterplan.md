@@ -475,3 +475,22 @@ Riktig kundinloggning, kundbindning och dokumentåtkomst i enheten samt signerad
 byggen återstår före produktionsbesked. Inga riktiga kundmutationer har körts.
 Tidigare text om att ingen backendkod alls följer med exporten ersätts av den
 neutrala referensadaptern ovan; automatisk backend-/databasmigrering återstår.
+
+### Aktuell verifiering och paketfix efter preview
+
+På commit880d196 är mobilens standalone-export, native-shell och
+portable-native-export gröna i GitHub CI. Vercel-preview byggde klart (READY),
+och API:t avvisade customerId-override med400 och private/no-store. Direktanrop
+utan Vercel-åtkomst ger302; den skyddade preview-adressen ska därför inte beskrivas
+som en färdig publik mobil-backend. Verifierad riktig kundsession saknas fortfarande.
+Lokalt passerar104 riktade tester samt Gridex och fristående Android/iOS-exporter.
+
+Bred CI hittade dessutom11 sårbarhetsrapporter i webbprojektets låsta paketträd.
+Next har uppdaterats från16.3.8 till16.4.5; fast-uri till3.1.9, estree-grenens
+minimatch till11.0.5 och zod till4.6.7. Ingen automatisk tvångsuppgradering eller
+nedgradering av Next har använts. Aktuell npm audit för rotprojektet rapporterar0.
+API-kontraktsregressioner, kundsupport och audit-hardening går grönt efter bytet.
+Mobilens separata låsfil berörs inte av dessa webbuppdateringar. OPS-manifestets
+blandade versioner är fortfarande en separat felande kontroll.
+Rotprojektets Next16.4.5-produktionsbygge och18 HTTP-kontroller av mobil-API:ts
+skydd gick också igenom efter paketuppdateringen, utan riktiga kunduppgifter.

@@ -141,3 +141,18 @@ successfully read profile through independent handler without OPS; real Gridex
 customer/device test not performed. Live API gate still fails mixed versions:
 release/spec/guide2026-10-12.1 vs runtime2026-10-09.1. Do not weaken it. Generic
 native template uses optional EXPO_PUBLIC_CONTRACT_WEB_ORIGIN (no web assumption).
+
+Verification follow-up: 104 local targeted tests pass; native-shell,
+standalone-export and portable-native-export passed GitHub CI at880d196.
+Vercel dpl_DzoJtSF5mWzH3xGmQdFtkoFHjrJF is READY. Authenticated Vercel fetch
+of contracts?customerId=foreign returned400 with private/no-store from mobile
+handler, confirming preview flag is active. Ordinary direct checks return302
+(protection), not public API ready. Tool's unauthenticated401 fetch was classified
+as auth wall; do not treat it as a verified customer check.
+Broad CI contract job fails mixed OPS manifest; verify job failed npm audit11.
+Applied root Next16.4.5, fast-uri^3.1.9, targeted estree/minimatch^11.0.5,
+zod^4.6.7; no force/downgrade. Root npm audit now0. Root typecheck/lint,
+api:contract, test:customer-support and test:audit-hardening pass after update.
+Root Next16.4.5 production build passed; built-server mobile guard checks18 passed
+without real credentials. Support webpack build compiled and typechecked. Root
+npm audit0 is specific to root lockfile, not a claim about all exported installations.
