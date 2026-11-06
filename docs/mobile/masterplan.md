@@ -572,3 +572,13 @@ binder resultatet till HEAD och anger om arbetskopian har ändringar. Riktig
 kundverifiering, signerad enhetsinstallation och produktionsaktivering markeras
 uttryckligen som ej verifierade; gröna syntetiska tester ersätter inte dessa.
 Standardrapporten skrivs till /tmp/gridex-mobile-verification.json.
+
+### Fyra listförbättringar
+
+Fakturalistan har lokal sökning på fakturanummer/referens och statusfilter.
+Supportlistan har sökning i rubrik/beskrivning/referens kombinerad med statusval.
+Avtalskort visar kanonisk referens och kontrollerat svenskt kalenderdatum utan
+att hitta på saknade avtalsvillkor. Listöversikten visar antal och statusfördelning
+för hämtade poster, uttryckligen inte totalen i OPS. Filter kan rensas; listans
+sökstate försvinner när kundvyn avmonteras vid utloggning. Ingen extra kunddata
+hämtas eller skickas till söktjänst. Förbättringarna följer med mallexporten.

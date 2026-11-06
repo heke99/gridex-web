@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
+import {CustomerList,ContractSummary} from './CustomerList';
 import { PhoneEditor } from './PhoneEditor';
 import { CustomerExtraPanel } from './CustomerExtraPanel';
 import { useCustomerAccount } from './useCustomerAccount';
@@ -44,16 +45,14 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: listResource === resource }} disabled={a.busy} onPress={() => void a.select(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: listResource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
       </View>
-      <Text style={{ color: t.muted }}>Visar {a.rows?.length ?? 0} poster · {labels[listResource]}</Text>
-      {a.rows?.length === 0 && <Text style={{ color: t.muted }}>Inga uppgifter finns att visa.</Text>}
-      {a.rows?.map(row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
+      {a.rows && <CustomerList key={a.resource} resource={listResource} rows={a.rows} theme={t}>{row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
         <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.title ?? row.reference)}</Text>
         {a.resource === 'profile' && <PhoneEditor key={row.reference} value={typeof row.phone==='string'?row.phone:null} theme={t} busy={a.busy} submit={a.updatePhone}/>}
         {a.resource === 'notifications' && row.status!=='read' && !row.readAt && <Pressable accessibilityRole="button" disabled={a.busy} onPress={()=>void a.markNotificationRead(row.reference)} style={button}><Text style={{color:t.accentText}}>Markera som läst</Text></Pressable>}
         {a.resource === 'support' && <>
           <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('supportDetail', row.reference)} style={button}><Text style={{ color: t.accentText }}>Öppna ärende och meddelanden</Text></Pressable>
         </>}
-        {a.resource === 'contracts' && <Text style={{ color: t.muted }}>Start: {row.startDate ?? 'Uppgift saknas'}</Text>}
+        {a.resource === 'contracts' && <ContractSummary row={row} theme={t}/>}
         {a.resource === 'sites' && <>
           <Text style={{ color: t.muted }}>{[row.postalCode, row.city].filter(Boolean).join(' ')}</Text>
           <Text style={{ color: t.muted }}>Anläggning: {row.facilityId ?? 'Uppgift saknas'}</Text>
@@ -66,7 +65,7 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
           {row.paidAt && <Text style={{ color: t.muted }}>Betald: {row.paidAt}</Text>}
         </>}
         {['profile','notifications','documents','powers','acceptances'].includes(a.resource) ? <CustomerExtraPanel resource={a.resource as Resource} row={row} theme={t} busy={a.busy} open={()=>void a.openDocument(null,row.reference,url=>Linking.openURL(url))} /> : <Text style={{ color: t.muted }}>Status: {row.status ?? 'Uppgift saknas'}</Text>}
-      </View>)}
+      </View>}</CustomerList>}
       {a.resource === 'support' && <SupportComposer theme={t} busy={a.busy} submit={(title, message) => a.submitSupport(title, message)} />}
       {a.support && a.support.status !== 'closed' && <SupportComposer key={a.support.reference} theme={t} busy={a.busy} reply submit={(title, message) => a.submitSupport(title, message, a.support!.reference)} />}
       {a.resource === 'support' && a.nextCursor && <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.loadMore()} style={button}><Text style={{ color: t.accentText }}>Visa fler ärenden</Text></Pressable>}
