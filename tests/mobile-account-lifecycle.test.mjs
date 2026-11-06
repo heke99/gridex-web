@@ -191,3 +191,26 @@ test('native customer loader operates against an independent backend without OPS
   await act(async()=>current.logout());assert.equal(current.rows,null);
  }finally{if(previous===undefined)delete process.env.EXPO_PUBLIC_CUSTOMER_API_PATH;else process.env.EXPO_PUBLIC_CUSTOMER_API_PATH=previous;await unmount();}
 });
+
+test('phone change retains its retry key until confirmed and logout invalidates pending changes',async()=>{
+ const unmount=await mount(true);session.user={id:'own-user'};const keys=[];let confirmed=false;
+ handler=async(url,options)=>{assert.ok(url.endsWith('/customer/profile'));assert.deepEqual(JSON.parse(options.body),{phone:'0701234567'});keys.push(options.headers['Idempotency-Key']);return confirmed?Response.json({data:{accepted:true}}):new Response('',{status:503});};
+ await act(async()=>{assert.equal(await current.updatePhone('0701234567'),false);});confirmed=true;
+ await act(async()=>{assert.equal(await current.updatePhone('0701234567'),true);});assert.equal(keys[0],keys[1]);
+ let resolve;handler=()=>new Promise(r=>resolve=r);let pending;
+ await act(async()=>{pending=current.updatePhone('0707654321');});await act(async()=>current.logout());
+ await act(async()=>{resolve(Response.json({data:{accepted:true}}));assert.equal(await pending,false);});assert.equal(current.rows,null);await unmount();
+});
+test('notification read changes its row only after a confirmed server timestamp',async()=>{
+ const unmount=await mount(true);session.user={id:'own-user'};const reference='notification-own';
+ handler=async()=>Response.json({data:{notifications:[{reference,title:'Title',message:'Message',severity:null,status:'unread',readAt:null,createdAt:null}]}});
+ await act(async()=>current.select('notifications'));
+ handler=async()=>Response.json({data:{accepted:true}});await act(async()=>{assert.equal(await current.markNotificationRead(reference),false);});assert.equal(current.rows[0].status,'unread');
+ handler=async()=>Response.json({data:{accepted:true,readAt:'2026-11-06T12:00:00Z'}});await act(async()=>{assert.equal(await current.markNotificationRead(reference),true);});assert.equal(current.rows[0].status,'read');assert.equal(current.rows[0].readAt,'2026-11-06T12:00:00Z');await unmount();
+});
+test('notification read keeps retry identity when success lacks a trustworthy timestamp',async()=>{
+ const unmount=await mount(true);session.user={id:'own-user'};const keys=[];let stamp=false;
+ handler=async(_url,options)=>{keys.push(options.headers['Idempotency-Key']);return Response.json({data:{accepted:true,...(stamp?{readAt:'2026-11-06T12:00:00Z'}:{})}});};
+ await act(async()=>{assert.equal(await current.markNotificationRead('notification-own'),false);});stamp=true;
+ await act(async()=>{assert.equal(await current.markNotificationRead('notification-own'),true);});assert.equal(keys[0],keys[1]);await unmount();
+});

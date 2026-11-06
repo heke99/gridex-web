@@ -122,3 +122,11 @@ date (Stockholm calendar date), sourceLabel, disclaimer and entries containing
 sekPerKwh/timeStart/timeEnd. Explicit timezone offsets are required. Values are
 spot prices; do not label them as an all-in customer tariff. No customer bearer
 is sent to a public market-data provider.
+
+Profile phone editing and notification read actions now use the authenticated
+write pipeline. UI success requires explicit server confirmation; notification
+rows require a valid returned readAt before changing local read state. Gridex's
+adapter verifies accepted/profile_updated for phone and reads back the notification
+under the same customer identity. Unknown outcomes retain the process-local retry
+key. No login-email change or new signing flow is introduced. The neutral backend
+adapter exposes equivalent optional provider writes without OPS.

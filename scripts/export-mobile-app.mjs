@@ -7,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const native = ['index.ts','tsconfig.json','metro.config.mjs','package.json','package-lock.json',
  'src/accountClient.ts','src/CustomerAccess.tsx','src/customerData.ts','src/CustomerDetailPanels.tsx',
  'src/CustomerExtraPanel.tsx','src/detailData.ts','src/EnergyAppShell.tsx','src/secureSessionStorage.ts',
- 'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPrices.ts','src/MarketPrices.tsx'];
+ 'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPrices.ts','src/MarketPrices.tsx','src/PhoneEditor.tsx'];
 const backend = ['package.json','handler.mjs','projection.mjs','demo.mjs','README.md'];
 const foundation = ['package.json','README.md','src/brand.mjs','src/brand.d.ts','src/ports.d.ts','src/customerDetails.ts'];
 const defaultBrand = {id:'energy-demo',displayName:'Energy Demo',supportUrl:'https://example.com/support',theme:{canvas:'#08090b',surface:'#0f1115',text:'#f4f6f7',muted:'#a7afb8',accent:'#35c9d7',accentText:'#041113'}};

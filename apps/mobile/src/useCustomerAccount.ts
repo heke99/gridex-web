@@ -141,37 +141,46 @@ export function useCustomerAccount(brand: string) {
       if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1);
     }
   };
-  const submitSupport = async (title: string, message: string, reference?: string) => {
-    if (!client || inFlight.current) return false;
+  const submitWrite = async (suffix: string, input: Record<string,string>) => {
+    if (!client || inFlight.current) return null;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
     try {
       const saved = await client.auth.getSession();
-      if (!saved.data.session || saved.error) throw new Error('login');
-      const signature = JSON.stringify([saved.data.session.user.id, reference ?? null, title, message]);
+      if (!saved.data.session || saved.error) {clear();await signOut();throw new Error('login');}
+      const signature = JSON.stringify([saved.data.session.user.id, suffix, input]);
       if (mutationAttempt.current?.signature !== signature) mutationAttempt.current = { signature, key: `support-${Date.now()}-${Math.random().toString(36).slice(2)}` };
-      const suffix = reference ? `support/${encodeURIComponent(reference)}/messages` : 'support';
       const response = await fetch(customerEndpoint(customerApi, suffix, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), { method: 'POST', signal: controller.signal,
         headers: { Authorization: `Bearer ${saved.data.session.access_token}`, 'Content-Type': 'application/json', 'Idempotency-Key': mutationAttempt.current.key },
-        body: JSON.stringify(reference ? { message } : { title, message }),
+        body: JSON.stringify(input),
       });
-      if (attempt !== generation.current) return false;
+      if (attempt !== generation.current) return null;
       if (response.status === 401) { clear(); await signOut(); throw new Error('login'); }
-      if (response.status === 409) { setError('Begäran behöver kontrolleras. Hämta ärendet igen innan du ändrar texten eller försöker på nytt.'); return false; }
-      if (response.status === 429) { setError('För många försök. Vänta en stund och försök igen med samma text.'); return false; }
+      if (response.status === 409) { setError('Begäran behöver kontrolleras. Hämta senaste uppgifterna igen innan du ändrar innehållet eller försöker på nytt.'); return null; }
+      if (response.status === 429) { setError('För många försök. Vänta en stund och försök igen med samma uppgifter.'); return null; }
       if (!response.ok) throw new Error('support');
-      const body = await response.json(); if (body?.data?.accepted !== true) throw new Error('response');
-      if (attempt !== generation.current) return false;
+      const body = await response.json(); if (body?.data?.accepted !== true || suffix==='notifications/read' && (typeof body.data.readAt!=='string'||!Number.isFinite(Date.parse(body.data.readAt)))) throw new Error('response');
+      if (attempt !== generation.current) return null;
       mutationAttempt.current = null;
-      return true;
-    } catch { if (attempt === generation.current) setError('Kunde inte bekräfta att meddelandet sparats. Försök igen med samma text för att undvika dubbletter.'); return false; }
+      return {payload:body.data as Record<string,unknown>,epoch:attempt};
+    } catch { if (attempt === generation.current) setError('Kunde inte bekräfta att ändringen sparats. Försök igen med samma innehåll för att undvika dubbletter.'); return null; }
     finally { clearTimeout(timeout); if (wantsLogout.current) await signOut(); inFlight.current = false; setBusy(false); if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1); }
+  };
+  const submitSupport = async (title:string,message:string,reference?:string) => {const result=await submitWrite(reference?`support/${encodeURIComponent(reference)}/messages`:'support',reference?{message}:{title,message});return Boolean(result&&result.epoch===generation.current);};
+  const updatePhone = async (phone:string) => {const result=await submitWrite('profile',{phone});return Boolean(result&&result.epoch===generation.current);};
+  const markNotificationRead = async (reference:string) => {
+    const result=await submitWrite('notifications/read',{reference});
+    if(!result||result.epoch!==generation.current)return false;
+    const data=result.payload;
+    if(typeof data.readAt!=='string'||!Number.isFinite(Date.parse(data.readAt))){setError('Lässtatusen kunde inte bekräftas. Hämta meddelandena igen.');return false;}
+    setRows(previous=>previous?.map(row=>row.reference===reference?{...row,status:'read',readAt:data.readAt as string}:row)??null);
+    return true;
   };
   const logout = () => {
     needsRestore.current = false; wantsLogout.current = true;
     generation.current++; pending.current?.abort(); clear(); setError('');
     if (!inFlight.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
   };
-  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, nextCursor, loadMore, logout };
+  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout };
 }

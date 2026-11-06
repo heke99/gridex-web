@@ -58,3 +58,10 @@ test('provider ownership denial and idempotency conflicts retain safe HTTP statu
  const handle=createCustomerBackend({authenticate:async()=>identity,provider:{read:async()=>{throw new CustomerBackendError(status);}}});
  for(status of [403,404,409,429]){const response=await handle(request('support/foreign'));assert.equal(response.status,status);assert.ok(!(await response.text()).includes('foreign'));}
 });
+test('buyer backend supports phone and notification writes without OPS',async()=>{
+ const calls=[];const handle=createCustomerBackend({authenticate:async()=>identity,provider:{read:async()=>({items:[]}),write:async(binding,operation)=>{calls.push({binding,operation});return {accepted:true,readAt:'2026-11-06T12:00:00Z'};}}});
+ const options=body=>({method:'POST',headers:{'content-type':'application/json','idempotency-key':'account-attempt-123'},body:JSON.stringify(body)});
+ assert.equal((await handle(request('profile',options({phone:'0701234567'})))).status,200);assert.equal(calls[0].operation.kind,'phone');assert.deepEqual(calls[0].binding,identity);
+ const response=await handle(request('notifications/read',options({reference:'own-notification'})));assert.equal(response.status,200);assert.equal((await response.json()).data.readAt,'2026-11-06T12:00:00Z');assert.equal(calls[1].operation.reference,'own-notification');
+ assert.equal((await handle(request('profile',options({phone:'0701234567',role:'admin'})))).status,400);
+});

@@ -92,3 +92,9 @@ explicit UTC/offset. Intervals must not overlap and must belong to the requested
 Stockholm day. Displayed average is weighted by published interval duration;
 missing values are not synthesized. This provider receives no customer token and
 can be the buyer's own market-data service without OPS.
+
+Customer account also supports updating the contact phone and marking notifications
+read. The neutral provider can implement those operations without OPS; native
+success depends on an explicit accepted response and, for read state, a confirmed
+readAt timestamp. Login email/roles are not editable through this flow. The included
+demo stays read-only. Process-local retry identities do not survive app restarts.

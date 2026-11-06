@@ -530,3 +530,35 @@ men någon kund var inte inloggad. Det kräver kontoinnehavarens säkra inloggni
 Produktionsaktivering, publik mobil-API-adress och signerade enhetsbyggen är fortfarande
 separata återstående steg; native förbrukning och native signering/avtalsbyte är inte
 färdiga i detta paket. Tidigare manifestkonflikt är däremot inte längre en blockerare.
+
+### Telefonändring och lässtatus i kundappen
+
+Profilvyn kan nu spara kundens telefonnummer. POST profile accepterar enbart
+telefonfältet, verifierar Auth-subject/RLS-bindning och använder befintlig OPS-write.
+Native-success kräver status accepted och profile_updated=true från det kanoniska
+svaret. Inloggningsadress, roller och kund-/tenantidentitet kan inte ändras här.
+Ingen direkt SQL-skrivning, e-post eller ny databas används.
+
+Notiser kan markeras som lästa. Servern tar en kanonisk notisreferens, använder
+behörig kundidentitet och kontrollerar därefter kundens egna notiser igen. Bara en
+entydig match med status read och ett giltigt read_at ger bekräftelse till appen.
+Den lokala raden uppdateras först efter den bekräftelsen. Saknat läskvitto eller
+osäker transport behåller försöksnyckeln; sena svar efter utloggning/bakgrund får
+inte återställa privata uppgifter. Telefonnummer behålls i formuläret vid fel och
+visas som sparat först efter bekräftelse. Generiska konflikt-/försöksgränssvar visas.
+Försöksidentiteten är fortfarande processlokal, inte beständig över appomstarter.
+
+Den OPS-fria backendadaptern stöder samma phone och notificationRead-operationer
+via köparens provider.write. För lässtatus krävs ett serverbekräftat readAt. Den
+syntetiska demon är fortsatt läsbar utan externa paket och kan inte skriva data.
+För köparens produktion krävs egna lagrings-, ägarskaps- och idempotensregler.
+
+Användaren har inget Gridex-kundkonto ännu. Det blockerar inte fortsatt bygge eller
+syntetisk verifiering. Inloggningsförfrågan avböjdes och kommer inte upprepas utan
+nytt önskemål. Inget riktigt konto har skapats och ingen kundmutation har gjorts.
+Det här är Gridex El-kundappen; OPS operatörsapp är ett separat arbete.
+Lokalt verifierat:127 unika riktade tester, typkontroller, lint och webbbygge samt
+Gridex Android/iOS-paketering. Sex HTTP-kontroller mot byggda POST-vägar gick också
+grönt. Tester använder syntetisk identitet och provider; detta är inget påstående
+om ändringar i en riktig kundprofil. Riktigt kundkonto behövs först för senare
+skarp kundverifiering, inte för att fortsätta kodarbetet.

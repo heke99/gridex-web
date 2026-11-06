@@ -18,13 +18,14 @@ export function createCustomerBackend({authenticate,provider,prefix='/customer/v
   const [resource,reference,third,fourth]=parts;
   let key;
   if(parts.length===1&&lists.has(resource))key=resource;
+  else if(parts.length===2&&resource==='notifications'&&reference==='read')key='notificationRead';
   else if(parts.length===2&&ref.test(reference)&&['invoices','support'].includes(resource))key=resource==='invoices'?'invoiceDetail':'supportDetail';
   else if(parts.length===3&&resource==='documents'&&ref.test(reference)&&third==='open')key='customerDocument';
   else if(parts.length===4&&resource==='invoices'&&ref.test(reference)&&third==='documents'&&ref.test(fourth))key='invoiceDocument';
   else if(parts.length===3&&resource==='support'&&ref.test(reference)&&third==='messages')key='reply';
   else return reply(404,{error:'Not found'});
-  const write=request.method==='POST'&&(key==='support'||key==='reply');
-  if(request.method!=='GET'&&!write||request.method==='GET'&&key==='reply')return reply(405,{error:'Method not allowed'});
+  const write=request.method==='POST'&&(key==='support'||key==='reply'||key==='profile'||key==='notificationRead');
+  if(request.method!=='GET'&&!write||request.method==='GET'&&['reply','notificationRead'].includes(key))return reply(405,{error:'Method not allowed'});
   const query=url.searchParams;
   if([...query.keys()].some(k=>k!=='cursor'||key!=='support'||write)||query.getAll('cursor').length>1||(query.has('cursor')&&(!query.get('cursor')||query.get('cursor').length>2048)))return reply(400,{error:'Invalid query'});
   const token=/^Bearer ([A-Za-z0-9._~-]{16,8192})$/.exec(request.headers.get('authorization')??'')?.[1];
@@ -43,12 +44,14 @@ export function createCustomerBackend({authenticate,provider,prefix='/customer/v
     let size=0;const chunks=[];try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await reader.cancel();return reply(413,{error:'Body too large'});}chunks.push(value);}}finally{reader.releaseLock();}
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
     let body;try{body=JSON.parse(new TextDecoder().decode(bytes));}catch{return reply(400,{error:'Invalid JSON'});}
-    const allowed=key==='reply'?['message']:['title','message'];
+    const allowed=key==='profile'?['phone']:key==='notificationRead'?['reference']:key==='reply'?['message']:['title','message'];
     if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!allowed.includes(k))||allowed.some(k=>typeof body[k]!=='string'||!body[k].trim()||body[k].length>(k==='title'?200:8000)))return reply(400,{error:'Invalid message'});
+    if(key==='profile'&&(!/^[+0-9() -]{7,40}$/.test(body.phone)||body.phone.replace(/\D/g,'').length<7||body.phone.replace(/\D/g,'').length>15)||key==='notificationRead'&&!ref.test(body.reference))return reply(400,{error:'Invalid account change'});
     const input=Object.fromEntries(allowed.map(k=>[k,body[k]]));
-    const result=await provider.write(binding,{kind:key,reference,input,idempotencyKey:keyHeader});
+    const result=await provider.write(binding,{kind:key==='profile'?'phone':key,reference:key==='notificationRead'?body.reference:reference,input,idempotencyKey:keyHeader});
     if(result?.accepted!==true)throw new Error('Unconfirmed write');
-    return reply(201,{data:{accepted:true}});
+    if(key==='notificationRead'&&(typeof result.readAt!=='string'||!Number.isFinite(Date.parse(result.readAt))))throw new Error('Read time required');
+    return reply(key==='profile'||key==='notificationRead'?200:201,{data:{accepted:true,...(key==='notificationRead'?{readAt:result.readAt}:{})}});
    }
    const result=await provider.read(binding,{kind:key,reference,documentReference:fourth,cursor:query.get('cursor')??undefined});
    if(!result||!Array.isArray(result.items))throw new Error('Invalid provider output');

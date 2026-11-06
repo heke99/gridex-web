@@ -51,3 +51,16 @@ and configure the handler under that prefix. Reference code validates requests,
 projects public fields and document origins; production auth, durable storage,
 provider ownership checks, rate limits and deployment are installation-specific.
 The included demo has synthetic fixed tokens and no write implementation.
+
+## Customer account writes
+
+POST profile accepts only {phone:string}; it does not change login email or roles.
+Require a confirmed customer change before responding {data:{accepted:true}}.
+POST notifications/read accepts only {reference:string}. Resolve ownership in the
+verified tenant/customer scope and respond {data:{accepted:true,readAt:ISO8601}}
+only after the canonical record is confirmed read. Missing/invalid readAt is not
+native success and preserves retry identity. Both routes require JSON, a bearer
+and Idempotency-Key and prohibit query identities/unexpected fields. Gridex adds
+canonical public-reference validation and a read-after-write ownership check.
+The provider-neutral adapter delegates writes as kind phone / notificationRead;
+its provider must implement the same confirmation and durable idempotency rules.

@@ -42,3 +42,9 @@ an uncertain transport failure from a conflict. Other errors become a generic503
 The handler projects canonical public fields and rejects explicit internal message
 visibility, but the data provider must exclude all private messages and enforce
 ownership before returning any record.
+
+Optional account writes: POST profile {phone} delegates kind phone. POST
+notifications/read {reference} delegates kind notificationRead with the target
+reference. Only return accepted:true after canonical commit/confirmation, and for
+notificationRead return a valid server readAt timestamp as well. Ownership must
+be resolved within binding. The synthetic demo intentionally supplies no writes.

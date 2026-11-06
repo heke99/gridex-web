@@ -111,3 +111,20 @@ test('general document opening rechecks ownership and approved origins', async (
  assert.equal((await get(request('mobile-session-two-123456'),ctx)).status,503);
  documentUrl='https://evil.test/a'; assert.equal((await get(request(),ctx)).status,503);
 });
+
+test('actual mobile phone update uses verified profile and requires accepted OPS completion',async()=>{
+ const post=(await import('../app/api/mobile/customer/profile/route.ts')).POST;
+ let status='accepted';globalThis.__mobileReadFixture.profileUpdate=async input=>{assert.equal(input.identity.userId,'customer-one');assert.deepEqual(input.profile,{phone:'0701234567'});assert.equal(input.idempotencyKey,'phone-update-123');return {status,data:{profile_updated:true}};};
+ const req=()=>new Request('https://tenant.test/profile',{method:'POST',headers:{authorization:'Bearer mobile-session-one-123456','content-type':'application/json','idempotency-key':'phone-update-123'},body:JSON.stringify({phone:'0701234567'})});
+ assert.equal((await post(req())).status,200);status='submitted';assert.equal((await post(req())).status,503);
+});
+test('actual notification read verifies ownership and read-back before native success',async()=>{
+ const post=(await import('../app/api/mobile/customer/notifications/read/route.ts')).POST;const reference=`notification_${'a'.repeat(24)}`;let confirmed=true;
+ globalThis.__mobileReadFixture.readNotification=async(identity,input)=>{if(identity.userId!=='customer-one')throw Object.assign(Error('foreign'),{status:404});assert.deepEqual(input.notificationIds,[reference]);};
+ const previous=globalThis.__mobileReadFixture.resource;
+ globalThis.__mobileReadFixture.resource=async(identity,resource)=>{assert.equal(identity.userId,'customer-one');assert.equal(resource,'notifications');return {data:[{notification_reference:reference,status:confirmed?'read':'unread',read_at:confirmed?'2026-11-06T12:00:00Z':null}]};};
+ try{const req=(token='mobile-session-one-123456')=>new Request('https://tenant.test/notifications/read',{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json','idempotency-key':'notification-read-123'},body:JSON.stringify({reference})});
+ const response=await post(req());assert.equal(response.status,200);assert.equal((await response.json()).data.readAt,'2026-11-06T12:00:00Z');
+ confirmed=false;assert.equal((await post(req())).status,503);assert.equal((await post(req('mobile-session-two-123456'))).status,404);
+ }finally{globalThis.__mobileReadFixture.resource=previous;}
+});

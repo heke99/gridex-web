@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
+import { PhoneEditor } from './PhoneEditor';
 import { CustomerExtraPanel } from './CustomerExtraPanel';
 import { useCustomerAccount } from './useCustomerAccount';
 import { customerApi } from './accountClient';
@@ -47,6 +48,8 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
       {a.rows?.length === 0 && <Text style={{ color: t.muted }}>Inga uppgifter finns att visa.</Text>}
       {a.rows?.map(row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
         <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.title ?? row.reference)}</Text>
+        {a.resource === 'profile' && <PhoneEditor key={row.reference} value={typeof row.phone==='string'?row.phone:null} theme={t} busy={a.busy} submit={a.updatePhone}/>}
+        {a.resource === 'notifications' && row.status!=='read' && !row.readAt && <Pressable accessibilityRole="button" disabled={a.busy} onPress={()=>void a.markNotificationRead(row.reference)} style={button}><Text style={{color:t.accentText}}>Markera som läst</Text></Pressable>}
         {a.resource === 'support' && <>
           <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('supportDetail', row.reference)} style={button}><Text style={{ color: t.accentText }}>Öppna ärende och meddelanden</Text></Pressable>
         </>}
