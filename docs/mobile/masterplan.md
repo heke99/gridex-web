@@ -622,3 +622,17 @@ webbläsar-, isolerings- och mallexportkontroller är gröna på samma applikati
 Förbrukningsvyn/mallkontraktet är byggda, men Gridex verkliga förbrukning är spärrad
 tills OPS levererar rätt leveransgränser. Riktig kundinloggning/återläsning är ännu
 inte verifierad. Hela paket1–2 ska därför inte beskrivas som fullt färdigt.
+
+### Fortsättning: riktig förbrukningsadapter och oberoende granskning
+
+Den tidigare ovillkorliga förbrukningsspärren ersätts av en riktig kundbunden
+OPS-adapter med kontroll av auktoritativa leveransfönster, mätarserier, revisioner,
+paginering och deadline. Gamla/ofullständiga OPS-svar stoppas fortfarande före
+mätvärdeshämtning. Ingen personlig kunddata eller ny databas används i testerna.
+
+Två oberoende granskare hittade och följde upp korrigerad flermätarhantering och
+en ytterligare faktisk OPS-blockerare: publicerad OpenAPI saknar query-parametrar
+för period/paginering, trots motsvarande serverimplementation. Konsumenten kringgår
+inte valideraren. OPS måste publicera både rättighetsmetadata och query-kontraktet,
+och Web måste synka det. Se `ops-consumption-required-contract.md` och
+`release-consumption-adapter.md`. Full live-förbrukning är därför ännu inte godkänd.

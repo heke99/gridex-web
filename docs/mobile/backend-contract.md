@@ -97,3 +97,12 @@ Gridex currently returns503 for authenticated consumption requests without
 fetching raw meter values. The reviewed OPS route does not enforce delivery
 windows, and its public DTO has no authoritative facility delivery rights. This
 is an explicit integration blocker, not a completed live consumption feature.
+
+### Multiple meter series
+
+Consumption items and delivery windows may carry an optional public opaque
+`series` reference. If present, a reading must be wholly within a delivery window
+with the SAME series. Separate meter series may overlap in time and contribute to
+the facility total; overlapping current readings within one series remain an
+error. Omit `series` on both windows and readings for a pre-aggregated single
+series. Native parsing validates the same per-series overlap rule.

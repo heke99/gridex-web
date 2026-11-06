@@ -31,3 +31,9 @@ test('consumption periods use Stockholm calendar boundaries over spring and autu
  const autumn=consumptionPeriod(7,new Date('2026-10-25T12:00:00Z'));assert.equal(Date.parse(autumn.to)-Date.parse(autumn.from),(7*24+1)*3600000);
  assert.equal(consumptionPeriod(7,new Date('2026-11-06T23:30:00Z')).to,'2026-11-07T23:00:00.000Z');
 });
+test('native allows simultaneous independent meters but rejects overlap within one meter',()=>{
+ const s={facility:'one',from:'2026-11-01T00:00:00.000Z',to:'2026-11-08T00:00:00.000Z'};
+ const body=result(s);const first=body.data.consumption.items[0];body.data.consumption.items=[{...first,series:'meter_one'},{...first,reference:'second',series:'meter_two'}];body.data.consumption.totalKwh=6;
+ assert.equal(parseConsumption(body,s).totalKwh,6);
+ body.data.consumption.items[1].series='meter_one';assert.throws(()=>parseConsumption(body,s));
+});
