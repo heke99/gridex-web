@@ -36,7 +36,7 @@ export function useCustomerAccount(brand: string) {
   }, [client]);
 
   const run = useCallback(async (next: CustomerView, sessionAction: () => Promise<string | null>, reference?: string, cursor?: string) => {
-    if (!client || inFlight.current) return;
+    if (!client || inFlight.current || AppState.currentState !== 'active') return;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     setBusy(true); setError(''); if (!cursor) clearDetails(); selected.current = { view: next, reference }; setResource(next);
@@ -119,13 +119,14 @@ export function useCustomerAccount(brand: string) {
   const loadMore = () => nextCursor ? select('support', undefined, nextCursor) : Promise.resolve();
   const retry = () => select(selected.current.view, selected.current.reference);
   const openDocument = async (invoiceRef: string | null, documentRef: string, open: (url: string) => Promise<unknown>) => {
-    if (!client || inFlight.current) return;
+    if (!client || inFlight.current || AppState.currentState !== 'active') return;
     if (![...(invoiceRef ? [invoiceRef] : []), documentRef].every(ref => /^[A-Za-z0-9_-]{1,240}$/.test(ref))) { setError('Ogiltig dokumentreferens.'); return; }
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
     try {
       const saved = await client.auth.getSession();
+      if (attempt !== generation.current || controller.signal.aborted || AppState.currentState !== 'active') return;
       if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('expired'); }
       const response = await fetch(customerEndpoint(customerApi, invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
         headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
@@ -142,12 +143,13 @@ export function useCustomerAccount(brand: string) {
     }
   };
   const submitWrite = async (suffix: string, input: Record<string,string>) => {
-    if (!client || inFlight.current) return null;
+    if (!client || inFlight.current || AppState.currentState !== 'active') return null;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
     try {
       const saved = await client.auth.getSession();
+      if (attempt !== generation.current || controller.signal.aborted || AppState.currentState !== 'active') return null;
       if (!saved.data.session || saved.error) {clear();await signOut();throw new Error('login');}
       const signature = JSON.stringify([saved.data.session.user.id, suffix, input]);
       if (mutationAttempt.current?.signature !== signature) mutationAttempt.current = { signature, key: `support-${Date.now()}-${Math.random().toString(36).slice(2)}` };
