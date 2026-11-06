@@ -1,84 +1,76 @@
 # Gridex customer mobile app
 
-The mobile app lives in the same repository as the website and support app.
-The portable foundation is in `packages/mobile-foundation`; public Gridex
-presentation is in `brands/gridex.mjs`. The Expo native shell now provides five navigation tabs and a brand-driven layout.
-Authentication adapters and OPS-backed customer flows are not implemented yet.
+The native app lives in gridex-web alongside the existing website/support app.
+Public branding is separate from portable types/layout and provider adapters.
+Gridex reuses its existing Supabase project/accounts; canonical energy records
+remain in OPS, reached only through the tenant backend. No second mobile
+production database or customer copy is created.
 
-Install with `npm ci --workspaces=false` in apps/mobile, then run `npm start`
-or `npm run typecheck`. Dependencies are isolated from the website to avoid
-React-version conflicts. Test builds have OTA updates disabled.
+## Local development
 
-## Data boundaries
+In apps/mobile run `npm ci --workspaces=false`, `npm run typecheck` and
+`npm start`. Native dependencies are isolated from the website's React version.
+A native development build is needed to exercise SecureStore on a real device;
+Hermes exports alone are not installable signed apps. OTA updates are disabled.
 
-- Reuse the **existing Gridex Web Supabase project and accounts**. Do not create
-  a separate mobile production database or duplicate customers.
-- Read canonical contracts, facilities, metering, invoices and support via OPS.
-  Do not connect the phone directly to the OPS database.
-- Database/identity SDK imports belong in explicit adapters. Portable UI and
-  contracts must not import the website's `lib/` or Supabase implementation.
-- Future app-owned SQL belongs in a documented logical boundary in the existing
-  database. Use normal reviewed migrations and explicit tenant/user ownership.
-  Avoid public-schema/FK changes merely to create this foundation.
-- A buyer receives code, source assets, adapter contracts and app-owned schema
-  migrations. Credentials, Auth signing keys, Gridex users, operational data,
-  payment records and provider accounts are not part of a template export.
-- A new installation configures its own Auth, storage and OPS tenant/gateway.
-  Moving Gridex itself to a different installation is a separate migration with
-  account mapping, tenant-scoped data validation and a tested cutover.
+Public build configuration:
+
+- EXPO_PUBLIC_SUPABASE_URL: the existing Gridex tenant Auth project.
+- EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable/anon key only.
+- EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS tenant backend origin.
+
+Never embed OPS credentials, service-role keys, secrets or customer data. The
+adapter rejects secret/service-role keys and shares one SDK instance per brand.
+
+## Current customer features
+
+- Login, SecureStore-backed sessions, foreground refresh and background privacy.
+  Storage uses Unicode-safe chunks, a generation manifest and serialized writes;
+  there is no plaintext fallback. Stored sessions alone never authorize reads.
+- Password recovery handoff to the existing tenant website's verified flow.
+- Independent contracts, sites and invoice lists, with explicit missing values.
+- Invoice details, period/dates and line items from the actual OPS
+  data.invoice/data.lines/data.documents envelope. No mobile recalculation of
+  authoritative totals; credits and zero amounts are retained.
+- Invoice document opening: every click rechecks Auth and rereads that customer's
+  invoice. Only a document attached to that invoice can yield an existing approved
+  HTTPS provider link. The app opens it externally without forwarding the API
+  bearer token. Logout/background invalidates pending external navigation.
+- Read-only customer support list, case detail and public messages. Staff identity
+  and internal notes are not forwarded. Writing is available through a handoff to
+  the existing customer support web page.
+
+Retry and foreground restore preserve the selected invoice/case. Resource
+failures are independent, so unavailable invoices do not block site/support views.
+
+## Server configuration and safety
+
+All mobile routes default to disabled. `GRIDEX_MOBILE_API_ENABLED=true` is for a
+qualified test environment first. They verify the bearer with the existing Auth,
+read only the subject-filtered user-RLS profile, and call the canonical OPS
+customer API with that verified identity. No cookie fallback or client-provided
+customer-number override is accepted. Responses are private/no-store.
+
+For document opening set `GRIDEX_MOBILE_DOCUMENT_ORIGINS` server-side to a
+comma-separated list of explicitly approved HTTPS origins. The default is empty,
+so links remain unavailable. Origin entries must have no path, query, fragment or
+credentials. Verify the provider's real link access/expiry behavior in staging.
+The backend does not fetch or proxy arbitrary URLs and never appends API tokens.
+
+## Remaining qualification and functionality
+
+Successful live Auth/OPS customer reads, actual device/keychain behavior, signed
+builds and the external document/recovery handoffs still require verification.
+The published OPS version mismatch remains a release blocker; no gate is relaxed.
+Lists/messages are the bounded API result and do not prove complete history.
+Full pagination, native support writes/attachments, in-app PDF rendering, price
+series, consumption summaries and contractual changes remain later work.
 
 ## Extraction proof
 
 Run `node scripts/export-mobile-foundation.mjs /absolute/new/directory` from the
-repository root. Run `npm test` inside the output directory. The exporter copies
-an explicit allowlist and refuses existing destinations, source symlinks and
-destinations inside the source repo. It does not export a full app yet.
-
-The next increment is the Expo runtime/native shell, followed by the Supabase
-identity adapter and a verified OPS-backed customer overview. All later portable
-packages and app assets must be added to the reviewed export manifest and tested
-from a clean directory, without importing this repository's web application.
-
-
-## Customer login and contracts
-
-The app now includes a password login form and a read-only contracts view.
-Configure public build values (same project as Gridex Web):
-
-- EXPO_PUBLIC_SUPABASE_URL: existing tenant Auth project URL.
-- EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public publishable/anon key only.
-- EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS origin of this app's tenant backend.
-
-Never add OPS API keys or service-role/secret keys to the mobile build. Sessions are stored in Expo SecureStore with bounded Unicode-safe chunks and
-a generation manifest. No plaintext fallback is used. On restart and foreground
-return, refresh/verification precedes customer data display. Logout clears the
-saved session. Real-device keychain and provider behavior still require testing.
-
-The server GET /api/mobile/customer/contracts verifies the bearer token through
-Auth and reads only the verified subject's RLS-scoped customer profile before
-calling OPS. The route defaults to disabled. Enable GRIDEX_MOBILE_API_ENABLED
-only in the qualified test environment first. No identity or customer-id query
-parameters are accepted. No cookie fallback is used on this route.
-
-Code verification does not establish live provider binding, physical-device
-behavior or production readiness. Native builds must be configured explicitly;
-missing configuration shows an unavailable message without fake customer data.
-
-
-## Four-part customer increment
-
-1. Persistent SecureStore sessions and foreground revalidation; background hides
-   customer data, refresh failure does not reveal cached rows, logout invalidates
-   late requests. Native secure storage needs a fresh native development build.
-2. Password recovery handoff opens the configured tenant website's existing
-   /login/forgot-password flow; no tokens, password or email are put in the URL.
-3. Customer sites: RLS/OPS-bound API and native list of address, installation and
-   price area, with explicit missing-data labels.
-4. Customer invoices: same verified identity boundary, native amount/currency,
-   status and due-date list. Zero/credit amounts are preserved; unknown amounts
-   are not shown as zero. Full pagination and PDF detail remain later work.
-
-All three resources can be retried independently. Lists are the bounded result
-from the current OPS contract, not a proof of complete account history. API stays
-disabled pending environment qualification. Keychain behavior, email recovery
-handoff and successful Auth/OPS operations have not been verified on devices.
+repo root, then `npm test` in the output. Only reviewed source/types are copied,
+not .env files, provider keys, Gridex branding or customer data. This proves the
+portable foundation only; complete app extraction remains to be demonstrated.
+A buyer needs its own Auth/storage and OPS tenant or compatible adapter. App-owned
+schema migrations will be versioned when needed in the same existing database.

@@ -1,9 +1,10 @@
-export type Resource = 'contracts' | 'sites' | 'invoices';
+export type Resource = 'contracts' | 'sites' | 'invoices' | 'support';
 export type CustomerRow = { reference: string; [key: string]: string | number | null };
 const fields: Record<Resource, string[]> = {
   contracts: ['name', 'status', 'startDate'],
   sites: ['address', 'postalCode', 'city', 'facilityId', 'priceArea', 'status'],
   invoices: ['number', 'status', 'currency', 'dueDate', 'paidAt'],
+  support: ['title', 'description', 'status', 'createdAt', 'updatedAt'],
 };
 export function parseCustomerRows(resource: Resource, body: unknown): CustomerRow[] {
   const rows = (body as { data?: Record<string, unknown> })?.data?.[resource];

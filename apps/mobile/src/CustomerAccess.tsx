@@ -3,14 +3,20 @@ import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 're
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
 import { useCustomerAccount } from './useCustomerAccount';
 import { customerApi } from './accountClient';
+import { InvoicePanel, SupportPanel } from './CustomerDetailPanels';
 import { recoveryUrl, type Resource } from './customerData';
 
-const labels: Record<Resource, string> = { contracts: 'Avtal', sites: 'Anläggningar', invoices: 'Fakturor' };
+const labels: Record<Resource, string> = { contracts: 'Avtal', sites: 'Anläggningar', invoices: 'Fakturor', support: 'Support' };
 export function CustomerAccess({ brand }: { brand: MobileBrand }) {
   const a = useCustomerAccount(brand.id);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [linkError, setLinkError] = useState('');
+  const openSupportWeb = async () => {
+    try { await Linking.openURL(new URL('/dashboard/support', customerApi).href); }
+    catch { setLinkError('Kunde inte öppna Mina sidor på webben.'); }
+  };
   const t = brand.theme;
+  const listResource = a.resource === 'invoiceDetail' ? 'invoices' : a.resource === 'supportDetail' ? 'support' : a.resource;
   const button = { minHeight: 48, padding: 14, borderRadius: 12, backgroundColor: t.accent };
   const input = { color: t.text, padding: 14, borderWidth: 1, borderColor: t.muted, borderRadius: 12 };
   if (!a.configured) return <Text style={{ color: t.muted }}>Kundanslutningen är inte konfigurerad i detta testbygge.</Text>;
@@ -33,12 +39,15 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
     </> : <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Mina sidor</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: a.resource === resource }} disabled={a.busy} onPress={() => void a.select(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: a.resource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
+        {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: listResource === resource }} disabled={a.busy} onPress={() => void a.select(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: listResource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
       </View>
-      <Text style={{ color: t.muted }}>Hämtade {labels[a.resource].toLowerCase()}. Listan visar de uppgifter som API:t har lämnat.</Text>
+      <Text style={{ color: t.muted }}>Senast hämtade {labels[listResource].toLowerCase()}.</Text>
       {a.rows?.length === 0 && <Text style={{ color: t.muted }}>Inga uppgifter finns att visa.</Text>}
       {a.rows?.map(row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
-        <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.reference)}</Text>
+        <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.title ?? row.reference)}</Text>
+        {a.resource === 'support' && <>
+          <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('supportDetail', row.reference)} style={button}><Text style={{ color: t.accentText }}>Öppna ärende och meddelanden</Text></Pressable>
+        </>}
         {a.resource === 'contracts' && <Text style={{ color: t.muted }}>Start: {row.startDate ?? 'Uppgift saknas'}</Text>}
         {a.resource === 'sites' && <>
           <Text style={{ color: t.muted }}>{[row.postalCode, row.city].filter(Boolean).join(' ')}</Text>
@@ -46,14 +55,16 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
           <Text style={{ color: t.muted }}>Elområde: {row.priceArea ?? 'Uppgift saknas'}</Text>
         </>}
         {a.resource === 'invoices' && <>
-          <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('invoices', row.reference)} style={button}><Text style={{ color: t.accentText }}>Hämta aktuell faktura</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('invoiceDetail', row.reference)} style={button}><Text style={{ color: t.accentText }}>Visa fakturadetaljer</Text></Pressable>
           <Text style={{ color: t.text }}>{row.amount === null ? 'Belopp saknas' : `${row.amount} ${row.currency ?? '(valuta saknas)'}`}</Text>
           <Text style={{ color: t.muted }}>Förfallodag: {row.dueDate ?? 'Uppgift saknas'}</Text>
           {row.paidAt && <Text style={{ color: t.muted }}>Betald: {row.paidAt}</Text>}
         </>}
         <Text style={{ color: t.muted }}>Status: {row.status ?? 'Uppgift saknas'}</Text>
       </View>)}
-      <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select(a.resource)} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>Hämta igen</Text></Pressable>
+      {a.invoice && <InvoicePanel invoice={a.invoice} theme={t} busy={a.busy} back={() => void a.select('invoices')} openDocument={reference => void a.openDocument(a.invoice!.reference, reference, url => Linking.openURL(url))} />}
+      {a.support && <SupportPanel detail={a.support} theme={t} busy={a.busy} back={() => void a.select('support')} openWeb={() => void openSupportWeb()} />}
+      <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.retry()} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>Hämta igen</Text></Pressable>
     </>}
     {a.busy && <ActivityIndicator accessibilityLabel="Hämtar kunduppgifter" color={t.accent} />}
     {(a.error || linkError) !== '' && <Text accessibilityRole="alert" style={{ color: t.text }}>{a.error || linkError}</Text>}

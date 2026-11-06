@@ -8,7 +8,7 @@ const headers = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options'
 const reply = (status: number, body: unknown) => Response.json(body, { status, headers });
 
 /** No customer identifiers are accepted from the device, including query strings. */
-export function createContractsHandler(deps: Dependencies, resource: 'contracts' | 'sites' | 'invoices' = 'contracts') {
+export function createContractsHandler(deps: Dependencies, resource: 'contracts' | 'sites' | 'invoices' | 'invoiceDetail' | 'invoiceDocument' | 'support' | 'supportDetail' = 'contracts') {
   return async (request: Request): Promise<Response> => {
     if (!deps.enabled()) return reply(404, { error: 'Mobilanslutningen är inte aktiverad.' });
     if (new URL(request.url).search) return reply(400, { error: 'Otillåtna parametrar.' });

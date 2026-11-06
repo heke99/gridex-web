@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { createAccountClient, customerApi } from './accountClient';
-import { parseCustomerRows, type CustomerRow, type Resource } from './customerData';
+import { parseCustomerRows, type CustomerRow } from './customerData';
+import { customerViewPath, parseInvoiceDetail, parseSupportDetail, parseDocumentLink, type CustomerView } from './detailData';
+import type { InvoiceDetail, SupportDetail } from '../../../packages/mobile-foundation/src/customerDetails';
 
 export function useCustomerAccount(brand: string) {
   const [client] = useState(() => createAccountClient(brand));
   const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<CustomerRow[] | null>(null);
-  const [resource, setResource] = useState<Resource>('contracts');
+  const [resource, setResource] = useState<CustomerView>('contracts');
+  const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
+  const [support, setSupport] = useState<SupportDetail | null>(null);
   const [error, setError] = useState('');
   const [active, setActive] = useState(AppState.currentState === 'active');
   const [restoreTick, setRestoreTick] = useState(0);
   const generation = useRef(0); const inFlight = useRef(false);
   const pending = useRef<AbortController | null>(null);
-  const selected = useRef<Resource>('contracts');
+  const selected = useRef<{ view: CustomerView; reference?: string }>({ view: 'contracts' });
   const needsRestore = useRef(true); const wantsLogout = useRef(false);
   const expectedSignout = useRef(false);
 
   const invalidate = useCallback(() => { generation.current++; pending.current?.abort(); }, []);
-  const clear = useCallback(() => { setRows(null); setAuthenticated(false); }, []);
+  const clearDetails = useCallback(() => { setRows(null); setInvoice(null); setSupport(null); }, []);
+  const clear = useCallback(() => { clearDetails(); setAuthenticated(false); }, [clearDetails]);
   const signOut = useCallback(async () => {
     expectedSignout.current = true;
     try { const result = await client?.auth.signOut({ scope: 'local' }); if (result?.error) throw result.error; }
@@ -27,11 +32,11 @@ export function useCustomerAccount(brand: string) {
     finally { wantsLogout.current = false; expectedSignout.current = false; }
   }, [client]);
 
-  const run = useCallback(async (next: Resource, sessionAction: () => Promise<string | null>, invoiceId?: string) => {
+  const run = useCallback(async (next: CustomerView, sessionAction: () => Promise<string | null>, reference?: string) => {
     if (!client || inFlight.current) return;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
-    setBusy(true); setError(''); setRows(null); selected.current = next; setResource(next);
+    setBusy(true); setError(''); clearDetails(); selected.current = { view: next, reference }; setResource(next);
     try {
       const token = await sessionAction();
       if (attempt !== generation.current) return;
@@ -39,13 +44,16 @@ export function useCustomerAccount(brand: string) {
       setAuthenticated(true);
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${next}${invoiceId ? `/${encodeURIComponent(invoiceId)}` : ''}`, {
+        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${customerViewPath(next, reference)}`, {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
         if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
         if (!response.ok) throw new Error('resource unavailable');
-        const values = parseCustomerRows(next, await response.json());
-        if (attempt === generation.current) setRows(values);
+        const body = await response.json();
+        if (attempt !== generation.current) return;
+        if (next === 'invoiceDetail') setInvoice(parseInvoiceDetail(body, reference!));
+        else if (next === 'supportDetail') setSupport(parseSupportDetail(body, reference!));
+        else setRows(parseCustomerRows(next, body));
       } finally { clearTimeout(timeout); }
     } catch {
       if (attempt === generation.current) setError('Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.');
@@ -54,7 +62,7 @@ export function useCustomerAccount(brand: string) {
       inFlight.current = false; setBusy(false);
       if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1);
     }
-  }, [client, clear, signOut]);
+  }, [client, clear, clearDetails, signOut]);
 
   useEffect(() => {
     if (!client) return;
@@ -67,16 +75,16 @@ export function useCustomerAccount(brand: string) {
     const listener = AppState.addEventListener('change', state => {
       setActive(state === 'active');
       if (state === 'active') { client.auth.startAutoRefresh(); needsRestore.current = true; setRestoreTick(v => v + 1); }
-      else { client.auth.stopAutoRefresh(); generation.current++; pending.current?.abort(); setRows(null); }
+      else { client.auth.stopAutoRefresh(); generation.current++; pending.current?.abort(); clearDetails(); }
     });
     if (AppState.currentState === 'active') client.auth.startAutoRefresh();
     return () => { invalidate(); client.auth.stopAutoRefresh(); auth.data.subscription.unsubscribe(); listener.remove(); };
-  }, [client, clear, invalidate]);
+  }, [client, clear, clearDetails, invalidate]);
 
   useEffect(() => {
     if (!client || !needsRestore.current || inFlight.current || !active) return;
     needsRestore.current = false;
-    void run(selected.current, async () => {
+    void run(selected.current.view, async () => {
       const saved = await client.auth.getSession();
       if (saved.error) throw saved.error;
       if (!saved.data.session) return null;
@@ -84,7 +92,7 @@ export function useCustomerAccount(brand: string) {
       const refreshed = await client.auth.refreshSession();
       if (refreshed.error || !refreshed.data.session) { clear(); await signOut(); throw new Error('invalid session'); }
       return refreshed.data.session.access_token;
-    });
+    }, selected.current.reference);
   }, [client, active, restoreTick, run, clear, signOut]);
 
   const login = (email: string, password: string) => run('contracts', async () => {
@@ -92,15 +100,39 @@ export function useCustomerAccount(brand: string) {
     if (result.error || !result.data.session) { clear(); await signOut(); throw new Error('login'); }
     return result.data.session.access_token;
   });
-  const select = (next: Resource, invoiceId?: string) => run(next, async () => {
+  const select = (next: CustomerView, reference?: string) => run(next, async () => {
     const result = await client!.auth.getSession();
     if (result.error) throw result.error;
     return result.data.session?.access_token ?? null;
-  }, invoiceId);
+  }, reference);
+  const retry = () => select(selected.current.view, selected.current.reference);
+  const openDocument = async (invoiceRef: string, documentRef: string, open: (url: string) => Promise<unknown>) => {
+    if (!client || inFlight.current) return;
+    if (![invoiceRef, documentRef].every(ref => /^[A-Za-z0-9_-]{1,240}$/.test(ref))) { setError('Ogiltig dokumentreferens.'); return; }
+    inFlight.current = true; const attempt = ++generation.current;
+    const controller = new AbortController(); pending.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 20000); setBusy(true); setError('');
+    try {
+      const saved = await client.auth.getSession();
+      if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('expired'); }
+      const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}`, {
+        headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
+      });
+      if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
+      if (!response.ok) throw new Error('document unavailable');
+      const url = parseDocumentLink(await response.json(), documentRef);
+      if (attempt === generation.current && AppState.currentState === 'active') await open(url);
+    } catch { if (attempt === generation.current) setError('Dokumentet kunde inte öppnas. Hämta fakturan igen och försök på nytt.'); }
+    finally {
+      clearTimeout(timeout); if (wantsLogout.current) await signOut();
+      inFlight.current = false; setBusy(false);
+      if (needsRestore.current && AppState.currentState === 'active') setRestoreTick(v => v + 1);
+    }
+  };
   const logout = () => {
     needsRestore.current = false; wantsLogout.current = true;
     generation.current++; pending.current?.abort(); clear(); setError('');
     if (!inFlight.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
   };
-  return { configured: Boolean(client), authenticated, busy, rows, resource, error, active, login, select, logout };
+  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, logout };
 }

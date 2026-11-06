@@ -2,6 +2,8 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
+import { invoiceDetail, supportDetail } from '../lib/mobile/customerDetails.ts';
+import { invoiceId, documentId, caseId, invoicePayload, supportPayload, messagesPayload } from './mobile-detail-fixtures.mjs';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const originalFetch = globalThis.fetch;
 after(() => { globalThis.fetch = originalFetch; delete globalThis.__mobileFixture; });
@@ -67,5 +69,68 @@ test('resource requests remain independent when invoices are unavailable', async
   handler = async () => Response.json({ data: { sites: [{ reference: 'own-site', address: null, postalCode: null, city: null, facilityId: null, priceArea: null, status: null }] } });
   await act(async () => { await current.select('sites'); });
   assert.equal(current.rows[0].reference, 'own-site'); assert.equal(current.error, '');
+  await unmount();
+});
+
+test('invoice detail retry and foreground restoration preserve the selected invoice', async () => {
+  const unmount = await mount(true); const paths = [];
+  handler = async url => { paths.push(new URL(url).pathname); return Response.json({ data: { invoiceDetail: [invoiceDetail(invoicePayload(), invoiceId, [])] } }); };
+  await act(async () => { await current.select('invoiceDetail', invoiceId); });
+  assert.equal(current.invoice.reference, invoiceId);
+  await act(async () => { await current.retry(); });
+  await act(async () => { fixture.appState.currentState = 'background'; for (const fn of listeners) fn('background'); });
+  assert.equal(current.invoice, null);
+  await act(async () => { fixture.appState.currentState = 'active'; for (const fn of listeners) fn('active'); });
+  assert.equal(current.invoice.reference, invoiceId);
+  assert.ok(paths.every(p => p.endsWith(`/invoices/${invoiceId}`)));
+  await unmount();
+});
+test('support detail retry preserves case and late messages cannot reappear after logout', async () => {
+  const unmount = await mount(true);
+  handler = async () => Response.json({ data: { supportDetail: [supportDetail(supportPayload(), messagesPayload(), caseId)] } });
+  await act(async () => { await current.select('supportDetail', caseId); });
+  assert.equal(current.support.reference, caseId);
+  let resolve; handler = () => new Promise(r => { resolve = r; });
+  let pending; await act(async () => { pending = current.retry(); });
+  await act(async () => current.logout());
+  await act(async () => { resolve(Response.json({ data: { supportDetail: [supportDetail(supportPayload(), messagesPayload(), caseId)] } })); await pending; });
+  assert.equal(current.support, null); assert.equal(current.authenticated, false);
+  await unmount();
+});
+test('document click fetches a new verified URL and sends no bearer to external opener', async () => {
+  const unmount = await mount(true); let opened;
+  handler = async (url, init) => {
+    assert.ok(url.endsWith(`/invoices/${invoiceId}/documents/${documentId}`));
+    assert.ok(init.headers.Authorization.startsWith('Bearer '));
+    return Response.json({ data: { invoiceDocument: [{ reference: documentId, url: 'https://files.example.test/a?signature=test' }] } });
+  };
+  await act(async () => { await current.openDocument(invoiceId, documentId, (...args) => { assert.equal(args.length, 1); opened = args[0]; }); });
+  assert.equal(opened, 'https://files.example.test/a?signature=test');
+  await unmount();
+});
+test('logout while document request is pending suppresses external navigation', async () => {
+  const unmount = await mount(true); let resolve, opened = false;
+  handler = () => new Promise(r => { resolve = r; });
+  let pending; await act(async () => { pending = current.openDocument(invoiceId, documentId, () => { opened = true; }); });
+  await act(async () => current.logout());
+  await act(async () => { resolve(Response.json({ data: { invoiceDocument: [{ reference: documentId, url: 'https://files.example.test/a' }] } })); await pending; });
+  assert.equal(opened, false); assert.equal(current.authenticated, false);
+  await unmount();
+});
+test('an unsafe document link is never opened and leaves a retryable error', async () => {
+  const unmount = await mount(true); let opened = false;
+  handler = async () => Response.json({ data: { invoiceDocument: [{ reference: documentId, url: 'javascript:alert(1)' }] } });
+  await act(async () => { await current.openDocument(invoiceId, documentId, () => { opened = true; }); });
+  assert.equal(opened, false); assert.ok(current.error);
+  await unmount();
+});
+
+test('background while document request is pending suppresses external navigation', async () => {
+  const unmount = await mount(true); let resolve, opened = false;
+  handler = () => new Promise(r => { resolve = r; });
+  let pending; await act(async () => { pending = current.openDocument(invoiceId, documentId, () => { opened = true; }); });
+  await act(async () => { fixture.appState.currentState = 'background'; for (const fn of listeners) fn('background'); });
+  await act(async () => { resolve(Response.json({ data: { invoiceDocument: [{ reference: documentId, url: 'https://files.example.test/a' }] } })); await pending; });
+  assert.equal(opened, false); assert.equal(current.invoice, null);
   await unmount();
 });

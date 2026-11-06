@@ -345,3 +345,35 @@ Det är inte bevis för lyckad livekundinloggning eller riktig enhet. ESM Metro-
 rättar förra versionens CI-lintfel. Publicerat OPS-manifest hämtat direkt anger
 release/specs/guide 2026-10-12.1 men runtime 2026-10-09.1; befintlig preflight
 stoppar på detta. Versionsspärren behålls tills integrationskontraktet kvalificerats.
+
+
+### Femdelarsleverans – fakturadetalj, rader, dokument, supportlista och meddelanden
+
+1. Fakturadetaljen läser nu det verifierade OPS-formatet data.invoice med separata
+   data.lines och data.documents. Den tidigare utkasttolkningen är ersatt. Fel
+   fakturareferens avvisas och vald faktura bevaras vid retry/återgång.
+2. Fakturarader visas med antal, à-pris, moms och belopp där data finns. Nollor,
+   kreditbelopp och saknade värden hålls isär. Appen räknar inte om OPS-totalen.
+3. Dokumentöppning begär en ny Auth/RLS/OPS-kontroll för varje klick och kräver att
+   dokumentet hör till just den fakturan. Befintliga HTTPS-länkar lämnas endast
+   ut från konfigurerade GRIDEX_MOBILE_DOCUMENT_ORIGINS. API-bearer skickas inte
+   till extern läsare; länken sparas inte i appens detaljstate. Ingen URL hämtas
+   av servern. Logout/bakgrund stoppar sen extern navigering. Verklig provider-
+   behörighet, länkars giltighet och läsaröverlämning måste kvalificeras i staging.
+4. Kunden kan läsa sina supportärenden via befintligt OPS kundsupport-API, med
+   samma betrodda Auth-subject och profilbindning som övriga kundresurser.
+5. Ärendetalj och kundsynliga meddelanden visas utan interna anteckningar eller
+   personal-ID:n. Fristående meddelandeläsning verifieras mot begärt ärende.
+   Vyn är läsande; skrivning går tills vidare via befintliga Mina sidor på webben.
+
+Verifierat lokalt: 59 riktade mobil-/server-/portabilitetstester, befintliga
+kundsupportregressioner (27 API-fall och 9 handoff-fall), 21 HTTP-kontroller för
+nekad åtkomst/ogiltiga parametrar/saknad konfiguration, typkontroller, full lint,
+Next-produktionsbygge samt Android-/iOS-Hermes-export. Auth/OPS-providergränserna i
+beteendetesterna är syntetiska; lyckad livekundresa och fysisk enhet är fortfarande
+inte verifierade. Inget har aktiverats i produktion och ingen databas har skapats.
+
+Kvar: full paginering, native stöd för att skriva i ärenden/ladda upp bilagor,
+inbyggd PDF-läsare, förbrukning och elprisserier, avtalsteckning/avtalsbyte samt
+fortsatt bevis för export av hela appen. Publicerat OPS-manifests versionsskillnad
+är fortsatt separat releaseblockerare; integritetsgrinden har inte försvagats.

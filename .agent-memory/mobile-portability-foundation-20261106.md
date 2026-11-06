@@ -73,3 +73,22 @@ manifest reports mixed contract versions. No gate weakened or contract blindly
 resynced. New remote CI still required; no merge/release is claimed.
 
 Invoice continuation: added subject-bound invoice-by-reference route and native refresh action. Typechecks and existing handler/resource regressions pass. Full invoice line/PDF projection, actual-route IDOR regressions and live detail envelope qualification remain pending; this is a draft increment.
+
+
+Five-part packet: replaced flattened invoice draft with actual invoice/lines/docs
+contract; added invoice lines UI, fresh authenticated attached-document link read
+with exact HTTPS-origin allowlist, customer support list and public message detail.
+Added shared portable detail types (included in foundation export), native parsers,
+detail navigation/retry preservation and stale-document navigation suppression.
+API evidence: actual OPS main invoice route and publicDto read in this session;
+customer invoice response contains data.invoice, data.lines, data.documents.
+No OPS source edits, producer changes, hosted DB operations or production activation.
+
+Verification PASS: 38 pure tests + 13 hook/adapter tests + 8 actual-route tests
+with synthetic provider boundaries (59); 27 existing support API + 9 handoff tests;
+21 production HTTP denial/configuration checks; root/native TS, full ESLint,
+Next build, Android/iOS Hermes bundles. No physical-device or live Auth/OPS success.
+Limits: document reader/provider URLs require staging qualification, support is
+read-only natively and message/list pagination remains bounded. OPS release-manifest
+mismatch remains a release blocker, not waived. Next: pagination/writes and data
+flows, plus actual provider/dev-build E2E; no production-ready claim.

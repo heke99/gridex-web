@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const allowed = [
   'package.json', 'README.md', 'src/brand.mjs', 'src/brand.d.ts',
-  'src/ports.d.ts', 'test/brand.test.mjs',
+  'src/ports.d.ts', 'src/customerDetails.ts', 'test/brand.test.mjs',
 ];
 
 /** Only explicitly reviewed source files; never DB rows, .env, keys or web files. */
