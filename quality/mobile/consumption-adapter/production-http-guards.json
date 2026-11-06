@@ -1,0 +1,196 @@
+{
+  "origin": "https://gridex.se",
+  "sourceCommit": "35b2946b96876b5369a383265ea15bf42606d33c",
+  "checkedAt": "2026-11-06T21:09:13.620Z",
+  "kind": "unauthenticated-http-guards",
+  "shards": 4,
+  "originalTestSha256": "56d4732eecb07becb05d94de31f0ae0ad35be82a21c750679e3d6122dbd7448a",
+  "realCustomerVerified": false,
+  "results": [
+    {
+      "path": "/contracts",
+      "status": 401,
+      "passed": true,
+      "durationMs": 7351
+    },
+    {
+      "path": "/invoices",
+      "status": 401,
+      "passed": true,
+      "durationMs": 7018
+    },
+    {
+      "path": "/profile",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6255
+    },
+    {
+      "path": "/documents",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6003
+    },
+    {
+      "path": "/acceptances",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6590
+    },
+    {
+      "path": "/documents/document_test/open",
+      "status": 401,
+      "passed": true,
+      "durationMs": 5846
+    },
+    {
+      "path": "/profile",
+      "method": "POST",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6398
+    },
+    {
+      "path": "/consumption?facility=facility_test&from=2026-11-01T00%3A00%3A00.000Z&to=2026-11-08T00%3A00%3A00.000Z&facility=other",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6412
+    },
+    {
+      "path": "/contracts?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 7762
+    },
+    {
+      "path": "/invoices?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6613
+    },
+    {
+      "path": "/profile?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6742
+    },
+    {
+      "path": "/documents?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 5533
+    },
+    {
+      "path": "/acceptances?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6147
+    },
+    {
+      "path": "/invoices/invoice_test/documents/document_test",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6285
+    },
+    {
+      "path": "/notifications/read",
+      "method": "POST",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6441
+    },
+    {
+      "path": "/consumption",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6329
+    },
+    {
+      "path": "/sites",
+      "status": 401,
+      "passed": true,
+      "durationMs": 7327
+    },
+    {
+      "path": "/support",
+      "status": 401,
+      "passed": true,
+      "durationMs": 7000
+    },
+    {
+      "path": "/notifications",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6215
+    },
+    {
+      "path": "/powers",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6086
+    },
+    {
+      "path": "/invoices/invoice_test",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6113
+    },
+    {
+      "path": "/support",
+      "method": "POST",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6349
+    },
+    {
+      "path": "/consumption?facility=facility_test&from=2026-11-01T00%3A00%3A00.000Z&to=2026-11-08T00%3A00%3A00.000Z",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6410
+    },
+    {
+      "path": "/sites?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 7275
+    },
+    {
+      "path": "/support?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 7066
+    },
+    {
+      "path": "/notifications?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6240
+    },
+    {
+      "path": "/powers?customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6087
+    },
+    {
+      "path": "/support/case_test",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6088
+    },
+    {
+      "path": "/support/case_test/messages",
+      "method": "POST",
+      "status": 401,
+      "passed": true,
+      "durationMs": 6360
+    },
+    {
+      "path": "/consumption?facility=facility_test&from=2026-11-01T00%3A00%3A00.000Z&to=2026-11-08T00%3A00%3A00.000Z&customerId=foreign",
+      "status": 400,
+      "passed": true,
+      "durationMs": 6384
+    }
+  ],
+  "passed": true
+}

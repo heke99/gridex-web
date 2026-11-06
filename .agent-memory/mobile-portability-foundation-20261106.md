@@ -249,3 +249,18 @@ ops-consumption-required-contract.md. Full packets remain unqualified until that
 publication/contract sync and actual customer verification. Keep production API
 active and publish safe consumer packet after candidate CI; do not call blocked
 real consumption complete or silently write OPS outside custody.
+
+
+Publication completed: PR57 head967d09ae8fa4615940066b6e31bc4bb42e489cf8 had all
+executed CI SUCCESS (CodeRabbit skipped). Merged35b2946b96876b5369a383265ea15bf42606d33c,
+exact same reviewed tree. Vercel productiondpl_3zHRj3GSEoz8s7BMkZh3rBbgfp9r READY,
+gridex.se/www aliases confirmed, existing production mobile flag enabled.
+30/30 public guards pass after deployment (four execution shards, unchanged
+assertions/case set); short runtime error scan none. Exact clean-source mobile
+report and production evidence under quality/mobile/consumption-adapter/.
+No OPS source/claim/publication or real-customer session achieved. The unused
+private initial source plan is paused and must not be executed unchanged as if
+it covers the full newly identified query-schema/publication scope. Next actual
+boundary: authenticated normal OPS source reservation/publication by a capable
+producer, then Web API sync and actual customer verification. Consumer code and
+independent OPS-free exports are delivered; full packages1–2 are still not done.

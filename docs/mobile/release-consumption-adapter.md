@@ -57,3 +57,29 @@ creation capability is available here to execute its mandatory source reservatio
 No OPS source, claims, schema, shared producer, merge or deployment were changed.
 Real customer login/provider readback still has no provisioned customer session.
 The existing fail-closed boundary is retained while those prerequisites remain.
+
+
+## Observed release
+
+PR #57 merged as35b2946b96876b5369a383265ea15bf42606d33c. Merge tree equals the
+reviewed/fully CI-green967d09ae8fa4615940066b6e31bc4bb42e489cf8 tree. All executed
+verify/contract/support/native-shell/standalone-export/portable-native-export
+jobs passed; CodeRabbit skipped and is not counted as an independent review.
+
+Existing Gridex Web production deployment
+`dpl_3zHRj3GSEoz8s7BMkZh3rBbgfp9r` is READY with gridex.se/www.gridex.se aliases.
+The existing production mobile flag remains enabled.30/30 public HTTP guards
+passed against that deployment's public origin, using the unchanged30-case
+checker split into four independent execution shards. No authenticated mutation
+was attempted. A short post-activation runtime error scan reported no errors.
+Reports are inquality/mobile/consumption-adapter/. The automated report is bound
+to clean967d09ae; deployment code uses the identical merge tree. Root build,
+strict live preflight, launch regressions, native/root types and lint passed.
+Gridex Android/iOS and a fresh isolated OPS-free export's install/types/Android/iOS
+Hermes bundles passed. These are source exports, not signed-device qualification.
+
+The final evidence update is documentation/reports only. Live consumption remains
+held by the explicit OPS prerequisites; no real customer session was provisioned
+or verified. An unused local source-plan validation is not a claim or an executable
+full publication handoff: the OPS owner must freshly qualify the whole source,
+query-schema and publication scope on current main using the normal protocol.

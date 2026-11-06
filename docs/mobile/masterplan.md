@@ -636,3 +636,11 @@ för period/paginering, trots motsvarande serverimplementation. Konsumenten krin
 inte valideraren. OPS måste publicera både rättighetsmetadata och query-kontraktet,
 och Web måste synka det. Se `ops-consumption-required-contract.md` och
 `release-consumption-adapter.md`. Full live-förbrukning är därför ännu inte godkänd.
+
+
+Fortsättningspaketet är mergat via PR #57 (35b2946b) och driftsatt pågridex.se som
+dpl_3zHRj3GSEoz8s7BMkZh3rBbgfp9r. Alla exekverade CI-kontroller samt30 publika
+produktionsgrindtester är gröna. Två oberoende granskningar godkänner den slutliga
+konsumentkoden. Produktionsflaggan är fortsatt på. OPS-publicering med normal
+fil-/producentreservation och en riktig kundsession återstår; ingen ytterligare
+allmän användarbekräftelse efterfrågas eller antas lösa dessa faktiska beroenden.
