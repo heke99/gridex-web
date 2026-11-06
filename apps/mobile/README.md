@@ -96,3 +96,10 @@ no bearer header is passed to the external reader. These views do not edit profi
 mark notifications read or sign new agreements. Counts mean loaded rows; pagination
 outside support cases is not yet qualified. Keep the production API feature flag off
 until live customer/device checks and the OPS manifest release gate pass.
+
+The complete native source can now be extracted from the repository root with
+`npm run mobile:export -- /absolute/new-directory [brand-config.json]`.
+See docs/mobile/portable-app.md and docs/mobile/backend-contract.md. Extraction
+has been checked with isolated install, TypeScript and both Hermes platform exports.
+It includes a neutral brand, optional customer identity/theme configuration and a
+source hash manifest. It does not provision or migrate the server/database.

@@ -415,3 +415,31 @@ kundinloggning, signerade enhetsbyggen och produktionskoppling återstår.
 Den tidigare dokumenterade OPS-manifests versionskonflikt kvarstår som releasegrind.
 Samma repo och befintliga databas används. Appmallens konfiguration och UI hålls
 separerade från Gridex, men export av hela appen är ännu inte verifierad.
+
+### Hela mobilens källkod går nu att exportera
+
+`scripts/export-mobile-app.mjs` exporterar mobilappen och den delade grunden till
+en ny katalog utanför Gridex-repot. `npm run mobile:export -- /ny/katalog` ger en
+neutral mall; en valfri JSON-fil styr namn, tema, brand-ID, app-ID och URL-schema.
+Appens ursprungliga branding och konfiguration ändras inte. Exporten använder en
+explicit fillista, avvisar källsymlänkar och befintliga mål, och skriver SHA-256
+för varje överförd fil i source-manifest.json. Miljöfiler, beroendekataloger,
+databasdata, Gridex-specifik branding och serverhemligheter ingår inte.
+
+Den kompletta exporterade native-källan har installerats med sin egen låsfil,
+typkontrollerats och paketerats till Android/iOS Hermes utanför ursprungsrepot.
+Fem exporttester verifierar även alternativ kundbranding, bevarade källfiler,
+filhashar och avvisade felaktiga mål/konfigurationer. CI har ett separat jobb som
+upprepar extraktion, installation, typkontroll och båda plattformsexporterna.
+Detta ersätter tidigare statusen att bara foundation-exporten var verifierad.
+
+Backend ingår inte i denna källkodsmall. backend-contract.md beskriver de befintliga
+mobil-endpointsen och kraven på Auth, kundisolering, dokumentlänkar och support.
+En köpare behöver sin egen backendadapter och Auth/databas, eller en separat
+avtalad integration. Automatisk backend-/databasmigrering är inte byggd. Gridex
+fortsätter använda samma repo och samma befintliga databas. Ingen ny databas,
+produktionsaktivering eller kunddataöverföring har gjorts.
+
+Kvar: kvalificerad riktig Auth/OPS/enhet, signerade mobilbyggen, pris-/förbrukningsvyer,
+avtalsteckning/byte, fler kvalificerade sidindelningar och beständiga supportförsök.
+OPS:s tidigare dokumenterade manifestkonflikt kvarstår som releasegrind.

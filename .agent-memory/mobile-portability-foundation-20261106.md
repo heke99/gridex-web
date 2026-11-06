@@ -118,3 +118,14 @@ local persistence cache; moved generated .next aside and reran clean. No live
 customer/provider writes, new DB or production activation. Release qualification
 and full-app extraction remain outstanding.
 Clean Next production build passed; built-server HTTP checks passed (18 requests across all six new endpoints: unauthenticated401, query override400, unconfigured provider503, private/no-store). Total targeted tests: 83 (43 pure, 22 route/projection, 18 hook/adapter).
+
+Whole-native-source export packet: scripts/export-mobile-app.mjs plus root
+mobile:export command, explicit file allowlist, neutral/alternate branding,
+validated app identifier/scheme, refuse existing/in-repo/symlinked destinations,
+source-component symlink validation and SHA-256 manifest. Copies no environment,
+customer data, web/server credentials or Gridex branding. Backend integration
+contract is documented, not provisioned. Isolated /tmp export successfully ran
+npm ci --offline, tsc, Android Hermes and iOS Hermes without original repo imports.
+Five new export regressions pass. CI adds a separate extracted-native job.
+This supersedes the earlier full-native-source-extraction gap; backend migration,
+real provider/device qualification and signed builds remain open.

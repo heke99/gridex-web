@@ -6,6 +6,8 @@ on:
       - 'packages/mobile-foundation/**'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
+      - 'scripts/export-mobile-app.mjs'
+      - 'docs/mobile/**'
       - 'tests/mobile-*'
       - 'lib/mobile/**'
       - 'app/api/mobile/**'
@@ -16,6 +18,8 @@ on:
       - 'packages/mobile-foundation/**'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
+      - 'scripts/export-mobile-app.mjs'
+      - 'docs/mobile/**'
       - 'tests/mobile-*'
       - 'lib/mobile/**'
       - 'app/api/mobile/**'
@@ -35,7 +39,7 @@ jobs:
           node-version: '22'
       - name: Actual mobile routes with synthetic Auth and OPS
         run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test tests/mobile-detail-routes.test.mjs tests/mobile-extras.test.mjs
-      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
+      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-app-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest
@@ -56,3 +60,23 @@ jobs:
       - run: npm run typecheck
       - run: npm run export:android
       - run: npx expo export --platform ios --output-dir dist-ios
+
+  portable-native-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Extract complete native source outside repository
+        run: node scripts/export-mobile-app.mjs "$RUNNER_TEMP/portable-energy-app"
+      - name: Install and verify extracted application
+        run: |
+          cd "$RUNNER_TEMP/portable-energy-app/apps/mobile"
+          npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm run export:android
+          npx expo export --platform ios --output-dir dist-ios
