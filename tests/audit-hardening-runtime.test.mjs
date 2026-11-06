@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {GRIDEX_API_CONTRACT_VERSION as WIRE} from '../lib/ops/contract.ts'
 import {generateKeyPairSync,verify} from 'node:crypto'
 import {createElement} from 'react'
 import {renderToStaticMarkup} from 'react-dom/server'
@@ -42,7 +43,7 @@ try {
  for(const k of ['GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY','GRIDEX_CUSTOMER_ASSERTION_KEY_ID','GRIDEX_CUSTOMER_ASSERTION_ISSUER','GRIDEX_CUSTOMER_ASSERTION_AUDIENCE'])delete process.env[k]
  globalThis.fetch=async(_url,init)=>{
   const body=JSON.parse(init.body);assert.deepEqual(body,{notification_references:['notification_abcdefghijklmnopqrstuvwx']})
-  return new Response(JSON.stringify({data:{updated_count:1,notification_references:body.notification_references,read_at:'2026-10-06T12:00:00Z'},request_id:'offline',contract_schema_version:'2026-10-04.1'}),{headers:{'Content-Type':'application/json'}})
+  return new Response(JSON.stringify({data:{updated_count:1,notification_references:body.notification_references,read_at:'2026-10-06T12:00:00Z'},request_id:'offline',contract_schema_version:WIRE}),{headers:{'Content-Type':'application/json'}})
  }
  await markOpsCustomerNotificationsRead({userId:uid,externalCustomerId:'customer_offline'}, {notificationIds:['notification_abcdefghijklmnopqrstuvwx'],operationId:'offline-operation'})
  console.log('Transport, notification contract and signed customer assertion regressions passed')
@@ -50,7 +51,7 @@ const input = { resolution_id: 'resolution_audit_price', offer_reference: 'offer
   annual_consumption_kwh: 1200, start_date: '2026-10-06', price_option_reference: 'option_audit_price',
   invoice_delivery_method: 'e_invoice', selected_component_references: [], site_count: 1,
   requested_start_mode: 'specific_date', customer_type: 'private' }
-const payload = { request_id: 'offline-pricing-audit', contract_schema_version: '2026-10-04.1', data: {
+const payload = { request_id: 'offline-pricing-audit', contract_schema_version: WIRE, data: {
   quote_reference: 'quote_audit_price', offer_reference: input.offer_reference, valid_until: '2030-01-01T00:00:00Z',
   input: { ...input, price_area: 'SE3', estimated_monthly_consumption_kwh: 100 },
   offer: { name: 'Syntetiskt fastpris', contract_type: 'fixed' }, energy_direction: 'consumption', production_pricing: null,

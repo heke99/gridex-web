@@ -24,7 +24,7 @@ const {
   sendOpsCustomerSupportMessage,
 } = await import('../lib/ops/client/customerSupport.ts')
 
-const version = '2026-10-04.1'
+const {GRIDEX_API_CONTRACT_VERSION:version}=await import('../lib/ops/contract.ts')
 const caseReference = `support_case_${'a'.repeat(32)}`
 const identity = {
   userId: '44444444-4444-4444-8444-444444444444',

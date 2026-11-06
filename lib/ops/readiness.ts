@@ -10,6 +10,7 @@ import {
 } from '@/lib/ops/client'
 import {
   GRIDEX_API_CONTRACT_VERSION,
+  GRIDEX_API_DOCUMENTATION_VERSION,
   GRIDEX_WEBSITE_CHECKOUT_SCOPES,
   GRIDEX_WEBSITE_DIAGNOSTICS_SCOPE,
   GRIDEX_WEBSITE_LEGAL_SCOPE,
@@ -22,6 +23,7 @@ import openApiVerification from '@/docs/openapi/verification-status.json'
 type OpenApiVerificationStatus = {
   liveSyncVerified: boolean
   contractVersion: string | null
+  runtimeContractVersion: string | null
   verifiedAt: string | null
 }
 
@@ -40,6 +42,7 @@ function normalizeOpenApiVerificationStatus(value: unknown): OpenApiVerification
   return {
     liveSyncVerified: row.live_sync_verified === true,
     contractVersion,
+    runtimeContractVersion: typeof row.runtime_contract_version === 'string' ? row.runtime_contract_version : null,
     verifiedAt,
   }
 }
@@ -349,7 +352,8 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   const portalContractGaps = upstreamContractGaps.filter((gap) => gap.startsWith('customer_portal_'))
   const liveOpenApiVerified =
     openApiVerificationStatus.liveSyncVerified &&
-    openApiVerificationStatus.contractVersion === GRIDEX_API_CONTRACT_VERSION
+    openApiVerificationStatus.contractVersion === GRIDEX_API_DOCUMENTATION_VERSION &&
+    openApiVerificationStatus.runtimeContractVersion === GRIDEX_API_CONTRACT_VERSION
   const checkoutReady =
     client.configured &&
     code === 'ready' &&
@@ -392,7 +396,9 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       'Live-manifestets version och SHA-256 ska vara verifierade mot lokala snapshots.',
       {
         verified_at: openApiVerificationStatus.verifiedAt,
-        expected: GRIDEX_API_CONTRACT_VERSION,
+        expected: GRIDEX_API_DOCUMENTATION_VERSION,
+        runtime_expected: GRIDEX_API_CONTRACT_VERSION,
+        runtime_received: openApiVerificationStatus.runtimeContractVersion,
         received: openApiVerificationStatus.contractVersion,
       },
     ),
@@ -402,7 +408,7 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       resolvedContractVersion === GRIDEX_API_CONTRACT_VERSION
         ? 'runtime_schema_verified'
         : 'runtime_schema_unverified',
-      'Runtimeversion och maskinkontrakt ska vara samma release.',
+      'Runtimeversionen ska matcha den verifierade wire-revisionen i maskinkontraktet.',
       {
         expected: GRIDEX_API_CONTRACT_VERSION,
         received: resolvedContractVersion,
@@ -420,7 +426,9 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
         : 'OpenAPI-snapshots måste hämtas och godkännas med npm run api:sync i en nätverksansluten miljö.',
       {
         verified_at: openApiVerificationStatus.verifiedAt,
-        expected: GRIDEX_API_CONTRACT_VERSION,
+        expected: GRIDEX_API_DOCUMENTATION_VERSION,
+        runtime_expected: GRIDEX_API_CONTRACT_VERSION,
+        runtime_received: openApiVerificationStatus.runtimeContractVersion,
         received: openApiVerificationStatus.contractVersion,
       },
     ),

@@ -50,43 +50,46 @@ export async function fetchJsonSpec(specName) {
 
 export async function fetchReleaseManifest() {
   const response = await fetch(RELEASE_MANIFEST_URL, {
+    redirect: 'error',
     headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(20_000),
   })
   if (!response.ok) {
     throw new Error(`OpenAPI release manifest fetch failed: ${response.status}`)
   }
+  if (!response.headers.get('content-type')?.toLowerCase().includes('json')) throw new Error('Release manifest is not JSON')
   const manifest = await response.json()
+  return assertReleaseManifest(manifest)
+}
+
+function revision(value) {
+  const match = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})\.(\d+)$/.exec(value)
+  if (!match) throw new Error('Invalid release revision')
+  const [year, month, day, patch] = match.slice(1).map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (!Number.isSafeInteger(patch) || date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) throw new Error('Invalid release revision')
+  return [year * 10000 + month * 100 + day, patch]
+}
+const greater = (a, b) => a[0] > b[0] || a[0] === b[0] && a[1] > b[1]
+
+/** OPS publishes documentation and wire revisions independently. Verify both. */
+export function assertReleaseManifest(manifest) {
   const version = manifest?.release_version
-  const versions = [
-    manifest?.website_openapi_version,
-    manifest?.customer_portal_openapi_version,
-    manifest?.runtime_contract_version,
-    manifest?.guide_version,
-  ]
-  if (
-    typeof version !== 'string' ||
-    versions.some((candidate) => candidate !== version)
-  ) {
-    throw new Error('OpenAPI release manifest contains mixed contract versions')
-  }
-  if (
-    typeof manifest?.minimum_tenant_integration_version !== 'string' ||
-    !manifest.minimum_tenant_integration_version.trim()
-  ) {
-    throw new Error('OpenAPI release manifest is missing minimum_tenant_integration_version')
-  }
-  for (const key of ['website', 'customer_portal']) {
-    const specification = manifest?.specifications?.[key]
-    if (
-      typeof specification?.url !== 'string' ||
-      !specification.url.startsWith(`${BASE_URL}/`) ||
-      !/^[a-f0-9]{64}$/.test(specification?.sha256 ?? '')
-    ) {
-      throw new Error(`OpenAPI release manifest contains an invalid ${key} specification`)
-    }
+  const doc = revision(version), wire = revision(manifest?.runtime_contract_version), floor = revision(manifest?.minimum_tenant_integration_version)
+  if ([manifest?.website_openapi_version, manifest?.customer_portal_openapi_version, manifest?.guide_version].some(v => v !== version)) throw new Error('OpenAPI release manifest contains mixed documentation versions')
+  if (greater(wire, doc) || greater(floor, wire)) throw new Error('Invalid runtime compatibility bounds')
+  if (!['backward-compatible', 'breaking-client-update-required', 'breaking'].includes(manifest.compatibility_classification) || version !== manifest.runtime_contract_version && manifest.compatibility_classification !== 'backward-compatible') throw new Error('Incompatible documentation-only release')
+  for (const [key, file] of [['website','website-integration-v1.json'], ['customer_portal','customer-portal-v1.json']]) {
+    const spec = manifest?.specifications?.[key]
+    if (spec?.contract_version !== version || spec?.url !== `${BASE_URL}/${file}` || spec?.immutable_url !== `${BASE_URL}/${version}/${file}` || !/^[a-f0-9]{64}$/.test(spec?.sha256 ?? '')) throw new Error(`OpenAPI release manifest contains an invalid ${key} specification`)
   }
   return manifest
+}
+
+export function assertReleaseSpecification(document, manifest, name) {
+  assertOpenApiDocument(document, name, 'published', manifest.release_version)
+  if (document['x-contract-schema-version'] !== manifest.runtime_contract_version || document['x-gridex-release-version'] !== undefined && document['x-gridex-release-version'] !== manifest.release_version) throw new Error(`${name} runtime/documentation binding mismatch`)
+  return document
 }
 
 export async function fetchManifestSpecification(specification) {

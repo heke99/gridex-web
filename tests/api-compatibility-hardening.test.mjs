@@ -24,7 +24,7 @@ const websiteOpenApi = JSON.parse(read('docs/openapi/website-integration-v1.json
 const canonicalQuoteValidation = read('lib/website/canonicalQuoteValidation.ts')
 const stagingFlow = read('tests/staging-canonical-ops-flow.mjs')
 
-assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.release_version}'`), 'canonical API version must match the synchronized release')
+assert.ok(contract.includes(`GRIDEX_API_CONTRACT_VERSION = '${releaseManifest.runtime_contract_version}'`), 'canonical API version must match the synchronized release')
 assert.ok(!contract.includes('2026-07-28.1'), 'old version must not remain in canonical contract')
 
 assert.match(client, /opsRequest as transportOpsRequest/, 'client must use canonical transport')

@@ -34,7 +34,7 @@
     "api:refresh": "npm run api:sync",
     "api:check:local": "node scripts/check-openapi-drift.mjs --local-only",
     "api:check:live": "node scripts/check-openapi-drift.mjs",
-    "api:preflight": "npm run api:check:live && npm run api:contract && npm run api:runtime && npm run db:migrations:check && npm run api:compatibility",
+    "api:preflight": "node --test tests/openapi-release-revisions.test.mjs && npm run api:check:live && npm run api:contract && npm run api:runtime && npm run db:migrations:check && npm run api:compatibility",
     "api:runtime": "npm run api:contract",
     "api:compatibility": "node scripts/check-api-compatibility.mjs",
     "api:compatibility:known-gaps": "node scripts/check-api-compatibility.mjs --allow-upstream-gaps",

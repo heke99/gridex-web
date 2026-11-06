@@ -20,6 +20,7 @@ export const FIXTURE_PUBLIC_INQUIRY = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 export const FIXTURE_PUBLIC_SERVICE_KEY = 'sb_secret_offline_public_inquiry_key_1234567890'
 export const FIXTURE_PASSWORD = 'SupportFixture!234'
 export const FIXTURE_OPS_PROJECT_REF = 'piidsfebjqjmnepdpnas'
+const WIRE = JSON.parse(readFileSync(new URL('../../docs/openapi/release-manifest.json', import.meta.url), 'utf8')).runtime_contract_version
 const PROJECT_REF = FIXTURE_OPS_PROJECT_REF
 const AUTH_ORIGIN = 'https://ayiuxjlfazkjmmtlvhsl.supabase.co'
 const STAFF_ORIGIN = 'https://app.gridex.se'
@@ -224,7 +225,13 @@ export function createSupportRuntime(settings) {
       return json({ msg: 'Unsupported offline Auth route' }, 404, true)
     }
     const identityResolution = url.pathname === '/api/v1/staff-onboarding/identity/resolve'
-    if (url.origin === STAFF_ORIGIN && url.pathname.startsWith('/api/v1/customer/support/cases')) return customerBoundary(url, headers, method, init.body)
+    if (url.origin === STAFF_ORIGIN && url.pathname.startsWith('/api/v1/customer/support/cases')) {
+      // Customer snapshots were synced independently of the separately pinned Staff schema.
+      const response = await customerBoundary(url, headers, method, init.body)
+      const payload = await response.json(); payload.contract_schema_version = WIRE
+      const customerHeaders = new Headers(response.headers); customerHeaders.set('x-gridex-contract-version', WIRE)
+      return new Response(JSON.stringify(payload), {status: response.status, headers: customerHeaders})
+    }
     if (url.origin !== STAFF_ORIGIN || (!url.pathname.startsWith('/api/v1/staff/') && !identityResolution)) throw new Error('Offline support fixture blocked unexpected outbound request')
     if (headers.get('x-gridex-expected-project-ref') !== PROJECT_REF) return failure(412, 'staff_storage_target_mismatch')
     if (headers.get('authorization') !== `Bearer ${settings.apiKey}`) return failure(401, 'api_key_invalid')

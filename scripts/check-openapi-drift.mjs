@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import {
   assertOpenApiDocument,
+  assertReleaseManifest,
+  assertReleaseSpecification,
   fetchManifestSpecification,
   fetchReleaseManifest,
   sha,
@@ -14,6 +16,10 @@ const contractSource = await readFile('lib/ops/contract.ts', 'utf8')
 const contractMatch = contractSource.match(/GRIDEX_API_CONTRACT_VERSION = ['"]([^'"]+)['"]/)
 if (!contractMatch) throw new Error('GRIDEX_API_CONTRACT_VERSION is missing from lib/ops/contract.ts')
 const sourceContractVersion = contractMatch[1]
+const documentationVersion = contractSource.match(/GRIDEX_API_DOCUMENTATION_VERSION = ['"]([^'"]+)['"]/)?.[1]
+if (!documentationVersion) throw new Error('Documentation revision missing')
+const approvedRelease = assertReleaseManifest(JSON.parse(await readFile('docs/openapi/release-manifest.json', 'utf8')))
+if (approvedRelease.release_version !== documentationVersion || approvedRelease.runtime_contract_version !== sourceContractVersion) throw new Error('Approved release does not match configured documentation/runtime revisions')
 
 function semanticDiff(previous, next) {
   const keys = (value) => new Set(Object.keys(value ?? {}))
@@ -37,7 +43,8 @@ for (const [specName, typeName] of SPECS) {
   const localSpec = JSON.parse(localRaw)
   const version = assertOpenApiDocument(localSpec, specName, 'local', sharedVersion)
   sharedVersion ??= version
-  if (sourceContractVersion !== version) {
+  assertReleaseSpecification(localSpec, approvedRelease, specName)
+  if (documentationVersion !== version) {
     throw new Error(`${specName} contract version ${version} does not match lib/ops/contract.ts ${sourceContractVersion}`)
   }
   const localHash = sha(localRaw)
@@ -62,11 +69,12 @@ for (const [specName, typeName] of SPECS) {
     const live = await fetchManifestSpecification(
       liveManifest.specifications[manifestKey],
     )
-    const liveSpec = live.document
+    const liveSpec = assertReleaseSpecification(live.document, liveManifest, specName)
     const liveVersion = assertOpenApiDocument(liveSpec, specName, 'live')
     if (
       liveVersion !== liveManifest.release_version ||
-      liveManifest.release_version !== sourceContractVersion
+      liveManifest.release_version !== documentationVersion ||
+      liveManifest.runtime_contract_version !== sourceContractVersion
     ) {
       throw new Error(
         `${specName} release mismatch: local=${sourceContractVersion} manifest=${liveManifest.release_version} live=${liveVersion}`,
