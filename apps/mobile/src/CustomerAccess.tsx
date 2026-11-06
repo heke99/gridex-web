@@ -1,90 +1,61 @@
-import 'react-native-url-polyfill/auto';
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
+import { useCustomerAccount } from './useCustomerAccount';
+import { customerApi } from './accountClient';
+import { recoveryUrl, type Resource } from './customerData';
 
-type Contract = { reference: string; name: string | null; status: string | null; startDate: string | null };
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const api = process.env.EXPO_PUBLIC_CUSTOMER_API_URL;
-const validUrl = (value?: string) => { try { const u = new URL(value ?? ''); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash; } catch { return false; } };
-function publicKey(value?: string) {
-  if (!value) return false;
-  if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(value)) return true;
-  try {
-    const part = value.split('.')[1];
-    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
-    return payload.role === 'anon';
-  } catch { return false; }
-}
-const configured = validUrl(url) && validUrl(api) && publicKey(key);
-
-/** The first adapter uses memory-only sessions: no tokens/passwords stored on disk. */
+const labels: Record<Resource, string> = { contracts: 'Avtal', sites: 'Anläggningar', invoices: 'Fakturor' };
 export function CustomerAccess({ brand }: { brand: MobileBrand }) {
-  const [client] = useState(() => configured ? createClient(url!, key!, { auth: {
-    persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
-  } }) : null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [contracts, setContracts] = useState<Contract[] | null>(null);
-  const generation = useRef(0);
-  const inFlight = useRef(false);
-  const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => { generation.current++; pending.current?.abort(); void client?.auth.signOut({ scope: 'local' }); }, [client]);
-  const logout = () => {
-    generation.current++; pending.current?.abort(); setContracts(null); setPassword(''); setError(''); if (!inFlight.current) setBusy(false);
-    void client?.auth.signOut({ scope: 'local' });
-  };
-  async function login() {
-    if (!client || inFlight.current) return;
-    inFlight.current = true;
-    const attempt = ++generation.current;
-    const controller = new AbortController(); pending.current = controller;
-    setBusy(true); setError('');
-    try {
-      const { data, error: authError } = await client.auth.signInWithPassword({ email: email.trim(), password });
-      if (attempt !== generation.current) { await client.auth.signOut({ scope: 'local' }); return; }
-      setPassword('');
-      if (authError || !data.session) throw new Error('login');
-      const response = await fetch(`${api!.replace(/\/$/, '')}/api/mobile/customer/contracts`, {
-        headers: { Authorization: `Bearer ${data.session.access_token}` }, signal: controller.signal,
-      });
-      if (!response.ok) throw new Error('customer');
-      const body = await response.json();
-      const rows: unknown = body?.data?.contracts;
-      if (!Array.isArray(rows) || rows.some(r => !r || typeof r.reference !== 'string'
-        || ['name', 'status', 'startDate'].some(k => r[k] !== null && typeof r[k] !== 'string'))) throw new Error('response');
-      if (attempt === generation.current) setContracts(rows);
-    } catch {
-      if (attempt === generation.current) { setError('Inloggning eller hämtning av kunduppgifter misslyckades. Kontrollera uppgifterna och försök igen.'); await client.auth.signOut({ scope: 'local' }); }
-    } finally { inFlight.current = false; setBusy(false); }
-  }
+  const a = useCustomerAccount(brand.id);
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
+  const [linkError, setLinkError] = useState('');
   const t = brand.theme;
   const button = { minHeight: 48, padding: 14, borderRadius: 12, backgroundColor: t.accent };
-  if (!client) return <Text style={{ color: t.muted }}>Kundanslutningen är inte konfigurerad i detta testbygge.</Text>;
+  const input = { color: t.text, padding: 14, borderWidth: 1, borderColor: t.muted, borderRadius: 12 };
+  if (!a.configured) return <Text style={{ color: t.muted }}>Kundanslutningen är inte konfigurerad i detta testbygge.</Text>;
+  if (!a.active) return <Text style={{ color: t.muted }}>Kunduppgifterna är dolda när appen är inaktiv.</Text>;
+  const openRecovery = async () => {
+    setPassword(''); setLinkError('');
+    try { await Linking.openURL(recoveryUrl(customerApi!)); }
+    catch { setLinkError('Kunde inte öppna lösenordsåterställningen. Försök igen.'); }
+  };
   return <View style={{ gap: 14, backgroundColor: t.surface, padding: 20, borderRadius: 20 }}>
-    {contracts === null ? <>
+    {!a.authenticated ? <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
-      <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" value={email} onChangeText={setEmail} editable={!busy} style={{ color: t.text, padding: 14, borderWidth: 1, borderColor: t.muted, borderRadius: 12 }} />
-      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry textContentType="password" value={password} onChangeText={setPassword} editable={!busy} style={{ color: t.text, padding: 14, borderWidth: 1, borderColor: t.muted, borderRadius: 12 }} />
-      <Pressable accessibilityRole="button" disabled={busy || !email.trim() || !password} onPress={() => void login()} style={[button, { opacity: busy || !email.trim() || !password ? 0.5 : 1 }]}>
-        {busy ? <ActivityIndicator color={t.accentText} /> : <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>}
+      <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
+      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
+      <Pressable accessibilityRole="button" disabled={a.busy || !email.trim() || !password} onPress={() => { const value = password; setPassword(''); void a.login(email, value); }} style={[button, { opacity: a.busy || !email.trim() || !password ? 0.5 : 1 }]}>
+        <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>
       </Pressable>
+      <Pressable accessibilityRole="link" disabled={a.busy} onPress={() => void openRecovery()} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: t.accent }}>Glömt lösenord? Återställ på hemsidan</Text></Pressable>
     </> : <>
-      <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Dina avtal</Text>
-      {contracts.length === 0 && <Text style={{ color: t.muted }}>Inga avtal finns att visa.</Text>}
-      {contracts.map(c => <View key={c.reference} style={{ gap: 6, paddingVertical: 10 }}>
-        <Text style={{ color: t.text, fontWeight: '600' }}>{c.name ?? 'Elavtal'}</Text>
-        <Text style={{ color: t.muted }}>{c.reference}</Text>
-        {c.status && <Text style={{ color: t.muted }}>Status: {c.status}</Text>}
-        {c.startDate && <Text style={{ color: t.muted }}>Start: {c.startDate}</Text>}
+      <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Mina sidor</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: a.resource === resource }} disabled={a.busy} onPress={() => void a.select(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: a.resource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
+      </View>
+      <Text style={{ color: t.muted }}>Hämtade {labels[a.resource].toLowerCase()}. Listan visar de uppgifter som API:t har lämnat.</Text>
+      {a.rows?.length === 0 && <Text style={{ color: t.muted }}>Inga uppgifter finns att visa.</Text>}
+      {a.rows?.map(row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
+        <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.reference)}</Text>
+        {a.resource === 'contracts' && <Text style={{ color: t.muted }}>Start: {row.startDate ?? 'Uppgift saknas'}</Text>}
+        {a.resource === 'sites' && <>
+          <Text style={{ color: t.muted }}>{[row.postalCode, row.city].filter(Boolean).join(' ')}</Text>
+          <Text style={{ color: t.muted }}>Anläggning: {row.facilityId ?? 'Uppgift saknas'}</Text>
+          <Text style={{ color: t.muted }}>Elområde: {row.priceArea ?? 'Uppgift saknas'}</Text>
+        </>}
+        {a.resource === 'invoices' && <>
+          <Text style={{ color: t.text }}>{row.amount === null ? 'Belopp saknas' : `${row.amount} ${row.currency ?? '(valuta saknas)'}`}</Text>
+          <Text style={{ color: t.muted }}>Förfallodag: {row.dueDate ?? 'Uppgift saknas'}</Text>
+          {row.paidAt && <Text style={{ color: t.muted }}>Betald: {row.paidAt}</Text>}
+        </>}
+        <Text style={{ color: t.muted }}>Status: {row.status ?? 'Uppgift saknas'}</Text>
       </View>)}
+      <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select(a.resource)} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>Hämta igen</Text></Pressable>
     </>}
-    {error !== '' && <Text accessibilityRole="alert" style={{ color: t.text }}>{error}</Text>}
-    {(busy || contracts !== null) && <Pressable accessibilityRole="button" onPress={logout} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{busy ? 'Avbryt' : 'Logga ut'}</Text></Pressable>}
+    {a.busy && <ActivityIndicator accessibilityLabel="Hämtar kunduppgifter" color={t.accent} />}
+    {(a.error || linkError) !== '' && <Text accessibilityRole="alert" style={{ color: t.text }}>{a.error || linkError}</Text>}
+    {(a.busy || a.authenticated) && <Pressable accessibilityRole="button" onPress={() => { setPassword(''); a.logout(); }} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{a.busy ? 'Avbryt och logga ut' : 'Logga ut'}</Text></Pressable>}
   </View>;
 }

@@ -8,5 +8,6 @@ const config: ExpoConfig = {
   ios: { bundleIdentifier: 'se.gridex.el.dev' },
   android: { package: 'se.gridex.el.dev' },
   updates: { enabled: false },
+  plugins: ['expo-secure-store'],
 };
 export default config;

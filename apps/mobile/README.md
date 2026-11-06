@@ -49,9 +49,10 @@ Configure public build values (same project as Gridex Web):
 - EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public publishable/anon key only.
 - EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS origin of this app's tenant backend.
 
-Never add OPS API keys or service-role/secret keys to the mobile build. Sessions
-are memory-only in this increment; users log in again after app restart. Persistent
-SecureStore sessions, renewal and password recovery are separate pending work.
+Never add OPS API keys or service-role/secret keys to the mobile build. Sessions are stored in Expo SecureStore with bounded Unicode-safe chunks and
+a generation manifest. No plaintext fallback is used. On restart and foreground
+return, refresh/verification precedes customer data display. Logout clears the
+saved session. Real-device keychain and provider behavior still require testing.
 
 The server GET /api/mobile/customer/contracts verifies the bearer token through
 Auth and reads only the verified subject's RLS-scoped customer profile before
@@ -62,3 +63,22 @@ parameters are accepted. No cookie fallback is used on this route.
 Code verification does not establish live provider binding, physical-device
 behavior or production readiness. Native builds must be configured explicitly;
 missing configuration shows an unavailable message without fake customer data.
+
+
+## Four-part customer increment
+
+1. Persistent SecureStore sessions and foreground revalidation; background hides
+   customer data, refresh failure does not reveal cached rows, logout invalidates
+   late requests. Native secure storage needs a fresh native development build.
+2. Password recovery handoff opens the configured tenant website's existing
+   /login/forgot-password flow; no tokens, password or email are put in the URL.
+3. Customer sites: RLS/OPS-bound API and native list of address, installation and
+   price area, with explicit missing-data labels.
+4. Customer invoices: same verified identity boundary, native amount/currency,
+   status and due-date list. Zero/credit amounts are preserved; unknown amounts
+   are not shown as zero. Full pagination and PDF detail remain later work.
+
+All three resources can be retried independently. Lists are the bounded result
+from the current OPS contract, not a proof of complete account history. API stays
+disabled pending environment qualification. Keychain behavior, email recovery
+handoff and successful Auth/OPS operations have not been verified on devices.

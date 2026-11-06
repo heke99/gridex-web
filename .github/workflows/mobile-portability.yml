@@ -6,8 +6,7 @@ on:
       - 'packages/mobile-foundation/**'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
-      - 'tests/mobile-foundation-export.test.mjs'
-      - 'tests/mobile-contracts-handler.test.mjs'
+      - 'tests/mobile-*'
       - 'lib/mobile/**'
       - 'app/api/mobile/**'
       - '.github/workflows/mobile-portability.yml'
@@ -17,8 +16,7 @@ on:
       - 'packages/mobile-foundation/**'
       - 'apps/mobile/**'
       - 'scripts/export-mobile-foundation.mjs'
-      - 'tests/mobile-foundation-export.test.mjs'
-      - 'tests/mobile-contracts-handler.test.mjs'
+      - 'tests/mobile-*'
       - 'lib/mobile/**'
       - 'app/api/mobile/**'
       - '.github/workflows/mobile-portability.yml'
@@ -35,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs
+      - run: node --experimental-strip-types --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest
@@ -51,6 +49,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+      - name: Account lifecycle with synthetic Auth
+        run: node --experimental-strip-types --experimental-loader ../../tests/mobile-account-loader.mjs --test ../../tests/mobile-account-lifecycle.test.mjs ../../tests/mobile-account-adapter.test.mjs
       - run: npm run typecheck
       - run: npm run export:android
       - run: npx expo export --platform ios --output-dir dist-ios

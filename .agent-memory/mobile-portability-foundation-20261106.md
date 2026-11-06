@@ -51,3 +51,23 @@ exports PASS. Six handler tests + six portability tests PASS. Three actual
 production HTTP checks PASS in a child-server harness: absent bearer 401,
 customer override 400, missing provider config 503, private/no-store responses.
 No successful live Auth/OPS call or device-rendering evidence is claimed.
+
+
+Four-part increment: SecureStore persistence/rotation, foreground refresh/privacy,
+password-recovery handoff to existing tenant web flow, sites and invoices APIs/UI.
+Shared generic bearer gate and RLS/OPS identity runtime; whitelisted projections.
+Added actual hook lifecycle tests with React renderer and synthetic Auth/AppState,
+secure storage behavior tests, client parser/recovery origin tests and API resource
+mapping tests. No hosted activation, DB migration, outbound email or live customer
+operation. Full pagination, invoice detail/PDF and device E2E remain pending.
+
+Four-part final local verification: 25 pure resource/storage/parser/handler and
+portability tests plus 7 actual-hook/adapter tests PASS (32 total), root/native
+TypeScript, full repository lint, Next production build and both Hermes exports
+PASS. Nine real production HTTP denial/configuration checks PASS across all
+three resource routes. SDK singleton prevents duplicate refreshers on remount.
+The previous remote Web verify failure was the owned CommonJS Metro config;
+converted to supported ESM and full lint plus both native bundles now PASS.
+Previous remote contract preflight is separately RED: published OPS release
+manifest reports mixed contract versions. No gate weakened or contract blindly
+resynced. New remote CI still required; no merge/release is claimed.

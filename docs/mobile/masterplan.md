@@ -318,3 +318,30 @@ Verifierat lokalt: sex serverbeteendetester, sex portabilitetstester, tre riktig
 HTTP-kontroller, typkontroller, riktad lint, Next-produktionsbygge samt Android-
 och iOS-bundling. Riktiga provideruppgifter och en testkund behövs för att verifiera
 hela lyckade inloggningsresan och den faktiska kundbindningen; det är ännu inte gjort.
+
+
+### Fyra byggdelar – beständig session, återställning, anläggningar och fakturor
+
+- SecureStore-adapter med storleksbegränsade Unicode-säkra delar, atomiskt
+  generationsbyte, seriella lagringsoperationer och ingen okrypterad reservlagring.
+  Sparad session förnyas före visning efter start/återgång. Bakgrund döljer data.
+- Lösenordsåterställning överlämnas från appen till den befintliga webbens
+  återställningsflöde på konfigurerat bolags HTTPS-origin, utan credentials i URL.
+- Anläggningsvy och serverroute mot OPS med verifierad subject/RLS-kundbindning.
+- Fakturalista och serverroute mot OPS med belopp, valuta, status och förfallodag.
+  Saknade belopp markeras och kreditbelopp bevaras. PDF och komplett paginering
+  är separata återstående delar; denna vy visar de rader aktuellt API lämnar.
+
+Alla delarna använder befintliga Gridex-konton/databas och OPS. Ingen ny
+produktionsdatabas skapas. Resurserna hämtas oberoende så att ett delfel inte
+slår ut andra vyer. Detta ersätter föregående versions begränsning till enbart
+minnessession och avtalslista. Fysisk enhet, rätta provideruppgifter och lyckad
+hela-kundresan-verifiering återstår före aktivering.
+
+Verifiering av fyrdelarsleveransen: 32 riktade tester, full lint, typkontroller,
+Next-produktionsbygge och Android-/iOS-bundling passerar lokalt. Nio HTTP-kontroller
+bevisar nekad åtkomst/parametrar/avsaknad av providerkonfiguration på tre routes.
+Det är inte bevis för lyckad livekundinloggning eller riktig enhet. ESM Metro-config
+rättar förra versionens CI-lintfel. Publicerat OPS-manifest hämtat direkt anger
+release/specs/guide 2026-10-12.1 men runtime 2026-10-09.1; befintlig preflight
+stoppar på detta. Versionsspärren behålls tills integrationskontraktet kvalificerats.
