@@ -27,7 +27,7 @@ test('provider-neutral HTTP contract binds two users and rejects foreign facilit
 });
 test('Gridex actual route fails closed before any upstream readings while delivery authority unavailable',async()=>{
  const old={...process.env};process.env.GRIDEX_MOBILE_API_ENABLED='true';process.env.NEXT_PUBLIC_SUPABASE_URL='https://test.supabase.co';process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='public-test';let reads=0;
- globalThis.__mobileReadFixture={createClient:()=>({auth:{getUser:async()=>({data:{user:{id:'subject',email_confirmed_at:time(1)}}})},from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{customer_number:'own'}})})}),resource:()=>{reads++;throw new Error('Must not read');}};
+ globalThis.__mobileReadFixture={createClient:()=>({auth:{getUser:async()=>({data:{user:{id:'subject',email_confirmed_at:time(1)}}})},from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{customer_number:'own'}})})}),scoped:path=>{if(path.includes('/metering-values'))reads++;return {data:{sites:[],metering_points:[]},page:{sites:{has_more:false,next_cursor:null}}};},resource:()=>{throw new Error('Unexpected resource read');}};
  try{const {GET}=await import('../app/api/mobile/customer/consumption/route.ts');const response=await GET(new Request(`https://test/api/mobile/customer/consumption?${new URLSearchParams(selection)}`,{headers:{authorization:'Bearer verified-customer-token'}}));assert.equal(response.status,503);assert.equal(reads,0);assert.ok(!JSON.stringify(await response.json()).includes('subject'));}
  finally{for(const key of Object.keys(process.env))if(!(key in old))delete process.env[key];Object.assign(process.env,old);delete globalThis.__mobileReadFixture;}
 });
@@ -36,4 +36,8 @@ test('consumption handler requires auth and hides upstream errors',async()=>{
  const url=`https://test/consumption?${new URLSearchParams(selection)}`;
  assert.equal((await handler(new Request(url))).status,401);
  const response=await handler(new Request(url,{headers:{authorization:'Bearer verified-customer-token'}}));assert.equal(response.status,503);assert.ok(!JSON.stringify(await response.json()).includes('database'));
+});
+test('independent meter series can overlap, but each reading requires its own series window',()=>{
+ const result=projectConsumption({deliveryWindows:[{facility:selection.facility,series:'meter_one',from:time(3),to:time(6)},{facility:selection.facility,series:'meter_two',from:time(4),to:time(6)}],items:[{...row('one',3,4),series:'meter_one'},{...row('not_allowed',3,4,99),series:'meter_two'},{...row('two',4,5,2),series:'meter_two'},{...row('also_one',4,5,1),series:'meter_one'}],complete:true},selection);
+ assert.equal(result.totalKwh,4);assert.equal(result.items.length,3);assert.ok(!result.items.some(r=>r.reference==='reading_not_allowed'));
 });

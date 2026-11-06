@@ -1,8 +1,9 @@
 import {spawnSync,execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 const checks=[
+ ['published-consumption-contract',['--experimental-strip-types','--experimental-loader','./tests/typescript-alias-loader.mjs','--test','tests/mobile-gridex-consumption-openapi.test.mjs']],
  ['customer-routes',['--experimental-strip-types','--experimental-loader','./tests/mobile-read-loader.mjs','--test','tests/mobile-detail-routes.test.mjs','tests/mobile-extras.test.mjs']],
- ['account-and-provider',['--experimental-strip-types','--experimental-loader','./tests/mobile-read-loader.mjs','--test','tests/mobile-consumption.test.mjs','tests/mobile-list-tools.test.mjs','tests/mobile-account-writes.test.mjs','tests/mobile-backend-neutral.test.mjs','tests/mobile-market-prices.test.mjs','tests/mobile-app-export.test.mjs','tests/mobile-secure-storage.test.mjs','tests/mobile-readiness.test.mjs','tests/openapi-release-revisions.test.mjs']],
+ ['account-and-provider',['--experimental-strip-types','--experimental-loader','./tests/mobile-read-loader.mjs','--test','tests/mobile-consumption.test.mjs','tests/mobile-gridex-consumption.test.mjs','tests/mobile-list-tools.test.mjs','tests/mobile-account-writes.test.mjs','tests/mobile-backend-neutral.test.mjs','tests/mobile-market-prices.test.mjs','tests/mobile-app-export.test.mjs','tests/mobile-secure-storage.test.mjs','tests/mobile-readiness.test.mjs','tests/openapi-release-revisions.test.mjs']],
  ['native-lifecycle',['--experimental-strip-types','--experimental-loader','./tests/mobile-account-loader.mjs','--test','tests/mobile-account-lifecycle.test.mjs','tests/mobile-account-adapter.test.mjs','tests/mobile-contract-actions.test.mjs','tests/mobile-market-ui.test.mjs','tests/mobile-phone-editor.test.mjs','tests/mobile-list-ui.test.mjs','tests/mobile-consumption-ui.test.mjs']],
 ];
 const results=[];

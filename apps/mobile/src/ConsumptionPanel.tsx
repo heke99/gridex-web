@@ -23,13 +23,16 @@ export function parseConsumption(body: unknown, expected: ConsumptionSelection):
   const value = (body as {data?:{consumption?:Consumption}})?.data?.consumption;
   if (!value || value.facility !== expected.facility || value.from !== expected.from || value.to !== expected.to || typeof value.complete !== 'boolean' || !Array.isArray(value.items) || value.items.length > 4000) throw new Error('Invalid consumption response');
   consumptionSelection(value && {facility:value.facility,from:value.from,to:value.to});
-  const seen = new Set<string>(); let previousEnd = Date.parse(expected.from); let sum = 0;
+  const seen = new Set<string>(); const seriesEnds = new Map<string,number>(); let sum = 0;
   for (const row of value.items) {
-    if (!row || typeof row.reference !== 'string' || !/^[A-Za-z0-9_-]{1,240}$/.test(row.reference) || seen.has(row.reference) || typeof row.kwh !== 'number' || !Number.isFinite(row.kwh) || row.kwh < 0 || typeof row.from !== 'string' || typeof row.to !== 'string' || !Number.isFinite(Date.parse(row.from)) || !Number.isFinite(Date.parse(row.to)) || Date.parse(row.from) < previousEnd || Date.parse(row.to) <= Date.parse(row.from) || Date.parse(row.to) > Date.parse(expected.to)) throw new Error('Invalid consumption interval');
-    seen.add(row.reference); previousEnd = Date.parse(row.to); sum += row.kwh;
+    if (!row || typeof row !== 'object') throw new Error('Invalid consumption interval');
+    const series = row.series ?? '';
+    if (row.series !== undefined && (typeof row.series !== 'string' || !/^[A-Za-z0-9_-]{1,240}$/.test(row.series))) throw new Error('Invalid meter series');
+    if (!row || typeof row.reference !== 'string' || !/^[A-Za-z0-9_-]{1,240}$/.test(row.reference) || seen.has(row.reference) || typeof row.kwh !== 'number' || !Number.isFinite(row.kwh) || row.kwh < 0 || typeof row.from !== 'string' || typeof row.to !== 'string' || !Number.isFinite(Date.parse(row.from)) || !Number.isFinite(Date.parse(row.to)) || Date.parse(row.from) < (seriesEnds.get(series) ?? Date.parse(expected.from)) || Date.parse(row.to) <= Date.parse(row.from) || Date.parse(row.to) > Date.parse(expected.to)) throw new Error('Invalid consumption interval');
+    seen.add(row.reference); seriesEnds.set(series,Date.parse(row.to)); sum += row.kwh;
   }
   if (!Number.isFinite(sum) || !Number.isFinite(value.totalKwh) || Math.abs(sum - value.totalKwh) > 0.000001) throw new Error('Invalid consumption total');
-  return { ...expected, items: value.items.map(r=>({reference:r.reference,from:r.from,to:r.to,kwh:r.kwh})), totalKwh:sum, complete:value.complete };
+  return { ...expected, items: value.items.map(r=>({reference:r.reference,from:r.from,to:r.to,kwh:r.kwh,...(r.series===undefined?{}:{series:r.series})})), totalKwh:sum, complete:value.complete };
 }
 export function ConsumptionPanel({ theme:t, read }: {theme: MobileBrand['theme'];read:Read}) {
   const [sites,setSites]=useState<CustomerRow[]>([]); const [facility,setFacility]=useState('');

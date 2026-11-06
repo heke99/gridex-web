@@ -1,4 +1,5 @@
 const reference = /^[A-Za-z0-9_-]{1,240}$/;
+const series = v => v === undefined || typeof v === 'string' && reference.test(v);
 const instant = value => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.000Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
 export function consumptionSelection(value) {
  if (!value || Object.keys(value).some(k=>!['facility','from','to'].includes(k)) || (typeof value.facility!=='string'||!reference.test(value.facility)) || !instant(value.from) || !instant(value.to)) throw new Error('Invalid consumption selection');
@@ -12,18 +13,18 @@ export function projectConsumption(input, selection) {
  const s=consumptionSelection(selection);
  if (!input || !Array.isArray(input.deliveryWindows) || !input.deliveryWindows.length || !Array.isArray(input.items) || input.items.length>4000 || typeof input.complete!=='boolean') throw new Error('Verified delivery windows required');
  const windows=input.deliveryWindows.map(w=>{
-  if(w.facility!==s.facility || !instant(w.from) || !instant(w.to) || Date.parse(w.from)>=Date.parse(w.to))throw new Error('Invalid delivery window');
-  return {from:Date.parse(w.from),to:Date.parse(w.to)};
+  if(!series(w.series)||w.facility!==s.facility || !instant(w.from) || !instant(w.to) || Date.parse(w.from)>=Date.parse(w.to))throw new Error('Invalid delivery window');
+  return {from:Date.parse(w.from),to:Date.parse(w.to),series:w.series};
  });
  const seen=new Set();
  const items=input.items.flatMap(row=>{
-  if(!row || (typeof row.reference!=='string'||!reference.test(row.reference)) || row.facility!==s.facility || !instant(row.from) || !instant(row.to) || Date.parse(row.from)>=Date.parse(row.to) || typeof row.kwh!=='number' || !Number.isFinite(row.kwh) || row.kwh<0 || seen.has(row.reference))throw new Error('Invalid consumption row');
+  if(!row || !series(row.series) || (typeof row.reference!=='string'||!reference.test(row.reference)) || row.facility!==s.facility || !instant(row.from) || !instant(row.to) || Date.parse(row.from)>=Date.parse(row.to) || typeof row.kwh!=='number' || !Number.isFinite(row.kwh) || row.kwh<0 || seen.has(row.reference))throw new Error('Invalid consumption row');
   seen.add(row.reference);const from=Date.parse(row.from),to=Date.parse(row.to);
-  if(from<Date.parse(s.from)||to>Date.parse(s.to)||!windows.some(w=>from>=w.from&&to<=w.to))return [];
-  return [{reference:row.reference,from:row.from,to:row.to,kwh:row.kwh}];
+  if(from<Date.parse(s.from)||to>Date.parse(s.to)||!windows.some(w=>w.series===row.series&&from>=w.from&&to<=w.to))return [];
+  return [{reference:row.reference,from:row.from,to:row.to,kwh:row.kwh,...(row.series===undefined?{}:{series:row.series})}];
  }).sort((a,b)=>a.from.localeCompare(b.from));
  // Overlapping revisions cannot be summed safely; fail rather than double count.
- for(let i=1;i<items.length;i++)if(Date.parse(items[i].from)<Date.parse(items[i-1].to))throw new Error('Overlapping consumption intervals');
+ const seriesEnds=new Map();for(const row of items){const key=row.series??'';if(Date.parse(row.from)<(seriesEnds.get(key)??-Infinity))throw new Error('Overlapping consumption intervals');seriesEnds.set(key,Date.parse(row.to));}
  const totalKwh=items.reduce((sum,row)=>sum+row.kwh,0);if(!Number.isFinite(totalKwh))throw new Error('Invalid total');
  return {...s,items,totalKwh,complete:input.complete};
 }

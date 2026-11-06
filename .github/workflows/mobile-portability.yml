@@ -43,7 +43,7 @@ jobs:
           node-version: '22'
       - name: Actual mobile routes with synthetic Auth and OPS
         run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test tests/mobile-detail-routes.test.mjs tests/mobile-extras.test.mjs
-      - run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-app-export.test.mjs tests/mobile-backend-neutral.test.mjs tests/mobile-readiness.test.mjs tests/mobile-market-prices.test.mjs tests/mobile-account-writes.test.mjs tests/mobile-list-tools.test.mjs tests/mobile-consumption.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
+      - run: node --experimental-strip-types --experimental-loader ./tests/mobile-read-loader.mjs --test packages/mobile-foundation/test/brand.test.mjs tests/mobile-foundation-export.test.mjs tests/mobile-app-export.test.mjs tests/mobile-backend-neutral.test.mjs tests/mobile-readiness.test.mjs tests/mobile-market-prices.test.mjs tests/mobile-account-writes.test.mjs tests/mobile-list-tools.test.mjs tests/mobile-consumption.test.mjs tests/mobile-gridex-consumption.test.mjs tests/mobile-contracts-handler.test.mjs tests/mobile-secure-storage.test.mjs tests/mobile-customer-data.test.mjs tests/mobile-customer-resources.test.mjs tests/mobile-details.test.mjs tests/mobile-detail-data.test.mjs tests/mobile-support-writes.test.mjs
 
   native-shell:
     runs-on: ubuntu-latest

@@ -227,3 +227,25 @@ provisioned customer identities. Do not claim complete packages1–2 until these
 blocked checks pass. No credential handoff re-request. Native signing/switching
 and signed store builds remain packages3–4. Evidence docs/mobile/release-package-1-2.md
 and quality/mobile/package-1-2/. Final evidence commit is docs/reports only.
+
+Continuation after user asked to keep working packages1–2: read actual OPS source,
+canonical customer_supply_periods schema and current board#840 (766 full at2500).
+Prepared official private source plan, validated only. No gh CLI/token/credential
+provider or connector atomic tag-ref creation capability, so no OPS claim/write.
+Exact relevant file-ref404 is not ownership. No foreign resources modified.
+
+Web packet adds actual scoped opsConsumption loader, proposed complete per-facility/
+per-meter delivery capability, revision/direction/unit checks, per-meter rights,
+bounded cursor loops and partial cap/deadline. Initial capability request is a
+published base path without queries. Real published validator confirms current
+paging/filter queries unavailable; no exemption added. Legacy OPS remains503.
+Neutral/native consumption gains optional public series with matching rights and
+per-series overlap checks. Two independent non-coauthor reviewers approved final
+consumer after reproducing/fixing multi-meter overlap and documenting query gate;
+final approvals include post-read deadline check.26 focused tests pass, actual
+route tests still synthetic Auth/provider; no real account or live OPS readback.
+Required upstream source/query/publication handoff is recorded in docs/mobile/
+ops-consumption-required-contract.md. Full packets remain unqualified until that
+publication/contract sync and actual customer verification. Keep production API
+active and publish safe consumer packet after candidate CI; do not call blocked
+real consumption complete or silently write OPS outside custody.

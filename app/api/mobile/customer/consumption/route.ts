@@ -1,4 +1,6 @@
 import { createConsumptionHandler } from '@/packages/customer-backend/consumption.mjs';
+import { loadOpsConsumption } from '@/lib/mobile/opsConsumption';
+import { opsCustomerFetch, type OpsPortalIdentity } from '@/lib/ops/client';
 import { authenticateMobile, mobileIdentity } from '@/lib/mobile/customerRuntime';
 
 export const runtime = 'nodejs';
@@ -12,5 +14,6 @@ export const GET = createConsumptionHandler({
     const subject = await authenticateMobile(token);
     return subject ? mobileIdentity(subject, token) : null;
   },
-  load: async () => { throw new Error('OPS facility delivery authorization unavailable'); },
+  load: (binding, selection) => loadOpsConsumption(binding as OpsPortalIdentity, selection,
+    (path, identity, signal) => opsCustomerFetch(path, identity, { signal })),
 });
