@@ -80,3 +80,15 @@ Optional EXPO_PUBLIC_CONTRACT_WEB_ORIGIN enables the web contract actions, point
 to /teckna, /dashboard/contracts and /dashboard/support on that HTTPS origin. Leave
 it unset if the purchaser has no corresponding web flows. These actions hand off
 to the browser without bearer tokens; native signing/switching remains future work.
+
+## Optional public market prices
+
+EXPO_PUBLIC_PRICES_ORIGIN enables the native price screen. Optional
+EXPO_PUBLIC_PRICES_PATH defaults to /api/elpris; the app GETs {prefix}/day with
+area=SE1..SE4 and date=YYYY-MM-DD (Europe/Stockholm). Response fields: priceArea,
+date, sourceLabel, disclaimer and entries:[{sekPerKwh,timeStart,timeEnd}]. Prices
+must be finite numbers including legitimate zero/negative values; timestamps need
+explicit UTC/offset. Intervals must not overlap and must belong to the requested
+Stockholm day. Displayed average is weighted by published interval duration;
+missing values are not synthesized. This provider receives no customer token and
+can be the buyer's own market-data service without OPS.

@@ -156,3 +156,19 @@ api:contract, test:customer-support and test:audit-hardening pass after update.
 Root Next16.4.5 production build passed; built-server mobile guard checks18 passed
 without real credentials. Support webpack build compiled and typechecked. Root
 npm audit0 is specific to root lockfile, not a claim about all exported installations.
+
+Current continuation corrects prior blocker diagnosis: OPS documentation/wire
+versions are intentionally independent (verified upstream source constants and
+live x-contract-schema-version). Web incorrectly enforced equality. Added doc
+constant, exact manifest/spec/runtime/floor/hash validation, synced real live
+specs and generated types. api:preflight now passes with no upstream gaps or
+environment blockers. Runtime9.1 / docs12.1 are both validated. OPS repo unchanged.
+Old producer commercial JSON is preserved; current test server metadata uses wire
+constant and downgrade rejection is explicitly asserted. Customer support fixture
+uses current Customer wire while separately pinned Staff schema remains unchanged.
+Native daily prices added with optional buyer provider, zero/negative/missing/DST,
+duration weighting, race/background/error tests. Real Gridex SE3 feed returned96
+intervals and passed actual native parser. Browser observed /login?next=%2Fdashboard,
+no user authenticated; auth capability guidance read, credential handoff not yet
+requested. Never obtain or echo user credentials/tokens. Production/mobile device,
+consumption and native signing are still not qualified.

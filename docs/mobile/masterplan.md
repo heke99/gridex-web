@@ -494,3 +494,39 @@ Mobilens separata låsfil berörs inte av dessa webbuppdateringar. OPS-manifeste
 blandade versioner är fortfarande en separat felande kontroll.
 Rotprojektets Next16.4.5-produktionsbygge och18 HTTP-kontroller av mobil-API:ts
 skydd gick också igenom efter paketuppdateringen, utan riktiga kunduppgifter.
+
+### Rättad versionskontroll och fungerande native elprisvy
+
+Tidigare besked om en felaktig OPS-release korrigeras: OPS publicerar avsiktligt
+API_DOCUMENTATION_VERSION=2026-10-12.1 och stabil wire-revision2026-10-09.1.
+Det bekräftas både i OPS:s websiteIntegrationContract.ts och de publicerade
+specifikationernas info.version respektive x-contract-schema-version. Felet låg
+i Webs antagande att dokumentations- och runtimeversion måste vara samma sträng.
+OPS-kod eller runtime har inte ändrats här.
+
+Web har nu separata GRIDEX_API_DOCUMENTATION_VERSION och GRIDEX_API_CONTRACT_VERSION.
+Releasevalideringen kontrollerar dokumentationssamstämmighet, giltiga datumrevisioner,
+minimum<=runtime<=documentation, kompatibel dokumentationsrevision, exakta URL:er,
+specifikationsversioner och SHA-256. Specifikationernas wire-extension måste matcha
+manifestets runtimeversion. Hash- och driftkontroller består. De verkligt publicerade
+specifikationerna har synkats och typer/hashar genererats om. api:preflight går grönt,
+inklusive live-byte-/hashjämförelse och strikt kompatibilitet utan undantagsflagga.
+Readiness jämför nu respektive revision mot rätt verifieringsfält. Tester med
+aktuella fejkservrar använder verifierad wiremetadata; historiska kommersiella
+originaldata bevaras. Downgrade, identitets- och idempotenskrav är inte försvagade.
+
+Elpriser-fliken innehåller nu native-priser för SE1–SE4, aktuell publicerad period,
+varaktighetsvägt medelpris, hela intervallistan, källa och avgiftsinformation. Den
+använder samma publika tjänst som Gridex webb, utan kundtoken eller OPS. Dagens
+skarpa SE3-svar verifierades med96 kvartsvärden. Priser hanterar noll, negativa värden,
+saknade perioder och Stockholms datum/tidsomställning. Fel elområde, gammalt dygn,
+överlappande intervall och sena svar för annat valt område avvisas. Bakgrundsläge
+avbryter hämtning; återgång/uppdatering hämtar nytt. Det är spotpris, inte kundens
+slutliga avtalskostnad. Köpare kopplar egen källa med EXPO_PUBLIC_PRICES_ORIGIN och
+EXPO_PUBLIC_PRICES_PATH; utan sådan konfiguration gör mallen inget prisanrop.
+
+Kundsession är ännu inte verifierad: webbläsaren nådde Gridex login för Mina sidor,
+men någon kund var inte inloggad. Det kräver kontoinnehavarens säkra inloggning.
+Produktionsaktivering, publik mobil-API-adress och signerade enhetsbyggen är fortfarande
+separata återstående steg; native förbrukning och native signering/avtalsbyte är inte
+färdiga i detta paket. Tidigare manifestkonflikt är däremot inte längre en blockerare.

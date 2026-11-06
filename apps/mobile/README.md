@@ -112,3 +112,13 @@ Native identity currently uses Supabase Auth independently of the data provider.
 EXPO_PUBLIC_CONTRACT_WEB_ORIGIN optionally enables web signup/contracts/support
 handoffs in the exported app. Gridex itself defaults these links to gridex.se.
 Those handoffs do not implement native signing or automatic contract switching.
+
+Elpriser now renders the native daily market view: SE1–SE4, current interval,
+duration-weighted published average, source/disclaimer, retry and interval rows.
+Gridex uses its existing public /api/elpris/day API. The exported template only
+loads prices when EXPO_PUBLIC_PRICES_ORIGIN is configured; optional
+EXPO_PUBLIC_PRICES_PATH defaults to /api/elpris. The provider must return priceArea,
+date (Stockholm calendar date), sourceLabel, disclaimer and entries containing
+sekPerKwh/timeStart/timeEnd. Explicit timezone offsets are required. Values are
+spot prices; do not label them as an all-in customer tariff. No customer bearer
+is sent to a public market-data provider.
