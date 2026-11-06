@@ -71,3 +71,5 @@ converted to supported ESM and full lint plus both native bundles now PASS.
 Previous remote contract preflight is separately RED: published OPS release
 manifest reports mixed contract versions. No gate weakened or contract blindly
 resynced. New remote CI still required; no merge/release is claimed.
+
+Invoice continuation: added subject-bound invoice-by-reference route and native refresh action. Typechecks and existing handler/resource regressions pass. Full invoice line/PDF projection, actual-route IDOR regressions and live detail envelope qualification remain pending; this is a draft increment.

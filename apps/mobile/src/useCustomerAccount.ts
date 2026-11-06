@@ -27,7 +27,7 @@ export function useCustomerAccount(brand: string) {
     finally { wantsLogout.current = false; expectedSignout.current = false; }
   }, [client]);
 
-  const run = useCallback(async (next: Resource, sessionAction: () => Promise<string | null>) => {
+  const run = useCallback(async (next: Resource, sessionAction: () => Promise<string | null>, invoiceId?: string) => {
     if (!client || inFlight.current) return;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
@@ -39,7 +39,7 @@ export function useCustomerAccount(brand: string) {
       setAuthenticated(true);
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${next}`, {
+        const response = await fetch(`${customerApi!.replace(/\/$/, '')}/api/mobile/customer/${next}${invoiceId ? `/${encodeURIComponent(invoiceId)}` : ''}`, {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
         if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
@@ -92,11 +92,11 @@ export function useCustomerAccount(brand: string) {
     if (result.error || !result.data.session) { clear(); await signOut(); throw new Error('login'); }
     return result.data.session.access_token;
   });
-  const select = (next: Resource) => run(next, async () => {
+  const select = (next: Resource, invoiceId?: string) => run(next, async () => {
     const result = await client!.auth.getSession();
     if (result.error) throw result.error;
     return result.data.session?.access_token ?? null;
-  });
+  }, invoiceId);
   const logout = () => {
     needsRestore.current = false; wantsLogout.current = true;
     generation.current++; pending.current?.abort(); clear(); setError('');

@@ -46,6 +46,7 @@ export function CustomerAccess({ brand }: { brand: MobileBrand }) {
           <Text style={{ color: t.muted }}>Elområde: {row.priceArea ?? 'Uppgift saknas'}</Text>
         </>}
         {a.resource === 'invoices' && <>
+          <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('invoices', row.reference)} style={button}><Text style={{ color: t.accentText }}>Hämta aktuell faktura</Text></Pressable>
           <Text style={{ color: t.text }}>{row.amount === null ? 'Belopp saknas' : `${row.amount} ${row.currency ?? '(valuta saknas)'}`}</Text>
           <Text style={{ color: t.muted }}>Förfallodag: {row.dueDate ?? 'Uppgift saknas'}</Text>
           {row.paidAt && <Text style={{ color: t.muted }}>Betald: {row.paidAt}</Text>}

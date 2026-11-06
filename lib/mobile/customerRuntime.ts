@@ -13,7 +13,7 @@ function authClient(token?: string) {
   });
 }
 
-export function customerResourceRoute(resource: Resource) {
+export function customerResourceRoute(resource: Resource, invoiceId?: string) {
   return createContractsHandler({
     enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true',
     authenticate: async token => {
@@ -25,8 +25,8 @@ export function customerResourceRoute(resource: Resource) {
         .select('customer_number,external_customer_id').eq('user_id', subject).maybeSingle();
       if (error || !profile) throw new Error('Customer binding unavailable');
       const payload = await fetchOpsCustomerResource({ userId: subject,
-        customerNumber: profile.customer_number, externalCustomerId: profile.external_customer_id }, resource);
-      return normalizeResource(resource, payload);
+        customerNumber: profile.customer_number, externalCustomerId: profile.external_customer_id }, resource, invoiceId);
+      return normalizeResource(resource, invoiceId ? { data: [((payload as { data?: unknown }).data)] } : payload);
     },
   }, resource);
 }
