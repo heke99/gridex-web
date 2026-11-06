@@ -230,3 +230,54 @@ test('consumption expired auth clears private account state',async()=>{
   await act(async()=>{await assert.rejects(current.readConsumption('sites',{},new AbortController().signal),/Login required/);});
   assert.equal(current.authenticated,false);assert.equal(current.rows,null);assert.equal(session,null);await unmount();
 });
+
+for (const operation of ['document', 'phone', 'support', 'notification']) {
+  for (const interruption of ['logout', 'background', 'unmount']) {
+    test(`${operation} does not dispatch after ${interruption} during session lookup`, async () => {
+      const unmount = await mount(true);
+      const original = fixture.client.auth.getSession;
+      const captured = { ...session, user: { id: 'own-user' } };
+      let resolveSession;
+      fixture.client.auth.getSession = () => new Promise(resolve => { resolveSession = resolve; });
+      const before = fetchCalls;
+      let pending;
+      try {
+        await act(async () => {
+          pending = operation === 'document' ? current.openDocument(null, 'owned-doc', () => assert.fail('cancelled document opened'))
+            : operation === 'phone' ? current.updatePhone('0701234567')
+            : operation === 'support' ? current.submitSupport('Question', 'Hello')
+            : current.markNotificationRead('owned-notification');
+        });
+        if (interruption === 'logout') await act(async () => current.logout());
+        else if (interruption === 'unmount') await unmount();
+        else await act(async () => {
+          fixture.appState.currentState = 'background';
+          for (const listener of listeners) listener('background');
+        });
+        await act(async () => { resolveSession({ data: { session: captured }, error: null }); await pending; });
+        assert.equal(fetchCalls, before, 'cancelled operation must never reach the API');
+      } finally {
+        fixture.client.auth.getSession = original;
+        if (interruption !== 'unmount') await unmount();
+      }
+    });
+  }
+}
+
+test('inactive screens cannot initiate customer reads, document opens or writes', async () => {
+  const unmount = await mount(true);
+  await act(async () => {
+    fixture.appState.currentState = 'background';
+    for (const listener of listeners) listener('background');
+  });
+  const before = fetchCalls;
+  await act(async () => {
+    await current.select('profile');
+    await current.openDocument(null, 'owned-doc', () => assert.fail('inactive document opened'));
+    assert.equal(await current.updatePhone('0701234567'), false);
+    assert.equal(await current.submitSupport('Question', 'Hello'), false);
+    assert.equal(await current.markNotificationRead('owned-notification'), false);
+  });
+  assert.equal(fetchCalls, before);
+  await unmount();
+});
