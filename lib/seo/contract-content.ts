@@ -55,8 +55,9 @@ export const contractContent: Record<string, EditorialContent> = {
   },
   '/elavtal/byta-elleverantor': {
     sections: [
-      { title: 'Vad är det som byts vid leverantörsbyte?', body: ['Elleverantören säljer elhandeln till din anläggning. Nätägaren ansvarar för anslutning och överföring och bestäms av adressen. Ett vanligt elhandelsbyte kräver normalt inget fysiskt arbete.', 'Kontrollera att det nya avtalet gäller rätt avtalspart och anläggning. Ett leverantörsbyte på samma adress skiljer sig från en flytt.'] },
-      { title: 'Förbered det nya avtalet', body: ['Ta fram årsförbrukning, nuvarande villkor och anläggningsuppgifter. Jämför energiprisets beräkning och fasta avgifter innan du väljer ett erbjudande.', 'Läs den mer detaljerade bytesguiden för steg och vanliga frågor. Kontrollera befintliga avtalsfrister och följ det bekräftade startdatumet.'] },
+      { title: 'På elhandelsavtalet: kontrollera när du kan byta', body: ['Leta efter bindningstid, uppsägningstid och eventuella villkor för förtida avslut. Skriv upp tidigaste möjliga slutdatum. Be din nuvarande elleverantör bekräfta datumet om villkoren är oklara.'] },
+      { title: 'På elnätsfakturan: hitta rätt elanläggning', body: ['Ta fram anläggnings-ID och kontrollera adressen och vem som står på elnätsavtalet. Har du flera abonnemang, jämför adressen på fakturan med adressen där du vill byta leverantör.'] },
+      { title: 'I den nya avtalsbekräftelsen: stäm av startdatumet', body: ['Kontrollera att bekräftelsen gäller rätt adress och elanläggning. Jämför leveransstarten med slutdatumet för ditt nuvarande avtal. Kontakta leverantören om uppgifterna skiljer sig från det du angav vid teckningen.'] },
     ],
     faq: [{ question: 'Behöver någon byta min elmätare när jag väljer elhandlare?', answer: 'Ett vanligt byte av elhandlare innebär normalt inte att mätaren byts. Nätägaren ansvarar för anslutningen och mätningen.' }],
     related: [{ label: 'Byta elbolag steg för steg', href: '/elavtal/byta-elbolag', description: 'Fördjupa dig i förberedelser och avtalsstart.' }, { label: 'Nätägare', href: '/natagare', description: 'Förstå anslutningens ansvar.' }],
