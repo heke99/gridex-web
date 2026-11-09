@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { MobileTheme } from '../../../packages/mobile-foundation/src/brand';
 import type { InvoiceDetail, SupportDetail } from '../../../packages/mobile-foundation/src/customerDetails';
-const amount = (value: number | null, currency: string | null) => value === null ? 'Uppgift saknas' : `${value} ${currency ?? '(valuta saknas)'}`;
+const amount = (value: number | null, currency: string | null) => value === null ? 'Uppgift saknas' : `${value.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} ${currency ?? '(valuta saknas)'}`;
 
 export function InvoicePanel({ invoice, theme: t, busy, openDocument, back }: { invoice: InvoiceDetail; theme: MobileTheme; busy: boolean; openDocument: (reference: string) => void; back: () => void }) {
   const text = { color: t.text }; const muted = { color: t.muted };

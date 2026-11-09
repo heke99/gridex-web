@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {marketDate,marketPriceUrl,parseMarketDay,currentMarketPrice} from '../apps/mobile/src/marketPrices.ts';
+import {marketDate,relativeMarketDate,nextMarketEntry,marketPriceUrl,parseMarketDay,currentMarketPrice} from '../apps/mobile/src/marketPrices.ts';
 const date='2026-11-06';
 const entry=(sekPerKwh=0,timeStart=`${date}T00:00:00+01:00`,timeEnd=`${date}T01:00:00+01:00`)=>({sekPerKwh,timeStart,timeEnd});
 const payload=(entries)=>({priceArea:'SE3',date,sourceLabel:'Own public price feed',disclaimer:'Spot prices exclude fees',entries});
@@ -22,4 +22,19 @@ test('Stockholm market date and repeated autumn hours preserve their distinct in
 test('price provider is replaceable without OPS or customer credentials',()=>{
  assert.equal(marketPriceUrl('https://buyer.test','SE1',date,'/public/prices'),'https://buyer.test/public/prices/day?area=SE1&date=2026-11-06');
  assert.throws(()=>marketPriceUrl('http://unsafe.test','SE1',date));assert.throws(()=>marketPriceUrl('https://buyer.test','SE5',date));assert.throws(()=>marketPriceUrl('https://buyer.test','SE1','2026-02-30'));
+});
+
+test('relative days follow the Stockholm calendar across DST and year boundaries', () => {
+ const midnight = new Date('2026-10-24T22:30:00Z');
+ assert.equal(relativeMarketDate(-1, midnight), '2026-10-24');
+ assert.equal(relativeMarketDate(1, midnight), '2026-10-26');
+ assert.equal(relativeMarketDate(1, new Date('2026-12-31T12:00:00Z')), '2027-01-01');
+});
+
+test('next interval preserves a published zero and returns null after the final start', () => {
+ const day = parseMarketDay(payload([entry()]), 'SE3', date);
+ const start = Date.parse(day.entries[0].timeStart);
+ assert.equal(nextMarketEntry(day, start - 1)?.sekPerKwh, 0);
+ assert.equal(nextMarketEntry(day, start), null);
+ assert.throws(() => parseMarketDay(payload([entry(Number.MAX_VALUE)]), 'SE3', date));
 });

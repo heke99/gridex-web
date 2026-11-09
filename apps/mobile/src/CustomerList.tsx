@@ -18,7 +18,7 @@ export function CustomerList({resource,rows,theme:t,children}:{resource:Resource
    {(query||status!=='all')&&<Pressable accessibilityRole="button" onPress={()=>{setQuery('');setStatus('all');}} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:t.accent}}>Rensa sökning och filter</Text></Pressable>}
    <Text accessibilityLiveRegion="polite" style={{color:t.muted}}>Visar {visible.length} av {rows.length} hämtade poster</Text>
   </>}
-  {visible.length===0&&<Text style={{color:t.muted}}>{rows.length?'Inga hämtade poster matchar ditt val.':'Inga uppgifter finns att visa.'}</Text>}
+  {visible.length===0&&<Text style={{color:t.muted}}>{rows.length?'Inga hämtade poster matchar ditt val.':resource==='invoices'?'Inga fakturor finns att visa.':resource==='support'?'Du har inga ärenden att visa.':'Inga uppgifter finns att visa.'}</Text>}
   {visible.map(row=><React.Fragment key={row.reference}>{children(row)}</React.Fragment>)}
  </View>;
 }

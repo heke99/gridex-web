@@ -50,6 +50,7 @@ export function useCustomerAccount(brand: string) {
         const response = await fetch(customerEndpoint(customerApi, customerViewPath(next, reference), cursor, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
+        if (attempt !== generation.current) return;
         if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
         if (!response.ok) throw new Error('resource unavailable');
         const body = await response.json();
@@ -131,6 +132,7 @@ export function useCustomerAccount(brand: string) {
       const response = await fetch(customerEndpoint(customerApi, invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
         headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
       });
+      if (attempt !== generation.current) return;
       if (response.status === 401) { clear(); await signOut(); throw new Error('expired'); }
       if (!response.ok) throw new Error('document unavailable');
       const url = parseDocumentLink(await response.json(), documentRef, invoiceRef ? 'invoiceDocument' : 'customerDocument');
