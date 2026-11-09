@@ -44,7 +44,7 @@ export function ConsumptionPanel({ theme:t, read }: {theme: MobileBrand['theme']
       await Promise.resolve(); if(!current)return;
       setBusy(true);setData(null);setError('');
       let selected=facility;
-      if(!selected){const rows=parseCustomerRows('sites',await read('sites',{},controller.signal));if(!current)return;setSites(rows);if(!rows.length){setBusy(false);return;}selected=rows[0].reference;setFacility(selected);return;}
+      if(!selected){const rows=parseCustomerRows('sites',await read('sites',{},controller.signal));if(!current||controller.signal.aborted)return;setSites(rows);if(!rows.length){setBusy(false);return;}selected=rows[0].reference;setFacility(selected);return;}
       const selection={facility:selected,...consumptionPeriod(days)};
       const result=parseConsumption(await read('consumption',selection,controller.signal),selection);
       if(current&&!controller.signal.aborted)setData(result);
@@ -66,7 +66,7 @@ export function ConsumptionPanel({ theme:t, read }: {theme: MobileBrand['theme']
       <Text style={{color:t.text}}>{data.totalKwh.toLocaleString('sv-SE',{maximumFractionDigits:2})} kWh i hämtade mätvärden</Text>
       <Text style={{color:t.muted}}>{localDate(new Date(data.from))} – {localDate(new Date(data.to))} (slutgränsen ingår inte). {data.complete?'Källan anger att hämtningen är komplett.':'Delvis hämtad period.'}</Text>
       {!data.items.length&&<Text style={{color:t.muted}}>Inga behöriga mätvärden finns i den hämtade perioden.</Text>}
-      {[...daily].map(([date,kwh])=><View key={date} accessible accessibilityLabel={`${date}: ${kwh.toFixed(2)} kilowattimmar`} style={{gap:4}}><Text style={{color:t.text}}>{date}: {kwh.toFixed(2)} kWh</Text><View style={{height:12,width:`${100*kwh/max}%`,backgroundColor:t.accent,borderRadius:4}}/></View>)}
+      {[...daily].sort(([first], [second]) => first.localeCompare(second)).map(([date,kwh])=><View key={date} accessible accessibilityLabel={`${date}: ${kwh.toFixed(2)} kilowattimmar`} style={{gap:4}}><Text style={{color:t.text}}>{date}: {kwh.toFixed(2)} kWh</Text><View style={{height:12,width:`${100*kwh/max}%`,backgroundColor:t.accent,borderRadius:4}}/></View>)}
     </>}
     <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>{setData(null);setTick(v=>v+1);}} style={button}><Text style={{color:t.accent}}>Hämta förbrukning igen</Text></Pressable>
   </View>;

@@ -9,6 +9,7 @@ import { useCustomerAccount } from './useCustomerAccount';
 import { customerApi } from './accountClient';
 import { SupportComposer } from './SupportComposer';
 import { InvoicePanel, SupportPanel } from './CustomerDetailPanels';
+import { contractWebUrl } from './customerEndpoint';
 import { recoveryUrl, type Resource } from './customerData';
 
 const labels: Record<Resource, string> = { contracts: 'Avtal', sites: 'Anläggningar', invoices: 'Fakturor', support: 'Support', profile:'Profil', notifications:'Meddelanden', documents:'Dokument', powers:'Fullmakter', acceptances:'Godkännanden' };
@@ -17,7 +18,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [linkError, setLinkError] = useState('');
   const openSupportWeb = async () => {
-    try { await Linking.openURL(new URL('/dashboard/support', customerApi).href); }
+    try { await Linking.openURL(contractWebUrl(customerApi!, 'support')); }
     catch { setLinkError('Kunde inte öppna Mina sidor på webben.'); }
   };
   const canLogin = !a.busy && Boolean(email.trim() && password);
@@ -43,7 +44,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
       <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
-      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
+      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry autoComplete="current-password" returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
       <Pressable accessibilityRole="button" disabled={!canLogin} onPress={submitLogin} style={[button, { opacity: canLogin ? 1 : 0.5 }]}>
         <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>
       </Pressable>
@@ -86,6 +87,6 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     </>}
     {a.busy && <ActivityIndicator accessibilityLabel="Hämtar kunduppgifter" color={t.accent} />}
     {(a.error || linkError) !== '' && <Text accessibilityRole="alert" style={{ color: t.text }}>{a.error || linkError}</Text>}
-    {(a.busy || a.authenticated) && <Pressable accessibilityRole="button" onPress={() => { setPassword(''); a.logout(); }} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{a.busy ? 'Avbryt och logga ut' : 'Logga ut'}</Text></Pressable>}
+    {(a.busy || a.authenticated) && <Pressable accessibilityRole="button" onPress={() => { setPassword(''); setLinkError(''); a.logout(); }} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{a.busy ? 'Avbryt och logga ut' : 'Logga ut'}</Text></Pressable>}
   </View>;
 }
