@@ -187,6 +187,7 @@ export const elavtalPages: SeoPageContent[] = [
       { label: 'Billigaste elavtalet', href: '/elavtal/billigaste-elavtalet', description: 'Så jämför du utan att bli lurad av enskilda prisrader.' },
       { label: 'Spotpris el', href: '/elpriser/spotpris-el', description: 'Förstå spotpriset bakom många rörliga avtal.' },
       { label: 'Byta elbolag', href: '/elavtal/byta-elbolag', description: 'Se hur bytet går till i praktiken.' },
+      { label: 'Checklista inför byte av elleverantör', href: '/elavtal/byta-elleverantor', description: 'Se vilka uppgifter och datum du behöver kontrollera.' },
     ],
   },
   {
@@ -928,7 +929,7 @@ export const guidePages: SeoPageContent[] = [
       { question: 'Måste jag kontakta nätägaren?', answer: 'Normalt hanteras elhandelsbytet utan att du byter nätägare, men kompletteringar kan behövas.' },
     ],
     related: [
-      { label: 'Byta elbolag', href: '/elavtal/byta-elbolag', description: 'Produktsida om bytet.' },
+      { label: 'Checklista inför byte av elleverantör', href: '/elavtal/byta-elleverantor', description: 'Gå igenom avtalsvillkor, anläggningsuppgifter och startdatum.' },
       { label: 'Fullmakt', href: '/fullmakt', description: 'Om uppgifter och godkännanden.' },
       { label: 'Teckna elavtal', href: '/teckna-avtal', description: 'Gå vidare till teckning.' },
     ],
@@ -1231,8 +1232,10 @@ elavtalPages.push(
     elavtalCompetitorPage({
       slug: page.slug,
       path: `/elavtal/${page.slug}`,
-      title: page.slug === 'byta-elleverantor' ? 'Byta elleverantör – checklista inför ditt byte' : `${page.h1} – guide från Gridex`,
-      description: `Lär dig mer om ${page.label}. Gridex förklarar pris, villkor och vad du bör kontrollera innan du väljer elavtal.`,
+      title: page.slug === 'byta-elleverantor' ? 'Byta elleverantör? Checklista inför bytet | Gridex' : `${page.h1} – guide från Gridex`,
+      description: page.slug === 'byta-elleverantor'
+        ? 'Ska du byta elleverantör? Kontrollera bindningstid, hitta ditt anläggnings-ID och stäm av startdatum med Gridex checklista.'
+        : `Lär dig mer om ${page.label}. Gridex förklarar pris, villkor och vad du bör kontrollera innan du väljer elavtal.`,
       eyebrow: page.h1,
       h1: page.h1,
       lead: page.lead,
