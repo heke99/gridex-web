@@ -20,6 +20,13 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     try { await Linking.openURL(new URL('/dashboard/support', customerApi).href); }
     catch { setLinkError('Kunde inte öppna Mina sidor på webben.'); }
   };
+  const canLogin = !a.busy && Boolean(email.trim() && password);
+  const submitLogin = () => {
+    if (!canLogin) return;
+    setPassword('');
+    setLinkError('');
+    void a.login(email, password);
+  };
   const t = brand.theme;
   const listResource = a.resource === 'invoiceDetail' ? 'invoices' : a.resource === 'supportDetail' ? 'support' : a.resource;
   const button = { minHeight: 48, padding: 14, borderRadius: 12, backgroundColor: t.accent };
@@ -36,8 +43,8 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
       <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
-      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
-      <Pressable accessibilityRole="button" disabled={a.busy || !email.trim() || !password} onPress={() => { const value = password; setPassword(''); void a.login(email, value); }} style={[button, { opacity: a.busy || !email.trim() || !password ? 0.5 : 1 }]}>
+      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
+      <Pressable accessibilityRole="button" disabled={!canLogin} onPress={submitLogin} style={[button, { opacity: canLogin ? 1 : 0.5 }]}>
         <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>
       </Pressable>
       <Pressable accessibilityRole="link" disabled={a.busy} onPress={() => void openRecovery()} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: t.accent }}>Glömt lösenord? Återställ på hemsidan</Text></Pressable>

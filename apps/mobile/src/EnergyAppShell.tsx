@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
 
@@ -15,10 +15,15 @@ const copy: Record<Tab, { title: string; body: string }> = {
 /** Presentation-only shell. Never treats a chosen brand as authorization. */
 export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel }: { brand: MobileBrand; customerPanel?: React.ReactNode | ((tab: Tab) => React.ReactNode); contractPanel?: React.ReactNode; pricePanel?: React.ReactNode }) {
   const [active, setActive] = useState<Tab>('Hem');
+  const scroll = useRef<ScrollView>(null);
+  const openTab = (tab: Tab) => {
+    setActive(tab);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  };
   const t = brand.theme;
   return <View style={[styles.root, { backgroundColor: t.canvas }]}>
     <StatusBar barStyle="light-content" />
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Text style={[styles.brand, { color: t.accent }]}>{brand.displayName}</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: t.text }]}>{copy[active].title}</Text>
       <Text style={[styles.body, { color: t.muted }]}>{copy[active].body}</Text>
@@ -29,14 +34,14 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
         <Text style={[styles.body, { color: t.muted }]}>Kundinloggning och anslutning till dina uppgifter är inte aktiverade i denna testversion.</Text>
       </View>}
       {active === 'Hem' && <View style={styles.tiles}>
-        {(['Elpriser', 'Förbrukning', 'Avtal'] as const).map(tab => <Pressable key={tab} accessibilityRole="button" onPress={() => setActive(tab)} style={[styles.tile, { borderColor: t.muted }]}>
+        {(['Elpriser', 'Förbrukning', 'Avtal'] as const).map(tab => <Pressable key={tab} accessibilityRole="button" onPress={() => openTab(tab)} style={[styles.tile, { borderColor: t.muted }]}>
           <Text style={[styles.cardTitle, { color: t.text }]}>{tab}</Text>
           <Text style={{ color: t.accent }}>Öppna →</Text>
         </Pressable>)}
       </View>}
     </ScrollView>
     <View accessibilityRole="tablist" style={[styles.tabs, { backgroundColor: t.surface }]}>
-      {tabs.map(tab => <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected: tab === active }} onPress={() => setActive(tab)} style={styles.tab}>
+      {tabs.map(tab => <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected: tab === active }} onPress={() => openTab(tab)} style={styles.tab}>
         <Text style={{ color: tab === active ? t.accent : t.muted, fontSize: 12, fontWeight: tab === active ? '700' : '400' }}>{tab}</Text>
       </Pressable>)}
     </View>

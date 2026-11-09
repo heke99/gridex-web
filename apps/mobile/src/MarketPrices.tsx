@@ -6,6 +6,7 @@ const ore=(value:number)=>`${(value*100).toLocaleString('sv-SE',{maximumFraction
 const time=(value:string)=>new Date(value).toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit',timeZoneName:'shortOffset'});
 export function MarketPrices({origin,theme:t}:{origin?:string;theme:MobileTheme}){
  const [area,setArea]=useState<PriceArea>('SE3'),[day,setDay]=useState<MarketDay|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[tick,setTick]=useState(0);
+ const [showIntervals,setShowIntervals]=useState(false);
  const [active,setActive]=useState(AppState.currentState==='active');
  useEffect(()=>{const sub=AppState.addEventListener('change',state=>{setActive(state==='active');if(state==='active')setTick(v=>v+1);});return()=>sub.remove();},[]);
  useEffect(()=>{
@@ -33,7 +34,10 @@ export function MarketPrices({origin,theme:t}:{origin?:string;theme:MobileTheme}
    <Text style={{color:t.text}}>Medelpris för publicerade intervall: {day.average===null?'Uppgift saknas':ore(day.average)}</Text>
    <Text style={{color:t.muted}}>Källa: {day.source}</Text><Text style={{color:t.muted}}>{day.disclaimer}</Text>
    {day.entries.length===0&&<Text style={{color:t.muted}}>Inga priser har publicerats för det valda dygnet.</Text>}
-   {day.entries.map(entry=><View key={entry.timeStart} style={{flexDirection:'row',justifyContent:'space-between',gap:10}}><Text style={{color:t.muted}}>{time(entry.timeStart)}–{time(entry.timeEnd)}</Text><Text style={{color:t.text}}>{ore(entry.sekPerKwh)}</Text></View>)}
+   {day.entries.length>0&&<Pressable accessibilityRole="button" accessibilityState={{expanded:showIntervals}} onPress={()=>setShowIntervals(value=>!value)} style={{minHeight:48,justifyContent:'center'}}>
+    <Text style={{color:t.accent}}>{showIntervals?'Dölj intervallpriser':`Visa alla ${day.entries.length} intervallpriser`}</Text>
+   </Pressable>}
+   {showIntervals&&day.entries.map(entry=><View key={entry.timeStart} style={{flexDirection:'row',justifyContent:'space-between',gap:10}}><Text style={{color:t.muted}}>{time(entry.timeStart)}–{time(entry.timeEnd)}</Text><Text style={{color:t.text}}>{ore(entry.sekPerKwh)}</Text></View>)}
   </>}
   {error!==''&&<Text accessibilityRole="alert" style={{color:t.text}}>{error}</Text>}
   <Pressable accessibilityRole="button" disabled={busy} onPress={()=>setTick(v=>v+1)} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:t.accent}}>Uppdatera elpriser</Text></Pressable>
