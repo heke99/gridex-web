@@ -112,7 +112,7 @@ export default async function ElprisIdagPage() {
           spotpris • SE1-SE4 • dagspris
         </div>
         <h1 className="mt-4 text-4xl font-bold">
-          Elpris idag och föregående månads spotpris
+          Elpris idag i SE1, SE2, SE3 och SE4
         </h1>
         <p className="mt-3 max-w-3xl text-gray-400">
           Här visas generell marknadsinformation för elområdena. Informationen används inte som avtals- eller faktureringspris.
@@ -125,6 +125,36 @@ export default async function ElprisIdagPage() {
           <Link href="/elavtal/jamfor-elavtal" className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm font-semibold text-white transition hover:border-cyan-500/40">
             Jämför elavtal
           </Link>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-bold text-white">Dagens marknadspris</h2>
+        <p className="text-sm text-gray-400">
+          Dagens pris visas som marknadsinformation. Det är inte samma sak som rörligt månadspris, där föregående månads snittspot ofta används som bas.
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {AREAS.map((area, index) => {
+            const summary = summaries[index]
+            const current = summary?.current
+            return (
+              <Link key={area} href={`/elpriser/${area.toLowerCase()}`} className="rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40">
+                <div className="text-sm text-gray-400">{area}</div>
+                <div className="mt-2 text-3xl font-bold">{formatOre(current ? current.sekPerKwh * 100 : null)}</div>
+                {!summary && <p className="mt-3 text-xs text-gray-400">Dagens pris kunde inte hämtas.</p>}
+                <div className="mt-3 text-xs text-gray-500">
+                  Dagens snitt: {formatOre(summary ? summary.stats.averageOrePerKwh : null)}
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  Lägst/högst:{' '}
+                  {summary
+                    ? `${formatOre(summary.stats.minSekPerKwh * 100)} / ${formatOre(summary.stats.maxSekPerKwh * 100)}`
+                    : '—'}
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
@@ -157,34 +187,10 @@ export default async function ElprisIdagPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-white">Dagens marknadspris</h2>
-        <p className="text-sm text-gray-400">
-          Dagens pris visas som marknadsinformation. Det är inte samma sak som rörligt månadspris, där föregående månads snittspot ofta används som bas.
-        </p>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {AREAS.map((area, index) => {
-            const summary = summaries[index]
-            const current = summary?.current
-            return (
-              <Link key={area} href={`/elpriser/${area.toLowerCase()}`} className="rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40">
-                <div className="text-sm text-gray-400">{area}</div>
-                <div className="mt-2 text-3xl font-bold">{formatOre(current ? current.sekPerKwh * 100 : null)}</div>
-                <div className="mt-3 text-xs text-gray-500">
-                  Dagens snitt: {formatOre(summary ? summary.stats.averageOrePerKwh : null)}
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Lägst/högst:{' '}
-                  {summary
-                    ? `${formatOre(summary.stats.minSekPerKwh * 100)} / ${formatOre(summary.stats.maxSekPerKwh * 100)}`
-                    : '—'}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+      <p className="text-sm text-gray-400">
+        Bor du i Uppsala?{' '}
+        <Link href="/elpriser/uppsala" className="text-cyan-300 underline">Se hur spotpriset i SE3 påverkar ditt elavtal</Link>.
+      </p>
 
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-6">
         <h2 className="text-2xl font-bold text-white">Från elpris till elavtal</h2>
