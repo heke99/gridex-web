@@ -24,6 +24,6 @@ export function parseCustomerRows(resource: Resource, body: unknown): CustomerRo
 /** Password reset stays in the existing verified web flow; never append tokens. */
 export function recoveryUrl(api: string): string {
   const origin = new URL(api);
-  if (origin.protocol !== 'https:' || origin.username || origin.password) throw new Error('Invalid recovery origin');
+  if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid recovery origin');
   return new URL('/login/forgot-password', origin.origin).href;
 }

@@ -24,6 +24,11 @@ export function MarketPrices({origin,theme:t}:{origin?:string;theme:MobileTheme}
  useEffect(()=>{if(!active)return;const timer=setInterval(()=>setTick(v=>v+1),60000);return()=>clearInterval(timer);},[active]);
  if(!origin)return <Text style={{color:t.muted}}>Pristjänsten är inte ansluten.</Text>;
  const current=day?currentMarketPrice(day):null;
+ const prices = day?.entries.map(entry => entry.sekPerKwh) ?? [];
+ const range = prices.length ? prices.reduce(
+  ([low, high], price) => [Math.min(low, price), Math.max(high, price)],
+  [prices[0], prices[0]],
+ ) : null;
  return <View style={{gap:14,backgroundColor:t.surface,padding:20,borderRadius:20}}>
   <Text accessibilityRole="header" style={{color:t.text,fontSize:20}}>Dagens spotpris</Text>
   <View style={{flexDirection:'row',gap:12,flexWrap:'wrap'}}>{priceAreas.map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:value===area}} onPress={()=>setArea(value)} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:value===area?t.accent:t.muted}}>{value}</Text></Pressable>)}</View>
@@ -32,6 +37,7 @@ export function MarketPrices({origin,theme:t}:{origin?:string;theme:MobileTheme}
    <Text style={{color:t.text}}>{day.date} · {day.area}</Text>
    <Text style={{color:t.text,fontSize:24}}>Just nu: {current===null?'Uppgift saknas':ore(current)}</Text>
    <Text style={{color:t.text}}>Medelpris för publicerade intervall: {day.average===null?'Uppgift saknas':ore(day.average)}</Text>
+   {range&&<Text style={{color:t.text}}>Lägsta: {ore(range[0])} · Högsta: {ore(range[1])}</Text>}
    <Text style={{color:t.muted}}>Källa: {day.source}</Text><Text style={{color:t.muted}}>{day.disclaimer}</Text>
    {day.entries.length===0&&<Text style={{color:t.muted}}>Inga priser har publicerats för det valda dygnet.</Text>}
    {day.entries.length>0&&<Pressable accessibilityRole="button" accessibilityState={{expanded:showIntervals}} onPress={()=>setShowIntervals(value=>!value)} style={{minHeight:48,justifyContent:'center'}}>
