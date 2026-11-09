@@ -42,7 +42,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     {!a.authenticated ? <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
-      <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
+      <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
       <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
       <Pressable accessibilityRole="button" disabled={!canLogin} onPress={submitLogin} style={[button, { opacity: canLogin ? 1 : 0.5 }]}>
         <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>

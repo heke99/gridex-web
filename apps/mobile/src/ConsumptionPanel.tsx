@@ -57,8 +57,8 @@ export function ConsumptionPanel({ theme:t, read }: {theme: MobileBrand['theme']
   return <View style={{gap:12}}>
     <Text accessibilityRole="header" style={{color:t.text,fontSize:22}}>Din förbrukning</Text>
     <Text style={{color:t.muted}}>Välj anläggning och period. Period och startdygn visas i svensk tid. Saknade mätvärden räknas inte som noll.</Text>
-    {sites.map(site=><Pressable key={site.reference} accessibilityRole="button" accessibilityState={{selected:facility===site.reference}} onPress={()=>{setData(null);setFacility(site.reference);}} style={[button,{borderColor:facility===site.reference?t.accent:t.muted}]}><Text style={{color:t.text}}>{site.address??site.facilityId??site.reference}</Text></Pressable>)}
-    <View style={{flexDirection:'row',gap:8}}>{[7,30].map(n=><Pressable key={n} accessibilityRole="button" accessibilityState={{selected:days===n}} onPress={()=>{setData(null);setDays(n);}} style={[button,{borderColor:days===n?t.accent:t.muted}]}><Text style={{color:t.text}}>{n} dagar</Text></Pressable>)}</View>
+    {sites.map(site=><Pressable key={site.reference} accessibilityRole="button" accessibilityState={{selected:facility===site.reference}} onPress={()=>{if (site.reference !== facility) { setData(null); setFacility(site.reference); }}} style={[button,{borderColor:facility===site.reference?t.accent:t.muted}]}><Text style={{color:t.text}}>{site.address??site.facilityId??site.reference}</Text></Pressable>)}
+    <View style={{flexDirection:'row',gap:8}}>{[7,30].map(n=><Pressable key={n} accessibilityRole="button" accessibilityState={{selected:days===n}} onPress={()=>{if (n !== days) { setData(null); setDays(n); }}} style={[button,{borderColor:days===n?t.accent:t.muted}]}><Text style={{color:t.text}}>{n} dagar</Text></Pressable>)}</View>
     {busy&&<ActivityIndicator accessibilityLabel="Hämtar förbrukning" color={t.accent}/>}
     {!busy&&!error&&!sites.length&&<Text style={{color:t.muted}}>Du har inga hämtade anläggningar.</Text>}
     {error!==''&&<Text accessibilityRole="alert" style={{color:t.text}}>{error}</Text>}
@@ -68,6 +68,6 @@ export function ConsumptionPanel({ theme:t, read }: {theme: MobileBrand['theme']
       {!data.items.length&&<Text style={{color:t.muted}}>Inga behöriga mätvärden finns i den hämtade perioden.</Text>}
       {[...daily].map(([date,kwh])=><View key={date} accessible accessibilityLabel={`${date}: ${kwh.toFixed(2)} kilowattimmar`} style={{gap:4}}><Text style={{color:t.text}}>{date}: {kwh.toFixed(2)} kWh</Text><View style={{height:12,width:`${100*kwh/max}%`,backgroundColor:t.accent,borderRadius:4}}/></View>)}
     </>}
-    <Pressable accessibilityRole="button" onPress={()=>{setData(null);setTick(v=>v+1);}} style={button}><Text style={{color:t.accent}}>Hämta förbrukning igen</Text></Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>{setData(null);setTick(v=>v+1);}} style={button}><Text style={{color:t.accent}}>Hämta förbrukning igen</Text></Pressable>
   </View>;
 }

@@ -15,7 +15,7 @@ const copy: Record<Tab, { title: string; body: string }> = {
 /** Presentation-only shell. Never treats a chosen brand as authorization. */
 export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel }: { brand: MobileBrand; customerPanel?: React.ReactNode | ((tab: Tab) => React.ReactNode); contractPanel?: React.ReactNode; pricePanel?: React.ReactNode }) {
   const [active, setActive] = useState<Tab>('Hem');
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const openTab = (tab: Tab) => {
     setActive(tab);
     scroll.current?.scrollTo({ y: 0, animated: false });

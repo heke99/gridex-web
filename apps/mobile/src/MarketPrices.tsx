@@ -31,7 +31,7 @@ export function MarketPrices({origin,theme:t}:{origin?:string;theme:MobileTheme}
  ) : null;
  return <View style={{gap:14,backgroundColor:t.surface,padding:20,borderRadius:20}}>
   <Text accessibilityRole="header" style={{color:t.text,fontSize:20}}>Dagens spotpris</Text>
-  <View style={{flexDirection:'row',gap:12,flexWrap:'wrap'}}>{priceAreas.map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:value===area}} onPress={()=>setArea(value)} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:value===area?t.accent:t.muted}}>{value}</Text></Pressable>)}</View>
+  <View style={{flexDirection:'row',gap:12,flexWrap:'wrap'}}>{priceAreas.map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:value===area}} onPress={()=>{setShowIntervals(false);setArea(value);}} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:value===area?t.accent:t.muted}}>{value}</Text></Pressable>)}</View>
   {busy&&<ActivityIndicator accessibilityLabel="Hämtar elpriser" color={t.accent}/>}
   {day&&<>
    <Text style={{color:t.text}}>{day.date} · {day.area}</Text>
