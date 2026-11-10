@@ -1,7 +1,40 @@
 import type {CustomerRow,Resource} from './customerData';
-export function visibleCustomerRows(resource:Resource,rows:CustomerRow[],query:string,status:string){
- const needle=query.trim().toLocaleLowerCase('sv-SE');
- return rows.filter(row=>(status==='all'||row.status===status)&&(!needle||[row.reference,...(resource==='invoices'?[row.number]:[row.title,row.description])].some(v=>typeof v==='string'&&v.toLocaleLowerCase('sv-SE').includes(needle))));
+const searchFields: Partial<Record<Resource, string[]>> = {
+ invoices: ['number'],
+ support: ['title', 'description'],
+ contracts: ['name'],
+ sites: ['address', 'postalCode', 'city', 'facilityId'],
+ documents: ['title', 'type'],
+ notifications: ['title', 'message'],
+};
+
+export function visibleCustomerRows(resource: Resource, rows: CustomerRow[], query: string, status: string) {
+ const needle = query.trim().normalize('NFC').toLocaleLowerCase('sv-SE');
+ const keys = ['reference', ...(searchFields[resource] ?? [])];
+ const visible = rows.filter(row => (status === 'all' || row.status === status) && (
+  !needle || keys.some(key => {
+   const value = row[key];
+   return typeof value === 'string' && value.normalize('NFC').toLocaleLowerCase('sv-SE').includes(needle);
+  })
+ ));
+ const timestamp = (row: CustomerRow, key: string) => {
+  const value = row[key];
+  if (typeof value !== 'string') return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+ };
+ const sortDate = resource === 'invoices' ? (row: CustomerRow) => timestamp(row, 'dueDate')
+  : resource === 'support' ? (row: CustomerRow) => timestamp(row, 'updatedAt') ?? timestamp(row, 'createdAt')
+  : resource === 'contracts' ? (row: CustomerRow) => timestamp(row, 'startDate')
+  : null;
+ if (!sortDate) return visible;
+ const direction = resource === 'invoices' ? 1 : -1;
+ return visible.sort((first, second) => {
+  const a = sortDate(first), b = sortDate(second);
+  if (a === null) return b === null ? 0 : 1;
+  if (b === null) return -1;
+  return direction * (a - b);
+ });
 }
 export function loadedSummary(resource:Resource,rows:CustomerRow[]){
  const statuses=new Map<string,number>();for(const row of rows){const key=typeof row.status==='string'&&row.status?row.status:'Uppgift saknas';statuses.set(key,(statuses.get(key)??0)+1);}
