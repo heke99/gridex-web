@@ -1,0 +1,61 @@
+name: Gridex Android device test APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-device-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android-device-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Build a self-contained APK with the test package identifier
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_CUSTOMER_API_URL: https://gridex.se
+          EXPO_PUBLIC_SUPABASE_URL: https://ayiuxjlfazkjmmtlvhsl.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ujlw8IZgah81tHErkcw2JQ_RL_bkJvV
+        run: |
+          npm exec --no -- expo prebuild --platform android --no-install
+          cd android
+          ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
+      - name: Verify signature, application ID and embedded JavaScript
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/apksigner" verify "$apk"
+          "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/gridex-apk-badging.txt"
+          grep -F "package: name='se.gridex.el.dev'" "$RUNNER_TEMP/gridex-apk-badging.txt"
+          unzip -Z1 "$apk" > "$RUNNER_TEMP/gridex-apk-files.txt"
+          grep -Fx 'assets/index.android.bundle' "$RUNNER_TEMP/gridex-apk-files.txt"
+          mkdir -p "$RUNNER_TEMP/gridex-device-test"
+          cp "$apk" "$RUNNER_TEMP/gridex-device-test/gridex-el-test.apk"
+          cd "$RUNNER_TEMP/gridex-device-test"
+          sha256sum gridex-el-test.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gridex-android-device-test
+          path: ${{ runner.temp }}/gridex-device-test/
+          if-no-files-found: error
+          retention-days: 7
