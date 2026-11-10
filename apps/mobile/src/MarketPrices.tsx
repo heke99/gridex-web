@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {ActivityIndicator,AppState,Pressable,Text,View} from 'react-native';
 import type {MobileTheme} from '../../../packages/mobile-foundation/src/brand';
-import {currentMarketPrice,nextMarketEntry,relativeMarketDate,marketPriceUrl,parseMarketDay,priceAreas,type MarketDay,type PriceArea} from './marketPrices';
+import {currentMarketPrice,nextMarketEntry,relativeMarketDate,marketPriceUrl,parseMarketDay,priceAreas,type MarketDay,type PriceArea} from './marketPriceData';
 const ore=(value:number)=>`${(value*100).toLocaleString('sv-SE',{maximumFractionDigits:2})} öre/kWh`;
 const time=(value:string)=>new Date(value).toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit',timeZoneName:'shortOffset'});
 const dayOptions = [[-1, 'Igår'], [0, 'Idag'], [1, 'Imorgon']] as const;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
 import {gridexBrand} from '../apps/mobile/brands/gridex.mjs';
-import {marketDate} from '../apps/mobile/src/marketPrices.ts';
+import {marketDate} from '../apps/mobile/src/marketPriceData.ts';
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;const {act}=Renderer;
 const listeners=new Set();globalThis.__marketFixture={currentState:'active',addEventListener:(_key,fn)=>{listeners.add(fn);return {remove:()=>listeners.delete(fn)};}};
 const {MarketPrices}=await import('../apps/mobile/src/MarketPrices.tsx');

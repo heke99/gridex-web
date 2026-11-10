@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {marketDate,relativeMarketDate,nextMarketEntry,marketPriceUrl,parseMarketDay,currentMarketPrice} from '../apps/mobile/src/marketPrices.ts';
+import {marketDate,relativeMarketDate,nextMarketEntry,marketPriceUrl,parseMarketDay,currentMarketPrice} from '../apps/mobile/src/marketPriceData.ts';
 const date='2026-11-06';
 const entry=(sekPerKwh=0,timeStart=`${date}T00:00:00+01:00`,timeEnd=`${date}T01:00:00+01:00`)=>({sekPerKwh,timeStart,timeEnd});
 const payload=(entries)=>({priceArea:'SE3',date,sourceLabel:'Own public price feed',disclaimer:'Spot prices exclude fees',entries});
