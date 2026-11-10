@@ -1,17 +1,17 @@
 {
   "live_sync_verified": true,
-  "verified_at": "2026-11-06T20:15:47.308Z",
-  "contract_version": "2026-10-12.1",
+  "verified_at": "2026-11-10T22:25:07.626Z",
+  "contract_version": "2026-11-10.1",
   "runtime_contract_version": "2026-10-09.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c"
+      "sha256": "374e012e7d2f1dec74bae1ff59fa07e886b3a07a02f682228068074d16f579e3"
     },
     "customer-portal-v1.json": {
-      "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185"
+      "sha256": "b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d"
     },
     "staff-v1.json": {
-      "sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b"
+      "sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78"
     }
   }
 }
