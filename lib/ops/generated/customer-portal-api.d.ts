@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/customer-portal-v1.json.
  * Contract version: 2026-11-10.1.
- * Source SHA-256: 45dec4831e4d42a392c5521b72ed549771f6c964c435cddf96895e247128bdc7.
+ * Source SHA-256: b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -103,8 +103,8 @@ export interface components {
     "CustomerSupportMessageCreateRequest": { message: string; [key: string]: unknown }
     "PortalPage": { limit: number; offset: number; returned: number; has_more: boolean; next_cursor: string | null }
     "CustomerSupportAttachment": { attachment_reference: string; file_name: string; mime_type: "application/pdf" | "image/png" | "image/jpeg"; byte_size: number; sha256: string; uploaded_by: "customer" | "staff"; created_at: string }
-    "OpenApiReleaseManifest": { release_version: "2026-10-12.1"; website_openapi_version: "2026-10-12.1"; customer_portal_openapi_version: "2026-10-12.1"; staff_openapi_version: "2026-10-12.1"; runtime_contract_version: "2026-10-09.1"; guide_version: "2026-10-12.1"; released_at: string; generated_at: string; build_commit: string; compatibility_classification: "backward-compatible" | "breaking-client-update-required" | "breaking"; deprecated_features: Array<{ feature: string; replacement: string; sunset_at: string }>; minimum_tenant_integration_version: "2026-10-02.3"; specifications: { website: components["schemas"]["OpenApiReleaseSpecification"]; customer_portal: components["schemas"]["OpenApiReleaseSpecification"]; staff: components["schemas"]["OpenApiReleaseSpecification"] } }
-    "OpenApiReleaseSpecification": { contract_name: string; contract_version: "2026-10-12.1"; url: string; immutable_url: string; sha256: string; compatibility: "backward-compatible" | "breaking-client-update-required" | "breaking" }
+    "OpenApiReleaseManifest": { release_version: "2026-11-10.1"; website_openapi_version: "2026-11-10.1"; customer_portal_openapi_version: "2026-11-10.1"; staff_openapi_version: "2026-11-10.1"; runtime_contract_version: "2026-10-09.1"; guide_version: "2026-11-10.1"; released_at: string; generated_at: string; build_commit: string; compatibility_classification: "backward-compatible" | "breaking-client-update-required" | "breaking"; deprecated_features: Array<{ feature: string; replacement: string; sunset_at: string }>; minimum_tenant_integration_version: "2026-10-02.3"; specifications: { website: components["schemas"]["OpenApiReleaseSpecification"]; customer_portal: components["schemas"]["OpenApiReleaseSpecification"]; staff: components["schemas"]["OpenApiReleaseSpecification"] } }
+    "OpenApiReleaseSpecification": { contract_name: string; contract_version: "2026-11-10.1"; url: string; immutable_url: string; sha256: string; compatibility: "backward-compatible" | "breaking-client-update-required" | "breaking" }
   }
 }
 

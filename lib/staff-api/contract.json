@@ -1,7 +1,7 @@
 {
   "documentation_version": "2026-11-10.1",
   "runtime_version": "2026-10-09.1",
-  "source_sha256": "caa725f1293049abbf894e4b26adc8ca815477d2de739ac60f013b4dfdd34217",
+  "source_sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78",
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -169,19 +169,19 @@
         "properties": {
           "release_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "website_openapi_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "customer_portal_openapi_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "staff_openapi_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "runtime_contract_version": {
             "type": "string",
@@ -189,7 +189,7 @@
           },
           "guide_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "released_at": {
             "type": "string",
@@ -277,7 +277,7 @@
           },
           "contract_version": {
             "type": "string",
-            "const": "2026-10-12.1"
+            "const": "2026-11-10.1"
           },
           "url": {
             "type": "string",

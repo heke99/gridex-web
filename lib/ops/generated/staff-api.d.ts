@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/staff-v1.json.
  * Contract version: 2026-11-10.1.
- * Source SHA-256: caa725f1293049abbf894e4b26adc8ca815477d2de739ac60f013b4dfdd34217.
+ * Source SHA-256: 4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -35,8 +35,8 @@ export interface paths {
 
 export interface components {
   schemas: {
-    "OpenApiReleaseManifest": { release_version: "2026-10-12.1"; website_openapi_version: "2026-10-12.1"; customer_portal_openapi_version: "2026-10-12.1"; staff_openapi_version: "2026-10-12.1"; runtime_contract_version: "2026-10-09.1"; guide_version: "2026-10-12.1"; released_at: string; generated_at: string; build_commit: string; compatibility_classification: "backward-compatible" | "breaking-client-update-required" | "breaking"; deprecated_features: Array<{ feature: string; replacement: string; sunset_at: string }>; minimum_tenant_integration_version: "2026-10-02.3"; specifications: { website: components["schemas"]["OpenApiReleaseSpecification"]; customer_portal: components["schemas"]["OpenApiReleaseSpecification"]; staff: components["schemas"]["OpenApiReleaseSpecification"] } }
-    "OpenApiReleaseSpecification": { contract_name: string; contract_version: "2026-10-12.1"; url: string; immutable_url: string; sha256: string; compatibility: "backward-compatible" | "breaking-client-update-required" | "breaking" }
+    "OpenApiReleaseManifest": { release_version: "2026-11-10.1"; website_openapi_version: "2026-11-10.1"; customer_portal_openapi_version: "2026-11-10.1"; staff_openapi_version: "2026-11-10.1"; runtime_contract_version: "2026-10-09.1"; guide_version: "2026-11-10.1"; released_at: string; generated_at: string; build_commit: string; compatibility_classification: "backward-compatible" | "breaking-client-update-required" | "breaking"; deprecated_features: Array<{ feature: string; replacement: string; sunset_at: string }>; minimum_tenant_integration_version: "2026-10-02.3"; specifications: { website: components["schemas"]["OpenApiReleaseSpecification"]; customer_portal: components["schemas"]["OpenApiReleaseSpecification"]; staff: components["schemas"]["OpenApiReleaseSpecification"] } }
+    "OpenApiReleaseSpecification": { contract_name: string; contract_version: "2026-11-10.1"; url: string; immutable_url: string; sha256: string; compatibility: "backward-compatible" | "breaking-client-update-required" | "breaking" }
     "ErrorResponse": { error: { code: string; message: string; stage?: string; field: string | null; hint?: string; retryable: boolean; blockers: Array<components["schemas"]["ApiBlocker"]>; details?: { [key: string]: unknown } | Array<unknown> | string | number | boolean | null }; request_id: string; correlation_id: string; contract_schema_version: "2026-10-09.1" }
     "ApiBlocker": { code: string; message: string; field?: string | null; resource_type?: string | null; resource_id?: string | null; count?: number | null; recommended_action?: string | null; metadata?: { [key: string]: unknown } | null }
     "StaffAccount": { user_id: string; email: string | null; full_name: string | null; role_key: string; membership_role: string; status: string; invited_at: string | null; accepted_at: string | null; disabled_at: string | null }

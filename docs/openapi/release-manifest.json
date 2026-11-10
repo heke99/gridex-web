@@ -7,7 +7,7 @@
   "guide_version": "2026-11-10.1",
   "released_at": "2026-11-10T21:00:00.000Z",
   "generated_at": "2026-11-10T21:00:00.000Z",
-  "build_commit": "unknown",
+  "build_commit": "03bb3ec6416ba0b534874c63bead6986fcedcfc9",
   "compatibility_classification": "backward-compatible",
   "deprecated_features": [
     {
@@ -38,7 +38,7 @@
       "contract_version": "2026-11-10.1",
       "url": "https://app.gridex.se/api/v1/openapi/staff-v1.json",
       "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/staff-v1.json",
-      "sha256": "caa725f1293049abbf894e4b26adc8ca815477d2de739ac60f013b4dfdd34217",
+      "sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78",
       "compatibility": "backward-compatible"
     },
     "website": {
@@ -46,7 +46,7 @@
       "contract_version": "2026-11-10.1",
       "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
       "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/website-integration-v1.json",
-      "sha256": "e8827f67adaa5945d9457211537da75c3b77a8c13fa8e6134bfb73d7e399daac",
+      "sha256": "374e012e7d2f1dec74bae1ff59fa07e886b3a07a02f682228068074d16f579e3",
       "compatibility": "backward-compatible"
     },
     "customer_portal": {
@@ -54,7 +54,7 @@
       "contract_version": "2026-11-10.1",
       "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
       "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/customer-portal-v1.json",
-      "sha256": "45dec4831e4d42a392c5521b72ed549771f6c964c435cddf96895e247128bdc7",
+      "sha256": "b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d",
       "compatibility": "backward-compatible"
     }
   }

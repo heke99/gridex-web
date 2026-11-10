@@ -1,17 +1,17 @@
 {
-  "synced_at": "2026-11-06T20:15:47.308Z",
-  "contract_version": "2026-10-12.1",
+  "synced_at": "2026-11-10T22:25:07.626Z",
+  "contract_version": "2026-11-10.1",
   "runtime_contract_version": "2026-10-09.1",
   "release_manifest": {
-    "release_version": "2026-10-12.1",
-    "website_openapi_version": "2026-10-12.1",
-    "customer_portal_openapi_version": "2026-10-12.1",
-    "staff_openapi_version": "2026-10-12.1",
+    "release_version": "2026-11-10.1",
+    "website_openapi_version": "2026-11-10.1",
+    "customer_portal_openapi_version": "2026-11-10.1",
+    "staff_openapi_version": "2026-11-10.1",
     "runtime_contract_version": "2026-10-09.1",
-    "guide_version": "2026-10-12.1",
-    "released_at": "2026-10-12T12:00:00.000Z",
-    "generated_at": "2026-10-12T12:00:00.000Z",
-    "build_commit": "5b56a070b6ddf06c82386e7983f57c8167b74dd3",
+    "guide_version": "2026-11-10.1",
+    "released_at": "2026-11-10T21:00:00.000Z",
+    "generated_at": "2026-11-10T21:00:00.000Z",
+    "build_commit": "03bb3ec6416ba0b534874c63bead6986fcedcfc9",
     "compatibility_classification": "backward-compatible",
     "deprecated_features": [
       {
@@ -39,68 +39,153 @@
     "specifications": {
       "staff": {
         "contract_name": "staff-v1",
-        "contract_version": "2026-10-12.1",
+        "contract_version": "2026-11-10.1",
         "url": "https://app.gridex.se/api/v1/openapi/staff-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-12.1/staff-v1.json",
-        "sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/staff-v1.json",
+        "sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78",
         "compatibility": "backward-compatible"
       },
       "website": {
         "contract_name": "website-integration-v1",
-        "contract_version": "2026-10-12.1",
+        "contract_version": "2026-11-10.1",
         "url": "https://app.gridex.se/api/v1/openapi/website-integration-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-12.1/website-integration-v1.json",
-        "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/website-integration-v1.json",
+        "sha256": "374e012e7d2f1dec74bae1ff59fa07e886b3a07a02f682228068074d16f579e3",
         "compatibility": "backward-compatible"
       },
       "customer_portal": {
         "contract_name": "customer-portal-v1",
-        "contract_version": "2026-10-12.1",
+        "contract_version": "2026-11-10.1",
         "url": "https://app.gridex.se/api/v1/openapi/customer-portal-v1.json",
-        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
-        "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185",
+        "immutable_url": "https://app.gridex.se/api/v1/openapi/2026-11-10.1/customer-portal-v1.json",
+        "sha256": "b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d",
         "compatibility": "backward-compatible"
       }
     }
   },
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c",
+      "sha256": "374e012e7d2f1dec74bae1ff59fa07e886b3a07a02f682228068074d16f579e3",
       "semantic_diff": {
-        "previous_version": "2026-10-12.1",
-        "next_version": "2026-10-12.1",
+        "previous_version": "2026-11-10.1",
+        "next_version": "2026-11-10.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [],
+        "changed_paths": [
+          "/api/v1/openapi/2026-08-03.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-02.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.3/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-05.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-05.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-10.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-14.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-14.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-19.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-19.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-20.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-20.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-22.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-01.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.2/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.3/website-integration-v1.json",
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.4/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-04.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-04.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-09.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-12.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-11-10.1/website-integration-v1.json",
+          "/api/v1/openapi/2026-11-10.1/customer-portal-v1.json"
+        ],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification"
+        ]
       }
     },
     "customer-portal-v1.json": {
-      "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185",
+      "sha256": "b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d",
       "semantic_diff": {
-        "previous_version": "2026-10-12.1",
-        "next_version": "2026-10-12.1",
+        "previous_version": "2026-11-10.1",
+        "next_version": "2026-11-10.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [],
+        "changed_paths": [
+          "/api/v1/openapi/2026-08-02.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-03.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.3/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-04.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-05.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-05.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-10.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-14.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-19.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-19.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-20.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-20.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-08-22.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-01.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.2/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.3/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-02.4/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-04.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json",
+          "/api/v1/openapi/2026-11-10.1/customer-portal-v1.json"
+        ],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification"
+        ]
       }
     },
     "staff-v1.json": {
-      "sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
+      "sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78",
       "semantic_diff": {
-        "previous_version": "2026-10-12.1",
-        "next_version": "2026-10-12.1",
+        "previous_version": "2026-11-10.1",
+        "next_version": "2026-11-10.1",
         "added_paths": [],
         "removed_paths": [],
-        "changed_paths": [],
+        "changed_paths": [
+          "/api/v1/openapi/2026-10-04.1/staff-v1.json",
+          "/api/v1/openapi/2026-10-09.1/staff-v1.json",
+          "/api/v1/openapi/2026-10-12.1/staff-v1.json",
+          "/api/v1/openapi/2026-11-10.1/staff-v1.json"
+        ],
         "added_schemas": [],
         "removed_schemas": [],
-        "changed_schemas": []
+        "changed_schemas": [
+          "OpenApiReleaseManifest",
+          "OpenApiReleaseSpecification"
+        ]
       }
     }
   }

@@ -1,7 +1,17 @@
 {
-  "live_sync_verified": false,
-  "verified_at": null,
+  "live_sync_verified": true,
+  "verified_at": "2026-11-10T22:25:07.626Z",
   "contract_version": "2026-11-10.1",
   "runtime_contract_version": "2026-10-09.1",
-  "reason": "Synchronized from the local OPS candidate for isolated integration acceptance. Production publication has not been verified."
+  "specifications": {
+    "website-integration-v1.json": {
+      "sha256": "374e012e7d2f1dec74bae1ff59fa07e886b3a07a02f682228068074d16f579e3"
+    },
+    "customer-portal-v1.json": {
+      "sha256": "b628c1366e379142d4585e486f0e84bd42aabc36d84edac0044082a3176acf8d"
+    },
+    "staff-v1.json": {
+      "sha256": "4c55b46824690e05b101c50dc6c7559a4c1d0b7e0ea45a8f7282b470f0746a78"
+    }
+  }
 }
