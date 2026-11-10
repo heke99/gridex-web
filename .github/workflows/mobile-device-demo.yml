@@ -1,0 +1,64 @@
+name: Gridex Android synthetic customer APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-device-demo.yml'
+      - 'tests/fixtures/mobile-device-demo/**'
+
+permissions:
+  contents: read
+
+jobs:
+  android-device-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+      - name: Install the synthetic-only app entry and transport in this checkout
+        run: |
+          cp ../../tests/fixtures/mobile-device-demo/accountClient.ts.txt src/accountClient.ts
+          cp ../../tests/fixtures/mobile-device-demo/App.tsx.txt App.tsx
+          sed -i 's/se.gridex.el.dev/se.gridex.el.fixture/g; s/Gridex El/Gridex El Demo/g; s/gridex-el-dev/gridex-el-fixture/g' app.config.ts
+      - run: npm run typecheck
+      - name: Build a self-contained APK with the test package identifier
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          npm exec --no -- expo prebuild --platform android --no-install
+          cd android
+          ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
+      - name: Verify signature, application ID and embedded JavaScript
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/apksigner" verify "$apk"
+          "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/gridex-apk-badging.txt"
+          grep -F "package: name='se.gridex.el.fixture'" "$RUNNER_TEMP/gridex-apk-badging.txt"
+          unzip -Z1 "$apk" > "$RUNNER_TEMP/gridex-apk-files.txt"
+          grep -Fx 'assets/index.android.bundle' "$RUNNER_TEMP/gridex-apk-files.txt"
+          mkdir -p "$RUNNER_TEMP/gridex-device-test"
+          cp "$apk" "$RUNNER_TEMP/gridex-device-test/gridex-el-demo.apk"
+          cd "$RUNNER_TEMP/gridex-device-test"
+          sha256sum gridex-el-demo.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gridex-android-customer-demo
+          path: ${{ runner.temp }}/gridex-device-test/
+          if-no-files-found: error
+          retention-days: 7

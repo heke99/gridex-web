@@ -1,0 +1,73 @@
+export const customerApi = 'https://gridex-fixture.invalid';
+const demoEmail = 'demo@example.invalid';
+const demoPassword = 'GridexDemo2026';
+const token = 'synthetic-device-test-session';
+let session: { access_token: string; user: { id: string } } | null = null;
+const listeners = new Set<(event: string) => void>();
+
+export function createAccountClient(_brand: string) {
+  return {
+    auth: {
+      getSession: async () => ({ data: { session }, error: null }),
+      refreshSession: async () => ({ data: { session }, error: null }),
+      async signInWithPassword({ email, password }: { email: string; password: string }) {
+        if (email !== demoEmail || password !== demoPassword) {
+          return { data: { session: null }, error: new Error('Use the demo credentials') };
+        }
+        session = { access_token: token, user: { id: 'synthetic-demo-customer' } };
+        return { data: { session }, error: null };
+      },
+      async signOut(_options: { scope: string }) {
+        session = null;
+        for (const listener of listeners) listener('SIGNED_OUT');
+        return { error: null };
+      },
+      onAuthStateChange(listener: (event: string) => void) {
+        listeners.add(listener);
+        return { data: { subscription: { unsubscribe: () => { listeners.delete(listener); } } } };
+      },
+      startAutoRefresh() {},
+      stopAutoRefresh() {},
+    },
+  };
+}
+
+const invoice = {
+  reference: 'demo-invoice-001', number: 'DEMO-001', status: 'issued', currency: 'SEK',
+  amount: 125, dueDate: '2026-11-30', paidAt: null,
+};
+const rows = {
+  contracts: [{ reference: 'demo-contract-001', name: 'Rörligt månadspris (test)', status: 'active', startDate: '2026-11-01' }],
+  sites: [{ reference: 'demo-site-001', address: 'Testgatan 1', postalCode: '123 45', city: 'Teststad', facilityId: 'DEMO-001', priceArea: 'SE3', status: 'active' }],
+  invoices: [invoice],
+  invoiceDetail: [{
+    ...invoice, issuedAt: '2026-11-10', periodStart: '2026-10-01', periodEnd: '2026-10-31',
+    lines: [{ reference: 'demo-line-001', description: 'Elhandel (test)', quantity: 100, unitPrice: 1, amountExVat: 100, vatAmount: 25, amountIncVat: 125 }],
+    documents: [],
+  }],
+};
+
+function response(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+export function installDemoTransport() {
+  globalThis.fetch = async (input, init) => {
+    if (init?.signal?.aborted) throw new Error('Request aborted');
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    if (url.origin !== customerApi) return response(404, { error: 'No external network in this demo' });
+    if (!session || new Headers(init?.headers).get('Authorization') !== `Bearer ${token}`) return response(401, { error: 'Sign in first' });
+    if ((init?.method ?? 'GET') !== 'GET') return response(405, { error: 'Read-only demo' });
+    const prefix = '/api/mobile/customer/';
+    if (!url.pathname.startsWith(prefix)) return response(404, { error: 'Unknown resource' });
+    const path = url.pathname.slice(prefix.length);
+    if (path === 'invoices/demo-invoice-001') return response(200, { data: { invoiceDetail: rows.invoiceDetail } });
+    if (['contracts', 'sites', 'invoices'].includes(path)) {
+      return response(200, { data: { [path]: rows[path as 'contracts' | 'sites' | 'invoices'] } });
+    }
+    if (['profile', 'notifications', 'documents', 'powers', 'acceptances', 'support'].includes(path)) {
+      return response(200, { data: { [path]: [] } });
+    }
+    return response(404, { error: 'Unknown resource' });
+  };
+}
