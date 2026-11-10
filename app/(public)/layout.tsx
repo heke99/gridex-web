@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import PublicHeader from '@/components/layout/PublicHeader'
+import Link from 'next/link'
+import { elklartDemoEnabled } from '@/lib/ops/elklartDemo'
 
 const SITE_URL = 'https://gridex.se'
 const BRAND_LOGO_URL = `${SITE_URL}/brand/gridex-logo.png`
@@ -55,6 +57,21 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode
 }) {
+  if (elklartDemoEnabled()) {
+    return (
+      <>
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-black px-6 py-4 text-white">
+          <Link href="/mina-sidor" className="font-semibold">Elklart · Demo</Link>
+          <nav aria-label="Demomeny" className="flex gap-5 text-sm">
+            <Link href="/teckna-avtal">Teckna avtal</Link>
+            <Link href="/mina-sidor">Mina sidor</Link>
+          </nav>
+        </header>
+        {children}
+      </>
+    )
+  }
+
   return (
     <>
       {/* Organization + Website JSON-LD (global) */}

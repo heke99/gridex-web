@@ -1,3 +1,4 @@
+import { customerPortalBrand } from '@/lib/ops/elklartDemo'
 import Link from 'next/link'
 import LogoutForm from '@/components/account/LogoutForm'
 import type { ReactNode } from 'react'
@@ -62,7 +63,7 @@ export default async function MinaSidorPage() {
         <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#0B0F17] p-6 md:flex-row md:items-center md:justify-between md:p-8">
           <div>
             <Link href="/" className="text-sm text-cyan-300 hover:text-cyan-200">
-              Gridex AB
+              {customerPortalBrand('Gridex AB')}
             </Link>
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
               Mina sidor
