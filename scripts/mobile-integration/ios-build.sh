@@ -11,7 +11,10 @@ npm exec --no -- expo prebuild --platform ios --no-install
 workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
 test -n "$workspace"
 xcodebuild -list -json -workspace "$workspace" > "$RUNNER_TEMP/gridex-ios-project.json"
-scheme="$(node -e 'const x=require(process.argv[1]);const s=x.workspace.schemes.filter(s=>!s.includes("Pods"));if(s.length!==1)throw Error("Ambiguous app scheme");process.stdout.write(s[0])' "$RUNNER_TEMP/gridex-ios-project.json")"
+project="$(find ios -maxdepth 1 -name '*.xcodeproj' -print -quit)"
+test -n "$project"
+scheme="$(basename "$project" .xcodeproj)"
+node -e 'const x=require(process.argv[1]);if(!x.workspace.schemes.includes(process.argv[2]))throw Error("App scheme unavailable")' "$RUNNER_TEMP/gridex-ios-project.json" "$scheme"
 xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Release \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$RUNNER_TEMP/gridex-ios-build" CODE_SIGNING_ALLOWED=NO \
