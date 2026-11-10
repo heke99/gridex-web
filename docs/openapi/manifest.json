@@ -1,15 +1,15 @@
 {
-  "contract_version": "2026-10-12.1",
+  "contract_version": "2026-11-10.1",
   "runtime_contract_version": "2026-10-09.1",
   "specifications": {
     "website-integration-v1.json": {
-      "sha256": "d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c"
+      "sha256": "e8827f67adaa5945d9457211537da75c3b77a8c13fa8e6134bfb73d7e399daac"
     },
     "customer-portal-v1.json": {
-      "sha256": "20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185"
+      "sha256": "45dec4831e4d42a392c5521b72ed549771f6c964c435cddf96895e247128bdc7"
     },
     "staff-v1.json": {
-      "sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b"
+      "sha256": "caa725f1293049abbf894e4b26adc8ca815477d2de739ac60f013b4dfdd34217"
     }
   }
 }

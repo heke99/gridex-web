@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/staff-v1.json.
  * Contract version: 2026-11-10.1.
- * Source SHA-256: f7b0f67d7ca86fda29849ef01a588fbb57ace6e135a72b7fd5cba6a09fa87967.
+ * Source SHA-256: caa725f1293049abbf894e4b26adc8ca815477d2de739ac60f013b4dfdd34217.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
