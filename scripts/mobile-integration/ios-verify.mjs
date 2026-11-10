@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+const app=process.env.APP_PATH;
+const plist=JSON.parse(execFileSync('plutil',['-convert','json','-o','-',join(app,'Info.plist')],{encoding:'utf8'}));
+assert.equal(plist.CFBundleIdentifier,'se.gridex.el.dev');
+assert.equal(plist.CFBundleShortVersionString,'0.1.0');
+assert.equal(plist.CFBundleVersion,'1');
+assert.equal(plist.ITSAppUsesNonExemptEncryption,false);
+assert.ok(plist.CFBundleURLTypes.some(t=>t.CFBundleURLSchemes.includes('gridex-el-dev')));
+const bundle=readFileSync(join(app,'main.jsbundle'));
+for(const origin of [process.env.EXPO_PUBLIC_CUSTOMER_API_URL,process.env.EXPO_PUBLIC_SUPABASE_URL])assert.ok(origin&&bundle.includes(Buffer.from(origin)),'Missing compiled environment');
+writeFileSync(process.argv[2],JSON.stringify({source:process.env.SOURCE_COMMIT,bundleId:plist.CFBundleIdentifier,version:plist.CFBundleShortVersionString,build:plist.CFBundleVersion,environment:'production-public-configuration',kind:'unsigned-simulator-native-release',distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false,passed:true},null,2)+'\n');
