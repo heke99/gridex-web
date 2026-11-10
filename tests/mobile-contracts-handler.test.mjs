@@ -50,3 +50,18 @@ test('support cursor paging accepts only one bounded cursor and returns explicit
  const response=await handler(req('?cursor=opaque%2B%2F%3D'));assert.equal(response.status,200);assert.deepEqual((await response.json()).page,{hasMore:false,nextCursor:null});
  for(const suffix of ['?cursor=a&cursor=b','?cursor=','?cursor=a&customerId=foreign'])assert.equal((await handler(req(suffix))).status,400);
 });
+
+test('foreign invoice denial is a sanitized 404; other OPS failures stay unavailable', async () => {
+  const { OpsError } = await import('../lib/ops/errors.ts');
+  for (const status of [403, 404, 401, 500, 503]) {
+    const handler = createContractsHandler({ enabled: () => true, authenticate: async () => 'verified',
+      contracts: async () => { throw new OpsError('private upstream detail ' + token, status, { code: 'invoice_not_found' }); },
+    }, 'invoiceDetail');
+    const response = await handler(req());
+    assert.equal(response.status, [403, 404].includes(status) ? 404 : 503);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    const body = await response.json();
+    assert.deepEqual(Object.keys(body), ['error']);
+    assert.ok(!JSON.stringify(body).includes(token));
+  }
+});

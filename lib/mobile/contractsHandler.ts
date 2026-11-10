@@ -1,3 +1,4 @@
+import { OpsError } from '../ops/errors';
 export type MobileContract = { reference: string; name: string | null; status: string | null; startDate: string | null };
 type Dependencies = {
   enabled: () => boolean;
@@ -21,7 +22,10 @@ export function createContractsHandler(deps: Dependencies, resource: 'contracts'
       if (!subject) return reply(401, { error: 'Din inloggning behöver förnyas.' });
       const contracts = await deps.contracts(subject, match[1], query.get('cursor') ?? undefined);
       return reply(200, { data: { [resource]: Array.isArray(contracts) ? contracts : contracts.items }, ...(!Array.isArray(contracts) ? { page: contracts.page } : {}) });
-    } catch {
+    } catch (error) {
+      if (resource === 'invoiceDetail' && error instanceof OpsError && [403, 404].includes(error.status)) {
+        return reply(404, { error: 'Fakturan hittades inte.' });
+      }
       // Never reflect SDK/OPS errors or credentials to the device/logs.
       return reply(503, { error: 'Kunduppgifterna kan inte hämtas just nu.' });
     }
