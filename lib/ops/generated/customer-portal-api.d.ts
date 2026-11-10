@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/customer-portal-v1.json.
- * Contract version: 2026-10-12.1.
- * Source SHA-256: 20b3331e432f96c779748ad8e7a93a0b09deb25aaaa134f5a4e6887e5d03b185.
+ * Contract version: 2026-11-10.1.
+ * Source SHA-256: cbd342a4047936aeb09d7b145bb4811b8cd654f0b398467383082861adad4c99.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -53,6 +53,7 @@ export interface paths {
   "/api/v1/openapi/2026-10-04.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
+  "/api/v1/openapi/2026-11-10.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
 }
 
 export interface components {

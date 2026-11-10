@@ -1,7 +1,7 @@
 {
-  "documentation_version": "2026-10-12.1",
+  "documentation_version": "2026-11-10.1",
   "runtime_version": "2026-10-09.1",
-  "source_sha256": "d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b",
+  "source_sha256": "5d1dde8146f1d7c0be82053353cdb14cfba3b4f3b27106273fa297eeac78af4f",
   "components": {
     "securitySchemes": {
       "bearerAuth": {

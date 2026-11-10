@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/staff-v1.json.
- * Contract version: 2026-10-12.1.
- * Source SHA-256: d5c0f02947a409308367439114b3e594657c70df31132cc4b38a95314acd084b.
+ * Contract version: 2026-11-10.1.
+ * Source SHA-256: 5d1dde8146f1d7c0be82053353cdb14cfba3b4f3b27106273fa297eeac78af4f.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -30,6 +30,7 @@ export interface paths {
   "/api/v1/staff/cases/{reference}/events": { get: { parameters: { header: { "x-request-id"?: string; "x-gridex-staff-assertion": string; "x-gridex-expected-project-ref"?: string; "x-gridex-query-parsing"?: "compatible" | "strict" }; path: { reference: string }; query: { limit?: number; cursor?: string } }; requestBody: never; responses: { "200": { content: { "application/json": components["schemas"]["getApiV1StaffCasesReferenceEventsResponse"] } }; "400": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "401": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "403": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "404": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "409": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "410": Record<string, never>; "412": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "422": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "423": Record<string, never>; "429": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "500": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } }; "503": { content: { "application/json": components["schemas"]["ErrorEnvelope"] } } } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-09.1/staff-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-12.1/staff-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
+  "/api/v1/openapi/2026-11-10.1/staff-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
 }
 
 export interface components {

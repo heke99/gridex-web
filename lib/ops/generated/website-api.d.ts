@@ -1,7 +1,7 @@
 /**
  * Generated from docs/openapi/website-integration-v1.json.
- * Contract version: 2026-10-12.1.
- * Source SHA-256: d400b6730f4a51a0efb049daa73b3858763c0f7a7b4d8602735b49a9e679a47c.
+ * Contract version: 2026-11-10.1.
+ * Source SHA-256: a6215dd1bb74f100aa6ec8e23e3b6ca722b4f307ee7aa9f77b3881101ac8e243.
  * Run `npm run api:refresh` after the public OpenAPI documents change.
  */
 
@@ -69,6 +69,8 @@ export interface paths {
   "/api/v1/openapi/2026-10-09.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-12.1/website-integration-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
   "/api/v1/openapi/2026-10-12.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
+  "/api/v1/openapi/2026-11-10.1/website-integration-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
+  "/api/v1/openapi/2026-11-10.1/customer-portal-v1.json": { get: { parameters: never; requestBody: never; responses: { "200": { content: { "application/json": { [key: string]: unknown } } }; "304": Record<string, never> } }; put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never }
 }
 
 export interface components {

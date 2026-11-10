@@ -7,7 +7,7 @@ const { GRIDEX_CUSTOMER_PORTAL_API_CONTRACT_VERSION: version } = await import('.
 const { fetchOpsCustomerPortalBundle, fetchOpsCustomerResource } = await import('../lib/ops/client/portalConsistency.ts')
 const originalFetch = globalThis.fetch
 const identity = { userId: '11111111-1111-4111-8111-111111111111', email: 'new-customer@example.invalid' }
-const invoiceReference = '33333333-3333-4333-8333-333333333333'
+const invoiceReference = 'invoice_' + 'A'.repeat(32)
 let status = 403, code = 'customer_portal_link_required', calls = 0
 globalThis.fetch = async (input, init) => {
   const url = new URL(String(input)), headers = new Headers(init.headers)

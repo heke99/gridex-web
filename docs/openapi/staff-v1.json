@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Gridex Staff API",
-    "version": "2026-10-12.1",
+    "version": "2026-11-10.1",
     "description": "Staff accounts and customer service from your own backend. Every staff call requires an API credential and a signed proof of the acting staff login. The platform derives the organization and permissions from those two identities. Every response carries a server-issued X-Request-ID equal to request_id in the body. The optional x-gridex-expected-project-ref header pins the storage project (412 storage_project_mismatch otherwise), and list endpoints accept the opt-in x-gridex-query-parsing: strict profile. Central account state and current identity bindings authorize normal signed requests. Local Auth sessions are verified at identity resolution, invitation acceptance and by the portal backend before signing."
   },
   "servers": [
@@ -334,9 +334,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -415,9 +412,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -544,6 +538,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -845,9 +845,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -885,9 +882,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -929,9 +923,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -1058,6 +1049,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -1380,9 +1380,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -1420,9 +1417,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -1464,9 +1458,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -1593,6 +1584,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -1915,9 +1915,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -1955,9 +1952,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -1999,9 +1993,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -2128,6 +2119,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -2450,9 +2450,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -2490,9 +2487,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -2534,9 +2528,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -2663,6 +2654,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -2963,9 +2963,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -3044,9 +3041,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -3173,6 +3167,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -3530,9 +3530,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -3611,9 +3608,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -3740,6 +3734,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -4040,9 +4040,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -4121,9 +4118,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -4250,6 +4244,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -4563,9 +4563,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -4603,9 +4600,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -4647,9 +4641,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -4776,6 +4767,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -5099,9 +5099,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -5139,9 +5136,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -5183,9 +5177,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -5312,6 +5303,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -5671,9 +5671,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -5752,9 +5749,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -5881,6 +5875,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -6182,9 +6182,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -6222,9 +6219,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -6266,9 +6260,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -6395,6 +6386,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -6705,9 +6705,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -6786,9 +6783,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -6915,6 +6909,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -7228,9 +7228,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -7268,9 +7265,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -7312,9 +7306,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -7441,6 +7432,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -7764,9 +7764,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -7804,9 +7801,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -7848,9 +7842,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -7977,6 +7968,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -8300,9 +8300,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -8340,9 +8337,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -8384,9 +8378,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -8513,6 +8504,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -8836,9 +8836,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -8876,9 +8873,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -8920,9 +8914,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -9049,6 +9040,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -9372,9 +9372,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -9412,9 +9409,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "422": {
             "description": "Request fields or business rules are invalid.",
@@ -9456,9 +9450,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -9585,6 +9576,15 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           }
         },
         "x-required-scopes": [
@@ -9918,9 +9918,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -9999,9 +9996,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -10128,6 +10122,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -10461,9 +10461,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -10625,9 +10622,6 @@
               }
             }
           },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
-          },
           "429": {
             "description": "API traffic limit exceeded.",
             "headers": {
@@ -10753,6 +10747,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -11102,9 +11102,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -11183,9 +11180,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -11312,6 +11306,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -11878,9 +11878,6 @@
               }
             }
           },
-          "410": {
-            "$ref": "#/components/responses/OrganizationGone"
-          },
           "412": {
             "description": "storage_project_mismatch: x-gridex-expected-project-ref is malformed or names another storage project. Nothing was executed; call the deployment that serves the expected project.",
             "headers": {
@@ -11959,9 +11956,6 @@
                 }
               }
             }
-          },
-          "423": {
-            "$ref": "#/components/responses/OrganizationPaused"
           },
           "429": {
             "description": "API traffic limit exceeded.",
@@ -12088,6 +12082,12 @@
                 }
               }
             }
+          },
+          "410": {
+            "$ref": "#/components/responses/OrganizationGone"
+          },
+          "423": {
+            "$ref": "#/components/responses/OrganizationPaused"
           }
         },
         "x-required-scopes": [
@@ -12238,6 +12238,90 @@
                 "schema": {
                   "type": "string",
                   "const": "2026-10-12.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [],
+        "operationId": "getApiV1Openapi202610121StaffV1Json",
+        "x-scope-mode": "all",
+        "x-rate-limit-class": "read",
+        "x-idempotency-required": false,
+        "x-cache-policy": "public-immutable",
+        "x-public-id-policy": "none"
+      }
+    },
+    "/api/v1/openapi/2026-11-10.1/staff-v1.json": {
+      "get": {
+        "summary": "Immutable Staff OpenAPI release 2026-10-04",
+        "description": "Immutable Staff OpenAPI release 2026-11-10.1.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Versionerad OpenAPI JSON",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Revision of the OpenAPI document being fetched; business responses use x-contract-schema-version.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-11-10.1"
+                }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/CacheControl"
+              },
+              "Content-Type": {
+                "$ref": "#/components/headers/ContentType"
+              },
+              "Content-Disposition": {
+                "$ref": "#/components/headers/ContentDisposition"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified. The supplied If-None-Match value matches the current ETag.",
+            "headers": {
+              "X-Gridex-Contract-Version": {
+                "description": "Revision of the OpenAPI document being fetched; business responses use x-contract-schema-version.",
+                "schema": {
+                  "type": "string",
+                  "const": "2026-11-10.1"
                 }
               },
               "X-Request-ID": {
