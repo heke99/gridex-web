@@ -12890,7 +12890,7 @@
           }
         },
         "x-required-scopes": [],
-        "operationId": "getApiV1Openapi202610121CustomerPortalV1Json",
+        "operationId": "getApiV1Openapi202611101CustomerPortalV1Json",
         "x-scope-mode": "all",
         "x-rate-limit-class": "read",
         "x-idempotency-required": false,
