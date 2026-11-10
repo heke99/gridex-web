@@ -23,20 +23,35 @@ export function useCustomerAccount(brand: string) {
   const selected = useRef<{ view: CustomerView; reference?: string }>({ view: 'contracts' });
   const needsRestore = useRef(true); const wantsLogout = useRef(false);
   const expectedSignout = useRef(false);
+  const logoutBlocked = useRef(false);
+  const [logoutFailed, setLogoutFailed] = useState(false);
   const mutationAttempt = useRef<{ signature: string; key: string } | null>(null);
 
   const invalidate = useCallback(() => { generation.current++; pending.current?.abort(); }, []);
   const clearDetails = useCallback(() => { setRows(null); setInvoice(null); setSupport(null); setNextCursor(null); }, []);
   const clear = useCallback(() => { clearDetails(); setAuthenticated(false); mutationAttempt.current = null; }, [clearDetails]);
   const signOut = useCallback(async () => {
+    if (expectedSignout.current) return;
     expectedSignout.current = true;
-    try { const result = await client?.auth.signOut({ scope: 'local' }); if (result?.error) throw result.error; }
-    catch { setError('Sessionen kunde inte rensas helt. Försök logga ut igen.'); }
-    finally { wantsLogout.current = false; expectedSignout.current = false; }
+    try {
+      const result = await client?.auth.signOut({ scope: 'local' });
+      if (result?.error) throw result.error;
+      logoutBlocked.current = false;
+      setLogoutFailed(false);
+    } catch {
+      logoutBlocked.current = true;
+      setLogoutFailed(true);
+      client?.auth.stopAutoRefresh();
+      setError('Sessionen kunde inte rensas helt. Försök logga ut igen.');
+    } finally {
+      needsRestore.current = false;
+      wantsLogout.current = false;
+      expectedSignout.current = false;
+    }
   }, [client]);
 
   const run = useCallback(async (next: CustomerView, sessionAction: () => Promise<string | null>, reference?: string, cursor?: string) => {
-    if (!client || inFlight.current || AppState.currentState !== 'active') return;
+    if (!client || inFlight.current || expectedSignout.current || logoutBlocked.current || AppState.currentState !== 'active') return;
     inFlight.current = true; const attempt = ++generation.current;
     const controller = new AbortController(); pending.current = controller;
     setBusy(true); setError(''); if (!cursor) clearDetails(); selected.current = { view: next, reference }; setResource(next);
@@ -86,8 +101,11 @@ export function useCustomerAccount(brand: string) {
     });
     const listener = AppState.addEventListener('change', state => {
       setActive(state === 'active');
-      if (state === 'active') { client.auth.startAutoRefresh(); needsRestore.current = true; setRestoreTick(v => v + 1); }
-      else { client.auth.stopAutoRefresh(); generation.current++; pending.current?.abort(); clearDetails(); }
+      if (state === 'active') {
+        if (!expectedSignout.current && !logoutBlocked.current && !wantsLogout.current) {
+          client.auth.startAutoRefresh(); needsRestore.current = true; setRestoreTick(v => v + 1);
+        }
+      } else { client.auth.stopAutoRefresh(); generation.current++; pending.current?.abort(); clearDetails(); }
     });
     if (AppState.currentState === 'active') client.auth.startAutoRefresh();
     return () => { invalidate(); client.auth.stopAutoRefresh(); auth.data.subscription.unsubscribe(); listener.remove(); };
@@ -110,6 +128,7 @@ export function useCustomerAccount(brand: string) {
   const login = (email: string, password: string) => run('contracts', async () => {
     const result = await client!.auth.signInWithPassword({ email: email.trim(), password });
     if (result.error || !result.data.session) { clear(); await signOut(); throw new Error('login'); }
+    if (AppState.currentState === 'active' && !wantsLogout.current) client!.auth.startAutoRefresh();
     return result.data.session.access_token;
   });
   const select = (next: CustomerView, reference?: string, cursor?: string) => run(next, async () => {
@@ -182,9 +201,9 @@ export function useCustomerAccount(brand: string) {
     return true;
   };
   const logout = () => {
-    needsRestore.current = false; wantsLogout.current = true;
+    needsRestore.current = false; wantsLogout.current = true; logoutBlocked.current = true;
     generation.current++; pending.current?.abort(); clear(); setError('');
-    if (!inFlight.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
+    if (!inFlight.current && !expectedSignout.current) { setBusy(true); void signOut().finally(() => setBusy(false)); }
   };
   const readConsumption = useCallback(async (kind: 'sites' | 'consumption', query: Record<string, string>, signal: AbortSignal): Promise<unknown> => {
     if (!client || AppState.currentState !== 'active') throw new Error('Login required');
@@ -202,5 +221,5 @@ export function useCustomerAccount(brand: string) {
     if (signal.aborted || epoch !== generation.current || AppState.currentState !== 'active') throw new Error('Cancelled');
     return body;
   }, [client, clear, signOut]);
-  return { configured: Boolean(client), authenticated, busy, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout, readConsumption };
+  return { configured: Boolean(client), authenticated, busy, logoutFailed, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout, readConsumption };
 }

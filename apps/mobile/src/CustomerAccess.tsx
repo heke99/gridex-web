@@ -21,7 +21,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     try { await Linking.openURL(contractWebUrl(customerApi!, 'support')); }
     catch { setLinkError('Kunde inte öppna Mina sidor på webben.'); }
   };
-  const canLogin = !a.busy && Boolean(email.trim() && password);
+  const canLogin = !a.busy && !a.logoutFailed && Boolean(email.trim() && password);
   const submitLogin = () => {
     if (!canLogin) return;
     setPassword('');
@@ -87,6 +87,6 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     </>}
     {a.busy && <ActivityIndicator accessibilityLabel="Hämtar kunduppgifter" color={t.accent} />}
     {(a.error || linkError) !== '' && <Text accessibilityRole="alert" style={{ color: t.text }}>{a.error || linkError}</Text>}
-    {(a.busy || a.authenticated) && <Pressable accessibilityRole="button" onPress={() => { setPassword(''); setLinkError(''); a.logout(); }} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{a.busy ? 'Avbryt och logga ut' : 'Logga ut'}</Text></Pressable>}
+    {(a.busy || a.authenticated || a.logoutFailed) && <Pressable accessibilityRole="button" disabled={a.busy && a.logoutFailed} onPress={() => { setPassword(''); setLinkError(''); a.logout(); }} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>{a.logoutFailed ? 'Försök logga ut igen' : a.busy ? 'Avbryt och logga ut' : 'Logga ut'}</Text></Pressable>}
   </View>;
 }

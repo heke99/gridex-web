@@ -281,3 +281,41 @@ test('inactive screens cannot initiate customer reads, document opens or writes'
   assert.equal(fetchCalls, before);
   await unmount();
 });
+
+test('foreground restore waits for signout and failed signout stays blocked until retried', async () => {
+  const unmount = await mount(true);
+  const original = fixture.client.auth.signOut;
+  let settle;
+  let signOutCalls = 0;
+  const setAppState = async state => act(async () => {
+    fixture.appState.currentState = state;
+    for (const listener of listeners) listener(state);
+  });
+  fixture.client.auth.signOut = () => {
+    signOutCalls++;
+    return new Promise(resolve => { settle = resolve; });
+  };
+  try {
+    await act(async () => current.logout());
+    await setAppState('background');
+    await setAppState('active');
+    assert.equal(refreshes, 1);
+    assert.equal(fetchCalls, 1);
+    await act(async () => settle({ error: new Error('offline') }));
+    assert.equal(current.logoutFailed, true);
+    await setAppState('background');
+    await setAppState('active');
+    await act(async () => current.login('customer@example.test', 'password'));
+    assert.equal(fetchCalls, 1);
+    assert.equal(current.rows, null);
+    assert.equal(current.authenticated, false);
+    assert.equal(signOutCalls, 1);
+    fixture.client.auth.signOut = original;
+    await act(async () => current.logout());
+    assert.equal(current.logoutFailed, false);
+    assert.equal(session, null);
+  } finally {
+    fixture.client.auth.signOut = original;
+    await unmount();
+  }
+});
