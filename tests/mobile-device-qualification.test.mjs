@@ -94,3 +94,14 @@ for(const extra of [{LOGIN_A_PASSWORD:'SYNTHETIC_DIAGNOSTIC_SECRET'},{GRIDEX_IOS
   assert.equal(result.status,1);assert.ok(result.stderr.includes('Keyboard diagnostics'));assert.ok(!result.stderr.includes('SYNTHETIC_DIAGNOSTIC_SECRET'));
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
+
+test('raw UI evidence is limited to guarded invalid-form diagnostics',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-diag-evidence-'));
+ try{
+  const input=join(dir,'input');mkdirSync(input);writeFileSync(join(input,'failure.png'),'INVALID_FORM_IMAGE');writeFileSync(join(input,'commands.json'),'[]');
+  const run=(target,extra)=>spawnSync(process.execPath,[new URL('../scripts/mobile-integration/sanitize-evidence.mjs',import.meta.url).pathname,'ios',input,join(dir,target)],{env:{...process.env,RUNNER_TEMP:dir,...extra},encoding:'utf8'});
+  assert.equal(run('ordinary',{GRIDEX_IOS_DIAGNOSTIC:'false'}).status,0);assert.equal(existsSync(join(dir,'ordinary/failure.png')),false);
+  assert.equal(run('invalid-only',{GRIDEX_IOS_DIAGNOSTIC:'true'}).status,0);assert.ok(existsSync(join(dir,'invalid-only/failure.png')));assert.ok(existsSync(join(dir,'invalid-only/commands.json')));
+  const blocked=run('private',{GRIDEX_IOS_DIAGNOSTIC:'true',LOGIN_A_PASSWORD:'SYNTHETIC_DO_NOT_EXPORT'});assert.notEqual(blocked.status,0);assert.equal(existsSync(join(dir,'private/failure.png')),false);assert.ok(!blocked.stderr.includes('SYNTHETIC_DO_NOT_EXPORT'));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});

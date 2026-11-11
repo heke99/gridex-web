@@ -8,13 +8,16 @@ const [mode,source,target]=process.argv.slice(2);
 if(mode==='log'){
  if(existsSync(source))writeFileSync(target,clean(readFileSync(source,'utf8')));
 }else if(mode==='ios'){
+ if(process.env.GRIDEX_IOS_DIAGNOSTIC==='true'){
+  if(process.env.GRIDEX_IOS_CUSTOMER_FLOW==='true')throw Error('Refusing customer-flow diagnostic evidence');
+  if(Object.entries(process.env).some(([k,v])=>v&&/^(LOGIN_[AB]_(EMAIL|PASSWORD)|GRIDEX_QUALIFICATION_CONTROL_KEY|SUPABASE_SERVICE_ROLE_KEY|GRIDEX_API_KEY|GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY)$/.test(k)))throw Error('Refusing diagnostic evidence with private inputs');
+ }
+
  mkdirSync(target,{recursive:true});
  const allowed=/^(a-contract|authenticated-restart|a-site|a-invoice|b-contract-no-a-data|b-site-no-a-data|b-invoice-no-a-data|background-resume|expired-token-foreground-refresh|network-recovery|invalidated-session-foreground|invalid-session-not-restored|profile-phone-write|notification-read|document-external-pdf|document-return|consumption-fails-closed|public-market-prices|powers|acceptances|support-public-reply|support-native-write-readback|support-native-create-readback|recovery-external-web|contract-web-return|contract-search-empty|market-future-day|a-invoice-pdf-return|b-invoice-pdf-return|document-stale-link-denied|support-continuation-last|support-status-filter|support-detail-web-return|market-network-error|market-retry-recovery|keyboard-login-accessible|notched-price-navigation|notched-home-navigation)(?:\.png)?$/;
  function walk(dir){if(!existsSync(dir))return;for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())walk(p);else if(entry.isFile()&&allowed.test(entry.name)&&entry.name.endsWith('.png'))copyFileSync(p,join(target,basename(p)));}}
  walk(source);
  if(process.env.GRIDEX_IOS_DIAGNOSTIC==='true'){
-  if(process.env.GRIDEX_IOS_CUSTOMER_FLOW==='true')throw Error('Refusing customer-flow diagnostic evidence');
-  if(Object.entries(process.env).some(([k,v])=>v&&/^(LOGIN_[AB]_(EMAIL|PASSWORD)|GRIDEX_QUALIFICATION_CONTROL_KEY|SUPABASE_SERVICE_ROLE_KEY|GRIDEX_API_KEY|GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY)$/.test(k)))throw Error('Refusing diagnostic evidence with private inputs');
   function diagnostics(dir){if(!existsSync(dir))return;for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())diagnostics(p);else if(entry.isFile()&&entry.name.endsWith('.json'))writeFileSync(join(target,basename(p)),clean(readFileSync(p,'utf8')));else if(entry.isFile()&&entry.name.endsWith('.png'))copyFileSync(p,join(target,basename(p)));}}
   diagnostics(source);
  }
