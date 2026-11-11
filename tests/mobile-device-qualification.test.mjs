@@ -6,6 +6,13 @@ import {join} from 'node:path';
 import {execFileSync,spawnSync,fork} from 'node:child_process';
 import {once} from 'node:events';
 const cryptoScript=new URL('../scripts/mobile-integration/device-fixture.mjs',import.meta.url).pathname;
+test('native compiler rejects inherited device credentials before starting Xcode',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'gridex-build-env-'));
+ try{
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-build.sh',import.meta.url).pathname],{env:{...process.env,RUNNER_TEMP:directory,LOGIN_A_PASSWORD:'SYNTHETIC_BUILD_SCOPE_TEST'},encoding:'utf8'});
+  assert.equal(result.status,1);assert.ok(result.stderr.includes('public build configuration only'));assert.ok(!result.stderr.includes('SYNTHETIC_BUILD_SCOPE_TEST'));
+ }finally{rmSync(directory,{recursive:true,force:true});}
+});
 test('sibling-job identities are source-bound and authenticated-encrypted; privileged credentials stay out',()=>{
  const dir=mkdtempSync(join(tmpdir(),'gridex-device-crypto-'));
  try{

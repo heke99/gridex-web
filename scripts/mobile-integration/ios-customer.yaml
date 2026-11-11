@@ -23,7 +23,8 @@ appId: se.gridex.el.dev
     env:
       ACTION: snapshot
 - stopApp
-- launchApp
+- launchApp:
+    stopApp: false
 - tapOn: "Mer"
 - scrollUntilVisible:
     element: ${CONTRACT_A}
@@ -64,7 +65,8 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "Logga ut"
 - stopApp
-- launchApp
+- launchApp:
+    stopApp: false
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
 - assertNotVisible: ${CUSTOMER_A}
@@ -117,7 +119,8 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: wait-expiry-tick
-- launchApp
+- launchApp:
+    stopApp: false
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
@@ -138,7 +141,8 @@ appId: se.gridex.el.dev
           file: ios-control.js
           env:
             ACTION: wait-expiry-tick
-- launchApp
+- launchApp:
+    stopApp: false
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
@@ -223,7 +227,8 @@ appId: se.gridex.el.dev
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
 - takeScreenshot: "document-external-pdf"
-- launchApp
+- launchApp:
+    stopApp: false
 - takeScreenshot: "document-return"
 - scrollUntilVisible:
     element: "Fullmakter"
@@ -358,7 +363,8 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: wait-expiry-tick
-- launchApp
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: "Logga in på Mina sidor"
     timeout: 60000
@@ -372,7 +378,8 @@ appId: se.gridex.el.dev
 - tapOn: "Stäng tangentbord"
 - takeScreenshot: "invalidated-session-foreground"
 - stopApp
-- launchApp
+- launchApp:
+    stopApp: false
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
 - assertNotVisible: ${CONTRACT_B}
@@ -386,7 +393,8 @@ appId: se.gridex.el.dev
     visible: "Återställ lösenord"
     timeout: 60000
 - takeScreenshot: "recovery-external-web"
-- launchApp
+- launchApp:
+    stopApp: false
 - assertVisible: "Logga in på Mina sidor"
 - tapOn: "Hem"
 - scrollUntilVisible:
@@ -397,7 +405,8 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-signup
-- launchApp
+- launchApp:
+    stopApp: false
 - scrollUntilVisible:
     element: "Visa befintliga avtal.*"
     direction: DOWN
@@ -406,7 +415,8 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-contracts
-- launchApp
+- launchApp:
+    stopApp: false
 - scrollUntilVisible:
     element: "Få hjälp att byta avtal.*"
     direction: DOWN
@@ -415,5 +425,6 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-support
-- launchApp
+- launchApp:
+    stopApp: false
 - takeScreenshot: "contract-web-return"

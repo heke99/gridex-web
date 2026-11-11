@@ -3,7 +3,11 @@ set -euo pipefail
 : "${RUNNER_TEMP:?}"
 root="$(pwd)"
 out="$RUNNER_TEMP/gridex-ios-artifacts"
+for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD GRIDEX_QUALIFICATION_CONTROL_KEY SUPABASE_SERVICE_ROLE_KEY GRIDEX_API_KEY GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY; do
+  if test -n "${!variable:-}"; then echo 'Native compiler environment must contain public build configuration only.' >&2; exit 1; fi
+done
 mkdir -p "$out"
+trap 'node "$root/scripts/mobile-integration/sanitize-evidence.mjs" log "$out/pods.log" "$out/pods.log"; node "$root/scripts/mobile-integration/sanitize-evidence.mjs" log "$out/build.log" "$out/build.log"' EXIT
 xcodebuild -version > "$out/xcode-version.txt"
 cd apps/mobile
 npm exec --no -- expo prebuild --platform ios --no-install
