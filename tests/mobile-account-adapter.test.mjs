@@ -85,11 +85,11 @@ for(const phase of ['response','body'])test(`cancelling a configured client abor
  const client=createAccountClient('cancel');const transport=captures[0][2].global.fetch;
  const originalFetch=globalThis.fetch;let settle,signal;
  try{
-  globalThis.fetch=async(_url,init)=>{signal=init.signal;return phase==='response'?new Promise(resolve=>{settle=resolve;}):{status:200,statusText:'OK',headers:{'content-type':'application/json'},arrayBuffer:()=>new Promise(resolve=>{settle=resolve;})};};
+  globalThis.fetch=async(_url,init)=>{signal=init.signal;return phase==='response'?new Promise(resolve=>{settle=resolve;}):{status:200,statusText:'OK',headers:{'content-type':'application/json'},text:()=>new Promise(resolve=>{settle=resolve;})};};
   const pending=transport('https://project.supabase.co/auth/v1/token');const rejected=assert.rejects(pending,/Cancelled/);
   await new Promise(resolve=>setImmediate(resolve));assert.equal(typeof settle,'function');
   cancelAccountAuth(client);await rejected;assert.equal(signal.aborted,true);
-  settle(phase==='response'?Response.json({ignored:true}):new ArrayBuffer(0));
+  settle(phase==='response'?Response.json({ignored:true}):'');
  }finally{globalThis.fetch=originalFetch;}
 });
 
@@ -98,4 +98,17 @@ test('an already cancelled Auth call never sends credentials',async()=>{
  const controller=new AbortController();controller.abort();let calls=0;
  try{globalThis.fetch=async()=>{calls++;return Response.json({});};await assert.rejects(accountFetch('https://project.supabase.co/auth/v1/token',{signal:controller.signal}),/Cancelled/);assert.equal(calls,0);}
  finally{globalThis.fetch=originalFetch;}
+});
+
+test('the native fetch Response preserves UTF-8 Auth user metadata through the bounded transport',async()=>{
+ const {Response:NativeResponse}=await import('../apps/mobile/node_modules/whatwg-fetch/dist/fetch.umd.js');
+ const {accountFetch}=await import('../apps/mobile/src/accountFetch.ts');
+ const originalFetch=globalThis.fetch,OriginalResponse=globalThis.Response;
+ const metadata={full_name:'Åsa Öberg 😀'};
+ try{
+  globalThis.Response=NativeResponse;
+  globalThis.fetch=async()=>new OriginalResponse(JSON.stringify({user_metadata:metadata}),{headers:{'content-type':'application/json'}});
+  const response=await accountFetch('https://project.supabase.co/auth/v1/user');
+  assert.deepEqual((await response.json()).user_metadata,metadata);
+ }finally{globalThis.fetch=originalFetch;globalThis.Response=OriginalResponse;}
 });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { exportMobileApp } from '../scripts/export-mobile-app.mjs';
@@ -14,6 +14,17 @@ test('whole native source exports with neutral branding and a verified source ma
  assert.equal(manifest.backendIncluded,true);assert.equal(manifest.backendKind,'provider-neutral-adapter');assert.equal(manifest.customerDataIncluded,false);
  assert.ok(manifest.files.some(f=>f.path==='apps/mobile/src/useCustomerAccount.ts'));
  assert.ok(manifest.files.some(f=>f.path==='apps/mobile/package-lock.json'));
+ const exported=new Set(manifest.files.map(f=>f.path));
+ for(const entry of manifest.files.filter(f=>/\.(?:ts|tsx|mjs)$/.test(f.path))){
+  const text=await readFile(join(target,entry.path),'utf8');
+  const imports=[...text.matchAll(/\bfrom\s*['"](\.[^'"]+)['"]/g),...text.matchAll(/\bimport\s*['"](\.[^'"]+)['"]/g)];
+  for(const match of imports){
+   const base=relative(target,resolve(dirname(join(target,entry.path)),match[1]));
+   const candidates=[base,...['.ts','.tsx','.mjs','.d.ts','/index.ts','/index.tsx'].map(s=>base+s)];
+   assert.ok(candidates.some(p=>exported.has(p)),`Exported relative dependency is missing: ${entry.path} -> ${match[1]}`);
+  }
+ }
+
  for(const entry of manifest.files){assert.ok(!/(^|\/)(node_modules|\.env[^/]*|dist[^/]*|\.git|supabase)(\/|$)/.test(entry.path));const bytes=await readFile(join(target,entry.path));assert.equal(createHash('sha256').update(bytes).digest('hex'),entry.sha256);}
  const {activeBrand}=await import(pathToFileURL(join(target,'apps/mobile/brands/active.mjs')).href);
  assert.equal(activeBrand.id,'energy-demo');assert.ok(!(await readdir(join(target,'apps/mobile/brands'))).includes('gridex.mjs'));

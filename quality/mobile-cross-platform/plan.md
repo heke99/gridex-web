@@ -217,3 +217,23 @@ acceptance and both production native builds are required; d919 artifacts are
 superseded by this common app code change. Positive consumption, Apple signing/
 TestFlight/physical iPhone and authenticated production access remain separate
 unverified requirements.
+
+The next attempt66d86c0 exposed a real portable-export omission: the explicit
+allowlist excluded the two new helpers (CI42977311137 TS2307). A relative-import
+closure regression reproduced the missing dependency before adding both files.
+The actual exporter has now been run outside the repo, followed by its own
+locked npm install, extracted typecheck and Android+iOS JavaScript exports, all
+PASS. This is additional source/export evidence, not native binary acceptance.
+
+A second native-specific issue was reproduced using the locked WHATWG Response:
+its ArrayBuffer-backed JSON decoder corrupted UTF-8 names/emoji. Auth transport
+now buffers through response.text under the same10s cancellation/deadline and
+reconstructs a string-backed Response. The actual native-polyfill Unicode
+regression failed before and passes after;78 lifecycle/adapter and91 canonical
+native-only tests pass without root dependencies. Both independent reviewers
+cleared the prepared UTF8/export patch. The confirmed portability failure and
+Unicode bug invalidate66 as a release candidate. Replace it only after the
+complete fixed matrix, actual extracted exports and exact-source reviews are
+ready; record any superseded runs as terminalCANCELLED, never PASS. The next
+candidate must complete full coherent runtime verification and new production
+builds. Do not sign or deliver66 production builds as final.

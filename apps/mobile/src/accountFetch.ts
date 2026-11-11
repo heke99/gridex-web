@@ -14,7 +14,9 @@ export function createAccountFetch() {
   try {
     if (controller.signal.aborted) throw new Error('Cancelled');
     const response = await abortable(fetch(input, { ...init, signal: controller.signal }), controller.signal);
-    const body = await abortable(response.arrayBuffer(), controller.signal);
+    // Native fetch's ArrayBuffer-backed Response decodes JSON as Latin-1.
+    // Auth is UTF-8 text: preserve it through the platform's text decoder.
+    const body = await abortable(response.text(), controller.signal);
     return new Response([204, 205, 304].includes(response.status) ? null : body, { status: response.status, statusText: response.statusText, headers: response.headers });
   } finally {
     clearTimeout(timeout);

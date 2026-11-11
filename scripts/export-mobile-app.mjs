@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { defineMobileBrand } from '../packages/mobile-foundation/src/brand.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const native = ['index.ts','tsconfig.json','metro.config.mjs','package.json','package-lock.json',
- 'src/accountClient.ts','src/CustomerAccess.tsx','src/customerData.ts','src/CustomerDetailPanels.tsx',
+ 'src/accountClient.ts','src/accountFetch.ts','src/abortable.ts','src/CustomerAccess.tsx','src/customerData.ts','src/CustomerDetailPanels.tsx',
  'src/CustomerExtraPanel.tsx','src/detailData.ts','src/EnergyAppShell.tsx','src/secureSessionStorage.ts',
  'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPriceData.ts','src/MarketPrices.tsx','src/PhoneEditor.tsx','src/listTools.ts','src/CustomerList.tsx','src/ConsumptionPanel.tsx'];
 const backend = ['package.json','handler.mjs','projection.mjs','demo.mjs','README.md','consumption.mjs','consumption.d.mts'];
