@@ -46,3 +46,17 @@ test('public synthetic gateway denies Auth admin, signup, raw database and OPS a
   assert.equal((await fetch(origin+'/qualification-document/'+reference,{headers:{authorization:'Bearer DUMMY-TEST-ONLY'}})).status,400);
  }finally{child.kill();await once(child,'exit');rmSync(directory,{recursive:true,force:true});}
 });
+
+test('uploaded evidence removes credential formats even when absent from the environment',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-evidence-'));
+ try{
+  const input=join(dir,'raw.log'),output=join(dir,'safe.log');
+  const samples=['postgresql://synthetic:password@127.0.0.1:54322/postgres','eyJtest.payload.signature','gdxp_synthetic.signature','Bearer synthetic-test-token','-----BEGIN PRIVATE KEY-----\nSYNTHETIC_KEY_BODY\n-----END PRIVATE KEY-----'];
+  writeFileSync(input,samples.join('\n'));
+  execFileSync(process.execPath,[new URL('../scripts/mobile-integration/sanitize-evidence.mjs',import.meta.url).pathname,'log',input,output],{env:{...process.env,RUNNER_TEMP:dir}});
+  const result=readFileSync(output,'utf8');
+  for(const sample of samples)assert.ok(!result.includes(sample));
+  assert.ok(!result.includes('SYNTHETIC_KEY_BODY'));
+  for(const kind of ['DATABASE_URL','JWT','API_KEY','PRIVATE_KEY'])assert.ok(result.includes('[REDACTED_'+kind+']'));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});

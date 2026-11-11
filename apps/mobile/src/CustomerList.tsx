@@ -24,7 +24,7 @@ export function CustomerList({resource,rows,theme:t,children}:{resource:Resource
   {resource==='contracts'&&<Text style={{color:t.muted}}>Senaste avtalsstart först</Text>}
   {summary.statuses.map(([label,count])=><Text key={label} style={{color:t.muted}}>{label}: {count}</Text>)}
   {searchLabel&&<>
-   <TextInput accessibilityLabel={searchLabel} placeholder="Sök i hämtade poster" placeholderTextColor={t.muted} value={query} onChangeText={setQuery} maxLength={160} autoCorrect={false} style={{color:t.text,borderWidth:1,borderColor:t.muted,padding:12,borderRadius:10}}/>
+   <TextInput inputAccessoryViewID="gridex-keyboard-tools" accessibilityLabel={searchLabel} placeholder="Sök i hämtade poster" placeholderTextColor={t.muted} value={query} onChangeText={setQuery} maxLength={160} autoCorrect={false} style={{color:t.text,borderWidth:1,borderColor:t.muted,padding:12,borderRadius:10}}/>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>{['all',...summary.statuses.map(([s])=>s).filter(s=>s!=='Uppgift saknas')].map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:status===value}} onPress={()=>setStatus(value)} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:status===value?t.accent:t.muted}}>{value==='all'?'Alla statusar':value}</Text></Pressable>)}</View>
    {(query||status!=='all')&&<Pressable accessibilityRole="button" onPress={()=>{setQuery('');setStatus('all');}} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:t.accent}}>Rensa sökning och filter</Text></Pressable>}
    <Text accessibilityLiveRegion="polite" style={{color:t.muted}}>Visar {visible.length} av {rows.length} hämtade poster</Text>

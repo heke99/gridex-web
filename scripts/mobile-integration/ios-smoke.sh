@@ -25,9 +25,10 @@ if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
   environment+=(-e "CONTROL_KEY=$GRIDEX_QUALIFICATION_CONTROL_KEY" -e "CUSTOMER_ORIGIN=$EXPO_PUBLIC_CUSTOMER_API_URL")
   market_date="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()))')"
   market_yesterday="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")-86400000)))' "$market_date")"
-  environment+=(-e "MARKET_DATE=$market_date" -e "MARKET_YESTERDAY=$market_yesterday")
+  market_tomorrow="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")+86400000)))' "$market_date")"
+  environment+=(-e "MARKET_DATE=$market_date" -e "MARKET_YESTERDAY=$market_yesterday" -e "MARKET_TOMORROW=$market_tomorrow")
 fi
 "$RUNNER_TEMP/gridex-maestro/maestro/bin/maestro" --device "$simulator" test \
   --format junit --output "$private_ui/results.xml" \
   --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1
-node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",realCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
+node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"

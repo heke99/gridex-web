@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
-      GRIDEX_OPS_COMMIT: 81e9e6a39536c6787dcfd217a4d5be43a0aa343e
+      GRIDEX_OPS_COMMIT: 6819d12d35a8d8ce560889b29c91f330a2655724
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
       SUPABASE_TELEMETRY_DISABLED: 'true'
       SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
@@ -58,6 +58,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Start and qualify the disposable shared backend
+        id: backend
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -73,6 +74,20 @@ jobs:
           done
           echo 'Shared backend setup deadline exceeded.' >&2
           exit 1
+      - name: Prepare safe early backend failure evidence
+        if: ${{ failure() && steps.backend.outcome != 'success' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/mobile-backend-failure"
+          for file in "$RUNNER_TEMP/mobile-stack-sanitized.log" "$RUNNER_TEMP/mobile-ops-sanitized.log" "$RUNNER_TEMP/mobile-web-sanitized.log" "$RUNNER_TEMP/mobile-features.json"; do
+            if test -f "$file"; then cp "$file" "$RUNNER_TEMP/mobile-backend-failure/"; fi
+          done
+          printf '%s\n' '{"backend":"failed"}' > "$RUNNER_TEMP/mobile-backend-failure/result.json"
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() && steps.backend.outcome != 'success' }}
+        with:
+          name: mobile-backend-setup-failed
+          path: ${{ runner.temp }}/mobile-backend-failure/
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: ios-encrypted-customer-fixture

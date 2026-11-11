@@ -67,12 +67,19 @@ The backend does not fetch or proxy arbitrary URLs and never appends API tokens.
 
 ## Remaining qualification and functionality
 
-Successful live Auth/OPS customer reads, actual device/keychain behavior, signed
-builds and the external document/recovery handoffs still require verification.
-The published OPS version mismatch remains a release blocker; no gate is relaxed.
-Lists/messages are the bounded API result and do not prove complete history.
-Message pagination, attachments, in-app PDF rendering, price
-series, consumption summaries and contractual changes remain later work.
+The core A/B customer flow and Android lifecycle passed against a real isolated
+OPS/Auth stack in run42912180714 (OPS81e9e6a, Web2495703). This is version-bound
+core evidence; it does not qualify every additional account resource or iOS.
+The current cross-platform candidate and receipts are tracked in
+quality/mobile-cross-platform/plan.md. Production OpenAPI revision2026-11-10.1
+is synchronized; no contract gate is relaxed.
+
+Positive real consumption still needs authoritative delivery windows and current
+metering revision fields exposed by OPS. The existing adapter deliberately fails
+closed; it never infers supply entitlement from contract/move-in dates or treats
+missing readings as zero. Attachments, in-app PDF rendering and native contract
+signing remain outside the implemented mobile feature set. Case lists/messages
+are bounded API results and do not prove complete historical retrieval.
 
 ## Extraction proof
 
@@ -101,8 +108,8 @@ OPS resources through the same verified-user server adapter. General documents
 are opened only after a fresh customer ownership check and HTTPS origin validation;
 no bearer header is passed to the external reader. These views do not edit profiles,
 mark notifications read or sign new agreements. Counts mean loaded rows; pagination
-outside support cases is not yet qualified. Keep the production API feature flag off
-until live customer/device checks and the OPS manifest release gate pass.
+outside support cases is not yet qualified. Production activation requires applicable customer/device evidence and the OPS
+manifest release gate; core-flow evidence does not qualify additional resources.
 
 The complete native source can now be extracted from the repository root with
 `npm run mobile:export -- /absolute/new-directory [brand-config.json]`.

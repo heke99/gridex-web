@@ -86,6 +86,23 @@ appId: se.gridex.el.dev
 - assertNotVisible: ${CUSTOMER_A}
 - takeScreenshot: "b-contract-no-a-data"
 - scrollUntilVisible:
+    element: "Sök avtal"
+    direction: UP
+- tapOn: "Sök avtal"
+- inputText: ${CUSTOMER_A}
+- tapOn: "Stäng tangentbord"
+- scrollUntilVisible:
+    element: "Inga hämtade poster matchar ditt val."
+    direction: DOWN
+- takeScreenshot: "contract-search-empty"
+- scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    direction: UP
+- tapOn: "Rensa sökning och filter"
+- scrollUntilVisible:
+    element: ${CONTRACT_B}
+    direction: DOWN
+- scrollUntilVisible:
     element: "Anläggningar"
     direction: UP
 - tapOn: "Anläggningar"
@@ -353,6 +370,25 @@ appId: se.gridex.el.dev
 - tapOn: "Visa alla [0-9]+ intervallpriser"
 - assertVisible: "Dölj intervallpriser"
 - takeScreenshot: "public-market-prices"
+- scrollUntilVisible:
+    element: "Imorgon"
+    direction: UP
+- runScript: ios-future-market.js
+- tapOn: "Imorgon"
+- scrollUntilVisible:
+    element: "${MARKET_TOMORROW} · SE4"
+    direction: DOWN
+- runFlow:
+    when:
+      true: ${output.futureEntries === 0}
+    commands:
+      - assertVisible: "Inga priser har publicerats för det valda dygnet."
+- runFlow:
+    when:
+      true: ${output.futureEntries > 0}
+    commands:
+      - assertVisible: "Visa alla [0-9]+ intervallpriser"
+- takeScreenshot: "market-future-day"
 - tapOn: "Mer"
 - pressKey: Home
 - runScript:

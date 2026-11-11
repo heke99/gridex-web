@@ -7,6 +7,7 @@ const deadline=Date.now()+25*60*1000;
 let found=false;
 while(Date.now()<deadline){
  const data=JSON.parse(execFileSync('gh',['api',`repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/artifacts`],{encoding:'utf8',stdio:['ignore','pipe','ignore']}));
+ if(name==='ios-encrypted-customer-fixture'&&data.artifacts.some(a=>a.name==='mobile-backend-setup-failed'))throw Error('Shared disposable backend failed; inspect its sanitized evidence');
  if(data.artifacts.some(a=>a.name===name&&!a.expired)){found=true;break;}
  await new Promise(resolve=>setTimeout(resolve,5000));
 }

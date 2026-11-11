@@ -39,12 +39,12 @@ for(const [i,u]of f.customers.entries()){
  });
  await scenario(u.label+':support-create-replay-reply-readback-isolation',async()=>{
   const title=u.number+'-SUPPORT',message=u.number+'-FIRST',key=randomUUID();
-  for(let n=0;n<2;n++){const r=await call(u,'/support',{title,message},key);assert.equal(r.status,200);assert.equal(r.body.data.accepted,true);}
+  for(let n=0;n<2;n++){const r=await call(u,'/support',{title,message},key);assert.equal(r.status,201);assert.equal(r.body.data.accepted,true);}
   const list=await call(u,'/support');assert.equal(list.status,200);const matches=list.body.data.support.filter(c=>c.title===title);assert.equal(matches.length,1);const reference=matches[0].reference;
   u.extra.support=reference;u.extra.supportTitle=title;
   const reply=u.number+'-REPLY',replyKey=randomUUID();
-  for(let n=0;n<2;n++){const r=await call(u,'/support/'+reference+'/messages',{message:reply},replyKey);assert.equal(r.status,200);}
-  const detail=await call(u,'/support/'+reference);assert.equal(detail.status,200);const content=JSON.stringify(detail.body);assert.ok(content.includes(reply));assert.ok(!content.includes(other.number));
+  for(let n=0;n<2;n++){const r=await call(u,'/support/'+reference+'/messages',{message:reply},replyKey);assert.equal(r.status,201);}
+  const detail=await call(u,'/support/'+reference);assert.equal(detail.status,200);const content=JSON.stringify(detail.body);assert.ok(content.includes(reply));assert.ok(!content.includes(other.number));assert.equal(detail.body.data.supportDetail[0].messages.filter(m=>m.body===reply).length,1);
   const denied=await call(other,'/support/'+reference);assert.ok([403,404,503].includes(denied.status));assert.deepEqual(Object.keys(denied.body),['error']);
   const foreignMessage='FOREIGN-WRITE-'+randomUUID();const forbidden=await call(other,'/support/'+reference+'/messages',{message:foreignMessage});assert.ok([403,404,503].includes(forbidden.status));assert.deepEqual(Object.keys(forbidden.body),['error']);
   assert.ok(!JSON.stringify((await call(u,'/support/'+reference)).body).includes(foreignMessage));

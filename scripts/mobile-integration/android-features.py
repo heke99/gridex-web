@@ -34,6 +34,8 @@ try:
  for user,other in [(a,b),(b,a)]:
   if user is b:
    tap('Logga ut');wait_for('Logga in på Mina sidor');login(b)
+  top();enter('Sök avtal',other['number']);checkpoint(user['label']+'-contract-search-empty','Inga hämtade poster matchar ditt val.')
+  tap('Rensa sökning och filter');checkpoint(user['label']+'-contract-search-clear',user['display']['contracts'],other['number'])
   for resource,label,expected in [('profile','Profil',user['number']),('notifications','Meddelanden',user['extra']['notificationTitle']),('documents','Dokument',user['extra']['documentTitle']),('powers','Fullmakter','supplier_switch'),('acceptances','Godkännanden','terms'),('support','Support',user['extra']['supportTitle'])]:
    top();tap(label);checkpoint(user['label']+'-'+resource,expected,other['number'])
    if resource=='profile':
@@ -80,6 +82,12 @@ try:
   adb('shell','input','swipe','500','1700','500','650','350');time.sleep(.5)
  assert buttons,'Published market intervals must have an explicit UI result'
  tap(buttons[0]);checkpoint('market-intervals','Dölj intervallpriser')
+ top();tap('Imorgon');future=today+timedelta(days=1);wait_for(str(future)+' · SE4')
+ import urllib.request
+ with urllib.request.urlopen('https://gridex.se/api/elpris/day?area=SE4&date='+str(future),timeout=20) as response:future_day=json.load(response)
+ assert isinstance(future_day.get('entries'),list)
+ if not future_day['entries']:checkpoint('market-unpublished-future-day','Inga priser har publicerats för det valda dygnet.')
+ else:checkpoint('market-published-future-day',str(future)+' · SE4')
  top();tap('Mer')
  tap('Logga ut');wait_for('Logga in på Mina sidor')
  previous=handoff_count('/login/forgot-password');tap('Glömt lösenord? Återställ på hemsidan');await_handoff('/login/forgot-password',previous);launch()
