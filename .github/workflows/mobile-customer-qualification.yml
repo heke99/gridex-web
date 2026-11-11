@@ -15,7 +15,7 @@ permissions:
 jobs:
   customer-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 105
     env:
       GRIDEX_OPS_COMMIT: 6819d12d35a8d8ce560889b29c91f330a2655724
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -167,13 +167,14 @@ jobs:
             ${{ runner.temp }}/mobile-handoff-requests.json
             ${{ runner.temp }}/mobile-market-requests.json
             ${{ runner.temp }}/mobile-system-observations.json
+            ${{ runner.temp }}/mobile-control-observations.json
             ${{ runner.temp }}/mobile-*-sanitized.log
             ${{ runner.temp }}/mobile-android/
           if-no-files-found: error
           retention-days: 7
   ios-customer:
     runs-on: macos-26
-    timeout-minutes: 65
+    timeout-minutes: 90
     env:
       CI: '1'
       MAESTRO_CLI_NO_ANALYTICS: '1'

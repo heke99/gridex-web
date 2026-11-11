@@ -44,6 +44,7 @@ test('public synthetic gateway denies Auth admin, signup, raw database and OPS a
   assert.equal((await fetch(origin+'/qualification-control',{method:'POST',body:'{}'})).status,404);
   const pdf=await fetch(origin+'/qualification-document/'+reference);assert.equal(pdf.status,200);assert.equal(pdf.headers.get('content-type'),'application/pdf');assert.ok((await pdf.text()).startsWith('%PDF-1.4'));
   const invoicePdf=await fetch(origin+'/qualification-document/'+invoiceReference);assert.equal(invoicePdf.status,200);assert.ok((await invoicePdf.text()).startsWith('%PDF-1.4'));
+  assert.notEqual(pdf.headers.get('content-disposition'),invoicePdf.headers.get('content-disposition'));assert.ok(pdf.headers.get('content-disposition').includes(reference));assert.ok(invoicePdf.headers.get('content-disposition').includes(invoiceReference));
   assert.equal((await fetch(origin+'/qualification-document/'+reference,{headers:{authorization:'Bearer DUMMY-TEST-ONLY'}})).status,400);
  }finally{child.kill();await once(child,'exit');rmSync(directory,{recursive:true,force:true});}
 });
@@ -120,4 +121,18 @@ test('native failure stage identifiers expose only finite public state booleans'
  assert.equal(flags.customerIdleStatePresent,false);assert.equal(flags.contractsResourcePresent,false);
  assert.equal(flags.visibilityEstablished,false);assert.ok(Object.values(flags).every(v=>typeof v==='boolean'));
  assert.ok(!JSON.stringify(flags).includes(secret));
+});
+
+test('control observations record only known action/outcome enums and numeric timing',async()=>{
+ const {recordControlObservation}=await import('../scripts/mobile-integration/control-observations.mjs');
+ const dir=mkdtempSync(join(tmpdir(),'gridex-control-observations-'));const file=join(dir,'mobile-control-observations.json');const privateValue='PRIVATE_CONTROL_BODY_OR_HEADER';
+ try{
+  recordControlObservation(privateValue,'started',dir);assert.equal(existsSync(file),false);
+  recordControlObservation('snapshot','started',dir);
+  const rows=JSON.parse(readFileSync(file,'utf8'));rows.push({action:'snapshot',outcome:'passed',timestamp:privateValue,password:privateValue});rows.push({action:privateValue,outcome:'failed'});writeFileSync(file,JSON.stringify(rows));
+  recordControlObservation('assert-fresh','failed',dir);
+  const raw=readFileSync(file,'utf8'),safe=JSON.parse(raw);assert.ok(!raw.includes(privateValue));assert.equal(safe.length,3);
+  for(const row of safe){assert.deepEqual(Object.keys(row).sort(),['action','outcome','timestamp']);assert.ok(Number.isSafeInteger(row.timestamp));}
+  assert.deepEqual(safe.map(row=>[row.action,row.outcome]),[['snapshot','started'],['snapshot','passed'],['assert-fresh','failed']]);
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });

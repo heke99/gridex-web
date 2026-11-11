@@ -3,6 +3,8 @@ appId: se.gridex.el.dev
 - launchApp:
     clearState: true
 - assertVisible: "Gridex El"
+- assertVisible:
+    id: "energy-app-shell"
 - tapOn: "Mer"
 - scrollUntilVisible:
     element: "E-post"

@@ -12,6 +12,30 @@ exec(compile(source.split(marker)[0],str(helper),'exec'),scope)
 for name in ['adb','tap','top','enter','launch','wait_for','login','checkpoint','request_count','wait_for_new_request','bridge']:
  globals()[name]=scope[name]
 f=scope['fixture'];out=scope['out'];a,b=f['customers']
+native_phase='customer-view'
+def app_foreground(ns):
+ return any(n.get('package')=='se.gridex.el.dev' for n in ns)
+def await_external_reader():
+ deadline=time.monotonic()+30;stable=0
+ while time.monotonic()<deadline:
+  ns=failure_nodes()
+  reader=any(n.get('package') in ['com.android.chrome','com.android.documentsui','com.google.android.documentsui','com.google.android.apps.docs'] for n in ns)
+  stable=stable+1 if reader and not app_foreground(ns) else 0
+  if stable>=2:return
+  time.sleep(.25)
+ raise AssertionError('External reader did not remain in the foreground (values suppressed)')
+def launch():
+ deadline=time.monotonic()+30;stable=0
+ while time.monotonic()<deadline:
+  ns=failure_nodes()
+  if app_foreground(ns):
+   stable+=1
+   if stable>=2:return
+  else:
+   stable=0
+   adb('shell','am','start','-W','-n','se.gridex.el.dev/.MainActivity')
+  time.sleep(.25)
+ raise AssertionError('Native app did not remain in the foreground (values suppressed)')
 # Kept local to Web's extra journeys; OPS's reviewed emulator helper is unchanged.
 def enter(label,value):
  tap(label)
@@ -45,13 +69,17 @@ def await_handoff(path,previous):
  while time.monotonic()<deadline and handoff_count(path)<=previous:time.sleep(1)
  assert handoff_count(path)>previous,'Actual external browser handoff not observed'
 def seek_checkpoint(name,expected,absent=None):
+ if not app_foreground(failure_nodes()):launch()
  top();deadline=time.monotonic()+65
  while time.monotonic()<deadline:
-  content=scope['texts'](scope['nodes']())
+  ns=failure_nodes()
+  if not app_foreground(ns):
+   launch();top();continue
+  content=scope['texts'](ns)
   if expected in content and (not absent or absent not in content):return checkpoint(name,expected,absent)
   adb('shell','input','swipe','500','1700','500','650','350');time.sleep(.5)
  raise AssertionError('Expected scrolled native checkpoint not reached (values suppressed)')
-def native_state_markers(ns,customer_a='',customer_b=''):
+def native_state_markers(ns,customer_a='',customer_b='',phase='unknown'):
  content='\n'.join(n.get('text','')+' '+n.get('content-desc','') for n in ns)
  states=[re.fullmatch(r'customer-(contracts|sites|invoices|support|invoiceDetail|supportDetail|profile|notifications|documents|powers|acceptances|consumption)-(loading|idle)',n.get('resource-id','').split(':id/')[-1]) for n in ns]
  states=[s for s in states if s]
@@ -63,7 +91,10 @@ def native_state_markers(ns,customer_a='',customer_b=''):
   'busyTextPresent':'Hämtar kunduppgifter' in content,'retryControlPresent':'Hämta igen' in content,
   'customerAReferencePresent':bool(customer_a and customer_a in content),'customerBReferencePresent':bool(customer_b and customer_b in content),
   'invoiceResourcePresent':any(s[1]=='invoiceDetail' for s in states),'contractsResourcePresent':any(s[1]=='contracts' for s in states),
-  'consumptionResourcePresent':any(s[1]=='consumption' for s in states),'customerBusyStatePresent':any(s[2]=='loading' for s in states),'customerIdleStatePresent':any(s[2]=='idle' for s in states)}
+  'consumptionResourcePresent':any(s[1]=='consumption' for s in states),'customerBusyStatePresent':any(s[2]=='loading' for s in states),'customerIdleStatePresent':any(s[2]=='idle' for s in states),
+  'appWindowPresent':app_foreground(ns),'chromeWindowPresent':any(n.get('package')=='com.android.chrome' for n in ns),
+  'systemWindowPresent':any(n.get('package')=='android' for n in ns),'launcherWindowPresent':any(n.get('package') in ['com.android.launcher3','com.google.android.apps.nexuslauncher'] for n in ns),
+  'pdfRequestPhase':phase=='pdf-request','pdfReaderReadyPhase':phase=='pdf-reader-ready','pdfReturnLaunchPhase':phase=='pdf-return-launch','pdfReturnSeekPhase':phase=='pdf-return-seek'}
 def failure_nodes():
  subprocess.run(['adb','shell','uiautomator','dump','/sdcard/gridex-window.xml'],check=True,timeout=8,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  raw=subprocess.check_output(['adb','exec-out','cat','/sdcard/gridex-window.xml'],timeout=5,stderr=subprocess.DEVNULL)
@@ -81,6 +112,8 @@ def dismiss_chrome_onboarding(ns):
    return True
  return False
 def open_pdf(reference,expected,other,name):
+ global native_phase
+ native_phase='pdf-request'
  count=document_count(reference);tap('Öppna dokument i extern läsare')
  deadline=time.monotonic()+60
  while time.monotonic()<deadline and document_count(reference)<=count:
@@ -89,7 +122,10 @@ def open_pdf(reference,expected,other,name):
   dismiss_chrome_onboarding(ns)
   time.sleep(1)
  assert document_count(reference)>count,'External Android PDF request not observed'
- launch();seek_checkpoint(name,expected,other)
+ native_phase='pdf-reader-ready';await_external_reader()
+ native_phase='pdf-return-launch';before=request_count();launch()
+ native_phase='pdf-return-seek';seek_checkpoint(name,expected,other);wait_for_new_request(before)
+ native_phase='customer-view'
 def document_available(user,available):
  q=lambda v:"'"+str(v).replace("'","''")+"'"
  url=q(os.environ['GRIDEX_DEVICE_PUBLIC_ORIGIN']+'/qualification-document/'+user['extra']['document']) if available else 'NULL'
@@ -189,7 +225,7 @@ try:
  print('PASS Android extra account views, phone writes and authenticated restart',flush=True)
 finally:
  if sys.exc_info()[0] is not None:
-  try:(out/'native-failure-state.json').write_text(json.dumps(native_state_markers(failure_nodes(),a['number'],b['number']))+'\n')
+  try:(out/'native-failure-state.json').write_text(json.dumps(native_state_markers(failure_nodes(),a['number'],b['number'],native_phase))+'\n')
   except Exception:(out/'native-failure-state.json').write_text(json.dumps({'failureReported':True,'hierarchyReadFailed':True,'visibilityEstablished':False})+'\n')
  proxy.terminate()
  try:proxy.wait(timeout=10)

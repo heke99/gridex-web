@@ -23,7 +23,7 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
   };
   const t = brand.theme;
   const insets = useSafeAreaInsets();
-  return <View style={[styles.root, { backgroundColor: t.canvas, paddingTop: insets.top + 12, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+  return <View testID="energy-app-shell" style={[styles.root, { backgroundColor: t.canvas, paddingTop: insets.top + 12, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <StatusBar barStyle="light-content" />
     <ScrollView ref={scroll} automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Text style={[styles.brand, { color: t.accent }]}>{brand.displayName}</Text>

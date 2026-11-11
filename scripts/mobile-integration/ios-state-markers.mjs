@@ -1,6 +1,6 @@
 // Fixed booleans only. Never export native text, credentials, filenames or subtrees.
 export function emptyNativeStateMarkers(){
- return {failureReported:false,hierarchyAvailable:false,hierarchyReadFailed:false,knownReadErrorTextPresent:false,knownDocumentErrorTextPresent:false,loginHeadingPresent:false,authenticatedHeadingPresent:false,busyTextPresent:false,retryControlPresent:false,invoiceHeaderPresent:false,customerAReferencePresent:false,customerBReferencePresent:false,invoiceResourcePresent:false,contractsResourcePresent:false,consumptionResourcePresent:false,customerBusyStatePresent:false,customerIdleStatePresent:false,visibilityEstablished:false};
+ return {failureReported:false,hierarchyAvailable:false,hierarchyReadFailed:false,appShellPresent:false,knownReadErrorTextPresent:false,knownDocumentErrorTextPresent:false,loginHeadingPresent:false,authenticatedHeadingPresent:false,busyTextPresent:false,retryControlPresent:false,invoiceHeaderPresent:false,customerAReferencePresent:false,customerBReferencePresent:false,invoiceResourcePresent:false,contractsResourcePresent:false,consumptionResourcePresent:false,customerBusyStatePresent:false,customerIdleStatePresent:false,visibilityEstablished:false};
 }
 export function nativeStateMarkers(hierarchy,customerA='',customerB=''){
  const flags=emptyNativeStateMarkers();
@@ -9,6 +9,7 @@ export function nativeStateMarkers(hierarchy,customerA='',customerB=''){
  function visit(node){
   if(!node||typeof node!=='object')return;
   const a=node.attributes;
+  if(a?.['resource-id']==='energy-app-shell')flags.appShellPresent=true;
   const state=typeof a?.['resource-id']==='string'?/^customer-(contracts|sites|invoices|support|invoiceDetail|supportDetail|profile|notifications|documents|powers|acceptances|consumption)-(loading|idle)$/.exec(a['resource-id']):null;
   if(state){
    if(state[1]==='invoiceDetail')flags.invoiceResourcePresent=true;

@@ -237,3 +237,39 @@ complete fixed matrix, actual extracted exports and exact-source reviews are
 ready; record any superseded runs as terminalCANCELLED, never PASS. The next
 candidate must complete full coherent runtime verification and new production
 builds. Do not sign or deliver66 production builds as final.
+
+## 1c terminal follow-up: verify foreground after external readers
+
+Run42980471856 is terminalFAIL with12HTTPcore/18features/2resilience/
+2document-link cases and13Androidcore cases PASS. Actual final observations show
+own invoice-PDF GETs for BOTH customers on BOTH platforms, without bearer.
+Android fails AFTER its B-PDF receipt at launch()+seek_checkpoint (traceback
+line92); its captured hierarchy has no Gridex text/resource markers. iOS reaches
+A's exact invoice return+fresh read, B contract/site/invoice and B-PDF GET, then
+reports Unknownerror without a B-return screenshot. This proves a post-reader
+foreground verification gap; it does not prove a particular OS/driver root cause.
+
+The Android harness now waits for two external-reader frames after the actual
+PDF receipt, uses am start-W and two own-package frames to resume, and restores
+foreground if a reader activates late during the data seek. Exact own/foreign
+markers and a new OPS read remain required. A regression against archived1c
+reproduced the old behavior scrolling the reader instead of reactivating Gridex;
+all8 helper tests now pass, including late focus-steal interleavings.
+
+The native shell has a nonvisual root testID, also asserted in guest smoke.
+iOS external returns retry ONLY activation/root-id/stability at most3total
+attempts; intentional lifecycle Home/restart/outage tests and customer-data/
+fresh-OPS assertions are unchanged. Strict phase/package boolean observations
+and allowlisted control-action/outcome/timestamp records add failure context
+without exporting input/header bodies or raw hierarchies. PDF fixture filenames
+are unique by validated document reference; name collision is not claimed as
+the observed cause. Linux/Mac job bounds are105/90min and Mac terminal wait60min
+to fit full journeys, observed slow simulator startup and bounded activation
+attempts. Endpoint timeouts and authorization assertions are not loosened.
+
+Prepared validation:10Node evidence/security tests,8Android browser/foreground,
+2input and4simulated-identity tests PASS, full YAML parse and7preflight groups
+PASS. Two independent static reviews cleared the bounded foreground/privacy
+repair; exact-SHA binding follows. All native builds must be refreshed because
+the shell identifier changes the app binary. Prior1c signed APK and iOS archives
+remain build-verified historical artifacts, not final customer acceptance.

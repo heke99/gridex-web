@@ -3,6 +3,7 @@ import {createServer,request} from 'node:http';
 import {request as httpsRequest} from 'node:https';
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {timingSafeEqual} from 'node:crypto';
+import {recordControlObservation} from './control-observations.mjs';
 const auth=new Map([['/auth/v1/token',['POST']],['/auth/v1/user',['GET']],['/auth/v1/logout',['POST']]]);
 const platform=agent=>/Android|okhttp/i.test(agent??'')?'android':/iPhone|iPad|CFNetwork|Darwin/.test(agent??'')?'ios':'other';
 let disconnected=false,marketDisconnected=false,disabledDocumentCount=null;
@@ -18,10 +19,11 @@ const server=createServer(async(incoming,outgoing)=>{
  if(path==='/qualification-control'&&incoming.method==='POST'){
   const expected=Buffer.from(process.env.GRIDEX_QUALIFICATION_CONTROL_KEY??''),supplied=Buffer.from(String(incoming.headers['x-qualification-control']??''));
   if(!expected.length||expected.length!==supplied.length||!timingSafeEqual(expected,supplied)){outgoing.writeHead(404).end();return;}
+  let controlAction;
   try{
    let data='';for await(const part of incoming){data+=part;if(data.length>1024)throw Error('Too large');}
    const controlOrigin=new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);if(controlOrigin.hostname!=='127.0.0.1'||controlOrigin.port!=='54321')throw Error('Controls require disposable loopback Auth');
-   const input=JSON.parse(data);const fixture=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/mobile-fixtures/customers.json','utf8'));
+   const input=JSON.parse(data);controlAction=input.action;recordControlObservation(controlAction,'started');const fixture=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/mobile-fixtures/customers.json','utf8'));
    async function count(){const query=new URLSearchParams({select:'id',api_client_id:'eq.'+fixture.clientId,status_code:'eq.200'});const r=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/rest/v1/integration_api_requests?'+query,{headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY},signal:AbortSignal.timeout(5000)});if(!r.ok)throw Error('Observation unavailable');return (await r.json()).length;}
    if(input.action==='disconnect-market')marketDisconnected=true;
    else if(input.action==='reconnect-market')marketDisconnected=false;
@@ -57,8 +59,9 @@ const server=createServer(async(incoming,outgoing)=>{
     for(let n=0;n<20&&observed<=input.previous;n++){await new Promise(resolve=>setTimeout(resolve,500));observed=await count();}
     if(observed<=input.previous)throw Error('No fresh OPS read observed');
    }
+   recordControlObservation(controlAction,'passed');
    outgoing.writeHead(200,{'content-type':'application/json','cache-control':'no-store'}).end(JSON.stringify({passed:true,count:observed}));
-  }catch{outgoing.writeHead(503,{'content-type':'application/json','cache-control':'no-store'}).end('{"passed":false}');}
+  }catch{try{recordControlObservation(controlAction,'failed');}catch{}outgoing.writeHead(503,{'content-type':'application/json','cache-control':'no-store'}).end('{"passed":false}');}
   return;
  }
  if(path==='/qualification-health'&&incoming.method==='GET'){outgoing.writeHead(200,{'content-type':'text/plain','cache-control':'no-store'}).end('synthetic-test-stack');return;}
@@ -72,14 +75,14 @@ const server=createServer(async(incoming,outgoing)=>{
   if(!owner){outgoing.writeHead(404).end();return;}
   const report=process.env.RUNNER_TEMP+'/mobile-document-requests.json';const rows=existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[];
   const agent=incoming.headers['user-agent']??'';
-  rows.push({reference,authorizationPresent:Boolean(incoming.headers.authorization),platform:platform(agent)});writeFileSync(report,JSON.stringify(rows));
+  rows.push({reference,authorizationPresent:Boolean(incoming.headers.authorization),platform:platform(agent),timestamp:Date.now()});writeFileSync(report,JSON.stringify(rows));
   if(incoming.headers.authorization){outgoing.writeHead(400).end();return;}
   const label='Synthetic Gridex document '+owner.label;
   const stream=`BT /F1 18 Tf 30 760 Td (${label}) Tj ET`;
   const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`];
   let pdf='%PDF-1.4\n',offsets=[0];for(const [index,object]of objects.entries()){offsets.push(Buffer.byteLength(pdf));pdf+=`${index+1} 0 obj\n${object}\nendobj\n`;}
   const start=Buffer.byteLength(pdf);pdf+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;
-  outgoing.writeHead(200,{'content-type':'application/pdf','cache-control':'private, no-store','content-disposition':'inline; filename="synthetic-gridex-document.pdf"'}).end(pdf);return;
+  outgoing.writeHead(200,{'content-type':'application/pdf','cache-control':'private, no-store','content-disposition':`inline; filename="synthetic-gridex-${reference}.pdf"`}).end(pdf);return;
  }
  let port;
  if(disconnected&&(path.startsWith('/api/mobile/customer/')||path.startsWith('/auth/v1/'))){incoming.socket.destroy();return;}

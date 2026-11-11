@@ -78,9 +78,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- pressKey: Home
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -181,9 +179,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- pressKey: Home
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -362,8 +358,7 @@ appId: se.gridex.el.dev
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
 - takeScreenshot: "document-external-pdf"
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - takeScreenshot: "document-return"
 - scrollUntilVisible:
     element: "Fullmakter"
@@ -438,9 +433,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-support
-- pressKey: Home
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -641,8 +634,7 @@ appId: se.gridex.el.dev
     visible: "Återställ lösenord"
     timeout: 60000
 - takeScreenshot: "recovery-external-web"
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - assertVisible: "Logga in på Mina sidor"
 - tapOn: "Hem"
 - scrollUntilVisible:
@@ -653,8 +645,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-signup
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Visa befintliga avtal.*"
     direction: DOWN
@@ -663,8 +654,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-contracts
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Få hjälp att byta avtal.*"
     direction: DOWN
@@ -673,6 +663,5 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-handoff-support
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - takeScreenshot: "contract-web-return"
