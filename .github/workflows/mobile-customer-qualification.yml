@@ -1,0 +1,221 @@
+name: Expanded mobile customer acceptance
+concurrency:
+  group: mobile-customer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-customer-qualification.yml'
+      - 'scripts/mobile-integration/**'
+      - '!scripts/mobile-integration/ios-*'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  customer-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GRIDEX_OPS_COMMIT: 81e9e6a39536c6787dcfd217a4d5be43a0aa343e
+      QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      SUPABASE_TELEMETRY_DISABLED: 'true'
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: heke99/gridex-ops-platform
+          ref: ${{ env.GRIDEX_OPS_COMMIT }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+          path: gridex-web
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb
+        with:
+          version: 2.101.0
+      - name: Install exact locked server and native dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix gridex-web --no-audit --no-fund
+          npm ci --prefix gridex-web/apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Preflight native account and lifecycle regressions
+        working-directory: gridex-web
+        run: |
+          node --test tests/mobile-device-qualification.test.mjs
+          npm run mobile:verify -- "$RUNNER_TEMP/mobile-preflight.json"
+      - name: Enable disposable emulator KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Start and qualify the disposable shared backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash gridex-web/scripts/mobile-integration/stack.sh > "$RUNNER_TEMP/mobile-stack.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/mobile-backend.pid"
+          for attempt in $(seq 1 900); do
+            if test -f "$RUNNER_TEMP/mobile-backend.ready"; then exit 0; fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/mobile-backend.pid")" 2>/dev/null; then
+              echo 'Shared backend setup failed; preserve sanitized evidence.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          echo 'Shared backend setup deadline exceeded.' >&2
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-encrypted-customer-fixture
+          path: ${{ runner.temp }}/ios-encrypted-fixture/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Qualify installed Android against the shared OPS
+        id: android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
+          script: source "$RUNNER_TEMP/mobile-runtime.env" && export EXPO_PUBLIC_CONTRACT_WEB_ORIGIN="$GRIDEX_DEVICE_PUBLIC_ORIGIN" && bash scripts/mobile-android-build.sh && node gridex-web/scripts/mobile-integration/verify-test-apk.mjs "$RUNNER_TEMP/mobile-fixtures/customers.json" && python3 scripts/mobile-android-emulator.py "$RUNNER_TEMP/mobile-fixtures/customers.json" && python3 gridex-web/scripts/mobile-integration/android-features.py "$RUNNER_TEMP/mobile-fixtures/customers.json"
+      - name: Record Android terminal status before iOS session tests
+        if: always()
+        env:
+          ANDROID_RESULT: ${{ steps.android.outcome }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-terminal"
+          node -e 'require("fs").writeFileSync(process.env.RUNNER_TEMP+"/android-terminal/result.json",JSON.stringify({status:process.env.ANDROID_RESULT}))'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-customer-terminal
+          path: ${{ runner.temp }}/android-terminal/
+          retention-days: 7
+      - name: Await the corresponding iOS simulator result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node gridex-web/scripts/mobile-integration/await-artifact.mjs ios-customer-terminal "$RUNNER_TEMP/ios-terminal"
+      - name: Verify actual native public requests and external browser handoffs
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/mobile-backend.ready"; then
+            node gridex-web/scripts/mobile-integration/verify-observations.mjs
+          else
+            echo 'Native system observations blocked by backend setup failure.' >&2
+            exit 1
+          fi
+      - name: Stop only the owned disposable stack
+        if: always()
+        run: |
+          touch "$RUNNER_TEMP/mobile-backend.stop"
+          if test -f "$RUNNER_TEMP/mobile-backend.pid"; then
+            for attempt in $(seq 1 90); do
+              kill -0 "$(cat "$RUNNER_TEMP/mobile-backend.pid")" 2>/dev/null || exit 0
+              sleep 2
+            done
+            kill "$(cat "$RUNNER_TEMP/mobile-backend.pid")" 2>/dev/null || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: expanded-mobile-customer-evidence
+          path: |
+            ${{ runner.temp }}/mobile-acceptance.json
+            ${{ runner.temp }}/mobile-features.json
+            ${{ runner.temp }}/mobile-resilience.json
+            ${{ runner.temp }}/mobile-document-links.json
+            ${{ runner.temp }}/mobile-document-requests.json
+            ${{ runner.temp }}/mobile-handoff-requests.json
+            ${{ runner.temp }}/mobile-market-requests.json
+            ${{ runner.temp }}/mobile-system-observations.json
+            ${{ runner.temp }}/mobile-*-sanitized.log
+            ${{ runner.temp }}/mobile-android/
+          if-no-files-found: error
+          retention-days: 7
+  ios-customer:
+    runs-on: macos-26
+    timeout-minutes: 65
+    env:
+      CI: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      EXPO_NO_TELEMETRY: '1'
+      QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_BUILD_ENVIRONMENT: isolated-real-auth-web-ops
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create this job's private recipient key
+        run: node scripts/mobile-integration/device-fixture.mjs keypair "$RUNNER_TEMP/ios-fixture.key" "$RUNNER_TEMP/ios-public-key"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-device-public-key
+          path: ${{ runner.temp }}/ios-public-key/
+          retention-days: 1
+      - run: npm ci --workspaces=false --ignore-scripts --no-audit --no-fund
+        working-directory: apps/mobile
+      - name: Receive encrypted synthetic identities and isolated endpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GRIDEX_DEVICE_PRIVATE_KEY: ${{ runner.temp }}/ios-fixture.key
+        run: |
+          node scripts/mobile-integration/await-artifact.mjs ios-encrypted-customer-fixture "$RUNNER_TEMP/ios-encrypted-fixture"
+          node scripts/mobile-integration/device-fixture.mjs decrypt "$RUNNER_TEMP/ios-encrypted-fixture/device-fixture.encrypted.json" "$RUNNER_TEMP/ios-device.env"
+      - name: Build the actual isolated-backend iOS native app
+        run: |
+          source "$RUNNER_TEMP/ios-device.env"
+          unset LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD GRIDEX_QUALIFICATION_CONTROL_KEY
+          bash scripts/mobile-integration/ios-build.sh
+      - name: Verify customer A and B through the same running OPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/mobile-integration/await-artifact.mjs android-customer-terminal "$RUNNER_TEMP/android-terminal"
+          source "$RUNNER_TEMP/ios-device.env"
+          GRIDEX_IOS_CUSTOMER_FLOW=true bash scripts/mobile-integration/ios-smoke.sh
+      - name: Record terminal status and remove local credentials
+        if: always()
+        env:
+          IOS_RESULT: ${{ job.status }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-terminal"
+          node -e 'require("fs").writeFileSync(process.env.RUNNER_TEMP+"/ios-terminal/result.json",JSON.stringify({status:process.env.IOS_RESULT,webCommit:process.env.QUALIFICATION_WEB_COMMIT}))'
+          rm -f "$RUNNER_TEMP/ios-fixture.key" "$RUNNER_TEMP/ios-device.env"
+          if test -f "$RUNNER_TEMP/gridex-ios-simulator-id"; then
+            xcrun simctl shutdown "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" || true
+            xcrun simctl delete "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-customer-terminal
+          path: ${{ runner.temp }}/ios-terminal/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gridex-ios-customer-evidence
+          path: ${{ runner.temp }}/gridex-ios-artifacts/
+          retention-days: 7

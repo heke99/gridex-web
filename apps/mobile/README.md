@@ -13,11 +13,18 @@ In apps/mobile run `npm ci --workspaces=false`, `npm run typecheck` and
 A native development build is needed to exercise SecureStore on a real device;
 Hermes exports alone are not installable signed apps. OTA updates are disabled.
 
+The shell uses SafeAreaProvider/insets and iOS keyboard insets. iOS text fields
+share an explicit keyboard-dismiss accessory, including phone-pad and multiline
+support input. SecureStore uses the unlocked-device-only keychain class; no app
+biometric prompt is implemented, so no unused Face ID permission is requested.
+
 Public build configuration:
 
 - EXPO_PUBLIC_SUPABASE_URL: the existing Gridex tenant Auth project.
 - EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable/anon key only.
 - EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS tenant backend origin.
+- EXPO_PUBLIC_CONTRACT_WEB_ORIGIN: optional HTTPS customer website origin for
+  recovery/contracts/support handoffs when the API is hosted separately.
 
 Never embed OPS credentials, service-role keys, secrets or customer data. The
 adapter rejects secret/service-role keys and shares one SDK instance per brand.

@@ -12,7 +12,22 @@ printf '%s\n' "$simulator" > "$RUNNER_TEMP/gridex-ios-simulator-id"
 xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 xcrun simctl install "$simulator" "$(cat "$RUNNER_TEMP/gridex-ios-app-path")"
+private_ui="$RUNNER_TEMP/gridex-ios-private-ui"
+mkdir -p "$private_ui"
+trap 'node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui"' EXIT
+flow=scripts/mobile-integration/ios-smoke.yaml
+environment=()
+if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
+  flow=scripts/mobile-integration/ios-customer.yaml
+  for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CUSTOMER_A CUSTOMER_B CONTRACT_A CONTRACT_B SITE_A SITE_B INVOICE_A INVOICE_B DOCUMENT_B NOTICE_B SUPPORT_B; do
+    environment+=(-e "$variable=${!variable}")
+  done
+  environment+=(-e "CONTROL_KEY=$GRIDEX_QUALIFICATION_CONTROL_KEY" -e "CUSTOMER_ORIGIN=$EXPO_PUBLIC_CUSTOMER_API_URL")
+  market_date="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()))')"
+  market_yesterday="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")-86400000)))' "$market_date")"
+  environment+=(-e "MARKET_DATE=$market_date" -e "MARKET_YESTERDAY=$market_yesterday")
+fi
 "$RUNNER_TEMP/gridex-maestro/maestro/bin/maestro" --device "$simulator" test \
-  --format junit --output "$out/smoke-junit.xml" \
-  --test-output-dir "$out/ui" scripts/mobile-integration/ios-smoke.yaml
-printf '%s\n' '{"nativeUiSmoke":"PASS","realCustomerFlowVerified":false,"physicalDeviceVerified":false}' > "$out/simulator-receipt.json"
+  --format junit --output "$private_ui/results.xml" \
+  --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1
+node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",realCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"

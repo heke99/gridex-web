@@ -9,6 +9,6 @@ const config: ExpoConfig = {
     infoPlist: { ITSAppUsesNonExemptEncryption: false } },
   android: { package: 'se.gridex.el.dev', versionCode: 1 },
   updates: { enabled: false },
-  plugins: ['expo-secure-store'],
+  plugins: [['expo-secure-store', { faceIDPermission: false }]],
 };
 export default config;

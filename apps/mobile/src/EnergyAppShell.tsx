@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { InputAccessoryView, Keyboard, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
 
@@ -47,6 +47,13 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
         <Text style={{ color: tab === active ? t.accent : t.muted, fontSize: 12, fontWeight: tab === active ? '700' : '400' }}>{tab}</Text>
       </Pressable>)}
     </View>
+    {Platform.OS === 'ios' && <InputAccessoryView nativeID="gridex-keyboard-tools">
+      <View style={{ backgroundColor: t.surface, alignItems: 'flex-end', paddingHorizontal: 20 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Stäng tangentbord" onPress={Keyboard.dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
+          <Text style={{ color: t.accent, fontWeight: '600' }}>Klart</Text>
+        </Pressable>
+      </View>
+    </InputAccessoryView>}
   </View>;
 }
 

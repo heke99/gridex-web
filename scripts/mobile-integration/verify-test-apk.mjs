@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const fixture=JSON.parse(readFileSync(process.argv[2],'utf8'));
+const bundle=execFileSync('unzip',['-p',process.env.RUNNER_TEMP+'/mobile-android/gridex-el-isolated-test.apk','assets/index.android.bundle'],{maxBuffer:64*1024*1024});
+for(const secret of [...fixture.secrets,...fixture.customers.map(u=>u.login.password)])assert.ok(!bundle.includes(Buffer.from(secret)),'Privileged credentials must not be embedded');
+const privateEnv=readFileSync(process.env.RUNNER_TEMP+'/mobile-fixtures/web.env','utf8');
+const pem=privateEnv.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+assert.ok(pem,'Missing owned test assertion key for credential scan');
+for(const line of pem[1].trim().split(/\r?\n/).slice(1).filter(line=>line.length>=32))assert.ok(!bundle.includes(Buffer.from(line)),'Owned assertion private key must not be embedded');
+assert.ok(bundle.includes(Buffer.from(process.env.GRIDEX_DEVICE_PUBLIC_ORIGIN)),'Missing compiled website handoff origin');
+writeFileSync(process.env.RUNNER_TEMP+'/mobile-android/credential-isolation.json',JSON.stringify({webCommit:process.env.GRIDEX_WEB_COMMIT,passed:true,privilegedCredentialEmbedded:false,privateKeyEmbedded:false})+'\n');
+console.log('PASS test APK credential isolation and compiled HTTPS website handoff');

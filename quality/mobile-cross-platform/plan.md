@@ -41,3 +41,39 @@ OPS1047 merge. It does not invalidate the separately green core integration run
 
 Current next action: implement platform build/UI harness and expanded fixture/API
 coverage, run regressions, then version-pin and execute final qualification.
+
+## Current checkpoint
+
+Web branch codex/mobile-cross-platform-qualification, PR68. Commits51887f1
+(initial iOS),9db2e94 (Mac case-insensitive price helper collision),ece2c3e
+(generated app scheme). Current uncommitted expanded harness must be reviewed
+before one heavy coupled qualification run. No OPS source was edited.
+
+Baseline mobile verify and current safe-area/keyboard type/lifecycle/lint gates
+PASS. Actual macOS iOS native build reached and verified its Release.app in
+run42922901863, artifact13812708966. Its UI smoke FAILED at Maestro hideKeyboard;
+current source adds an iOS native InputAccessoryView dismiss control to all inputs
+and changes the UI test to use it. This change still needs simulator verification.
+
+Expanded Linux stack runs real OPS81e9 and current Web, broader fixtures/scopes,
+HTTP writes/read-back/idempotence/foreign denial, outage/stalled request/recovery,
+Android core+extras. macOS builds the same endpoint candidate and runs UI only
+after Android terminal marker, preventing global B-session revocation races.
+The restricted transient Cloudflare gateway exposes no Auth-admin/REST/OPS;
+only synthetic device credentials cross jobs in recipient-bound RSA/AES-GCM.
+Gateway/encryption security regressions PASS. Source-bound controller capability
+for iOS fresh-OPS-read/expiry/network/revocation is isolated to this disposable job.
+No production credentials/data are used or uploaded.
+
+Consumption positive path is still unimplemented in OPS. Existing normalized
+revision fields and customer_supply_periods exist, but sites/metering APIs omit
+them. Required current OpenAPI paths are held by foreign receipt
+0592bde7dab712b44737b4268187620f3ea708aa (authenticated GET_MATCH), so do not
+change/release those claims without bounded handoff. Fail-closed UI checks do not
+prove successful consumption. Apple distribution/TestFlight and physical iPhone
+access have no configured existing flow; finish independent work before asking.
+
+Next: finish iOS selectors/remaining native assertions and release-build checks,
+static review final tree, commit/push and follow coupled run to terminal; fix real
+failures, repeat affected and final coherent acceptance. Get two exact final
+reviews. Do not call both platforms ready while consumption/Apple/device gaps remain.

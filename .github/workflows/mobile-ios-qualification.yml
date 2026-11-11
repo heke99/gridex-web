@@ -1,4 +1,7 @@
 name: Gridex iOS simulator qualification
+concurrency:
+  group: mobile-ios-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 on:
   workflow_dispatch:
@@ -17,12 +20,15 @@ jobs:
     timeout-minutes: 60
     env:
       CI: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_CUSTOMER_API_URL: https://gridex.se
       EXPO_PUBLIC_SUPABASE_URL: https://ayiuxjlfazkjmmtlvhsl.supabase.co
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ujlw8IZgah81tHErkcw2JQ_RL_bkJvV
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -37,9 +43,14 @@ jobs:
       - run: npm run typecheck
         working-directory: apps/mobile
       - name: Build a native release application for the simulator
+        id: nativebuild
         run: bash scripts/mobile-integration/ios-build.sh
       - name: Install and exercise native UI on a notched iPhone simulator
+        timeout-minutes: 15
         run: bash scripts/mobile-integration/ios-smoke.sh
+      - name: Build the unsigned physical-device distribution candidate
+        if: ${{ !cancelled() && steps.nativebuild.outcome == 'success' }}
+        run: bash scripts/mobile-integration/ios-archive.sh
       - name: Preserve build and simulator evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -14,7 +14,7 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "Lösenord"
 - inputText: "synthetic-ui-only-no-login"
-- hideKeyboard
+- tapOn: "Stäng tangentbord"
 - scrollUntilVisible:
     element: "Logga in"
     direction: DOWN

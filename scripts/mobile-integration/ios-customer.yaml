@@ -1,0 +1,419 @@
+appId: se.gridex.el.dev
+---
+- launchApp:
+    clearState: true
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+- tapOn: "E-post"
+- inputText: ${LOGIN_A_EMAIL}
+- tapOn: "Lösenord"
+- inputText: ${LOGIN_A_PASSWORD}
+- tapOn: "Stäng tangentbord"
+- tapOn: "Logga in"
+- scrollUntilVisible:
+    element: ${CONTRACT_A}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ${CUSTOMER_B}
+- takeScreenshot: "a-contract"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- stopApp
+- launchApp
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: ${CONTRACT_A}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "authenticated-restart"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- scrollUntilVisible:
+    element: "Anläggningar"
+    direction: UP
+- tapOn: "Anläggningar"
+- scrollUntilVisible:
+    element: ${SITE_A}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "a-site"
+- scrollUntilVisible:
+    element: "Fakturor"
+    direction: UP
+- tapOn: "Fakturor"
+- scrollUntilVisible:
+    element: ${INVOICE_A}
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Visa fakturadetaljer"
+    direction: DOWN
+- tapOn: "Visa fakturadetaljer"
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 111 SEK"
+    direction: DOWN
+- takeScreenshot: "a-invoice"
+- scrollUntilVisible:
+    element: "Logga ut"
+    direction: DOWN
+- tapOn: "Logga ut"
+- stopApp
+- launchApp
+- tapOn: "Mer"
+- assertVisible: "Logga in på Mina sidor"
+- assertNotVisible: ${CUSTOMER_A}
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+- tapOn: "E-post"
+- inputText: ${LOGIN_B_EMAIL}
+- tapOn: "Lösenord"
+- inputText: ${LOGIN_B_PASSWORD}
+- tapOn: "Stäng tangentbord"
+- tapOn: "Logga in"
+- scrollUntilVisible:
+    element: ${CONTRACT_B}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ${CUSTOMER_A}
+- takeScreenshot: "b-contract-no-a-data"
+- scrollUntilVisible:
+    element: "Anläggningar"
+    direction: UP
+- tapOn: "Anläggningar"
+- scrollUntilVisible:
+    element: ${SITE_B}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "b-site-no-a-data"
+- scrollUntilVisible:
+    element: "Fakturor"
+    direction: UP
+- tapOn: "Fakturor"
+- scrollUntilVisible:
+    element: ${INVOICE_B}
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Visa fakturadetaljer"
+    direction: DOWN
+- tapOn: "Visa fakturadetaljer"
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+- takeScreenshot: "b-invoice-no-a-data"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- pressKey: Home
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: wait-expiry-tick
+- launchApp
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+- takeScreenshot: "background-resume"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- pressKey: Home
+- repeat:
+    times: 13
+    commands:
+      - runScript:
+          file: ios-control.js
+          env:
+            ACTION: wait-expiry-tick
+- launchApp
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "expired-token-foreground-refresh"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disconnect
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+- tapOn: "Hämta igen"
+- extendedWaitUntil:
+    visible: "Uppgifterna kunde inte hämtas.*"
+    timeout: 60000
+- assertNotVisible: ${CUSTOMER_B}
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: reconnect
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- tapOn: "Hämta igen"
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: UP
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "network-recovery"
+- scrollUntilVisible:
+    element: "Profil"
+    direction: UP
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element: "Nytt telefonnummer"
+    direction: DOWN
+- tapOn: "Nytt telefonnummer"
+- eraseText: 40
+- inputText: "+46755555555"
+- tapOn: "Stäng tangentbord"
+- tapOn: "Spara telefonnummer"
+- extendedWaitUntil:
+    visible: "Telefonnumret har sparats.*"
+    timeout: 60000
+- takeScreenshot: "profile-phone-write"
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+- tapOn: "Hämta igen"
+- scrollUntilVisible:
+    element: 'Telefon: \+46755555555'
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Meddelanden"
+    direction: UP
+- tapOn: "Meddelanden"
+- scrollUntilVisible:
+    element: ${NOTICE_B}
+    direction: DOWN
+- tapOn: "Markera som läst"
+- extendedWaitUntil:
+    notVisible: "Markera som läst"
+    timeout: 60000
+- takeScreenshot: "notification-read"
+- scrollUntilVisible:
+    element: "Dokument"
+    direction: UP
+- tapOn: "Dokument"
+- scrollUntilVisible:
+    element: ${DOCUMENT_B}
+    direction: DOWN
+- tapOn: "Öppna dokument i extern läsare"
+- extendedWaitUntil:
+    visible: ".*Synthetic Gridex document B.*"
+    timeout: 60000
+- takeScreenshot: "document-external-pdf"
+- launchApp
+- takeScreenshot: "document-return"
+- scrollUntilVisible:
+    element: "Fullmakter"
+    direction: UP
+- tapOn: "Fullmakter"
+- scrollUntilVisible:
+    element: ".*supplier_switch.*"
+    direction: DOWN
+- takeScreenshot: "powers"
+- scrollUntilVisible:
+    element: "Godkännanden"
+    direction: UP
+- tapOn: "Godkännanden"
+- scrollUntilVisible:
+    element: ".*terms.*"
+    direction: DOWN
+- takeScreenshot: "acceptances"
+- scrollUntilVisible:
+    element: "Support"
+    direction: UP
+- tapOn: "Support"
+- scrollUntilVisible:
+    element: ${SUPPORT_B}
+    direction: DOWN
+- tapOn:
+    text: "Öppna ärende och meddelanden"
+    below: ${SUPPORT_B}
+- scrollUntilVisible:
+    element: ".*REPLY.*"
+    direction: DOWN
+- takeScreenshot: "support-public-reply"
+- scrollUntilVisible:
+    element: "Meddelande till kundservice"
+    direction: UP
+- tapOn: "Meddelande till kundservice"
+- inputText: "Synthetic iOS reply B"
+- tapOn: "Stäng tangentbord"
+- tapOn: "Skicka svar"
+- extendedWaitUntil:
+    visible: "Meddelandet har sparats.*"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+- tapOn: "Hämta igen"
+- scrollUntilVisible:
+    element: "Synthetic iOS reply B"
+    direction: UP
+- takeScreenshot: "support-native-write-readback"
+- scrollUntilVisible:
+    element: "← Alla ärenden"
+    direction: UP
+- tapOn: "← Alla ärenden"
+- scrollUntilVisible:
+    element: "Ärendets rubrik"
+    direction: DOWN
+- tapOn: "Ärendets rubrik"
+- inputText: "Synthetic iOS new B"
+- tapOn: "Meddelande till kundservice"
+- inputText: "Synthetic iOS first message B"
+- tapOn: "Stäng tangentbord"
+- tapOn: "Skapa ärende"
+- extendedWaitUntil:
+    visible: "Meddelandet har sparats.*"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+- tapOn: "Hämta igen"
+- scrollUntilVisible:
+    element: "Synthetic iOS new B"
+    direction: UP
+- takeScreenshot: "support-native-create-readback"
+- tapOn: "Förbrukning"
+- scrollUntilVisible:
+    element: ".*Leveransperioden måste kunna verifieras.*"
+    direction: DOWN
+- takeScreenshot: "consumption-fails-closed"
+- tapOn: "Elpriser"
+- scrollUntilVisible:
+    element: "SE1"
+    direction: DOWN
+- tapOn: "SE1"
+- scrollUntilVisible:
+    element: "${MARKET_DATE} · SE1"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE2"
+    direction: UP
+- tapOn: "SE2"
+- scrollUntilVisible:
+    element: "${MARKET_DATE} · SE2"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE3"
+    direction: UP
+- tapOn: "SE3"
+- scrollUntilVisible:
+    element: "${MARKET_DATE} · SE3"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE4"
+    direction: UP
+- tapOn: "SE4"
+- scrollUntilVisible:
+    element: "${MARKET_DATE} · SE4"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Igår"
+    direction: UP
+- tapOn: "Igår"
+- scrollUntilVisible:
+    element: "${MARKET_YESTERDAY} · SE4"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Idag"
+    direction: UP
+- tapOn: "Idag"
+- scrollUntilVisible:
+    element: "Visa alla [0-9]+ intervallpriser"
+    direction: DOWN
+- tapOn: "Visa alla [0-9]+ intervallpriser"
+- assertVisible: "Dölj intervallpriser"
+- takeScreenshot: "public-market-prices"
+- tapOn: "Mer"
+- pressKey: Home
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: revoke-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: wait-expiry-tick
+- launchApp
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- assertNotVisible: ${CONTRACT_B}
+- assertNotVisible: ${INVOICE_B}
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+- tapOn: "E-post"
+- eraseText: 200
+- tapOn: "Stäng tangentbord"
+- takeScreenshot: "invalidated-session-foreground"
+- stopApp
+- launchApp
+- tapOn: "Mer"
+- assertVisible: "Logga in på Mina sidor"
+- assertNotVisible: ${CONTRACT_B}
+- assertNotVisible: ${INVOICE_B}
+- takeScreenshot: "invalid-session-not-restored"
+- scrollUntilVisible:
+    element: "Glömt lösenord? Återställ på hemsidan"
+    direction: DOWN
+- tapOn: "Glömt lösenord? Återställ på hemsidan"
+- extendedWaitUntil:
+    visible: "Återställ lösenord"
+    timeout: 60000
+- takeScreenshot: "recovery-external-web"
+- launchApp
+- assertVisible: "Logga in på Mina sidor"
+- tapOn: "Hem"
+- scrollUntilVisible:
+    element: "Teckna nytt elavtal.*"
+    direction: DOWN
+- tapOn: "Teckna nytt elavtal.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-signup
+- launchApp
+- scrollUntilVisible:
+    element: "Visa befintliga avtal.*"
+    direction: DOWN
+- tapOn: "Visa befintliga avtal.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-contracts
+- launchApp
+- scrollUntilVisible:
+    element: "Få hjälp att byta avtal.*"
+    direction: DOWN
+- tapOn: "Få hjälp att byta avtal.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-support
+- launchApp
+- takeScreenshot: "contract-web-return"
