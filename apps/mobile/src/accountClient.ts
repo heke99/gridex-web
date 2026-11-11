@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { secureSessionStorage } from './secureSessionStorage';
+import { createAccountFetch } from './accountFetch';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -17,6 +18,8 @@ function publicKey(value?: string) {
   } catch { return false; }
 }
 const clients = new Map<string, SupabaseClient>();
+const cancellations = new WeakMap<SupabaseClient, () => void>();
+export function cancelAccountAuth(client: SupabaseClient | null) { if (client) cancellations.get(client)?.(); }
 export function createAccountClient(brand: string) {
   if (!validUrl(url) || !validUrl(customerApi) || !publicKey(key)) return null;
   const existing = clients.get(brand);
@@ -27,9 +30,11 @@ export function createAccountClient(brand: string) {
     setItemAsync: (name, value) => SecureStore.setItemAsync(name, value, options),
     deleteItemAsync: name => SecureStore.deleteItemAsync(name, options),
   }, brand);
-  const client = createClient(url!, key!, { auth: {
+  const transport = createAccountFetch();
+  const client = createClient(url!, key!, { global: { fetch: transport.fetch }, auth: {
     storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
   } });
+  cancellations.set(client, transport.cancelPending);
   clients.set(brand, client);
   return client;
 }

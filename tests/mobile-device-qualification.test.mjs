@@ -111,3 +111,13 @@ test('native state markers ignore assertion metadata and never establish visibil
  assert.equal(flags.knownReadErrorTextPresent,false);assert.equal(flags.busyTextPresent,true);assert.equal(flags.visibilityEstablished,false);
  assert.equal(nativeStateMarkers({command:{attributes:{text:expected}}}).hierarchyAvailable,false);
 });
+
+test('native failure stage identifiers expose only finite public state booleans',async()=>{
+ const {nativeStateMarkers}=await import('../scripts/mobile-integration/ios-state-markers.mjs');
+ const secret='SYNTHETIC_PRIVATE_INPUT';
+ const flags=nativeStateMarkers({attributes:{'resource-id':'customer-invoiceDetail-loading'},children:[{attributes:{'resource-id':'customer-'+secret+'-idle',text:secret}}]});
+ assert.equal(flags.invoiceResourcePresent,true);assert.equal(flags.customerBusyStatePresent,true);
+ assert.equal(flags.customerIdleStatePresent,false);assert.equal(flags.contractsResourcePresent,false);
+ assert.equal(flags.visibilityEstablished,false);assert.ok(Object.values(flags).every(v=>typeof v==='boolean'));
+ assert.ok(!JSON.stringify(flags).includes(secret));
+});

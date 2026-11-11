@@ -179,3 +179,41 @@ The SDK error-class test import now resolves from apps/mobile's locked SDK,
 fixing f6's native-only portability failure. The exact canonical native-only suite
 was reproduced with no root node_modules and64 tests passed. The superseded f6
 heavy runs are cancelled before another qualification candidate is published.
+
+## d919 terminal follow-up: bounded Auth and complete cancellation
+
+Shared run42968402151 is terminalFAIL, not a release receipt. Its HTTP suites
+passed (12core,18features,2resilience,2documentlink cases); Android13core and A/B
+extra checkpoints passed up to the new offline foreground check, which failed
+after69s without reaching the generic error. iOS authenticated A/restart/sites/
+invoice/line and real external PDF GET without bearer passed, then its return
+header seek failed; there was no postreturn detail GET in the available log.
+No viewport-vs-session root cause is claimed from those incomplete observations.
+
+A stalled SDK session operation was independently reproduced as an unbounded
+busy state: its deadline previously began only after Auth completed. The whole
+caller wait now shares20s and Auth transport headers+body are bounded10s.
+Cancellation discards late response/body results in all customer paths and keeps
+uncertain actor-bound mutation attempt keys. Six timeout/privacy regressions
+failed before repair. Review found a further real SDK late-login persistence
+race introduced by detaching the caller wait; a real SDK delayed-login test
+reproduced it. Client-owned Auth cancellation and raw-SDK task tracking now
+serialize subsequent operations and make logout remove the session AFTER any
+already-started persistence. A second real SDK delayed-storage test verifies
+this ordering. Native storage completion itself is not universally time-bounded;
+logout remains blocked until confirmed cleanup, preserving fail-closed behavior.
+
+The iOS return test now snapshots after actual PDF receipt, normalizes to the
+customer heading, seeks the exact own invoice downward with60s bound, and
+requires a fresh OPS read. Reconnect/support return use the same scroll
+normalization. Customer root testIDs contain only finite resource/loading state;
+failure artifacts export strictly fixed booleans, never raw native text/inputs
+or hierarchies. Android now captures the same bounded failure observations.
+No customer assertion or external PDF/handoff requirement was removed.
+
+Both independent reviewers cleared the prepared race/privacy repair after the
+reproduced blockers were fixed. New exact-commit preflight, full same-backend
+acceptance and both production native builds are required; d919 artifacts are
+superseded by this common app code change. Positive consumption, Apple signing/
+TestFlight/physical iPhone and authenticated production access remain separate
+unverified requirements.

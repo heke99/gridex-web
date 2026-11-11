@@ -74,12 +74,25 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-invoice-pdf-a
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - pressKey: Home
 - launchApp:
     stopApp: false
 - scrollUntilVisible:
-    element: "Faktura ${INVOICE_A}"
+    element: "Mina sidor"
     direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Faktura ${INVOICE_A}"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - takeScreenshot: "a-invoice-pdf-return"
 
 - scrollUntilVisible:
@@ -151,6 +164,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
+    timeout: 60000
 - takeScreenshot: "b-invoice-no-a-data"
 - scrollUntilVisible:
     element: ${INVOICE_LINE_B}
@@ -163,12 +177,25 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-invoice-pdf-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - pressKey: Home
 - launchApp:
     stopApp: false
 - scrollUntilVisible:
-    element: "Faktura ${INVOICE_B}"
+    element: "Mina sidor"
     direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Faktura ${INVOICE_B}"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - takeScreenshot: "b-invoice-pdf-return"
 
 - runScript:
@@ -185,6 +212,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
+    timeout: 60000
 - takeScreenshot: "background-resume"
 - runScript:
     file: ios-control.js
@@ -207,6 +235,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
+    timeout: 60000
 - runScript:
     file: ios-control.js
     env:
@@ -251,8 +280,13 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "Hämta igen"
 - scrollUntilVisible:
-    element: "Totalt inklusive moms: 222 SEK"
+    element: "Mina sidor"
     direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+    timeout: 60000
 - runScript:
     file: ios-control.js
     env:
@@ -407,11 +441,15 @@ appId: se.gridex.el.dev
 - pressKey: Home
 - launchApp:
     stopApp: false
-- takeScreenshot: "support-detail-web-return"
-
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "Meddelande till kundservice"
-    direction: UP
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "support-detail-web-return"
 - tapOn: "Meddelande till kundservice"
 - inputText: "Synthetic iOS reply B"
 - assertVisible: "Synthetic iOS reply B"

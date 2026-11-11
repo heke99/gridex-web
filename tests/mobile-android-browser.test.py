@@ -42,4 +42,17 @@ class BrowserTransition(unittest.TestCase):
   exec(compile(ast.Module(body=[fn],type_ignores=[]),str(source),'exec'),scope)
   nodes=[{'text':'Use without an account','enabled':'true','package':package,'bounds':bounds} for package,bounds in [('se.gridex.el.dev','[10,20][110,60]'),('com.android.chrome','[-1,0][100,60]'),('com.android.chrome','[10,20][10,60]')]]
   self.assertFalse(scope['dismiss_chrome_onboarding'](nodes));self.assertEqual(calls,[])
+class FailureStatePrivacy(unittest.TestCase):
+ def test_only_fixed_booleans_leave_the_private_native_hierarchy(self):
+  scope={'re':re}
+  fn=next(n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef) and n.name=='native_state_markers')
+  exec(compile(ast.Module(body=[fn],type_ignores=[]),str(source),'exec'),scope)
+  secret='SYNTHETIC_PRIVATE_INPUT'
+  rows=[{'text':secret,'content-desc':'customer-B'}, {'text':'Mina sidor','resource-id':'se.gridex.el.dev:id/customer-invoiceDetail-loading'}, {'text':'Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.'}, {'resource-id':'customer-'+secret+'-idle'}]
+  flags=scope['native_state_markers'](rows,'customer-A','customer-B')
+  self.assertTrue(all(type(value) is bool for value in flags.values()))
+  self.assertTrue(flags['invoiceResourcePresent']);self.assertTrue(flags['customerBusyStatePresent'])
+  self.assertTrue(flags['knownReadErrorTextPresent']);self.assertTrue(flags['customerBReferencePresent'])
+  self.assertFalse(flags['customerIdleStatePresent']);self.assertFalse(flags['visibilityEstablished'])
+  self.assertNotIn(secret,str(flags));self.assertNotIn('customer-B',str(flags))
 if __name__=='__main__':unittest.main()

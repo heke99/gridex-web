@@ -51,6 +51,23 @@ def seek_checkpoint(name,expected,absent=None):
   if expected in content and (not absent or absent not in content):return checkpoint(name,expected,absent)
   adb('shell','input','swipe','500','1700','500','650','350');time.sleep(.5)
  raise AssertionError('Expected scrolled native checkpoint not reached (values suppressed)')
+def native_state_markers(ns,customer_a='',customer_b=''):
+ content='\n'.join(n.get('text','')+' '+n.get('content-desc','') for n in ns)
+ states=[re.fullmatch(r'customer-(contracts|sites|invoices|support|invoiceDetail|supportDetail|profile|notifications|documents|powers|acceptances|consumption)-(loading|idle)',n.get('resource-id','').split(':id/')[-1]) for n in ns]
+ states=[s for s in states if s]
+ return {'failureReported':True,'hierarchyAvailable':True,'visibilityEstablished':False,
+  'knownReadErrorTextPresent':'Uppgifterna kunde inte hämtas.' in content,
+  'knownDocumentErrorTextPresent':'Dokumentet kunde inte öppnas.' in content,
+  'loginHeadingPresent':'Logga in på Mina sidor' in content,
+  'authenticatedHeadingPresent':any(n.get('text')=='Mina sidor' for n in ns),
+  'busyTextPresent':'Hämtar kunduppgifter' in content,'retryControlPresent':'Hämta igen' in content,
+  'customerAReferencePresent':bool(customer_a and customer_a in content),'customerBReferencePresent':bool(customer_b and customer_b in content),
+  'invoiceResourcePresent':any(s[1]=='invoiceDetail' for s in states),'contractsResourcePresent':any(s[1]=='contracts' for s in states),
+  'consumptionResourcePresent':any(s[1]=='consumption' for s in states),'customerBusyStatePresent':any(s[2]=='loading' for s in states),'customerIdleStatePresent':any(s[2]=='idle' for s in states)}
+def failure_nodes():
+ subprocess.run(['adb','shell','uiautomator','dump','/sdcard/gridex-window.xml'],check=True,timeout=8,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ raw=subprocess.check_output(['adb','exec-out','cat','/sdcard/gridex-window.xml'],timeout=5,stderr=subprocess.DEVNULL)
+ return list(scope['ET'].fromstring(raw).iter('node'))
 def dismiss_chrome_onboarding(ns):
  # Consent is optional; Chrome can finish it while a hierarchy is being captured.
  for preferred in ['Use without an account','No thanks','Accept & continue','Continue']:
@@ -171,6 +188,9 @@ try:
  (out/'expanded-acceptance.json').write_text(json.dumps({'opsCommit':os.environ['GRIDEX_OPS_COMMIT'],'webCommit':os.environ['GRIDEX_WEB_COMMIT'],'results':scope['results'],'consumptionHappyPath':'BLOCKED_MISSING_OPS_DELIVERY_ACCESS','documentProvider':'synthetic-disposable-PDF; production-provider-expiry-not-verified'},indent=2)+'\n')
  print('PASS Android extra account views, phone writes and authenticated restart',flush=True)
 finally:
+ if sys.exc_info()[0] is not None:
+  try:(out/'native-failure-state.json').write_text(json.dumps(native_state_markers(failure_nodes(),a['number'],b['number']))+'\n')
+  except Exception:(out/'native-failure-state.json').write_text(json.dumps({'failureReported':True,'hierarchyReadFailed':True,'visibilityEstablished':False})+'\n')
  proxy.terminate()
  try:proxy.wait(timeout=10)
  except subprocess.TimeoutExpired:proxy.kill();proxy.wait()

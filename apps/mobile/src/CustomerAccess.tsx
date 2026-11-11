@@ -39,7 +39,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
     try { await Linking.openURL(recoveryUrl(customerWebOrigin!)); }
     catch { setLinkError('Kunde inte öppna lösenordsåterställningen. Försök igen.'); }
   };
-  return <View style={{ gap: 14, backgroundColor: t.surface, padding: 20, borderRadius: 20 }}>
+  return <View testID={`customer-${consumption ? 'consumption' : a.resource}-${a.busy ? 'loading' : 'idle'}`} style={{ gap: 14, backgroundColor: t.surface, padding: 20, borderRadius: 20 }}>
     {!a.authenticated ? <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
