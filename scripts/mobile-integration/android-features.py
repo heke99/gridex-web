@@ -1,5 +1,5 @@
 """Extra real-device journeys; reuse pinned OPS UI helpers without rerunning its module."""
-import json, os, subprocess, sys, time
+import json, os, subprocess, sys, time, shlex
 from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -12,6 +12,14 @@ exec(compile(source.split(marker)[0],str(helper),'exec'),scope)
 for name in ['adb','tap','top','enter','launch','wait_for','login','checkpoint','request_count','wait_for_new_request','bridge']:
  globals()[name]=scope[name]
 f=scope['fixture'];out=scope['out'];a,b=f['customers']
+# Kept local to Web's extra journeys; OPS's reviewed emulator helper is unchanged.
+def enter(label,value):
+ tap(label)
+ adb('shell','input','keyevent','123')
+ adb('shell','input','keyevent',*(['67']*120))
+ adb('shell','input','text',shlex.quote(value.replace(' ','%s')))
+ adb('shell','input','keyevent','4')
+
 proxy=subprocess.Popen(['node',str(Path(__file__).resolve().with_name('device-https.mjs'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def document_count(reference):
  p=Path(os.environ['RUNNER_TEMP'])/'mobile-document-requests.json'
@@ -64,7 +72,7 @@ try:
   tap('Rensa sökning och filter');checkpoint(user['label']+'-contract-search-clear',user['display']['contracts'],other['number'])
   top();tap('Fakturor');tap('Visa fakturadetaljer');seek_checkpoint(user['label']+'-invoice-lines',user['extra']['invoiceLineTitle'],other['number'])
   open_pdf(user['extra']['invoiceDocument'],user['display']['invoices'],other['number'],user['label']+'-invoice-pdf-external-return')
-  for resource,label,expected in [('profile','Profil',user['number']),('notifications','Meddelanden',user['extra']['notificationTitle']),('documents','Dokument',user['extra']['documentTitle']),('powers','Fullmakter','supplier_switch'),('acceptances','Godkännanden','terms'),('support','Support',user['extra']['supportTitle'])]:
+  for resource,label,expected in [('profile','Profil',user['number']),('notifications','Meddelanden',user['extra']['notificationTitle']),('documents','Dokument',user['extra']['documentTitle']),('powers','Fullmakter',user['extra']['power_of_attorney']),('acceptances','Godkännanden',user['extra']['acceptance']),('support','Support',user['extra']['supportTitle'])]:
    top();tap(label);checkpoint(user['label']+'-'+resource,expected,other['number'])
    if resource=='profile':
     phone='+46733333333' if user is a else '+46744444444'
@@ -92,11 +100,11 @@ try:
     tap('Öppna ärende och meddelanden');seek_checkpoint(user['label']+'-support-public-messages',user['number']+'-REPLY',other['number'])
     seek_checkpoint(user['label']+'-support-public-staff-only',user['extra']['publicStaffReply'],user['number']+'-INTERNAL-NEVER-PUBLIC')
     previous=handoff_count('/dashboard/support');tap('Öppna kundservice på webben');await_handoff('/dashboard/support',previous);launch();seek_checkpoint(user['label']+'-support-detail-web-return',user['extra']['publicStaffReply'],other['number'])
-    reply='Synthetic Android reply '+user['label'];top();enter('Meddelande till kundservice',reply);tap('Skicka svar')
-    wait_for('Meddelandet har sparats.');tap('Hämta igen');checkpoint(user['label']+'-support-native-reply',reply,other['number'])
+    reply='Synthetic Android reply '+user['label'];top();enter('Meddelande till kundservice',reply);checkpoint(user['label']+'-support-complete-message-input',reply,other['number']);tap('Skicka svar')
+    wait_for('Meddelandet har sparats.');tap('Hämta igen');seek_checkpoint(user['label']+'-support-native-reply',reply,other['number'])
     if user is a:
-     top();tap('← Alla ärenden');top();enter('Sök bland hämtade ärenden','Synthetic Android new A');enter('Ärendets rubrik','Synthetic Android new A');enter('Meddelande till kundservice','Synthetic Android first message A');tap('Skapa ärende')
-     wait_for('Meddelandet har sparats.');tap('Hämta igen');checkpoint('A-support-native-create-readback','Synthetic Android new A',other['number'])
+     top();tap('← Alla ärenden');top();enter('Sök bland hämtade ärenden','Synthetic Android new A');enter('Ärendets rubrik','Synthetic Android new A');enter('Meddelande till kundservice','Synthetic Android first message A');checkpoint('A-support-complete-first-message-input','Synthetic Android first message A',other['number']);tap('Skapa ärende')
+     wait_for('Meddelandet har sparats.');tap('Hämta igen');seek_checkpoint('A-support-native-create-readback','Synthetic Android new A',other['number']);tap('Öppna ärende och meddelanden');seek_checkpoint('A-support-native-create-message-readback','Synthetic Android first message A',other['number'])
   top()
  top();tap('Förbrukning');checkpoint('consumption-fails-closed-without-delivery-authority','Leveransperioden måste kunna verifieras')
  top();tap('Elpriser');wait_for('Följ elpriset')

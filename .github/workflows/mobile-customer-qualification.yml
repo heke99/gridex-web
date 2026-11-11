@@ -51,6 +51,8 @@ jobs:
         working-directory: gridex-web
         run: |
           node --test tests/mobile-device-qualification.test.mjs
+          python3 tests/mobile-android-input.test.py
+          python3 -B tests/mobile-ios-simulated-entitlements.test.py
           npm run mobile:verify -- "$RUNNER_TEMP/mobile-preflight.json"
       - name: Enable disposable emulator KVM
         run: |

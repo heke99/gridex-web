@@ -67,7 +67,7 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
  const bin=join(dir,'bin');mkdirSync(bin);
  const executable=(path,body)=>{writeFileSync(path,'#!/bin/bash\n'+body+'\n');chmodSync(path,0o700);};
  try{
-  for(const name of ['curl','shasum','unzip','defaults'])executable(join(bin,name),'exit 0');
+  for(const name of ['curl','shasum','unzip','defaults','open'])executable(join(bin,name),'exit 0');
   executable(join(bin,'xcrun'),`case "$*" in
    'simctl list devicetypes -j') echo '{"devicetypes":[{"name":"iPhone 17","identifier":"mock-device"}]}' ;;
    'simctl list runtimes -j') echo '{"runtimes":[{"isAvailable":true,"identifier":"mock-iOS"}]}' ;;

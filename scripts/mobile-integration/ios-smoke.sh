@@ -12,6 +12,7 @@ printf '%s\n' "$simulator" > "$RUNNER_TEMP/gridex-ios-simulator-id"
 # Real on-screen keyboard is required for keyboard/accessory acceptance.
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 xcrun simctl boot "$simulator"
+open -a Simulator --args -CurrentDeviceUDID "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 xcrun simctl install "$simulator" "$(cat "$RUNNER_TEMP/gridex-ios-app-path")"
 private_ui="$RUNNER_TEMP/gridex-ios-private-ui"
@@ -27,7 +28,7 @@ flow=scripts/mobile-integration/ios-smoke.yaml
 environment=(-e "GRIDEX_NATIVE_UI_QUALIFICATION=1")
 if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
   flow=scripts/mobile-integration/ios-customer.yaml
-  for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CUSTOMER_A CUSTOMER_B CONTRACT_A CONTRACT_B SITE_A SITE_B INVOICE_A INVOICE_B DOCUMENT_B NOTICE_B SUPPORT_B SUPPORT_LAST_B INVOICE_LINE_A INVOICE_LINE_B INVOICE_DOCUMENT_A INVOICE_DOCUMENT_B; do
+  for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CUSTOMER_A CUSTOMER_B CONTRACT_A CONTRACT_B SITE_A SITE_B INVOICE_A INVOICE_B DOCUMENT_B NOTICE_B SUPPORT_B SUPPORT_LAST_B INVOICE_LINE_A INVOICE_LINE_B INVOICE_DOCUMENT_A INVOICE_DOCUMENT_B POWER_B ACCEPTANCE_B; do
     environment+=(-e "$variable=${!variable}")
   done
   environment+=(-e "CONTROL_KEY=$GRIDEX_QUALIFICATION_CONTROL_KEY" -e "CUSTOMER_ORIGIN=$EXPO_PUBLIC_CUSTOMER_API_URL")

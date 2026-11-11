@@ -10,7 +10,10 @@ appId: se.gridex.el.dev
 - inputText: ${LOGIN_A_EMAIL}
 - tapOn: "Lösenord"
 - inputText: ${LOGIN_A_PASSWORD}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    direction: DOWN
 - tapOn: "Logga in"
 - scrollUntilVisible:
     element: ${CONTRACT_A}
@@ -96,7 +99,10 @@ appId: se.gridex.el.dev
 - inputText: ${LOGIN_B_EMAIL}
 - tapOn: "Lösenord"
 - inputText: ${LOGIN_B_PASSWORD}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    direction: DOWN
 - tapOn: "Logga in"
 - scrollUntilVisible:
     element: ${CONTRACT_B}
@@ -109,7 +115,7 @@ appId: se.gridex.el.dev
     direction: UP
 - tapOn: "Sök avtal"
 - inputText: ${CUSTOMER_A}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Inga hämtade poster matchar ditt val."
     direction: DOWN
@@ -245,7 +251,10 @@ appId: se.gridex.el.dev
 - tapOn: "Nytt telefonnummer"
 - eraseText: 40
 - inputText: "+46755555555"
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Spara telefonnummer"
+    direction: DOWN
 - tapOn: "Spara telefonnummer"
 - extendedWaitUntil:
     visible: "Telefonnumret har sparats.*"
@@ -310,7 +319,7 @@ appId: se.gridex.el.dev
     direction: UP
 - tapOn: "Fullmakter"
 - scrollUntilVisible:
-    element: ".*supplier_switch.*"
+    element: ${POWER_B}
     direction: DOWN
 - takeScreenshot: "powers"
 - scrollUntilVisible:
@@ -318,7 +327,7 @@ appId: se.gridex.el.dev
     direction: UP
 - tapOn: "Godkännanden"
 - scrollUntilVisible:
-    element: ".*terms.*"
+    element: ${ACCEPTANCE_B}
     direction: DOWN
 - takeScreenshot: "acceptances"
 - scrollUntilVisible:
@@ -330,7 +339,7 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "Sök bland hämtade ärenden"
 - inputText: ${SUPPORT_B}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Visa fler ärenden"
     direction: DOWN
@@ -341,7 +350,7 @@ appId: se.gridex.el.dev
 - tapOn: "Sök bland hämtade ärenden"
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: ${SUPPORT_LAST_B}
     direction: DOWN
@@ -355,7 +364,7 @@ appId: se.gridex.el.dev
 - tapOn: "Rensa sökning och filter"
 - tapOn: "Sök bland hämtade ärenden"
 - inputText: ${SUPPORT_B}
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: ${SUPPORT_B}
     direction: DOWN
@@ -388,7 +397,11 @@ appId: se.gridex.el.dev
     direction: UP
 - tapOn: "Meddelande till kundservice"
 - inputText: "Synthetic iOS reply B"
-- tapOn: "Stäng tangentbord"
+- assertVisible: "Synthetic iOS reply B"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Skicka svar"
+    direction: DOWN
 - tapOn: "Skicka svar"
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
@@ -411,7 +424,7 @@ appId: se.gridex.el.dev
 - tapOn: "Sök bland hämtade ärenden"
 - eraseText: 160
 - inputText: "Synthetic iOS new B"
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Ärendets rubrik"
     direction: DOWN
@@ -419,7 +432,11 @@ appId: se.gridex.el.dev
 - inputText: "Synthetic iOS new B"
 - tapOn: "Meddelande till kundservice"
 - inputText: "Synthetic iOS first message B"
-- tapOn: "Stäng tangentbord"
+- assertVisible: "Synthetic iOS first message B"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Skapa ärende"
+    direction: DOWN
 - tapOn: "Skapa ärende"
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
@@ -431,6 +448,10 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Synthetic iOS new B"
     direction: UP
+- tapOn: "Öppna ärende och meddelanden"
+- scrollUntilVisible:
+    element: "Synthetic iOS first message B"
+    direction: DOWN
 - takeScreenshot: "support-native-create-readback"
 - tapOn: "Förbrukning"
 - scrollUntilVisible:
@@ -547,7 +568,7 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "E-post"
 - eraseText: 200
-- tapOn: "Stäng tangentbord"
+- runFlow: ios-dismiss-keyboard.yaml
 - takeScreenshot: "invalidated-session-foreground"
 - stopApp
 - launchApp:

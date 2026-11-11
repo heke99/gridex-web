@@ -3,7 +3,13 @@
 set -euo pipefail
 : "${RUNNER_TEMP:?}"
 root="$(pwd)"; out="$RUNNER_TEMP/gridex-ios-artifacts"
-trap 'node "$root/scripts/mobile-integration/sanitize-evidence.mjs" log "$out/device-archive-build.log" "$out/device-archive-build.log"' EXIT
+preserve_archive_evidence() {
+  local result=$?
+  trap - EXIT
+  node "$root/scripts/mobile-integration/sanitize-evidence.mjs" log "$out/device-archive-build.log" "$out/device-archive-build.log" || result=1
+  exit "$result"
+}
+trap preserve_archive_evidence EXIT
 cd apps/mobile
 workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
 project="$(find ios -maxdepth 1 -name '*.xcodeproj' -print -quit)"

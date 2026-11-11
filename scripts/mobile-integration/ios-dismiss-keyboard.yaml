@@ -1,0 +1,9 @@
+appId: se.gridex.el.dev
+---
+- runFlow:
+    when:
+      visible: "Stäng tangentbord"
+    commands:
+      - tapOn: "Stäng tangentbord"
+- swipe:
+    direction: DOWN

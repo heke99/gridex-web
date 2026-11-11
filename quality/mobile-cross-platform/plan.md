@@ -110,3 +110,33 @@ sentinel; support detail web handoff; native statusfilter; stale customer-docume
 URL fresh denial/no external request then restore; price-network error/retry.
 These additions are pending actual CI qualification. They are not additional
 external prerequisites and must be followed to terminal results.
+
+## Actual19 run and native repairs (2026-11-11)
+
+Shared run42939724745 on Web19e594 / OPS6819 passed expanded real HTTP checks
+and Android's13 core journeys. Android extras reached real profile, notifications,
+invoice PDF/lines, support cursor/filter/public staff detail and web handoffs.
+Support write201/read200 then failed intended full-text read-back: AOSP adb shell
+argument joining truncated multiword input. Web-owned input now shell-quotes the
+space-encoded text, asserts complete input before POST, and seeks bounded UI
+read-back. Regression was red before and2PASS after. Later native scenarios remain
+unverified; do not treat this partial run as acceptance.
+
+Actual iOS19 builds succeeded, UI failed locating the keyboard accessory. Focused
+invalid-form diagnostics found -34018 Keychain errors: CODE_SIGNING_ALLOWED=NO
+omitted simulator identity entitlements. A manual host-signing experiment passed
+static codesign but failed actual direct launch: host AMFI rejected restricted
+entitlements. It is discarded, not an accepted fix. Main has no manual signer.
+
+Diagnostic branch9248dde probes normal Xcode simulator signing and simulator-only
+CODE_SIGN_ENTITLEMENTS packaged as __TEXT,__entitlements. Actual Mach-O parser
+checks every slice/platform7/scoped identity. Both independent reviewers cleared
+its scope for diagnostic execution; run42952604523 remains pending actual native
+build/launch/Keychain evidence. Intentional diagnostic marker failure is never a
+successful acceptance result. Physical archive remains separately unsigned.
+
+Current local preflight passed mobile:verify (customer routes/account/provider,
+native lifecycle/native types/Web types/lint),6 device/security tests and2 Android
+input tests. These checks do not replace final coherent CI and emulator journeys.
+Required OPS documentation files remain owned by foreign receipt0592bde7, exact
+three refs rechecked authenticated on2026-11-11. No foreign files/claims changed.
