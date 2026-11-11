@@ -140,3 +140,32 @@ native lifecycle/native types/Web types/lint),6 device/security tests and2 Andro
 input tests. These checks do not replace final coherent CI and emulator journeys.
 Required OPS documentation files remain owned by foreign receipt0592bde7, exact
 three refs rechecked authenticated on2026-11-11. No foreign files/claims changed.
+
+
+## Offline restoration and browser evidence follow-up
+
+405 shared42960268160 ended FAIL despite all HTTP gates. Android's Chrome consent
+node disappeared between the captured hierarchy and generic label re-selection;
+optional onboarding now uses validated bounds from that same Chrome snapshot and
+actual own-reference PDF GET remains mandatory. Focused reproduction was3FAIL
+before and4PASS after. Early Android evidence upload is prepared before Mac waits.
+
+Actual405 iOS passed both customers, invoice PDF returns, authenticated restart,
+background/expired-token refresh, then did not see the controlled offline error.
+The error is below retry in the scroll view; bounded scrolling is used and future
+failure evidence exports only fixed boolean state markers, never raw hierarchies.
+This does not assert that viewport position was the proven cause.
+
+A separate real hook defect was reproduced: retryable Auth refresh failure caused
+local signout. The pinned Supabase SDK deliberately retains sessions for this
+error. Preserve that behavior while hiding all customer rows until a fresh server
+read; definitive revoked refresh still clears the session. Regression was1FAIL
+before and38PASS after. Both native matrices now exercise offline foreground
+recovery plus fresh read-back. Private data remains hidden and invalid/explicitly
+logged-out sessions must still never return.
+
+This changes common app code: the old signed0ca APK is superseded for this new
+candidate and must be rebuilt through the existing production flow and signed
+with the preserved key after code qualification. No key regeneration or Apple
+signing claim. Next coherent run waits for full targeted/security/type preflight
+and two exact-SHA independent reviews of all prepared changes.

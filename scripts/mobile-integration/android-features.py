@@ -1,5 +1,5 @@
 """Extra real-device journeys; reuse pinned OPS UI helpers without rerunning its module."""
-import json, os, subprocess, sys, time, shlex
+import json, os, subprocess, sys, time, shlex, re, socket
 from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -20,7 +20,16 @@ def enter(label,value):
  adb('shell','input','text',shlex.quote(value.replace(' ','%s')))
  adb('shell','input','keyevent','4')
 
-proxy=subprocess.Popen(['node',str(Path(__file__).resolve().with_name('device-https.mjs'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+def start_device_proxy():
+ child=subprocess.Popen(['node',str(Path(__file__).resolve().with_name('device-https.mjs'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ for attempt in range(50):
+  if child.poll() is not None:raise RuntimeError('Disposable device proxy exited before readiness')
+  try:
+   with socket.create_connection(('127.0.0.1',3444),timeout=.2):return child
+  except OSError:time.sleep(.1)
+ child.terminate();child.wait(timeout=10)
+ raise RuntimeError('Disposable device proxy readiness timed out')
+proxy=start_device_proxy()
 def document_count(reference):
  p=Path(os.environ['RUNNER_TEMP'])/'mobile-document-requests.json'
  rows=json.loads(p.read_text()) if p.exists() else []
@@ -36,20 +45,31 @@ def await_handoff(path,previous):
  while time.monotonic()<deadline and handoff_count(path)<=previous:time.sleep(1)
  assert handoff_count(path)>previous,'Actual external browser handoff not observed'
 def seek_checkpoint(name,expected,absent=None):
- top()
- for attempt in range(20):
+ top();deadline=time.monotonic()+65
+ while time.monotonic()<deadline:
   content=scope['texts'](scope['nodes']())
   if expected in content and (not absent or absent not in content):return checkpoint(name,expected,absent)
   adb('shell','input','swipe','500','1700','500','650','350');time.sleep(.5)
  raise AssertionError('Expected scrolled native checkpoint not reached (values suppressed)')
+def dismiss_chrome_onboarding(ns):
+ # Consent is optional; Chrome can finish it while a hierarchy is being captured.
+ for preferred in ['Use without an account','No thanks','Accept & continue','Continue']:
+  for node in ns:
+   if node.get('package')!='com.android.chrome' or node.get('enabled')!='true' or node.get('text')!=preferred:continue
+   match=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.get('bounds',''))
+   if not match:continue
+   left,top,right,bottom=map(int,match.groups())
+   if not(0<=left<right<=8192 and 0<=top<bottom<=8192):continue
+   adb('shell','input','tap',str((left+right)//2),str((top+bottom)//2))
+   return True
+ return False
 def open_pdf(reference,expected,other,name):
  count=document_count(reference);tap('Öppna dokument i extern läsare')
  deadline=time.monotonic()+60
  while time.monotonic()<deadline and document_count(reference)<=count:
-  for node in scope['nodes']():
-   label=node.get('text','')
-   if node.get('package')=='com.android.chrome' and node.get('enabled')=='true' and (label in ['Accept & continue','No thanks','Continue','Use without an account'] or 'without an account' in label):
-    tap(label,False);break
+  ns=scope['nodes']()
+  if document_count(reference)>count:break
+  dismiss_chrome_onboarding(ns)
   time.sleep(1)
  assert document_count(reference)>count,'External Android PDF request not observed'
  launch();seek_checkpoint(name,expected,other)
@@ -87,10 +107,14 @@ try:
     checkpoint('A-notification-write',expected,other['number'])
    if resource=='documents':
     if user is b:
-     count=document_count(user['extra']['document']);document_available(user,False);tap('Öppna dokument i extern läsare')
-     checkpoint('B-document-stale-link-fresh-denial','Dokumentet kunde inte öppnas.',other['number'])
-     assert document_count(user['extra']['document'])==count
-     document_available(user,True);tap('Hämta igen');wait_for(expected)
+     count=document_count(user['extra']['document'])
+     try:
+      document_available(user,False);tap('Öppna dokument i extern läsare')
+      checkpoint('B-document-stale-link-fresh-denial','Dokumentet kunde inte öppnas.',other['number'])
+      assert document_count(user['extra']['document'])==count
+     finally:
+      document_available(user,True)
+     tap('Hämta igen');wait_for(expected)
     open_pdf(user['extra']['document'],expected,other['number'],user['label']+'-document-external-return')
    if resource=='support':
     top();enter('Sök bland hämtade ärenden',expected);tap('Visa fler ärenden')
@@ -106,6 +130,14 @@ try:
      top();tap('← Alla ärenden');top();enter('Sök bland hämtade ärenden','Synthetic Android new A');enter('Ärendets rubrik','Synthetic Android new A');enter('Meddelande till kundservice','Synthetic Android first message A');checkpoint('A-support-complete-first-message-input','Synthetic Android first message A',other['number']);tap('Skapa ärende')
      wait_for('Meddelandet har sparats.');tap('Hämta igen');seek_checkpoint('A-support-native-create-readback','Synthetic Android new A',other['number']);tap('Öppna ärende och meddelanden');seek_checkpoint('A-support-native-create-message-readback','Synthetic Android first message A',other['number'])
   top()
+ # Preserve encrypted credentials across a real Auth+customer transport outage.
+ top();tap('Fakturor');tap('Visa fakturadetaljer');seek_checkpoint('B-before-offline-foreground',b['display']['invoices'],a['number'])
+ proxy.terminate();proxy.wait(timeout=10)
+ adb('shell','input','keyevent','3');time.sleep(1);launch()
+ seek_checkpoint('B-offline-foreground-private-data-hidden','Uppgifterna kunde inte hämtas.',b['number'])
+ top();checkpoint('B-offline-foreground-session-kept','Mina sidor','Logga in på Mina sidor')
+ proxy=start_device_proxy();before=request_count();top();tap('Hämta igen')
+ seek_checkpoint('B-offline-foreground-fresh-recovery',b['display']['invoices'],a['number']);wait_for_new_request(before)
  top();tap('Förbrukning');checkpoint('consumption-fails-closed-without-delivery-authority','Leveransperioden måste kunna verifieras')
  top();tap('Elpriser');wait_for('Följ elpriset')
  today=datetime.now(ZoneInfo('Europe/Stockholm')).date()
@@ -122,7 +154,7 @@ try:
  tap(buttons[0]);checkpoint('market-intervals','Dölj intervallpriser');tap('Dölj intervallpriser')
  top();tap('Uppdatera elpriser');wait_for(str(today)+' · SE4')
  proxy.terminate();proxy.wait(timeout=10);tap('Uppdatera elpriser');checkpoint('market-network-error','Elpriserna kunde inte hämtas. Försök igen.')
- proxy=subprocess.Popen(['node',str(Path(__file__).resolve().with_name('device-https.mjs'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1);top();tap('Uppdatera elpriser');checkpoint('market-retry-recovery',str(today)+' · SE4')
+ proxy=start_device_proxy();top();tap('Uppdatera elpriser');checkpoint('market-retry-recovery',str(today)+' · SE4')
  top();tap('Imorgon');future=today+timedelta(days=1);wait_for(str(future)+' · SE4')
  import urllib.request
  with urllib.request.urlopen('https://gridex.se/api/elpris/day?area=SE4&date='+str(future),timeout=20) as response:future_day=json.load(response)

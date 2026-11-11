@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { customerEndpoint } from './customerEndpoint';
 import { createAccountClient, customerApi } from './accountClient';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { parseCustomerRows, type CustomerRow } from './customerData';
 import { customerViewPath, parseInvoiceDetail, parseSupportDetail, parseDocumentLink, type CustomerView } from './detailData';
 import type { InvoiceDetail, SupportDetail } from '../../../packages/mobile-foundation/src/customerDetails';
@@ -120,6 +121,7 @@ export function useCustomerAccount(brand: string) {
       if (!saved.data.session) return null;
       // SecureStore may survive reinstall: stored values alone never show customer data.
       const refreshed = await client.auth.refreshSession();
+      if (isAuthRetryableFetchError(refreshed.error)) throw refreshed.error;
       if (refreshed.error || !refreshed.data.session) { clear(); await signOut(); throw new Error('invalid session'); }
       return refreshed.data.session.access_token;
     }, selected.current.reference);

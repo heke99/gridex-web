@@ -1,5 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import {AuthRetryableFetchError, AuthApiError} from '@supabase/supabase-js';
 import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
 import { invoiceDetail, supportDetail } from '../lib/mobile/customerDetails.ts';
@@ -316,6 +317,63 @@ test('foreground restore waits for signout and failed signout stays blocked unti
     assert.equal(session, null);
   } finally {
     fixture.client.auth.signOut = original;
+    await unmount();
+  }
+});
+
+
+test('temporary Auth refresh failure keeps the saved session private and recoverable', async () => {
+  const unmount = await mount(true);
+  const originalRefresh = fixture.client.auth.refreshSession;
+  const originalSignOut = fixture.client.auth.signOut;
+  const changeState = async state => act(async () => {
+    fixture.appState.currentState = state;
+    for (const listener of listeners) listener(state);
+  });
+  let signOutCalls = 0;
+  try {
+    fixture.client.auth.signOut = async () => { signOutCalls++; return originalSignOut(); };
+    fixture.client.auth.refreshSession = async () => ({ data: { session: null }, error: new AuthRetryableFetchError('Temporarily offline', 503) });
+    const before = fetchCalls;
+    await changeState('background'); await changeState('active');
+    assert.equal(current.rows, null, 'Stale customer rows must remain hidden');
+    assert.equal(fetchCalls, before, 'No customer fetch before successful session recovery');
+    assert.equal(signOutCalls, 0, 'A temporary network failure must not sign out');
+    assert.equal(session?.access_token, 'remembered-token', 'Persisted session remains available for retry');
+    assert.equal(current.authenticated, true);
+    assert.match(current.error, /Uppgifterna kunde inte hämtas/);
+    fixture.client.auth.refreshSession = originalRefresh;
+    await changeState('background'); await changeState('active');
+    assert.equal(current.rows[0].reference, 'own-contract');
+    assert.ok(fetchCalls > before, 'Reconnect must read customer data again');
+    assert.equal(current.error, '');
+  } finally {
+    fixture.client.auth.refreshSession = originalRefresh;
+    fixture.client.auth.signOut = originalSignOut;
+    await unmount();
+  }
+});
+
+test('definitively revoked Auth refresh clears the saved session and cannot restore customer data', async () => {
+  const unmount = await mount(true);
+  const originalRefresh = fixture.client.auth.refreshSession;
+  const originalSignOut = fixture.client.auth.signOut;
+  let signOutCalls = 0;
+  try {
+    fixture.client.auth.signOut = async () => { signOutCalls++; return originalSignOut(); };
+    fixture.client.auth.refreshSession = async () => ({ data: { session: null }, error: new AuthApiError('Refresh revoked', 400, 'refresh_token_not_found') });
+    const before = fetchCalls;
+    await act(async () => { fixture.appState.currentState = 'background'; for (const listener of listeners) listener('background'); });
+    await act(async () => { fixture.appState.currentState = 'active'; for (const listener of listeners) listener('active'); });
+    assert.equal(current.authenticated, false); assert.equal(current.rows, null);
+    assert.equal(session, null); assert.equal(signOutCalls, 1);
+    fixture.client.auth.refreshSession = originalRefresh;
+    await act(async () => current.retry());
+    assert.equal(current.rows, null); assert.equal(current.authenticated, false);
+    assert.equal(fetchCalls, before);
+  } finally {
+    fixture.client.auth.refreshSession = originalRefresh;
+    fixture.client.auth.signOut = originalSignOut;
     await unmount();
   }
 });

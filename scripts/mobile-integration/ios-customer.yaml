@@ -220,10 +220,24 @@ appId: se.gridex.el.dev
     element: "Hämta igen"
     direction: DOWN
 - tapOn: "Hämta igen"
-- extendedWaitUntil:
-    visible: "Uppgifterna kunde inte hämtas.*"
+- scrollUntilVisible:
+    element: "Uppgifterna kunde inte hämtas.*"
+    direction: DOWN
     timeout: 60000
 - assertNotVisible: ".*${CUSTOMER_B}.*"
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- scrollUntilVisible:
+    element: "Uppgifterna kunde inte hämtas.*"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+- assertNotVisible: "Logga in på Mina sidor"
+- assertNotVisible: ".*${CUSTOMER_B}.*"
+- takeScreenshot: "offline-foreground-session-preserved"
 - runScript:
     file: ios-control.js
     env:
@@ -232,6 +246,9 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
 - tapOn: "Hämta igen"
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"

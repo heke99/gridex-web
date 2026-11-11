@@ -48,8 +48,16 @@ adapter rejects secret/service-role keys and shares one SDK instance per brand.
   cursors, with deduplication when another page is loaded. Uncertain writes retain
   the same attempt key for the same user/content while this app process survives.
 
-Retry and foreground restore preserve the selected invoice/case. Resource
-failures are independent, so unavailable invoices do not block site/support views.
+Retry and foreground restore preserve the selected invoice/case. Temporary Auth
+refresh/network failures retain the encrypted session for recovery while customer
+rows/details remain hidden. Definitive invalid/revoked sessions are cleared.
+Resource failures are independent, so unavailable invoices do not block site/support views.
+
+Profile phone edits, notification read status, customer documents, powers of
+attorney and legal acceptances use the same verified customer boundary.
+Consumption remains fail-closed until OPS publishes authoritative delivery windows
+and metering revision metadata; its controlled error is not positive consumption
+functionality or a release qualification.
 
 ## Server configuration and safety
 

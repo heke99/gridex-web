@@ -86,3 +86,28 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
   if(outcome===0)assert.ok(existsSync(join(dir,'gridex-ios-artifacts/ui/results.xml')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('native failure diagnostics export fixed booleans without private hierarchy data',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-native-markers-'));const source=join(dir,'private');const target=join(dir,'public');mkdirSync(source);
+ const privateValue='SYNTHETIC_PRIVATE_MARKER_VALUE';const customer='SYNTHETIC_CUSTOMER_A';
+ try{
+  writeFileSync(join(source,'step-005-inputText-private.json'),JSON.stringify({attributes:{bounds:'[0,0][100,200]'},children:[{attributes:{accessibilityText:'Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.'}},{attributes:{value:privateValue,accessibilityText:'Logga in på Mina sidor'}},{attributes:{text:'Faktura '+customer}},{attributes:{text:'Hämta igen'}}]}));
+  writeFileSync(join(source,'commands.json'),JSON.stringify({password:privateValue}));
+  writeFileSync(join(source,'results.xml'),'<testsuites><testsuite failures="1"><failure>'+privateValue+'</failure></testsuite></testsuites>');
+  writeFileSync(join(source,'step-005-inputText-private.png'),privateValue);
+  execFileSync(process.execPath,[new URL('../scripts/mobile-integration/sanitize-evidence.mjs',import.meta.url).pathname,'ios',source,target],{env:{...process.env,RUNNER_TEMP:dir,LOGIN_A_PASSWORD:privateValue,CUSTOMER_A:customer}});
+  const raw=readFileSync(join(target,'native-ui-state.json'),'utf8');const flags=JSON.parse(raw);
+  assert.ok(Object.values(flags).every(value=>typeof value==='boolean'));
+  assert.equal(flags.failureReported,true);assert.equal(flags.hierarchyAvailable,true);assert.equal(flags.knownReadErrorTextPresent,true);assert.equal(flags.loginHeadingPresent,true);assert.equal(flags.customerAReferencePresent,true);assert.equal(flags.customerBReferencePresent,false);assert.equal(flags.visibilityEstablished,false);
+  assert.ok(!raw.includes(privateValue)&&!raw.includes(customer));assert.ok(!readFileSync(join(target,'results.xml'),'utf8').includes(privateValue));
+  assert.ok(!existsSync(join(target,'commands.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.png')));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('native state markers ignore assertion metadata and never establish visibility',async()=>{
+ const {nativeStateMarkers}=await import('../scripts/mobile-integration/ios-state-markers.mjs');
+ const expected='Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.';
+ const flags=nativeStateMarkers({attributes:{accessibilityText:'Hämtar kunduppgifter'},children:[],command:{assertVisible:expected}});
+ assert.equal(flags.knownReadErrorTextPresent,false);assert.equal(flags.busyTextPresent,true);assert.equal(flags.visibilityEstablished,false);
+ assert.equal(nativeStateMarkers({command:{attributes:{text:expected}}}).hierarchyAvailable,false);
+});
