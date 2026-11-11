@@ -168,6 +168,7 @@ jobs:
             ${{ runner.temp }}/mobile-market-requests.json
             ${{ runner.temp }}/mobile-system-observations.json
             ${{ runner.temp }}/mobile-control-observations.json
+            ${{ runner.temp }}/mobile-auth-requests.json
             ${{ runner.temp }}/mobile-*-sanitized.log
             ${{ runner.temp }}/mobile-android/
           if-no-files-found: error

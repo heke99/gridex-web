@@ -8,6 +8,7 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "E-post"
 - inputText: ${LOGIN_A_EMAIL}
+- assertVisible: ${LOGIN_A_EMAIL}
 - tapOn: "Lösenord"
 - inputText: ${LOGIN_A_PASSWORD}
 - runFlow: ios-dismiss-keyboard.yaml
@@ -108,6 +109,7 @@ appId: se.gridex.el.dev
     direction: DOWN
 - tapOn: "E-post"
 - inputText: ${LOGIN_B_EMAIL}
+- assertVisible: ${LOGIN_B_EMAIL}
 - tapOn: "Lösenord"
 - inputText: ${LOGIN_B_PASSWORD}
 - runFlow: ios-dismiss-keyboard.yaml

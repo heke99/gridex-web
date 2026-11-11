@@ -211,3 +211,39 @@ for(const failure of ['persistent','empty'])test('sibling download '+failure+' n
   assert.deepEqual((await import('node:fs')).readdirSync(dir),['received']);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('isolated Auth observations distinguish exact synthetic credentials without exporting them',async()=>{
+ const {syntheticCredentialIdentity,observeAuthRequest}=await import('../scripts/mobile-integration/auth-observations.mjs');const {EventEmitter}=await import('node:events');
+ const directory=mkdtempSync(join(tmpdir(),'gridex-auth-observation-'));const email='PRIVATE_SYNTHETIC_EMAIL',password='PRIVATE_SYNTHETIC_PASSWORD',customers=[{label:'A',login:{email,password}}];
+ try{
+  assert.equal(syntheticCredentialIdentity(JSON.stringify({email,password}),customers),'A');assert.equal(syntheticCredentialIdentity(JSON.stringify({email,password:password.slice(1)}),customers),'none');
+  for(const outcome of ['response','transport-error','upstream-timeout','client-disconnected']){
+   const incoming=new EventEmitter(),outgoing=new EventEmitter();const finish=observeAuthRequest(incoming,outgoing,{platform:'ios',operation:'password',customers,directory});
+   incoming.emit('data',Buffer.from(JSON.stringify({email,password,access_token:'PRIVATE_TOKEN'})));incoming.emit('end');
+   if(outcome==='client-disconnected')outgoing.emit('close');else finish(outcome==='response'?200:0,outcome);
+   finish(500,'transport-error');
+  }
+  const raw=readFileSync(join(directory,'mobile-auth-requests.json'),'utf8'),rows=JSON.parse(raw);assert.equal(rows.length,4);
+  for(const privateValue of [email,password,'PRIVATE_TOKEN'])assert.ok(!raw.includes(privateValue));
+  assert.deepEqual(rows.map(r=>r.outcome),['response','transport-error','upstream-timeout','client-disconnected']);assert.ok(rows.every(r=>r.identity==='A'));
+  for(const row of rows)assert.deepEqual(Object.keys(row).sort(),['durationMs','identity','operation','outcome','platform','status','timestamp']);
+  const incoming=new EventEmitter(),outgoing=new EventEmitter();const finish=observeAuthRequest(incoming,outgoing,{platform:'ios',operation:'password',customers,directory});incoming.emit('data',Buffer.alloc(9000,65));incoming.emit('end');finish(400,'response');assert.equal(JSON.parse(readFileSync(join(directory,'mobile-auth-requests.json'),'utf8')).at(-1).identity,'none');
+ }finally{rmSync(directory,{recursive:true,force:true});}
+});
+
+test('Auth observation forwards original streamed bytes exactly once, including split UTF-8',async()=>{
+ const {observeAuthRequest,recordAuthObservation}=await import('../scripts/mobile-integration/auth-observations.mjs');const {createServer,request}=await import('node:http');
+ const directory=mkdtempSync(join(tmpdir(),'gridex-auth-forward-'));const email='private@example.invalid',password='åÖ🔐';const payload=Buffer.from(JSON.stringify({email,password}));let received=Buffer.alloc(0);
+ const upstream=createServer(async(req,res)=>{const chunks=[];for await(const part of req)chunks.push(part);received=Buffer.concat(chunks);res.writeHead(200,{'content-type':'application/json'}).end('{"synthetic":true}');});
+ await new Promise(resolve=>upstream.listen(0,'127.0.0.1',resolve));
+ const proxy=createServer((incoming,outgoing)=>{
+  const finish=observeAuthRequest(incoming,outgoing,{platform:'ios',operation:'password',customers:[{label:'A',login:{email,password}}],directory});
+  const next=request({hostname:'127.0.0.1',port:upstream.address().port,method:'POST',headers:incoming.headers},response=>{outgoing.writeHead(response.statusCode,response.headers);response.once('end',()=>finish(response.statusCode,'response'));response.pipe(outgoing);});incoming.pipe(next);
+ });await new Promise(resolve=>proxy.listen(0,'127.0.0.1',resolve));
+ try{
+  await new Promise((resolve,reject)=>{const req=request({hostname:'127.0.0.1',port:proxy.address().port,method:'POST',headers:{'content-type':'application/json','content-length':payload.length}},res=>{res.resume();res.on('end',resolve);});req.on('error',reject);const at=payload.indexOf(Buffer.from('å'))+1;req.write(payload.subarray(0,at));setTimeout(()=>req.end(payload.subarray(at)),5);});
+  assert.deepEqual(received,payload);const file=join(directory,'mobile-auth-requests.json');let rows=JSON.parse(readFileSync(file,'utf8'));assert.equal(rows.length,1);assert.equal(rows[0].identity,'A');assert.equal(rows[0].outcome,'response');
+  rows[0].password=password;rows.push({platform:'unknown',password});writeFileSync(file,JSON.stringify(rows));recordAuthObservation({platform:'ios',operation:'user',identity:'not-applicable',status:200,outcome:'response',durationMs:1},directory);
+  const raw=readFileSync(file,'utf8');assert.ok(!raw.includes(password)&&!raw.includes(email)&&!raw.includes('unknown'));assert.equal(JSON.parse(raw).length,2);
+ }finally{await new Promise(resolve=>proxy.close(resolve));await new Promise(resolve=>upstream.close(resolve));rmSync(directory,{recursive:true,force:true});}
+});

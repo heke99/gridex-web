@@ -4,6 +4,7 @@ import {request as httpsRequest} from 'node:https';
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {timingSafeEqual} from 'node:crypto';
 import {recordControlObservation} from './control-observations.mjs';
+import {observeAuthRequest} from './auth-observations.mjs';
 const auth=new Map([['/auth/v1/token',['POST']],['/auth/v1/user',['GET']],['/auth/v1/logout',['POST']]]);
 const platform=agent=>/Android|okhttp/i.test(agent??'')?'android':/iPhone|iPad|CFNetwork|Darwin/.test(agent??'')?'ios':'other';
 let disconnected=false,marketDisconnected=false,disabledDocumentCount=null;
@@ -100,7 +101,14 @@ const server=createServer(async(incoming,outgoing)=>{
   upstream.on('timeout',()=>upstream.destroy());upstream.on('error',()=>{if(!outgoing.headersSent)outgoing.writeHead(503);outgoing.end();});upstream.end();return;
  }else{outgoing.writeHead(404,{'cache-control':'no-store'}).end();return;}
  const headers={...incoming.headers,host:`127.0.0.1:${port}`};delete headers['cf-connecting-ip'];delete headers['x-forwarded-for'];
- const upstream=request({hostname:'127.0.0.1',port,path:incoming.url,method:incoming.method,headers,timeout:60000},response=>{outgoing.writeHead(response.statusCode??502,response.headers);response.pipe(outgoing);});
- upstream.on('timeout',()=>upstream.destroy());upstream.on('error',()=>{if(!outgoing.headersSent)outgoing.writeHead(503);outgoing.end();});outgoing.on('close',()=>upstream.destroy());incoming.pipe(upstream);
+ let authFinished=()=>{};
+ if(port===54321){
+  const grant=new URL(incoming.url,'http://127.0.0.1').searchParams.get('grant_type');
+  const operation=path==='/auth/v1/token'?(grant==='password'?'password':grant==='refresh_token'?'refresh':'other'):path==='/auth/v1/user'?'user':'logout';
+  const fixture=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/mobile-fixtures/customers.json','utf8'));
+  authFinished=observeAuthRequest(incoming,outgoing,{platform:platform(incoming.headers['user-agent']),operation,customers:fixture.customers,directory:process.env.RUNNER_TEMP});
+ }
+ const upstream=request({hostname:'127.0.0.1',port,path:incoming.url,method:incoming.method,headers,timeout:60000},response=>{outgoing.writeHead(response.statusCode??502,response.headers);response.once('end',()=>authFinished(response.statusCode??502,'response'));response.once('aborted',()=>{authFinished(0,'transport-error');outgoing.destroy();});response.pipe(outgoing);});
+ upstream.on('timeout',()=>{authFinished(0,'upstream-timeout');upstream.destroy();});upstream.on('error',()=>{authFinished(0,'transport-error');if(!outgoing.headersSent)outgoing.writeHead(503);outgoing.end();});outgoing.on('close',()=>upstream.destroy());incoming.pipe(upstream);
 });
 server.listen(Number(process.env.GRIDEX_QUALIFICATION_GATEWAY_PORT??3445),'127.0.0.1',()=>{if(process.send)process.send({port:server.address().port});});
