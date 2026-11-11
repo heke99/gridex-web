@@ -99,7 +99,7 @@ jobs:
           path: ${{ runner.temp }}/gridex-ios-artifacts/
       - name: Verify and reuse the exact native input trees
         run: bash scripts/mobile-integration/ios-reuse-native.sh
-      - name: Diagnose real keyboard UI using invalid form inputs only
+      - name: Capture focused hierarchy using the intentional diagnostic assertion
         run: bash scripts/mobile-integration/ios-smoke.sh
       - name: Preserve invalid-form diagnostic evidence
         if: always()

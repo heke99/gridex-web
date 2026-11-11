@@ -18,6 +18,8 @@ printf '%s\n' "$simulator" > "$RUNNER_TEMP/gridex-ios-simulator-id"
 # Real on-screen keyboard is required for keyboard/accessory acceptance.
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 xcrun simctl boot "$simulator"
+# Simulator.app applies its software/hardware keyboard preferences to this device.
+open -a Simulator --args -CurrentDeviceUDID "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 xcrun simctl install "$simulator" "$(cat "$RUNNER_TEMP/gridex-ios-app-path")"
 private_ui="$RUNNER_TEMP/gridex-ios-private-ui"
