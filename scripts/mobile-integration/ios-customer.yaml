@@ -483,6 +483,7 @@ appId: se.gridex.el.dev
 - tapOn: "Visa alla [0-9]+ intervallpriser"
 - assertVisible: "Dölj intervallpriser"
 - takeScreenshot: "public-market-prices"
+- tapOn: "Dölj intervallpriser"
 - runScript:
     file: ios-control.js
     env:

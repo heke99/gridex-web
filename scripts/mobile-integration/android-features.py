@@ -111,7 +111,7 @@ try:
   if buttons:break
   adb('shell','input','swipe','500','1700','500','650','350');time.sleep(.5)
  assert buttons,'Published market intervals must have an explicit UI result'
- tap(buttons[0]);checkpoint('market-intervals','Dölj intervallpriser')
+ tap(buttons[0]);checkpoint('market-intervals','Dölj intervallpriser');tap('Dölj intervallpriser')
  top();tap('Uppdatera elpriser');wait_for(str(today)+' · SE4')
  proxy.terminate();proxy.wait(timeout=10);tap('Uppdatera elpriser');checkpoint('market-network-error','Elpriserna kunde inte hämtas. Försök igen.')
  proxy=subprocess.Popen(['node',str(Path(__file__).resolve().with_name('device-https.mjs'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1);top();tap('Uppdatera elpriser');checkpoint('market-retry-recovery',str(today)+' · SE4')
