@@ -273,3 +273,6 @@ PASS. Two independent static reviews cleared the bounded foreground/privacy
 repair; exact-SHA binding follows. All native builds must be refreshed because
 the shell identifier changes the app binary. Prior1c signed APK and iOS archives
 remain build-verified historical artifacts, not final customer acceptance.
+
+### iOS driver bootstrap follow-up
+The cba9a90 shared run 42990051259 passed Android's 13 core and 64 expanded checks but failed before iOS executed any customer test: Maestro raised LocalXCTestInstaller$IOSDriverTimeoutException after 180 seconds and produced no JUnit report. Increase only driver startup to 300 seconds and allow one retry only for that exact exception with no report. Started journeys and ordinary assertion failures remain terminal. Four shell-stub regression cases verify retry bounds, report gating and failure propagation.

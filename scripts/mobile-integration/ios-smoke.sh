@@ -37,9 +37,26 @@ if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
   market_tomorrow="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")+86400000)))' "$market_date")"
   environment+=(-e "MARKET_DATE=$market_date" -e "MARKET_YESTERDAY=$market_yesterday" -e "MARKET_TOMORROW=$market_tomorrow")
 fi
-MAESTRO_DRIVER_STARTUP_TIMEOUT=180000 "$RUNNER_TEMP/gridex-maestro/maestro/bin/maestro" --device "$simulator" test \
-  --format junit --output "$private_ui/results.xml" \
-  --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1
+# Retry only a driver bootstrap failure before Maestro created any test report.
+# A started customer journey must never be replayed automatically.
+attempt=1
+while true; do
+  result=0
+  MAESTRO_DRIVER_STARTUP_TIMEOUT=300000 "$RUNNER_TEMP/gridex-maestro/maestro/bin/maestro" --device "$simulator" test \
+    --format junit --output "$private_ui/results.xml" \
+    --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1 || result=$?
+  if test "$result" -eq 0; then
+    break
+  fi
+  if test "$attempt" -eq 1 && ! test -e "$private_ui/results.xml" && \
+      grep -Fq 'xcuitest.installer.LocalXCTestInstaller$IOSDriverTimeoutException' "$private_ui/maestro.log"; then
+    mv "$private_ui/maestro.log" "$private_ui/driver-startup-attempt-1.log"
+    attempt=2
+    continue
+  fi
+  exit "$result"
+done
+test -s "$private_ui/results.xml"
 node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
 
 test -s "$private_ui/results.xml"

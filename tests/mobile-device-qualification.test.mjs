@@ -88,6 +88,34 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
+for(const scenario of ['startup-then-pass','flow-failure','startup-with-report','startup-twice'])test('native bootstrap retry is bounded: '+scenario,()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-ui-bootstrap-'));const bin=join(dir,'bin');mkdirSync(bin);
+ const executable=(path,body)=>{writeFileSync(path,'#!/bin/bash\n'+body+'\n');chmodSync(path,0o700);};
+ try{
+  for(const name of ['curl','shasum','unzip','defaults','open'])executable(join(bin,name),'exit 0');
+  executable(join(bin,'xcrun'),`case "$*" in
+   'simctl list devicetypes -j') echo '{"devicetypes":[{"name":"iPhone 17","identifier":"mock-device"}]}' ;;
+   'simctl list runtimes -j') echo '{"runtimes":[{"isAvailable":true,"identifier":"mock-iOS"}]}' ;;
+   'simctl create '*) echo mock-simulator ;;
+  esac`);
+  mkdirSync(join(dir,'gridex-maestro/maestro/bin'),{recursive:true});mkdirSync(join(dir,'gridex-ios-artifacts'));
+  writeFileSync(join(dir,'gridex-ios-app-path'),'/synthetic-only.app');
+  executable(join(dir,'gridex-maestro/maestro/bin/maestro'),`test "$MAESTRO_DRIVER_STARTUP_TIMEOUT" = 300000 || exit 98
+  count=0; test ! -f "$RUNNER_TEMP/attempt-count" || read count < "$RUNNER_TEMP/attempt-count"
+  count=$((count+1)); echo "$count" > "$RUNNER_TEMP/attempt-count"
+  if test '${scenario}' = startup-then-pass && test "$count" -eq 2; then
+    printf '<testsuite tests="1" failures="0"/>' > "$7"; exit 0
+  fi
+  ${scenario==='startup-with-report'?`printf '<testsuite tests="1" failures="1"/>' > "$7"`:':'}
+  ${scenario==='flow-failure'?`echo 'Assertion failed'`:`echo 'xcuitest.installer.LocalXCTestInstaller$IOSDriverTimeoutException'`}
+  exit 7`);
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-smoke.sh',import.meta.url).pathname],{env:{...process.env,PATH:bin+':'+process.env.PATH,RUNNER_TEMP:dir,GRIDEX_IOS_CUSTOMER_FLOW:'false'},encoding:'utf8'});
+  assert.equal(result.status,scenario==='startup-then-pass'?0:7,result.stderr);
+  assert.equal(Number(readFileSync(join(dir,'attempt-count'),'utf8')),['startup-then-pass','startup-twice'].includes(scenario)?2:1);
+  assert.equal(existsSync(join(dir,'gridex-ios-artifacts/simulator-receipt.json')),scenario==='startup-then-pass');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
 test('native failure diagnostics export fixed booleans without private hierarchy data',()=>{
  const dir=mkdtempSync(join(tmpdir(),'gridex-native-markers-'));const source=join(dir,'private');const target=join(dir,'public');mkdirSync(source);
  const privateValue='SYNTHETIC_PRIVATE_MARKER_VALUE';const customer='SYNTHETIC_CUSTOMER_A';
