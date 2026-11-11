@@ -105,3 +105,13 @@ test('raw UI evidence is limited to guarded invalid-form diagnostics',()=>{
   const blocked=run('private',{GRIDEX_IOS_DIAGNOSTIC:'true',LOGIN_A_PASSWORD:'SYNTHETIC_DO_NOT_EXPORT'});assert.notEqual(blocked.status,0);assert.equal(existsSync(join(dir,'private/failure.png')),false);assert.ok(!blocked.stderr.includes('SYNTHETIC_DO_NOT_EXPORT'));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('simulator signing refuses a physical-device archive before codesign',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-simulator-sign-scope-'));
+ try{
+  const app=join(dir,'Physical.app');mkdirSync(app);
+  execFileSync('python3',['-c',"import plistlib,sys;plistlib.dump({'CFBundleIdentifier':'se.gridex.el.dev','CFBundleSupportedPlatforms':['iPhoneOS']},open(sys.argv[1],'wb'))",join(app,'Info.plist')]);
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-sign-simulator.sh',import.meta.url).pathname],{env:{...process.env,RUNNER_TEMP:dir,APP_PATH:app},encoding:'utf8'});
+  assert.equal(result.status,1);assert.ok(result.stderr.includes('Local signing requires the Gridex iPhone simulator app'));assert.ok(!result.stderr.includes('codesign:'));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
