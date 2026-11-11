@@ -30,8 +30,8 @@ preserve_ui_evidence() {
   if test "${GRIDEX_IOS_DIAGNOSTIC:-false}" = true; then
     installed="$(xcrun simctl get_app_container "$simulator" se.gridex.el.dev app 2>/dev/null || true)"
     if test -n "$installed"; then codesign --verify --deep --strict "$installed" > "$private_ui/installed-signature-after.raw.log" 2>&1 || true; fi
-    xcrun simctl spawn "$simulator" log show --style compact --last 5m --predicate 'process == "GridexEl" OR eventMessage CONTAINS[c] "se.gridex.el.dev" OR eventMessage CONTAINS[c] "GridexEl.app"' > "$private_ui/simulator-launch.raw.log" 2>&1 || true
-    log show --style compact --last 5m --predicate 'process == "GridexEl" OR eventMessage CONTAINS[c] "se.gridex.el.dev" OR eventMessage CONTAINS[c] "GridexEl.app"' > "$private_ui/host-launch.raw.log" 2>&1 || true
+    xcrun simctl spawn "$simulator" log show --style compact --last 15m --predicate 'process == "GridexEl" OR eventMessage CONTAINS[c] "se.gridex.el.dev" OR eventMessage CONTAINS[c] "GridexEl.app" OR eventMessage CONTAINS[c] "GridexEl["' > "$private_ui/simulator-launch.raw.log" 2>&1 || true
+    log show --style compact --last 15m --predicate 'process == "GridexEl" OR eventMessage CONTAINS[c] "se.gridex.el.dev" OR eventMessage CONTAINS[c] "GridexEl.app" OR eventMessage CONTAINS[c] "GridexEl["' > "$private_ui/host-launch.raw.log" 2>&1 || true
   fi
   node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" || result=1
   exit "$result"
