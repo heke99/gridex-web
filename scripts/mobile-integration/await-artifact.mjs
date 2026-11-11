@@ -3,7 +3,9 @@ import {mkdirSync} from 'node:fs';
 const [name,directory]=process.argv.slice(2);
 if(!/^[a-z0-9-]+$/.test(name)||!directory||!/^\d+$/.test(process.env.GITHUB_RUN_ID??''))throw Error('Invalid artifact request');
 mkdirSync(directory,{recursive:true,mode:0o700});
-const deadline=Date.now()+25*60*1000;
+// Native iOS runs after Android and includes cold boot, driver setup and full journeys.
+const timeoutMinutes=name==='ios-customer-terminal'?40:25;
+const deadline=Date.now()+timeoutMinutes*60*1000;
 let found=false;
 while(Date.now()<deadline){
  const data=JSON.parse(execFileSync('gh',['api',`repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/artifacts`],{encoding:'utf8',stdio:['ignore','pipe','ignore']}));

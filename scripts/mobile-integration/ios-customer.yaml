@@ -19,7 +19,7 @@ appId: se.gridex.el.dev
     element: ${CONTRACT_A}
     direction: DOWN
     timeout: 60000
-- assertNotVisible: ${CUSTOMER_B}
+- assertNotVisible: ".*${CUSTOMER_B}.*"
 - takeScreenshot: "a-contract"
 - runScript:
     file: ios-control.js
@@ -78,7 +78,7 @@ appId: se.gridex.el.dev
 - launchApp:
     stopApp: false
 - scrollUntilVisible:
-    element: ${INVOICE_A}
+    element: "Faktura ${INVOICE_A}"
     direction: UP
 - takeScreenshot: "a-invoice-pdf-return"
 
@@ -91,7 +91,7 @@ appId: se.gridex.el.dev
     stopApp: false
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
-- assertNotVisible: ${CUSTOMER_A}
+- assertNotVisible: ".*${CUSTOMER_A}.*"
 - scrollUntilVisible:
     element: "E-post"
     direction: DOWN
@@ -108,7 +108,7 @@ appId: se.gridex.el.dev
     element: ${CONTRACT_B}
     direction: DOWN
     timeout: 60000
-- assertNotVisible: ${CUSTOMER_A}
+- assertNotVisible: ".*${CUSTOMER_A}.*"
 - takeScreenshot: "b-contract-no-a-data"
 - scrollUntilVisible:
     element: "Sök avtal"
@@ -167,7 +167,7 @@ appId: se.gridex.el.dev
 - launchApp:
     stopApp: false
 - scrollUntilVisible:
-    element: ${INVOICE_B}
+    element: "Faktura ${INVOICE_B}"
     direction: UP
 - takeScreenshot: "b-invoice-pdf-return"
 
@@ -223,7 +223,7 @@ appId: se.gridex.el.dev
 - extendedWaitUntil:
     visible: "Uppgifterna kunde inte hämtas.*"
     timeout: 60000
-- assertNotVisible: ${CUSTOMER_B}
+- assertNotVisible: ".*${CUSTOMER_B}.*"
 - runScript:
     file: ios-control.js
     env:
@@ -561,8 +561,8 @@ appId: se.gridex.el.dev
 - extendedWaitUntil:
     visible: "Logga in på Mina sidor"
     timeout: 60000
-- assertNotVisible: ${CONTRACT_B}
-- assertNotVisible: ${INVOICE_B}
+- assertNotVisible: ".*${CONTRACT_B}.*"
+- assertNotVisible: ".*${INVOICE_B}.*"
 - scrollUntilVisible:
     element: "E-post"
     direction: DOWN
@@ -575,8 +575,8 @@ appId: se.gridex.el.dev
     stopApp: false
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
-- assertNotVisible: ${CONTRACT_B}
-- assertNotVisible: ${INVOICE_B}
+- assertNotVisible: ".*${CONTRACT_B}.*"
+- assertNotVisible: ".*${INVOICE_B}.*"
 - takeScreenshot: "invalid-session-not-restored"
 - scrollUntilVisible:
     element: "Glömt lösenord? Återställ på hemsidan"
