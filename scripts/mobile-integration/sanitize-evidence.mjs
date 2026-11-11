@@ -20,6 +20,9 @@ if(mode==='log'){
  if(process.env.GRIDEX_IOS_DIAGNOSTIC==='true'){
   function diagnostics(dir){if(!existsSync(dir))return;for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())diagnostics(p);else if(entry.isFile()&&entry.name.endsWith('.json'))writeFileSync(join(target,basename(p)),clean(readFileSync(p,'utf8')));else if(entry.isFile()&&entry.name.endsWith('.png'))copyFileSync(p,join(target,basename(p)));}}
   diagnostics(source);
+  for(const file of ['installed-signature-before','installed-signature-after','direct-launch','direct-launch-status','simulator-launch','host-launch']){
+   const path=join(source,file+'.raw.log');if(existsSync(path))writeFileSync(join(target,file+'.log'),clean(readFileSync(path,'utf8')));
+  }
   const keychain=[];
   function nativeErrors(dir){if(!existsSync(dir))return;for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())nativeErrors(p);else if(entry.isFile()&&entry.name==='device-simulator.log')for(const line of readFileSync(p,'utf8').split('\n'))if(/errSecMissingEntitlement|SecItemCopyMatching|SecItemAdd|SecureStore|OSStatus|keychain.*denied/i.test(line))keychain.push(clean(line).slice(0,1000));}}
   nativeErrors(source);writeFileSync(join(target,'native-keychain-diagnostics.log'),keychain.join('\n'));

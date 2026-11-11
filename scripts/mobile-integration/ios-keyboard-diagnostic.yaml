@@ -2,7 +2,7 @@
 appId: se.gridex.el.dev
 ---
 - launchApp:
-    clearState: true
+    clearState: false
 - tapOn: "Mer"
 - takeScreenshot: "login-before-input"
 - scrollUntilVisible:
