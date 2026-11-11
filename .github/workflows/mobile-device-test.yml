@@ -8,6 +8,11 @@ on:
         required: false
         default: ''
         type: string
+      ios_xcode_signing_probe:
+        description: 'Build with Xcode simulator entitlement packaging instead of reusing an artifact'
+        required: false
+        default: false
+        type: boolean
   pull_request:
     paths:
       - '.github/workflows/mobile-device-test.yml'
@@ -92,13 +97,20 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: actions/download-artifact@v4
+        if: ${{ !inputs.ios_xcode_signing_probe }}
         with:
           name: gridex-ios-simulator
           run-id: ${{ inputs.ios_artifact_run }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/gridex-ios-artifacts/
       - name: Verify and reuse the exact native input trees
+        if: ${{ !inputs.ios_xcode_signing_probe }}
         run: bash scripts/mobile-integration/ios-reuse-native.sh
+      - name: Build with supported Xcode simulator signing
+        if: ${{ inputs.ios_xcode_signing_probe }}
+        run: |
+          npm ci --prefix apps/mobile --workspaces=false --ignore-scripts --no-audit --no-fund
+          bash scripts/mobile-integration/ios-build.sh
       - name: Capture focused hierarchy using the intentional diagnostic assertion
         run: bash scripts/mobile-integration/ios-smoke.sh
       - name: Preserve invalid-form diagnostic evidence

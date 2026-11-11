@@ -10,5 +10,3 @@ unzip -q "$out/gridex-ios-simulator.zip" -d "$RUNNER_TEMP/gridex-reused-ios-app"
 app="$(find "$RUNNER_TEMP/gridex-reused-ios-app" -maxdepth 1 -name '*.app' -print -quit)"
 test -n "$app"
 printf '%s\n' "$app" > "$RUNNER_TEMP/gridex-ios-app-path"
-
-APP_PATH="$app" bash scripts/mobile-integration/ios-sign-simulator.sh

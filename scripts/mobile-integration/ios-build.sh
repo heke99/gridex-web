@@ -19,12 +19,20 @@ project="$(find ios -maxdepth 1 -name '*.xcodeproj' -print -quit)"
 test -n "$project"
 scheme="$(basename "$project" .xcodeproj)"
 node -e 'const x=require(process.argv[1]);if(!x.workspace.schemes.includes(process.argv[2]))throw Error("App scheme unavailable")' "$RUNNER_TEMP/gridex-ios-project.json" "$scheme"
+# Xcode places these in simulated linker sections, not restricted host entitlements.
+python3 - "$RUNNER_TEMP/gridex-simulator.entitlements" <<'PYENT'
+import sys,plistlib
+with open(sys.argv[1],'wb') as f:plistlib.dump({'application-identifier':'se.gridex.el.dev','keychain-access-groups':['se.gridex.el.dev']},f)
+PYENT
 xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Release \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath "$RUNNER_TEMP/gridex-ios-build" CODE_SIGNING_ALLOWED=NO \
+  -derivedDataPath "$RUNNER_TEMP/gridex-ios-build" CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$RUNNER_TEMP/gridex-simulator.entitlements" \
   > "$out/build.log" 2>&1
 app="$(find "$RUNNER_TEMP/gridex-ios-build/Build/Products/Release-iphonesimulator" -maxdepth 1 -name '*.app' -print -quit)"
 test -n "$app"
-APP_PATH="$app" SOURCE_COMMIT="$(git -C "$root" rev-parse HEAD)" node "$root/scripts/mobile-integration/ios-verify.mjs" "$out/build-receipt.json"
+codesign --verify --deep --strict "$app"
+python3 "$root/scripts/mobile-integration/ios-simulated-entitlements.py" "$app/$scheme" se.gridex.el.dev "$out/simulator-simulated-entitlements.json"
+codesign --display --entitlements :- "$app" > "$out/simulator-host-entitlements.plist" 2> "$out/simulator-signature.txt"
+APP_PATH="$app" GRIDEX_BUILD_KIND=xcode-ad-hoc-simulator-native-release SOURCE_COMMIT="$(git -C "$root" rev-parse HEAD)" node "$root/scripts/mobile-integration/ios-verify.mjs" "$out/build-receipt.json"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$out/gridex-ios-simulator.zip"
 printf '%s\n' "$app" > "$RUNNER_TEMP/gridex-ios-app-path"
