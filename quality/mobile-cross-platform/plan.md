@@ -169,3 +169,13 @@ candidate and must be rebuilt through the existing production flow and signed
 with the preserved key after code qualification. No key regeneration or Apple
 signing claim. Next coherent run waits for full targeted/security/type preflight
 and two exact-SHA independent reviews of all prepared changes.
+
+The same classified SDK failure was then reproduced in document opening, all
+write wrappers and consumption session lookup:6 new regressions failed before
+the guards,49 lifecycle tests pass afterward. Retryable failures clear displayed
+details without local signout or discarding an uncertain mutation's attempt key;
+definitive invalid sessions still clear credentials and cannot issue requests.
+The SDK error-class test import now resolves from apps/mobile's locked SDK,
+fixing f6's native-only portability failure. The exact canonical native-only suite
+was reproduced with no root node_modules and64 tests passed. The superseded f6
+heavy runs are cancelled before another qualification candidate is published.

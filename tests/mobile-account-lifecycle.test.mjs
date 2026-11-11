@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import {AuthRetryableFetchError, AuthApiError} from '@supabase/supabase-js';
+import {AuthRetryableFetchError, AuthApiError} from '../apps/mobile/node_modules/@supabase/supabase-js/dist/index.mjs';
 import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
 import { invoiceDetail, supportDetail } from '../lib/mobile/customerDetails.ts';
@@ -376,4 +376,48 @@ test('definitively revoked Auth refresh clears the saved session and cannot rest
     fixture.client.auth.signOut = originalSignOut;
     await unmount();
   }
+});
+
+
+for (const operation of ['document','phone','support','notification','consumption']) {
+ for (const temporary of [true,false]) test(`${operation} session lookup ${temporary?'preserves a retryable session':'clears a definitively invalid session'}`,async()=>{
+  const unmount=await mount(true);session.user={id:'actor-b'};
+  const originalGet=fixture.client.auth.getSession;const originalSignOut=fixture.client.auth.signOut;
+  let signOutCalls=0,opened=false;
+  try{
+   fixture.client.auth.signOut=async()=>{signOutCalls++;return originalSignOut();};
+   fixture.client.auth.getSession=async()=>({data:{session:null},error:temporary?new AuthRetryableFetchError('Offline',503):new AuthApiError('Revoked',400,'refresh_token_not_found')});
+   const before=fetchCalls;
+   await act(async()=>{
+    if(operation==='document')await current.openDocument(null,'owned-doc',()=>{opened=true;});
+    else if(operation==='phone')await current.updatePhone('0701234567');
+    else if(operation==='support')await current.submitSupport('Question','Message');
+    else if(operation==='notification')await current.markNotificationRead('owned-notification');
+    else await assert.rejects(current.readConsumption('sites',{},new AbortController().signal));
+   });
+   assert.equal(fetchCalls,before,'An unvalidated session cannot issue customer requests');assert.equal(opened,false);
+   assert.equal(current.rows,null,'Unvalidated customer details remain hidden');
+   assert.equal(signOutCalls,temporary?0:1);assert.equal(current.authenticated,temporary);
+   assert.equal(Boolean(session),temporary);
+   fixture.client.auth.getSession=originalGet;
+   await act(async()=>current.select('contracts'));
+   if(temporary){assert.equal(current.rows[0].reference,'own-contract');assert.ok(fetchCalls>before);}
+   else{assert.equal(current.rows,null);assert.equal(fetchCalls,before);}
+  }finally{fixture.client.auth.getSession=originalGet;fixture.client.auth.signOut=originalSignOut;await unmount();}
+ });
+}
+
+test('retryable session lookup retains the idempotency key for an uncertain write',async()=>{
+ const unmount=await mount(true);session.user={id:'actor-b'};
+ const originalGet=fixture.client.auth.getSession;const keys=[];
+ try{
+  handler=async(_url,init)=>{keys.push(init.headers['Idempotency-Key']);return keys.length===1?new Response('',{status:503}):Response.json({data:{accepted:true}});};
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),false);});
+  fixture.client.auth.getSession=async()=>({data:{session:null},error:new AuthRetryableFetchError('Offline',503)});
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),false);});
+  assert.equal(keys.length,1);assert.ok(session);
+  fixture.client.auth.getSession=originalGet;
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),true);});
+  assert.equal(keys.length,2);assert.equal(keys[0],keys[1]);
+ }finally{fixture.client.auth.getSession=originalGet;await unmount();}
 });

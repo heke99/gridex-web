@@ -149,6 +149,7 @@ export function useCustomerAccount(brand: string) {
     try {
       const saved = await client.auth.getSession();
       if (attempt !== generation.current || controller.signal.aborted || AppState.currentState !== 'active') return;
+      if (isAuthRetryableFetchError(saved.error)) { clearDetails(); throw saved.error; }
       if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('expired'); }
       const response = await fetch(customerEndpoint(customerApi, invoiceRef ? `invoices/${encodeURIComponent(invoiceRef)}/documents/${encodeURIComponent(documentRef)}` : `documents/${encodeURIComponent(documentRef)}/open`, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH), {
         headers: { Authorization: `Bearer ${saved.data.session.access_token}` }, signal: controller.signal,
@@ -173,6 +174,7 @@ export function useCustomerAccount(brand: string) {
     try {
       const saved = await client.auth.getSession();
       if (attempt !== generation.current || controller.signal.aborted || AppState.currentState !== 'active') return null;
+      if (isAuthRetryableFetchError(saved.error)) { clearDetails(); throw saved.error; }
       if (!saved.data.session || saved.error) {clear();await signOut();throw new Error('login');}
       const signature = JSON.stringify([saved.data.session.user.id, suffix, input]);
       if (mutationAttempt.current?.signature !== signature) mutationAttempt.current = { signature, key: `support-${Date.now()}-${Math.random().toString(36).slice(2)}` };
@@ -212,6 +214,7 @@ export function useCustomerAccount(brand: string) {
     const epoch = generation.current;
     const saved = await client.auth.getSession();
     if (signal.aborted || epoch !== generation.current) throw new Error('Cancelled');
+    if (isAuthRetryableFetchError(saved.error)) { clearDetails(); throw saved.error; }
     if (saved.error || !saved.data.session) { clear(); await signOut(); throw new Error('Login required'); }
     const url = new URL(customerEndpoint(customerApi, kind, undefined, process.env.EXPO_PUBLIC_CUSTOMER_API_PATH));
     for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
@@ -222,6 +225,6 @@ export function useCustomerAccount(brand: string) {
     const body: unknown = await response.json();
     if (signal.aborted || epoch !== generation.current || AppState.currentState !== 'active') throw new Error('Cancelled');
     return body;
-  }, [client, clear, signOut]);
+  }, [client, clear, clearDetails, signOut]);
   return { configured: Boolean(client), authenticated, busy, logoutFailed, rows, invoice, support, resource, error, active, login, select, retry, openDocument, submitSupport, updatePhone, markNotificationRead, nextCursor, loadMore, logout, readConsumption };
 }
