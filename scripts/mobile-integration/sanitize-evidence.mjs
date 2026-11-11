@@ -17,5 +17,5 @@ if(mode==='log'){
  function walk(dir){if(!existsSync(dir))return;for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())walk(p);else if(entry.isFile()&&markers.failureReported&&/^step-\d+-.*\.json$/.test(entry.name)){try{const captured=nativeStateMarkers(JSON.parse(readFileSync(p,'utf8')),process.env.CUSTOMER_A??'',process.env.CUSTOMER_B??'');for(const key of Object.keys(markers))markers[key]||=captured[key];}catch{markers.hierarchyReadFailed=true;}}else if(entry.isFile()&&allowed.test(entry.name)&&entry.name.endsWith('.png'))copyFileSync(p,join(target,basename(p)));}}
  walk(source);
  writeFileSync(join(target,'native-ui-state.json'),JSON.stringify(markers)+'\n');
- for(const file of ['maestro.log','results.xml'])if(existsSync(join(source,file)))writeFileSync(join(target,file),clean(readFileSync(join(source,file),'utf8')));
+ for(const file of ['maestro.log','driver-startup-attempt-1.log','results.xml'])if(existsSync(join(source,file)))writeFileSync(join(target,file),clean(readFileSync(join(source,file),'utf8')));
 }else throw Error('Unknown sanitization mode');

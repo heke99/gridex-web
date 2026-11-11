@@ -122,6 +122,7 @@ test('native failure diagnostics export fixed booleans without private hierarchy
  try{
   writeFileSync(join(source,'step-005-inputText-private.json'),JSON.stringify({attributes:{bounds:'[0,0][100,200]'},children:[{attributes:{accessibilityText:'Uppgifterna kunde inte hämtas. Kontrollera anslutningen och försök igen.'}},{attributes:{value:privateValue,accessibilityText:'Logga in på Mina sidor'}},{attributes:{text:'Faktura '+customer}},{attributes:{text:'Hämta igen'}}]}));
   writeFileSync(join(source,'commands.json'),JSON.stringify({password:privateValue}));
+  writeFileSync(join(source,'driver-startup-attempt-1.log'),'Bootstrap timeout '+privateValue+' Bearer synthetic-startup-token');
   writeFileSync(join(source,'results.xml'),'<testsuites><testsuite failures="1"><failure>'+privateValue+'</failure></testsuite></testsuites>');
   writeFileSync(join(source,'step-005-inputText-private.png'),privateValue);
   execFileSync(process.execPath,[new URL('../scripts/mobile-integration/sanitize-evidence.mjs',import.meta.url).pathname,'ios',source,target],{env:{...process.env,RUNNER_TEMP:dir,LOGIN_A_PASSWORD:privateValue,CUSTOMER_A:customer}});
@@ -129,6 +130,9 @@ test('native failure diagnostics export fixed booleans without private hierarchy
   assert.ok(Object.values(flags).every(value=>typeof value==='boolean'));
   assert.equal(flags.failureReported,true);assert.equal(flags.hierarchyAvailable,true);assert.equal(flags.knownReadErrorTextPresent,true);assert.equal(flags.loginHeadingPresent,true);assert.equal(flags.customerAReferencePresent,true);assert.equal(flags.customerBReferencePresent,false);assert.equal(flags.visibilityEstablished,false);
   assert.ok(!raw.includes(privateValue)&&!raw.includes(customer));assert.ok(!readFileSync(join(target,'results.xml'),'utf8').includes(privateValue));
+  assert.ok(readFileSync(join(target,'driver-startup-attempt-1.log'),'utf8').includes('Bootstrap timeout'));
+  assert.ok(!readFileSync(join(target,'driver-startup-attempt-1.log'),'utf8').includes(privateValue));
+  assert.ok(!readFileSync(join(target,'driver-startup-attempt-1.log'),'utf8').includes('synthetic-startup-token'));
   assert.ok(!existsSync(join(target,'commands.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.png')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });

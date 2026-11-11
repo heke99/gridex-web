@@ -321,10 +321,48 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: ${NOTICE_B}
     direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "customer-notifications-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Markera som läst"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: "Markera som läst"
 - extendedWaitUntil:
-    notVisible: "Markera som läst"
+    visible:
+      id: "customer-notifications-idle"
     timeout: 60000
+- scrollUntilVisible:
+    element: "Läst: [0-9]{4}-.*"
+    direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Hämta igen"
+- extendedWaitUntil:
+    visible:
+      id: "customer-notifications-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${NOTICE_B}
+    direction: UP
+- scrollUntilVisible:
+    element: "Läst: [0-9]{4}-.*"
+    direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- assertNotVisible: "Markera som läst"
 - takeScreenshot: "notification-read"
 - scrollUntilVisible:
     element: "Dokument"
