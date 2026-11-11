@@ -2,15 +2,23 @@ name: Gridex Android device test APK
 
 on:
   workflow_dispatch:
+    inputs:
+      ios_artifact_run:
+        description: 'Optional same-repository production iOS artifact run for keyboard diagnostics'
+        required: false
+        default: ''
+        type: string
   pull_request:
     paths:
       - '.github/workflows/mobile-device-test.yml'
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   android-device-test:
+    if: ${{ !inputs.ios_artifact_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -59,3 +67,51 @@ jobs:
           path: ${{ runner.temp }}/gridex-device-test/
           if-no-files-found: error
           retention-days: 7
+
+  ios-keyboard-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ios_artifact_run != '' }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      QUALIFICATION_WEB_COMMIT: ${{ github.sha }}
+      GRIDEX_IOS_DIAGNOSTIC: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      CI: '1'
+      EXPO_PUBLIC_CUSTOMER_API_URL: https://gridex.se
+      EXPO_PUBLIC_SUPABASE_URL: https://ayiuxjlfazkjmmtlvhsl.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ujlw8IZgah81tHErkcw2JQ_RL_bkJvV
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: gridex-ios-simulator
+          run-id: ${{ inputs.ios_artifact_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/gridex-ios-artifacts/
+      - name: Verify and reuse the exact native input trees
+        run: bash scripts/mobile-integration/ios-reuse-native.sh
+      - name: Diagnose real keyboard UI using invalid form inputs only
+        run: bash scripts/mobile-integration/ios-smoke.sh
+      - name: Preserve invalid-form diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gridex-ios-keyboard-diagnostic
+          path: ${{ runner.temp }}/gridex-ios-artifacts/
+          retention-days: 7
+      - name: Remove owned simulator
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/gridex-ios-simulator-id"; then
+            xcrun simctl shutdown "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" || true
+            xcrun simctl delete "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" || true
+          fi

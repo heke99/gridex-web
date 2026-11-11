@@ -2,6 +2,12 @@
 set -euo pipefail
 : "${RUNNER_TEMP:?}"
 out="$RUNNER_TEMP/gridex-ios-artifacts"
+if test "${GRIDEX_IOS_DIAGNOSTIC:-false}" = true; then
+  if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then echo 'Keyboard diagnostics cannot run authenticated customer flows.' >&2; exit 1; fi
+  for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD GRIDEX_QUALIFICATION_CONTROL_KEY SUPABASE_SERVICE_ROLE_KEY GRIDEX_API_KEY GRIDEX_CUSTOMER_ASSERTION_PRIVATE_KEY; do
+    if test -n "${!variable:-}"; then echo 'Keyboard diagnostics allow public configuration and invalid form data only.' >&2; exit 1; fi
+  done
+fi
 curl -fsSL --retry 3 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.12.1/maestro.zip -o "$RUNNER_TEMP/maestro.zip"
 printf '%s  %s\n' 54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7 "$RUNNER_TEMP/maestro.zip" | shasum -a 256 -c -
 unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP/gridex-maestro"
@@ -24,6 +30,7 @@ preserve_ui_evidence() {
 }
 trap preserve_ui_evidence EXIT
 flow=scripts/mobile-integration/ios-smoke.yaml
+if test "${GRIDEX_IOS_DIAGNOSTIC:-false}" = true; then flow=scripts/mobile-integration/ios-keyboard-diagnostic.yaml; fi
 environment=(-e "GRIDEX_NATIVE_UI_QUALIFICATION=1")
 if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
   flow=scripts/mobile-integration/ios-customer.yaml
@@ -39,7 +46,7 @@ fi
 MAESTRO_DRIVER_STARTUP_TIMEOUT=180000 "$RUNNER_TEMP/gridex-maestro/maestro/bin/maestro" --device "$simulator" test \
   --format junit --output "$private_ui/results.xml" \
   --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1
-node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
+node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",diagnostic:process.env.GRIDEX_IOS_DIAGNOSTIC==="true",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
 
 test -s "$private_ui/results.xml"
 test -s "$out/simulator-receipt.json"

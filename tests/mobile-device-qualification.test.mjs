@@ -86,3 +86,11 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
   if(outcome===0)assert.ok(existsSync(join(dir,'gridex-ios-artifacts/ui/results.xml')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+for(const extra of [{LOGIN_A_PASSWORD:'SYNTHETIC_DIAGNOSTIC_SECRET'},{GRIDEX_IOS_CUSTOMER_FLOW:'true'}])test('keyboard diagnostics reject private or authenticated flow inputs '+Object.keys(extra)[0],()=>{
+ const directory=mkdtempSync(join(tmpdir(),'gridex-diag-scope-'));
+ try{
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-smoke.sh',import.meta.url).pathname],{env:{...process.env,RUNNER_TEMP:directory,GRIDEX_IOS_DIAGNOSTIC:'true',...extra},encoding:'utf8'});
+  assert.equal(result.status,1);assert.ok(result.stderr.includes('Keyboard diagnostics'));assert.ok(!result.stderr.includes('SYNTHETIC_DIAGNOSTIC_SECRET'));
+ }finally{rmSync(directory,{recursive:true,force:true});}
+});
