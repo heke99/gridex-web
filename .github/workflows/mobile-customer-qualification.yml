@@ -210,6 +210,8 @@ jobs:
           node scripts/mobile-integration/await-artifact.mjs android-customer-terminal "$RUNNER_TEMP/android-terminal"
           source "$RUNNER_TEMP/ios-device.env"
           GRIDEX_IOS_CUSTOMER_FLOW=true bash scripts/mobile-integration/ios-smoke.sh
+          test -s "$RUNNER_TEMP/gridex-ios-artifacts/simulator-receipt.json"
+          test -s "$RUNNER_TEMP/gridex-ios-artifacts/ui/results.xml"
       - name: Record terminal status and remove local credentials
         if: always()
         env:

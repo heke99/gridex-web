@@ -50,7 +50,11 @@ checks PASS. Native search/clear and future market day checks are prepared befor
 the next coherent coupled run; they still need actual device UI verification.
 
 Production-configured iOS run42929886818 on f31e310 passed actual simulator native
-Release build, notched UI/keyboard smoke and unsigned arm64 device archive.
+Release build and unsigned arm64 device archive. Its UI step was falsely green:
+macOS Bash3.2 aborted on an empty array before Maestro and EXIT sanitization masked
+the failure. No simulator receipt/screenshots exist, so UI proof is invalidated.
+The corrected script uses a nonempty environment, preserves failure status, and
+requires JUnit+receipt output; workflow independently requires both files.
 This is neither Apple distribution signing, TestFlight nor physical iPhone proof.
 Android production-configured build42932214860 on f31e310 passed; final updated
 app source still needs its own qualified release artifact and signature checks.

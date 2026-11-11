@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync,chmodSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync,spawnSync,fork} from 'node:child_process';
@@ -58,5 +58,30 @@ test('uploaded evidence removes credential formats even when absent from the env
   for(const sample of samples)assert.ok(!result.includes(sample));
   assert.ok(!result.includes('SYNTHETIC_KEY_BODY'));
   for(const kind of ['DATABASE_URL','JWT','API_KEY','PRIVATE_KEY'])assert.ok(result.includes('[REDACTED_'+kind+']'));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+for(const outcome of [0,7])test('native UI runner requires evidence and preserves exit '+outcome,()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-ui-exit-'));
+ const bin=join(dir,'bin');mkdirSync(bin);
+ const executable=(path,body)=>{writeFileSync(path,'#!/bin/bash\n'+body+'\n');chmodSync(path,0o700);};
+ try{
+  for(const name of ['curl','shasum','unzip'])executable(join(bin,name),'exit 0');
+  executable(join(bin,'xcrun'),`case "$*" in
+   'simctl list devicetypes -j') echo '{"devicetypes":[{"name":"iPhone 17","identifier":"mock-device"}]}' ;;
+   'simctl list runtimes -j') echo '{"runtimes":[{"isAvailable":true,"identifier":"mock-iOS"}]}' ;;
+   'simctl create '*) echo mock-simulator ;;
+  esac`);
+  mkdirSync(join(dir,'gridex-maestro/maestro/bin'),{recursive:true});
+  mkdirSync(join(dir,'gridex-ios-artifacts'));
+  writeFileSync(join(dir,'gridex-ios-app-path'),'/synthetic-only.app');
+  executable(join(dir,'gridex-maestro/maestro/bin/maestro'),`test "\${10}" = '-e' || exit 98
+  test "\${11}" = 'GRIDEX_NATIVE_UI_QUALIFICATION=1' || exit 99
+  ${outcome===0?'printf \'<testsuite tests="1" failures="0"/>\' > "$7"':'true'}
+  exit ${outcome}`);
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-smoke.sh',import.meta.url).pathname],{env:{...process.env,PATH:bin+':'+process.env.PATH,RUNNER_TEMP:dir,GRIDEX_IOS_CUSTOMER_FLOW:'false'},encoding:'utf8'});
+  assert.equal(result.status,outcome,result.stderr);
+  assert.equal(existsSync(join(dir,'gridex-ios-artifacts/simulator-receipt.json')),outcome===0);
+  if(outcome===0)assert.ok(existsSync(join(dir,'gridex-ios-artifacts/ui/results.xml')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });

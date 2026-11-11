@@ -47,7 +47,10 @@ jobs:
         run: bash scripts/mobile-integration/ios-build.sh
       - name: Install and exercise native UI on a notched iPhone simulator
         timeout-minutes: 15
-        run: bash scripts/mobile-integration/ios-smoke.sh
+        run: |
+          bash scripts/mobile-integration/ios-smoke.sh
+          test -s "$RUNNER_TEMP/gridex-ios-artifacts/simulator-receipt.json"
+          test -s "$RUNNER_TEMP/gridex-ios-artifacts/ui/results.xml"
       - name: Build the unsigned physical-device distribution candidate
         if: ${{ !cancelled() && steps.nativebuild.outcome == 'success' }}
         run: bash scripts/mobile-integration/ios-archive.sh

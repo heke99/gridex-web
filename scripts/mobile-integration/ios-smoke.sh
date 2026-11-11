@@ -14,9 +14,15 @@ xcrun simctl bootstatus "$simulator" -b
 xcrun simctl install "$simulator" "$(cat "$RUNNER_TEMP/gridex-ios-app-path")"
 private_ui="$RUNNER_TEMP/gridex-ios-private-ui"
 mkdir -p "$private_ui"
-trap 'node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui"' EXIT
+preserve_ui_evidence() {
+  local result=$?
+  trap - EXIT
+  node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" || result=1
+  exit "$result"
+}
+trap preserve_ui_evidence EXIT
 flow=scripts/mobile-integration/ios-smoke.yaml
-environment=()
+environment=(-e "GRIDEX_NATIVE_UI_QUALIFICATION=1")
 if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
   flow=scripts/mobile-integration/ios-customer.yaml
   for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CUSTOMER_A CUSTOMER_B CONTRACT_A CONTRACT_B SITE_A SITE_B INVOICE_A INVOICE_B DOCUMENT_B NOTICE_B SUPPORT_B; do
@@ -32,3 +38,6 @@ fi
   --format junit --output "$private_ui/results.xml" \
   --test-output-dir "$private_ui" "${environment[@]}" "$flow" > "$private_ui/maestro.log" 2>&1
 node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
+
+test -s "$private_ui/results.xml"
+test -s "$out/simulator-receipt.json"
