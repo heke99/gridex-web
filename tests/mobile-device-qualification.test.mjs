@@ -247,3 +247,34 @@ test('Auth observation forwards original streamed bytes exactly once, including 
   const raw=readFileSync(file,'utf8');assert.ok(!raw.includes(password)&&!raw.includes(email)&&!raw.includes('unknown'));assert.equal(JSON.parse(raw).length,2);
  }finally{await new Promise(resolve=>proxy.close(resolve));await new Promise(resolve=>upstream.close(resolve));rmSync(directory,{recursive:true,force:true});}
 });
+
+test('external browser observation accepts the measured 22.7-second cold start within a bounded minute',async()=>{
+ const {awaitBrowserObservation,invoicePdfMatcher}=await import('../scripts/mobile-integration/browser-observations.mjs');const reference='document_'+'a'.repeat(32);let clock=0;
+ const read=()=>clock>=22678?[{reference,platform:'ios',authorizationPresent:false}]:[];
+ const options={now:()=>clock,sleep:async ms=>{clock+=ms;}};
+ assert.equal(await awaitBrowserObservation(read,invoicePdfMatcher(reference),{...options,timeoutMs:20000}),false);assert.equal(clock,20000);
+ clock=0;assert.equal(await awaitBrowserObservation(read,invoicePdfMatcher(reference),options),true);assert.equal(clock,23000);
+});
+test('external browser observation rejects missing, foreign, wrong-platform and credential-bearing requests',async()=>{
+ const {awaitBrowserObservation,invoicePdfMatcher,handoffMatcher}=await import('../scripts/mobile-integration/browser-observations.mjs');const reference='document_'+'a'.repeat(32);let clock=0;
+ const rows=[{reference:'document_'+'b'.repeat(32),platform:'ios',authorizationPresent:false},{reference,platform:'android',authorizationPresent:false},{reference,platform:'ios',authorizationPresent:true},{reference,platform:'ios'}];
+ assert.equal(await awaitBrowserObservation(()=>rows,invoicePdfMatcher(reference),{now:()=>clock,sleep:async ms=>{clock+=ms;}}),false);assert.equal(clock,60000);
+ const match=handoffMatcher('/dashboard/support');assert.equal(match({path:'/dashboard/contracts',platform:'ios',credentialPresent:false}),false);assert.equal(match({path:'/dashboard/support',platform:'android',credentialPresent:false}),false);assert.equal(match({path:'/dashboard/support',platform:'ios',credentialPresent:true}),false);assert.equal(match({path:'/dashboard/support',platform:'ios',credentialPresent:false}),true);
+ assert.throws(()=>invoicePdfMatcher(undefined));assert.throws(()=>handoffMatcher('/unknown'));
+});
+
+test('repeated external handoff requires a new matching browser request after the snapshot',async()=>{
+ const {awaitBrowserObservation,handoffMatcher}=await import('../scripts/mobile-integration/browser-observations.mjs');const matches=handoffMatcher('/dashboard/support');const row={path:'/dashboard/support',platform:'ios',credentialPresent:false};let clock=0;
+ const options={afterCount:1,now:()=>clock,sleep:async ms=>{clock+=ms;}};
+ assert.equal(await awaitBrowserObservation(()=>[row],matches,options),false);assert.equal(clock,60000);
+ clock=0;assert.equal(await awaitBrowserObservation(()=>clock>=1500?[row,row]:[row],matches,options),true);assert.equal(clock,1500);
+ clock=0;assert.equal(await awaitBrowserObservation(()=>[row,{...row,credentialPresent:true},{...row,path:'/dashboard/contracts'}],matches,options),false);assert.equal(clock,60000);
+});
+test('Maestro control script binds the browser baseline to its handoff kind',()=>{
+ const vmScript=readFileSync(new URL('../scripts/mobile-integration/ios-control.js',import.meta.url),'utf8');
+ const run=new Function('ACTION','output','http','CUSTOMER_ORIGIN','CONTROL_KEY','json',vmScript);const output={};const calls=[];
+ const http={post:(_url,options)=>{calls.push(JSON.parse(options.body));return {status:200,body:JSON.stringify({passed:true,count:10,handoffCount:1})};}};
+ run('snapshot-handoff-support',output,http,'https://synthetic.invalid','SYNTHETIC_CONTROL',JSON.parse);
+ assert.throws(()=>run('assert-handoff-contracts',output,http,'https://synthetic.invalid','SYNTHETIC_CONTROL',JSON.parse),/Missing matching handoff baseline/);assert.equal(calls.length,1);
+ run('assert-handoff-support',output,http,'https://synthetic.invalid','SYNTHETIC_CONTROL',JSON.parse);assert.deepEqual(calls.at(-1),{action:'assert-handoff-support',previous:1});
+});

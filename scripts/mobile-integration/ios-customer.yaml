@@ -468,6 +468,10 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Öppna kundservice på webben"
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-support
 - tapOn: "Öppna kundservice på webben"
 - runScript:
     file: ios-control.js
@@ -669,7 +673,15 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Glömt lösenord? Återställ på hemsidan"
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-recovery
 - tapOn: "Glömt lösenord? Återställ på hemsidan"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-recovery
 - extendedWaitUntil:
     visible: "Återställ lösenord"
     timeout: 60000
@@ -680,6 +692,10 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Teckna nytt elavtal.*"
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-signup
 - tapOn: "Teckna nytt elavtal.*"
 - runScript:
     file: ios-control.js
@@ -689,6 +705,10 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Visa befintliga avtal.*"
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-contracts
 - tapOn: "Visa befintliga avtal.*"
 - runScript:
     file: ios-control.js
@@ -698,6 +718,10 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Få hjälp att byta avtal.*"
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-support
 - tapOn: "Få hjälp att byta avtal.*"
 - runScript:
     file: ios-control.js

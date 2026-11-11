@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const actions = new Set(['snapshot','assert-fresh','disconnect','reconnect','wait-expiry-tick','revoke-b','disable-document-b','restore-document-b','assert-invoice-pdf-a','assert-invoice-pdf-b','assert-handoff-recovery','assert-handoff-signup','assert-handoff-contracts','assert-handoff-support','disconnect-market','reconnect-market']);
+const actions = new Set(['snapshot','snapshot-handoff-recovery','snapshot-handoff-signup','snapshot-handoff-contracts','snapshot-handoff-support','assert-fresh','disconnect','reconnect','wait-expiry-tick','revoke-b','disable-document-b','restore-document-b','assert-invoice-pdf-a','assert-invoice-pdf-b','assert-handoff-recovery','assert-handoff-signup','assert-handoff-contracts','assert-handoff-support','disconnect-market','reconnect-market']);
 const outcomes = new Set(['started','passed','failed']);
 /** Fixed public enums and timestamps only; never log a control body or header. */
 export function recordControlObservation(action, outcome, directory = process.env.RUNNER_TEMP) {

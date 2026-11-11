@@ -5,6 +5,7 @@ import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {timingSafeEqual} from 'node:crypto';
 import {recordControlObservation} from './control-observations.mjs';
 import {observeAuthRequest} from './auth-observations.mjs';
+import {awaitBrowserObservation,invoicePdfMatcher,handoffMatcher} from './browser-observations.mjs';
 const auth=new Map([['/auth/v1/token',['POST']],['/auth/v1/user',['GET']],['/auth/v1/logout',['POST']]]);
 const platform=agent=>/Android|okhttp/i.test(agent??'')?'android':/iPhone|iPad|CFNetwork|Darwin/.test(agent??'')?'ios':'other';
 let disconnected=false,marketDisconnected=false,disabledDocumentCount=null;
@@ -22,6 +23,7 @@ const server=createServer(async(incoming,outgoing)=>{
   if(!expected.length||expected.length!==supplied.length||!timingSafeEqual(expected,supplied)){outgoing.writeHead(404).end();return;}
   let controlAction;
   try{
+   let handoffCount;
    let data='';for await(const part of incoming){data+=part;if(data.length>1024)throw Error('Too large');}
    const controlOrigin=new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);if(controlOrigin.hostname!=='127.0.0.1'||controlOrigin.port!=='54321')throw Error('Controls require disposable loopback Auth');
    const input=JSON.parse(data);controlAction=input.action;recordControlObservation(controlAction,'started');const fixture=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/mobile-fixtures/customers.json','utf8'));
@@ -44,15 +46,20 @@ const server=createServer(async(incoming,outgoing)=>{
     const r=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,'content-type':'application/json'},body:JSON.stringify(user.login),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('Synthetic session unavailable');const session=await r.json();
     const revoked=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/auth/v1/logout?scope=global',{method:'POST',headers:{apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,authorization:'Bearer '+session.access_token},signal:AbortSignal.timeout(10000)});if(!revoked.ok)throw Error('Synthetic revocation failed');
    }else if(/^assert-invoice-pdf-[ab]$/.test(input.action)){
-    const user=fixture.customers.find(u=>u.label===input.action.slice(-1).toUpperCase());const report=process.env.RUNNER_TEMP+'/mobile-document-requests.json';let observed=false;
-    for(let n=0;n<40;n++){const rows=existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[];if(rows.some(r=>r.reference===user.extra.invoiceDocument&&r.platform==='ios'&&!r.authorizationPresent)){observed=true;break;}await new Promise(resolve=>setTimeout(resolve,500));}
+    const user=fixture.customers.find(u=>u.label===input.action.slice(-1).toUpperCase());const report=process.env.RUNNER_TEMP+'/mobile-document-requests.json';
+    const observed=await awaitBrowserObservation(()=>existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[],invoicePdfMatcher(user.extra.invoiceDocument));
     if(!observed)throw Error('No actual invoice PDF browser request');
-   }else if(input.action.startsWith('assert-handoff-')){
+   }else if(/^(snapshot|assert)-handoff-/.test(input.action)){
     const paths={recovery:'/login/forgot-password',signup:'/teckna',contracts:'/dashboard/contracts',support:'/dashboard/support'};
-    const expectedPath=paths[input.action.slice('assert-handoff-'.length)];if(!expectedPath)throw Error('Unknown handoff');
-    let found=false;const report=process.env.RUNNER_TEMP+'/mobile-handoff-requests.json';
-    for(let n=0;n<20;n++){const rows=existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[];if(rows.some(r=>r.path===expectedPath&&r.platform==='ios'&&!r.credentialPresent)){found=true;break;}await new Promise(resolve=>setTimeout(resolve,500));}
-    if(!found)throw Error('Native external handoff not observed');
+    const expectedPath=paths[input.action.replace(/^(snapshot|assert)-handoff-/,'')];if(!expectedPath)throw Error('Unknown handoff');
+    const report=process.env.RUNNER_TEMP+'/mobile-handoff-requests.json';
+    const readRows=()=>existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[],matches=handoffMatcher(expectedPath);
+    if(input.action.startsWith('snapshot-'))handoffCount=readRows().filter(matches).length;
+    else{
+     if(!Number.isInteger(input.previous)||input.previous<0||input.previous>100000)throw Error('Invalid handoff baseline');
+     const found=await awaitBrowserObservation(readRows,matches,{afterCount:input.previous});
+     if(!found)throw Error('Fresh native external handoff not observed');
+    }
    }else if(!['snapshot','assert-fresh'].includes(input.action))throw Error('Unknown control');
    let observed=await count();
    if(input.action==='assert-fresh'){
@@ -61,7 +68,7 @@ const server=createServer(async(incoming,outgoing)=>{
     if(observed<=input.previous)throw Error('No fresh OPS read observed');
    }
    recordControlObservation(controlAction,'passed');
-   outgoing.writeHead(200,{'content-type':'application/json','cache-control':'no-store'}).end(JSON.stringify({passed:true,count:observed}));
+   outgoing.writeHead(200,{'content-type':'application/json','cache-control':'no-store'}).end(JSON.stringify({passed:true,count:observed,...(handoffCount===undefined?{}:{handoffCount})}));
   }catch{try{recordControlObservation(controlAction,'failed');}catch{}outgoing.writeHead(503,{'content-type':'application/json','cache-control':'no-store'}).end('{"passed":false}');}
   return;
  }
