@@ -168,3 +168,46 @@ test('control observations record only known action/outcome enums and numeric ti
   assert.deepEqual(safe.map(row=>[row.action,row.outcome]),[['snapshot','started'],['snapshot','passed'],['assert-fresh','failed']]);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+for(const stage of ['listing','download'])test('sibling artifact '+stage+' transient errors retry without publishing partial files',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');
+ const dir=mkdtempSync(join(tmpdir(),'gridex-artifact-retry-')),target=join(dir,'received');let clock=0,listings=0,downloads=0;
+ try{
+  await awaitArtifact('android-customer-terminal',target,{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args,options)=>{
+   assert.ok(options.timeout>0&&options.timeout<=60000);
+   if(args[0]==='api'){if(++listings===1&&stage==='listing')throw Error('PRIVATE_UPSTREAM_FAILURE');return JSON.stringify({artifacts:[{name:'android-customer-terminal',expired:false}]});}
+   const output=args.at(-1);if(++downloads===1&&stage==='download'){writeFileSync(join(output,'partial.txt'),'PRIVATE_PARTIAL_DOWNLOAD');throw Error('PRIVATE_UPSTREAM_FAILURE');}
+   writeFileSync(join(output,'result.json'),'{"status":"success"}');
+  }});
+  assert.equal(readFileSync(join(target,'result.json'),'utf8'),'{"status":"success"}');assert.ok(!existsSync(join(target,'partial.txt')));
+  assert.equal(listings,stage==='listing'?2:1);assert.equal(downloads,stage==='download'?2:1);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+test('sibling artifact repeated failures remain terminal and do not expose upstream output',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-artifact-fail-'));let clock=0,calls=0;
+ try{
+  await assert.rejects(awaitArtifact('android-customer-terminal',join(dir,'received'),{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:()=>{calls++;throw Error('PRIVATE_UPSTREAM_FAILURE');}}),error=>error.message==='Sibling artifact listing unavailable after bounded retries');assert.equal(calls,6);
+  assert.ok(!existsSync(join(dir,'received/result.json')));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+test('sibling artifact wait accepts late Android terminal but stops at its overall deadline',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-artifact-deadline-'));let clock=0;
+ try{
+  await awaitArtifact('android-customer-terminal',join(dir,'late'),{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args)=>{
+   if(args[0]==='api')return JSON.stringify({artifacts:clock>=26*60000?[{name:'android-customer-terminal'}]:[]});
+   writeFileSync(join(args.at(-1),'result.json'),'{}');
+  }});assert.ok(existsSync(join(dir,'late/result.json')));
+  clock=0;await assert.rejects(awaitArtifact('android-customer-terminal',join(dir,'missing'),{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:()=>'{"artifacts":[]}'}),/Timed out waiting/);assert.equal(clock,40*60000);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+for(const failure of ['persistent','empty'])test('sibling download '+failure+' never publishes incomplete evidence',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-artifact-download-fail-'));let clock=0,downloads=0;
+ try{
+  await assert.rejects(awaitArtifact('ios-customer-terminal',join(dir,'received'),{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args)=>{
+   if(args[0]==='api')return '{"artifacts":[{"name":"ios-customer-terminal"}]}';
+   downloads++;if(failure==='persistent'){writeFileSync(join(args.at(-1),'partial.txt'),'PRIVATE_PARTIAL');throw Error('PRIVATE_UPSTREAM_FAILURE');}
+  }}),failure==='persistent'?/download unavailable after bounded retries/:/Downloaded artifact is empty/);
+  assert.equal(downloads,failure==='persistent'?6:1);assert.equal(existsSync(join(dir,'received/partial.txt')),false);
+  assert.deepEqual((await import('node:fs')).readdirSync(dir),['received']);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
