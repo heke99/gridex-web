@@ -42,9 +42,25 @@ for(const [i,u]of f.customers.entries()){
   for(let n=0;n<2;n++){const r=await call(u,'/support',{title,message},key);assert.equal(r.status,201);assert.equal(r.body.data.accepted,true);}
   const list=await call(u,'/support');assert.equal(list.status,200);const matches=list.body.data.support.filter(c=>c.title===title);assert.equal(matches.length,1);const reference=matches[0].reference;
   u.extra.support=reference;u.extra.supportTitle=title;
+  const internal=u.number+'-INTERNAL-NEVER-PUBLIC',staff=u.number+'-PUBLIC-STAFF';
+  assert.match(f.companyId,/^[a-f0-9-]{36}$/);
+  const q=v=>"'"+String(v).replaceAll("'","''")+"'";
+  const db=new URL(process.env.DB_URL);assert.equal(db.hostname,'127.0.0.1');assert.equal(db.port,'54322');
+  execFileSync('psql',[process.env.DB_URL,'-X','-q','-v','ON_ERROR_STOP=1'],{input:`INSERT INTO public.customer_case_events(company_id,customer_case_id,customer_id,event_type,message,payload) SELECT company_id,id,customer_id,event_type,message,payload::jsonb FROM public.customer_cases CROSS JOIN (VALUES ('support_internal_note',${q(internal)},'{"visibility":"internal"}'),('support_staff_reply',${q(staff)},'{"visibility":"customer"}')) AS events(event_type,message,payload) WHERE company_id=${q(f.companyId)} AND title=${q(title)};`,stdio:['pipe','ignore','pipe']});
+  u.extra.publicStaffReply=staff;
+  const refs=new Set();let page=list;
+  for(let n=0;n<5;n++){
+   assert.equal(page.status,200);
+   for(const row of page.body.data.support){assert.ok(!refs.has(row.reference));refs.add(row.reference);assert.ok(!JSON.stringify(row).includes(other.number));}
+   const cursor=page.body.page?.nextCursor; if(!cursor)break;
+   const foreignCursor=await call(other,'/support?cursor='+encodeURIComponent(cursor));assert.ok([400,403,404,503].includes(foreignCursor.status));assert.deepEqual(Object.keys(foreignCursor.body),['error']);
+   page=await call(u,'/support?cursor='+encodeURIComponent(cursor));
+  }
+  assert.equal(refs.size,52,'All52 owned cases exactly once');assert.equal(page.body.page?.nextCursor??null,null);
+
   const reply=u.number+'-REPLY',replyKey=randomUUID();
   for(let n=0;n<2;n++){const r=await call(u,'/support/'+reference+'/messages',{message:reply},replyKey);assert.equal(r.status,201);}
-  const detail=await call(u,'/support/'+reference);assert.equal(detail.status,200);const content=JSON.stringify(detail.body);assert.ok(content.includes(reply));assert.ok(!content.includes(other.number));assert.equal(detail.body.data.supportDetail[0].messages.filter(m=>m.body===reply).length,1);
+  const detail=await call(u,'/support/'+reference);assert.equal(detail.status,200);const content=JSON.stringify(detail.body);assert.ok(content.includes(reply));assert.ok(content.includes(staff));assert.ok(!content.includes(internal));assert.ok(!content.includes(other.number));assert.equal(detail.body.data.supportDetail[0].messages.filter(m=>m.body===reply).length,1);
   const denied=await call(other,'/support/'+reference);assert.ok([403,404,503].includes(denied.status));assert.deepEqual(Object.keys(denied.body),['error']);
   const foreignMessage='FOREIGN-WRITE-'+randomUUID();const forbidden=await call(other,'/support/'+reference+'/messages',{message:foreignMessage});assert.ok([403,404,503].includes(forbidden.status));assert.deepEqual(Object.keys(forbidden.body),['error']);
   assert.ok(!JSON.stringify((await call(u,'/support/'+reference)).body).includes(foreignMessage));

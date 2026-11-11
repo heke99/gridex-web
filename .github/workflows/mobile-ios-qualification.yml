@@ -19,6 +19,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     env:
+      QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: '1'
       MAESTRO_CLI_NO_ANALYTICS: '1'
       EXPO_NO_TELEMETRY: '1'

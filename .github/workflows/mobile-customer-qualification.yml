@@ -104,7 +104,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
-          script: source "$RUNNER_TEMP/mobile-runtime.env" && export EXPO_PUBLIC_CONTRACT_WEB_ORIGIN="$GRIDEX_DEVICE_PUBLIC_ORIGIN" && bash scripts/mobile-android-build.sh && node gridex-web/scripts/mobile-integration/verify-test-apk.mjs "$RUNNER_TEMP/mobile-fixtures/customers.json" && python3 scripts/mobile-android-emulator.py "$RUNNER_TEMP/mobile-fixtures/customers.json" && python3 gridex-web/scripts/mobile-integration/android-features.py "$RUNNER_TEMP/mobile-fixtures/customers.json"
+          script: bash gridex-web/scripts/mobile-integration/android-qualify.sh
       - name: Record Android terminal status before iOS session tests
         if: always()
         env:

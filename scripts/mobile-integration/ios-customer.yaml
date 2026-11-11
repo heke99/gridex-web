@@ -61,6 +61,25 @@ appId: se.gridex.el.dev
     direction: DOWN
 - takeScreenshot: "a-invoice"
 - scrollUntilVisible:
+    element: ${INVOICE_LINE_A}
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: DOWN
+- tapOn: "Öppna dokument i extern läsare"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-invoice-pdf-a
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- scrollUntilVisible:
+    element: ${INVOICE_A}
+    direction: UP
+- takeScreenshot: "a-invoice-pdf-return"
+
+- scrollUntilVisible:
     element: "Logga ut"
     direction: DOWN
 - tapOn: "Logga ut"
@@ -127,6 +146,25 @@ appId: se.gridex.el.dev
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
 - takeScreenshot: "b-invoice-no-a-data"
+- scrollUntilVisible:
+    element: ${INVOICE_LINE_B}
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: DOWN
+- tapOn: "Öppna dokument i extern läsare"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-invoice-pdf-b
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- scrollUntilVisible:
+    element: ${INVOICE_B}
+    direction: UP
+- takeScreenshot: "b-invoice-pdf-return"
+
 - runScript:
     file: ios-control.js
     env:
@@ -239,6 +277,26 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: ${DOCUMENT_B}
     direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disable-document-b
+- tapOn: "Öppna dokument i extern läsare"
+- scrollUntilVisible:
+    element: "Dokumentet kunde inte öppnas.*"
+    direction: DOWN
+- takeScreenshot: "document-stale-link-denied"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: restore-document-b
+- scrollUntilVisible:
+    element: "Hämta igen"
+    direction: DOWN
+- tapOn: "Hämta igen"
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: UP
 - tapOn: "Öppna dokument i extern läsare"
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
@@ -268,6 +326,37 @@ appId: se.gridex.el.dev
     direction: UP
 - tapOn: "Support"
 - scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
+- tapOn: "Sök bland hämtade ärenden"
+- inputText: ${SUPPORT_B}
+- tapOn: "Stäng tangentbord"
+- scrollUntilVisible:
+    element: "Visa fler ärenden"
+    direction: DOWN
+- tapOn: "Visa fler ärenden"
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: UP
+- tapOn: "Sök bland hämtade ärenden"
+- eraseText: 160
+- inputText: ${SUPPORT_LAST_B}
+- tapOn: "Stäng tangentbord"
+- scrollUntilVisible:
+    element: ${SUPPORT_LAST_B}
+    direction: DOWN
+- takeScreenshot: "support-continuation-last"
+- scrollUntilVisible:
+    element: "resolved"
+    direction: UP
+- tapOn: "resolved"
+- assertVisible: "Inga hämtade poster matchar ditt val."
+- takeScreenshot: "support-status-filter"
+- tapOn: "Rensa sökning och filter"
+- tapOn: "Sök bland hämtade ärenden"
+- inputText: ${SUPPORT_B}
+- tapOn: "Stäng tangentbord"
+- scrollUntilVisible:
     element: ${SUPPORT_B}
     direction: DOWN
 - tapOn:
@@ -277,6 +366,23 @@ appId: se.gridex.el.dev
     element: ".*REPLY.*"
     direction: DOWN
 - takeScreenshot: "support-public-reply"
+- assertNotVisible: ".*INTERNAL-NEVER-PUBLIC.*"
+- scrollUntilVisible:
+    element: ".*PUBLIC-STAFF.*"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna kundservice på webben"
+    direction: DOWN
+- tapOn: "Öppna kundservice på webben"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-support
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- takeScreenshot: "support-detail-web-return"
+
 - scrollUntilVisible:
     element: "Meddelande till kundservice"
     direction: UP
@@ -299,6 +405,13 @@ appId: se.gridex.el.dev
     element: "← Alla ärenden"
     direction: UP
 - tapOn: "← Alla ärenden"
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: UP
+- tapOn: "Sök bland hämtade ärenden"
+- eraseText: 160
+- inputText: "Synthetic iOS new B"
+- tapOn: "Stäng tangentbord"
 - scrollUntilVisible:
     element: "Ärendets rubrik"
     direction: DOWN
@@ -370,6 +483,28 @@ appId: se.gridex.el.dev
 - tapOn: "Visa alla [0-9]+ intervallpriser"
 - assertVisible: "Dölj intervallpriser"
 - takeScreenshot: "public-market-prices"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disconnect-market
+- scrollUntilVisible:
+    element: "Uppdatera elpriser"
+    direction: UP
+- tapOn: "Uppdatera elpriser"
+- extendedWaitUntil:
+    visible: "Elpriserna kunde inte hämtas. Försök igen."
+    timeout: 30000
+- takeScreenshot: "market-network-error"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: reconnect-market
+- tapOn: "Uppdatera elpriser"
+- scrollUntilVisible:
+    element: "${MARKET_DATE} · SE4"
+    direction: DOWN
+- takeScreenshot: "market-retry-recovery"
+
 - scrollUntilVisible:
     element: "Imorgon"
     direction: UP

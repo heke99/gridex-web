@@ -84,3 +84,29 @@ Next: bind two static reviews to the final commit, push and follow the coherent
 coupled run to terminal; fix real
 failures, repeat affected and final coherent acceptance. Get two exact final
 reviews. Do not call both platforms ready while consumption/Apple/device gaps remain.
+
+
+## Follow-up after actual0ca run
+
+42936011139 passed real shared-backend HTTP/core/extras/writes/replay/foreign
+checks, but native verification failed. Android action uses /bin/sh; `source`
+failed127 before build. An explicit Bash-owned runner fixes the actual boundary.
+iOS shared flow failed starting XCTest driver; bounded startup allowance now180s.
+Production smoke42936011277 failed finding keyboard accessory after password;
+actual UI proof remains absent. Simulator now explicitly disconnects hardware
+keyboard so acceptance exercises the on-screen keyboard.
+
+OPS1047 merged normally asd93f361c51e81bc49cd48e817bd0b0fbe65e3d5b,
+exacttree2c51fb1c19c33fe25221690700d0e5a927480a87 of6819. All gates,
+including pr-certificate, green; actual clean artifact has31browserPASS and
+25057unitPASS/4existing skips. Own mergerole released FIRST and own source claims
+released receipt-matching; foreign refs untouched. No OPS production publication.
+
+Requirements review found feasible extra E2E gaps despite existing unit tests.
+Before next coherent run the harness now also prepares invoice lines/PDF own/
+foreign reads and real external browser requests;52 own support cases with actual
+cursor/no-overlap/cross-customer cursor denial; public staffreply/internal-note
+sentinel; support detail web handoff; native statusfilter; stale customer-document
+URL fresh denial/no external request then restore; price-network error/retry.
+These additions are pending actual CI qualification. They are not additional
+external prerequisites and must be followed to terminal results.

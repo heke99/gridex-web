@@ -32,8 +32,8 @@ test('sibling-job identities are source-bound and authenticated-encrypted; privi
 });
 test('public synthetic gateway denies Auth admin, signup, raw database and OPS access',async()=>{
  const directory=mkdtempSync(join(tmpdir(),'gridex-gateway-'));mkdirSync(join(directory,'mobile-fixtures'));
- const reference='document_'+'a'.repeat(32);
- writeFileSync(join(directory,'mobile-fixtures/customers.json'),JSON.stringify({customers:[{label:'A',extra:{document:reference}}]}));
+ const reference='document_'+'a'.repeat(32),invoiceReference='document_'+'b'.repeat(32);
+ writeFileSync(join(directory,'mobile-fixtures/customers.json'),JSON.stringify({customers:[{label:'A',extra:{document:reference,invoiceDocument:invoiceReference}}]}));
  const child=fork(new URL('../scripts/mobile-integration/device-gateway.mjs',import.meta.url),[],{env:{...process.env,RUNNER_TEMP:directory,GRIDEX_QUALIFICATION_GATEWAY_PORT:'0'},stdio:['ignore','ignore','ignore','ipc']});
  try{
   const [{port}]=await Promise.race([once(child,'message'),new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('Gateway startup timeout')),5000);t.unref();})]);
@@ -43,6 +43,7 @@ test('public synthetic gateway denies Auth admin, signup, raw database and OPS a
   assert.equal((await fetch(origin+'/api/mobile/customer/profile',{method:'DELETE'})).status,404);
   assert.equal((await fetch(origin+'/qualification-control',{method:'POST',body:'{}'})).status,404);
   const pdf=await fetch(origin+'/qualification-document/'+reference);assert.equal(pdf.status,200);assert.equal(pdf.headers.get('content-type'),'application/pdf');assert.ok((await pdf.text()).startsWith('%PDF-1.4'));
+  const invoicePdf=await fetch(origin+'/qualification-document/'+invoiceReference);assert.equal(invoicePdf.status,200);assert.ok((await invoicePdf.text()).startsWith('%PDF-1.4'));
   assert.equal((await fetch(origin+'/qualification-document/'+reference,{headers:{authorization:'Bearer DUMMY-TEST-ONLY'}})).status,400);
  }finally{child.kill();await once(child,'exit');rmSync(directory,{recursive:true,force:true});}
 });
@@ -66,7 +67,7 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
  const bin=join(dir,'bin');mkdirSync(bin);
  const executable=(path,body)=>{writeFileSync(path,'#!/bin/bash\n'+body+'\n');chmodSync(path,0o700);};
  try{
-  for(const name of ['curl','shasum','unzip'])executable(join(bin,name),'exit 0');
+  for(const name of ['curl','shasum','unzip','defaults'])executable(join(bin,name),'exit 0');
   executable(join(bin,'xcrun'),`case "$*" in
    'simctl list devicetypes -j') echo '{"devicetypes":[{"name":"iPhone 17","identifier":"mock-device"}]}' ;;
    'simctl list runtimes -j') echo '{"runtimes":[{"isAvailable":true,"identifier":"mock-iOS"}]}' ;;
