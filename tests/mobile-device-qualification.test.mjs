@@ -5,7 +5,51 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync,spawnSync,fork} from 'node:child_process';
 import {once} from 'node:events';
+import {createServer} from 'node:http';
 const cryptoScript=new URL('../scripts/mobile-integration/device-fixture.mjs',import.meta.url).pathname;
+test('document control restores the original URL when the gateway predates the tunnel environment',async()=>{
+ const directory=mkdtempSync(join(tmpdir(),'gridex-document-control-'));mkdirSync(join(directory,'mobile-fixtures'));
+ const reference='document_'+'d'.repeat(32),title='SYNTHETIC_B_DOCUMENT',company='SYNTHETIC_COMPANY';
+ const original='https://synthetic-doc.trycloudflare.com/qualification-document/'+reference,id='00000000-0000-4000-8000-000000000001';
+ writeFileSync(join(directory,'mobile-fixtures/customers.json'),JSON.stringify({companyId:company,customers:[{label:'B',extra:{document:reference,documentTitle:title}}]}));
+ let publicUrl=original;const patches=[];
+ const database=createServer((req,res)=>{void(async()=>{
+  const url=new URL(req.url,'http://127.0.0.1');res.setHeader('content-type','application/json');
+  if(url.pathname==='/rest/v1/integration_api_requests'){res.end('[]');return;}
+  assert.equal(url.pathname,'/rest/v1/customer_documents');assert.equal(url.searchParams.get('company_id'),'eq.'+company);assert.equal(url.searchParams.get('title'),'eq.'+title);
+  if(req.method==='PATCH'){assert.equal(url.searchParams.get('id'),'eq.'+id);let raw='';for await(const chunk of req)raw+=chunk;publicUrl=JSON.parse(raw).public_url;patches.push(publicUrl);}
+  else assert.equal(url.searchParams.get('select'),'id,public_url');
+  res.end(JSON.stringify([{id,public_url:publicUrl}]));
+ })().catch(()=>{res.statusCode=500;res.end('{}');});});
+ let child;
+ try{
+  await new Promise((resolve,reject)=>{database.once('error',reject);database.listen(54321,'127.0.0.1',resolve);});
+  const env={...process.env,RUNNER_TEMP:directory,GRIDEX_QUALIFICATION_GATEWAY_PORT:'0',NEXT_PUBLIC_SUPABASE_URL:'http://127.0.0.1:54321',SUPABASE_SERVICE_ROLE_KEY:'SYNTHETIC_SERVICE_ONLY',GRIDEX_QUALIFICATION_CONTROL_KEY:'SYNTHETIC_CONTROL_ONLY'};delete env.GRIDEX_DEVICE_PUBLIC_ORIGIN;
+  child=fork(new URL('../scripts/mobile-integration/device-gateway.mjs',import.meta.url),[],{env,stdio:['ignore','ignore','ignore','ipc']});
+  const [{port}]=await Promise.race([once(child,'message'),new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('Gateway startup timeout')),5000);t.unref();})]);
+  const control=action=>fetch('http://127.0.0.1:'+port+'/qualification-control',{method:'POST',headers:{'content-type':'application/json','x-qualification-control':'SYNTHETIC_CONTROL_ONLY'},body:JSON.stringify({action})});
+  assert.equal((await control('restore-document-b')).status,503);assert.deepEqual(patches,[]);
+  assert.equal((await control('disable-document-b')).status,200);assert.equal(publicUrl,null);
+  assert.equal((await control('disable-document-b')).status,503);assert.deepEqual(patches,[null]);
+  assert.equal((await control('restore-document-b')).status,200);assert.equal(publicUrl,original);assert.deepEqual(patches,[null,original]);
+  assert.equal((await control('restore-document-b')).status,503);assert.deepEqual(patches,[null,original]);
+  assert.equal((await control('disable-document-b')).status,200);
+  assert.equal((await fetch('http://127.0.0.1:'+port+'/qualification-document/'+reference,{headers:{'user-agent':'CFNetwork'}})).status,200);
+  assert.equal((await control('restore-document-b')).status,503);assert.equal(publicUrl,null);assert.deepEqual(patches,[null,original,null]);
+ }finally{
+  if(child){child.kill();await once(child,'exit');}
+  if(database.listening)await new Promise(resolve=>database.close(resolve));rmSync(directory,{recursive:true,force:true});
+ }
+});
+
+test('document control rejects unavailable, ambiguous, foreign and unsafe snapshots',async()=>{
+ const {documentSnapshot}=await import('../scripts/mobile-integration/document-control.mjs');
+ const reference='document_'+'d'.repeat(32),id='00000000-0000-4000-8000-000000000001';
+ const url='https://synthetic-doc.trycloudflare.com/qualification-document/'+reference;
+ assert.deepEqual(documentSnapshot([{id,public_url:url}],reference),{id,publicUrl:url});
+ for(const rows of [[],[{id,public_url:url},{id,public_url:url}],null,[{id,public_url:null}],[{id:'foreign-row',public_url:url}]])assert.throws(()=>documentSnapshot(rows,reference));
+ for(const value of ['undefined/qualification-document/'+reference,'http://synthetic-doc.trycloudflare.com/qualification-document/'+reference,url+'?token=private',url+'#fragment',url.replace('https://','https://user:pass@'),url.replace('.com/','.com:8443/'),url.replace('trycloudflare.com','unapproved.invalid'),url.replace(reference,'document_'+'e'.repeat(32))])assert.throws(()=>documentSnapshot([{id,public_url:value}],reference));
+});
 test('native compiler rejects inherited device credentials before starting Xcode',()=>{
  const directory=mkdtempSync(join(tmpdir(),'gridex-build-env-'));
  try{

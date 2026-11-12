@@ -475,3 +475,65 @@ prices, interval/retry and future publication assertions remain unchanged.
 Calendar-boundary tests cover midnight/date change, year rollover, leap day,
 DST day, invalid dates, unavailable source and absence of phase initialization.
 No production app, gateway, Auth or API behavior changes.
+
+
+### 2026-11-13: fix the original document restore and reuse qualified Android
+
+b270ddf shared run 43317701063 is FAIL with both cleanup steps SUCCESS.
+All five other workflows and Android 77/77 passed and remain approved.
+iOS passed the phone and notification writes/readbacks, then restored the
+document fixture and fetched it successfully but could not find its open action.
+
+The concrete fixture bug is environment ordering: stack.sh starts the gateway
+before exporting GRIDEX_DEVICE_PUBLIC_ORIGIN. The old gateway restore therefore
+wrote the literal undefined/qualification-document/... string. The database
+accepted that text; the Web validator correctly marked the document unavailable.
+A loopback HTTP regression with the origin absent reproduced that exact bad
+value before the fix (RED), then restored the original URL after it (GREEN).
+The control now reads exactly one synthetic row before disable, validates its
+ID/HTTPS tunnel URL/owned document reference, patches by company/title/ID and
+keeps the original snapshot only after a successful disable. Restore requires
+that snapshot and unchanged browser count; double disable/restore is rejected.
+Two focused control tests cover actual GET/PATCH, unsafe/foreign/ambiguous
+snapshots and stale-link browser requests. Production app/API code is unchanged.
+
+Latest user instruction: do not repeat approved Android tests or builds without
+a relevant change. A new stacked qualification PR targets the b270ddf feature
+branch, so its fixture-only diff does not retrigger Android or iOS production
+builds. The shared job authenticates and hashes the immutable reference server
+archive 13993066937 from run43317701063 (SHA256 6623f87fe67f50123798eebaea409a7e65b447be6a83d8394e95c5b48dbefb01),
+verifies b270ddf/OPS6819 and all 13+64 Android checks, credential isolation and
+10 Android system checks. Source equivalence rejects any changed product or
+Android driver input and compares gateway bytes outside the iOS-only document
+control. Qualified reuse skips Android native dependency/preflight/emulator
+steps; source changes require fresh Android, while invalid/unavailable reference
+evidence fails without starting duplicate tests. GitHub reads alone have bounded
+transport retries. Reused receipts explicitly preserve the old source/run.
+
+Fresh HTTP, full iOS journeys and all iOS public-reader observations remain
+mandatory. Current iOS proof cannot be supplied by cached Android observations.
+Seven focused control/reuse regressions pass, including wrong source/OPS,
+missing/failing/duplicate checks, changed proxy/product, digest substitution,
+foreign terminal and absence of fresh iOS observations. Existing b270ddf
+production artifacts and other unaffected results are preserved, not rebuilt.
+
+Main branch metadata currently reports protected=false and no required checks.
+After successful new qualification/reviews, normal merge of PR68 is supported
+by the new proof on identical production code, then the fixture PR is retargeted
+to main and normally merged. This avoids synchronizing the original feature
+branch and triggering its unrelated native builds again. Re-read refs/policy
+before mutation; no forced merge, fabricated status or policy bypass is allowed.
+
+
+The reuse exception also pins the reference workflow bytes
+(11b5a9ded609fb15a0af3529d073eb84d0cb9d9e025b9158a70a7e98821c23b1)
+and reviewed current workflow bytes
+(a73079ca53397ccfbccbf5b72bddd74852169c06518fae9deec8d6a94fecf08e).
+Changed SDK/emulator/Java or any unreviewed workflow bytes cannot reuse
+this proof. These digests are included in the receipt and rechecked before
+importing cached Android system checks. Both independent scoped reviews
+are clear. Only affected control/reuse regressions and changed-file lint
+are repeated; unchanged Android/native/typecheck suites stay approved.
+A local end-to-end proof-gate smoke using the actual pinned public archive
+is required before pushing, to confirm it selects reuse instead of an
+unnecessary Android run.

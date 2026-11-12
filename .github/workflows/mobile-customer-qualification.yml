@@ -32,22 +32,36 @@ jobs:
           ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
           path: gridex-web
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
       - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb
         with:
           version: 2.101.0
-      - name: Install exact locked server and native dependencies
+      - name: Install exact locked server dependencies
         run: |
           npm ci --no-audit --no-fund
           npm ci --prefix gridex-web --no-audit --no-fund
-          npm ci --prefix gridex-web/apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Reuse qualified Android only when its inputs are unchanged
+        id: reuse
+        working-directory: gridex-web
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/mobile-integration/qualified-android.mjs prepare "$RUNNER_TEMP/mobile-android-reuse.json"
+      - name: Verify the changed document control and proof reuse
+        working-directory: gridex-web
+        run: node --test --test-name-pattern='document control|Android proof reuse' tests/mobile-device-qualification.test.mjs tests/mobile-android-reuse.test.mjs
+      - uses: actions/setup-java@v4
+        if: steps.reuse.outputs.approved != 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install native dependencies only for changed Android inputs
+        if: steps.reuse.outputs.approved != 'true'
+        run: npm ci --prefix gridex-web/apps/mobile --workspaces=false --no-audit --no-fund
       - name: Preflight native account and lifecycle regressions
+        if: steps.reuse.outputs.approved != 'true'
         working-directory: gridex-web
         run: |
           node --test tests/mobile-device-qualification.test.mjs
@@ -57,6 +71,7 @@ jobs:
           python3 -B tests/mobile-ios-simulated-entitlements.test.py
           npm run mobile:verify -- "$RUNNER_TEMP/mobile-preflight.json"
       - name: Enable disposable emulator KVM
+        if: steps.reuse.outputs.approved != 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -100,6 +115,7 @@ jobs:
           if-no-files-found: error
       - name: Qualify installed Android against the shared OPS
         id: android
+        if: steps.reuse.outputs.approved != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -110,7 +126,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
           script: bash gridex-web/scripts/mobile-integration/android-qualify.sh
       - name: Preserve Android evidence before the shared iOS journeys
-        if: always()
+        if: always() && steps.reuse.outputs.approved != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: android-customer-evidence
@@ -123,7 +139,7 @@ jobs:
           ANDROID_RESULT: ${{ steps.android.outcome }}
         run: |
           mkdir -p "$RUNNER_TEMP/android-terminal"
-          node -e 'require("fs").writeFileSync(process.env.RUNNER_TEMP+"/android-terminal/result.json",JSON.stringify({status:process.env.ANDROID_RESULT}))'
+          node gridex-web/scripts/mobile-integration/qualified-android.mjs terminal "$RUNNER_TEMP/mobile-android-reuse.json" "$RUNNER_TEMP/android-terminal/result.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -168,6 +184,7 @@ jobs:
             ${{ runner.temp }}/mobile-handoff-requests.json
             ${{ runner.temp }}/mobile-market-requests.json
             ${{ runner.temp }}/mobile-system-observations.json
+            ${{ runner.temp }}/mobile-android-reuse.json
             ${{ runner.temp }}/mobile-control-observations.json
             ${{ runner.temp }}/mobile-auth-requests.json
             ${{ runner.temp }}/mobile-*-sanitized.log
@@ -222,6 +239,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/mobile-integration/await-artifact.mjs android-customer-terminal "$RUNNER_TEMP/android-terminal"
+          node scripts/mobile-integration/qualified-android.mjs verify-terminal "$RUNNER_TEMP/android-terminal/result.json"
           source "$RUNNER_TEMP/ios-device.env"
           GRIDEX_IOS_CUSTOMER_FLOW=true bash scripts/mobile-integration/ios-smoke.sh
           test -s "$RUNNER_TEMP/gridex-ios-artifacts/simulator-receipt.json"

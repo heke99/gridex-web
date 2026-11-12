@@ -6,9 +6,10 @@ import {timingSafeEqual} from 'node:crypto';
 import {recordControlObservation} from './control-observations.mjs';
 import {observeAuthRequest} from './auth-observations.mjs';
 import {awaitBrowserObservation,invoicePdfMatcher,handoffMatcher} from './browser-observations.mjs';
+import {documentSnapshot} from './document-control.mjs';
 const auth=new Map([['/auth/v1/token',['POST']],['/auth/v1/user',['GET']],['/auth/v1/logout',['POST']]]);
 const platform=agent=>/Android|okhttp/i.test(agent??'')?'android':/iPhone|iPad|CFNetwork|Darwin/.test(agent??'')?'ios':'other';
-let disconnected=false,marketDisconnected=false,disabledDocumentCount=null;
+let disconnected=false,marketDisconnected=false,disabledDocumentState=null;
 const server=createServer(async(incoming,outgoing)=>{
  const path=new URL(incoming.url,'http://127.0.0.1').pathname;
  if(['/login/forgot-password','/teckna','/dashboard/contracts','/dashboard/support'].includes(path)&&incoming.method==='GET'){
@@ -33,11 +34,25 @@ const server=createServer(async(incoming,outgoing)=>{
    else if(['disable-document-b','restore-document-b'].includes(input.action)){
     const user=fixture.customers.find(u=>u.label==='B');
     const report=process.env.RUNNER_TEMP+'/mobile-document-requests.json';const rows=existsSync(report)?JSON.parse(readFileSync(report,'utf8')):[];const documentCount=rows.filter(r=>r.reference===user.extra.document&&r.platform==='ios').length;
-    if(input.action==='disable-document-b')disabledDocumentCount=documentCount;else if(disabledDocumentCount===null||documentCount!==disabledDocumentCount)throw Error('Unexpected browser request for stale link');
     const query=new URLSearchParams({company_id:'eq.'+fixture.companyId,title:'eq.'+user.extra.documentTitle});
-    const url=input.action==='disable-document-b'?null:process.env.GRIDEX_DEVICE_PUBLIC_ORIGIN+'/qualification-document/'+user.extra.document;
+    const headers={apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY};
+    let snapshot;
+    if(input.action==='disable-document-b'){
+     if(disabledDocumentState!==null)throw Error('Synthetic document already disabled');
+     const readQuery=new URLSearchParams(query);readQuery.set('select','id,public_url');
+     const current=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/rest/v1/customer_documents?'+readQuery,{headers,signal:AbortSignal.timeout(5000)});
+     if(!current.ok)throw Error('Synthetic document snapshot unavailable');
+     snapshot=documentSnapshot(await current.json(),user.extra.document);
+    }else{
+     if(disabledDocumentState===null||documentCount!==disabledDocumentState.documentCount||fixture.companyId!==disabledDocumentState.companyId||user.extra.document!==disabledDocumentState.reference||user.extra.documentTitle!==disabledDocumentState.title)throw Error('Unexpected synthetic document restore');
+     snapshot=disabledDocumentState;
+    }
+    query.set('id','eq.'+snapshot.id);
+    const url=input.action==='disable-document-b'?null:snapshot.publicUrl;
     const r=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/rest/v1/customer_documents?'+query,{method:'PATCH',headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'content-type':'application/json',prefer:'return=representation'},body:JSON.stringify({public_url:url}),signal:AbortSignal.timeout(5000)});
-    if(!r.ok||(await r.json()).length!==1)throw Error('Synthetic document scope unavailable');
+    if(!r.ok)throw Error('Synthetic document scope unavailable');
+    const changed=await r.json();if(!Array.isArray(changed)||changed.length!==1||changed[0].id!==snapshot.id)throw Error('Synthetic document scope unavailable');
+    disabledDocumentState=input.action==='disable-document-b'?{...snapshot,documentCount,companyId:fixture.companyId,reference:user.extra.document,title:user.extra.documentTitle}:null;
    }else if(input.action==='disconnect')disconnected=true;
    else if(input.action==='reconnect')disconnected=false;
    else if(input.action==='wait-expiry-tick')await new Promise(resolve=>setTimeout(resolve,5000));
