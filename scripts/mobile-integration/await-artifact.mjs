@@ -4,14 +4,16 @@ import {pathToFileURL} from 'node:url';
 
 export async function awaitArtifact(name,directory,{
  runId=process.env.GITHUB_RUN_ID,repository=process.env.GITHUB_REPOSITORY,
+ runAttempt=process.env.GITHUB_RUN_ATTEMPT??'1',
  execute=execFileSync,now=Date.now,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),
 }={}){
- if(!/^[a-z0-9-]+$/.test(name)||!directory||!/^\d+$/.test(runId??'')||!/^[-\w.]+\/[-\w.]+$/.test(repository??''))throw Error('Invalid artifact request');
+ if(!/^[a-z0-9-]+$/.test(name)||!directory||!/^\d+$/.test(runId??'')||!/^\d+$/.test(runAttempt)||!/^[-\w.]+\/[-\w.]+$/.test(repository??''))throw Error('Invalid artifact request');
  mkdirSync(directory,{recursive:true,mode:0o700});
  if(readdirSync(directory).length)throw Error('Artifact destination must be empty');
  const timeoutMinutes=name==='ios-customer-terminal'?60:name==='android-customer-terminal'?40:25;
  const deadline=now()+timeoutMinutes*60*1000;
  let failures=0,found=false;
+ let producerCompletedAt=null,nextProducerCheck=0;
  const pause=()=>sleep(Math.min(5000,Math.max(0,deadline-now())));
  while(now()<deadline){
   let data;
@@ -25,6 +27,19 @@ export async function awaitArtifact(name,directory,{
   }
   if(name==='ios-encrypted-customer-fixture'&&data.artifacts.some(a=>a.name==='mobile-backend-setup-failed'))throw Error('Shared disposable backend failed; inspect its sanitized evidence');
   if(data.artifacts.some(a=>a.name===name&&!a.expired)){found=true;break;}
+  if(name==='ios-customer-terminal'&&now()>=nextProducerCheck){
+   nextProducerCheck=now()+15000;
+   let producer;
+   try{
+    const jobs=JSON.parse(execute('gh',['api',`repos/${repository}/actions/runs/${runId}/attempts/${runAttempt}/jobs`],{encoding:'utf8',timeout:Math.max(1,Math.min(20000,deadline-now())),stdio:['ignore','pipe','pipe']}));
+    if(!Array.isArray(jobs.jobs))throw Error('Invalid producer status');
+    producer=jobs.jobs.find(job=>job.name==='ios-customer');
+   }catch{await pause();continue;}
+   if(producer?.status==='completed'){
+    producerCompletedAt??=now();
+    if(now()-producerCompletedAt>=60000)throw Error('iOS producer completed without its required terminal artifact; inspect sanitized job diagnostics');
+   }else producerCompletedAt=null;
+  }
   await pause();
  }
  if(!found)throw Error('Timed out waiting for sibling-job artifact: '+name);

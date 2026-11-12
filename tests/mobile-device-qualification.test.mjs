@@ -63,7 +63,8 @@ test('uploaded evidence removes credential formats even when absent from the env
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
-for(const outcome of [0,7])test('native UI runner requires evidence and preserves exit '+outcome,()=>{
+for(const scenario of ['pass','flow-failure','sanitizer-failure'])test('native UI runner preserves evidence, privacy and exit: '+scenario,()=>{
+ const outcome=scenario==='pass'?0:7,privateValue='SYNTHETIC_PRIVATE_CONSOLE_SECRET';
  const dir=mkdtempSync(join(tmpdir(),'gridex-ui-exit-'));
  const bin=join(dir,'bin');mkdirSync(bin);
  const executable=(path,body)=>{writeFileSync(path,'#!/bin/bash\n'+body+'\n');chmodSync(path,0o700);};
@@ -79,12 +80,32 @@ for(const outcome of [0,7])test('native UI runner requires evidence and preserve
   writeFileSync(join(dir,'gridex-ios-app-path'),'/synthetic-only.app');
   executable(join(dir,'gridex-maestro/maestro/bin/maestro'),`test "\${10}" = '-e' || exit 98
   test "\${11}" = 'GRIDEX_NATIVE_UI_QUALIFICATION=1' || exit 99
-  ${outcome===0?'printf \'<testsuite tests="1" failures="0"/>\' > "$7"':'true'}
+  ${outcome===0?'printf \'<testsuite tests="1" failures="0"/>\' > "$7"':`printf '<testsuite tests="1" failures="1"><failure>No visible element: ${privateValue}</failure></testsuite>' > "$7"; printf 'Assertion failed ${privateValue}\\n::error::synthetic command-looking line\\n'`}
   exit ${outcome}`);
-  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-smoke.sh',import.meta.url).pathname],{env:{...process.env,PATH:bin+':'+process.env.PATH,RUNNER_TEMP:dir,GRIDEX_IOS_CUSTOMER_FLOW:'false'},encoding:'utf8'});
+  if(scenario==='sanitizer-failure'){mkdirSync(join(dir,'mobile-fixtures'));writeFileSync(join(dir,'mobile-fixtures/customers.json'),privateValue+' INVALID_JSON');}
+  const result=spawnSync('bash',[new URL('../scripts/mobile-integration/ios-smoke.sh',import.meta.url).pathname],{env:{...process.env,PATH:bin+':'+process.env.PATH,RUNNER_TEMP:dir,GRIDEX_IOS_CUSTOMER_FLOW:'false',LOGIN_A_PASSWORD:privateValue},encoding:'utf8'});
   assert.equal(result.status,outcome,result.stderr);
   assert.equal(existsSync(join(dir,'gridex-ios-artifacts/simulator-receipt.json')),outcome===0);
   if(outcome===0)assert.ok(existsSync(join(dir,'gridex-ios-artifacts/ui/results.xml')));
+  assert.ok(!(result.stdout+result.stderr).includes(privateValue),'A console fallback must not expose private data or sanitizer errors');
+  if(scenario==='flow-failure'){
+   const summary=JSON.parse(result.stdout.trim().split('\n').find(line=>line.includes('gridex.ios-failure-summary.v1')));
+   assert.ok(summary.junit.includes('No visible element: [REDACTED]'));assert.ok(summary.logTail.includes('Assertion failed [REDACTED]'));
+   assert.ok(!result.stdout.split('\n').some(line=>line.startsWith('::')),'Diagnostic text must not execute workflow commands');
+  }
+  if(scenario==='sanitizer-failure')assert.ok(result.stdout.includes('iOS evidence sanitization failed; private diagnostics withheld.'));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('public iOS console summary is bounded and excludes unknown hierarchy fields',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gridex-public-ios-summary-'));
+ try{
+  writeFileSync(join(dir,'results.xml'),'<failure>[REDACTED]'+('\\\n"'.repeat(20000))+'</failure>');
+  writeFileSync(join(dir,'maestro.log'),'[REDACTED]'+('\\\n"'.repeat(20000))+'latest failure');
+  writeFileSync(join(dir,'native-ui-state.json'),JSON.stringify({failureReported:true,privateHierarchy:'PRIVATE_HIERARCHY'}));
+  const output=execFileSync(process.execPath,[new URL('../scripts/mobile-integration/ios-failure-summary.mjs',import.meta.url).pathname,dir],{encoding:'utf8'});
+  assert.ok(Buffer.byteLength(output)<=8193);assert.equal(output.trim().split('\n').length,1);assert.ok(!output.includes('PRIVATE_HIERARCHY'));
+  const summary=JSON.parse(output);assert.equal(summary.nativeState.failureReported,true);assert.ok(summary.logTail.endsWith('latest failure'));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -199,6 +220,58 @@ test('sibling artifact wait accepts late Android terminal but stops at its overa
   }});assert.ok(existsSync(join(dir,'late/result.json')));
   clock=0;await assert.rejects(awaitArtifact('android-customer-terminal',join(dir,'missing'),{runId:'123',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:()=>'{"artifacts":[]}'}),/Timed out waiting/);assert.equal(clock,40*60000);
  }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('missing iOS terminal fails after completed current-attempt producer grace, not an hour',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-lost-ios-terminal-'));let clock=0;
+ try{
+  await assert.rejects(awaitArtifact('ios-customer-terminal',join(dir,'received'),{runId:'123',runAttempt:'2',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args)=>{
+   if(args[1].endsWith('/artifacts'))return '{"artifacts":[]}';
+   assert.ok(args[1].includes('/attempts/2/jobs'),'Never use an older completed producer');
+   return '{"jobs":[{"name":"ios-customer","status":"completed","conclusion":"failure"}]}';
+  }}),/iOS producer completed without its required terminal artifact/);
+  assert.ok(clock>=60000&&clock<=75000,'Cleanup must start after the bounded delivery grace');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('iOS terminal delivery grace accepts a late artifact and ignores unavailable producer status',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-ios-terminal-grace-'));let clock=0,checks=0;
+ try{
+  await awaitArtifact('ios-customer-terminal',join(dir,'received'),{runId:'123',runAttempt:'2',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args)=>{
+   if(args[0]==='api'){
+    if(args[1].endsWith('/artifacts'))return JSON.stringify({artifacts:clock>=45000?[{name:'ios-customer-terminal'}]:[]});
+    if(++checks===1)throw Error('PRIVATE_STATUS_ERROR');
+    return '{"jobs":[{"name":"ios-customer","status":"completed"}]}';
+   }
+   writeFileSync(join(args.at(-1),'result.json'),'{"status":"failure"}');
+  }});
+  assert.equal(clock,45000);assert.equal(readFileSync(join(dir,'received/result.json'),'utf8'),'{"status":"failure"}');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+for(const state of ['running','missing','unavailable'])test('iOS producer '+state+' never fabricates completion or success',async()=>{
+ const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-ios-producer-state-'));let clock=0;
+ try{
+  await assert.rejects(awaitArtifact('ios-customer-terminal',join(dir,'received'),{runId:'123',runAttempt:'2',repository:'synthetic/repo',now:()=>clock,sleep:async ms=>{clock+=ms;},execute:(_cmd,args)=>{
+   if(args[1].endsWith('/artifacts'))return '{"artifacts":[]}';
+   if(state==='unavailable')throw Error('PRIVATE_STATUS_BODY');
+   return JSON.stringify({jobs:state==='missing'?[]:[{name:'ios-customer',status:'in_progress'}]});
+  }}),/Timed out waiting for sibling-job artifact/);
+  assert.equal(clock,60*60000);assert.ok(!existsSync(join(dir,'received/result.json')));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('iOS upload retry gate requires actual success for both artifacts',()=>{
+ const workflow=readFileSync(new URL('../.github/workflows/mobile-customer-qualification.yml',import.meta.url),'utf8');
+ const gate=workflow.match(/      - name: Require uploaded iOS evidence\n[\s\S]*?        run: \|\n((?:          [^\n]*\n)+)/)?.[1]?.replace(/^          /gm,'');
+ assert.ok(gate,'The upload retries need a final failing gate');
+ for(const [terminalFirst,terminalRetry,evidenceFirst,evidenceRetry,expected] of [
+  ['success','skipped','success','skipped',0],['failure','success','success','skipped',0],['success','skipped','failure','success',0],
+  ['failure','failure','success','skipped',1],['success','skipped','failure','failure',1],['skipped','skipped','skipped','skipped',1],
+ ]){
+  const result=spawnSync('bash',['-c',gate],{encoding:'utf8',env:{...process.env,TERMINAL_FIRST:terminalFirst,TERMINAL_RETRY:terminalRetry,EVIDENCE_FIRST:evidenceFirst,EVIDENCE_RETRY:evidenceRetry}});
+  assert.equal(result.status,expected);
+ }
 });
 for(const failure of ['persistent','empty'])test('sibling download '+failure+' never publishes incomplete evidence',async()=>{
  const {awaitArtifact}=await import('../scripts/mobile-integration/await-artifact.mjs');const dir=mkdtempSync(join(tmpdir(),'gridex-artifact-download-fail-'));let clock=0,downloads=0;

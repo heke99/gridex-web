@@ -238,14 +238,60 @@ jobs:
             xcrun simctl delete "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" || true
           fi
       - uses: actions/upload-artifact@v4
+        id: ios_terminal_upload
         if: always()
+        continue-on-error: true
         with:
           name: ios-customer-terminal
           path: ${{ runner.temp }}/ios-terminal/
           retention-days: 7
+          if-no-files-found: error
+      - name: Back off before retrying iOS terminal delivery
+        if: ${{ always() && steps.ios_terminal_upload.outcome == 'failure' }}
+        run: sleep 15
       - uses: actions/upload-artifact@v4
+        id: ios_terminal_retry
+        if: ${{ always() && steps.ios_terminal_upload.outcome == 'failure' }}
+        continue-on-error: true
+        with:
+          name: ios-customer-terminal
+          path: ${{ runner.temp }}/ios-terminal/
+          retention-days: 7
+          overwrite: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        id: ios_evidence_upload
         if: always()
+        continue-on-error: true
         with:
           name: gridex-ios-customer-evidence
           path: ${{ runner.temp }}/gridex-ios-artifacts/
           retention-days: 7
+          if-no-files-found: error
+      - name: Back off before retrying iOS customer evidence
+        if: ${{ always() && steps.ios_evidence_upload.outcome == 'failure' }}
+        run: sleep 15
+      - uses: actions/upload-artifact@v4
+        id: ios_evidence_retry
+        if: ${{ always() && steps.ios_evidence_upload.outcome == 'failure' }}
+        continue-on-error: true
+        with:
+          name: gridex-ios-customer-evidence
+          path: ${{ runner.temp }}/gridex-ios-artifacts/
+          retention-days: 7
+          overwrite: true
+          if-no-files-found: error
+      - name: Require uploaded iOS evidence
+        if: always()
+        env:
+          TERMINAL_FIRST: ${{ steps.ios_terminal_upload.outcome }}
+          TERMINAL_RETRY: ${{ steps.ios_terminal_retry.outcome }}
+          EVIDENCE_FIRST: ${{ steps.ios_evidence_upload.outcome }}
+          EVIDENCE_RETRY: ${{ steps.ios_evidence_retry.outcome }}
+        run: |
+          for results in "$TERMINAL_FIRST/$TERMINAL_RETRY" "$EVIDENCE_FIRST/$EVIDENCE_RETRY"; do
+            case "$results" in
+              success/*|*/success) ;;
+              *) echo 'Required iOS artifact delivery failed after bounded retry.' >&2; exit 1 ;;
+            esac
+          done

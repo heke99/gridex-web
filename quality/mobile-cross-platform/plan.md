@@ -324,3 +324,45 @@ A geometry/sequence regression models both clamped and retained offsets: it
 fails against e07's UP search and passes after normalization. All 28 device
 and evidence tests and full Maestro YAML parsing pass. This model is not
 emulator evidence; final qualification still requires a new coherent run.
+
+### Lost customer evidence on 267854f
+
+Shared run 43271860023 ended unqualified. Android's current receipts contain
+77 PASS and all five separate build/quality workflows succeeded. The customer
+iOS job exited 1 at 18:39 UTC, but both terminal and customer-evidence uploads
+failed CreateArtifact with ENOTFOUND. Its actual JUnit and failure cause are
+unavailable. Do not infer a product, viewport or network cause for that test
+from the upload error. The successful production guest iOS artifact is a
+different evidence subset and cannot replace the missing customer result.
+
+The Linux job waited for the missing terminal. A normal cancellation request
+at 18:42 did not interrupt its always() wait promptly; the runner was eventually
+cancelled with explicit cleanup still pending and no final server artifact.
+Cleanup is not verified for this run. GitHub CLI access is working again,
+verified through authenticated read and the ordinary cancellation endpoint.
+
+Preserve a bounded public failure summary immediately after successful UI
+sanitization: one escaped JSON line, at most 8 KiB, only sanitized JUnit/log
+text and allowlisted boolean markers. A sanitizer failure emits fixed text
+only, never a private fallback or parser error. Preserve the original nonzero
+UI exit and never create a PASS receipt for failure. The terminal waiter can
+observe the exact iOS producer in the current run-attempt; if it is completed
+and the terminal is still missing after 60 seconds of delivery grace, fail
+generically so the normal always() cleanup and server upload can run. Missing,
+running or unavailable producer status is not evidence of completion.
+
+Retry only the two iOS artifact uploads, once each after 15 seconds. Retries
+overwrite only the same owned artifact name to cover ambiguous upload commit.
+All four attempts require actual files, and a final gate requires one actual
+success for each artifact. No customer journey, mutation, Auth/API deadline or
+product code is changed or retried. Exact-attempt producer status does not
+change the existing run-wide artifact-name lookup: coupled replays must use
+a fresh push/workflow_dispatch run ID, not mixed artifacts from old attempts.
+
+Actual shell regressions fail on the previous missing console diagnostics,
+sanitizer exit/privacy handling and hour-long missing-terminal wait, then
+pass after repair. All 36 device/evidence tests, full affected YAML parsing,
+Bash syntax and diff checks pass. Both independent static reviews cleared
+the repair after requiring if-no-files-found:error on all four upload steps.
+The underlying lost native failure remains unknown; the next fresh coherent
+run must provide the actual complete result or actionable sanitized failure.

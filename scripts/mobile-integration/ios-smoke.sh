@@ -20,7 +20,14 @@ mkdir -p "$private_ui"
 preserve_ui_evidence() {
   local result=$?
   trap - EXIT
-  node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" || result=1
+  if node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" >/dev/null 2>&1; then
+    if test "$result" -ne 0; then
+      node scripts/mobile-integration/ios-failure-summary.mjs "$out/ui" 2>/dev/null || echo 'iOS public failure summary unavailable.'
+    fi
+  else
+    echo 'iOS evidence sanitization failed; private diagnostics withheld.'
+    if test "$result" -eq 0; then result=1; fi
+  fi
   exit "$result"
 }
 trap preserve_ui_evidence EXIT
