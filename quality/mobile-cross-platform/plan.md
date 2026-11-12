@@ -412,3 +412,19 @@ afterward. All 37 device/evidence tests and 8 browser, 2 input and 4 simulator
 identity tests pass; affected YAML/Bash/diff checks pass. Both independent
 static reviews cleared the exact implementation. This remains a bounded
 test-driver repair awaiting real native acceptance, not a proven crash fix.
+
+
+### 2026-11-12: wait for completed iOS logout before process restart
+
+Candidate 847c5bb shared run 43295865407 failed the iOS guest assertion after
+A logout/restart. Actual sanitized state showed authenticated A on contracts;
+the evidence does not distinguish a missed tap from process termination during
+asynchronous session cleanup. Android passed all 77 checks, and both jobs
+completed their explicit cleanup steps. All five other workflows passed.
+
+The iOS journey now centers the logout control, taps once without automatic
+retap, waits for the guest heading and the existing invoiceDetail idle marker,
+and rejects the logout-failure control and A data before terminating the app.
+The hook reaches idle after secure-storage signout completes. The original
+restart, guest and no-A assertions remain mandatory. Independent read-only
+review confirmed this completion boundary; a fresh coupled run is required.

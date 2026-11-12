@@ -97,7 +97,24 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Logga ut"
     direction: DOWN
-- tapOn: "Logga ut"
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Logga ut"
+    retryTapIfNoChange: false
+# The guest heading appears before asynchronous secure-storage cleanup finishes.
+# Terminate only after logout completes; then verify it survives a process restart.
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "customer-invoiceDetail-idle"
+    timeout: 60000
+- assertNotVisible: "Försök logga ut igen"
+- assertNotVisible: ".*${CUSTOMER_A}.*"
 - stopApp
 - launchApp:
     stopApp: false
