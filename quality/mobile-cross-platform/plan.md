@@ -297,3 +297,30 @@ The external-handoff audit additionally found a pre-existing falsegreen: repeate
 ## Resumed 12 November 2026 after terminal94 results
 
 The user resumed the task. All five separate94a73d8 quality/build workflows ended SUCCESS; coupled43026097384 ended FAIL with bothcleanup stepsSUCCESS and AndroidstepSUCCESS. Downloaded exactartifacts shared-94a73d8-failure / ios-customer-94a73d8-failure. iOS screenshots prove both invoicePDFreturns, offlineforeground preservation/recovery, phonewrite and notification positivefreshreadback. Lastsuccessfulcontrol disable-document-b thenJUnit fails `Element not found: Öppna dokument i extern läsare`. The flow had scrolled only to the documenttitle, never the action below it beforedisablingtheupstream. No productAPI failure is inferred. A viewportregression is RED against94 andPASS after preparing/centeringthecachedbutton before upstreammutation. Audit remaining unexecuted contentactions: explicitviewportpreparation for filters, scopedcaseopen, secondcomposerfield, newcaseopen andpriceretry, pluscenteringexistingcontenttargets. Fixedbottomtabs andpreviouslypassedearlyA/B/lifecycle sequencesremainunchanged. Documentreaderreturn now requires ownBdocument, absenceofA andfreshOPSread before screenshot. Userhandoff11Nov preserved ashistorical and included nowthat a newcodecandidate isauthorized.
+
+### Refresh viewport normalization after terminal e07
+
+Shared run 43260518653 ended FAIL. Android's actual receipts contain 77 PASS;
+both cleanup steps succeeded. The iOS stale-document-denial screenshot now
+exists, disable/restore controls passed, and the sanitized Web log ends with
+the expected document-open 503 followed by a document-list GET 200 (158 ms).
+There is no subsequent document-open request. The failure is after the restore
+and refresh, at the fixed UP search for the opening action. It is distinct
+from the earlier failure before the stale-link click.
+
+The loader clears private rows before fetching and remounts them afterward.
+This can clamp the scroll offset while the content is absent, so an old
+direction cannot establish where the remounted action lies. A bounded helper
+waits for the expected resource idle marker, normalizes to Mina sidor upward,
+then seeks the expected positive own field downward. Apply it to document,
+phone, notification and support readbacks and the support return to list.
+Retain positive readback, exact own references, foreign-data checks and fresh
+OPS observation; add snapshots/fresh assertions where they were missing.
+No refresh or write is replayed to fix targeting. Normalize market entry and
+retry to Spotpriser before seeking its control, and reveal conditional future
+data and empty-filter output explicitly. Product/Auth/API code is unchanged.
+
+A geometry/sequence regression models both clamped and retained offsets: it
+fails against e07's UP search and passes after normalization. All 28 device
+and evidence tests and full Maestro YAML parsing pass. This model is not
+emulator evidence; final qualification still requires a new coherent run.

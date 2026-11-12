@@ -295,3 +295,34 @@ test('stale document journey reveals the cached action before disabling its upst
  }
  assert.equal(attempts,1);assert.ok(denialVisible);
 });
+
+test('restored document can be reached after refresh collapses or retains the scroll offset',()=>{
+ const source=readFileSync(new URL('../scripts/mobile-integration/ios-customer.yaml',import.meta.url),'utf8');
+ const section=source.slice(source.indexOf('      ACTION: restore-document-b'),source.indexOf('- extendedWaitUntil:\n    visible: ".*Synthetic Gridex document B.*"'));
+ // run() clears rows before fetching. The old content can disappear and clamp
+ // the native scroll offset to the top, then return below the current viewport.
+ for(const initialOffset of [0,700,1500]){
+  let offset=initialOffset,opened=false;
+  const positions=new Map([['Mina sidor',0],['${DOCUMENT_B}',1300],['Öppna dokument i extern läsare',1500]]);
+  function execute(text){
+   for(const command of text.split(/\n(?=- )/)){
+    if(command.startsWith('- runFlow:')&&command.includes('ios-customer-after-refresh.yaml')){
+     const helper=readFileSync(new URL('../scripts/mobile-integration/ios-customer-after-refresh.yaml',import.meta.url),'utf8');
+     execute(helper.slice(helper.indexOf('\n---\n')+5).replaceAll('${CUSTOMER_RESOURCE}','documents').replaceAll('${CUSTOMER_TARGET}','${DOCUMENT_B}'));
+    }
+    if(command.startsWith('- scrollUntilVisible:')){
+     const target=/element: ["']?([^\n]+?)["']?\n/.exec(command+'\n')?.[1];
+     if(!positions.has(target))continue;
+     const y=positions.get(target),direction=/direction: (UP|DOWN)/.exec(command)?.[1];
+     const visible=y>=offset&&y<offset+700;
+     assert.ok(visible||(direction==='UP'?y<offset:y>=offset+700),`Cannot seek ${target} ${direction} from offset ${offset}`);
+     offset=Math.max(0,y-100);
+    }
+    if(command.startsWith('- tapOn: "Öppna dokument i extern läsare"')){
+     assert.ok(1500>=offset&&1500<offset+700,'The restored action must be reachable without replaying refresh');opened=true;
+    }
+   }
+  }
+  execute(section);assert.ok(opened);
+ }
+});

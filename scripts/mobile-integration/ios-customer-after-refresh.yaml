@@ -1,0 +1,17 @@
+appId: se.gridex.el.dev
+---
+# Refresh removes and remounts private content. Never assume its previous offset.
+# The caller submits exactly one load and retains its positive readback checks.
+- extendedWaitUntil:
+    visible:
+      id: "customer-${CUSTOMER_RESOURCE}-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${CUSTOMER_TARGET}
+    direction: DOWN
+    centerElement: true
+    timeout: 60000

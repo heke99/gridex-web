@@ -309,13 +309,23 @@ appId: se.gridex.el.dev
     visible: "Telefonnumret har sparats.*"
     timeout: 60000
 - takeScreenshot: "profile-phone-write"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
 - tapOn: "Hämta igen"
-- scrollUntilVisible:
-    element: 'Telefon: \+46755555555'
-    direction: DOWN
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
+      CUSTOMER_TARGET: 'Telefon: \+46755555555'
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - scrollUntilVisible:
     element: "Meddelanden"
     direction: UP
@@ -350,13 +360,11 @@ appId: se.gridex.el.dev
     direction: DOWN
     centerElement: true
 - tapOn: "Hämta igen"
-- extendedWaitUntil:
-    visible:
-      id: "customer-notifications-idle"
-    timeout: 60000
-- scrollUntilVisible:
-    element: ${NOTICE_B}
-    direction: UP
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
+      CUSTOMER_TARGET: ${NOTICE_B}
 - scrollUntilVisible:
     element: "Läst: [0-9]{4}-.*"
     direction: DOWN
@@ -392,15 +400,30 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: restore-document-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
 - tapOn: "Hämta igen"
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
+      CUSTOMER_TARGET: ${DOCUMENT_B}
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - scrollUntilVisible:
     element: "Öppna dokument i extern läsare"
-    direction: UP
+    direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn: "Öppna dokument i extern läsare"
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
@@ -477,7 +500,14 @@ appId: se.gridex.el.dev
     direction: UP
     centerElement: true
 - tapOn: "resolved"
-- assertVisible: "Inga hämtade poster matchar ditt val."
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Inga hämtade poster matchar ditt val."
+    direction: DOWN
+    timeout: 60000
 - takeScreenshot: "support-status-filter"
 - scrollUntilVisible:
     element: "Rensa sökning och filter"
@@ -547,24 +577,35 @@ appId: se.gridex.el.dev
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
     timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
 - tapOn: "Hämta igen"
-- scrollUntilVisible:
-    element: "Synthetic iOS reply B"
-    direction: UP
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: supportDetail
+      CUSTOMER_TARGET: "Synthetic iOS reply B"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - takeScreenshot: "support-native-write-readback"
 - scrollUntilVisible:
     element: "← Alla ärenden"
     direction: UP
     centerElement: true
 - tapOn: "← Alla ärenden"
-- scrollUntilVisible:
-    element: "Sök bland hämtade ärenden"
-    direction: UP
-    centerElement: true
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+      CUSTOMER_TARGET: "Sök bland hämtade ärenden"
 - tapOn: "Sök bland hämtade ärenden"
 - eraseText: 160
 - inputText: "Synthetic iOS new B"
@@ -591,14 +632,24 @@ appId: se.gridex.el.dev
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
     timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
 - tapOn: "Hämta igen"
-- scrollUntilVisible:
-    element: "Synthetic iOS new B"
-    direction: UP
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+      CUSTOMER_TARGET: "Synthetic iOS new B"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - scrollUntilVisible:
     element:
       text: "Öppna ärende och meddelanden"
@@ -618,6 +669,10 @@ appId: se.gridex.el.dev
     direction: DOWN
 - takeScreenshot: "consumption-fails-closed"
 - tapOn: "Elpriser"
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "SE1"
     direction: DOWN
@@ -676,8 +731,12 @@ appId: se.gridex.el.dev
     env:
       ACTION: disconnect-market
 - scrollUntilVisible:
-    element: "Uppdatera elpriser"
+    element: "Spotpriser"
     direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Uppdatera elpriser"
+    direction: DOWN
     centerElement: true
 - tapOn: "Uppdatera elpriser"
 - extendedWaitUntil:
@@ -688,6 +747,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: reconnect-market
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "Uppdatera elpriser"
     direction: DOWN
@@ -711,12 +774,18 @@ appId: se.gridex.el.dev
     when:
       true: ${output.futureEntries === 0}
     commands:
-      - assertVisible: "Inga priser har publicerats för det valda dygnet."
+      - scrollUntilVisible:
+          element: "Inga priser har publicerats för det valda dygnet."
+          direction: DOWN
+          timeout: 60000
 - runFlow:
     when:
       true: ${output.futureEntries > 0}
     commands:
-      - assertVisible: "Visa alla [0-9]+ intervallpriser"
+      - scrollUntilVisible:
+          element: "Visa alla [0-9]+ intervallpriser"
+          direction: DOWN
+          timeout: 60000
 - takeScreenshot: "market-future-day"
 - tapOn: "Mer"
 - pressKey: Home
