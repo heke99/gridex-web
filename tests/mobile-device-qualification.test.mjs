@@ -278,3 +278,20 @@ test('Maestro control script binds the browser baseline to its handoff kind',()=
  assert.throws(()=>run('assert-handoff-contracts',output,http,'https://synthetic.invalid','SYNTHETIC_CONTROL',JSON.parse),/Missing matching handoff baseline/);assert.equal(calls.length,1);
  run('assert-handoff-support',output,http,'https://synthetic.invalid','SYNTHETIC_CONTROL',JSON.parse);assert.deepEqual(calls.at(-1),{action:'assert-handoff-support',previous:1});
 });
+
+test('stale document journey reveals the cached action before disabling its upstream link',()=>{
+ const source=readFileSync(new URL('../scripts/mobile-integration/ios-customer.yaml',import.meta.url),'utf8');
+ const section=source.slice(source.indexOf('- takeScreenshot: "notification-read"'),source.indexOf('- takeScreenshot: "document-stale-link-denied"'));
+ let actionVisible=false,disabled=false,denialVisible=false,attempts=0;
+ for(const command of section.split(/\n(?=- )/)){
+  if(command.startsWith('- scrollUntilVisible:')&&command.includes('element: "Öppna dokument i extern läsare"'))actionVisible=true;
+  if(command.includes('ACTION: disable-document-b')){
+   assert.ok(actionVisible,'The cached document action must be visible before upstream mutation');disabled=true;
+  }
+  if(command.startsWith('- tapOn: "Öppna dokument i extern läsare"')){
+   assert.ok(actionVisible,'A row title in view does not make its action visible');assert.ok(disabled);attempts++;denialVisible=true;
+  }
+  if(command.includes('element: "Dokumentet kunde inte öppnas.*"'))assert.ok(denialVisible);
+ }
+ assert.equal(attempts,1);assert.ok(denialVisible);
+});

@@ -369,10 +369,16 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Dokument"
     direction: UP
+    centerElement: true
 - tapOn: "Dokument"
 - scrollUntilVisible:
     element: ${DOCUMENT_B}
     direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
 - runScript:
     file: ios-control.js
     env:
@@ -389,20 +395,40 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
+    centerElement: true
 - tapOn: "Hämta igen"
 - scrollUntilVisible:
     element: "Öppna dokument i extern läsare"
     direction: UP
+    centerElement: true
 - tapOn: "Öppna dokument i extern läsare"
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
 - takeScreenshot: "document-external-pdf"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
 - runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${DOCUMENT_B}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - takeScreenshot: "document-return"
 - scrollUntilVisible:
     element: "Fullmakter"
     direction: UP
+    centerElement: true
 - tapOn: "Fullmakter"
 - scrollUntilVisible:
     element: ${POWER_B}
@@ -411,6 +437,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Godkännanden"
     direction: UP
+    centerElement: true
 - tapOn: "Godkännanden"
 - scrollUntilVisible:
     element: ${ACCEPTANCE_B}
@@ -419,20 +446,24 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Support"
     direction: UP
+    centerElement: true
 - tapOn: "Support"
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: DOWN
+    centerElement: true
 - tapOn: "Sök bland hämtade ärenden"
 - inputText: ${SUPPORT_B}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Visa fler ärenden"
     direction: DOWN
+    centerElement: true
 - tapOn: "Visa fler ärenden"
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: UP
+    centerElement: true
 - tapOn: "Sök bland hämtade ärenden"
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
@@ -444,16 +475,31 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "resolved"
     direction: UP
+    centerElement: true
 - tapOn: "resolved"
 - assertVisible: "Inga hämtade poster matchar ditt val."
 - takeScreenshot: "support-status-filter"
+- scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    direction: UP
+    centerElement: true
 - tapOn: "Rensa sökning och filter"
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: UP
+    centerElement: true
 - tapOn: "Sök bland hämtade ärenden"
 - inputText: ${SUPPORT_B}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: ${SUPPORT_B}
     direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: "Öppna ärende och meddelanden"
+      below: ${SUPPORT_B}
+    direction: DOWN
+    centerElement: true
 - tapOn:
     text: "Öppna ärende och meddelanden"
     below: ${SUPPORT_B}
@@ -468,6 +514,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Öppna kundservice på webben"
     direction: DOWN
+    centerElement: true
 - runScript:
     file: ios-control.js
     env:
@@ -485,6 +532,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Meddelande till kundservice"
     direction: DOWN
+    centerElement: true
     timeout: 60000
 - takeScreenshot: "support-detail-web-return"
 - tapOn: "Meddelande till kundservice"
@@ -494,6 +542,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Skicka svar"
     direction: DOWN
+    centerElement: true
 - tapOn: "Skicka svar"
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
@@ -501,6 +550,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
+    centerElement: true
 - tapOn: "Hämta igen"
 - scrollUntilVisible:
     element: "Synthetic iOS reply B"
@@ -509,10 +559,12 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "← Alla ärenden"
     direction: UP
+    centerElement: true
 - tapOn: "← Alla ärenden"
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: UP
+    centerElement: true
 - tapOn: "Sök bland hämtade ärenden"
 - eraseText: 160
 - inputText: "Synthetic iOS new B"
@@ -520,8 +572,13 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Ärendets rubrik"
     direction: DOWN
+    centerElement: true
 - tapOn: "Ärendets rubrik"
 - inputText: "Synthetic iOS new B"
+- scrollUntilVisible:
+    element: "Meddelande till kundservice"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Meddelande till kundservice"
 - inputText: "Synthetic iOS first message B"
 - assertVisible: "Synthetic iOS first message B"
@@ -529,6 +586,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Skapa ärende"
     direction: DOWN
+    centerElement: true
 - tapOn: "Skapa ärende"
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
@@ -536,11 +594,20 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Hämta igen"
     direction: DOWN
+    centerElement: true
 - tapOn: "Hämta igen"
 - scrollUntilVisible:
     element: "Synthetic iOS new B"
     direction: UP
-- tapOn: "Öppna ärende och meddelanden"
+- scrollUntilVisible:
+    element:
+      text: "Öppna ärende och meddelanden"
+      below: "Synthetic iOS new B"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Öppna ärende och meddelanden"
+    below: "Synthetic iOS new B"
 - scrollUntilVisible:
     element: "Synthetic iOS first message B"
     direction: DOWN
@@ -554,6 +621,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "SE1"
     direction: DOWN
+    centerElement: true
 - tapOn: "SE1"
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE1"
@@ -561,6 +629,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "SE2"
     direction: UP
+    centerElement: true
 - tapOn: "SE2"
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE2"
@@ -568,6 +637,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "SE3"
     direction: UP
+    centerElement: true
 - tapOn: "SE3"
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE3"
@@ -575,6 +645,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "SE4"
     direction: UP
+    centerElement: true
 - tapOn: "SE4"
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE4"
@@ -582,6 +653,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Igår"
     direction: UP
+    centerElement: true
 - tapOn: "Igår"
 - scrollUntilVisible:
     element: "${MARKET_YESTERDAY} · SE4"
@@ -589,10 +661,12 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Idag"
     direction: UP
+    centerElement: true
 - tapOn: "Idag"
 - scrollUntilVisible:
     element: "Visa alla [0-9]+ intervallpriser"
     direction: DOWN
+    centerElement: true
 - tapOn: "Visa alla [0-9]+ intervallpriser"
 - assertVisible: "Dölj intervallpriser"
 - takeScreenshot: "public-market-prices"
@@ -604,6 +678,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Uppdatera elpriser"
     direction: UP
+    centerElement: true
 - tapOn: "Uppdatera elpriser"
 - extendedWaitUntil:
     visible: "Elpriserna kunde inte hämtas. Försök igen."
@@ -613,6 +688,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: reconnect-market
+- scrollUntilVisible:
+    element: "Uppdatera elpriser"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Uppdatera elpriser"
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE4"
@@ -622,6 +701,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Imorgon"
     direction: UP
+    centerElement: true
 - runScript: ios-future-market.js
 - tapOn: "Imorgon"
 - scrollUntilVisible:
@@ -658,6 +738,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "E-post"
     direction: DOWN
+    centerElement: true
 - tapOn: "E-post"
 - eraseText: 200
 - runFlow: ios-dismiss-keyboard.yaml
@@ -673,6 +754,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Glömt lösenord? Återställ på hemsidan"
     direction: DOWN
+    centerElement: true
 - runScript:
     file: ios-control.js
     env:
@@ -692,6 +774,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Teckna nytt elavtal.*"
     direction: DOWN
+    centerElement: true
 - runScript:
     file: ios-control.js
     env:
@@ -705,6 +788,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Visa befintliga avtal.*"
     direction: DOWN
+    centerElement: true
 - runScript:
     file: ios-control.js
     env:
@@ -718,6 +802,7 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Få hjälp att byta avtal.*"
     direction: DOWN
+    centerElement: true
 - runScript:
     file: ios-control.js
     env:
