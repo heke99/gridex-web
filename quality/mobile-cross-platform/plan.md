@@ -428,3 +428,33 @@ and rejects the logout-failure control and A data before terminating the app.
 The hook reaches idle after secure-storage signout completes. The original
 restart, guest and no-A assertions remain mandatory. Independent read-only
 review confirmed this completion boundary; a fresh coupled run is required.
+
+
+### 2026-11-12: prepare all remaining scrolled iOS action targets
+
+Candidate aaecc0e shared run 43305792298 is terminal FAIL. Android passed
+77/77, all five separate workflows passed, and both explicit cleanup steps
+succeeded. Actual iOS screenshots prove completed A logout/restart, B login,
+B invoice PDF, expiry, background and network recovery. The next failure was
+the positive phone-save notice: authenticated B idle, final profile GET 200,
+no subsequent iOS profile POST. Evidence cannot distinguish missed input,
+disabled unchanged input and a missed button tap; this is not an API-failure
+or precise-coordinate diagnosis. Android B used +46744444444, distinct from
+the intended iOS +46755555555.
+
+The phone journey now requires the full escaped literal input value, centers
+and settles both input/save, takes a fixed authenticated target screenshot,
+clicks once, waits for profile idle and positively seeks/asserts the saved
+notice. Existing fresh GET, canonical phone readback and OPS checks remain.
+An audit prepares the same demonstrated viewport class throughout the rest
+of the journey: 15 formerly uncentered scrolled interactive targets are now
+centered, and 54 scrolled clicks settle and explicitly disable retapping.
+Fixed bottom navigation and all original selectors, mutations and assertions
+are preserved. A decoded before/after comparison confirmed original command
+order/semantics, permitting only deterministic viewport preparation and the
+additional positive phone checkpoints. No API/Auth deadline is increased.
+
+Only the fixed authenticated profile-phone-target screenshot joins the export
+allowlist; login/password targets and arbitrary raw hierarchy remain excluded.
+The existing sanitizer privacy regression now exercises both cases. A fresh
+complete coupled run, actual artifacts and final reviews are still required.

@@ -5,8 +5,13 @@ appId: se.gridex.el.dev
 - tapOn: "Mer"
 - scrollUntilVisible:
     element: "E-post"
+    centerElement: true
     direction: DOWN
-- tapOn: "E-post"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
 - inputText: ${LOGIN_A_EMAIL}
 - assertVisible: ${LOGIN_A_EMAIL}
 - tapOn: "Lösenord"
@@ -14,8 +19,13 @@ appId: se.gridex.el.dev
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Logga in"
+    centerElement: true
     direction: DOWN
-- tapOn: "Logga in"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Logga in"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: ${CONTRACT_A}
     direction: DOWN
@@ -58,8 +68,13 @@ appId: se.gridex.el.dev
     timeout: 60000
 - scrollUntilVisible:
     element: "Visa fakturadetaljer"
+    centerElement: true
     direction: DOWN
-- tapOn: "Visa fakturadetaljer"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fakturadetaljer"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 111 SEK"
     direction: DOWN
@@ -69,8 +84,13 @@ appId: se.gridex.el.dev
     direction: DOWN
 - scrollUntilVisible:
     element: "Öppna dokument i extern läsare"
+    centerElement: true
     direction: DOWN
-- tapOn: "Öppna dokument i extern läsare"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -123,8 +143,13 @@ appId: se.gridex.el.dev
 - assertNotVisible: ".*${CUSTOMER_A}.*"
 - scrollUntilVisible:
     element: "E-post"
+    centerElement: true
     direction: DOWN
-- tapOn: "E-post"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
 - inputText: ${LOGIN_B_EMAIL}
 - assertVisible: ${LOGIN_B_EMAIL}
 - tapOn: "Lösenord"
@@ -132,8 +157,13 @@ appId: se.gridex.el.dev
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Logga in"
+    centerElement: true
     direction: DOWN
-- tapOn: "Logga in"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Logga in"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: ${CONTRACT_B}
     direction: DOWN
@@ -142,8 +172,13 @@ appId: se.gridex.el.dev
 - takeScreenshot: "b-contract-no-a-data"
 - scrollUntilVisible:
     element: "Sök avtal"
+    centerElement: true
     direction: UP
-- tapOn: "Sök avtal"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök avtal"
+    retryTapIfNoChange: false
 - inputText: ${CUSTOMER_A}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -152,8 +187,13 @@ appId: se.gridex.el.dev
 - takeScreenshot: "contract-search-empty"
 - scrollUntilVisible:
     element: "Rensa sökning och filter"
+    centerElement: true
     direction: UP
-- tapOn: "Rensa sökning och filter"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: ${CONTRACT_B}
     direction: DOWN
@@ -176,8 +216,13 @@ appId: se.gridex.el.dev
     timeout: 60000
 - scrollUntilVisible:
     element: "Visa fakturadetaljer"
+    centerElement: true
     direction: DOWN
-- tapOn: "Visa fakturadetaljer"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fakturadetaljer"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
@@ -188,8 +233,13 @@ appId: se.gridex.el.dev
     direction: DOWN
 - scrollUntilVisible:
     element: "Öppna dokument i extern läsare"
+    centerElement: true
     direction: DOWN
-- tapOn: "Öppna dokument i extern läsare"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -262,8 +312,13 @@ appId: se.gridex.el.dev
       ACTION: disconnect
 - scrollUntilVisible:
     element: "Hämta igen"
+    centerElement: true
     direction: DOWN
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Uppgifterna kunde inte hämtas.*"
     direction: DOWN
@@ -292,8 +347,13 @@ appId: se.gridex.el.dev
       ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
+    centerElement: true
     direction: DOWN
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -313,18 +373,37 @@ appId: se.gridex.el.dev
       CUSTOMER_RESOURCE: profile
 - scrollUntilVisible:
     element: "Nytt telefonnummer"
+    centerElement: true
     direction: DOWN
-- tapOn: "Nytt telefonnummer"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Nytt telefonnummer"
+    retryTapIfNoChange: false
 - eraseText: 40
 - inputText: "+46755555555"
+- assertVisible: '^\+46755555555$'
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Spara telefonnummer"
+    centerElement: true
     direction: DOWN
-- tapOn: "Spara telefonnummer"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "profile-phone-target"
+- tapOn:
+    text: "Spara telefonnummer"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
-    visible: "Telefonnumret har sparats.*"
+    visible:
+      id: "customer-profile-idle"
     timeout: 60000
+- scrollUntilVisible:
+    element: "Telefonnumret har sparats.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- assertVisible: "Telefonnumret har sparats.*"
 - takeScreenshot: "profile-phone-write"
 - runScript:
     file: ios-control.js
@@ -332,8 +411,13 @@ appId: se.gridex.el.dev
       ACTION: snapshot
 - scrollUntilVisible:
     element: "Hämta igen"
+    centerElement: true
     direction: DOWN
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -360,7 +444,9 @@ appId: se.gridex.el.dev
     centerElement: true
 - waitForAnimationToEnd:
     timeout: 5000
-- tapOn: "Markera som läst"
+- tapOn:
+    text: "Markera som läst"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible:
       id: "customer-notifications-idle"
@@ -376,7 +462,11 @@ appId: se.gridex.el.dev
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -407,7 +497,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: disable-document-b
-- tapOn: "Öppna dokument i extern läsare"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Dokumentet kunde inte öppnas.*"
     direction: DOWN
@@ -424,7 +518,11 @@ appId: se.gridex.el.dev
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -440,7 +538,11 @@ appId: se.gridex.el.dev
     direction: DOWN
     centerElement: true
     timeout: 60000
-- tapOn: "Öppna dokument i extern läsare"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
@@ -488,19 +590,31 @@ appId: se.gridex.el.dev
     element: "Sök bland hämtade ärenden"
     direction: DOWN
     centerElement: true
-- tapOn: "Sök bland hämtade ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
 - inputText: ${SUPPORT_B}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Visa fler ärenden"
     direction: DOWN
     centerElement: true
-- tapOn: "Visa fler ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fler ärenden"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: UP
     centerElement: true
-- tapOn: "Sök bland hämtade ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
 - runFlow: ios-dismiss-keyboard.yaml
@@ -512,7 +626,11 @@ appId: se.gridex.el.dev
     element: "resolved"
     direction: UP
     centerElement: true
-- tapOn: "resolved"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "resolved"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -526,12 +644,20 @@ appId: se.gridex.el.dev
     element: "Rensa sökning och filter"
     direction: UP
     centerElement: true
-- tapOn: "Rensa sökning och filter"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: UP
     centerElement: true
-- tapOn: "Sök bland hämtade ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
 - inputText: ${SUPPORT_B}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -543,9 +669,12 @@ appId: se.gridex.el.dev
       below: ${SUPPORT_B}
     direction: DOWN
     centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     text: "Öppna ärende och meddelanden"
     below: ${SUPPORT_B}
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: ".*REPLY.*"
     direction: DOWN
@@ -562,7 +691,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot-handoff-support
-- tapOn: "Öppna kundservice på webben"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna kundservice på webben"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -578,7 +711,11 @@ appId: se.gridex.el.dev
     centerElement: true
     timeout: 60000
 - takeScreenshot: "support-detail-web-return"
-- tapOn: "Meddelande till kundservice"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Meddelande till kundservice"
+    retryTapIfNoChange: false
 - inputText: "Synthetic iOS reply B"
 - assertVisible: "Synthetic iOS reply B"
 - runFlow: ios-dismiss-keyboard.yaml
@@ -586,7 +723,11 @@ appId: se.gridex.el.dev
     element: "Skicka svar"
     direction: DOWN
     centerElement: true
-- tapOn: "Skicka svar"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Skicka svar"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
     timeout: 60000
@@ -598,7 +739,11 @@ appId: se.gridex.el.dev
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -613,13 +758,21 @@ appId: se.gridex.el.dev
     element: "← Alla ärenden"
     direction: UP
     centerElement: true
-- tapOn: "← Alla ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "← Alla ärenden"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
       CUSTOMER_RESOURCE: support
       CUSTOMER_TARGET: "Sök bland hämtade ärenden"
-- tapOn: "Sök bland hämtade ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
 - eraseText: 160
 - inputText: "Synthetic iOS new B"
 - runFlow: ios-dismiss-keyboard.yaml
@@ -627,13 +780,21 @@ appId: se.gridex.el.dev
     element: "Ärendets rubrik"
     direction: DOWN
     centerElement: true
-- tapOn: "Ärendets rubrik"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Ärendets rubrik"
+    retryTapIfNoChange: false
 - inputText: "Synthetic iOS new B"
 - scrollUntilVisible:
     element: "Meddelande till kundservice"
     direction: DOWN
     centerElement: true
-- tapOn: "Meddelande till kundservice"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Meddelande till kundservice"
+    retryTapIfNoChange: false
 - inputText: "Synthetic iOS first message B"
 - assertVisible: "Synthetic iOS first message B"
 - runFlow: ios-dismiss-keyboard.yaml
@@ -641,7 +802,11 @@ appId: se.gridex.el.dev
     element: "Skapa ärende"
     direction: DOWN
     centerElement: true
-- tapOn: "Skapa ärende"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Skapa ärende"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "Meddelandet har sparats.*"
     timeout: 60000
@@ -653,7 +818,11 @@ appId: se.gridex.el.dev
     element: "Hämta igen"
     direction: DOWN
     centerElement: true
-- tapOn: "Hämta igen"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Hämta igen"
+    retryTapIfNoChange: false
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -669,9 +838,12 @@ appId: se.gridex.el.dev
       below: "Synthetic iOS new B"
     direction: DOWN
     centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     text: "Öppna ärende och meddelanden"
     below: "Synthetic iOS new B"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Synthetic iOS first message B"
     direction: DOWN
@@ -690,7 +862,11 @@ appId: se.gridex.el.dev
     element: "SE1"
     direction: DOWN
     centerElement: true
-- tapOn: "SE1"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE1"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE1"
     direction: DOWN
@@ -698,7 +874,11 @@ appId: se.gridex.el.dev
     element: "SE2"
     direction: UP
     centerElement: true
-- tapOn: "SE2"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE2"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE2"
     direction: DOWN
@@ -706,7 +886,11 @@ appId: se.gridex.el.dev
     element: "SE3"
     direction: UP
     centerElement: true
-- tapOn: "SE3"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE3"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE3"
     direction: DOWN
@@ -714,7 +898,11 @@ appId: se.gridex.el.dev
     element: "SE4"
     direction: UP
     centerElement: true
-- tapOn: "SE4"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE4"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE4"
     direction: DOWN
@@ -722,7 +910,11 @@ appId: se.gridex.el.dev
     element: "Igår"
     direction: UP
     centerElement: true
-- tapOn: "Igår"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Igår"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_YESTERDAY} · SE4"
     direction: DOWN
@@ -730,12 +922,20 @@ appId: se.gridex.el.dev
     element: "Idag"
     direction: UP
     centerElement: true
-- tapOn: "Idag"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Idag"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "Visa alla [0-9]+ intervallpriser"
     direction: DOWN
     centerElement: true
-- tapOn: "Visa alla [0-9]+ intervallpriser"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa alla [0-9]+ intervallpriser"
+    retryTapIfNoChange: false
 - assertVisible: "Dölj intervallpriser"
 - takeScreenshot: "public-market-prices"
 - tapOn: "Dölj intervallpriser"
@@ -751,7 +951,11 @@ appId: se.gridex.el.dev
     element: "Uppdatera elpriser"
     direction: DOWN
     centerElement: true
-- tapOn: "Uppdatera elpriser"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Uppdatera elpriser"
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "Elpriserna kunde inte hämtas. Försök igen."
     timeout: 30000
@@ -768,7 +972,11 @@ appId: se.gridex.el.dev
     element: "Uppdatera elpriser"
     direction: DOWN
     centerElement: true
-- tapOn: "Uppdatera elpriser"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Uppdatera elpriser"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_DATE} · SE4"
     direction: DOWN
@@ -779,7 +987,11 @@ appId: se.gridex.el.dev
     direction: UP
     centerElement: true
 - runScript: ios-future-market.js
-- tapOn: "Imorgon"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Imorgon"
+    retryTapIfNoChange: false
 - scrollUntilVisible:
     element: "${MARKET_TOMORROW} · SE4"
     direction: DOWN
@@ -821,7 +1033,11 @@ appId: se.gridex.el.dev
     element: "E-post"
     direction: DOWN
     centerElement: true
-- tapOn: "E-post"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
 - eraseText: 200
 - runFlow: ios-dismiss-keyboard.yaml
 - takeScreenshot: "invalidated-session-foreground"
@@ -841,7 +1057,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot-handoff-recovery
-- tapOn: "Glömt lösenord? Återställ på hemsidan"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Glömt lösenord? Återställ på hemsidan"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -861,7 +1081,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot-handoff-signup
-- tapOn: "Teckna nytt elavtal.*"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Teckna nytt elavtal.*"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -875,7 +1099,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot-handoff-contracts
-- tapOn: "Visa befintliga avtal.*"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa befintliga avtal.*"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:
@@ -889,7 +1117,11 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot-handoff-support
-- tapOn: "Få hjälp att byta avtal.*"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Få hjälp att byta avtal.*"
+    retryTapIfNoChange: false
 - runScript:
     file: ios-control.js
     env:

@@ -146,6 +146,8 @@ test('native failure diagnostics export fixed booleans without private hierarchy
   writeFileSync(join(source,'driver-startup-attempt-1.log'),'Bootstrap timeout '+privateValue+' Bearer synthetic-startup-token');
   writeFileSync(join(source,'results.xml'),'<testsuites><testsuite failures="1"><failure>'+privateValue+'</failure></testsuite></testsuites>');
   writeFileSync(join(source,'step-005-inputText-private.png'),privateValue);
+  writeFileSync(join(source,'profile-phone-target.png'),'SYNTHETIC_AUTHENTICATED_PHONE_TARGET');
+  writeFileSync(join(source,'login-password-target.png'),privateValue);
   execFileSync(process.execPath,[new URL('../scripts/mobile-integration/sanitize-evidence.mjs',import.meta.url).pathname,'ios',source,target],{env:{...process.env,RUNNER_TEMP:dir,LOGIN_A_PASSWORD:privateValue,CUSTOMER_A:customer}});
   const raw=readFileSync(join(target,'native-ui-state.json'),'utf8');const flags=JSON.parse(raw);
   assert.ok(Object.values(flags).every(value=>typeof value==='boolean'));
@@ -155,6 +157,8 @@ test('native failure diagnostics export fixed booleans without private hierarchy
   assert.ok(!readFileSync(join(target,'driver-startup-attempt-1.log'),'utf8').includes(privateValue));
   assert.ok(!readFileSync(join(target,'driver-startup-attempt-1.log'),'utf8').includes('synthetic-startup-token'));
   assert.ok(!existsSync(join(target,'commands.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.json')));assert.ok(!existsSync(join(target,'step-005-inputText-private.png')));
+  assert.equal(readFileSync(join(target,'profile-phone-target.png'),'utf8'),'SYNTHETIC_AUTHENTICATED_PHONE_TARGET');
+  assert.ok(!existsSync(join(target,'login-password-target.png')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -361,7 +365,7 @@ test('stale document journey reveals the cached action before disabling its upst
   if(command.includes('ACTION: disable-document-b')){
    assert.ok(actionVisible,'The cached document action must be visible before upstream mutation');disabled=true;
   }
-  if(command.startsWith('- tapOn: "Öppna dokument i extern läsare"')){
+  if(/^- tapOn:(?: \"Öppna dokument i extern läsare\"|\n    text: \"Öppna dokument i extern läsare\")/.test(command)){
    assert.ok(actionVisible,'A row title in view does not make its action visible');assert.ok(disabled);attempts++;denialVisible=true;
   }
   if(command.includes('element: "Dokumentet kunde inte öppnas.*"'))assert.ok(denialVisible);
@@ -391,7 +395,7 @@ test('restored document can be reached after refresh collapses or retains the sc
      assert.ok(visible||(direction==='UP'?y<offset:y>=offset+700),`Cannot seek ${target} ${direction} from offset ${offset}`);
      offset=Math.max(0,y-100);
     }
-    if(command.startsWith('- tapOn: "Öppna dokument i extern läsare"')){
+    if(/^- tapOn:(?: \"Öppna dokument i extern läsare\"|\n    text: \"Öppna dokument i extern läsare\")/.test(command)){
      assert.ok(1500>=offset&&1500<offset+700,'The restored action must be reachable without replaying refresh');opened=true;
     }
    }
