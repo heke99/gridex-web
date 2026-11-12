@@ -458,3 +458,20 @@ Only the fixed authenticated profile-phone-target screenshot joins the export
 allowlist; login/password targets and arbitrary raw hierarchy remain excluded.
 The existing sanitizer privacy regression now exercises both cases. A fresh
 complete coupled run, actual artifacts and final reviews are still required.
+
+
+### 2026-11-12: derive price expectations when that journey starts
+
+The next coupled run can cross Swedish midnight before iOS reaches prices.
+The old runner fixed today/yesterday/tomorrow before the entire native journey,
+while the app recomputes its Stockholm calendar day during render/refresh.
+The isolated price stage now reads the canonical default business day from
+the public price endpoint at that stage, validates it and derives adjacent
+calendar dates. Future publication checks use the same phase date. Both
+scripted probes set a fixed non-native user agent and no authorization, so
+they cannot substitute for actual Android/iOS price-request evidence.
+The stale job-start date environment is removed; native price UI, nonempty
+prices, interval/retry and future publication assertions remain unchanged.
+Calendar-boundary tests cover midnight/date change, year rollover, leap day,
+DST day, invalid dates, unavailable source and absence of phase initialization.
+No production app, gateway, Auth or API behavior changes.

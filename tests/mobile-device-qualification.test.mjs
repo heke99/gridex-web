@@ -414,3 +414,24 @@ test('customer resource selection maps only known label/resource pairs',()=>{
  }
  for(const resource of ['__proto__','constructor','supportDetail','PRIVATE_CUSTOMER_ID',''])assert.throws(()=>run(resource,{}),/Unknown customer resource selection/);
 });
+
+test('market expectations use the current canonical day at the journey phase, including calendar boundaries',()=>{
+ const source=readFileSync(new URL('../scripts/mobile-integration/ios-market-dates.js',import.meta.url),'utf8');
+ const run=new Function('http','CUSTOMER_ORIGIN','output','json',source);
+ for(const [today,yesterday,tomorrow] of [['2026-11-13','2026-11-12','2026-11-14'],['2026-12-31','2026-12-30','2027-01-01'],['2028-02-29','2028-02-28','2028-03-01'],['2026-03-29','2026-03-28','2026-03-30']]){
+  const output={};const calls=[];
+  run({get:(url,options)=>{calls.push({url,options});return {status:200,body:JSON.stringify({date:today})};}},'https://synthetic.invalid',output,JSON.parse);
+  assert.deepEqual(output,{marketToday:today,marketYesterday:yesterday,marketTomorrow:tomorrow});
+  assert.deepEqual(calls,[{url:'https://synthetic.invalid/api/elpris/day?area=SE4',options:{headers:{'user-agent':'GridexQualificationDateProbe/1'}}}]);
+ }
+ for(const date of ['2026-02-30','2026-13-01','PRIVATE_DATE',null])assert.throws(()=>run({get:()=>({status:200,body:JSON.stringify({date})})},'https://synthetic.invalid',{},JSON.parse),/Invalid canonical market date/);
+ assert.throws(()=>run({get:()=>({status:503})},'https://synthetic.invalid',{},JSON.parse),/Canonical market date unavailable/);
+});
+
+test('future publication probe uses the same phase date and cannot supply native platform evidence',()=>{
+ const source=readFileSync(new URL('../scripts/mobile-integration/ios-future-market.js',import.meta.url),'utf8');
+ const run=new Function('http','CUSTOMER_ORIGIN','output','json',source);const output={marketTomorrow:'2027-01-01'};const calls=[];
+ run({get:(url,options)=>{calls.push({url,options});return {status:200,body:JSON.stringify({entries:[]})};}},'https://synthetic.invalid',output,JSON.parse);
+ assert.equal(output.futureEntries,0);assert.deepEqual(calls,[{url:'https://synthetic.invalid/api/elpris/day?area=SE4&date=2027-01-01',options:{headers:{'user-agent':'GridexQualificationDateProbe/1'}}}]);
+ assert.throws(()=>run({get:()=>{throw Error('Unexpected network');}},'https://synthetic.invalid',{},JSON.parse),/Missing canonical future market date/);
+});

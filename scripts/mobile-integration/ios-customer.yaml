@@ -853,6 +853,7 @@ appId: se.gridex.el.dev
     element: ".*Leveransperioden måste kunna verifieras.*"
     direction: DOWN
 - takeScreenshot: "consumption-fails-closed"
+- runScript: ios-market-dates.js
 - tapOn: "Elpriser"
 - scrollUntilVisible:
     element: "Spotpriser"
@@ -868,7 +869,7 @@ appId: se.gridex.el.dev
     text: "SE1"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_DATE} · SE1"
+    element: "${output.marketToday} · SE1"
     direction: DOWN
 - scrollUntilVisible:
     element: "SE2"
@@ -880,7 +881,7 @@ appId: se.gridex.el.dev
     text: "SE2"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_DATE} · SE2"
+    element: "${output.marketToday} · SE2"
     direction: DOWN
 - scrollUntilVisible:
     element: "SE3"
@@ -892,7 +893,7 @@ appId: se.gridex.el.dev
     text: "SE3"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_DATE} · SE3"
+    element: "${output.marketToday} · SE3"
     direction: DOWN
 - scrollUntilVisible:
     element: "SE4"
@@ -904,7 +905,7 @@ appId: se.gridex.el.dev
     text: "SE4"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_DATE} · SE4"
+    element: "${output.marketToday} · SE4"
     direction: DOWN
 - scrollUntilVisible:
     element: "Igår"
@@ -916,7 +917,7 @@ appId: se.gridex.el.dev
     text: "Igår"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_YESTERDAY} · SE4"
+    element: "${output.marketYesterday} · SE4"
     direction: DOWN
 - scrollUntilVisible:
     element: "Idag"
@@ -978,7 +979,7 @@ appId: se.gridex.el.dev
     text: "Uppdatera elpriser"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_DATE} · SE4"
+    element: "${output.marketToday} · SE4"
     direction: DOWN
 - takeScreenshot: "market-retry-recovery"
 
@@ -993,7 +994,7 @@ appId: se.gridex.el.dev
     text: "Imorgon"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "${MARKET_TOMORROW} · SE4"
+    element: "${output.marketTomorrow} · SE4"
     direction: DOWN
 - runFlow:
     when:

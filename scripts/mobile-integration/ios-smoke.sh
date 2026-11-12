@@ -39,10 +39,7 @@ if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
     environment+=(-e "$variable=${!variable}")
   done
   environment+=(-e "CONTROL_KEY=$GRIDEX_QUALIFICATION_CONTROL_KEY" -e "CUSTOMER_ORIGIN=$EXPO_PUBLIC_CUSTOMER_API_URL")
-  market_date="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()))')"
-  market_yesterday="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")-86400000)))' "$market_date")"
-  market_tomorrow="$(node -e 'process.stdout.write(new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.parse(process.argv[1]+"T12:00:00Z")+86400000)))' "$market_date")"
-  environment+=(-e "MARKET_DATE=$market_date" -e "MARKET_YESTERDAY=$market_yesterday" -e "MARKET_TOMORROW=$market_tomorrow")
+
 fi
 # Retry only a driver bootstrap failure before Maestro created any test report.
 # A started customer journey must never be replayed automatically.
