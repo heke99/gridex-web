@@ -8,5 +8,5 @@ env -u DB_URL -u SUPABASE_SERVICE_ROLE_KEY -u GRIDEX_API_KEY \
   -u LOGIN_A_EMAIL -u LOGIN_A_PASSWORD -u LOGIN_B_EMAIL -u LOGIN_B_PASSWORD \
   bash scripts/mobile-android-build.sh
 node gridex-web/scripts/mobile-integration/verify-test-apk.mjs "$RUNNER_TEMP/mobile-fixtures/customers.json"
-python3 scripts/mobile-android-emulator.py "$RUNNER_TEMP/mobile-fixtures/customers.json"
+python3 gridex-web/scripts/mobile-integration/android-core-qualify.py "$RUNNER_TEMP/mobile-fixtures/customers.json"
 python3 gridex-web/scripts/mobile-integration/android-features.py "$RUNNER_TEMP/mobile-fixtures/customers.json"

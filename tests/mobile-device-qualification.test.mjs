@@ -399,3 +399,14 @@ test('restored document can be reached after refresh collapses or retains the sc
   execute(section);assert.ok(opened);
  }
 });
+
+test('customer resource selection maps only known label/resource pairs',()=>{
+ const source=readFileSync(new URL('../scripts/mobile-integration/ios-customer-resource.js',import.meta.url),'utf8');
+ const run=new Function('CUSTOMER_RESOURCE','output',source);
+ const labels={contracts:'Avtal',sites:'Anläggningar',invoices:'Fakturor',profile:'Profil',notifications:'Meddelanden',documents:'Dokument',powers:'Fullmakter',acceptances:'Godkännanden',support:'Support'};
+ for(const [resource,label] of Object.entries(labels)){
+  const output={previousOpsCount:42};run(resource,output);
+  assert.equal(output.customerResourceLabel,label);assert.equal(output.customerResourceIdle,'customer-'+resource+'-idle');assert.equal(output.previousOpsCount,42);
+ }
+ for(const resource of ['__proto__','constructor','supportDetail','PRIVATE_CUSTOMER_ID',''])assert.throws(()=>run(resource,{}),/Unknown customer resource selection/);
+});

@@ -366,3 +366,49 @@ Bash syntax and diff checks pass. Both independent static reviews cleared
 the repair after requiring if-no-files-found:error on all four upload steps.
 The underlying lost native failure remains unknown; the next fresh coherent
 run must provide the actual complete result or actionable sanitized failure.
+
+### Initial activity and customer-resource selection after terminal 8374b91
+
+Fresh shared run 43285631623 ended FAIL, with both explicit cleanup steps
+SUCCESS and all server/iOS artifacts delivered. The new public console
+summary preserved the actual iOS JUnit as designed. Five separate workflows
+and actual production-file audits passed. Same-source HTTP results contain
+12 core, 18 extended, 2 timeout and 2 document-link PASS. These subsets do not
+make the failed coupled run qualified.
+
+The Android traceback underlines the original first wait_for('Gridex El') at
+OPS helper line 83, before Mer or any login. Its artifact contains only the
+APK and successful credential-isolation check, with no scenario receipts.
+The actual test APK has the expected x86_64 ABI, package, SDK and activity.
+There is no captured hierarchy/crash proof; do not infer an Auth/API or app
+crash cause from the absent heading. A Web-owned wrapper now validates the
+whole pinned helper SHA-256 (84d4f0f81e5febaa04c2a05c0c9204080980a7b51584d47f16ea233777d6a2d2),
+loads its original definitions with the original __file__, replaces only
+launch with bounded am start -W activation and two stable own-package frames,
+then executes the complete unchanged original body/finally exactly once.
+Keep the original heading wait and all 13 core checks. Each new ADB call is
+bounded; at most three activity activations fit within 30 seconds. Failure
+exports only fixed boolean observations and a validated source SHA, never
+raw hierarchy, logcat, command arguments, process IDs or login values.
+
+iOS passed A/B, both invoice-PDF returns, lifecycle/outage recovery and phone
+write/fresh readback. Its JUnit then failed finding NOTICE_B. The sanitized
+server log ends with profile POST 200 and profile GET 200, with no subsequent
+notifications GET or POST. Resource selection was not observed; no failure
+of the notifications API or exact obscured tap coordinate is established.
+Use one finite label/resource-pair helper for all ten existing customer tab
+transitions: normalize to Mina sidor, center the chosen tab downward, settle
+animation, request one tap with retryTapIfNoChange:false, and require the
+expected resource idle marker. Retain every positive own-data, foreign-data
+and fresh-OPS check in the caller. The fixed bottom navigation is unchanged.
+An allowlisted synthetic authenticated-panel screenshot records the prepared
+target; no login/password screenshot is introduced.
+
+Seven Android core-driver tests cover the old early-return readiness model,
+all original body/finally checks running once, hash/marker rejection, finite
+activation and ADB bounds, rejection of late frames and private-value-safe
+diagnostics. The late-frame case was RED before its deadline check and GREEN
+afterward. All 37 device/evidence tests and 8 browser, 2 input and 4 simulator
+identity tests pass; affected YAML/Bash/diff checks pass. Both independent
+static reviews cleared the exact implementation. This remains a bounded
+test-driver repair awaiting real native acceptance, not a proven crash fix.

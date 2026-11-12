@@ -1,0 +1,23 @@
+appId: se.gridex.el.dev
+---
+- runScript: ios-customer-resource.js
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${output.customerResourceLabel}
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+# Authenticated panel only; the fixed screenshot is overwritten on each switch.
+- takeScreenshot: "customer-resource-target"
+- tapOn:
+    text: ${output.customerResourceLabel}
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible:
+      id: ${output.customerResourceIdle}
+    timeout: 60000

@@ -39,19 +39,19 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-fresh
-- scrollUntilVisible:
-    element: "Anläggningar"
-    direction: UP
-- tapOn: "Anläggningar"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: sites
 - scrollUntilVisible:
     element: ${SITE_A}
     direction: DOWN
     timeout: 60000
 - takeScreenshot: "a-site"
-- scrollUntilVisible:
-    element: "Fakturor"
-    direction: UP
-- tapOn: "Fakturor"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: invoices
 - scrollUntilVisible:
     element: ${INVOICE_A}
     direction: DOWN
@@ -140,19 +140,19 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: ${CONTRACT_B}
     direction: DOWN
-- scrollUntilVisible:
-    element: "Anläggningar"
-    direction: UP
-- tapOn: "Anläggningar"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: sites
 - scrollUntilVisible:
     element: ${SITE_B}
     direction: DOWN
     timeout: 60000
 - takeScreenshot: "b-site-no-a-data"
-- scrollUntilVisible:
-    element: "Fakturor"
-    direction: UP
-- tapOn: "Fakturor"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: invoices
 - scrollUntilVisible:
     element: ${INVOICE_B}
     direction: DOWN
@@ -290,10 +290,10 @@ appId: se.gridex.el.dev
     env:
       ACTION: assert-fresh
 - takeScreenshot: "network-recovery"
-- scrollUntilVisible:
-    element: "Profil"
-    direction: UP
-- tapOn: "Profil"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
 - scrollUntilVisible:
     element: "Nytt telefonnummer"
     direction: DOWN
@@ -326,10 +326,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: assert-fresh
-- scrollUntilVisible:
-    element: "Meddelanden"
-    direction: UP
-- tapOn: "Meddelanden"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
 - scrollUntilVisible:
     element: ${NOTICE_B}
     direction: DOWN
@@ -374,11 +374,10 @@ appId: se.gridex.el.dev
       ACTION: assert-fresh
 - assertNotVisible: "Markera som läst"
 - takeScreenshot: "notification-read"
-- scrollUntilVisible:
-    element: "Dokument"
-    direction: UP
-    centerElement: true
-- tapOn: "Dokument"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
 - scrollUntilVisible:
     element: ${DOCUMENT_B}
     direction: DOWN
@@ -448,29 +447,26 @@ appId: se.gridex.el.dev
     env:
       ACTION: assert-fresh
 - takeScreenshot: "document-return"
-- scrollUntilVisible:
-    element: "Fullmakter"
-    direction: UP
-    centerElement: true
-- tapOn: "Fullmakter"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: powers
 - scrollUntilVisible:
     element: ${POWER_B}
     direction: DOWN
 - takeScreenshot: "powers"
-- scrollUntilVisible:
-    element: "Godkännanden"
-    direction: UP
-    centerElement: true
-- tapOn: "Godkännanden"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: acceptances
 - scrollUntilVisible:
     element: ${ACCEPTANCE_B}
     direction: DOWN
 - takeScreenshot: "acceptances"
-- scrollUntilVisible:
-    element: "Support"
-    direction: UP
-    centerElement: true
-- tapOn: "Support"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: support
 - scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: DOWN
