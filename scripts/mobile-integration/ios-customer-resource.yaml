@@ -17,7 +17,24 @@ appId: se.gridex.el.dev
 - tapOn:
     text: ${output.customerResourceLabel}
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible:
-      id: ${output.customerResourceIdle}
-    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "customer-resource-target"
+- runFlow:
+    when:
+      true: ${CUSTOMER_RESOURCE === 'support'}
+    commands:
+      # Require loaded list content; a large container ID may be absent in AX.
+      - scrollUntilVisible:
+          element: "Sök bland hämtade ärenden"
+          direction: DOWN
+          timeout: 60000
+      - assertNotVisible: "Hämtar kunduppgifter"
+- runFlow:
+    when:
+      true: ${CUSTOMER_RESOURCE !== 'support'}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: ${output.customerResourceIdle}
+          timeout: 60000

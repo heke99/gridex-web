@@ -5,10 +5,14 @@ appId: se.gridex.el.dev
 - retry:
     maxRetries: 2
     commands:
-      - extendedWaitUntil:
-          visible:
-            id: "customer-${CUSTOMER_RESOURCE}-idle"
-          timeout: 30000
+      - runFlow:
+          when:
+            true: ${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "customer-${CUSTOMER_RESOURCE}-idle"
+                timeout: 30000
       - scrollUntilVisible:
           element: "Mina sidor"
           direction: UP
@@ -24,6 +28,12 @@ appId: se.gridex.el.dev
           centerElement: false
           waitToSettleTimeoutMs: 500
           timeout: 60000
+      # Positive enabled-control readiness also covers long support containers.
+      - extendedWaitUntil:
+          visible:
+            text: "Hämta igen"
+            enabled: true
+          timeout: 30000
       # Authenticated customer pane only; same fixed diagnostic allowlist.
       - takeScreenshot: "customer-resource-target"
       - tapOn:

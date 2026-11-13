@@ -31,8 +31,8 @@ test('iOS read refresh preserves every original action, positive readback and is
 
 test('iOS read refresh retries only a bounded idempotent read after viewport relocation',()=>{
  const [retry]=commands(read('scripts/mobile-integration/ios-customer-refresh.yaml'));assert.equal(retry.retry.maxRetries,2);
- const steps=retry.retry.commands;assert.deepEqual(steps.map(c=>Object.keys(c)[0]),['extendedWaitUntil','scrollUntilVisible','takeScreenshot','scrollUntilVisible','takeScreenshot','tapOn']);
- assert.equal(steps[0].extendedWaitUntil.visible.id,'customer-${CUSTOMER_RESOURCE}-idle');assert.equal(steps[1].scrollUntilVisible.element,'Mina sidor');assert.equal(steps[1].scrollUntilVisible.direction,'UP');assert.equal(steps[3].scrollUntilVisible.element,'Hämta igen');assert.equal(steps[3].scrollUntilVisible.centerElement,false);assert.equal(steps[3].scrollUntilVisible.timeout,60000);assert.equal(steps[3].scrollUntilVisible.waitToSettleTimeoutMs,500);assert.deepEqual(steps[5].tapOn,{text:'Hämta igen',retryTapIfNoChange:false});
+ const steps=retry.retry.commands;assert.deepEqual(steps.map(c=>Object.keys(c)[0]),['runFlow','scrollUntilVisible','takeScreenshot','scrollUntilVisible','extendedWaitUntil','takeScreenshot','tapOn']);
+ assert.equal(steps[0].runFlow.when.true,"${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}");assert.equal(steps[0].runFlow.commands[0].extendedWaitUntil.visible.id,'customer-${CUSTOMER_RESOURCE}-idle');assert.equal(steps[0].runFlow.commands[0].extendedWaitUntil.timeout,30000);assert.equal(steps[1].scrollUntilVisible.element,'Mina sidor');assert.equal(steps[1].scrollUntilVisible.direction,'UP');assert.equal(steps[3].scrollUntilVisible.element,'Hämta igen');assert.equal(steps[3].scrollUntilVisible.centerElement,false);assert.equal(steps[3].scrollUntilVisible.timeout,60000);assert.equal(steps[3].scrollUntilVisible.waitToSettleTimeoutMs,500);assert.deepEqual(steps[4].extendedWaitUntil,{visible:{text:'Hämta igen',enabled:true},timeout:30000});assert.deepEqual(steps[6].tapOn,{text:'Hämta igen',retryTapIfNoChange:false});
  function simulate(shifts){let attempts=0,reads=0;
   for(let attempt=0;attempt<=retry.retry.maxRetries;attempt++){
    attempts++;let offset=0;
@@ -61,4 +61,16 @@ test('iOS production reuse rejects failed, expired, foreign and substituted refe
  const run={id:iosRef.run,head_sha:iosRef.source,status:'completed',conclusion:'success'},artifact={id:iosRef.artifact,name:'gridex-ios-simulator',expired:false,workflow_run:{id:iosRef.run,head_sha:iosRef.source},digest:'sha256:'+iosRef.digest};assertIosProductionMetadata(run,artifact);
  for(const change of [x=>x.conclusion='failure',x=>x.head_sha='foreign',x=>x.status='in_progress']){const copy={...run};change(copy);assert.throws(()=>assertIosProductionMetadata(copy,artifact));}
  for(const change of [x=>x.expired=true,x=>x.digest='sha256:foreign',x=>x.workflow_run.head_sha='foreign',x=>x.id++]){const copy=structuredClone(artifact);change(copy);assert.throws(()=>assertIosProductionMetadata(run,copy));}
+});
+
+
+test('iOS read refresh uses positive support content without changing any other resource readiness',()=>{
+ const path='scripts/mobile-integration/ios-customer-resource.yaml',old=commands(execFileSync('git',['show',ref.source+':'+path],{encoding:'utf8'})),current=commands(read(path));
+ assert.deepEqual(current.slice(0,6),old.slice(0,6));
+ assert.deepEqual(current[6],{waitForAnimationToEnd:{timeout:5000}});assert.deepEqual(current[7],{takeScreenshot:'customer-resource-target'});
+ assert.equal(current[8].runFlow.when.true,"${CUSTOMER_RESOURCE === 'support'}");
+ assert.deepEqual(current[8].runFlow.commands,[{scrollUntilVisible:{element:'Sök bland hämtade ärenden',direction:'DOWN',timeout:60000}},{assertNotVisible:'Hämtar kunduppgifter'}]);
+ assert.equal(current[9].runFlow.when.true,"${CUSTOMER_RESOURCE !== 'support'}");assert.deepEqual(current[9].runFlow.commands,[old[6]]);
+ const after='scripts/mobile-integration/ios-customer-after-refresh.yaml',previous=commands(execFileSync('git',['show',ref.source+':'+after],{encoding:'utf8'})),next=commands(read(after));
+ assert.equal(next[0].runFlow.when.true,"${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}");assert.deepEqual(next[0].runFlow.commands,[previous[0]]);assert.deepEqual(next.slice(1,3),previous.slice(1));assert.deepEqual(next[3],{assertNotVisible:'Hämtar kunduppgifter'});
 });
