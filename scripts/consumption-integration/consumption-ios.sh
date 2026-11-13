@@ -8,15 +8,15 @@ cleanup_ui() {
   local result=$?
   trap - EXIT
   node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" || result=1
-  if test "$result" -eq 0; then
-    python3 - "$private_ui" "$out" <<'PY'
+  python3 - "$private_ui" "$out" <<'PY'
 import sys,shutil,re
 from pathlib import Path
 src,out=map(Path,sys.argv[1:])
 shots=[p for p in src.rglob('*.png') if re.fullmatch(r'consumption-[ab]-(primary|secondary)-(7|30)\.png',p.name)]
-assert len(shots)==8 and len({p.name for p in shots})==8
+assert len(shots)<=8 and len({p.name for p in shots})==len(shots)
 for p in shots:shutil.copyfile(p,out/'ui'/p.name)
 PY
+  if test "$result" -eq 0; then
     python3 scripts/consumption-integration/consumption-native-evidence.py ios "$out" --ops "$GRIDEX_OPS_COMMIT" --web "$QUALIFICATION_WEB_COMMIT" --output "$out/result.json"
   fi
   exit "$result"

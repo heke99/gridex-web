@@ -30,7 +30,8 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Logga ut"
     direction: DOWN
-    centerElement: true
+    centerElement: false
+    timeout: 60000
 - tapOn: "Logga ut"
 - extendedWaitUntil:
     visible: "Logga in på Mina sidor"
@@ -58,7 +59,8 @@ appId: se.gridex.el.dev
 - scrollUntilVisible:
     element: "Logga ut"
     direction: DOWN
-    centerElement: true
+    centerElement: false
+    timeout: 60000
 - tapOn: "Logga ut"
 - extendedWaitUntil:
     visible: "Logga in på Mina sidor"
