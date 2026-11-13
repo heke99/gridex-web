@@ -25,8 +25,8 @@ test('iOS read refresh preserves every original action, positive readback and is
 
 test('iOS read refresh retries only a bounded idempotent read after viewport relocation',()=>{
  const [retry]=commands(read('scripts/mobile-integration/ios-customer-refresh.yaml'));assert.equal(retry.retry.maxRetries,2);
- const steps=retry.retry.commands;assert.deepEqual(steps.map(c=>Object.keys(c)[0]),['extendedWaitUntil','scrollUntilVisible','scrollUntilVisible','takeScreenshot','tapOn']);
- assert.equal(steps[0].extendedWaitUntil.visible.id,'customer-${CUSTOMER_RESOURCE}-idle');assert.equal(steps[1].scrollUntilVisible.element,'Mina sidor');assert.equal(steps[1].scrollUntilVisible.direction,'UP');assert.equal(steps[2].scrollUntilVisible.element,'Hämta igen');assert.equal(steps[2].scrollUntilVisible.centerElement,true);assert.deepEqual(steps[4].tapOn,{text:'Hämta igen',retryTapIfNoChange:false});
+ const steps=retry.retry.commands;assert.deepEqual(steps.map(c=>Object.keys(c)[0]),['extendedWaitUntil','scrollUntilVisible','takeScreenshot','scrollUntilVisible','takeScreenshot','tapOn']);
+ assert.equal(steps[0].extendedWaitUntil.visible.id,'customer-${CUSTOMER_RESOURCE}-idle');assert.equal(steps[1].scrollUntilVisible.element,'Mina sidor');assert.equal(steps[1].scrollUntilVisible.direction,'UP');assert.equal(steps[3].scrollUntilVisible.element,'Hämta igen');assert.equal(steps[3].scrollUntilVisible.centerElement,false);assert.equal(steps[3].scrollUntilVisible.timeout,60000);assert.equal(steps[3].scrollUntilVisible.waitToSettleTimeoutMs,500);assert.deepEqual(steps[5].tapOn,{text:'Hämta igen',retryTapIfNoChange:false});
  function simulate(shifts){let attempts=0,reads=0;
   for(let attempt=0;attempt<=retry.retry.maxRetries;attempt++){
    attempts++;let offset=0;

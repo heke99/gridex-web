@@ -12,12 +12,18 @@ appId: se.gridex.el.dev
       - scrollUntilVisible:
           element: "Mina sidor"
           direction: UP
-          timeout: 15000
+          timeout: 60000
+      # Capture this read's actual starting viewport, replacing an older tab shot
+      # even when the following scroll fails before reaching its target.
+      - takeScreenshot: "customer-resource-target"
       - scrollUntilVisible:
           element: "Hämta igen"
           direction: DOWN
-          centerElement: true
-          timeout: 15000
+          # This footer may not be centerable at the end of the scroll view.
+          # Require full visibility without Maestro's extra centering swipes.
+          centerElement: false
+          waitToSettleTimeoutMs: 500
+          timeout: 60000
       # Authenticated customer pane only; same fixed diagnostic allowlist.
       - takeScreenshot: "customer-resource-target"
       - tapOn:

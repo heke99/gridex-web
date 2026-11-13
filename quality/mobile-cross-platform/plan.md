@@ -575,3 +575,10 @@ Android reuse additionally allows these reviewed iOS-only test/guard files,
 while unchanged product/Android input and exact shared-workflow checks remain.
 Eleven affected regressions pass. No Android emulator/build or iOS production
 build is repeated to validate the new control/guard logic.
+
+
+### iOS footer visibility adjustment after 058e2db
+
+Run 43337964821 finished FAIL: JUnit 12m16s, no visible Hämta igen in invoice read refresh. Both credential/stack cleanup steps succeeded; Android77 and production-iOS artifacts were reused, no new Android/native production run. Actual iOS artifact13999268294 SHA256 e4d06f5d0439a06bd48fa93aa8badc4371a309466ea456c60731cf846cb3e731; server14000596425 SHA256 0d3afed20790e77f673a87e923ee2f21f63436d9245c1288be930156f483bbda. HTTP core12/features18/document2/resilience2 PASS; current full iOS remains unapproved.
+
+The previous target PNG was from an earlier resource selection, so it does not establish failing scroll geometry. Pinned Maestro2.12.1 Orchestra.scrollUntilVisible performs up to four extra centering swipes before normal visibility fallback; the short15s bound could expire first. Geometry remains a hypothesis. Refresh now requires fully visible footer without centering, allows60s scroll with500ms settle, and overwrites the same authenticated allowlisted PNG before searching, so any failed search has current viewport evidence. Bounded GET-only retry, exact resource idle, all original positive/negative/freshness/write checks are retained. No product, Android, production recipe or reuse allowlist/hash change. 11 affected checks and changed-file lint/diff PASS; both scoped read-only reviews clear. Only affected iOS/HTTP qualification is rerun.
