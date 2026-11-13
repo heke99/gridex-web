@@ -5,14 +5,34 @@ appId: se.gridex.el.dev
     direction: DOWN
     centerElement: true
     timeout: 60000
-- tapOn: "E-post"
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+# iOS backspace erases before the caret. Select the retained address in full first.
+- runFlow:
+    when:
+      true: ${LOGIN_PHASE === 'ios:B:login'}
+    commands:
+      - longPressOn: "E-post"
+      - runFlow:
+          when:
+            visible: "^(Select All|Markera allt)$"
+          commands:
+            - tapOn: "^(Select All|Markera allt)$"
 - eraseText: 200
+# The actual Auth-grant observer below requires the exact expected identity and password.
 - inputText: ${EMAIL}
 - scrollUntilVisible:
     element: "Lösenord"
     direction: DOWN
     centerElement: true
-- tapOn: "Lösenord"
+- tapOn:
+    text: "Lösenord"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - eraseText: 200
 - inputText: ${PASSWORD}
 - runFlow: ../mobile-integration/ios-dismiss-keyboard.yaml
