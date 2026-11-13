@@ -17,11 +17,25 @@ test('iOS read refresh preserves every original action, positive readback and is
    assert.equal(c.scrollUntilVisible.centerElement,true);assert.equal(c.scrollUntilVisible.timeout,60000);assert.deepEqual(input[i+1],{waitForAnimationToEnd:{timeout:5000}});assert.deepEqual(input[i+2],{tapOn:{text:'Lösenord',retryTapIfNoChange:false}});out.push({tapOn:'Lösenord'});i+=2;continue;
   }
   if(c.extendedWaitUntil?.visible?.text==='Logga in'){assert.deepEqual(c.extendedWaitUntil,{visible:{text:'Logga in',enabled:true},timeout:30000});assert.equal(input[i+1]?.tapOn?.text,'Logga in');continue;}
+  if(c.extendedWaitUntil?.visible?.id?.startsWith('customer-(')&&input[i+1]?.assertNotVisible==='Försök logga ut igen'&&input[i+2]==='stopApp'){assert.equal(c.extendedWaitUntil.timeout,60000);i++;continue;}
+  if(['Skicka svar','Skapa ärende'].includes(c.extendedWaitUntil?.visible?.text)){assert.equal(c.extendedWaitUntil.visible.enabled,true);assert.equal(c.extendedWaitUntil.timeout,30000);assert.equal(input[i+1]?.tapOn?.text,c.extendedWaitUntil.visible.text);continue;}
+  if(['${SUPPORT_B}','${SUPPORT_LAST_B}','Synthetic iOS new B'].includes(c.assertVisible))continue;
+  if(c.assertVisible?.text==='Synthetic iOS new B'){assert.equal(c.assertVisible.below,'Nytt ärende');continue;}
+  if(c.takeScreenshot==='customer-resource-target')continue;
+  if(c.assertNotVisible==='Hämtar kunduppgifter'&&input[i-1]?.scrollUntilVisible?.element==='52 hämtade ärenden')continue;
   if(c.runFlow==='ios-resume-app.yaml'||JSON.stringify(c.launchApp)==='{"stopApp":false}'){out.push({activation:'foreground'});continue;}
   if(c.scrollUntilVisible?.element==='Hämta igen'){
    assert.ok(input[i+1].waitForAnimationToEnd);assert.equal(input[i+2].tapOn.text,'Hämta igen');out.push({read:'refresh'});i+=2;continue;
   }
   if(c.runFlow?.file==='ios-customer-refresh.yaml'){out.push({read:'refresh'});continue;}
+  if(c.waitForAnimationToEnd)continue;
+  if(c.scrollUntilVisible){
+   const e=c.scrollUntilVisible.element;
+   if(['Mina sidor','Spotpriser','52 hämtade ärenden'].includes(e))continue;
+   if(e?.text==='Synthetic iOS new B'&&e.below==='Visar [0-9]+ av [0-9]+ hämtade poster')continue;
+   if(['${SUPPORT_B}','${SUPPORT_LAST_B}'].includes(e?.text)){assert.equal(e.below,'Visar 1 av 52 hämtade poster');out.push({requiredVisible:e.text});continue;}
+   out.push({requiredVisible:e});continue;
+  }
   out.push(c);
  }return out;}
  assert.deepEqual(normalize(current),normalize(old));
@@ -73,4 +87,20 @@ test('iOS read refresh uses positive support content without changing any other 
  assert.equal(current[9].runFlow.when.true,"${CUSTOMER_RESOURCE !== 'support'}");assert.deepEqual(current[9].runFlow.commands,[old[6]]);
  const after='scripts/mobile-integration/ios-customer-after-refresh.yaml',previous=commands(execFileSync('git',['show',ref.source+':'+after],{encoding:'utf8'})),next=commands(read(after));
  assert.equal(next[0].runFlow.when.true,"${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}");assert.deepEqual(next[0].runFlow.commands,[previous[0]]);assert.deepEqual(next.slice(1,3),previous.slice(1));assert.deepEqual(next[3],{assertNotVisible:'Hämtar kunduppgifter'});
+});
+
+
+test('iOS read refresh remainder requires settled exact inputs, real list rows and completed cleanup',()=>{
+ const flow=commands(read('scripts/mobile-integration/ios-customer.yaml'));
+ const more=flow.findIndex(c=>c?.tapOn?.text==='Visa fler ärenden');assert.deepEqual(flow[more+1],{scrollUntilVisible:{element:'52 hämtade ärenden',direction:'UP',timeout:60000}});assert.deepEqual(flow[more+2],{assertNotVisible:'Hämtar kunduppgifter'});
+ for(const value of ['${SUPPORT_B}','${SUPPORT_LAST_B}','Synthetic iOS new B']){
+  const edits=flow.flatMap((c,i)=>c?.inputText===value?[i]:[]);assert.equal(edits.length,value==='${SUPPORT_LAST_B}'?1:2);
+  for(const i of edits){const expected=flow[i-2]?.tapOn?.text==='Ärendets rubrik'?{text:value,below:'Nytt ärende'}:value;assert.deepEqual(flow[i+1],{assertVisible:expected});assert.deepEqual(flow[i+2],{takeScreenshot:'customer-resource-target'});}
+ }
+ for(const label of ['Sök bland hämtade ärenden','Ärendets rubrik','Meddelande till kundservice'])for(const [i,c]of flow.entries())if(c?.tapOn?.text===label)assert.deepEqual(flow[i+1],{waitForAnimationToEnd:{timeout:5000}});
+ for(const title of ['${SUPPORT_LAST_B}','${SUPPORT_B}'])assert.equal(flow.filter(c=>c?.scrollUntilVisible?.element?.text===title&&c.scrollUntilVisible.element.below==='Visar 1 av 52 hämtade poster').length,1);
+ assert.equal(flow.filter(c=>c?.scrollUntilVisible?.element?.text==='Synthetic iOS new B'&&c.scrollUntilVisible.element.below==='Visar [0-9]+ av [0-9]+ hämtade poster').length,1);
+ for(const label of ['Skapa ärende','Skicka svar']){const i=flow.findIndex(c=>c?.tapOn?.text===label);assert.deepEqual(flow[i-1],{extendedWaitUntil:{visible:{text:label,enabled:true},timeout:30000}});}
+ const prices=flow.flatMap((c,i)=>typeof c?.scrollUntilVisible?.element==='string'&&c.scrollUntilVisible.element.startsWith('${output.market')?[i]:[]);assert.equal(prices.length,7);for(const i of prices)assert.deepEqual(flow[i-1],{scrollUntilVisible:{element:'Spotpriser',direction:'UP',timeout:60000}});
+ const revoked=flow.findIndex(c=>c?.takeScreenshot==='invalidated-session-foreground');const state=flow[revoked+1].extendedWaitUntil;assert.equal(state.timeout,60000);const pattern=new RegExp('^'+state.visible.id+'$');for(const r of ['contracts','support','supportDetail','invoiceDetail','consumption']){assert.equal(pattern.test('customer-'+r+'-idle'),true);assert.equal(pattern.test('customer-'+r+'-loading'),false);}assert.equal(pattern.test('customer-foreign-idle'),false);assert.deepEqual(flow[revoked+2],{assertNotVisible:'Försök logga ut igen'});assert.equal(flow[revoked+3],'stopApp');
 });

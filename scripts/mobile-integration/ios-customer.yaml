@@ -593,15 +593,24 @@ appId: se.gridex.el.dev
     env:
       CUSTOMER_RESOURCE: support
 - scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
     text: "Sök bland hämtade ärenden"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - inputText: ${SUPPORT_B}
+- assertVisible: ${SUPPORT_B}
+- takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Visa fler ärenden"
@@ -613,20 +622,37 @@ appId: se.gridex.el.dev
     text: "Visa fler ärenden"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "Sök bland hämtade ärenden"
+    element: "52 hämtade ärenden"
     direction: UP
+    timeout: 60000
+- assertNotVisible: "Hämtar kunduppgifter"
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
     centerElement: true
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
     text: "Sök bland hämtade ärenden"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
+- assertVisible: ${SUPPORT_LAST_B}
+- takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
-    element: ${SUPPORT_LAST_B}
+    element:
+      text: ${SUPPORT_LAST_B}
+      below: "Visar 1 av 52 hämtade poster"
     direction: DOWN
+    timeout: 60000
 - takeScreenshot: "support-continuation-last"
 - scrollUntilVisible:
     element: "resolved"
@@ -656,19 +682,31 @@ appId: se.gridex.el.dev
     text: "Rensa sökning och filter"
     retryTapIfNoChange: false
 - scrollUntilVisible:
-    element: "Sök bland hämtade ärenden"
+    element: "Mina sidor"
     direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
     centerElement: true
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
     text: "Sök bland hämtade ärenden"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - inputText: ${SUPPORT_B}
+- assertVisible: ${SUPPORT_B}
+- takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
-    element: ${SUPPORT_B}
+    element:
+      text: ${SUPPORT_B}
+      below: "Visar 1 av 52 hämtade poster"
     direction: DOWN
+    timeout: 60000
 - scrollUntilVisible:
     element:
       text: "Öppna ärende och meddelanden"
@@ -722,6 +760,8 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Meddelande till kundservice"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - inputText: "Synthetic iOS reply B"
 - assertVisible: "Synthetic iOS reply B"
 - runFlow: ios-dismiss-keyboard.yaml
@@ -731,6 +771,11 @@ appId: se.gridex.el.dev
     centerElement: true
 - waitForAnimationToEnd:
     timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Skicka svar"
+      enabled: true
+    timeout: 30000
 - tapOn:
     text: "Skicka svar"
     retryTapIfNoChange: false
@@ -774,8 +819,12 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Sök bland hämtade ärenden"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - eraseText: 160
 - inputText: "Synthetic iOS new B"
+- assertVisible: "Synthetic iOS new B"
+- takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
     element: "Ärendets rubrik"
@@ -786,7 +835,13 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Ärendets rubrik"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - inputText: "Synthetic iOS new B"
+- assertVisible:
+    text: "Synthetic iOS new B"
+    below: "Nytt ärende"
+- takeScreenshot: "customer-resource-target"
 - scrollUntilVisible:
     element: "Meddelande till kundservice"
     direction: DOWN
@@ -796,6 +851,8 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Meddelande till kundservice"
     retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
 - inputText: "Synthetic iOS first message B"
 - assertVisible: "Synthetic iOS first message B"
 - runFlow: ios-dismiss-keyboard.yaml
@@ -805,6 +862,11 @@ appId: se.gridex.el.dev
     centerElement: true
 - waitForAnimationToEnd:
     timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Skapa ärende"
+      enabled: true
+    timeout: 30000
 - tapOn:
     text: "Skapa ärende"
     retryTapIfNoChange: false
@@ -824,6 +886,12 @@ appId: se.gridex.el.dev
     env:
       CUSTOMER_RESOURCE: support
       CUSTOMER_TARGET: "Synthetic iOS new B"
+- scrollUntilVisible:
+    element:
+      text: "Synthetic iOS new B"
+      below: "Visar [0-9]+ av [0-9]+ hämtade poster"
+    direction: DOWN
+    timeout: 60000
 - runScript:
     file: ios-control.js
     env:
@@ -865,6 +933,10 @@ appId: se.gridex.el.dev
     text: "SE1"
     retryTapIfNoChange: false
 - scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "${output.marketToday} · SE1"
     direction: DOWN
 - scrollUntilVisible:
@@ -876,6 +948,10 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "SE2"
     retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "${output.marketToday} · SE2"
     direction: DOWN
@@ -889,6 +965,10 @@ appId: se.gridex.el.dev
     text: "SE3"
     retryTapIfNoChange: false
 - scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "${output.marketToday} · SE3"
     direction: DOWN
 - scrollUntilVisible:
@@ -901,6 +981,10 @@ appId: se.gridex.el.dev
     text: "SE4"
     retryTapIfNoChange: false
 - scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "${output.marketToday} · SE4"
     direction: DOWN
 - scrollUntilVisible:
@@ -912,6 +996,10 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Igår"
     retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "${output.marketYesterday} · SE4"
     direction: DOWN
@@ -975,6 +1063,10 @@ appId: se.gridex.el.dev
     text: "Uppdatera elpriser"
     retryTapIfNoChange: false
 - scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "${output.marketToday} · SE4"
     direction: DOWN
 - takeScreenshot: "market-retry-recovery"
@@ -989,6 +1081,10 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Imorgon"
     retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
 - scrollUntilVisible:
     element: "${output.marketTomorrow} · SE4"
     direction: DOWN
@@ -1037,6 +1133,12 @@ appId: se.gridex.el.dev
 - eraseText: 200
 - runFlow: ios-dismiss-keyboard.yaml
 - takeScreenshot: "invalidated-session-foreground"
+# The customer panel stays mounted across tabs; accept its selected resource.
+- extendedWaitUntil:
+    visible:
+      id: "customer-(contracts|sites|invoices|support|invoiceDetail|supportDetail|profile|notifications|documents|powers|acceptances|consumption)-idle"
+    timeout: 60000
+- assertNotVisible: "Försök logga ut igen"
 - stopApp
 - runFlow: ios-resume-app.yaml
 - tapOn: "Mer"
