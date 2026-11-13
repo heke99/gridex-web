@@ -47,6 +47,7 @@ test('iOS read refresh preserves original writes, full fresh readback and isolat
    assert.ok(input[i+1].waitForAnimationToEnd);assert.equal(input[i+2].tapOn.text,'Hämta igen');out.push({read:'refresh'});i+=2;continue;
   }
   if(c.runFlow?.file==='ios-customer-refresh.yaml'){out.push({read:'refresh'});continue;}
+  if(c.runFlow?.file==='ios-customer-resource.yaml'&&input[i-1]?.runScript?.env?.ACTION==='snapshot'){out.push({read:'refresh'});assert.equal(input[i+1]?.runScript?.env?.ACTION,'assert-fresh');i++;continue;}
   if(c.waitForAnimationToEnd)continue;
   if(c.scrollUntilVisible){
    const e=c.scrollUntilVisible.element;
@@ -59,7 +60,7 @@ test('iOS read refresh preserves original writes, full fresh readback and isolat
  }return out;}
  assert.deepEqual(normalize(current),normalize(old));
  assert.equal(current.filter(c=>c?.extendedWaitUntil?.visible?.id==='customer-contracts-idle').length,2);assert.equal(current.filter(c=>c?.extendedWaitUntil?.visible?.text==='Logga in').length,2);assert.equal(current.filter(c=>c?.scrollUntilVisible?.element==='Lösenord').length,2);
- assert.deepEqual(current.filter(c=>c?.runFlow?.file==='ios-customer-refresh.yaml').map(c=>c.runFlow.env.CUSTOMER_RESOURCE),['invoiceDetail','invoiceDetail','profile','notifications','documents','supportDetail','support']);
+ assert.deepEqual(current.filter((c,i)=>c?.runFlow?.file==='ios-customer-refresh.yaml'||c?.runFlow?.file==='ios-customer-resource.yaml'&&current[i-1]?.runScript?.env?.ACTION==='snapshot').map(c=>c.runFlow.env.CUSTOMER_RESOURCE),['invoiceDetail','invoiceDetail','profile','notifications','documents','supportDetail','support']);
 });
 
 test('iOS read refresh retries only a bounded idempotent read after viewport relocation',()=>{
@@ -183,4 +184,9 @@ test('iOS Support success requires stable cleared composer and disabled submit p
  }
  assert.equal(flow.some(c=>c?.scrollUntilVisible?.element==='Meddelandet har sparats.*'||c?.extendedWaitUntil?.visible==='Meddelandet har sparats.*'),false);
  assert.ok(flow.some(c=>c?.runFlow?.env?.CUSTOMER_RESOURCE==='supportDetail'&&c.runFlow.env.CUSTOMER_TARGET==='Synthetic iOS reply B'));assert.ok(flow.some(c=>c?.scrollUntilVisible?.element==='Synthetic iOS first message B'));
+});
+
+
+test('iOS created Support case readback reloads via visible resource tab and requires real OPS GET before row acceptance',()=>{
+ const flow=commands(read('scripts/mobile-integration/ios-customer.yaml'));const i=flow.findIndex((c,n)=>c?.runFlow?.file==='ios-customer-resource.yaml'&&flow[n-1]?.runScript?.env?.ACTION==='snapshot');assert.ok(i>0);assert.equal(flow[i].runFlow.env.CUSTOMER_RESOURCE,'support');assert.equal(flow[i+1].runScript.env.ACTION,'assert-fresh');assert.equal(flow[i+2].runFlow.env.CUSTOMER_TARGET,'Synthetic iOS new B');assert.equal(flow[i+3].scrollUntilVisible.element.below,'Visar [0-9]+ av [0-9]+ hämtade poster');assert.ok(flow.some(c=>c?.scrollUntilVisible?.element==='Synthetic iOS first message B'));
 });

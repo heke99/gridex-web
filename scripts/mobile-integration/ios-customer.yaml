@@ -986,10 +986,16 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
+# Reload through the ordinary visible resource tab; the footer can sit behind
+# bottom navigation in the driver's whole-screen visibility calculation.
 - runFlow:
-    file: ios-customer-refresh.yaml
     env:
       CUSTOMER_RESOURCE: support
+    file: ios-customer-resource.yaml
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
