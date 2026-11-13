@@ -149,7 +149,7 @@ test('iOS read refresh suite preserves the complete production guest recipe and 
 test('iOS read refresh suite writes explicit NOT_RUN diagnostics for missing JUnit without a PASS receipt',()=>{
  const directory=mkdtempSync(join(tmpdir(),'gridex-suite-regression-'));try{
   const {plan}=suite();writeFileSync(join(directory,'plan.json'),JSON.stringify(plan));let failed=false;
-  try{execFileSync(process.execPath,['scripts/mobile-integration/ios-customer-suite.mjs','report',join(directory,'missing.xml'),join(directory,'plan.json'),join(directory,'result.json')],{env:{...process.env,QUALIFICATION_WEB_COMMIT:testSource},stdio:'pipe'});}catch(error){assert.equal(error.status,1);failed=true;}
+  try{execFileSync(process.execPath,['scripts/mobile-integration/ios-customer-suite.mjs','report',join(directory,'missing.xml'),join(directory,'plan.json'),join(directory,'result.json')],{env:{...process.env,GRIDEX_IOS_CASE_REUSE:'false',QUALIFICATION_WEB_COMMIT:testSource},stdio:'pipe'});}catch(error){assert.equal(error.status,1);failed=true;}
   assert.equal(failed,true);const report=JSON.parse(readFileSync(join(directory,'result.json'),'utf8'));assert.equal(report.status,'FAIL');assert.equal(report.reportedCases,0);assert.equal(report.results.length,4);assert.ok(report.results.every(r=>r.status==='NOT_RUN'));assert.match(report.uiFailureMarkersScope,/union/);
  }finally{rmSync(directory,{recursive:true,force:true});}
 });

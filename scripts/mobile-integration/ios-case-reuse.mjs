@@ -11,7 +11,7 @@ export const REFERENCE={source:'e79715861a0a702191471ab8873242630d30371a',run:43
 export const FRESH=['support','market'],REUSED=['core','session'];
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const json=p=>JSON.parse(readFileSync(p,'utf8'));
-const allowed=new Set(['.github/workflows/mobile-customer-qualification.yml','quality/mobile-cross-platform/plan.md','scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-suite.mjs','scripts/mobile-integration/ios-case-reuse.mjs','scripts/mobile-integration/ios-smoke.sh','scripts/mobile-integration/qualified-android.mjs','scripts/mobile-integration/verify-observations.mjs','tests/mobile-ios-case-reuse.test.mjs','tests/mobile-ios-read.test.mjs']);
+const allowed=new Set(['.github/workflows/mobile-customer-qualification.yml','quality/mobile-cross-platform/plan.md','scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-suite.mjs','scripts/mobile-integration/ios-case-reuse.mjs','scripts/mobile-integration/ios-smoke.sh','scripts/mobile-integration/qualified-android.mjs','scripts/mobile-integration/verify-observations.mjs','tests/mobile-ios-case-reuse.test.mjs','tests/mobile-ios-read.test.mjs','tests/mobile-android-reuse.test.mjs']);
 export function assertMetadata(meta,spec){
  assert.equal(meta.id,spec.id);assert.equal(meta.name,spec.name);assert.equal(meta.expired,false);assert.equal(meta.workflow_run.id,REFERENCE.run);assert.equal(meta.workflow_run.head_sha,REFERENCE.source);assert.equal(meta.digest,'sha256:'+spec.digest);
 }

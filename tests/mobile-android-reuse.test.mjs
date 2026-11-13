@@ -49,7 +49,7 @@ test('Android proof reuse cannot replace fresh iOS browser and public request ob
   writeFileSync(join(fsPath,'customers.json'),JSON.stringify({customers:[{extra:{}},{extra:{document,invoiceDocument:invoice}}]}));
   writeFileSync(join(directory,'mobile-android-reuse.json'),JSON.stringify(report()));
   const script=new URL('../scripts/mobile-integration/verify-observations.mjs',import.meta.url).pathname;
-  const run=()=>spawnSync(process.execPath,[script],{env:{...process.env,RUNNER_TEMP:directory,QUALIFICATION_WEB_COMMIT:source,GRIDEX_OPS_COMMIT:ref.ops},encoding:'utf8'});
+  const run=()=>spawnSync(process.execPath,[script],{env:{...process.env,GRIDEX_IOS_CASE_REUSE:'false',RUNNER_TEMP:directory,QUALIFICATION_WEB_COMMIT:source,GRIDEX_OPS_COMMIT:ref.ops},encoding:'utf8'});
   assert.equal(run().status,1,'Cached Android alone must not qualify iOS');
   writeFileSync(join(directory,'mobile-market-requests.json'),JSON.stringify(['SE1','SE2','SE3','SE4'].map(area=>({platform:'ios',area,authorizationPresent:false}))));
   writeFileSync(join(directory,'mobile-document-requests.json'),JSON.stringify([document,invoice].map(reference=>({platform:'ios',reference,authorizationPresent:false}))));
