@@ -1,0 +1,52 @@
+name: Gridex production Android account acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  production-account:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reuse existing APK without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/production-apk"
+          gh run download 43317701102 --repo heke99/gridex-web --name gridex-android-device-test --dir "$RUNNER_TEMP/production-apk"
+          cd "$RUNNER_TEMP/production-apk"
+          echo '13efcad1be0f275d3187b2cac3b334c3a92c112ee3ac9405a5f328e0338c46eb  gridex-el-test.apk' | sha256sum --check
+      - name: Verify unchanged native product source
+        run: test "$(git rev-parse HEAD:apps/mobile)" = ebaee83a74382ed09196d413f876c72c56e99908
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Only the new production account journey
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          GRIDEX_PRODUCTION_TEST_EMAIL: ${{ secrets.GRIDEX_PROD_ACCEPTANCE_EMAIL_20261113 }}
+          GRIDEX_PRODUCTION_TEST_PASSWORD: ${{ secrets.GRIDEX_PROD_ACCEPTANCE_PASSWORD_20261113 }}
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: python3 scripts/production-account/android.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-android-account-proof
+          path: ${{ runner.temp }}/production-account-proof/
+          if-no-files-found: warn
+          retention-days: 7
