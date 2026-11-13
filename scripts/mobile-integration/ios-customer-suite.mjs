@@ -121,7 +121,9 @@ if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
  // Finish evaluating the library before a reuse adapter imports its exports.
  async function main(){
  const [command,...args]=process.argv.slice(2);
- if(command==='create'){
+ if(command==='prepare'){
+  await (await import('./ios-case-reuse.mjs')).prepare();
+ }else if(command==='create'){
   const root=dirname(fileURLToPath(import.meta.url)),directory=resolve(args[0]??'');assert.ok(args[0]);
   assert.ok(!existsSync(directory)||readdirSync(directory).length===0,'Refuse stale generated suite');mkdirSync(directory,{recursive:true,mode:0o700});
   const {files,plan}=buildSuite(readFileSync(join(root,'ios-customer.yaml'),'utf8'),{root,webCommit:process.env.QUALIFICATION_WEB_COMMIT});

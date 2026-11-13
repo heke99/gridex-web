@@ -22,10 +22,18 @@ export function assertReferenceReport(report,proof){
  const ids=['ios:external-document-no-bearer','ios:external-invoice-pdf-no-bearer',...['/login/forgot-password','/teckna','/dashboard/contracts','/dashboard/support'].map(p=>'ios:web-handoff-'+p)];assert.deepEqual(report.systemChecks.map(x=>x.id).sort(),ids.sort());assert.ok(report.systemChecks.every(x=>x.result==='PASS'&&x.evidence==='reused'&&x.referenceSource===REFERENCE.source&&x.referenceRun===REFERENCE.run&&x.referenceArtifact===REFERENCE.server.id));
  return report;
 }
+// Expo CLI 58.1.19 updatePkgScripts deterministically rewrites both launch commands.
+// Dependencies, versions, other scripts and all other package fields must match HEAD.
+export function assertPrebuildPackage(reference,current){
+ const expected=structuredClone(reference);assert.equal(expected.scripts.android,'expo start --android');assert.equal(expected.scripts.ios,'expo start --ios');
+ expected.scripts.android='expo run:android';expected.scripts.ios='expo run:ios';assert.deepEqual(current,expected,'Unreviewed package change after Expo prebuild');
+}
 export function sourceProof(root=process.cwd()){
   const git=args=>execFileSync('git',['-C',root,...args],{encoding:'utf8'}).trimEnd();
  const source=git(['rev-parse','HEAD']);assert.equal(source,process.env.QUALIFICATION_WEB_COMMIT,'Current checkout source does not match qualification');
- execFileSync('git',['-C',root,'diff','--quiet','HEAD'],{stdio:'pipe'});
+ const dirty=git(['diff','--name-only','HEAD']).split('\n').filter(Boolean);
+ assert.ok(dirty.every(p=>p==='apps/mobile/package.json'),'Tracked source changed outside derived Expo launch scripts');
+ if(dirty.length)assertPrebuildPackage(JSON.parse(git(['show','HEAD:apps/mobile/package.json'])),json(join(root,'apps/mobile/package.json')));
  // Expo generates this untracked Xcode project from the unchanged tracked inputs.
  const untracked=git(['ls-files','--others','--exclude-standard']).split('\n').filter(Boolean);
  assert.ok(untracked.every(p=>p.startsWith('apps/mobile/ios/')),'Untracked source outside the generated Xcode project invalidates reuse');
@@ -43,6 +51,10 @@ export function sourceProof(root=process.cwd()){
  const token='          GH_TOKEN: ${{ github.token }}\n';
  const observation='      - name: Verify actual native public requests and external browser handoffs\n        if: always()\n        env:\n'+token;
  assert.equal(current.split(observation).length,2);current=current.replace(observation,'      - name: Verify actual native public requests and external browser handoffs\n        if: always()\n');
+ const preflight='      - name: Verify immutable passed iOS cases before compiling\n        env:\n          GH_TOKEN: ${{ github.token }}\n        run: node scripts/mobile-integration/ios-customer-suite.mjs prepare\n';
+ assert.equal(current.split(preflight).length,2);current=current.replace(preflight,'');
+ const postbuild='          source "$RUNNER_TEMP/ios-device.env"\n          node scripts/mobile-integration/ios-customer-suite.mjs prepare\n          GRIDEX_IOS_CUSTOMER_FLOW=true bash scripts/mobile-integration/ios-smoke.sh\n';
+ assert.equal(current.split(postbuild).length,2);current=current.replace(postbuild,postbuild.replace('          node scripts/mobile-integration/ios-customer-suite.mjs prepare\n',''));
  assert.equal(current,old(wf),'Unreviewed workflow changes invalidate cached cases');
  return {source,changedPaths:paths,phaseSHA256:{core:sha(a[0]),session:sha(a[3])},generatorKernelSHA256:sha(kernel(now(generator))),referenceCanonical:before};
 }

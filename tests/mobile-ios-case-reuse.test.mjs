@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {REFERENCE,FRESH,REUSED,compose,assertMetadata,verifyArchive,assertReferenceReport} from '../scripts/mobile-integration/ios-case-reuse.mjs';
+import {REFERENCE,FRESH,REUSED,compose,assertMetadata,verifyArchive,assertReferenceReport,assertPrebuildPackage} from '../scripts/mobile-integration/ios-case-reuse.mjs';
 import {buildSuite} from '../scripts/mobile-integration/ios-customer-suite.mjs';
 const source='a'.repeat(40),root=fileURLToPath(new URL('../scripts/mobile-integration/',import.meta.url));
 const plan=buildSuite(readFileSync(root+'ios-customer.yaml','utf8'),{root,webCommit:source}).plan;
@@ -28,4 +28,10 @@ test('actual reuse CLI resolves its adapter and rejects a foreign checkout witho
  const directory=mkdtempSync(join(tmpdir(),'gridex-case-cli-'));
  try{const result=spawnSync(process.execPath,['scripts/mobile-integration/ios-customer-suite.mjs','create',join(directory,'suite')],{env:{...process.env,QUALIFICATION_WEB_COMMIT:source,GRIDEX_IOS_CASE_REUSE:'true',RUNNER_TEMP:directory},encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.match(result.stderr,/Current checkout source does not match qualification/);assert.doesNotMatch(result.stderr,/unsettled top-level await/i);}
  finally{rmSync(directory,{recursive:true,force:true});}
+});
+
+
+test('Expo derived launch scripts preserve every product and dependency field',()=>{
+ const before=JSON.parse(readFileSync(root+'../../apps/mobile/package.json','utf8')),after=structuredClone(before);after.scripts.android='expo run:android';after.scripts.ios='expo run:ios';assertPrebuildPackage(before,after);
+ for(const change of [p=>p.version='9.0.0',p=>p.dependencies.react='changed',p=>p.scripts.start='unreviewed',p=>p.scripts.ios='unreviewed',p=>p.newField=true]){const p=structuredClone(after);change(p);assert.throws(()=>assertPrebuildPackage(before,p));}
 });
