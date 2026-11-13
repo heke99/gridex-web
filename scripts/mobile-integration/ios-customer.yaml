@@ -549,10 +549,17 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Öppna dokument i extern läsare"
     retryTapIfNoChange: false
+# The actual external PDF request is still required by backend observations.
+# Establish the reader's foreground without opening or substituting a URL.
+- launchApp:
+    appId: com.apple.mobilesafari
+    stopApp: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "document-external-pdf"
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
-- takeScreenshot: "document-external-pdf"
 - runScript:
     file: ios-control.js
     env:

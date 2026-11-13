@@ -23,7 +23,7 @@ function bounded(value,limit,tail=false){
 const nativeState=emptyNativeStateMarkers();
 try{const data=JSON.parse(read('native-ui-state.json',8192));for(const key of Object.keys(nativeState))nativeState[key]=data[key]===true;}catch{}
 const candidate=process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA??'';
-const summary={schema:'gridex.ios-failure-summary.v1',source:/^[a-f0-9]{40}$/.test(candidate)?candidate:null,
+const summary={schema:'gridex.ios-failure-summary.v1',nativeStateScope:'union of exported failure hierarchies; not a simultaneous foreground snapshot',source:/^[a-f0-9]{40}$/.test(candidate)?candidate:null,
  junit:bounded(read('results.xml',8192),3500),logTail:bounded(read('maestro.log',8192,true),1800,true),nativeState};
 // One JSON line escapes embedded newlines, so diagnostic text cannot become a
 // GitHub workflow command. Its inputs are the same sanitized public artifact.

@@ -1,6 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {CASES,partitionMatrix,buildSuite,inspectSuiteJUnit,verifySuiteJUnit,normalizedCustomerSmoke,SUITE_CUSTOMER_DIAGNOSTIC} from '../scripts/mobile-integration/ios-customer-suite.mjs';
 import {execFileSync} from 'node:child_process';
 import yaml from 'js-yaml';
 import {ANDROID_REFERENCE as ref} from '../scripts/mobile-integration/qualified-android.mjs';
@@ -23,6 +27,8 @@ test('iOS read refresh preserves every original action, positive readback and is
   if(c.assertVisible?.text==='Synthetic iOS new B'){assert.equal(c.assertVisible.below,'Nytt ärende');continue;}
   if(c.takeScreenshot==='customer-resource-target')continue;
   if(c.assertNotVisible==='Hämtar kunduppgifter'&&input[i-1]?.scrollUntilVisible?.element==='52 hämtade ärenden')continue;
+  if(c.launchApp?.appId==='com.apple.mobilesafari'){assert.deepEqual(c.launchApp,{appId:'com.apple.mobilesafari',stopApp:false});assert.equal(input[i-1]?.tapOn?.text,'Öppna dokument i extern läsare');assert.equal(input[i+2]?.takeScreenshot,'document-external-pdf');assert.equal(input[i+3]?.extendedWaitUntil?.visible,'.*Synthetic Gridex document B.*');continue;}
+  if(c.takeScreenshot==='document-external-pdf')continue;
   if(c.runFlow==='ios-resume-app.yaml'||JSON.stringify(c.launchApp)==='{"stopApp":false}'){out.push({activation:'foreground'});continue;}
   if(c.scrollUntilVisible?.element==='Hämta igen'){
    assert.ok(input[i+1].waitForAnimationToEnd);assert.equal(input[i+2].tapOn.text,'Hämta igen');out.push({read:'refresh'});i+=2;continue;
@@ -65,7 +71,7 @@ test('iOS read refresh retries only a bounded idempotent read after viewport rel
 
 test('iOS production reuse requires unchanged runtime and the exact reviewed production recipe',()=>{
  const gateway='scripts/mobile-integration/device-gateway.mjs',workflow='.github/workflows/mobile-customer-qualification.yml';
- const input={paths:['scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-refresh.yaml','.github/workflows/mobile-ios-qualification.yml'],referenceGateway:execFileSync('git',['show',ref.source+':'+gateway],{encoding:'utf8'}),currentGateway:read(gateway),referenceWorkflow:execFileSync('git',['show',ref.source+':'+workflow],{encoding:'utf8'}),currentWorkflow:read(workflow),ops:ref.ops};
+ const input={paths:['scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-refresh.yaml','.github/workflows/mobile-ios-qualification.yml'],referenceGateway:execFileSync('git',['show',ref.source+':'+gateway],{encoding:'utf8'}),currentGateway:read(gateway),referenceWorkflow:execFileSync('git',['show',ref.source+':'+workflow],{encoding:'utf8'}),currentWorkflow:read(workflow),referenceIosSmoke:execFileSync('git',['show',ref.source+':scripts/mobile-integration/ios-smoke.sh'],{encoding:'utf8'}),currentIosSmoke:read('scripts/mobile-integration/ios-smoke.sh'),ops:ref.ops};
  const production=read('.github/workflows/mobile-ios-qualification.yml');assert.equal(canReuseIosProduction(input,production),true);
  for(const path of ['apps/mobile/App.tsx','scripts/mobile-integration/ios-build.sh','scripts/mobile-integration/ios-smoke.yaml'])assert.equal(canReuseIosProduction({...input,paths:[path]},production),false);
  assert.equal(canReuseIosProduction(input,production.replace('https://gridex.se','https://unapproved.invalid')),false);
@@ -103,4 +109,45 @@ test('iOS read refresh remainder requires settled exact inputs, real list rows a
  for(const label of ['Skapa ärende','Skicka svar']){const i=flow.findIndex(c=>c?.tapOn?.text===label);assert.deepEqual(flow[i-1],{extendedWaitUntil:{visible:{text:label,enabled:true},timeout:30000}});}
  const prices=flow.flatMap((c,i)=>typeof c?.scrollUntilVisible?.element==='string'&&c.scrollUntilVisible.element.startsWith('${output.market')?[i]:[]);assert.equal(prices.length,7);for(const i of prices)assert.deepEqual(flow[i-1],{scrollUntilVisible:{element:'Spotpriser',direction:'UP',timeout:60000}});
  const revoked=flow.findIndex(c=>c?.takeScreenshot==='invalidated-session-foreground');const state=flow[revoked+1].extendedWaitUntil;assert.equal(state.timeout,60000);const pattern=new RegExp('^'+state.visible.id+'$');for(const r of ['contracts','support','supportDetail','invoiceDetail','consumption']){assert.equal(pattern.test('customer-'+r+'-idle'),true);assert.equal(pattern.test('customer-'+r+'-loading'),false);}assert.equal(pattern.test('customer-foreign-idle'),false);assert.deepEqual(flow[revoked+2],{assertNotVisible:'Försök logga ut igen'});assert.equal(flow[revoked+3],'stopApp');
+});
+
+
+const suiteRoot=fileURLToPath(new URL('../scripts/mobile-integration/',import.meta.url));
+const testSource='a'.repeat(40);
+const suite=()=>buildSuite(read('scripts/mobile-integration/ios-customer.yaml'),{root:suiteRoot,webCommit:testSource});
+const junit=(entries=CASES.map((name,i)=>({name,status:'SUCCESS',time:`2026-11-13T10:0${i}:00`,body:''})))=>'<testsuites><testsuite tests="4" failures="0">'+entries.map(x=>`<testcase id="${x.name}" name="${x.name}" status="${x.status}" timestamp="${x.time}">${x.body??''}</testcase>`).join('')+'</testsuite></testsuites>';
+
+test('iOS read refresh suite partitions every canonical command exactly once and runs all four cases in order',()=>{
+ const source=read('scripts/mobile-integration/ios-customer.yaml'),built=suite();assert.equal(partitionMatrix(source).join(''),source.slice(source.indexOf('---\n')+4));
+ assert.equal(built.plan.canonicalPartitionLossless,true);assert.equal(built.plan.originalCrossPhaseSessionCarryoverRetained,false);
+ const config=yaml.load(built.files['config.yaml']);assert.deepEqual(config.flows,CASES.map(n=>n+'.yaml'));assert.deepEqual(config.executionOrder,{continueOnFailure:true,flowsOrder:CASES});
+ for(const name of CASES){const docs=[];yaml.loadAll(built.files[name+'.yaml'],x=>docs.push(x));assert.equal(docs[0].appId,'se.gridex.el.dev');assert.equal(docs[0].name,name);assert.ok(docs[1].length>0);assert.match(built.plan.generatedSHA256[name],/^[a-f0-9]{64}$/);}
+ assert.ok(!built.setup.includes('a-contract'));assert.ok(!built.setup.includes('${LOGIN_A_EMAIL}'));assert.ok(!built.setup.includes('${LOGIN_A_PASSWORD}'));assert.ok(!built.setup.includes('${CONTRACT_A}'));assert.ok(!built.setup.includes('${CUSTOMER_B}'));
+ for(const marker of ['${LOGIN_B_EMAIL}','${LOGIN_B_PASSWORD}','${CONTRACT_B}','${CUSTOMER_A}'])assert.ok(built.setup.includes(marker));assert.ok(built.setup.startsWith('- stopApp\n- clearKeychain\n'));assert.ok(built.setup.includes('ACTION: reconnect\n'));assert.ok(built.setup.includes('ACTION: reconnect-market\n'));
+ for(const name of ['support','market','session'])assert.ok(!/disable-document-b|restore-document-b|CUSTOMER_RESOURCE: documents/.test(built.parts[CASES.indexOf(name)]));
+ assert.throws(()=>partitionMatrix(source+source.slice(source.indexOf('- tapOn: "Förbrukning"'))),/Ambiguous/);
+});
+
+test('iOS read refresh suite acceptance requires all four actual successful cases and ordered revocation',()=>{
+ const {plan}=suite(),xml=junit();assert.equal(verifySuiteJUnit(xml,plan,testSource).status,'PASS');
+ const base=CASES.map((name,i)=>({name,status:'SUCCESS',time:`2026-11-13T10:0${i}:00`}));
+ const mutations=[base.slice(0,3),[...base,base[0]],base.map((x,i)=>i?x:{...x,status:'ERROR',body:'<failure>synthetic</failure>'}),base.map((x,i)=>i?x:{...x,body:'<skipped/>'}),base.map(x=>x.name==='session'?{...x,time:'2026-11-13T09:00:00'}:x),base.map((x,i)=>i?x:{...x,name:'unexpected'})];
+ for(const changed of mutations){const report=inspectSuiteJUnit(junit(changed),plan,testSource);assert.equal(report.status,'FAIL');assert.throws(()=>verifySuiteJUnit(junit(changed),plan,testSource));}
+ assert.equal(inspectSuiteJUnit(xml.replace('failures="0"','failures="1"'),plan,testSource).status,'FAIL');assert.equal(inspectSuiteJUnit(xml,plan,'b'.repeat(40)).status,'FAIL');
+ const partial=inspectSuiteJUnit(junit(mutations[2]),plan,testSource);assert.equal(partial.results.find(r=>r.case==='core').status,'FAIL');assert.equal(partial.results.find(r=>r.case==='support').status,'PASS');assert.equal(partial.status,'FAIL');
+});
+
+test('iOS read refresh suite preserves the complete production guest recipe and Android waiter branches',()=>{
+ const reference=execFileSync('git',['show',ref.source+':scripts/mobile-integration/ios-smoke.sh'],{encoding:'utf8'}),current=read('scripts/mobile-integration/ios-smoke.sh');assert.equal(normalizedCustomerSmoke(current),reference);assert.throws(()=>normalizedCustomerSmoke(current.replace(SUITE_CUSTOMER_DIAGNOSTIC,'')));
+ const oldWaiter=execFileSync('git',['show',ref.source+':scripts/mobile-integration/await-artifact.mjs'],{encoding:'utf8'});assert.equal(read('scripts/mobile-integration/await-artifact.mjs'),oldWaiter.replace("name==='ios-customer-terminal'?60:","name==='ios-customer-terminal'?90:"));
+ const workflow='.github/workflows/mobile-customer-qualification.yml',gateway='scripts/mobile-integration/device-gateway.mjs';const jobConfig=yaml.load(read(workflow)).jobs;assert.equal(jobConfig['ios-customer']['timeout-minutes'],90);assert.equal(jobConfig['customer-stack']['timeout-minutes'],105);const input={paths:['scripts/mobile-integration/ios-smoke.sh','scripts/mobile-integration/ios-customer-suite.mjs','scripts/mobile-integration/await-artifact.mjs'],ops:ref.ops,referenceGateway:execFileSync('git',['show',ref.source+':'+gateway],{encoding:'utf8'}),currentGateway:read(gateway),referenceWorkflow:execFileSync('git',['show',ref.source+':'+workflow],{encoding:'utf8'}),currentWorkflow:read(workflow),referenceIosSmoke:reference,currentIosSmoke:current};const prod=read('.github/workflows/mobile-ios-qualification.yml');assert.equal(canReuseIosProduction(input,prod),true);
+ assert.equal(canReuseIosProduction({...input,currentIosSmoke:current.replace('--format junit','--format broken')},prod),false);
+});
+
+test('iOS read refresh suite writes explicit NOT_RUN diagnostics for missing JUnit without a PASS receipt',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'gridex-suite-regression-'));try{
+  const {plan}=suite();writeFileSync(join(directory,'plan.json'),JSON.stringify(plan));let failed=false;
+  try{execFileSync(process.execPath,['scripts/mobile-integration/ios-customer-suite.mjs','report',join(directory,'missing.xml'),join(directory,'plan.json'),join(directory,'result.json')],{env:{...process.env,QUALIFICATION_WEB_COMMIT:testSource},stdio:'pipe'});}catch(error){assert.equal(error.status,1);failed=true;}
+  assert.equal(failed,true);const report=JSON.parse(readFileSync(join(directory,'result.json'),'utf8'));assert.equal(report.status,'FAIL');assert.equal(report.reportedCases,0);assert.equal(report.results.length,4);assert.ok(report.results.every(r=>r.status==='NOT_RUN'));assert.match(report.uiFailureMarkersScope,/union/);
+ }finally{rmSync(directory,{recursive:true,force:true});}
 });

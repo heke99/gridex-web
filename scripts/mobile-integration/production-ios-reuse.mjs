@@ -5,10 +5,11 @@ import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {canReuseAndroid,qualifiedSourceInputs,referenceRead} from './qualified-android.mjs';
+import {normalizedCustomerSmoke} from './ios-customer-suite.mjs';
 export const IOS_PRODUCTION_REFERENCE={source:'b270ddf792f889dc0a05e4a83bc73954b5e12fef',run:43317701158,artifact:13990897235,digest:'3e207110fd41ffe5e9fd46f022d8aeeeb7d3a68d779c9cce5903870e5e22317d'};
 export const APPROVED_IOS_PRODUCTION_WORKFLOW='5bd7de6dfe206e216b2b79cb83670d54c6b9f1e0c79bb7a6b274b146b463bda9';
 export function canReuseIosProduction(inputs,workflow){
- return canReuseAndroid(inputs)&&typeof workflow==='string'&&createHash('sha256').update(workflow).digest('hex')===APPROVED_IOS_PRODUCTION_WORKFLOW;
+ try{return canReuseAndroid(inputs)&&typeof workflow==='string'&&createHash('sha256').update(workflow).digest('hex')===APPROVED_IOS_PRODUCTION_WORKFLOW&&typeof inputs.referenceIosSmoke==='string'&&normalizedCustomerSmoke(inputs.currentIosSmoke)===inputs.referenceIosSmoke;}catch{return false;}
 }
 export function assertIosProductionMetadata(run,artifact){
  const r=IOS_PRODUCTION_REFERENCE;
