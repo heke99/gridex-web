@@ -6,12 +6,14 @@ appId: se.gridex.el.dev
     centerElement: true
     timeout: 60000
 - tapOn: "E-post"
+- eraseText: 200
 - inputText: ${EMAIL}
 - scrollUntilVisible:
     element: "Lösenord"
     direction: DOWN
     centerElement: true
 - tapOn: "Lösenord"
+- eraseText: 200
 - inputText: ${PASSWORD}
 - runFlow: ../mobile-integration/ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
