@@ -519,12 +519,13 @@ export async function submitOpsCustomerProfileUpdate(
 ): Promise<OpsCustomerWriteResult> {
   const headers = portalHeaders(input.identity);
   const body = {
-    ...portalIdentityPayload(input.identity),
     profile: input.profile,
     metadata: input.metadata ?? {},
   };
 
-  headers.set("Idempotency-Key", customerWriteIdempotencyKey("profile-update", input, body));
+  headers.set("Idempotency-Key", customerWriteIdempotencyKey("profile-update", input, {
+    ...portalIdentityPayload(input.identity), ...body,
+  }));
 
   const payload = await opsCustomerFetch("/api/v1/customer/profile-update", input.identity, {
     method: "POST",

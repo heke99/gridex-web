@@ -6,7 +6,7 @@ import {CustomerList,ContractSummary} from './CustomerList';
 import { PhoneEditor } from './PhoneEditor';
 import { CustomerExtraPanel } from './CustomerExtraPanel';
 import { useCustomerAccount } from './useCustomerAccount';
-import { customerApi } from './accountClient';
+import { customerWebOrigin } from './accountClient';
 import { SupportComposer } from './SupportComposer';
 import { InvoicePanel, SupportPanel } from './CustomerDetailPanels';
 import { contractWebUrl } from './customerEndpoint';
@@ -18,7 +18,7 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [linkError, setLinkError] = useState('');
   const openSupportWeb = async () => {
-    try { await Linking.openURL(contractWebUrl(customerApi!, 'support')); }
+    try { await Linking.openURL(contractWebUrl(customerWebOrigin!, 'support')); }
     catch { setLinkError('Kunde inte öppna Mina sidor på webben.'); }
   };
   const canLogin = !a.busy && !a.logoutFailed && Boolean(email.trim() && password);
@@ -36,15 +36,15 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
   if (!a.active) return <Text style={{ color: t.muted }}>Kunduppgifterna är dolda när appen är inaktiv.</Text>;
   const openRecovery = async () => {
     setPassword(''); setLinkError('');
-    try { await Linking.openURL(recoveryUrl(customerApi!)); }
+    try { await Linking.openURL(recoveryUrl(customerWebOrigin!)); }
     catch { setLinkError('Kunde inte öppna lösenordsåterställningen. Försök igen.'); }
   };
-  return <View style={{ gap: 14, backgroundColor: t.surface, padding: 20, borderRadius: 20 }}>
+  return <View testID={`customer-${consumption ? 'consumption' : a.resource}-${a.busy ? 'loading' : 'idle'}`} style={{ gap: 14, backgroundColor: t.surface, padding: 20, borderRadius: 20 }}>
     {!a.authenticated ? <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Logga in på Mina sidor</Text>
       <Text style={{ color: t.muted }}>Använd samma konto som på hemsidan.</Text>
-      <TextInput accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
-      <TextInput accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry autoComplete="current-password" returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
+      <TextInput inputAccessoryViewID="gridex-keyboard-tools" accessibilityLabel="E-post" placeholder="E-post" placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" value={email} onChangeText={setEmail} editable={!a.busy} style={input} />
+      <TextInput inputAccessoryViewID="gridex-keyboard-tools" accessibilityLabel="Lösenord" placeholder="Lösenord" placeholderTextColor={t.muted} secureTextEntry autoComplete="current-password" returnKeyType="go" onSubmitEditing={submitLogin} textContentType="password" value={password} onChangeText={setPassword} editable={!a.busy} style={input} />
       <Pressable accessibilityRole="button" disabled={!canLogin} onPress={submitLogin} style={[button, { opacity: canLogin ? 1 : 0.5 }]}>
         <Text style={{ color: t.accentText, textAlign: 'center', fontWeight: '700' }}>Logga in</Text>
       </Pressable>

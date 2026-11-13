@@ -1,0 +1,24 @@
+appId: se.gridex.el.dev
+---
+# Refresh removes and remounts private content. Never assume its previous offset.
+# The caller submits exactly one load and retains its positive readback checks.
+- runFlow:
+    when:
+      true: ${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "customer-${CUSTOMER_RESOURCE}-idle"
+          timeout: 60000
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${CUSTOMER_TARGET}
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+# The exact caller target above is the positive loaded-content requirement.
+# A giant support container itself need not be exposed in the iOS AX tree.
+- assertNotVisible: "Hämtar kunduppgifter"

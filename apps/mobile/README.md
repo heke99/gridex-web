@@ -13,11 +13,18 @@ In apps/mobile run `npm ci --workspaces=false`, `npm run typecheck` and
 A native development build is needed to exercise SecureStore on a real device;
 Hermes exports alone are not installable signed apps. OTA updates are disabled.
 
+The shell uses SafeAreaProvider/insets and iOS keyboard insets. iOS text fields
+share an explicit keyboard-dismiss accessory, including phone-pad and multiline
+support input. SecureStore uses the unlocked-device-only keychain class; no app
+biometric prompt is implemented, so no unused Face ID permission is requested.
+
 Public build configuration:
 
 - EXPO_PUBLIC_SUPABASE_URL: the existing Gridex tenant Auth project.
 - EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable/anon key only.
 - EXPO_PUBLIC_CUSTOMER_API_URL: HTTPS tenant backend origin.
+- EXPO_PUBLIC_CONTRACT_WEB_ORIGIN: optional HTTPS customer website origin for
+  recovery/contracts/support handoffs when the API is hosted separately.
 
 Never embed OPS credentials, service-role keys, secrets or customer data. The
 adapter rejects secret/service-role keys and shares one SDK instance per brand.
@@ -41,8 +48,16 @@ adapter rejects secret/service-role keys and shares one SDK instance per brand.
   cursors, with deduplication when another page is loaded. Uncertain writes retain
   the same attempt key for the same user/content while this app process survives.
 
-Retry and foreground restore preserve the selected invoice/case. Resource
-failures are independent, so unavailable invoices do not block site/support views.
+Retry and foreground restore preserve the selected invoice/case. Temporary Auth
+refresh/network failures retain the encrypted session for recovery while customer
+rows/details remain hidden. Definitive invalid/revoked sessions are cleared.
+Resource failures are independent, so unavailable invoices do not block site/support views.
+
+Profile phone edits, notification read status, customer documents, powers of
+attorney and legal acceptances use the same verified customer boundary.
+Consumption remains fail-closed until OPS publishes authoritative delivery windows
+and metering revision metadata; its controlled error is not positive consumption
+functionality or a release qualification.
 
 ## Server configuration and safety
 
@@ -60,12 +75,19 @@ The backend does not fetch or proxy arbitrary URLs and never appends API tokens.
 
 ## Remaining qualification and functionality
 
-Successful live Auth/OPS customer reads, actual device/keychain behavior, signed
-builds and the external document/recovery handoffs still require verification.
-The published OPS version mismatch remains a release blocker; no gate is relaxed.
-Lists/messages are the bounded API result and do not prove complete history.
-Message pagination, attachments, in-app PDF rendering, price
-series, consumption summaries and contractual changes remain later work.
+The core A/B customer flow and Android lifecycle passed against a real isolated
+OPS/Auth stack in run42912180714 (OPS81e9e6a, Web2495703). This is version-bound
+core evidence; it does not qualify every additional account resource or iOS.
+The current cross-platform candidate and receipts are tracked in
+quality/mobile-cross-platform/plan.md. Production OpenAPI revision2026-11-10.1
+is synchronized; no contract gate is relaxed.
+
+Positive real consumption still needs authoritative delivery windows and current
+metering revision fields exposed by OPS. The existing adapter deliberately fails
+closed; it never infers supply entitlement from contract/move-in dates or treats
+missing readings as zero. Attachments, in-app PDF rendering and native contract
+signing remain outside the implemented mobile feature set. Case lists/messages
+are bounded API results and do not prove complete historical retrieval.
 
 ## Extraction proof
 
@@ -94,8 +116,8 @@ OPS resources through the same verified-user server adapter. General documents
 are opened only after a fresh customer ownership check and HTTPS origin validation;
 no bearer header is passed to the external reader. These views do not edit profiles,
 mark notifications read or sign new agreements. Counts mean loaded rows; pagination
-outside support cases is not yet qualified. Keep the production API feature flag off
-until live customer/device checks and the OPS manifest release gate pass.
+outside support cases is not yet qualified. Production activation requires applicable customer/device evidence and the OPS
+manifest release gate; core-flow evidence does not qualify additional resources.
 
 The complete native source can now be extracted from the repository root with
 `npm run mobile:export -- /absolute/new-directory [brand-config.json]`.

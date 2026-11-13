@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { InputAccessoryView, Keyboard, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MobileBrand } from '../../../packages/mobile-foundation/src/brand';
 
 const tabs = ['Hem', 'Elpriser', 'Förbrukning', 'Avtal', 'Mer'] as const;
@@ -21,9 +22,10 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
     scroll.current?.scrollTo({ y: 0, animated: false });
   };
   const t = brand.theme;
-  return <View style={[styles.root, { backgroundColor: t.canvas }]}>
+  const insets = useSafeAreaInsets();
+  return <View testID="energy-app-shell" style={[styles.root, { backgroundColor: t.canvas, paddingTop: insets.top + 12, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <StatusBar barStyle="light-content" />
-    <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+    <ScrollView ref={scroll} automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Text style={[styles.brand, { color: t.accent }]}>{brand.displayName}</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: t.text }]}>{copy[active].title}</Text>
       <Text style={[styles.body, { color: t.muted }]}>{copy[active].body}</Text>
@@ -45,11 +47,18 @@ export function EnergyAppShell({ brand, customerPanel, contractPanel, pricePanel
         <Text style={{ color: tab === active ? t.accent : t.muted, fontSize: 12, fontWeight: tab === active ? '700' : '400' }}>{tab}</Text>
       </Pressable>)}
     </View>
+    {Platform.OS === 'ios' && <InputAccessoryView nativeID="gridex-keyboard-tools">
+      <View style={{ backgroundColor: t.surface, alignItems: 'flex-end', paddingHorizontal: 20 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Stäng tangentbord" onPress={Keyboard.dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
+          <Text style={{ color: t.accent, fontWeight: '600' }}>Klart</Text>
+        </Pressable>
+      </View>
+    </InputAccessoryView>}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingTop: 56, paddingBottom: 28 },
+  root: { flex: 1 },
   content: { paddingHorizontal: 24, paddingBottom: 32, gap: 20 },
   brand: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
   title: { fontSize: 34, fontWeight: '700', letterSpacing: -1, lineHeight: 40 },

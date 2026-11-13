@@ -1,5 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import {AuthRetryableFetchError, AuthApiError} from '../apps/mobile/node_modules/@supabase/supabase-js/dist/index.mjs';
 import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
 import { invoiceDetail, supportDetail } from '../lib/mobile/customerDetails.ts';
@@ -318,4 +319,224 @@ test('foreground restore waits for signout and failed signout stays blocked unti
     fixture.client.auth.signOut = original;
     await unmount();
   }
+});
+
+
+test('temporary Auth refresh failure keeps the saved session private and recoverable', async () => {
+  const unmount = await mount(true);
+  const originalRefresh = fixture.client.auth.refreshSession;
+  const originalSignOut = fixture.client.auth.signOut;
+  const changeState = async state => act(async () => {
+    fixture.appState.currentState = state;
+    for (const listener of listeners) listener(state);
+  });
+  let signOutCalls = 0;
+  try {
+    fixture.client.auth.signOut = async () => { signOutCalls++; return originalSignOut(); };
+    fixture.client.auth.refreshSession = async () => ({ data: { session: null }, error: new AuthRetryableFetchError('Temporarily offline', 503) });
+    const before = fetchCalls;
+    await changeState('background'); await changeState('active');
+    assert.equal(current.rows, null, 'Stale customer rows must remain hidden');
+    assert.equal(fetchCalls, before, 'No customer fetch before successful session recovery');
+    assert.equal(signOutCalls, 0, 'A temporary network failure must not sign out');
+    assert.equal(session?.access_token, 'remembered-token', 'Persisted session remains available for retry');
+    assert.equal(current.authenticated, true);
+    assert.match(current.error, /Uppgifterna kunde inte hämtas/);
+    fixture.client.auth.refreshSession = originalRefresh;
+    await changeState('background'); await changeState('active');
+    assert.equal(current.rows[0].reference, 'own-contract');
+    assert.ok(fetchCalls > before, 'Reconnect must read customer data again');
+    assert.equal(current.error, '');
+  } finally {
+    fixture.client.auth.refreshSession = originalRefresh;
+    fixture.client.auth.signOut = originalSignOut;
+    await unmount();
+  }
+});
+
+test('definitively revoked Auth refresh clears the saved session and cannot restore customer data', async () => {
+  const unmount = await mount(true);
+  const originalRefresh = fixture.client.auth.refreshSession;
+  const originalSignOut = fixture.client.auth.signOut;
+  let signOutCalls = 0;
+  try {
+    fixture.client.auth.signOut = async () => { signOutCalls++; return originalSignOut(); };
+    fixture.client.auth.refreshSession = async () => ({ data: { session: null }, error: new AuthApiError('Refresh revoked', 400, 'refresh_token_not_found') });
+    const before = fetchCalls;
+    await act(async () => { fixture.appState.currentState = 'background'; for (const listener of listeners) listener('background'); });
+    await act(async () => { fixture.appState.currentState = 'active'; for (const listener of listeners) listener('active'); });
+    assert.equal(current.authenticated, false); assert.equal(current.rows, null);
+    assert.equal(session, null); assert.equal(signOutCalls, 1);
+    fixture.client.auth.refreshSession = originalRefresh;
+    await act(async () => current.retry());
+    assert.equal(current.rows, null); assert.equal(current.authenticated, false);
+    assert.equal(fetchCalls, before);
+  } finally {
+    fixture.client.auth.refreshSession = originalRefresh;
+    fixture.client.auth.signOut = originalSignOut;
+    await unmount();
+  }
+});
+
+
+for (const operation of ['document','phone','support','notification','consumption']) {
+ for (const temporary of [true,false]) test(`${operation} session lookup ${temporary?'preserves a retryable session':'clears a definitively invalid session'}`,async()=>{
+  const unmount=await mount(true);session.user={id:'actor-b'};
+  const originalGet=fixture.client.auth.getSession;const originalSignOut=fixture.client.auth.signOut;
+  let signOutCalls=0,opened=false;
+  try{
+   fixture.client.auth.signOut=async()=>{signOutCalls++;return originalSignOut();};
+   fixture.client.auth.getSession=async()=>({data:{session:null},error:temporary?new AuthRetryableFetchError('Offline',503):new AuthApiError('Revoked',400,'refresh_token_not_found')});
+   const before=fetchCalls;
+   await act(async()=>{
+    if(operation==='document')await current.openDocument(null,'owned-doc',()=>{opened=true;});
+    else if(operation==='phone')await current.updatePhone('0701234567');
+    else if(operation==='support')await current.submitSupport('Question','Message');
+    else if(operation==='notification')await current.markNotificationRead('owned-notification');
+    else await assert.rejects(current.readConsumption('sites',{},new AbortController().signal));
+   });
+   assert.equal(fetchCalls,before,'An unvalidated session cannot issue customer requests');assert.equal(opened,false);
+   assert.equal(current.rows,null,'Unvalidated customer details remain hidden');
+   assert.equal(signOutCalls,temporary?0:1);assert.equal(current.authenticated,temporary);
+   assert.equal(Boolean(session),temporary);
+   fixture.client.auth.getSession=originalGet;
+   await act(async()=>current.select('contracts'));
+   if(temporary){assert.equal(current.rows[0].reference,'own-contract');assert.ok(fetchCalls>before);}
+   else{assert.equal(current.rows,null);assert.equal(fetchCalls,before);}
+  }finally{fixture.client.auth.getSession=originalGet;fixture.client.auth.signOut=originalSignOut;await unmount();}
+ });
+}
+
+test('retryable session lookup retains the idempotency key for an uncertain write',async()=>{
+ const unmount=await mount(true);session.user={id:'actor-b'};
+ const originalGet=fixture.client.auth.getSession;const keys=[];
+ try{
+  handler=async(_url,init)=>{keys.push(init.headers['Idempotency-Key']);return keys.length===1?new Response('',{status:503}):Response.json({data:{accepted:true}});};
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),false);});
+  fixture.client.auth.getSession=async()=>({data:{session:null},error:new AuthRetryableFetchError('Offline',503)});
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),false);});
+  assert.equal(keys.length,1);assert.ok(session);
+  fixture.client.auth.getSession=originalGet;
+  await act(async()=>{assert.equal(await current.updatePhone('0701234567'),true);});
+  assert.equal(keys.length,2);assert.equal(keys[0],keys[1]);
+ }finally{fixture.client.auth.getSession=originalGet;await unmount();}
+});
+
+test('a stalled foreground Auth check times out without signing out or publishing its late result', async t => {
+  const unmount=await mount(true);
+  const original=fixture.client.auth.refreshSession;
+  let settle;
+  try {
+    fixture.client.auth.refreshSession=()=>new Promise(resolve=>{settle=resolve;});
+    t.mock.timers.enable({apis:['setTimeout']});
+    await act(async()=>{fixture.appState.currentState='background';for(const listener of listeners)listener('background');});
+    const before=fetchCalls;
+    await act(async()=>{fixture.appState.currentState='active';for(const listener of listeners)listener('active');});
+    assert.equal(current.busy,true);
+    await act(async()=>t.mock.timers.tick(20000));
+    assert.equal(current.busy,false,'Auth wait must share the bounded customer-request deadline');
+    assert.match(current.error,/Uppgifterna kunde inte hämtas/);
+    assert.equal(current.authenticated,true);assert.equal(current.rows,null);
+    assert.equal(session.access_token,'remembered-token');assert.equal(fetchCalls,before);
+    fixture.client.auth.refreshSession=original;
+    let retry;
+    await act(async()=>{retry=current.retry();});
+    assert.equal(fetchCalls,before,'Retry waits for the previous SDK operation to settle');
+    await act(async()=>{settle({data:{session:null},error:new AuthApiError('Old result',400,'refresh_token_not_found')});await retry;});
+    assert.equal(current.rows[0].reference,'own-contract');assert.equal(current.authenticated,true);
+    assert.equal(session.access_token,'remembered-token');assert.equal(current.rows[0].reference,'own-contract');
+  } finally {
+    fixture.client.auth.refreshSession=original;
+    if(settle)await act(async()=>settle({data:{session},error:null}));
+    t.mock.timers.reset();await unmount();
+  }
+});
+
+for(const operation of ['document','phone','support','notification','consumption'])test(`${operation} stalled session validation is bounded and hides stale customer details`,async t=>{
+ const unmount=await mount(true);const original=fixture.client.auth.getSession;let settle,pending,opened=false;
+ const controller=new AbortController();
+ try {
+  fixture.client.auth.getSession=()=>new Promise(resolve=>{settle=resolve;});
+  t.mock.timers.enable({apis:['setTimeout']});const before=fetchCalls;
+  await act(async()=>{
+   if(operation==='document')pending=current.openDocument(null,'owned-doc',()=>{opened=true;});
+   else if(operation==='phone')pending=current.updatePhone('0701234567');
+   else if(operation==='support')pending=current.submitSupport('Question','Message');
+   else if(operation==='notification')pending=current.markNotificationRead('owned-notification');
+   else pending=assert.rejects(current.readConsumption('sites',{},controller.signal));
+  });
+  await act(async()=>{if(operation==='consumption')controller.abort();else t.mock.timers.tick(20000);await pending;});
+  assert.equal(current.busy,false);assert.equal(current.rows,null,'Unvalidated details must remain hidden');
+  assert.equal(current.authenticated,true);assert.ok(session);assert.equal(fetchCalls,before);assert.equal(opened,false);
+  await act(async()=>settle({data:{session},error:null}));assert.equal(fetchCalls,before);assert.equal(opened,false);
+ }finally{fixture.client.auth.getSession=original;if(settle)await act(async()=>settle({data:{session},error:null}));t.mock.timers.reset();await unmount();}
+});
+
+test('explicit logout cannot be undone by the actual SDK finishing a delayed login',async()=>{
+ const {createClient}=await import('../apps/mobile/node_modules/@supabase/supabase-js/dist/index.mjs');
+ const originalClient=fixture.client;const stored=new Map();let settle;
+ const sdk=createClient('https://project.supabase.co','sb_publishable_test',{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'synthetic-delayed-login',storage:{getItem:async k=>stored.get(k)??null,setItem:async(k,v)=>{stored.set(k,v);},removeItem:async k=>{stored.delete(k);}}},global:{fetch:async url=>String(url).includes('/token')?new Promise(resolve=>{settle=resolve;}):new Response(null,{status:204})}});
+ fixture.client=sdk;let unmount;
+ try {
+  unmount=await mount();let login;
+  await act(async()=>{login=current.login('synthetic@example.test','synthetic');});
+  assert.equal(typeof settle,'function');
+  await act(async()=>current.logout());
+  assert.equal(current.authenticated,false);
+  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600,sub:'00000000-0000-4000-8000-000000000001'})).toString('base64url')+'.synthetic';
+  await act(async()=>{settle(Response.json({access_token:token,refresh_token:'synthetic-refresh',token_type:'bearer',expires_in:3600,user:{id:'00000000-0000-4000-8000-000000000001'}}));await login;await new Promise(resolve=>setImmediate(resolve));});
+  assert.equal((await sdk.auth.getSession()).data.session,null,'A late SDK login must not recreate the explicitly logged-out session');
+  assert.equal(current.authenticated,false);assert.equal(current.rows,null);
+ }finally{sdk.auth.stopAutoRefresh();if(unmount)await unmount();fixture.client=originalClient;}
+});
+
+for(const operation of ['read','document','phone','support','notification','consumption'])for(const phase of ['response','body'])test(`${operation} discards an abort-ignoring late ${phase}`,async t=>{
+ const unmount=await mount(true);session.user={id:'synthetic-actor'};
+ const controller=new AbortController();let settle,pending,opened=false,result,settled=false;const keys=[];
+ const body=operation==='document'?{data:{customerDocument:[{reference:'owned-doc',url:'https://files.example.test/owned'}]}}:operation==='read'||operation==='consumption'?{data:{contracts:[{reference:'late-contract',name:null,status:null,startDate:null}]}}:{data:{accepted:true,readAt:'2026-11-11T00:00:00Z'}};
+ const response=()=>({ok:true,status:200,json:async()=>body});
+ try {
+  t.mock.timers.enable({apis:['setTimeout']});
+  handler=async(_url,init)=>{keys.push(init.headers['Idempotency-Key']);return phase==='response'?new Promise(resolve=>{settle=resolve;}):{ok:true,status:200,json:()=>new Promise(resolve=>{settle=resolve;})};};
+  await act(async()=>{
+   if(operation==='read')pending=current.select('contracts');
+   else if(operation==='document')pending=current.openDocument(null,'owned-doc',()=>{opened=true;});
+   else if(operation==='phone')pending=current.updatePhone('0701234567');
+   else if(operation==='support')pending=current.submitSupport('Question','Message');
+   else if(operation==='notification')pending=current.markNotificationRead('owned-notification');
+   else pending=assert.rejects(current.readConsumption('sites',{},controller.signal));
+  });
+  assert.equal(typeof settle,'function');
+  void pending.then(value=>{result=value;settled=true;});
+  await act(async()=>{if(operation==='consumption')controller.abort();else t.mock.timers.tick(20000);});
+  assert.equal(settled,true,'A response or body that ignores abort must still leave the bounded caller wait');
+  assert.equal(current.busy,false);assert.equal(opened,false);assert.equal(current.authenticated,true);
+  if(operation!=='consumption')assert.equal(current.rows,null);
+  if(['phone','support','notification'].includes(operation))assert.equal(result,false);
+  await act(async()=>{settle(phase==='response'?response():body);await new Promise(resolve=>setImmediate(resolve));});
+  assert.equal(opened,false);if(operation!=='consumption')assert.equal(current.rows,null);
+  assert.equal(current.authenticated,true);
+  if(['phone','support','notification'].includes(operation)){
+   handler=async(_url,init)=>{keys.push(init.headers['Idempotency-Key']);return Response.json({data:{accepted:true,readAt:'2026-11-11T00:00:00Z'}});};
+   await act(async()=>{if(operation==='phone')assert.equal(await current.updatePhone('0701234567'),true);else if(operation==='support')assert.equal(await current.submitSupport('Question','Message'),true);else assert.equal(await current.markNotificationRead('owned-notification'),true);});
+   assert.equal(keys.length,2);assert.ok(keys[0]);assert.equal(keys[0],keys[1],'An uncertain accepted write retains its attempt key');
+  }
+ }finally{if(settle)await act(async()=>{settle(phase==='response'?response():body);await pending;});t.mock.timers.reset();await unmount();}
+});
+
+test('logout waits for an already started SDK secure-storage write before removing the session',async()=>{
+ const {createClient}=await import('../apps/mobile/node_modules/@supabase/supabase-js/dist/index.mjs');
+ const originalClient=fixture.client;const stored=new Map();const storageKey='synthetic-delayed-storage';let finishWrite;
+ const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600,sub:'00000000-0000-4000-8000-000000000001'})).toString('base64url')+'.synthetic';
+ const sdk=createClient('https://project.supabase.co','sb_publishable_test',{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false,storageKey,storage:{getItem:async k=>stored.get(k)??null,setItem:async(k,v)=>{if(k===storageKey)await new Promise(resolve=>{finishWrite=resolve;});stored.set(k,v);},removeItem:async k=>{stored.delete(k);}}},global:{fetch:async url=>String(url).includes('/token')?Response.json({access_token:token,refresh_token:'synthetic-refresh',token_type:'bearer',expires_in:3600,user:{id:'00000000-0000-4000-8000-000000000001'}}):new Response(null,{status:204})}});
+ fixture.client=sdk;let unmount;
+ try{
+  unmount=await mount();let login;
+  await act(async()=>{login=current.login('synthetic@example.test','synthetic');});
+  assert.equal(typeof finishWrite,'function');
+  await act(async()=>current.logout());assert.equal(current.authenticated,false);
+  await act(async()=>{finishWrite();await login;await new Promise(resolve=>setImmediate(resolve));});
+  assert.equal((await sdk.auth.getSession()).data.session,null);assert.equal(stored.has(storageKey),false);
+  assert.equal(current.authenticated,false);assert.equal(current.rows,null);
+ }finally{sdk.auth.stopAutoRefresh();if(unmount)await unmount();fixture.client=originalClient;}
 });

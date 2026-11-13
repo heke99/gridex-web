@@ -1,0 +1,1227 @@
+appId: se.gridex.el.dev
+---
+- launchApp:
+    clearState: true
+- tapOn: "Mer"
+- extendedWaitUntil:
+    visible:
+      id: "customer-contracts-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "E-post"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
+- inputText: ${LOGIN_A_EMAIL}
+- assertVisible: ${LOGIN_A_EMAIL}
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Lösenord"
+    retryTapIfNoChange: false
+- inputText: ${LOGIN_A_PASSWORD}
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Logga in"
+      enabled: true
+    timeout: 30000
+- tapOn:
+    text: "Logga in"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: ${CONTRACT_A}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ".*${CUSTOMER_B}.*"
+- takeScreenshot: "a-contract"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- stopApp
+- runFlow: ios-resume-app.yaml
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: ${CONTRACT_A}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "authenticated-restart"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: sites
+- scrollUntilVisible:
+    element: ${SITE_A}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "a-site"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: invoices
+- scrollUntilVisible:
+    element: ${INVOICE_A}
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Visa fakturadetaljer"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fakturadetaljer"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 111 SEK"
+    direction: DOWN
+- takeScreenshot: "a-invoice"
+- scrollUntilVisible:
+    element: ${INVOICE_LINE_A}
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-invoice-pdf-a
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Faktura ${INVOICE_A}"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "a-invoice-pdf-return"
+
+- scrollUntilVisible:
+    element: "Logga ut"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Logga ut"
+    retryTapIfNoChange: false
+# The guest heading appears before asynchronous secure-storage cleanup finishes.
+# Terminate only after logout completes; then verify it survives a process restart.
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "customer-invoiceDetail-idle"
+    timeout: 60000
+- assertNotVisible: "Försök logga ut igen"
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- stopApp
+- runFlow: ios-resume-app.yaml
+- tapOn: "Mer"
+- assertVisible: "Logga in på Mina sidor"
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- extendedWaitUntil:
+    visible:
+      id: "customer-contracts-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "E-post"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
+- inputText: ${LOGIN_B_EMAIL}
+- assertVisible: ${LOGIN_B_EMAIL}
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Lösenord"
+    retryTapIfNoChange: false
+- inputText: ${LOGIN_B_PASSWORD}
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Logga in"
+      enabled: true
+    timeout: 30000
+- tapOn:
+    text: "Logga in"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: ${CONTRACT_B}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- takeScreenshot: "b-contract-no-a-data"
+- scrollUntilVisible:
+    element: "Sök avtal"
+    centerElement: true
+    direction: UP
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök avtal"
+    retryTapIfNoChange: false
+- inputText: ${CUSTOMER_A}
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Inga hämtade poster matchar ditt val."
+    direction: DOWN
+- takeScreenshot: "contract-search-empty"
+- scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    centerElement: true
+    direction: UP
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: ${CONTRACT_B}
+    direction: DOWN
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: sites
+- scrollUntilVisible:
+    element: ${SITE_B}
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "b-site-no-a-data"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: invoices
+- scrollUntilVisible:
+    element: ${INVOICE_B}
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Visa fakturadetaljer"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fakturadetaljer"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "b-invoice-no-a-data"
+- scrollUntilVisible:
+    element: ${INVOICE_LINE_B}
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-invoice-pdf-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Faktura ${INVOICE_B}"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "b-invoice-pdf-return"
+
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- pressKey: Home
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: wait-expiry-tick
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "background-resume"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- pressKey: Home
+- repeat:
+    times: 13
+    commands:
+      - runScript:
+          file: ios-control.js
+          env:
+            ACTION: wait-expiry-tick
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "expired-token-foreground-refresh"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disconnect
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: invoiceDetail
+- scrollUntilVisible:
+    element: "Uppgifterna kunde inte hämtas.*"
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ".*${CUSTOMER_B}.*"
+- pressKey: Home
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Uppgifterna kunde inte hämtas.*"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+- assertNotVisible: "Logga in på Mina sidor"
+- assertNotVisible: ".*${CUSTOMER_B}.*"
+- takeScreenshot: "offline-foreground-session-preserved"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: reconnect
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: invoiceDetail
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Totalt inklusive moms: 222 SEK"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "network-recovery"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
+- scrollUntilVisible:
+    element: "Nytt telefonnummer"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Nytt telefonnummer"
+    retryTapIfNoChange: false
+- eraseText: 40
+- inputText: "+46755555555"
+- assertVisible: '^\+46755555555$'
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Spara telefonnummer"
+    centerElement: true
+    direction: DOWN
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "profile-phone-target"
+- tapOn:
+    text: "Spara telefonnummer"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible:
+      id: "customer-profile-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Telefonnumret har sparats.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- assertVisible: "Telefonnumret har sparats.*"
+- takeScreenshot: "profile-phone-write"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
+      CUSTOMER_TARGET: 'Telefon: \+46755555555'
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
+- scrollUntilVisible:
+    element: ${NOTICE_B}
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "customer-notifications-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Markera som läst"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Markera som läst"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible:
+      id: "customer-notifications-idle"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Läst: [0-9]{4}-.*"
+    direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
+      CUSTOMER_TARGET: ${NOTICE_B}
+- scrollUntilVisible:
+    element: "Läst: [0-9]{4}-.*"
+    direction: DOWN
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- assertNotVisible: "Markera som läst"
+- takeScreenshot: "notification-read"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
+- scrollUntilVisible:
+    element: ${DOCUMENT_B}
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disable-document-b
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Dokumentet kunde inte öppnas.*"
+    direction: DOWN
+- takeScreenshot: "document-stale-link-denied"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: restore-document-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
+      CUSTOMER_TARGET: ${DOCUMENT_B}
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- scrollUntilVisible:
+    element: "Öppna dokument i extern läsare"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna dokument i extern läsare"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: ".*Synthetic Gridex document B.*"
+    timeout: 60000
+- takeScreenshot: "document-external-pdf"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${DOCUMENT_B}
+    direction: DOWN
+    timeout: 60000
+- assertNotVisible: ".*${CUSTOMER_A}.*"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "document-return"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: powers
+- scrollUntilVisible:
+    element: ${POWER_B}
+    direction: DOWN
+- takeScreenshot: "powers"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: acceptances
+- scrollUntilVisible:
+    element: ${ACCEPTANCE_B}
+    direction: DOWN
+- takeScreenshot: "acceptances"
+- runFlow:
+    file: ios-customer-resource.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- inputText: ${SUPPORT_B}
+- assertVisible: ${SUPPORT_B}
+- takeScreenshot: "customer-resource-target"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Visa fler ärenden"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa fler ärenden"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "52 hämtade ärenden"
+    direction: UP
+    timeout: 60000
+- assertNotVisible: "Hämtar kunduppgifter"
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- eraseText: 160
+- inputText: ${SUPPORT_LAST_B}
+- assertVisible: ${SUPPORT_LAST_B}
+- takeScreenshot: "customer-resource-target"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      text: ${SUPPORT_LAST_B}
+      below: "Visar 1 av 52 hämtade poster"
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "support-continuation-last"
+- scrollUntilVisible:
+    element: "resolved"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "resolved"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Inga hämtade poster matchar ditt val."
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "support-status-filter"
+- scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Sök bland hämtade ärenden"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- inputText: ${SUPPORT_B}
+- assertVisible: ${SUPPORT_B}
+- takeScreenshot: "customer-resource-target"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      text: ${SUPPORT_B}
+      below: "Visar 1 av 52 hämtade poster"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      text: "Öppna ärende och meddelanden"
+      below: ${SUPPORT_B}
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna ärende och meddelanden"
+    below: ${SUPPORT_B}
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: ".*REPLY.*"
+    direction: DOWN
+- takeScreenshot: "support-public-reply"
+- assertNotVisible: ".*INTERNAL-NEVER-PUBLIC.*"
+- scrollUntilVisible:
+    element: ".*PUBLIC-STAFF.*"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Öppna kundservice på webben"
+    direction: DOWN
+    centerElement: true
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-support
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna kundservice på webben"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-support
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Meddelande till kundservice"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- takeScreenshot: "support-detail-web-return"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Meddelande till kundservice"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- inputText: "Synthetic iOS reply B"
+- assertVisible: "Synthetic iOS reply B"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Skicka svar"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Skicka svar"
+      enabled: true
+    timeout: 30000
+- tapOn:
+    text: "Skicka svar"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Meddelandet har sparats.*"
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: supportDetail
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: supportDetail
+      CUSTOMER_TARGET: "Synthetic iOS reply B"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- takeScreenshot: "support-native-write-readback"
+- scrollUntilVisible:
+    element: "← Alla ärenden"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "← Alla ärenden"
+    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+      CUSTOMER_TARGET: "Sök bland hämtade ärenden"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Sök bland hämtade ärenden"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- eraseText: 160
+- inputText: "Synthetic iOS new B"
+- assertVisible: "Synthetic iOS new B"
+- takeScreenshot: "customer-resource-target"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Ärendets rubrik"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Ärendets rubrik"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- inputText: "Synthetic iOS new B"
+- assertVisible:
+    text: "Synthetic iOS new B"
+    below: "Nytt ärende"
+- takeScreenshot: "customer-resource-target"
+- scrollUntilVisible:
+    element: "Meddelande till kundservice"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Meddelande till kundservice"
+    retryTapIfNoChange: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- inputText: "Synthetic iOS first message B"
+- assertVisible: "Synthetic iOS first message B"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Skapa ärende"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Skapa ärende"
+      enabled: true
+    timeout: 30000
+- tapOn:
+    text: "Skapa ärende"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Meddelandet har sparats.*"
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+- runFlow:
+    file: ios-customer-after-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
+      CUSTOMER_TARGET: "Synthetic iOS new B"
+- scrollUntilVisible:
+    element:
+      text: "Synthetic iOS new B"
+      below: "Visar [0-9]+ av [0-9]+ hämtade poster"
+    direction: DOWN
+    timeout: 60000
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
+- scrollUntilVisible:
+    element:
+      text: "Öppna ärende och meddelanden"
+      below: "Synthetic iOS new B"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Öppna ärende och meddelanden"
+    below: "Synthetic iOS new B"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Synthetic iOS first message B"
+    direction: DOWN
+- takeScreenshot: "support-native-create-readback"
+- tapOn: "Förbrukning"
+- scrollUntilVisible:
+    element: ".*Leveransperioden måste kunna verifieras.*"
+    direction: DOWN
+- takeScreenshot: "consumption-fails-closed"
+- runScript: ios-market-dates.js
+- tapOn: "Elpriser"
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "SE1"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE1"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketToday} · SE1"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE2"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE2"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketToday} · SE2"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE3"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE3"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketToday} · SE3"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "SE4"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "SE4"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketToday} · SE4"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Igår"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Igår"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketYesterday} · SE4"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Idag"
+    direction: UP
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Idag"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Visa alla [0-9]+ intervallpriser"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa alla [0-9]+ intervallpriser"
+    retryTapIfNoChange: false
+- assertVisible: "Dölj intervallpriser"
+- takeScreenshot: "public-market-prices"
+- tapOn: "Dölj intervallpriser"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: disconnect-market
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Uppdatera elpriser"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Uppdatera elpriser"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Elpriserna kunde inte hämtas. Försök igen."
+    timeout: 30000
+- takeScreenshot: "market-network-error"
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: reconnect-market
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Uppdatera elpriser"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Uppdatera elpriser"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketToday} · SE4"
+    direction: DOWN
+- takeScreenshot: "market-retry-recovery"
+
+- scrollUntilVisible:
+    element: "Imorgon"
+    direction: UP
+    centerElement: true
+- runScript: ios-future-market.js
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Imorgon"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "${output.marketTomorrow} · SE4"
+    direction: DOWN
+- runFlow:
+    when:
+      true: ${output.futureEntries === 0}
+    commands:
+      - scrollUntilVisible:
+          element: "Inga priser har publicerats för det valda dygnet."
+          direction: DOWN
+          timeout: 60000
+- runFlow:
+    when:
+      true: ${output.futureEntries > 0}
+    commands:
+      - scrollUntilVisible:
+          element: "Visa alla [0-9]+ intervallpriser"
+          direction: DOWN
+          timeout: 60000
+- takeScreenshot: "market-future-day"
+- tapOn: "Mer"
+- pressKey: Home
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: revoke-b
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: wait-expiry-tick
+- runFlow: ios-resume-app.yaml
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- assertNotVisible: ".*${CONTRACT_B}.*"
+- assertNotVisible: ".*${INVOICE_B}.*"
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "E-post"
+    retryTapIfNoChange: false
+- eraseText: 200
+- runFlow: ios-dismiss-keyboard.yaml
+- takeScreenshot: "invalidated-session-foreground"
+# The customer panel stays mounted across tabs; accept its selected resource.
+- extendedWaitUntil:
+    visible:
+      id: "customer-(contracts|sites|invoices|support|invoiceDetail|supportDetail|profile|notifications|documents|powers|acceptances|consumption)-idle"
+    timeout: 60000
+- assertNotVisible: "Försök logga ut igen"
+- stopApp
+- runFlow: ios-resume-app.yaml
+- tapOn: "Mer"
+- assertVisible: "Logga in på Mina sidor"
+- assertNotVisible: ".*${CONTRACT_B}.*"
+- assertNotVisible: ".*${INVOICE_B}.*"
+- takeScreenshot: "invalid-session-not-restored"
+- scrollUntilVisible:
+    element: "Glömt lösenord? Återställ på hemsidan"
+    direction: DOWN
+    centerElement: true
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-recovery
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Glömt lösenord? Återställ på hemsidan"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-recovery
+- extendedWaitUntil:
+    visible: "Återställ lösenord"
+    timeout: 60000
+- takeScreenshot: "recovery-external-web"
+- runFlow: ios-resume-app.yaml
+- assertVisible: "Logga in på Mina sidor"
+- tapOn: "Hem"
+- scrollUntilVisible:
+    element: "Teckna nytt elavtal.*"
+    direction: DOWN
+    centerElement: true
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-signup
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Teckna nytt elavtal.*"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-signup
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Visa befintliga avtal.*"
+    direction: DOWN
+    centerElement: true
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-contracts
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Visa befintliga avtal.*"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-contracts
+- runFlow: ios-resume-app.yaml
+- scrollUntilVisible:
+    element: "Få hjälp att byta avtal.*"
+    direction: DOWN
+    centerElement: true
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: snapshot-handoff-support
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Få hjälp att byta avtal.*"
+    retryTapIfNoChange: false
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-handoff-support
+- runFlow: ios-resume-app.yaml
+- takeScreenshot: "contract-web-return"

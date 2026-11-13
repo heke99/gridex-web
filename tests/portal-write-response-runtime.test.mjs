@@ -18,7 +18,7 @@ process.env.GRIDEX_OPS_API_URL = 'https://app.gridex.se/api/v1'
 process.env.VERCEL_ENV = 'production'
 
 const { GRIDEX_CUSTOMER_PORTAL_API_CONTRACT_VERSION: version } = await import('../lib/ops/contract.ts')
-const { responseObject, submitOpsCustomerSync, submitOpsCustomerPortalSync, mapCustomerWriteResult } = await import('../lib/ops/client/portal.ts')
+const { responseObject, submitOpsCustomerSync, submitOpsCustomerPortalSync, submitOpsCustomerProfileUpdate, mapCustomerWriteResult } = await import('../lib/ops/client/portal.ts')
 const { linkExistingPortalCustomer } = await import('../lib/customerPortal/existingCustomerLink.ts')
 const id = '11111111-1111-4111-8111-111111111111'
 const identity = { userId: id, email: 'owner@example.com', customerNumber: 'C-1001', externalCustomerId: 'original-external' }
@@ -53,9 +53,10 @@ function fixture(overrides = {}) {
       '/api/v1/customer/sync': overrides.customer ?? customer,
       '/api/v1/customer-portal/sync': overrides.portal ?? portal,
       '/api/v1/customer/me': { profile: { customer_number: identity.customerNumber, external_customer_id: identity.externalCustomerId, email: identity.email } },
+      '/api/v1/customer/profile-update': { completion_reference:'completion-profile',status:'accepted',created_at:'2026-11-11T00:00:00Z',profile_updated:true,facility_updated:false,address_result:null },
     }[path]
     assert.ok(data, 'Unexpected HTTP boundary: ' + path)
-    f.requests.push({ path, body: init.body, key: new Headers(init.headers).get('idempotency-key') })
+    f.requests.push({ path, body: init.body, key: new Headers(init.headers).get('idempotency-key'),customerNumber:new Headers(init.headers).get('x-gridex-customer-number'),authUser:new Headers(init.headers).get('x-gridex-auth-user-id') })
     return new Response(JSON.stringify(envelope(data)), { headers: { 'content-type': 'application/json', 'x-gridex-contract-version': version } })
   }
   return f
@@ -92,6 +93,23 @@ test('write-result mapper keeps data and refuses negative outcomes', () => {
   }
   assert.equal(mapCustomerWriteResult({ request_id: 'missing-data' }).ok, false)
 })
+
+test('profile writes validate the closed OPS body and keep verified identity in headers',async()=>{
+ const f=fixture();
+ const result=await submitOpsCustomerProfileUpdate({identity,profile:{phone:'+46711111111'},metadata:{source:'gridex_mobile'},idempotencyKey:'profile-edit'});
+ assert.equal(result.ok,true);assert.equal(result.status,'accepted');assert.equal(result.data.profile_updated,true);
+ assert.equal(f.requests.length,1);
+ assert.deepEqual(JSON.parse(f.requests[0].body),{profile:{phone:'+46711111111'},metadata:{source:'gridex_mobile'}});
+ assert.equal(f.requests[0].customerNumber,identity.customerNumber);assert.equal(f.requests[0].authUser,identity.userId);
+});
+
+test('implicit profile idempotency stays stable and remains bound to the verified customer',async()=>{
+ const f=fixture();const profile={phone:'+46711111111'};
+ await submitOpsCustomerProfileUpdate({identity,profile});
+ await submitOpsCustomerProfileUpdate({identity,profile});
+ await submitOpsCustomerProfileUpdate({identity:{...identity,customerNumber:'C-2002',externalCustomerId:'other-approved-binding'},profile});
+ assert.equal(f.requests[0].key,f.requests[1].key);assert.notEqual(f.requests[0].key,f.requests[2].key);
+});
 
 const link = () => linkExistingPortalCustomer({ user: { id, email: identity.email, email_confirmed_at: '2026-10-19T10:00:00Z' }, customerNumber: identity.customerNumber, operationId: 'offline-first-link' })
 test('first link completes through actual sync clients, readback and local identity persistence', async () => {

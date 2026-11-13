@@ -1,0 +1,41 @@
+appId: se.gridex.el.dev
+---
+# Only this idempotent GET action may be retried. Never replay a mutation or
+# customer journey. Each caller still requires its original positive readback.
+- retry:
+    maxRetries: 2
+    commands:
+      - runFlow:
+          when:
+            true: ${CUSTOMER_RESOURCE !== 'support' && CUSTOMER_RESOURCE !== 'supportDetail'}
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "customer-${CUSTOMER_RESOURCE}-idle"
+                timeout: 30000
+      - scrollUntilVisible:
+          element: "Mina sidor"
+          direction: UP
+          timeout: 60000
+      # Capture this read's actual starting viewport, replacing an older tab shot
+      # even when the following scroll fails before reaching its target.
+      - takeScreenshot: "customer-resource-target"
+      - scrollUntilVisible:
+          element: "Hämta igen"
+          direction: DOWN
+          # This footer may not be centerable at the end of the scroll view.
+          # Require full visibility without Maestro's extra centering swipes.
+          centerElement: false
+          waitToSettleTimeoutMs: 500
+          timeout: 60000
+      # Positive enabled-control readiness also covers long support containers.
+      - extendedWaitUntil:
+          visible:
+            text: "Hämta igen"
+            enabled: true
+          timeout: 30000
+      # Authenticated customer pane only; same fixed diagnostic allowlist.
+      - takeScreenshot: "customer-resource-target"
+      - tapOn:
+          text: "Hämta igen"
+          retryTapIfNoChange: false

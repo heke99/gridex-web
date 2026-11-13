@@ -1,0 +1,30 @@
+appId: se.gridex.el.dev
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Gridex El"
+- assertVisible:
+    id: "energy-app-shell"
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+- tapOn: "E-post"
+- inputText: "synthetic-ui-only@example.invalid"
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+- tapOn: "Lösenord"
+- inputText: "synthetic-ui-only-no-login"
+- runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    direction: DOWN
+- assertVisible: "Logga in"
+- takeScreenshot: "keyboard-login-accessible"
+- tapOn: "Elpriser"
+- assertVisible: "Följ elpriset"
+- takeScreenshot: "notched-price-navigation"
+- tapOn: "Hem"
+- assertVisible: "Din el. Samlad på ett ställe."
+- takeScreenshot: "notched-home-navigation"

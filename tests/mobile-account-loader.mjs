@@ -13,7 +13,7 @@ export async function resolve(specifier, context, next) {
   if (context.parentURL?.endsWith('/ContractActions.tsx') && specifier === 'react-native') return {url:moduleUrl("export const Pressable='Pressable', Text='Text', View='View'; export const Linking={openURL:(...args)=>globalThis.__contractLinkFixture(...args)};"),shortCircuit:true};
   if (context.parentURL?.endsWith('/useCustomerAccount.ts')) {
     if (specifier === 'react-native') return { url: moduleUrl('export const AppState = globalThis.__mobileFixture.appState;'), shortCircuit: true };
-    if (specifier === './accountClient') return { url: moduleUrl("export const customerApi = 'https://tenant.test'; export function createAccountClient() { return globalThis.__mobileFixture.client; }"), shortCircuit: true };
+    if (specifier === './accountClient') return { url: moduleUrl("export const customerApi = 'https://tenant.test'; export function createAccountClient() { return globalThis.__mobileFixture.client; } export function cancelAccountAuth(client) {globalThis.__mobileFixture.cancelAccountAuth?.(client);}"), shortCircuit: true };
   }
   if (specifier.startsWith('.') && context.parentURL?.startsWith('file:') && !/\.[a-z]+$/i.test(specifier)) {
     const url = new URL(`${specifier}.ts`, context.parentURL);

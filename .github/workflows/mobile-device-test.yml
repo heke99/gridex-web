@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/mobile-device-test.yml'
+      - 'apps/mobile/**'
+      - 'packages/mobile-foundation/**'
 
 permissions:
   contents: read
@@ -13,11 +15,16 @@ jobs:
   android-device-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     defaults:
       run:
         working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -50,6 +57,7 @@ jobs:
           unzip -Z1 "$apk" > "$RUNNER_TEMP/gridex-apk-files.txt"
           grep -Fx 'assets/index.android.bundle' "$RUNNER_TEMP/gridex-apk-files.txt"
           mkdir -p "$RUNNER_TEMP/gridex-device-test"
+          node -e 'const fs=require("node:fs");const source=require("node:child_process").execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();if(source!==process.env.QUALIFICATION_WEB_COMMIT)throw Error("Source mismatch");fs.writeFileSync(process.env.RUNNER_TEMP+"/gridex-device-test/build-receipt.json",JSON.stringify({source,configuration:"production",buildType:"release",productionDistributionSignatureVerified:false},null,2)+"\n")'
           cp "$apk" "$RUNNER_TEMP/gridex-device-test/gridex-el-test.apk"
           cd "$RUNNER_TEMP/gridex-device-test"
           sha256sum gridex-el-test.apk > SHA256SUMS

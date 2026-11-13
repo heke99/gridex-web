@@ -1,0 +1,17 @@
+appId: se.gridex.el.dev
+---
+# A PDF reader can finish activating after its GET has already reached the server.
+# Retry foreground establishment only; callers still require own data and fresh OPS.
+- retry:
+    maxRetries: 2
+    commands:
+      - launchApp:
+          stopApp: false
+      - extendedWaitUntil:
+          visible:
+            id: "energy-app-shell"
+          timeout: 15000
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - assertVisible:
+          id: "energy-app-shell"
