@@ -3,6 +3,10 @@ appId: se.gridex.el.dev
 - launchApp:
     clearState: true
 - tapOn: "Mer"
+- extendedWaitUntil:
+    visible:
+      id: "customer-contracts-idle"
+    timeout: 60000
 - scrollUntilVisible:
     element: "E-post"
     centerElement: true
@@ -14,7 +18,16 @@ appId: se.gridex.el.dev
     retryTapIfNoChange: false
 - inputText: ${LOGIN_A_EMAIL}
 - assertVisible: ${LOGIN_A_EMAIL}
-- tapOn: "Lösenord"
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Lösenord"
+    retryTapIfNoChange: false
 - inputText: ${LOGIN_A_PASSWORD}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -23,6 +36,11 @@ appId: se.gridex.el.dev
     direction: DOWN
 - waitForAnimationToEnd:
     timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Logga in"
+      enabled: true
+    timeout: 30000
 - tapOn:
     text: "Logga in"
     retryTapIfNoChange: false
@@ -139,6 +157,10 @@ appId: se.gridex.el.dev
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
 - assertNotVisible: ".*${CUSTOMER_A}.*"
+- extendedWaitUntil:
+    visible:
+      id: "customer-contracts-idle"
+    timeout: 60000
 - scrollUntilVisible:
     element: "E-post"
     centerElement: true
@@ -150,7 +172,16 @@ appId: se.gridex.el.dev
     retryTapIfNoChange: false
 - inputText: ${LOGIN_B_EMAIL}
 - assertVisible: ${LOGIN_B_EMAIL}
-- tapOn: "Lösenord"
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Lösenord"
+    retryTapIfNoChange: false
 - inputText: ${LOGIN_B_PASSWORD}
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -159,6 +190,11 @@ appId: se.gridex.el.dev
     direction: DOWN
 - waitForAnimationToEnd:
     timeout: 5000
+- extendedWaitUntil:
+    visible:
+      text: "Logga in"
+      enabled: true
+    timeout: 30000
 - tapOn:
     text: "Logga in"
     retryTapIfNoChange: false

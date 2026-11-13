@@ -12,6 +12,11 @@ test('iOS read refresh preserves every original action, positive readback and is
  const path='scripts/mobile-integration/ios-customer.yaml',old=commands(execFileSync('git',['show',ref.source+':'+path],{encoding:'utf8'})),current=commands(read(path));
  function normalize(input){const out=[];for(let i=0;i<input.length;i++){
   const c=input[i];if(typeof c!=='object'||c===null){out.push(c);continue;}
+  if(c.extendedWaitUntil?.visible?.id==='customer-contracts-idle'&&input[i+1]?.scrollUntilVisible?.element==='E-post'){assert.equal(c.extendedWaitUntil.timeout,60000);continue;}
+  if(c.scrollUntilVisible?.element==='Lösenord'){
+   assert.equal(c.scrollUntilVisible.centerElement,true);assert.equal(c.scrollUntilVisible.timeout,60000);assert.deepEqual(input[i+1],{waitForAnimationToEnd:{timeout:5000}});assert.deepEqual(input[i+2],{tapOn:{text:'Lösenord',retryTapIfNoChange:false}});out.push({tapOn:'Lösenord'});i+=2;continue;
+  }
+  if(c.extendedWaitUntil?.visible?.text==='Logga in'){assert.deepEqual(c.extendedWaitUntil,{visible:{text:'Logga in',enabled:true},timeout:30000});assert.equal(input[i+1]?.tapOn?.text,'Logga in');continue;}
   if(c.runFlow==='ios-resume-app.yaml'||JSON.stringify(c.launchApp)==='{"stopApp":false}'){out.push({activation:'foreground'});continue;}
   if(c.scrollUntilVisible?.element==='Hämta igen'){
    assert.ok(input[i+1].waitForAnimationToEnd);assert.equal(input[i+2].tapOn.text,'Hämta igen');out.push({read:'refresh'});i+=2;continue;
@@ -20,6 +25,7 @@ test('iOS read refresh preserves every original action, positive readback and is
   out.push(c);
  }return out;}
  assert.deepEqual(normalize(current),normalize(old));
+ assert.equal(current.filter(c=>c?.extendedWaitUntil?.visible?.id==='customer-contracts-idle').length,2);assert.equal(current.filter(c=>c?.extendedWaitUntil?.visible?.text==='Logga in').length,2);assert.equal(current.filter(c=>c?.scrollUntilVisible?.element==='Lösenord').length,2);
  assert.deepEqual(current.filter(c=>c?.runFlow?.file==='ios-customer-refresh.yaml').map(c=>c.runFlow.env.CUSTOMER_RESOURCE),['invoiceDetail','invoiceDetail','profile','notifications','documents','supportDetail','support']);
 });
 
