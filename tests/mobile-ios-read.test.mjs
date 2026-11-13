@@ -25,8 +25,13 @@ test('iOS read refresh preserves every original action, positive readback and is
   if(['Skicka svar','Skapa ärende'].includes(c.extendedWaitUntil?.visible?.text)){assert.equal(c.extendedWaitUntil.visible.enabled,true);assert.equal(c.extendedWaitUntil.timeout,30000);assert.equal(input[i+1]?.tapOn?.text,c.extendedWaitUntil.visible.text);continue;}
   if(['${SUPPORT_B}','${SUPPORT_LAST_B}','Synthetic iOS new B'].includes(c.assertVisible))continue;
   if(c.assertVisible?.text==='Synthetic iOS new B'){assert.equal(c.assertVisible.below,'Nytt ärende');continue;}
-  if(['customer-resource-target'].includes(c.takeScreenshot))continue;
+  if(['customer-resource-target','support-detail-web-return'].includes(c.takeScreenshot))continue;
   if(c.scrollUntilVisible?.element==='Rensa sökning och filter'&&c.scrollUntilVisible.direction==='DOWN'&&input[i+3]?.scrollUntilVisible?.element==='Mina sidor'&&input[i+4]?.scrollUntilVisible?.element==='Sök bland hämtade ärenden'){assert.equal(input[i+2]?.tapOn?.text,'Rensa sökning och filter');i+=2;continue;}
+  if(c.repeat?.times===8){assert.deepEqual(c.repeat.commands,[{swipe:{direction:'DOWN',duration:300}}]);continue;}
+  if(c.scrollUntilVisible?.element==='Svara i ärendet')continue;
+  if(c.scrollUntilVisible?.element==='Meddelande till kundservice|Ditt meddelande'){out.push({requiredVisible:'Meddelande till kundservice'});continue;}
+  if(c.tapOn?.text==='Meddelande till kundservice|Ditt meddelande'){out.push({...c,tapOn:{...c.tapOn,text:'Meddelande till kundservice'}});continue;}
+  if(c.extendedWaitUntil?.visible==='Meddelandet har sparats.*'){out.push({requiredVisible:c.extendedWaitUntil.visible});continue;}
   if(c.extendedWaitUntil?.visible==='Elpriserna kunde inte hämtas. Försök igen.'){out.push({requiredVisible:c.extendedWaitUntil.visible});continue;}
   if(c.assertNotVisible==='Hämtar kunduppgifter'&&input[i-1]?.scrollUntilVisible?.element==='52 hämtade ärenden')continue;
   if(c.launchApp?.appId==='com.apple.mobilesafari'){assert.deepEqual(c.launchApp,{appId:'com.apple.mobilesafari',stopApp:false});assert.equal(input[i-1]?.tapOn?.text,'Öppna dokument i extern läsare');assert.equal(input[i+2]?.takeScreenshot,'document-external-pdf');assert.equal(input[i+3]?.extendedWaitUntil?.visible,'.*Synthetic Gridex document B.*');continue;}
@@ -105,7 +110,7 @@ test('iOS read refresh remainder requires settled exact inputs, real list rows a
   const edits=flow.flatMap((c,i)=>c?.inputText===value?[i]:[]);assert.equal(edits.length,value==='${SUPPORT_LAST_B}'?1:2);
   for(const i of edits){if(value==='${SUPPORT_LAST_B}'){assert.deepEqual(flow[i+1],{takeScreenshot:'customer-resource-target'});assert.deepEqual(flow[i+2],{runFlow:'ios-dismiss-keyboard.yaml'});continue;}const expected=flow[i-2]?.tapOn?.text==='Ärendets rubrik'?{text:value,below:'Nytt ärende'}:value;assert.deepEqual(flow[i+1],{assertVisible:expected});assert.deepEqual(flow[i+2],{takeScreenshot:'customer-resource-target'});}
  }
- for(const label of ['Sök bland hämtade ärenden','Ärendets rubrik','Meddelande till kundservice'])for(const [i,c]of flow.entries())if(c?.tapOn?.text===label)assert.deepEqual(flow[i+1],{waitForAnimationToEnd:{timeout:5000}});
+ for(const label of ['Sök bland hämtade ärenden','Ärendets rubrik','Meddelande till kundservice|Ditt meddelande'])for(const [i,c]of flow.entries())if(c?.tapOn?.text===label)assert.deepEqual(flow[i+1],{waitForAnimationToEnd:{timeout:5000}});
  for(const title of ['${SUPPORT_LAST_B}','${SUPPORT_B}'])assert.equal(flow.filter(c=>c?.scrollUntilVisible?.element?.text===title&&c.scrollUntilVisible.element.below==='Visar 1 av 52 hämtade poster').length,1);
  assert.equal(flow.filter(c=>c?.scrollUntilVisible?.element?.text==='Synthetic iOS new B'&&c.scrollUntilVisible.element.below==='Visar [0-9]+ av [0-9]+ hämtade poster').length,1);
  for(const label of ['Skapa ärende','Skicka svar']){const i=flow.findIndex(c=>c?.tapOn?.text===label);assert.deepEqual(flow[i-1],{extendedWaitUntil:{visible:{text:label,enabled:true},timeout:30000}});}

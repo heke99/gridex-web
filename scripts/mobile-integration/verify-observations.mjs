@@ -13,13 +13,13 @@ const iosReuse=process.env.GRIDEX_IOS_CASE_REUSE==='true'?await prepare(resolve(
 for(const platform of ['android','ios']){
  if(platform==='android'&&reused){checks.push(...reused.androidSystemChecks.map(c=>({...c,evidence:'reused',referenceRun:reused.reference.run,referenceSource:reused.reference.source})));continue;}
  const saved=platform==='ios'?iosReuse:null;
- const record=(id,actual)=>{const old=saved?.systemChecks.find(c=>c.id===id);checks.push(old&&!id.endsWith('/dashboard/support')?old:{id,result:actual?'PASS':'FAIL',evidence:'current-run'});};
- for(const area of ['SE1','SE2','SE3','SE4'])checks.push({id:platform+':public-market-'+area,result:market.some(r=>r.platform===platform&&r.area===area&&!r.authorizationPresent)?'PASS':'FAIL'});
+ const record=(id,actual)=>{const old=saved?[...saved.systemChecks,...saved.marketEvidence.systemChecks].find(c=>c.id===id):null;checks.push(old&&!id.endsWith('/dashboard/support')?old:{id,result:actual?'PASS':'FAIL',evidence:'current-run'});};
+ for(const area of ['SE1','SE2','SE3','SE4'])record(platform+':public-market-'+area,market.some(r=>r.platform===platform&&r.area===area&&!r.authorizationPresent));
  record(platform+':external-document-no-bearer',docs.some(r=>r.platform===platform&&r.reference===f.customers[1].extra.document&&!r.authorizationPresent));
  record(platform+':external-invoice-pdf-no-bearer',docs.some(r=>r.platform===platform&&r.reference===f.customers[1].extra.invoiceDocument&&!r.authorizationPresent));
  for(const path of ['/login/forgot-password','/teckna','/dashboard/contracts','/dashboard/support'])record(platform+':web-handoff-'+path,handoffs.some(r=>r.platform===platform&&r.path===path&&!r.credentialPresent));
 }
 checks.push({id:'no-credential-forwarding-to-public-readers',result:(!reused||reused.publicReadersCredentialFree)&&(!iosReuse||iosReuse.publicReadersCredentialFree)&&docs.every(r=>!r.authorizationPresent)&&market.every(r=>!r.authorizationPresent)&&handoffs.every(r=>!r.credentialPresent)?'PASS':'FAIL'});
-writeFileSync(join(root,'mobile-system-observations.json'),JSON.stringify({webCommit:process.env.QUALIFICATION_WEB_COMMIT,opsCommit:process.env.GRIDEX_OPS_COMMIT,iosEvidence:iosReuse?{kind:'composed',reference:iosReuse.reference,freshCases:['support','market'],reusedCases:['core','session']}:{kind:'current-run'},androidEvidence:reused?{kind:'reused',reference:reused.reference}:{kind:'current-run'},checks},null,2)+'\n');
+writeFileSync(join(root,'mobile-system-observations.json'),JSON.stringify({webCommit:process.env.QUALIFICATION_WEB_COMMIT,opsCommit:process.env.GRIDEX_OPS_COMMIT,iosEvidence:iosReuse?{kind:'composed',reference:iosReuse.reference,freshCases:['support'],reusedCases:['core','session','market'],marketReference:iosReuse.marketEvidence.reference}:{kind:'current-run'},androidEvidence:reused?{kind:'reused',reference:reused.reference}:{kind:'current-run'},checks},null,2)+'\n');
 for(const c of checks)console.log(c.result+' '+c.id);
 if(checks.some(c=>c.result==='FAIL'))process.exitCode=1;

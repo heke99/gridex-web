@@ -765,20 +765,29 @@ appId: se.gridex.el.dev
     env:
       ACTION: assert-handoff-support
 - runFlow: ios-resume-app.yaml
+- takeScreenshot: "support-detail-web-return"
+# Lifecycle restore remounts the composer above the messages and Web link.
+# Reset the bounded detail viewport, then require the actual reply composer.
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
 - scrollUntilVisible:
-    element: "Mina sidor"
-    direction: UP
-    timeout: 60000
-- scrollUntilVisible:
-    element: "Meddelande till kundservice"
+    element: "Svara i ärendet"
     direction: DOWN
     centerElement: true
     timeout: 60000
-- takeScreenshot: "support-detail-web-return"
+- scrollUntilVisible:
+    element: "Meddelande till kundservice|Ditt meddelande"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
-    text: "Meddelande till kundservice"
+    text: "Meddelande till kundservice|Ditt meddelande"
     retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 5000
@@ -799,8 +808,9 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skicka svar"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Meddelandet har sparats.*"
+- scrollUntilVisible:
+    element: "Meddelandet har sparats.*"
+    direction: DOWN
     timeout: 60000
 - runScript:
     file: ios-control.js
@@ -863,13 +873,13 @@ appId: se.gridex.el.dev
     below: "Nytt ärende"
 - takeScreenshot: "customer-resource-target"
 - scrollUntilVisible:
-    element: "Meddelande till kundservice"
+    element: "Meddelande till kundservice|Ditt meddelande"
     direction: DOWN
     centerElement: true
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
-    text: "Meddelande till kundservice"
+    text: "Meddelande till kundservice|Ditt meddelande"
     retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 5000
@@ -890,8 +900,9 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skapa ärende"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Meddelandet har sparats.*"
+- scrollUntilVisible:
+    element: "Meddelandet har sparats.*"
+    direction: DOWN
     timeout: 60000
 - runScript:
     file: ios-control.js

@@ -139,7 +139,7 @@ if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
  }else if(command==='stamp'){
   const report=JSON.parse(readFileSync(args[0],'utf8')),receipt=JSON.parse(readFileSync(args[1],'utf8'));
   assert.equal(report.schema,'gridex.ios-composed-cases.v1');assert.equal(report.status,'PASS');assert.equal(report.webCommit,process.env.QUALIFICATION_WEB_COMMIT);
-  receipt.authenticatedCoreCustomerFlowVerified=true;receipt.coreExecutedInThisRun=false;receipt.evidenceScope='two fresh cases plus two immutable source-equivalent reference cases';receipt.coreReference=report.reference;receipt.freshCases=['support','market'];receipt.reusedCases=['core','session'];
+  receipt.authenticatedCoreCustomerFlowVerified=true;receipt.coreExecutedInThisRun=false;receipt.evidenceScope='one fresh support case plus three immutable source-equivalent reference cases';receipt.coreReference=report.reference;receipt.freshCases=['support'];receipt.reusedCases=['core','session','market'];receipt.marketReference=report.marketReference;
   writeFileSync(args[1],JSON.stringify(receipt,null,2)+'\n');
  }else throw Error('Unknown customer suite operation');
  }
