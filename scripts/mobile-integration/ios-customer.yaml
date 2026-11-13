@@ -826,10 +826,31 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skicka svar"
     retryTapIfNoChange: false
+# Confirm stable native success; exact persisted text is required after fresh GET below.
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "customer-resource-target"
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
 - scrollUntilVisible:
-    element: "Meddelandet har sparats.*"
+    element: "Svara i ärendet"
     direction: DOWN
     timeout: 60000
+- scrollUntilVisible:
+    element: "0 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      text: "Skicka svar"
+      enabled: false
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "customer-resource-target"
 - runScript:
     file: ios-control.js
     env:
@@ -936,10 +957,31 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skapa ärende"
     retryTapIfNoChange: false
+# Confirm stable native success; exact persisted text is required after fresh GET below.
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "customer-resource-target"
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
 - scrollUntilVisible:
-    element: "Meddelandet har sparats.*"
+    element: "Nytt ärende"
     direction: DOWN
     timeout: 60000
+- scrollUntilVisible:
+    element: "0 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      text: "Skapa ärende"
+      enabled: false
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "customer-resource-target"
 - runScript:
     file: ios-control.js
     env:

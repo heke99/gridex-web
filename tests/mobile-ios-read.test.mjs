@@ -12,7 +12,7 @@ import {IOS_PRODUCTION_REFERENCE as iosRef,canReuseIosProduction,assertIosProduc
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const commands=text=>{const docs=[];yaml.loadAll(text,value=>docs.push(value));return docs[1];};
 
-test('iOS read refresh preserves every original action, positive readback and isolation assertion',()=>{
+test('iOS read refresh preserves original writes, full fresh readback and isolation while requiring stable native success',()=>{
  const path='scripts/mobile-integration/ios-customer.yaml',old=commands(execFileSync('git',['show',ref.source+':'+path],{encoding:'utf8'})),current=commands(read(path));
  function normalize(input){const out=[];for(let i=0;i<input.length;i++){
   const c=input[i];if(typeof c!=='object'||c===null){out.push(c);continue;}
@@ -33,10 +33,11 @@ test('iOS read refresh preserves every original action, positive readback and is
   if(['Synthetic iOS reply B','Synthetic iOS first message B'].includes(c.assertVisible))continue;
   if(c.runFlow==='ios-dismiss-keyboard.yaml'&&input[i+1]?.scrollUntilVisible?.element==='0 / 8 000 tecken'&&input[i-1]?.takeScreenshot==='customer-resource-target')continue;
   if(c.repeat?.times===8){assert.deepEqual(c.repeat.commands,[{swipe:{direction:'DOWN',duration:300}}]);continue;}
-  if(c.scrollUntilVisible?.element==='Svara i ärendet')continue;
+  if(['Svara i ärendet','Nytt ärende'].includes(c.scrollUntilVisible?.element))continue;
+  if(['Skicka svar','Skapa ärende'].includes(c.scrollUntilVisible?.element?.text)&&c.scrollUntilVisible.element.enabled===false)continue;
   if(c.scrollUntilVisible?.element==='Meddelande till kundservice|Ditt meddelande'){out.push({requiredVisible:'Meddelande till kundservice'});continue;}
   if(c.tapOn?.text==='Meddelande till kundservice|Ditt meddelande'){out.push({...c,tapOn:{...c.tapOn,text:'Meddelande till kundservice'}});continue;}
-  if(c.extendedWaitUntil?.visible==='Meddelandet har sparats.*'){out.push({requiredVisible:c.extendedWaitUntil.visible});continue;}
+  if(c.extendedWaitUntil?.visible==='Meddelandet har sparats.*')continue;
   if(c.extendedWaitUntil?.visible==='Elpriserna kunde inte hämtas. Försök igen.'){out.push({requiredVisible:c.extendedWaitUntil.visible});continue;}
   if(c.assertNotVisible==='Hämtar kunduppgifter'&&input[i-1]?.scrollUntilVisible?.element==='52 hämtade ärenden')continue;
   if(c.launchApp?.appId==='com.apple.mobilesafari'){assert.deepEqual(c.launchApp,{appId:'com.apple.mobilesafari',stopApp:false});assert.equal(input[i-1]?.tapOn?.text,'Öppna dokument i extern läsare');assert.equal(input[i+2]?.takeScreenshot,'document-external-pdf');assert.equal(input[i+3]?.extendedWaitUntil?.visible,'.*Synthetic Gridex document B.*');continue;}
@@ -172,4 +173,14 @@ test('iOS multiline Support input uses real bounded element geometry and exact t
  }
  assert.ok(flow.some(c=>c?.runFlow?.env?.CUSTOMER_TARGET==='Synthetic iOS reply B'));assert.ok(flow.some(c=>c?.scrollUntilVisible?.element==='Synthetic iOS first message B'));
  assert.equal(flow.filter(c=>c?.tapOn?.text==='Skicka svar').length,1);assert.equal(flow.filter(c=>c?.tapOn?.text==='Skapa ärende').length,1);assert.equal(flow.some(c=>c?.tapOn?.point),false);
+});
+
+
+test('iOS Support success requires stable cleared composer and disabled submit plus full fresh readback after one POST',()=>{
+ const flow=commands(read('scripts/mobile-integration/ios-customer.yaml'));
+ for(const [label,heading]of [['Skicka svar','Svara i ärendet'],['Skapa ärende','Nytt ärende']]){
+  const i=flow.findIndex(c=>c?.tapOn?.text===label);assert.ok(i>0);const stable=flow.slice(i+1,i+10);assert.equal(stable[0].waitForAnimationToEnd.timeout,5000);assert.equal(stable[1].takeScreenshot,'customer-resource-target');assert.equal(stable[2].repeat.times,8);assert.equal(stable[3].scrollUntilVisible.element,heading);assert.equal(stable[4].scrollUntilVisible.element,'0 / 8 000 tecken');assert.deepEqual(stable[5].scrollUntilVisible.element,{text:label,enabled:false});assert.equal(stable[5].scrollUntilVisible.timeout,60000);
+ }
+ assert.equal(flow.some(c=>c?.scrollUntilVisible?.element==='Meddelandet har sparats.*'||c?.extendedWaitUntil?.visible==='Meddelandet har sparats.*'),false);
+ assert.ok(flow.some(c=>c?.runFlow?.env?.CUSTOMER_RESOURCE==='supportDetail'&&c.runFlow.env.CUSTOMER_TARGET==='Synthetic iOS reply B'));assert.ok(flow.some(c=>c?.scrollUntilVisible?.element==='Synthetic iOS first message B'));
 });
