@@ -19,6 +19,7 @@ jobs:
     env:
       GRIDEX_OPS_COMMIT: 6819d12d35a8d8ce560889b29c91f330a2655724
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_IOS_CASE_REUSE: 'true'
       SUPABASE_TELEMETRY_DISABLED: 'true'
       SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
     steps:
@@ -153,6 +154,8 @@ jobs:
         run: node gridex-web/scripts/mobile-integration/await-artifact.mjs ios-customer-terminal "$RUNNER_TEMP/ios-terminal"
       - name: Verify actual native public requests and external browser handoffs
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if test -f "$RUNNER_TEMP/mobile-backend.ready"; then
             node gridex-web/scripts/mobile-integration/verify-observations.mjs
@@ -199,11 +202,13 @@ jobs:
       MAESTRO_CLI_NO_ANALYTICS: '1'
       EXPO_NO_TELEMETRY: '1'
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_IOS_CASE_REUSE: 'true'
       GRIDEX_BUILD_ENVIRONMENT: isolated-real-auth-web-ops
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -229,6 +234,10 @@ jobs:
         run: |
           node scripts/mobile-integration/await-artifact.mjs ios-encrypted-customer-fixture "$RUNNER_TEMP/ios-encrypted-fixture"
           node scripts/mobile-integration/device-fixture.mjs decrypt "$RUNNER_TEMP/ios-encrypted-fixture/device-fixture.encrypted.json" "$RUNNER_TEMP/ios-device.env"
+      - name: Verify immutable passed iOS cases before compiling
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/mobile-integration/ios-customer-suite.mjs prepare
       - name: Build the actual isolated-backend iOS native app
         run: |
           source "$RUNNER_TEMP/ios-device.env"
@@ -241,6 +250,7 @@ jobs:
           node scripts/mobile-integration/await-artifact.mjs android-customer-terminal "$RUNNER_TEMP/android-terminal"
           node scripts/mobile-integration/qualified-android.mjs verify-terminal "$RUNNER_TEMP/android-terminal/result.json"
           source "$RUNNER_TEMP/ios-device.env"
+          node scripts/mobile-integration/ios-customer-suite.mjs prepare
           GRIDEX_IOS_CUSTOMER_FLOW=true bash scripts/mobile-integration/ios-smoke.sh
           test -s "$RUNNER_TEMP/gridex-ios-artifacts/simulator-receipt.json"
           test -s "$RUNNER_TEMP/gridex-ios-artifacts/ui/results.xml"

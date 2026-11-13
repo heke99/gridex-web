@@ -305,7 +305,7 @@ for(const state of ['running','missing','unavailable'])test('iOS producer '+stat
    if(state==='unavailable')throw Error('PRIVATE_STATUS_BODY');
    return JSON.stringify({jobs:state==='missing'?[]:[{name:'ios-customer',status:'in_progress'}]});
   }}),/Timed out waiting for sibling-job artifact/);
-  assert.equal(clock,60*60000);assert.ok(!existsSync(join(dir,'received/result.json')));
+  assert.equal(clock,90*60000);assert.ok(!existsSync(join(dir,'received/result.json')));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 

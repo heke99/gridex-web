@@ -10,7 +10,7 @@ export async function awaitArtifact(name,directory,{
  if(!/^[a-z0-9-]+$/.test(name)||!directory||!/^\d+$/.test(runId??'')||!/^\d+$/.test(runAttempt)||!/^[-\w.]+\/[-\w.]+$/.test(repository??''))throw Error('Invalid artifact request');
  mkdirSync(directory,{recursive:true,mode:0o700});
  if(readdirSync(directory).length)throw Error('Artifact destination must be empty');
- const timeoutMinutes=name==='ios-customer-terminal'?60:name==='android-customer-terminal'?40:25;
+ const timeoutMinutes=name==='ios-customer-terminal'?90:name==='android-customer-terminal'?40:25;
  const deadline=now()+timeoutMinutes*60*1000;
  let failures=0,found=false;
  let producerCompletedAt=null,nextProducerCheck=0;

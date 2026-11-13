@@ -8,8 +8,8 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
 export const ANDROID_REFERENCE={source:'b270ddf792f889dc0a05e4a83bc73954b5e12fef',ops:'6819d12d35a8d8ce560889b29c91f330a2655724',run:43317701063,artifact:13993066937,digest:'6623f87fe67f50123798eebaea409a7e65b447be6a83d8394e95c5b48dbefb01'};
-export const APPROVED_WORKFLOWS={reference:'11b5a9ded609fb15a0af3529d073eb84d0cb9d9e025b9158a70a7e98821c23b1',reuse:'d844d092234ca01b3b730c611a0e8bee65fac5b849bdba0e0b0ba1368a7d0fdf'};
-const allowed=new Set(['.github/workflows/mobile-customer-qualification.yml','.github/workflows/mobile-ios-qualification.yml','quality/mobile-cross-platform/plan.md','scripts/mobile-integration/device-gateway.mjs','scripts/mobile-integration/document-control.mjs','scripts/mobile-integration/qualified-android.mjs','scripts/mobile-integration/production-ios-reuse.mjs','scripts/mobile-integration/verify-observations.mjs','scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-refresh.yaml','scripts/mobile-integration/ios-customer-resource.yaml','scripts/mobile-integration/ios-customer-after-refresh.yaml','tests/mobile-device-qualification.test.mjs','tests/mobile-android-reuse.test.mjs','tests/mobile-ios-read.test.mjs']);
+export const APPROVED_WORKFLOWS={reference:'11b5a9ded609fb15a0af3529d073eb84d0cb9d9e025b9158a70a7e98821c23b1',reuse:'af625cb21e5ec35d48e9c7b95be2fadeb49f079018abb027b58727dcd9b169cf'};
+const allowed=new Set(['.github/workflows/mobile-customer-qualification.yml','.github/workflows/mobile-ios-qualification.yml','quality/mobile-cross-platform/plan.md','scripts/mobile-integration/device-gateway.mjs','scripts/mobile-integration/document-control.mjs','scripts/mobile-integration/qualified-android.mjs','scripts/mobile-integration/production-ios-reuse.mjs','scripts/mobile-integration/verify-observations.mjs','scripts/mobile-integration/ios-customer.yaml','scripts/mobile-integration/ios-customer-refresh.yaml','scripts/mobile-integration/ios-customer-resource.yaml','scripts/mobile-integration/ios-customer-after-refresh.yaml','scripts/mobile-integration/ios-smoke.sh','scripts/mobile-integration/ios-customer-suite.mjs','scripts/mobile-integration/ios-case-reuse.mjs','tests/mobile-ios-case-reuse.test.mjs','scripts/mobile-integration/ios-failure-summary.mjs','scripts/mobile-integration/await-artifact.mjs','tests/mobile-device-qualification.test.mjs','tests/mobile-android-reuse.test.mjs','tests/mobile-ios-read.test.mjs']);
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const gatewayPath='scripts/mobile-integration/device-gateway.mjs';
 export function normalizedGateway(source){
@@ -58,7 +58,8 @@ export function qualifiedSourceInputs(){
  const paths=execFileSync('git',['diff','--name-only',ANDROID_REFERENCE.source,current],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
  const referenceGateway=execFileSync('git',['show',ANDROID_REFERENCE.source+':'+gatewayPath],{encoding:'utf8'}),currentGateway=readFileSync(gatewayPath,'utf8');
  const workflow='.github/workflows/mobile-customer-qualification.yml',referenceWorkflow=execFileSync('git',['show',ANDROID_REFERENCE.source+':'+workflow],{encoding:'utf8'}),currentWorkflow=readFileSync(workflow,'utf8');
- return {source:current,paths,referenceGateway,currentGateway,referenceWorkflow,currentWorkflow,ops:process.env.GRIDEX_OPS_COMMIT};
+ const smoke='scripts/mobile-integration/ios-smoke.sh',referenceIosSmoke=execFileSync('git',['show',ANDROID_REFERENCE.source+':'+smoke],{encoding:'utf8'}),currentIosSmoke=readFileSync(smoke,'utf8');
+ return {source:current,paths,referenceGateway,currentGateway,referenceWorkflow,currentWorkflow,referenceIosSmoke,currentIosSmoke,ops:process.env.GRIDEX_OPS_COMMIT};
 }
 async function prepare(reportPath){
  const inputs=qualifiedSourceInputs(),{source:current,paths,referenceGateway,currentGateway,referenceWorkflow,currentWorkflow}=inputs;

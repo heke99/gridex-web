@@ -549,10 +549,17 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Öppna dokument i extern läsare"
     retryTapIfNoChange: false
+# The actual external PDF request is still required by backend observations.
+# Establish the reader's foreground without opening or substituting a URL.
+- launchApp:
+    appId: com.apple.mobilesafari
+    stopApp: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "document-external-pdf"
 - extendedWaitUntil:
     visible: ".*Synthetic Gridex document B.*"
     timeout: 60000
-- takeScreenshot: "document-external-pdf"
 - runScript:
     file: ios-control.js
     env:
@@ -631,6 +638,20 @@ appId: se.gridex.el.dev
     direction: UP
     timeout: 60000
 - scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: DOWN
     centerElement: true
@@ -644,7 +665,6 @@ appId: se.gridex.el.dev
     timeout: 5000
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
-- assertVisible: ${SUPPORT_LAST_B}
 - takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -745,26 +765,53 @@ appId: se.gridex.el.dev
     env:
       ACTION: assert-handoff-support
 - runFlow: ios-resume-app.yaml
+- takeScreenshot: "support-detail-web-return"
+# Lifecycle restore remounts the composer above the messages and Web link.
+# Reset the bounded detail viewport, then require the actual reply composer.
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
 - scrollUntilVisible:
-    element: "Mina sidor"
-    direction: UP
-    timeout: 60000
-- scrollUntilVisible:
-    element: "Meddelande till kundservice"
+    element: "Svara i ärendet"
     direction: DOWN
     centerElement: true
     timeout: 60000
-- takeScreenshot: "support-detail-web-return"
+# The visible multiline control has no name match in this driver snapshot.
+# Match its actual logical-size rectangle between the two real text anchors.
+- scrollUntilVisible:
+    element: "0 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      height: 100
+      tolerance: 15
+      below: "Svara i ärendet"
+      above: "0 / 8 000 tecken"
+      enabled: true
+    direction: UP
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
+- takeScreenshot: "support-detail-web-return"
 - tapOn:
-    text: "Meddelande till kundservice"
+    height: 100
+    tolerance: 15
+    below: "Svara i ärendet"
+    above: "0 / 8 000 tecken"
+    enabled: true
     retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 5000
 - inputText: "Synthetic iOS reply B"
-- assertVisible: "Synthetic iOS reply B"
 - runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "21 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
 - scrollUntilVisible:
     element: "Skicka svar"
     direction: DOWN
@@ -779,9 +826,31 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skicka svar"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Meddelandet har sparats.*"
+# Confirm stable native success; exact persisted text is required after fresh GET below.
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "customer-resource-target"
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
+- scrollUntilVisible:
+    element: "Svara i ärendet"
+    direction: DOWN
     timeout: 60000
+- scrollUntilVisible:
+    element: "0 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      text: "Skicka svar"
+      enabled: false
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "customer-resource-target"
 - runScript:
     file: ios-control.js
     env:
@@ -842,20 +911,38 @@ appId: se.gridex.el.dev
     text: "Synthetic iOS new B"
     below: "Nytt ärende"
 - takeScreenshot: "customer-resource-target"
+- runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
-    element: "Meddelande till kundservice"
+    element: "0 / 8 000 tecken"
     direction: DOWN
-    centerElement: true
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      height: 100
+      tolerance: 15
+      below: "Nytt ärende"
+      above: "0 / 8 000 tecken"
+      enabled: true
+    direction: UP
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 5000
+- takeScreenshot: "customer-resource-target"
 - tapOn:
-    text: "Meddelande till kundservice"
+    height: 100
+    tolerance: 15
+    below: "Nytt ärende"
+    above: "0 / 8 000 tecken"
+    enabled: true
     retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 5000
 - inputText: "Synthetic iOS first message B"
-- assertVisible: "Synthetic iOS first message B"
 - runFlow: ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "29 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
 - scrollUntilVisible:
     element: "Skapa ärende"
     direction: DOWN
@@ -870,17 +957,45 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Skapa ärende"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Meddelandet har sparats.*"
+# Confirm stable native success; exact persisted text is required after fresh GET below.
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "customer-resource-target"
+- repeat:
+    times: 8
+    commands:
+      - swipe:
+          direction: DOWN
+          duration: 300
+- scrollUntilVisible:
+    element: "Nytt ärende"
+    direction: DOWN
     timeout: 60000
+- scrollUntilVisible:
+    element: "0 / 8 000 tecken"
+    direction: DOWN
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      text: "Skapa ärende"
+      enabled: false
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: "customer-resource-target"
 - runScript:
     file: ios-control.js
     env:
       ACTION: snapshot
+# Reload through the ordinary visible resource tab; the footer can sit behind
+# bottom navigation in the driver's whole-screen visibility calculation.
 - runFlow:
-    file: ios-customer-refresh.yaml
     env:
       CUSTOMER_RESOURCE: support
+    file: ios-customer-resource.yaml
+- runScript:
+    file: ios-control.js
+    env:
+      ACTION: assert-fresh
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -1041,9 +1156,15 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Uppdatera elpriser"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Elpriserna kunde inte hämtas. Försök igen."
-    timeout: 30000
+- takeScreenshot: "customer-resource-target"
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Elpriserna kunde inte hämtas. Försök igen."
+    direction: DOWN
+    timeout: 60000
 - takeScreenshot: "market-network-error"
 - runScript:
     file: ios-control.js

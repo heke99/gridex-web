@@ -20,6 +20,9 @@ mkdir -p "$private_ui"
 preserve_ui_evidence() {
   local result=$?
   trap - EXIT
+  if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true && ! test -s "$out/customer-suite-result.json"; then
+    node scripts/mobile-integration/ios-customer-suite.mjs report "$private_ui/results.xml" "$flow/suite-plan.json" "$out/customer-suite-result.json" || true
+  fi
   if node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" >/dev/null 2>&1; then
     if test "$result" -ne 0; then
       node scripts/mobile-integration/ios-failure-summary.mjs "$out/ui" 2>/dev/null || echo 'iOS public failure summary unavailable.'
@@ -34,7 +37,10 @@ trap preserve_ui_evidence EXIT
 flow=scripts/mobile-integration/ios-smoke.yaml
 environment=(-e "GRIDEX_NATIVE_UI_QUALIFICATION=1")
 if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
-  flow=scripts/mobile-integration/ios-customer.yaml
+  flow="$RUNNER_TEMP/gridex-ios-customer-suite"
+  test "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" = "$simulator"
+  node scripts/mobile-integration/ios-customer-suite.mjs create "$flow"
+  environment+=(--config "$flow/config.yaml")
   for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CUSTOMER_A CUSTOMER_B CONTRACT_A CONTRACT_B SITE_A SITE_B INVOICE_A INVOICE_B DOCUMENT_B NOTICE_B SUPPORT_B SUPPORT_LAST_B INVOICE_LINE_A INVOICE_LINE_B INVOICE_DOCUMENT_A INVOICE_DOCUMENT_B POWER_B ACCEPTANCE_B; do
     environment+=(-e "$variable=${!variable}")
   done
@@ -60,8 +66,14 @@ while true; do
   fi
   exit "$result"
 done
+if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then
+  node scripts/mobile-integration/ios-customer-suite.mjs report "$private_ui/results.xml" "$flow/suite-plan.json" "$out/customer-suite-result.json"
+fi
 test -s "$private_ui/results.xml"
 node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
 
+if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true && test "${GRIDEX_IOS_CASE_REUSE:-false}" = true; then
+  node scripts/mobile-integration/ios-customer-suite.mjs stamp "$out/customer-suite-result.json" "$out/simulator-receipt.json"
+fi
 test -s "$private_ui/results.xml"
 test -s "$out/simulator-receipt.json"
