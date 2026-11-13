@@ -27,6 +27,11 @@ test('iOS read refresh preserves every original action, positive readback and is
   if(c.assertVisible?.text==='Synthetic iOS new B'){assert.equal(c.assertVisible.below,'Nytt ärende');continue;}
   if(['customer-resource-target','support-detail-web-return'].includes(c.takeScreenshot))continue;
   if(c.scrollUntilVisible?.element==='Rensa sökning och filter'&&c.scrollUntilVisible.direction==='DOWN'&&input[i+3]?.scrollUntilVisible?.element==='Mina sidor'&&input[i+4]?.scrollUntilVisible?.element==='Sök bland hämtade ärenden'){assert.equal(input[i+2]?.tapOn?.text,'Rensa sökning och filter');i+=2;continue;}
+  if(c.scrollUntilVisible?.element?.height===100){assert.equal(c.scrollUntilVisible.element.tolerance,15);assert.equal(c.scrollUntilVisible.element.above,'0 / 8 000 tecken');assert.equal(c.scrollUntilVisible.element.enabled,true);assert.ok(['Svara i ärendet','Nytt ärende'].includes(c.scrollUntilVisible.element.below));out.push({requiredVisible:'Meddelande till kundservice'});continue;}
+  if(c.tapOn?.height===100){assert.equal(c.tapOn.tolerance,15);assert.equal(c.tapOn.above,'0 / 8 000 tecken');assert.equal(c.tapOn.enabled,true);out.push({tapOn:{text:'Meddelande till kundservice',retryTapIfNoChange:false}});continue;}
+  if(['0 / 8 000 tecken','21 / 8 000 tecken','29 / 8 000 tecken'].includes(c.scrollUntilVisible?.element))continue;
+  if(['Synthetic iOS reply B','Synthetic iOS first message B'].includes(c.assertVisible))continue;
+  if(c.runFlow==='ios-dismiss-keyboard.yaml'&&input[i+1]?.scrollUntilVisible?.element==='0 / 8 000 tecken'&&input[i-1]?.takeScreenshot==='customer-resource-target')continue;
   if(c.repeat?.times===8){assert.deepEqual(c.repeat.commands,[{swipe:{direction:'DOWN',duration:300}}]);continue;}
   if(c.scrollUntilVisible?.element==='Svara i ärendet')continue;
   if(c.scrollUntilVisible?.element==='Meddelande till kundservice|Ditt meddelande'){out.push({requiredVisible:'Meddelande till kundservice'});continue;}
@@ -157,4 +162,14 @@ test('iOS read refresh suite writes explicit NOT_RUN diagnostics for missing JUn
   try{execFileSync(process.execPath,['scripts/mobile-integration/ios-customer-suite.mjs','report',join(directory,'missing.xml'),join(directory,'plan.json'),join(directory,'result.json')],{env:{...process.env,GRIDEX_IOS_CASE_REUSE:'false',QUALIFICATION_WEB_COMMIT:testSource},stdio:'pipe'});}catch(error){assert.equal(error.status,1);failed=true;}
   assert.equal(failed,true);const report=JSON.parse(readFileSync(join(directory,'result.json'),'utf8'));assert.equal(report.status,'FAIL');assert.equal(report.reportedCases,0);assert.equal(report.results.length,4);assert.ok(report.results.every(r=>r.status==='NOT_RUN'));assert.match(report.uiFailureMarkersScope,/union/);
  }finally{rmSync(directory,{recursive:true,force:true});}
+});
+
+
+test('iOS multiline Support input uses real bounded element geometry and exact typed-count plus full persisted readback',()=>{
+ const flow=commands(read('scripts/mobile-integration/ios-customer.yaml'));
+ for(const [heading,value,count]of [['Svara i ärendet','Synthetic iOS reply B',21],['Nytt ärende','Synthetic iOS first message B',29]]){
+  const i=flow.findIndex(c=>c?.tapOn?.below===heading&&c.tapOn.height===100);assert.ok(i>0);assert.deepEqual(flow[i].tapOn,{height:100,tolerance:15,below:heading,above:'0 / 8 000 tecken',enabled:true,retryTapIfNoChange:false});assert.deepEqual(flow[i+1],{waitForAnimationToEnd:{timeout:5000}});assert.deepEqual(flow[i+2],{inputText:value});assert.deepEqual(flow[i+3],{runFlow:'ios-dismiss-keyboard.yaml'});assert.deepEqual(flow[i+4],{scrollUntilVisible:{element:count+' / 8 000 tecken',direction:'DOWN',timeout:60000}});
+ }
+ assert.ok(flow.some(c=>c?.runFlow?.env?.CUSTOMER_TARGET==='Synthetic iOS reply B'));assert.ok(flow.some(c=>c?.scrollUntilVisible?.element==='Synthetic iOS first message B'));
+ assert.equal(flow.filter(c=>c?.tapOn?.text==='Skicka svar').length,1);assert.equal(flow.filter(c=>c?.tapOn?.text==='Skapa ärende').length,1);assert.equal(flow.some(c=>c?.tapOn?.point),false);
 });
