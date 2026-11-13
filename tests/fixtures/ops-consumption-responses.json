@@ -2,7 +2,7 @@
   "producerSource": "d69d6b41c",
   "producerTest": "__tests__/customer-consumption-routes.test.ts",
   "scope": "Actual OPS route JSON with mocked auth/database; component composition only, not HTTP/Auth acceptance.",
-  "contractSHA256": "416adcecfb59cb6eba2fd0a0cccdd15f62de6d997e9887aeb4be56c926185981",
+  "contractSHA256": "2a38a1f5856cfa6a4dc7a40db8ae28f1fd7b40776f5b3706a06629fa1ddf5c46",
   "responses": [
     {
       "path": "/api/v1/customer/consumption/sites",
