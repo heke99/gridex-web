@@ -1,5 +1,5 @@
 """Only the new positive consumption scope; do not replay the old core suite."""
-import json,os,subprocess,sys,time,urllib.request
+import json,os,subprocess,sys,time,urllib.request,re
 from datetime import datetime,timezone
 from pathlib import Path
 helper=Path('scripts/mobile-android-emulator.py').resolve();source=helper.read_text();marker='\nproxy=bridge()\n'
@@ -17,6 +17,16 @@ def control(action,phase=None,previous=None):
  request=urllib.request.Request('http://127.0.0.1:3445/qualification-consumption',data=json.dumps(body).encode(),method='POST',headers={'content-type':'application/json','x-qualification-control':os.environ['GRIDEX_QUALIFICATION_CONTROL_KEY']})
  with urllib.request.urlopen(request,timeout=20) as response:
   value=json.load(response);assert value['passed'];return value
+original_checkpoint=checkpoint
+def checkpoint(name,expected,absent=None):
+ ns=wait_for(expected,absent)
+ visible=False
+ for node in ns:
+  if expected not in (node.get('text','')+' '+node.get('content-desc','')):continue
+  rect=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
+  if len(rect)==4 and 0<=rect[0]<rect[2]<=1080 and 0<=rect[1]<rect[3]<=2400 and rect[3]-rect[1]<400:visible=True
+ assert visible,'Consumption result must be visible in the real viewport'
+ original_checkpoint(name,expected,absent)
 started_at=datetime.now(timezone.utc).isoformat()
 proxy=subprocess.Popen(['node','gridex-web/scripts/mobile-integration/device-https.mjs'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 try:
