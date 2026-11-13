@@ -28,11 +28,17 @@ appId: se.gridex.el.dev
     direction: DOWN
     centerElement: true
 - tapOn: ${DAYS + ' dagar'}
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: observed
+      PHASE: ${PHASE}
 - scrollUntilVisible:
-    element: ${EXPECTED}
+    element: ${output.currentExpected}
     direction: DOWN
     timeout: 60000
-- assertVisible: ${EXPECTED}
+- assertVisible: ${output.currentExpected}
+- assertVisible: ${'.*' + output.currentDate + '.*'}
 - runScript:
     file: consumption-ios-control.js
     env:

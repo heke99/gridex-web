@@ -1,5 +1,6 @@
 """Only the new positive consumption scope; do not replay the old core suite."""
 import json,os,subprocess,sys,time,urllib.request
+from datetime import datetime,timezone
 from pathlib import Path
 helper=Path('scripts/mobile-android-emulator.py').resolve();source=helper.read_text();marker='\nproxy=bridge()\n'
 assert source.count(marker)==1
@@ -16,6 +17,7 @@ def control(action,phase=None,previous=None):
  request=urllib.request.Request('http://127.0.0.1:3445/qualification-consumption',data=json.dumps(body).encode(),method='POST',headers={'content-type':'application/json','x-qualification-control':os.environ['GRIDEX_QUALIFICATION_CONTROL_KEY']})
  with urllib.request.urlopen(request,timeout=20) as response:
   value=json.load(response);assert value['passed'];return value
+started_at=datetime.now(timezone.utc).isoformat()
 proxy=subprocess.Popen(['node','gridex-web/scripts/mobile-integration/device-https.mjs'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 try:
  adb('reverse','tcp:3444','tcp:3444');adb('shell','wm','size','1080x2400');adb('shell','wm','density','320')
@@ -23,15 +25,15 @@ try:
  for u in [a,b]:
   login(u)
   phase='android:'+u['label']+':primary:7';baseline=control('snapshot',phase)['count'];tap('Förbrukning',scroll=False)
-  expected=u['consumption']['expected']['primary7']['display'];wait_for(expected);control('assert',phase,baseline);checkpoint(u['label']+'-consumption-primary7',expected)
+  fresh=control('observed',phase,baseline);expected=fresh['display'];wait_for(expected);wait_for(fresh['dateLabel']);control('assert',phase,baseline);checkpoint(u['label']+'-consumption-primary7',expected)
   for kind,days in [('primary',30),('secondary',30),('secondary',7)]:
    top();phase=f"android:{u['label']}:{kind}:{days}";baseline=control('snapshot',phase)['count']
    if kind=='secondary':tap(u['consumption']['secondaryTitle'])
-   tap(str(days)+' dagar');expected=u['consumption']['expected'][kind+str(days)]['display'];wait_for(expected);control('assert',phase,baseline);checkpoint(u['label']+'-consumption-'+kind+str(days),expected)
+   tap(str(days)+' dagar');fresh=control('observed',phase,baseline);expected=fresh['display'];wait_for(expected);wait_for(fresh['dateLabel']);control('assert',phase,baseline);checkpoint(u['label']+'-consumption-'+kind+str(days),expected)
   # Leave through the ordinary account view before logging out; no old suite replay.
   tap('Mer',scroll=False);top();tap('Logga ut');wait_for('Logga in på Mina sidor')
   assert 'kWh i hämtade mätvärden' not in texts(nodes())
   results.append({'scenario':u['label']+'-logout-clears-consumption','status':'PASS'})
- (out/'consumption-result.json').write_text(json.dumps({'opsCommit':os.environ['GRIDEX_OPS_COMMIT'],'webCommit':os.environ['GRIDEX_WEB_COMMIT'],'results':results},indent=2))
+ (out/'consumption-result.json').write_text(json.dumps({'opsCommit':os.environ['GRIDEX_OPS_COMMIT'],'webCommit':os.environ['GRIDEX_WEB_COMMIT'],'startedAt':started_at,'finishedAt':datetime.now(timezone.utc).isoformat(),'results':results},indent=2))
 finally:
  proxy.terminate();proxy.wait(timeout=10);adb('reverse','--remove','tcp:3444');adb('shell','am','force-stop','se.gridex.el.dev')

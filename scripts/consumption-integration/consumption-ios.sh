@@ -2,6 +2,7 @@
 set -euo pipefail
 out="$RUNNER_TEMP/consumption-ios"
 private_ui="$RUNNER_TEMP/consumption-ios-private"
+test ! -e "$private_ui"
 mkdir -p "$out/ui" "$private_ui"
 cleanup_ui() {
   local result=$?
@@ -9,14 +10,14 @@ cleanup_ui() {
   node scripts/mobile-integration/sanitize-evidence.mjs ios "$private_ui" "$out/ui" || result=1
   if test "$result" -eq 0; then
     python3 - "$private_ui" "$out" <<'PY'
-import json,sys,shutil,re,xml.etree.ElementTree as ET
+import sys,shutil,re
 from pathlib import Path
-src,out=map(Path,sys.argv[1:]);root=ET.parse(src/'results.xml').getroot();cases=root.findall('.//testcase');assert len(cases)==1 and not root.findall('.//failure') and not root.findall('.//error') and not root.findall('.//skipped')
+src,out=map(Path,sys.argv[1:])
 shots=[p for p in src.rglob('*.png') if re.fullmatch(r'consumption-[ab]-(primary|secondary)-(7|30)\.png',p.name)]
-assert len(shots)==8
+assert len(shots)==8 and len({p.name for p in shots})==8
 for p in shots:shutil.copyfile(p,out/'ui'/p.name)
-(out/'result.json').write_text(json.dumps({'actualJUnitCases':1,'positiveConsumptionCheckpoints':8,'logoutAssertions':2,'nativeUiConsumption':'PASS','distributionSigned':False,'testFlightVerified':False}))
 PY
+    python3 scripts/consumption-integration/consumption-native-evidence.py ios "$out" --ops "$GRIDEX_OPS_COMMIT" --web "$QUALIFICATION_WEB_COMMIT" --output "$out/result.json"
   fi
   exit "$result"
 }
@@ -35,6 +36,13 @@ xcrun simctl bootstatus "$simulator" -b
 xcrun simctl install "$simulator" "$(cat "$RUNNER_TEMP/gridex-ios-app-path")"
 environment=(-e "CUSTOMER_ORIGIN=$EXPO_PUBLIC_CUSTOMER_API_URL" -e "CONTROL_KEY=$GRIDEX_QUALIFICATION_CONTROL_KEY")
 for variable in LOGIN_A_EMAIL LOGIN_A_PASSWORD LOGIN_B_EMAIL LOGIN_B_PASSWORD CONTRACT_A CONTRACT_B; do environment+=(-e "$variable=${!variable}"); done
+python3 - "$out/source-metadata.json" <<'PYMETA'
+import sys,os,json,hashlib
+from datetime import datetime,timezone
+from pathlib import Path
+names=['scripts/consumption-integration/consumption-ios.yaml','scripts/consumption-integration/consumption-ios-login.yaml','scripts/consumption-integration/consumption-ios-read.yaml','scripts/consumption-integration/consumption-ios-control.js','scripts/mobile-integration/ios-dismiss-keyboard.yaml']
+Path(sys.argv[1]).write_text(json.dumps({'opsCommit':os.environ['GRIDEX_OPS_COMMIT'],'webCommit':os.environ['QUALIFICATION_WEB_COMMIT'],'startedAt':datetime.now(timezone.utc).isoformat(),'flowSHA256':{n:hashlib.sha256(Path(n).read_bytes()).hexdigest() for n in names}}))
+PYMETA
 # Only a driver bootstrap failure before any test report may be retried once.
 attempt=1
 while true; do

@@ -27,7 +27,9 @@ jobs:
         with:
           node-version: '22'
       - name: Verify the loopback fixture and gateway safety boundaries
-        run: node --test tests/mobile-consumption-qualification.test.mjs
+        run: |
+          node --test tests/mobile-consumption-qualification.test.mjs
+          python3 -B tests/mobile-consumption-native-evidence.test.py
       - name: Require green exact OPS and Web source gates
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,6 +86,7 @@ jobs:
           done
           echo 'Consumption setup deadline reached.'; exit 1
       - uses: actions/upload-artifact@v4
+        id: fixture_delivery
         with:
           name: ios-encrypted-customer-fixture
           path: ${{ runner.temp }}/ios-encrypted-fixture/
@@ -108,7 +111,11 @@ jobs:
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/consumption-android-terminal"
-          test -s "$RUNNER_TEMP/mobile-android/consumption-result.json" && result=PASS || result=FAIL
+          result=FAIL
+          if test -f "$RUNNER_TEMP/mobile-runtime.env"; then
+            source "$RUNNER_TEMP/mobile-runtime.env"
+            if python3 gridex-web/scripts/consumption-integration/consumption-native-evidence.py android "$RUNNER_TEMP/mobile-android" --ops "$GRIDEX_OPS_COMMIT" --web "$GRIDEX_WEB_COMMIT" --output "$RUNNER_TEMP/consumption-android-terminal/proof.json"; then result=PASS; fi
+          fi
           printf '{"status":"%s"}\n' "$result" > "$RUNNER_TEMP/consumption-android-terminal/result.json"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -121,9 +128,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if test -f "$RUNNER_TEMP/consumption-backend.ready"; then
+          if test -f "$RUNNER_TEMP/consumption-backend.ready" && test "${{ steps.fixture_delivery.outcome }}" = success; then
             node gridex-web/scripts/mobile-integration/await-artifact.mjs ios-customer-terminal "$RUNNER_TEMP/consumption-ios-terminal"
             test "$(node -p 'require(process.env.RUNNER_TEMP+"/consumption-ios-terminal/result.json").status')" = success
+            node gridex-web/scripts/mobile-integration/await-artifact.mjs positive-consumption-ios-evidence "$RUNNER_TEMP/consumption-ios-evidence"
             source "$RUNNER_TEMP/mobile-runtime.env"
             node gridex-web/scripts/consumption-integration/consumption-verdict.mjs
           fi
@@ -210,7 +218,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          node scripts/mobile-integration/await-artifact.mjs consumption-android-terminal "$RUNNER_TEMP/consumption-android-terminal"
+          node scripts/consumption-integration/consumption-await-android.mjs "$RUNNER_TEMP/consumption-android-terminal"
           test "$(node -p 'require(process.env.RUNNER_TEMP+"/consumption-android-terminal/result.json").status')" = PASS
           source "$RUNNER_TEMP/consumption-ios.env"
           bash scripts/consumption-integration/consumption-ios.sh
@@ -219,13 +227,16 @@ jobs:
         env:
           RESULT: ${{ job.status }}
         run: |
-          mkdir -p "$RUNNER_TEMP/consumption-ios-terminal"
-          node -e 'require("fs").writeFileSync(process.env.RUNNER_TEMP+"/consumption-ios-terminal/result.json",JSON.stringify({status:process.env.RESULT,webCommit:process.env.QUALIFICATION_WEB_COMMIT}))'
-          rm -f "$RUNNER_TEMP/consumption-ios.key" "$RUNNER_TEMP/consumption-ios.env"
+          mkdir -p "$RUNNER_TEMP/consumption-ios-terminal" "$RUNNER_TEMP/consumption-ios"
+          cleanup_result=0
           if test -f "$RUNNER_TEMP/consumption-ios-simulator"; then
-            xcrun simctl shutdown "$(cat "$RUNNER_TEMP/consumption-ios-simulator")" || true
-            xcrun simctl delete "$(cat "$RUNNER_TEMP/consumption-ios-simulator")" || true
+            python3 scripts/consumption-integration/consumption-native-evidence.py cleanup "$RUNNER_TEMP/consumption-ios-simulator" --output "$RUNNER_TEMP/consumption-ios/cleanup.json" || cleanup_result=1
+          elif test "$RESULT" = success; then
+            cleanup_result=1
           fi
+          CLEANUP_RESULT="$cleanup_result" node -e 'const ok=process.env.RESULT==="success"&&process.env.CLEANUP_RESULT==="0";require("fs").writeFileSync(process.env.RUNNER_TEMP+"/consumption-ios-terminal/result.json",JSON.stringify({status:ok?"success":"failure",webCommit:process.env.QUALIFICATION_WEB_COMMIT,opsCommit:process.env.GRIDEX_OPS_COMMIT,cleanupVerified:ok}))'
+          rm -f "$RUNNER_TEMP/consumption-ios.key" "$RUNNER_TEMP/consumption-ios.env"
+          test "$cleanup_result" -eq 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
