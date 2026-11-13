@@ -3,10 +3,11 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import websiteOpenApi from '@/docs/openapi/website-integration-v1.json'
 import customerPortalOpenApi from '@/docs/openapi/customer-portal-v1.json'
+import consumptionOpenApi from '@/docs/openapi/customer-consumption-v1.json'
 import { OpsError, OpsSchemaError } from '@/lib/ops/errors'
 import { withSupportedResponseProfiles } from '@/lib/ops/responseProfiles'
 
-type ContractName = 'website' | 'customer-portal'
+type ContractName = 'website' | 'customer-portal' | 'customer-consumption'
 type Stage = 'request' | 'response'
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'head' | 'options'
 type JsonRecord = Record<string, unknown>
@@ -20,11 +21,13 @@ type OpenApiDocument = {
 }
 
 const documents: Record<ContractName, OpenApiDocument> = {
+  'customer-consumption': consumptionOpenApi as OpenApiDocument,
   website: withSupportedResponseProfiles(websiteOpenApi) as OpenApiDocument,
   'customer-portal': withSupportedResponseProfiles(customerPortalOpenApi) as OpenApiDocument,
 }
 
 const roots: Record<ContractName, string> = {
+  'customer-consumption': 'gridex-customer-consumption-openapi',
   website: 'gridex-website-openapi',
   'customer-portal': 'gridex-customer-portal-openapi',
 }
@@ -42,10 +45,13 @@ function createAjv() {
 
 const websiteAjv = createAjv()
 const customerPortalAjv = createAjv()
+const consumptionAjv = createAjv()
+consumptionAjv.addSchema(consumptionOpenApi, roots['customer-consumption'])
 websiteAjv.addSchema(withSupportedResponseProfiles(websiteOpenApi), roots.website)
 customerPortalAjv.addSchema(withSupportedResponseProfiles(customerPortalOpenApi), roots['customer-portal'])
 
 const ajvs: Record<ContractName, ReturnType<typeof createAjv>> = {
+  'customer-consumption': consumptionAjv,
   website: websiteAjv,
   'customer-portal': customerPortalAjv,
 }
@@ -321,6 +327,9 @@ function assertOperationQuery(contract: ContractName, path: string, method: stri
   for (const parameter of queryParameters) {
     const name = parameter.name as string
     const rawValues = parsed.searchParams.getAll(name)
+    if (contract === 'customer-consumption' && rawValues.length > 1) {
+      throw new OpsError('API-begäran innehåller en upprepad query-parameter.', 400, { code: 'openapi_query_parameter_repeated', contract, endpoint: parsed.pathname, field: name, retryable: false })
+    }
     if (parameter.required === true && rawValues.length === 0) {
       throw new OpsError('API-begäran saknar en obligatorisk query-parameter.', 400, {
         code: 'openapi_query_parameter_required',
@@ -512,7 +521,7 @@ export function hasWebsiteOperation(path: string, method: string): boolean {
 }
 
 export function hasCustomerPortalOperation(path: string, method: string): boolean {
-  return operation('customer-portal', path, method) !== null
+  return operation(customerContract(path), path, method) !== null
 }
 
 export function websiteSchemaHasProperty(schema: string, property: string): boolean {
@@ -695,7 +704,7 @@ export function assertCustomerPortalOperationRequest(
   value: unknown,
   headers?: Headers,
 ): void {
-  assertOperation('customer-portal', path, method, 'request', value, undefined, headers)
+  assertOperation(customerContract(path), path, method, 'request', value, undefined, headers)
 }
 
 export function assertCustomerPortalOperationResponse(
@@ -704,5 +713,9 @@ export function assertCustomerPortalOperationResponse(
   status: number,
   value: unknown,
 ): void {
-  assertOperation('customer-portal', path, method, 'response', value, status)
+  assertOperation(customerContract(path), path, method, 'response', value, status)
+}
+
+function customerContract(path: string): ContractName {
+  return normalizedPath(path).startsWith('/api/v1/customer/consumption/') ? 'customer-consumption' : 'customer-portal'
 }

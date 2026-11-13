@@ -21,7 +21,7 @@ function nextPage(value: unknown): string | null {
   return p.has_more ? p.next_cursor as string : null;
 }
 type Window = {point:string;from:string;to:string};
-/** Proposed additive OPS sites capability, not inferred from today's public DTO.
+/** Independent customer-consumption-v1 supplement; never inferred from the legacy DTO.
  * Legacy/missing/incomplete proof must stop BEFORE metering reads. No DB access. */
 export async function loadOpsConsumption(identity: OpsPortalIdentity, request: ConsumptionSelection, read: ScopedRead) {
   const selection = consumptionSelection(request);
@@ -32,7 +32,7 @@ export async function loadOpsConsumption(identity: OpsPortalIdentity, request: C
     const remaining = deadline-Date.now(); if (remaining<=0) throw new Error('Consumption deadline exceeded');
     const suffix=query.size ? `?${query}` : '';
     const signal=AbortSignal.timeout(remaining);
-    const value=await read(`/api/v1/customer/${resource}${suffix}`,binding,signal);
+    const value=await read(`/api/v1/customer/consumption/${resource}${suffix}`,binding,signal);
     if(signal.aborted || Date.now()>=deadline)throw new Error('Consumption deadline exceeded');
     return record(value);
   };

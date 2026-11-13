@@ -16,7 +16,7 @@ test('actual Gridex route reads only verified identity, traverses meter pages an
  const response=await GET(request());assert.equal(response.status,200);const body=await response.json();assert.equal(body.data.consumption.totalKwh,2);assert.equal(body.data.consumption.complete,true);assert.deepEqual(body.data.consumption.items.map(r=>r.reference),['value_valid','value_new']);assert.ok(!JSON.stringify(body).includes('must-not-leak'));assert.equal(calls.length,3);
 });
 test('old OPS payload without delivery proof fails before requesting readings',async()=>{
- calls.length=0;scoped=async()=>{const value=sites();delete value.data.delivery_access;return value;};assert.equal((await GET(request())).status,503);assert.equal(calls.length,1);assert.ok(calls[0][0].startsWith('/api/v1/customer/sites'));
+ calls.length=0;scoped=async()=>{const value=sites();delete value.data.delivery_access;return value;};assert.equal((await GET(request())).status,503);assert.equal(calls.length,1);assert.ok(calls[0][0].startsWith('/api/v1/customer/consumption/sites'));
 });
 test('unowned facility, missing point scope and incomplete windows fail before metering',async()=>{
  for(const change of [s=>s.data.sites=[],s=>s.data.metering_points=[],s=>s.data.delivery_access.complete=false,s=>s.data.delivery_access.windows[0].metering_point_reference='foreign']){
@@ -25,18 +25,18 @@ test('unowned facility, missing point scope and incomplete windows fail before m
 });
 test('wrong meter, ambiguous revisions and wrong energy direction/unit cannot be summed',async()=>{
  for(const patch of [{metering_point_reference:'foreign'},{direction:'production'},{unit:'Wh'},{quantity_kwh:-1}]){
-  scoped=async path=>path.startsWith('/api/v1/customer/sites')?sites():{data:[{...reading('value_valid',4),...patch}],page:page()};assert.equal((await GET(request())).status,503);
+  scoped=async path=>path.startsWith('/api/v1/customer/consumption/sites')?sites():{data:[{...reading('value_valid',4),...patch}],page:page()};assert.equal((await GET(request())).status,503);
  }
- scoped=async path=>path.startsWith('/api/v1/customer/sites')?sites():{data:[reading('value_a',4),reading('value_b',4)],page:page()};assert.equal((await GET(request())).status,503);
+ scoped=async path=>path.startsWith('/api/v1/customer/consumption/sites')?sites():{data:[reading('value_a',4),reading('value_b',4)],page:page()};assert.equal((await GET(request())).status,503);
 });
 test('cursor loops and malformed page metadata fail instead of claiming complete totals',async()=>{
  for(const pagination of [{has_more:true,next_cursor:null},{has_more:'false',next_cursor:null},page(true,'loop')]){
-  calls.length=0;scoped=async path=>path.startsWith('/api/v1/customer/sites')?sites():{data:[reading('value_valid'+calls.length,4)],page:pagination};assert.equal((await GET(request())).status,503);assert.ok(calls.length<=3);
+  calls.length=0;scoped=async path=>path.startsWith('/api/v1/customer/consumption/sites')?sites():{data:[reading('value_valid'+calls.length,4)],page:pagination};assert.equal((await GET(request())).status,503);assert.ok(calls.length<=3);
  }
 });
 
 test('superseded versions are excluded and an entirely pre-delivery period makes no reading request',async()=>{
- scoped=async path=>path.startsWith('/api/v1/customer/sites')?sites():{data:[{...reading('old_value',4,99),revision_status:'superseded'},reading('current_value',4,2)],page:page()};const response=await GET(request());assert.equal(response.status,200);assert.equal((await response.json()).data.consumption.totalKwh,2);
+ scoped=async path=>path.startsWith('/api/v1/customer/consumption/sites')?sites():{data:[{...reading('old_value',4,99),revision_status:'superseded'},reading('current_value',4,2)],page:page()};const response=await GET(request());assert.equal(response.status,200);assert.equal((await response.json()).data.consumption.totalKwh,2);
  calls.length=0;scoped=async()=>{const value=sites();value.data.delivery_access.windows[0].from='2026-12-01T00:00:00Z';return value;};const empty=await GET(request());assert.equal(empty.status,200);assert.equal((await empty.json()).data.consumption.totalKwh,0);assert.equal(calls.length,1);
 });
 
