@@ -22,8 +22,9 @@ export function oracle(f,user,facility,from,to){
 export function sourceDigest(f){return sql(`SELECT count(*)||':'||md5(string_agg(v.id||':'||v.metering_point_id||':'||v.period_start||':'||v.period_end||':'||v.quantity_kwh||':'||v.revision_status,',' ORDER BY v.id)) FROM public.normalized_metering_values v WHERE company_id=${quote(f.companyId)};`);}
 export function prepare(path){
  requireLoopback();const f=JSON.parse(readFileSync(path,'utf8'));assert.equal(f.customers.length,2);assert.match(f.companyId,/^[a-f0-9-]{36}$/);
- let statement=`BEGIN; SET LOCAL request.jwt.claims='{"role":"service_role"}'; UPDATE public.integration_api_clients SET rate_limit_per_minute=2000 WHERE id=${quote(f.clientId)} AND company_id=${quote(f.companyId)};`;
+ let statement=`BEGIN; SET LOCAL request.jwt.claims='{"role":"service_role"}'; UPDATE public.integration_api_clients SET scopes=ARRAY['customer_contracts.read','customer_sites.read','customer_invoices.read','customer_metering.read'],rate_limit_per_minute=2000 WHERE id=${quote(f.clientId)} AND company_id=${quote(f.companyId)};`;
  for(const [index,u]of f.customers.entries()){
+  u.extra=Object.fromEntries(['documentTitle','notificationTitle','supportTitle','supportArchiveLast','invoiceLineTitle','invoiceDocumentTitle','power_of_attorney','acceptance'].map(k=>[k,'']));
   const c=`(SELECT id FROM public.customers WHERE company_id=${quote(f.companyId)} AND customer_number=${quote(u.number)})`;
   const s=`(SELECT id FROM public.customer_sites WHERE company_id=${quote(f.companyId)} AND facility_reference=${quote(u.references.sites)})`;
   const alt=randomUUID(),ids=Array.from({length:5},()=>randomUUID()),factor=index?5:1;

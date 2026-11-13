@@ -35,6 +35,7 @@ appId: se.gridex.el.dev
       PHASE: ${PHASE}
 - scrollUntilVisible:
     element: ${output.currentExpected}
+    centerElement: true
     direction: DOWN
     timeout: 60000
 - assertVisible: ${output.currentExpected}

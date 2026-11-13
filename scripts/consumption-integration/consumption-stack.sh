@@ -34,7 +34,6 @@ export NEXT_PUBLIC_SUPABASE_URL="$(jq -er .API_URL <<< "$status")"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="$(jq -er .ANON_KEY <<< "$status")"
 export SUPABASE_SERVICE_ROLE_KEY="$(jq -er .SERVICE_ROLE_KEY <<< "$status")"
 node scripts/mobile-ops-fixtures.mjs "$RUNNER_TEMP/mobile-fixtures"
-node gridex-web/scripts/mobile-integration/fixtures.mjs "$RUNNER_TEMP/mobile-fixtures/customers.json"
 node gridex-web/scripts/consumption-integration/consumption-fixtures.mjs "$RUNNER_TEMP/mobile-fixtures/customers.json"
 export GRIDEX_PORTAL_IDENTITY_ENFORCEMENT=enforce
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost -addext subjectAltName=IP:127.0.0.1 -keyout "$RUNNER_TEMP/ops.key" -out "$RUNNER_TEMP/ops.crt" 2>/dev/null
