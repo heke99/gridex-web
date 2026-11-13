@@ -1,0 +1,32 @@
+appId: se.gridex.el.dev
+---
+- scrollUntilVisible:
+    element: "E-post"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- tapOn: "E-post"
+- inputText: ${EMAIL}
+- scrollUntilVisible:
+    element: "Lösenord"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Lösenord"
+- inputText: ${PASSWORD}
+- runFlow: ../mobile-integration/ios-dismiss-keyboard.yaml
+- scrollUntilVisible:
+    element: "Logga in"
+    direction: DOWN
+    centerElement: true
+- extendedWaitUntil:
+    visible:
+      text: "Logga in"
+      enabled: true
+    timeout: 30000
+- tapOn:
+    text: "Logga in"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: ${CONTRACT}
+    direction: DOWN
+    timeout: 60000

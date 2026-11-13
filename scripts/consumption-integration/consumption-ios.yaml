@@ -1,0 +1,66 @@
+appId: se.gridex.el.dev
+---
+- launchApp:
+    clearState: true
+- tapOn: "Mer"
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: expectations
+      PHASE: ""
+- runFlow:
+    file: consumption-ios-login.yaml
+    env:
+      EMAIL: ${LOGIN_A_EMAIL}
+      PASSWORD: ${LOGIN_A_PASSWORD}
+      CONTRACT: ${CONTRACT_A}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:A:primary:7", ENTER_TAB: "true", SECONDARY: "false", SECONDARY_TITLE: "", DAYS: "7", EXPECTED: "${output.Aprimary7}", SHOT: "consumption-a-primary-7"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:A:primary:30", ENTER_TAB: "false", SECONDARY: "false", SECONDARY_TITLE: "", DAYS: "30", EXPECTED: "${output.Aprimary30}", SHOT: "consumption-a-primary-30"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:A:secondary:30", ENTER_TAB: "false", SECONDARY: "true", SECONDARY_TITLE: "${output.secondaryA}", DAYS: "30", EXPECTED: "${output.Asecondary30}", SHOT: "consumption-a-secondary-30"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:A:secondary:7", ENTER_TAB: "false", SECONDARY: "true", SECONDARY_TITLE: "${output.secondaryA}", DAYS: "7", EXPECTED: "${output.Asecondary7}", SHOT: "consumption-a-secondary-7"}
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: "Logga ut"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Logga ut"
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- assertNotVisible: ".*kWh i hämtade mätvärden.*"
+- runFlow:
+    file: consumption-ios-login.yaml
+    env:
+      EMAIL: ${LOGIN_B_EMAIL}
+      PASSWORD: ${LOGIN_B_PASSWORD}
+      CONTRACT: ${CONTRACT_B}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:B:primary:7", ENTER_TAB: "true", SECONDARY: "false", SECONDARY_TITLE: "", DAYS: "7", EXPECTED: "${output.Bprimary7}", SHOT: "consumption-b-primary-7"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:B:primary:30", ENTER_TAB: "false", SECONDARY: "false", SECONDARY_TITLE: "", DAYS: "30", EXPECTED: "${output.Bprimary30}", SHOT: "consumption-b-primary-30"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:B:secondary:30", ENTER_TAB: "false", SECONDARY: "true", SECONDARY_TITLE: "${output.secondaryB}", DAYS: "30", EXPECTED: "${output.Bsecondary30}", SHOT: "consumption-b-secondary-30"}
+- runFlow:
+    file: consumption-ios-read.yaml
+    env: {PHASE: "ios:B:secondary:7", ENTER_TAB: "false", SECONDARY: "true", SECONDARY_TITLE: "${output.secondaryB}", DAYS: "7", EXPECTED: "${output.Bsecondary7}", SHOT: "consumption-b-secondary-7"}
+- tapOn: "Mer"
+- scrollUntilVisible:
+    element: "Logga ut"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Logga ut"
+- extendedWaitUntil:
+    visible: "Logga in på Mina sidor"
+    timeout: 60000
+- assertNotVisible: ".*kWh i hämtade mätvärden.*"

@@ -1,0 +1,41 @@
+appId: se.gridex.el.dev
+---
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: snapshot
+      PHASE: ${PHASE}
+- runFlow:
+    when:
+      true: ${ENTER_TAB === 'true'}
+    commands:
+      - tapOn: "Förbrukning"
+- scrollUntilVisible:
+    element: "Din förbrukning"
+    direction: UP
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${SECONDARY === 'true'}
+    commands:
+      - scrollUntilVisible:
+          element: ${SECONDARY_TITLE}
+          direction: DOWN
+          centerElement: true
+      - tapOn: ${SECONDARY_TITLE}
+- scrollUntilVisible:
+    element: ${DAYS + ' dagar'}
+    direction: DOWN
+    centerElement: true
+- tapOn: ${DAYS + ' dagar'}
+- scrollUntilVisible:
+    element: ${EXPECTED}
+    direction: DOWN
+    timeout: 60000
+- assertVisible: ${EXPECTED}
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: assert
+      PHASE: ${PHASE}
+- takeScreenshot: ${SHOT}
