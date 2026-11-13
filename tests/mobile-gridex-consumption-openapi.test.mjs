@@ -35,3 +35,12 @@ test('the separate consumption response schema requires complete authority and r
  assert.throws(()=>assertCustomerPortalOperationResponse('/api/v1/customer/consumption/metering-values','get',200,{...values,data:[missing]}));
  assert.throws(()=>assertCustomerPortalOperationRequest(path+'?cursor=one&cursor=two','get',undefined,headers));
 });
+
+test('captured actual OPS-handler responses validate through the real Web schema adapter',async()=>{
+ const {assertCustomerPortalOperationResponse}=await import('../lib/ops/validators/openapi.ts');
+ const {createHash}=await import('node:crypto');
+ const fixture=JSON.parse(readFileSync(new URL('./fixtures/ops-consumption-responses.json',import.meta.url),'utf8'));
+ assert.equal(fixture.contractSHA256,createHash('sha256').update(readFileSync(new URL('../docs/openapi/customer-consumption-v1.json',import.meta.url))).digest('hex'));
+ assert.equal(fixture.responses.length,2);
+ for(const {path,body}of fixture.responses){assertCustomerPortalOperationResponse(path,'get',200,body);const page=body.page.sites??body.page;assert.equal(page.limit,50);assert.equal(page.offset,0);assert.equal(page.returned,1);}
+});

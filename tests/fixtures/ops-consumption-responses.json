@@ -1,0 +1,107 @@
+{
+  "producerSource": "d69d6b41c",
+  "producerTest": "__tests__/customer-consumption-routes.test.ts",
+  "scope": "Actual OPS route JSON with mocked auth/database; component composition only, not HTTP/Auth acceptance.",
+  "contractSHA256": "416adcecfb59cb6eba2fd0a0cccdd15f62de6d997e9887aeb4be56c926185981",
+  "responses": [
+    {
+      "path": "/api/v1/customer/consumption/sites",
+      "body": {
+        "data": {
+          "sites": [
+            {
+              "facility_reference": "facility_COlpIetINw1M926lUfg-GrVtRTRciG9j",
+              "facility_id": "FAC-A",
+              "status": null,
+              "name": null,
+              "facility_type": null,
+              "address": {
+                "street": null,
+                "care_of": null,
+                "postal_code": null,
+                "city": null,
+                "country": "SE"
+              },
+              "price_area": null,
+              "grid_area_code": null,
+              "move_in_date": null,
+              "move_out_date": null,
+              "annual_consumption_kwh": null,
+              "created_at": "2026-11-01T00:00:00Z"
+            }
+          ],
+          "metering_points": [
+            {
+              "metering_point_reference": "metering_point_TTKgV9Hzi7PtrNZmVLWkFS_XlVzfsM9V",
+              "facility_reference": "facility_COlpIetINw1M926lUfg-GrVtRTRciG9j",
+              "metering_point_id": null,
+              "facility_id": null,
+              "status": null,
+              "metering_type": null,
+              "resolution": null,
+              "price_area": null,
+              "grid_area_code": null,
+              "start_date": null,
+              "end_date": null,
+              "verification_status": null,
+              "created_at": null
+            }
+          ],
+          "delivery_access": {
+            "version": "customer-supply-periods-v1",
+            "complete": true,
+            "windows": [
+              {
+                "facility_reference": "facility_COlpIetINw1M926lUfg-GrVtRTRciG9j",
+                "metering_point_reference": "metering_point_TTKgV9Hzi7PtrNZmVLWkFS_XlVzfsM9V",
+                "from": "2026-10-31T23:00:00.000Z",
+                "to": null
+              }
+            ]
+          }
+        },
+        "page": {
+          "sites": {
+            "limit": 50,
+            "offset": 0,
+            "returned": 1,
+            "has_more": false,
+            "next_cursor": null
+          }
+        },
+        "request_id": "0c14e227-374f-45ec-b39e-bf6b529d451a",
+        "contract_schema_version": "2026-10-09.1"
+      }
+    },
+    {
+      "path": "/api/v1/customer/consumption/metering-values",
+      "body": {
+        "data": [
+          {
+            "metering_value_reference": "metering_value_e0-EPd6-seVhkD-dNhDXokGGXqx010Pq",
+            "metering_point_reference": "metering_point_TTKgV9Hzi7PtrNZmVLWkFS_XlVzfsM9V",
+            "period_start": "2026-11-02T00:00:00Z",
+            "period_end": "2026-11-02T01:00:00Z",
+            "resolution": null,
+            "quantity_kwh": 7.5,
+            "quality_status": null,
+            "status": "stored",
+            "created_at": null,
+            "revision_status": "current",
+            "direction": "consumption",
+            "unit": "kWh"
+          }
+        ],
+        "page": {
+          "limit": 50,
+          "offset": 0,
+          "returned": 1,
+          "has_more": false,
+          "next_cursor": null
+        },
+        "request_id": "58fa1981-ad05-458d-b648-3e693df8ef0b",
+        "contract_schema_version": "2026-10-09.1"
+      }
+    }
+  ]
+}
