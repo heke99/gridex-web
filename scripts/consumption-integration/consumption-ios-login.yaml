@@ -25,9 +25,19 @@ appId: se.gridex.el.dev
       text: "Logga in"
       enabled: true
     timeout: 30000
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: auth-snapshot
+      PHASE: ${LOGIN_PHASE}
 - tapOn:
     text: "Logga in"
     retryTapIfNoChange: false
+- runScript:
+    file: consumption-ios-control.js
+    env:
+      ACTION: auth-observed
+      PHASE: ${LOGIN_PHASE}
 - scrollUntilVisible:
     element: ${CONTRACT}
     direction: DOWN

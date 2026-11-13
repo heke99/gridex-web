@@ -2,10 +2,11 @@
 import {createServer,request} from 'node:http';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {timingSafeEqual} from 'node:crypto';
+import {summarizeGrant,summarizeAuthResponse} from './consumption-auth-diagnostics.mjs';
 import {oracle,bounds} from './consumption-fixtures.mjs';
 const root=process.env.RUNNER_TEMP,fixture=JSON.parse(readFileSync(root+'/mobile-fixtures/customers.json','utf8'));
 const key=Buffer.from(process.env.GRIDEX_QUALIFICATION_CONTROL_KEY??'');if(key.length!==64)throw Error('Missing bounded test control key');
-const observations=[];let phase='unassigned';
+const observations=[],authObservations=[];let phase='unassigned';
 const platform=agent=>/Android|okhttp/i.test(agent??'')?'android':/iPhone|iPad|CFNetwork|Darwin/.test(agent??'')?'ios':'other';
 const auth=new Map([['/auth/v1/token',['POST']],['/auth/v1/user',['GET']],['/auth/v1/logout',['POST']]]);
 function owner(header){try{const token=String(header??'').replace(/^Bearer /,'');const id=JSON.parse(Buffer.from(token.split('.')[1],'base64url')).sub;return fixture.customers.find(u=>u.userId===id);}catch{return null;}}
@@ -17,6 +18,14 @@ createServer(async(incoming,outgoing)=>{
   const supplied=Buffer.from(String(incoming.headers['x-qualification-control']??''));if(supplied.length!==key.length||!timingSafeEqual(supplied,key)){json(outgoing,403,{error:'denied'});return;}
   try{
    let raw='';for await(const chunk of incoming){raw+=chunk;if(raw.length>2048)throw Error('Input limit');}const input=JSON.parse(raw);
+   if(input.action==='auth-snapshot'){if(!/^ios:[AB]:login$/.test(input.phase))throw Error('Invalid Auth phase');json(outgoing,200,{passed:true,count:authObservations.length});return;}
+   if(input.action==='auth-observed'){
+    if(!/^ios:[AB]:login$/.test(input.phase)||!Number.isInteger(input.previous)||input.previous<0)throw Error('Invalid Auth baseline');
+    const deadline=Date.now()+25000;let found;
+    do{found=authObservations.slice(input.previous).find(r=>r.platform==='ios');if(found||Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,100));}while(true);
+    const diagnostic=found??{customer:'unknown',credentialsMatch:false,status:null,outcome:'not-observed',errorCode:'none'};
+    json(outgoing,200,{passed:true,successful:!!found&&found.customer===input.phase.split(':')[1]&&found.credentialsMatch&&found.status===200&&found.outcome==='complete',diagnostic});return;
+   }
    if(input.action==='expectations'){json(outgoing,200,{passed:true,customers:fixture.customers.map(u=>({label:u.label,secondaryTitle:u.consumption.secondaryTitle,expected:u.consumption.expected}))});return;}
    if(input.action==='snapshot'){if(!/^(android|ios):[AB]:(primary|secondary):(7|30)$/.test(input.phase))throw Error('Invalid phase');phase=input.phase;json(outgoing,200,{passed:true,count:observations.length});return;}
    if(['observed','assert'].includes(input.action)){
@@ -35,7 +44,16 @@ createServer(async(incoming,outgoing)=>{
  else{json(outgoing,404,{error:'not-found'});return;}
  const headers={...incoming.headers,host:'127.0.0.1:'+port};delete headers['cf-connecting-ip'];delete headers['x-forwarded-for'];
  const receivedAt=Date.now(),currentPhase=phase,who=owner(incoming.headers.authorization),clientPlatform=platform(incoming.headers['user-agent']);
+ const authGrant=url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password';
+ let grantRaw='',grantSize=0,authStatus=null,authRecorded=false;
+ if(authGrant)incoming.on('data',chunk=>{grantSize+=chunk.length;if(grantSize<=16384)grantRaw+=chunk.toString('utf8');});
+ const recordAuth=(outcome,errorCode='none')=>{
+  if(!authGrant||authRecorded)return;authRecorded=true;
+  authObservations.push({...summarizeGrant(grantSize<=16384?grantRaw:'',fixture.customers),platform:clientPlatform,status:authStatus,outcome,errorCode});
+  writeFileSync(root+'/consumption-auth-observations.json',JSON.stringify({opsCommit:process.env.GRIDEX_OPS_COMMIT,webCommit:process.env.GRIDEX_WEB_COMMIT,observations:authObservations},null,2));
+ };
  const upstream=request({hostname:'127.0.0.1',port,path:incoming.url,method:incoming.method,headers,timeout:60000},response=>{
+  if(authGrant){authStatus=response.statusCode;let authResponse='',size=0;response.on('data',chunk=>{size+=chunk.length;if(size<=65536)authResponse+=chunk.toString('utf8');});response.on('end',()=>recordAuth('complete',authStatus===200?'none':summarizeAuthResponse(size<=65536?authResponse:'')));}
   const buffers=[];let length=0;
   if(url.pathname==='/api/mobile/customer/consumption'){
    response.on('data',chunk=>{length+=chunk.length;if(length<=8*1024*1024)buffers.push(chunk);});
@@ -59,5 +77,5 @@ createServer(async(incoming,outgoing)=>{
   }
   outgoing.writeHead(response.statusCode??502,response.headers);response.pipe(outgoing);
  });
- upstream.on('timeout',()=>upstream.destroy());upstream.on('error',()=>{if(!outgoing.headersSent)json(outgoing,503,{error:'upstream-unavailable'});else outgoing.destroy();});outgoing.on('close',()=>upstream.destroy());incoming.pipe(upstream);
+ upstream.on('timeout',()=>{recordAuth('upstream-timeout');upstream.destroy();});upstream.on('error',()=>{recordAuth('upstream-error');if(!outgoing.headersSent)json(outgoing,503,{error:'upstream-unavailable'});else outgoing.destroy();});outgoing.on('close',()=>{recordAuth('client-closed');upstream.destroy();});incoming.pipe(upstream);
 }).listen(Number(process.env.GRIDEX_CONSUMPTION_GATEWAY_PORT??3445),'127.0.0.1',function(){process.send?.({port:this.address().port});});

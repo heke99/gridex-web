@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Verify the loopback fixture and gateway safety boundaries
         run: |
-          node --test tests/mobile-consumption-qualification.test.mjs
+          node --test tests/mobile-consumption-qualification.test.mjs tests/mobile-consumption-auth-diagnostics.test.mjs
           python3 -B tests/mobile-consumption-native-evidence.test.py
       - name: Require green exact OPS and Web source gates
         env:
@@ -180,6 +180,7 @@ jobs:
             ${{ runner.temp }}/consumption-outage.json
             ${{ runner.temp }}/consumption-recovery.json
             ${{ runner.temp }}/consumption-native-observations.json
+            ${{ runner.temp }}/consumption-auth-observations.json
             ${{ runner.temp }}/consumption-system-result.json
             ${{ runner.temp }}/consumption-cleanup.json
             ${{ runner.temp }}/consumption-android-reuse.json

@@ -11,6 +11,7 @@ appId: se.gridex.el.dev
 - runFlow:
     file: consumption-ios-login.yaml
     env:
+      LOGIN_PHASE: "ios:A:login"
       EMAIL: ${LOGIN_A_EMAIL}
       PASSWORD: ${LOGIN_A_PASSWORD}
       CONTRACT: ${CONTRACT_A}
@@ -40,6 +41,7 @@ appId: se.gridex.el.dev
 - runFlow:
     file: consumption-ios-login.yaml
     env:
+      LOGIN_PHASE: "ios:B:login"
       EMAIL: ${LOGIN_B_EMAIL}
       PASSWORD: ${LOGIN_B_PASSWORD}
       CONTRACT: ${CONTRACT_B}
