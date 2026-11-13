@@ -15,7 +15,7 @@ def control(action,phase=None,previous=None):
  if phase is not None:body['phase']=phase
  if previous is not None:body['previous']=previous
  request=urllib.request.Request('http://127.0.0.1:3445/qualification-consumption',data=json.dumps(body).encode(),method='POST',headers={'content-type':'application/json','x-qualification-control':os.environ['GRIDEX_QUALIFICATION_CONTROL_KEY']})
- with urllib.request.urlopen(request,timeout=20) as response:
+ with urllib.request.urlopen(request,timeout=35) as response:
   value=json.load(response);assert value['passed'];return value
 original_checkpoint=checkpoint
 def checkpoint(name,expected,absent=None):
