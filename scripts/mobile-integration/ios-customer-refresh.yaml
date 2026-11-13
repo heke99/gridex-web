@@ -1,0 +1,25 @@
+appId: se.gridex.el.dev
+---
+# Only this idempotent GET action may be retried. Never replay a mutation or
+# customer journey. Each caller still requires its original positive readback.
+- retry:
+    maxRetries: 2
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "customer-${CUSTOMER_RESOURCE}-idle"
+          timeout: 30000
+      - scrollUntilVisible:
+          element: "Mina sidor"
+          direction: UP
+          timeout: 15000
+      - scrollUntilVisible:
+          element: "Hämta igen"
+          direction: DOWN
+          centerElement: true
+          timeout: 15000
+      # Authenticated customer pane only; same fixed diagnostic allowlist.
+      - takeScreenshot: "customer-resource-target"
+      - tapOn:
+          text: "Hämta igen"
+          retryTapIfNoChange: false

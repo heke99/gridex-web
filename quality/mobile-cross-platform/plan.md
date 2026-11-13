@@ -537,3 +537,41 @@ are repeated; unchanged Android/native/typecheck suites stay approved.
 A local end-to-end proof-gate smoke using the actual pinned public archive
 is required before pushing, to confirm it selects reuse instead of an
 unnecessary Android run.
+
+
+### 2026-11-13: bounded iOS read activation; preserve production iOS builds
+
+7837fa7 run43330390627 failed before reaching the repaired document control.
+Android was correctly REUSED/SKIPPED, all three quick gates passed, and both
+explicit cleanup steps succeeded. The actual iOS failure was No visible element
+found: Hämta igen after disconnect, while the sanitized hierarchy still contained
+the read control and B invoice content. No post-disconnect retry request reached
+Web. This establishes a failed native read action, not an OPS/API failure; exact
+viewport/animation timing is not established. Earlier b270 native core, phone
+and notification proofs remain scoped and valid on identical production code.
+
+Seven read preparations now use a dedicated helper: await the expected resource
+idle, normalize to Mina sidor, reveal/center Hämta igen, capture the existing fixed
+authenticated diagnostic and dispatch once without the extra animation wait
+between reveal and tap. A maximum of two extra attempts repeats only this
+idempotent read preparation, never a write or whole customer journey. All seven
+plain foreground activations use the existing bounded app-shell resume helper.
+All original operations, positive readbacks, foreign-data exclusions and fresh
+OPS assertions are preserved in order; decoded before/after comparison passes.
+The changed activation/read behavior warrants fresh iOS verification, not new
+Android or production builds. Focused tests simulate a relocated target, bounded
+failure and preservation of every original caller assertion.
+
+Customer-only iOS YAML changes otherwise trigger the production-iOS workflow.
+A lightweight source/metadata proof now reuses the actual already-verified b270
+production archive from run43317701158/artifact13990897235/SHA256
+3e207110fd41ffe5e9fd46f022d8aeeeb7d3a68d779c9cce5903870e5e22317d.
+It requires identical production inputs, exact reviewed workflow bytes and
+authenticated successful source/run/immutable artifact metadata; a failed proof
+does not start a duplicate native build. Relevant input changes still require
+a new production qualification. The archive, guest UI and distribution limits
+remain credited to b270, never reported as freshly built on this candidate.
+Android reuse additionally allows these reviewed iOS-only test/guard files,
+while unchanged product/Android input and exact shared-workflow checks remain.
+Eleven affected regressions pass. No Android emulator/build or iOS production
+build is repeated to validate the new control/guard logic.

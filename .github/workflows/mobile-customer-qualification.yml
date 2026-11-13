@@ -51,7 +51,7 @@ jobs:
         run: node scripts/mobile-integration/qualified-android.mjs prepare "$RUNNER_TEMP/mobile-android-reuse.json"
       - name: Verify the changed document control and proof reuse
         working-directory: gridex-web
-        run: node --test --test-name-pattern='document control|Android proof reuse' tests/mobile-device-qualification.test.mjs tests/mobile-android-reuse.test.mjs
+        run: node --test --test-name-pattern='document control|Android proof reuse|iOS read refresh|iOS production reuse' tests/mobile-device-qualification.test.mjs tests/mobile-android-reuse.test.mjs tests/mobile-ios-read.test.mjs
       - uses: actions/setup-java@v4
         if: steps.reuse.outputs.approved != 'true'
         with:

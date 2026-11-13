@@ -13,9 +13,40 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
+  production-ios-proof:
+    runs-on: ubuntu-latest
+    outputs:
+      reused: ${{ steps.qualified.outputs.approved }}
+    env:
+      QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_OPS_COMMIT: 6819d12d35a8d8ce560889b29c91f330a2655724
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reuse verified production iOS artifacts for unchanged product code
+        id: qualified
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/mobile-integration/production-ios-reuse.mjs "$RUNNER_TEMP/production-ios-reuse.json"
+      - uses: actions/upload-artifact@v4
+        if: steps.qualified.outputs.approved == 'true'
+        with:
+          name: reused-ios-production-proof
+          path: ${{ runner.temp }}/production-ios-reuse.json
+          if-no-files-found: error
+          retention-days: 7
   ios-simulator:
+    needs: production-ios-proof
+    if: needs.production-ios-proof.outputs.reused != 'true'
     runs-on: macos-26
     timeout-minutes: 60
     env:

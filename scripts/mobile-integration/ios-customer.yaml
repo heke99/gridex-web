@@ -37,8 +37,7 @@ appId: se.gridex.el.dev
     env:
       ACTION: snapshot
 - stopApp
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - tapOn: "Mer"
 - scrollUntilVisible:
     element: ${CONTRACT_A}
@@ -136,8 +135,7 @@ appId: se.gridex.el.dev
 - assertNotVisible: "Försök logga ut igen"
 - assertNotVisible: ".*${CUSTOMER_A}.*"
 - stopApp
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
 - assertNotVisible: ".*${CUSTOMER_A}.*"
@@ -272,8 +270,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: wait-expiry-tick
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
@@ -295,8 +292,7 @@ appId: se.gridex.el.dev
           file: ios-control.js
           env:
             ACTION: wait-expiry-tick
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Totalt inklusive moms: 222 SEK"
     direction: DOWN
@@ -310,23 +306,17 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: disconnect
-- scrollUntilVisible:
-    element: "Hämta igen"
-    centerElement: true
-    direction: DOWN
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: invoiceDetail
 - scrollUntilVisible:
     element: "Uppgifterna kunde inte hämtas.*"
     direction: DOWN
     timeout: 60000
 - assertNotVisible: ".*${CUSTOMER_B}.*"
 - pressKey: Home
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - scrollUntilVisible:
     element: "Uppgifterna kunde inte hämtas.*"
     direction: DOWN
@@ -345,15 +335,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    centerElement: true
-    direction: DOWN
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: invoiceDetail
 - scrollUntilVisible:
     element: "Mina sidor"
     direction: UP
@@ -409,15 +394,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    centerElement: true
-    direction: DOWN
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: profile
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -458,15 +438,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    direction: DOWN
-    centerElement: true
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: notifications
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -514,15 +489,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    direction: DOWN
-    centerElement: true
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: documents
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -735,15 +705,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    direction: DOWN
-    centerElement: true
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: supportDetail
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -814,15 +779,10 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: snapshot
-- scrollUntilVisible:
-    element: "Hämta igen"
-    direction: DOWN
-    centerElement: true
-- waitForAnimationToEnd:
-    timeout: 5000
-- tapOn:
-    text: "Hämta igen"
-    retryTapIfNoChange: false
+- runFlow:
+    file: ios-customer-refresh.yaml
+    env:
+      CUSTOMER_RESOURCE: support
 - runFlow:
     file: ios-customer-after-refresh.yaml
     env:
@@ -1023,8 +983,7 @@ appId: se.gridex.el.dev
     file: ios-control.js
     env:
       ACTION: wait-expiry-tick
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - extendedWaitUntil:
     visible: "Logga in på Mina sidor"
     timeout: 60000
@@ -1043,8 +1002,7 @@ appId: se.gridex.el.dev
 - runFlow: ios-dismiss-keyboard.yaml
 - takeScreenshot: "invalidated-session-foreground"
 - stopApp
-- launchApp:
-    stopApp: false
+- runFlow: ios-resume-app.yaml
 - tapOn: "Mer"
 - assertVisible: "Logga in på Mina sidor"
 - assertNotVisible: ".*${CONTRACT_B}.*"
