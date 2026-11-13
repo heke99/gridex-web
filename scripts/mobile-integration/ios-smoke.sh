@@ -72,5 +72,8 @@ fi
 test -s "$private_ui/results.xml"
 node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({nativeUiSmoke:"PASS",authenticatedCoreCustomerFlowVerified:process.env.GRIDEX_IOS_CUSTOMER_FLOW==="true",webCommit:process.env.QUALIFICATION_WEB_COMMIT??process.env.GITHUB_SHA,consumptionHappyPathVerified:false,distributionSigned:false,testFlightVerified:false,physicalDeviceVerified:false})+"\n")' "$out/simulator-receipt.json"
 
+if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true && test "${GRIDEX_IOS_CASE_REUSE:-false}" = true; then
+  node scripts/mobile-integration/ios-customer-suite.mjs stamp "$out/customer-suite-result.json" "$out/simulator-receipt.json"
+fi
 test -s "$private_ui/results.xml"
 test -s "$out/simulator-receipt.json"

@@ -19,6 +19,7 @@ jobs:
     env:
       GRIDEX_OPS_COMMIT: 6819d12d35a8d8ce560889b29c91f330a2655724
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_IOS_CASE_REUSE: 'true'
       SUPABASE_TELEMETRY_DISABLED: 'true'
       SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
     steps:
@@ -153,6 +154,8 @@ jobs:
         run: node gridex-web/scripts/mobile-integration/await-artifact.mjs ios-customer-terminal "$RUNNER_TEMP/ios-terminal"
       - name: Verify actual native public requests and external browser handoffs
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if test -f "$RUNNER_TEMP/mobile-backend.ready"; then
             node gridex-web/scripts/mobile-integration/verify-observations.mjs
@@ -199,11 +202,13 @@ jobs:
       MAESTRO_CLI_NO_ANALYTICS: '1'
       EXPO_NO_TELEMETRY: '1'
       QUALIFICATION_WEB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      GRIDEX_IOS_CASE_REUSE: 'true'
       GRIDEX_BUILD_ENVIRONMENT: isolated-real-auth-web-ops
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.QUALIFICATION_WEB_COMMIT }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

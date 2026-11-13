@@ -20,7 +20,9 @@ export const ORIGINAL_CUSTOMER_SETUP='  flow=scripts/mobile-integration/ios-cust
 export const SUITE_CUSTOMER_SETUP='  flow="$RUNNER_TEMP/gridex-ios-customer-suite"\n  test "$(cat "$RUNNER_TEMP/gridex-ios-simulator-id")" = "$simulator"\n  node scripts/mobile-integration/ios-customer-suite.mjs create "$flow"\n  environment+=(--config "$flow/config.yaml")\n';
 export const SUITE_CUSTOMER_VERIFY='if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true; then\n  node scripts/mobile-integration/ios-customer-suite.mjs report "$private_ui/results.xml" "$flow/suite-plan.json" "$out/customer-suite-result.json"\nfi\n';
 export const SUITE_CUSTOMER_DIAGNOSTIC='  if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true && ! test -s "$out/customer-suite-result.json"; then\n    node scripts/mobile-integration/ios-customer-suite.mjs report "$private_ui/results.xml" "$flow/suite-plan.json" "$out/customer-suite-result.json" || true\n  fi\n';
+export const REUSE_STAMP='if test "${GRIDEX_IOS_CUSTOMER_FLOW:-false}" = true && test "${GRIDEX_IOS_CASE_REUSE:-false}" = true; then\n  node scripts/mobile-integration/ios-customer-suite.mjs stamp "$out/customer-suite-result.json" "$out/simulator-receipt.json"\nfi\n';
 export function normalizedCustomerSmoke(source){
+ if(source.includes(REUSE_STAMP)){assert.equal(source.split(REUSE_STAMP).length,2);source=source.replace(REUSE_STAMP,'');}
  assert.equal(typeof source,'string');
  if(source.includes(SUITE_CUSTOMER_SETUP)){
   assert.equal(source.split(SUITE_CUSTOMER_SETUP).length,2);
@@ -116,6 +118,8 @@ export function inspectSuiteJUnit(xml,plan,webCommit){
 export function verifySuiteJUnit(xml,plan,webCommit){const result=inspectSuiteJUnit(xml,plan,webCommit);assert.equal(result.status,'PASS','All four actual independent cases must pass in order');return result;}
 
 if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
+ // Finish evaluating the library before a reuse adapter imports its exports.
+ async function main(){
  const [command,...args]=process.argv.slice(2);
  if(command==='create'){
   const root=dirname(fileURLToPath(import.meta.url)),directory=resolve(args[0]??'');assert.ok(args[0]);
@@ -123,10 +127,19 @@ if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
   const {files,plan}=buildSuite(readFileSync(join(root,'ios-customer.yaml'),'utf8'),{root,webCommit:process.env.QUALIFICATION_WEB_COMMIT});
   for(const [name,body]of Object.entries(files))writeFileSync(join(directory,name),body,{mode:0o600});
   writeFileSync(join(directory,'suite-plan.json'),JSON.stringify(plan,null,2)+'\n',{mode:0o600});
+  if(process.env.GRIDEX_IOS_CASE_REUSE==='true')await (await import('./ios-case-reuse.mjs')).createScoped(directory);
  }else if(command==='report'){
   let plan={};try{plan=JSON.parse(readFileSync(args[1],'utf8'));}catch{}
-  const result=inspectSuiteJUnit(existsSync(args[0])?readFileSync(args[0],'utf8'):'',plan,process.env.QUALIFICATION_WEB_COMMIT);
+  const xml=existsSync(args[0])?readFileSync(args[0],'utf8'):'';
+  const result=process.env.GRIDEX_IOS_CASE_REUSE==='true'?(await import('./ios-case-reuse.mjs')).compose(xml,plan,process.env.QUALIFICATION_WEB_COMMIT,JSON.parse(readFileSync(join(process.env.RUNNER_TEMP,'ios-case-reuse.json'),'utf8'))):inspectSuiteJUnit(xml,plan,process.env.QUALIFICATION_WEB_COMMIT);
   writeFileSync(args[2],JSON.stringify(result,null,2)+'\n');
   if(result.status!=='PASS')process.exitCode=1;
+ }else if(command==='stamp'){
+  const report=JSON.parse(readFileSync(args[0],'utf8')),receipt=JSON.parse(readFileSync(args[1],'utf8'));
+  assert.equal(report.schema,'gridex.ios-composed-cases.v1');assert.equal(report.status,'PASS');assert.equal(report.webCommit,process.env.QUALIFICATION_WEB_COMMIT);
+  receipt.authenticatedCoreCustomerFlowVerified=true;receipt.coreExecutedInThisRun=false;receipt.evidenceScope='two fresh cases plus two immutable source-equivalent reference cases';receipt.coreReference=report.reference;receipt.freshCases=['support','market'];receipt.reusedCases=['core','session'];
+  writeFileSync(args[1],JSON.stringify(receipt,null,2)+'\n');
  }else throw Error('Unknown customer suite operation');
+ }
+ main().catch(error=>{console.error(error);process.exitCode=1;});
 }

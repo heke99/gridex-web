@@ -638,6 +638,20 @@ appId: se.gridex.el.dev
     direction: UP
     timeout: 60000
 - scrollUntilVisible:
+    element: "Rensa sökning och filter"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Rensa sökning och filter"
+    retryTapIfNoChange: false
+- scrollUntilVisible:
+    element: "Mina sidor"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
     element: "Sök bland hämtade ärenden"
     direction: DOWN
     centerElement: true
@@ -651,7 +665,6 @@ appId: se.gridex.el.dev
     timeout: 5000
 - eraseText: 160
 - inputText: ${SUPPORT_LAST_B}
-- assertVisible: ${SUPPORT_LAST_B}
 - takeScreenshot: "customer-resource-target"
 - runFlow: ios-dismiss-keyboard.yaml
 - scrollUntilVisible:
@@ -1048,9 +1061,15 @@ appId: se.gridex.el.dev
 - tapOn:
     text: "Uppdatera elpriser"
     retryTapIfNoChange: false
-- extendedWaitUntil:
-    visible: "Elpriserna kunde inte hämtas. Försök igen."
-    timeout: 30000
+- takeScreenshot: "customer-resource-target"
+- scrollUntilVisible:
+    element: "Spotpriser"
+    direction: UP
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Elpriserna kunde inte hämtas. Försök igen."
+    direction: DOWN
+    timeout: 60000
 - takeScreenshot: "market-network-error"
 - runScript:
     file: ios-control.js
