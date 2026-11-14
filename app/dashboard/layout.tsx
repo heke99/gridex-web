@@ -1,3 +1,4 @@
+import { customerPortalBrand } from '@/lib/ops/elklartDemo'
 //app/dashboard/layout.tsx
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -126,7 +127,7 @@ export default async function DashboardLayout({
                   href="/"
                   className="truncate text-sm font-semibold tracking-tight sm:text-base"
                 >
-                  Gridex <span className="text-white/60">Mina sidor</span>
+                  {customerPortalBrand('Gridex')} <span className="text-white/60">Mina sidor</span>
                 </Link>
 
                 <div className="lg:hidden">

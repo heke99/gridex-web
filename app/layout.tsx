@@ -1,6 +1,7 @@
 import './globals.css'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Footer from '@/components/layout/Footer'
+import { elklartDemoEnabled } from '@/lib/ops/elklartDemo'
 import CookieBanner from '@/components/legal/CookieBanner'
 import GoogleMarketingTags from '@/components/analytics/GoogleMarketingTags'
 
@@ -43,13 +44,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const isDemo = elklartDemoEnabled()
   return (
     <html lang="sv">
       <head>
-        <script
+        {!isDemo && <script
           id="gridex-google-consent-defaults"
           dangerouslySetInnerHTML={{ __html: GOOGLE_CONSENT_DEFAULTS }}
-        />
+        />}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen flex flex-col antialiased`}
@@ -65,10 +67,17 @@ export default function RootLayout({
           {children}
         </main>
 
-        <Footer />
-
-        <GoogleMarketingTags />
-        <CookieBanner />
+        {isDemo ? (
+          <footer className="border-t border-white/10 bg-black px-6 py-4 text-sm text-white/70">
+            Elklart · Demonstrationsmiljö
+          </footer>
+        ) : (
+          <>
+            <Footer />
+            <GoogleMarketingTags />
+            <CookieBanner />
+          </>
+        )}
       </body>
     </html>
   )
