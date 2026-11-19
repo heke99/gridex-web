@@ -25,6 +25,7 @@ import {
   type OpsWebsitePowerOfAttorneyInput,
 } from "@/lib/ops/client";
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from "@/lib/ops/contract";
+import { customerPortalBrand } from "@/lib/ops/elklartDemo";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import type { SignupContractOption } from "@/lib/website/signupContractOption";
 
@@ -1523,7 +1524,7 @@ export default async function TecknaPage({
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
                 Välj elavtal, fyll i dina uppgifter och granska allt innan du
-                tecknar. Avtalsstart sker först när Gridex har kontrollerat
+                tecknar. Avtalsstart sker först när {customerPortalBrand("Gridex")} har kontrollerat
                 uppgifterna och bekräftat nästa steg.
               </p>
             </div>

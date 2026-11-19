@@ -1,4 +1,5 @@
 import { GRIDEX_CANONICAL_OPS_API_URL } from '@/lib/ops/contract'
+import { demoOpsApiBase, elklartDemoEnabled } from '@/lib/ops/elklartDemo'
 
 const MIN_SIGNING_SECRET_BYTES = 32
 
@@ -99,16 +100,27 @@ export function getGridexApiKey(): { value?: string; invalidReason?: string } {
   }
 }
 
-export function getGridexApiBaseUrl(): string {
+function resolveConfiguredApiBase(): { value?: string; reason?: string } {
+  if (elklartDemoEnabled()) {
+    try {
+      return { value: demoOpsApiBase() }
+    } catch (error) {
+      return { reason: error instanceof Error ? error.message : 'Elklart-demots OPS-adress saknas.' }
+    }
+  }
   const configured = readEnv('GRIDEX_OPS_API_URL') ?? GRIDEX_CANONICAL_OPS_API_URL
-  const result = validateApiBase(configured)
+  return validateApiBase(configured)
+}
+
+export function getGridexApiBaseUrl(): string {
+  const result = resolveConfiguredApiBase()
   if (!result.value) throw new Error(result.reason ?? 'GRIDEX_OPS_API_URL är ogiltig.')
   return result.value
 }
 
 export function getGridexConfigurationStatus(): GridexConfigurationStatus {
   const apiKey = apiKeyConfiguration()
-  const base = validateApiBase(readEnv('GRIDEX_OPS_API_URL') ?? GRIDEX_CANONICAL_OPS_API_URL)
+  const base = resolveConfiguredApiBase()
   const signingSecret = readEnv('GRIDEX_WEBSITE_STATE_SIGNING_SECRET')
   const signingSecretConfigured = Boolean(
     signingSecret && Buffer.byteLength(signingSecret, 'utf8') >= MIN_SIGNING_SECRET_BYTES,

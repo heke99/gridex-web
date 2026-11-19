@@ -1,3 +1,4 @@
+import { customerPortalBrand } from '@/lib/ops/elklartDemo'
 //app/login/page.tsx
 import Link from 'next/link'
 import { loginWithPassword } from './actions'
@@ -45,7 +46,7 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-12 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-20">
         <section className="space-y-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs text-cyan-300">
-            Säker kundportal • Enkel inloggning • Gridex
+            Säker kundportal • Enkel inloggning • {customerPortalBrand('Gridex')}
           </div>
 
           <div>
@@ -57,7 +58,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
             <p className="mt-4 max-w-xl text-base leading-relaxed text-gray-300">
               Här kan du följa ditt avtal, hantera dina uppgifter och få tillgång
-              till din kundportal hos Gridex.
+              till din kundportal hos {customerPortalBrand('Gridex')}.
             </p>
           </div>
 
