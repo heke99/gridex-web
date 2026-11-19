@@ -1,0 +1,16 @@
+import React from 'react';
+import { Text } from 'react-native';
+import { gridexBrand } from './brands/gridex.mjs';
+import { EnergyAppShell } from './src/EnergyAppShell';
+import { CustomerAccess } from './src/CustomerAccess';
+import { installDemoTransport } from './src/accountClient';
+
+installDemoTransport();
+const brand = { ...gridexBrand, displayName: 'Gridex El · DEMO' };
+
+export default function App() {
+  return <EnergyAppShell brand={brand} customerPanel={<>
+    <Text style={{ color: brand.theme.text }}>Syntetiska testdata. Logga in med demo@example.invalid och GridexDemo2026.</Text>
+    <CustomerAccess brand={brand} />
+  </>} />;
+}
