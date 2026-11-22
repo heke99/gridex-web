@@ -7,8 +7,9 @@ import {opsRequest} from '../lib/ops/transport.ts'
 import {signCustomerAssertion} from '../lib/ops/customerAssertion.ts'
 import {mapOpsWebsiteQuote} from '../lib/ops/client/core.ts'
 import {mapOpsCustomerApplicationResult,assertAcceptedApplication} from '../lib/ops/client/application.ts'
-import {markOpsCustomerNotificationsRead} from '../lib/ops/client/portal.ts'
+import {fetchOpsCustomerPortalBundle, fetchOpsCustomerResource, markOpsCustomerNotificationsRead} from '../lib/ops/client/portal.ts'
 import {assertWebsiteResponse} from '../lib/ops/validators/openapi.ts'
+import {parseRequestedStartSelection} from '../lib/website/requestedStart.ts'
 import {stockholmDayBounds} from '../lib/website/businessDate.ts'
 import {fetchDailySpotAverageFromElprisetJustNu,fetchMonthlySpotAverageFromElprisetJustNu} from '../lib/gridex/pricing/elprisetjustnu.ts'
 import {getLivePriceSummary} from '../lib/gridex/livePrices.ts'
@@ -16,6 +17,12 @@ import {issueWebsitePricingQuote,verifyWebsitePricingQuote,validateWebsitePricin
 import PriceResultCard from '../components/PriceResultCard.tsx'
 import {buildPublicContractDisplay} from '../lib/website/publicContractDisplay.ts'
 import {createWebsiteApplicationResult,readWebsiteApplicationResultState} from '../lib/website/applicationResultStore.ts'
+const swedishMidnight = new Date('2026-11-29T23:00:00Z')
+assert.deepEqual(parseRequestedStartSelection({ mode: 'specific_date', requestedDate: '2026-11-29', now: swedishMidnight }), {
+ ok: false, code: 'requested_start_date_past',
+})
+assert.equal(parseRequestedStartSelection({ mode: 'specific_date', requestedDate: '2026-11-29', now: new Date(swedishMidnight.getTime() - 1) }).ok, true)
+assert.equal(parseRequestedStartSelection({ mode: 'specific_date', requestedDate: '2026-11-30', now: swedishMidnight }).ok, true)
 process.env.GRIDEX_API_KEY='gridex_live_offline_audit_regression_key'
 process.env.GRIDEX_OPS_API_URL='https://app.gridex.se/api/v1'
 process.env.GRIDEX_OPS_TIMEOUT_MS='1000'
@@ -48,6 +55,67 @@ try {
   return new Response(JSON.stringify({data:{updated_count:1,notification_references:body.notification_references,read_at:'2026-10-06T12:00:00Z'},request_id:'offline',contract_schema_version:WIRE}),{headers:{'Content-Type':'application/json'}})
  }
  await markOpsCustomerNotificationsRead({userId:uid,externalCustomerId:'customer_offline'}, {notificationIds:['notification_abcdefghijklmnopqrstuvwx'],operationId:'offline-operation'})
+ const startDates = { requested_start_date: '2026-12-05', confirmed_start_date: '2026-12-14', actual_start_date: null }
+ let contractDates = startDates
+ globalThis.fetch = async (_url, init) => {
+  assert.equal(new Headers(init.headers).get('Prefer'), 'contract-start-dates')
+  return Response.json({
+   data: [{ contract_reference: 'contract_abcdefghijklmnopqrstuvwx', status: 'active', start_date: '2026-12-14', ...contractDates }],
+   page: { returned: 1, has_more: false, next_cursor: null },
+   request_id: 'offline-contracts', contract_schema_version: WIRE,
+  }, { headers: contractDates ? { 'Preference-Applied': 'contract-start-dates' } : {} })
+ }
+ const identity = { userId: uid, externalCustomerId: 'customer_offline' }
+ const modernContract = (await fetchOpsCustomerResource(identity, 'contracts')).data[0]
+ assert.equal(modernContract.requested_start_date, startDates.requested_start_date)
+ assert.equal(modernContract.confirmed_start_date, startDates.confirmed_start_date)
+ contractDates = { ...startDates, confirmed_start_date: '2026-02-30' }
+ await assert.rejects(() => fetchOpsCustomerResource(identity, 'contracts'), { code: 'ops_contract_start_date_invalid' })
+ contractDates = null
+ const legacyContract = (await fetchOpsCustomerResource(identity, 'contracts')).data[0]
+ assert.equal(legacyContract.start_date, '2026-12-14')
+ assert.equal(Object.hasOwn(legacyContract, 'confirmed_start_date'), false)
+ globalThis.fetch = async (url, init) => {
+  const request = new URL(url)
+  assert.equal(request.pathname, '/api/v1/customer/portal-bundle')
+  assert.deepEqual([...request.searchParams], [['include', 'events'], ['events_limit', '8']])
+  assert.equal(init.method, 'POST')
+  assert.equal(new Headers(init.headers).get('x-gridex-auth-user-id'), uid)
+  return Response.json({ data: {
+   profile: { display_name: 'Synthetic customer' },
+   contracts: [{ contract_reference: 'contract_abcdefghijklmnopqrstuvwx', status: 'active', ...startDates }],
+   events: [{ event_reference: 'event_fixture' }],
+  }, request_id: 'offline-contract-bundle', contract_schema_version: WIRE },
+  { headers: { 'Preference-Applied': 'contract-start-dates' } })
+ }
+ const contractBundleProjection = await fetchOpsCustomerPortalBundle(identity, 'contracts')
+ assert.equal(contractBundleProjection.contracts[0].confirmed_start_date, startDates.confirmed_start_date)
+ assert.equal(contractBundleProjection.events.length, 1)
+ assert.equal(contractBundleProjection.meteringValues.length, 0)
+ let feeValue = 7
+ globalThis.fetch = async (_url, init) => {
+  const headers = new Headers(init.headers)
+  assert.equal(headers.get('X-Gridex-Contract-Pricing'), 'separate-variable-fee')
+  assert.equal(headers.get('Prefer'), 'contract-start-dates')
+  return Response.json({
+   data: [{ contract_reference: 'contract_abcdefghijklmnopqrstuvwx', status: 'active',
+    markup_ore_per_kwh: null, variable_fee_ore_per_kwh: feeValue }],
+   page: { returned: 1, has_more: false, next_cursor: null },
+   request_id: 'offline-contract-prices', contract_schema_version: WIRE,
+  }, { headers: { 'X-Gridex-Contract-Pricing': 'separate-variable-fee' } })
+ }
+ const feeOnly = (await fetchOpsCustomerResource(identity, 'contracts')).data[0]
+ assert.equal(feeOnly.variable_fee_ore_per_kwh, 7)
+ assert.equal(feeOnly.markup_ore_per_kwh, null)
+ feeValue = 'invalid'
+ await assert.rejects(() => fetchOpsCustomerResource(identity, 'contracts'), { code: 'ops_contract_variable_fee_invalid' })
+ globalThis.fetch = async url => {
+  assert.equal(new URL(url).searchParams.get('cursor'), 'opaque+/=')
+  return Response.json({ data: [{ invoice_reference: 'invoice_abcdefghijklmnopqrstuvwx', status: 'issued' }],
+   page: { limit: 25, offset: 0, returned: 1, has_more: false, next_cursor: null }, request_id: 'offline-invoices', contract_schema_version: WIRE })
+ }
+ const paginatedInvoices = await fetchOpsCustomerResource(identity, 'invoices', undefined, 'opaque+/=')
+ assert.equal(paginatedInvoices.page.has_more, false)
  console.log('Transport, notification contract and signed customer assertion regressions passed')
 const input = { resolution_id: 'resolution_audit_price', offer_reference: 'offer_audit_price',
   annual_consumption_kwh: 1200, start_date: '2026-10-06', price_option_reference: 'option_audit_price',
@@ -131,17 +199,135 @@ assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote')
  process.env.NEXT_PUBLIC_SUPABASE_URL='https://audit.invalid'
  process.env.SUPABASE_SERVICE_ROLE_KEY='offline-result-service-key'
  process.env.WEBSITE_RESULT_TOKEN_SECRET='offline-result-secret-'.repeat(3)
- globalThis.__auditResultDb={from:()=>({upsert:async()=>({error:null})})}
+ const receiptWrites = []
+ globalThis.__auditResultDb = { from: () => ({
+  upsert: async (_rows, options) => { receiptWrites.push(options); return { error: null } },
+ }) }
  const receiptInput={submissionAttemptId:'22222222-2222-4222-8222-222222222222',userId:null,receivedAt:now,result:{checkout,applicationNumber:'APP-TEST',energyDirection:'consumption',signedAt:null}}
  const pendingToken=await createWebsiteApplicationResult(receiptInput)
  const pendingReceipt=await readWebsiteApplicationResultState(pendingToken)
  assert.equal(pendingReceipt.status,'verified')
  assert.equal(pendingReceipt.result.signedAt,null)
+ assert.equal(receiptWrites[1].ignoreDuplicates, true)
  assert.equal(Date.parse(pendingReceipt.expiresAt),Date.parse(now)+24*60*60*1000)
  assert.equal(await createWebsiteApplicationResult(receiptInput),pendingToken,'same attempt and immutable receipt must preserve the token')
+ const { default: SignupThanksPage } = await import('../app/(public)/teckna-avtal/tack/SignupThanksPage.tsx')
+ const pendingPage = renderToStaticMarkup(await SignupThanksPage({ searchParams: Promise.resolve({ result: pendingToken }) }))
+ assert.match(pendingPage, /<h1[^>]*>Din ansökan behandlas<\/h1>/)
+ assert.match(pendingPage, /Avtalet behandlas fortfarande\./)
+ assert.match(pendingPage, /Bekräftelse och leverantörsbyte vid inskickningen/)
+ assert.doesNotMatch(pendingPage, /Ditt avtal är klart|Ångerfristen löper till/)
+ const invalidPage = renderToStaticMarkup(await SignupThanksPage({ searchParams: Promise.resolve({ result: 'invalid' }) }))
+ assert.match(invalidPage, /Teckningen kan inte verifieras från länken/)
+ assert.doesNotMatch(invalidPage, /data-application-status=/)
+ const { GET: readSwitchStatus } = await import('../app/api/checkout/switch-status/route.ts')
+ globalThis.__auditSwitchStatus = (application, options) => {
+  assert.equal(application, 'APP-TEST')
+  assert.deepEqual(options, { includeEvents: false })
+  return { switch: null }
+ }
+ try {
+  const response = await readSwitchStatus(new Request(`https://gridex.se/api/checkout/switch-status?result_token=${encodeURIComponent(pendingToken)}`))
+  assert.equal(response.status, 200)
+  assert.match(response.headers.get('cache-control'), /private, no-store/)
+  const { data } = await response.json()
+  assert.equal(data.status, 'unknown')
+  assert.equal(data.terminal, false)
+  assert.match(data.label, /obekräftad/)
+ } finally {
+  delete globalThis.__auditSwitchStatus
+ }
+ const { GET: readApplicationStatus } = await import('../app/api/checkout/applications/[applicationId]/route.ts')
+ const compactStatus = { application_number: 'APP-TEST', status: 'processing', stage: 'queued', checkout, updated_at: '2026-10-06T20:00:00.123456+00:00' }
+ const saved = []
+ let statusReads = 0
+ let sourceUpdatedAt = compactStatus.updated_at
+ globalThis.__auditApplicationStatus = (application, options) => {
+  statusReads++
+  assert.equal(application, 'APP-TEST')
+  assert.deepEqual(options, { includeWebhookDiagnostics: false })
+  const snapshot = { ...compactStatus, updated_at: sourceUpdatedAt }
+  return { ...snapshot, raw: snapshot }
+ }
+ let storageError = null
+ globalThis.__auditSubmissionDb = { rpc: async (name, args) => {
+  assert.equal(name, 'gridex_sync_website_submission_status')
+  saved.push(args)
+  return { data: storageError ? null : true, error: storageError }
+ } }
+ try {
+  const receiptStatusUrl = new Request(`https://gridex.se/api/checkout/applications/APP-TEST?result_token=${encodeURIComponent(pendingToken)}`)
+  const response = await readApplicationStatus(receiptStatusUrl, { params: Promise.resolve({ applicationId: 'APP-TEST' }) })
+  assert.equal(response.status, 200)
+  assert.deepEqual((await response.json()).data, compactStatus)
+  assert.deepEqual(saved, [{
+   p_application_number: 'APP-TEST',
+   p_source_updated_at: compactStatus.updated_at,
+   p_status: 'processing',
+   p_workflow_state: 'queued',
+   p_customer_number: null,
+   p_contract_status: null,
+   p_switch_status: null,
+   p_snapshot: compactStatus,
+  }])
+  const wrongReceipt = await readApplicationStatus(receiptStatusUrl, { params: Promise.resolve({ applicationId: 'APP-OTHER' }) })
+  assert.equal(wrongReceipt.status, 404)
+  assert.equal(statusReads, 1)
+  for (const unavailableVersion of [null, '2026-10-06T20:00:00']) {
+   sourceUpdatedAt = unavailableVersion
+   const unversioned = await readApplicationStatus(receiptStatusUrl, { params: Promise.resolve({ applicationId: 'APP-TEST' }) })
+   assert.equal(unversioned.status, 200)
+   assert.equal(saved.length, 1)
+  }
+  sourceUpdatedAt = '2026-10-06T20:00:00.123457+00:00'
+  storageError = { message: 'Simulated write failure' }
+  const auditErrors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => auditErrors.push(args)
+  try {
+   const failedSync = await readApplicationStatus(receiptStatusUrl, { params: Promise.resolve({ applicationId: 'APP-TEST' }) })
+   assert.equal(failedSync.status, 200)
+   assert.equal((await failedSync.json()).data.updated_at, sourceUpdatedAt)
+   assert.equal(saved[1].p_source_updated_at, sourceUpdatedAt)
+   assert.equal(auditErrors[0][0], 'website_application_status_audit_sync_failed')
+   assert.match(auditErrors[0][1].message, /Simulated write failure/)
+  } finally {
+   console.error = originalConsoleError
+  }
+ } finally {
+  delete globalThis.__auditApplicationStatus
+  delete globalThis.__auditSubmissionDb
+ }
  await assert.rejects(()=>createWebsiteApplicationResult({...receiptInput,receivedAt:undefined}),/timestamp/)
  await assert.rejects(()=>createWebsiteApplicationResult({...receiptInput,receivedAt:'invalid'}),/timestamp/)
  delete process.env.WEBSITE_RESULT_TOKEN_SECRET
+ const legacyRow = {
+  public_result: receiptInput.result,
+  expires_at: pendingReceipt.expiresAt,
+  submission_attempt_id: receiptInput.submissionAttemptId,
+  user_id: uid,
+ }
+ let storedLink = legacyRow
+ globalThis.__auditResultDb = { from: table => {
+  assert.equal(table, 'website_application_result_links')
+  return {
+  select(fields) {
+   assert.match(fields, /submission_attempt_id,user_id/)
+   return this
+  },
+  eq() { return this },
+  maybeSingle: async () => ({ data: storedLink, error: null }),
+  }
+ } }
+ const legacyReceipt = await readWebsiteApplicationResultState('A'.repeat(32))
+ assert.equal(legacyReceipt.status, 'verified')
+ assert.equal(legacyReceipt.source, 'database')
+ assert.equal(legacyReceipt.submissionAttemptId, receiptInput.submissionAttemptId)
+ assert.equal(legacyReceipt.userId, uid)
+ storedLink = { ...legacyRow, expires_at: '2000-01-01T00:00:00Z' }
+ assert.equal((await readWebsiteApplicationResultState('A'.repeat(32))).status, 'expired')
+ storedLink = null
+ assert.equal((await readWebsiteApplicationResultState('A'.repeat(32))).status, 'invalid')
  console.log('Unsigned processing receipt remains valid without inventing a signature; retries preserve its token')
  assert.equal(received.checkout.page_state,'processing');assert.throws(()=>assertAcceptedApplication(received))
  const deceptivelyAccepted={...received,status:'accepted',customer_number:'C-TEST',contract_status:'signed',signed_at:'2026-10-06T10:00:00Z',signature_snapshot_sha256:'a'.repeat(64),workflow_state:'canonical_data_committed',communication:{source_of_truth:'communication_logs'}}
@@ -157,16 +343,128 @@ assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote')
  assert.equal((await service.getCanonicalCustomerResource('invoices')).data[0].total_amount,null)
  globalThis.__auditRegression.resource={invoices:[{invoice_reference:'invoice_abcdefghijklmnopqrstuvwx',status:'paid',amount_inc_vat:0,vat_amount:0}]}
  assert.equal((await service.getCanonicalCustomerResource('invoices')).data[0].total_amount,0)
+ const {GET: meteringGet} = await import('../app/api/web/customer/metering-values/route.ts')
+ globalThis.__auditRegression.fetchResource = fetchOpsCustomerResource
+ const meteringPath = 'https://gridex.invalid/api/web/customer/metering-values'
+ const dates = { from: '2026-11-01T00:00:00Z', to: '2026-11-02T00:00:00Z' }
+ const meterA = '735999123456789012'
+ const meterB = '735999123456789013'
+ const nextCursor = 'next+/='
+ let meterCalls = 0
+ globalThis.fetch = async (url, init) => {
+  const request = new URL(url)
+  assert.equal(request.pathname, '/api/v1/customer/metering-values')
+  assert.equal(new Headers(init.headers).get('x-gridex-auth-user-id'), uid)
+  const pageIndex = meterCalls++
+  const firstPage = pageIndex === 0
+  assert.deepEqual(Object.fromEntries(request.searchParams), {
+   ...dates, facility_id: pageIndex < 2 ? meterA : meterB, limit: '2', ...(pageIndex === 1 ? { cursor: nextCursor } : {}),
+  })
+  const data = ['point_one', 'point_two'].map((point, index) => ({
+   metering_value_reference: `value_${index}`, metering_point_reference: point,
+   period_start: dates.from, period_end: '2026-11-01T00:15:00Z', resolution: 'quarter',
+   status: 'stored', quality_status: index ? 'estimated' : 'measured', quantity_kwh: pageIndex + 2,
+  }))
+  return Response.json({ data, page: { returned: 2, limit: 2, offset: 0, has_more: firstPage,
+   next_cursor: firstPage ? nextCursor : null }, request_id: 'offline-metering', contract_schema_version: WIRE })
+ }
+ for (const invalid of ['from=2026-02-30', 'cursor=x&cursor=y', 'customer_number=other',
+  'from=2026-11-02&to=2026-11-01', 'facility_id=unknown', 'limit=101']) {
+  assert.equal((await meteringGet(new Request(`${meteringPath}?${invalid}`))).status, 400)
+ }
+ assert.equal(meterCalls, 0)
+ const getMetering = async (facility_id, cursor) => {
+  const query = new URLSearchParams({ ...dates, facility_id, limit: '2', ...(cursor ? { cursor } : {}) })
+  const response = await meteringGet(new Request(`${meteringPath}?${query}`))
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+  return response.json()
+ }
+ const firstMetering = await getMetering(meterA)
+ assert.deepEqual(firstMetering.page, { hasMore: true, nextCursor })
+ assert.deepEqual(firstMetering.data.map(row => [row.metering_point_reference, row.resolution, row.status, row.quality]),
+  [['point_one', 'quarter', 'stored', 'measured'], ['point_two', 'quarter', 'stored', 'estimated']])
+ const secondMetering = await getMetering(meterA, firstMetering.page.nextCursor)
+ assert.deepEqual(secondMetering.page, { hasMore: false, nextCursor: null })
+ assert.ok(secondMetering.data.every(row => row.quantity_kwh === 3))
+ const otherFacility = await getMetering(meterB)
+ assert.ok(otherFacility.data.every(row => row.quantity_kwh === 4))
+ assert.equal(meterCalls, 3)
+ delete globalThis.__auditRegression.fetchResource
  globalThis.__auditRegression.bundle={profile:{email:user.email},contracts:[],sites:[],invoices:[],documents:[],legalAcceptances:[],powersOfAttorney:[],switchStatus:null,customerStatus:null,dataQuality:null,meteringValues:[],events:[],notifications:[]}
  let profileReads=0
  const profileFrom=globalThis.__auditRegression.db.from
  globalThis.__auditRegression.db.from=(...args)=>{profileReads++;return profileFrom(...args)}
  const overview=await service.getCustomerPortalOverview();assert.ok(overview.authoritative);assert.ok(overview.supportError)
  assert.equal(profileReads,1,'the overview and optional support reuse one verified profile identity')
+ const {default: ContractsPage} = await import('../app/dashboard/contracts/page.tsx')
+ const contractBundle = globalThis.__auditRegression.bundle
+ for (const [terms, direction, renewal] of [
+  [{ energy_direction: 'production', auto_renew_enabled: true }, 'Produktion', 'Ja'],
+  [{ energy_direction: 'consumption', auto_renew_enabled: false }, 'Förbrukning', 'Nej'],
+  [{}, 'Inväntas', 'Inväntas'],
+ ]) {
+  contractBundle.contracts = [{ contract_reference: 'contract_terms', status: 'active', ...terms }]
+  const html = renderToStaticMarkup(await ContractsPage())
+  assert.match(html, new RegExp(`Energiriktning</[^>]+><[^>]+>${direction}</`))
+  assert.match(html, new RegExp(`Automatisk förlängning</[^>]+><[^>]+>${renewal}</`))
+ }
  globalThis.__auditRegression.db.from=()=>({update(){return this},eq(){return this},lt:async()=>({error:{message:'Modeled outage'}})})
  const {GET}=await import('../app/auth/confirm/route.ts');const {NextRequest}=await import('next/server.js')
  const callback=await GET(new NextRequest('https://gridex.invalid/auth/confirm?token_hash=offline&type=email'))
  assert.equal(callback.status,307);assert.equal(new URL(callback.headers.get('location')).searchParams.get('portal_link'),'pending')
+ const db = globalThis.__auditRegression.db
+ const queued = { user_id: user.id, email: user.email, otp_type: 'email', status: 'pending', attempt_count: 0, max_attempts: 5 }
+ let attempts = 0
+ let persistedJob = null
+ db.rpc = async (name, args) => {
+  assert.equal(args.p_user_id, user.id)
+  if (name === 'gridex_enqueue_auth_profile_v1') {
+   persistedJob = { ...queued }
+   return { data: persistedJob, error: null }
+  }
+  assert.equal(name, 'gridex_commit_auth_profile_v1')
+  persistedJob.status = 'completed'
+  return { data: true, error: null }
+ }
+ db.from = (table) => {
+  assert.equal(table, 'auth_profile_sync_jobs')
+  return {
+   update() { return this }, select() { return this }, eq() { return this }, in() { return this },
+   lte() { return this }, order() { return this }, limit() { return this },
+   lt: async () => ({ error: null }),
+   maybeSingle: async () => ++attempts === 1
+    ? { data: null, error: { message: 'Modeled claim failure' } }
+    : { data: { user_id: user.id }, error: null },
+   returns: async () => ({ data: [persistedJob], error: null }),
+  }
+ }
+ const claimFailure = await GET(new NextRequest('https://gridex.invalid/auth/confirm?token_hash=offline&type=email&next=%2Fmina-sidor'))
+ assert.equal(claimFailure.status, 307)
+ assert.equal(new URL(claimFailure.headers.get('location')).pathname, '/mina-sidor')
+ assert.equal(new URL(claimFailure.headers.get('location')).searchParams.get('portal_link'), 'pending')
+ assert.equal(persistedJob.status, 'pending')
+ const { processAuthProfileSyncJobs } = await import('../lib/customerPortal/authProfileSync.ts')
+ assert.deepEqual(await processAuthProfileSyncJobs(), { processed: 1, completed: 1, failed: 0 })
+ assert.equal(persistedJob.status, 'completed')
+ let recoverySession = null
+ let recoveryReads = 0
+ globalThis.__auditRegression.observeOnboardingResume = () => { recoveryReads++ }
+ globalThis.__auditRegression.db.auth.verifyOtp = async ({ type }) => {
+  assert.equal(type, 'recovery')
+  return { data: { session: recoverySession }, error: null }
+ }
+ globalThis.__auditRegression.db.auth.getUser = async () => { recoveryReads++; throw Error('Redundant Auth read') }
+ globalThis.__auditRegression.db.from = () => { recoveryReads++; throw Error('Portal work must not block recovery') }
+ const recoveryUrl = 'https://gridex.invalid/auth/confirm?token_hash=offline&type=recovery'
+ const missingRecoverySession = await GET(new NextRequest(recoveryUrl))
+ assert.equal(new URL(missingRecoverySession.headers.get('location')).pathname, '/login/forgot-password')
+ recoverySession = { user }
+ const recovery = await GET(new NextRequest(recoveryUrl))
+ assert.equal(recovery.status, 307)
+ assert.equal(new URL(recovery.headers.get('location')).pathname, '/login/reset-password')
+ assert.equal(recoveryReads, 0)
+ delete globalThis.__auditRegression.observeOnboardingResume
  console.log('Checkout processing, portal DTOs, zero vs unknown invoices, support isolation and post-OTP database outage regressions passed')
  globalThis.__auditProbes=[]
  const {checkOpsCustomerPortalReadiness}=await import('../lib/ops/portalReadiness.ts')
@@ -199,3 +497,52 @@ assertWebsiteResponse('WebsiteQuoteResponse', payload, '/api/v1/website/quote')
  await assert.rejects(()=>createAgreementAction(new FormData()),/avvecklad/)
  console.log('Separate support readiness, fail-closed rate limiting and durable provider idempotency regressions passed')
 } finally { globalThis.fetch=originalFetch }
+
+{
+ const { updateCustomerProfileAction } = await import('../app/dashboard/profile/actions.ts')
+ const operations = []
+ const baseline = { userId: 'synthetic-user', first_name: 'Tidigare', last_name: '', phone: '0700000000', language_code: 'sv' }
+ let localError = null
+ let remoteError = null
+ globalThis.__auditRegression = { db: {
+  auth: { getUser: async () => ({ data: { user: { id: baseline.userId } } }) },
+  from: table => ({
+   update(patch) { operations.push({ table, patch }); return this },
+   eq(field, id) { assert.equal(field, 'user_id'); assert.equal(id, baseline.userId); return this },
+   select() { return this },
+   async maybeSingle() { return { data: localError ? null : { user_id: baseline.userId }, error: localError } },
+  }),
+ } }
+ globalThis.__profileUpdate = {
+  async submit({ profile }) {
+   if (remoteError) throw remoteError
+   operations.push({ target: 'ops', profile })
+   return { ok: true, data: { profile_updated: true } }
+  },
+ }
+ const form = new FormData()
+ for (const [key, value] of Object.entries({ first_name: 'Ny', last_name: '', phone: baseline.phone, language_code: 'sv', client_operation_id: 'profile-update:offline' })) {
+  form.set(key, value)
+ }
+ const run = (status, from = baseline) =>
+  assert.rejects(updateCustomerProfileAction(from, form), { path: '/dashboard/profile?status=' + status })
+ await run('profile-updated')
+ assert.deepEqual(operations, [
+  { target: 'ops', profile: { first_name: 'Ny' } },
+  { table: 'customer_profiles', patch: { first_name: 'Ny' } },
+ ])
+ operations.length = 0
+ await run('profile-reload', { ...baseline, userId: 'other-account' })
+ assert.deepEqual(operations, [])
+ form.set('first_name', baseline.first_name)
+ await run('profile-unchanged')
+ assert.deepEqual(operations, [])
+ form.set('phone', '70+1234567')
+ remoteError = Object.assign(new Error('Invalid phone number'), { name: 'OpsError', status: 422, details: { field: 'phone' } })
+ await run('profile-invalid-phone')
+ assert.deepEqual(operations, [])
+ remoteError = null
+ localError = { code: 'synthetic_error' }
+ await run('profile-local-sync-failed')
+ console.log('Profile delta, field error and local synchronization checks passed')
+}

@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
+import { Suspense } from "react";
+import CasePages from "@/support/components/CasePages";
+import AssigneeSelect from "@/support/components/AssigneeSelect";
+import { listAssigneeOptions, type AssigneeOptions } from "@/support/lib/assignees";
+import { CASE_PAGE_SIZE } from "@/support/lib/case-pages";
 import { requireSupportSession } from "@/support/lib/session";
 import {
   STATUS,
@@ -9,7 +14,7 @@ import {
 } from "@/support/lib/presentation";
 import ActionForm from "@/support/components/ActionForm";
 import { caseCommand } from "@/support/app/actions";
-import { StaffApiError } from "@/staff-api/client";
+import { StaffApiError, type StaffApiClient } from "@/staff-api/client";
 import AttachmentUpload from '../../../../../../components/support/AttachmentUpload';
 
 export default async function Case({
@@ -18,31 +23,33 @@ export default async function Case({
 }: {
   params: Promise<{ reference: string }>;
   searchParams: Promise<{
-    events_cursor?: string;
-    attachments_cursor?: string;
+    events_cursor?: string | string[];
+    attachments_cursor?: string | string[];
   }>;
 }) {
   const { api } = await requireSupportSession();
   const { reference } = await params;
   const search = await searchParams;
+  const eventsCursor = typeof search.events_cursor === "string" ? search.events_cursor : undefined;
+  const attachmentsCursor = typeof search.attachments_cursor === "string" ? search.attachments_cursor : undefined;
+  const retryQuery = new URLSearchParams();
+  if (eventsCursor) retryQuery.set("events_cursor", eventsCursor);
+  if (attachmentsCursor) retryQuery.set("attachments_cursor", attachmentsCursor);
+  const assigneeRetryHref = `/cases/${encodeURIComponent(reference)}${retryQuery.size ? `?${retryQuery}` : ""}`;
   const item = (await api.getCase(reference)).data;
-  const [events, attachments, users] = await Promise.all([
-    search.events_cursor
-      ? api.listEvents(reference, { limit: 25, cursor: search.events_cursor })
+  const [events, attachments] = await Promise.all([
+    eventsCursor
+      ? api.listEvents(reference, { limit: CASE_PAGE_SIZE, cursor: eventsCursor })
       : Promise.resolve({ data: item.events, page: item.events_page }),
-    search.attachments_cursor
+    attachmentsCursor
       ? api.listAttachments(reference, {
-          limit: 25,
-          cursor: search.attachments_cursor,
+          limit: CASE_PAGE_SIZE,
+          cursor: attachmentsCursor,
         })
       : Promise.resolve({
           data: item.attachments,
           page: item.attachments_page,
         }),
-    api.listUsers({ page_size: 100, status: "active" }).catch((error) => {
-      if (error instanceof StaffApiError && error.status === 403) return null;
-      throw error;
-    }),
   ]);
   return (
     <>
@@ -71,99 +78,16 @@ export default async function Case({
               </Link>
             </p>
           </section>
-          <section className="panel">
-            <h2>Historik</h2>
-            <ol className="timeline">
-              {events.data.map((event) => (
-                <li
-                  key={event.event_reference}
-                  className={`event ${event.visibility === "internal" ? "internal" : ""}`}
-                >
-                  <div className="row small">
-                    <strong>
-                      {event.author_type === "customer"
-                        ? "Kunden"
-                        : event.event_type.includes("phone")
-                          ? "Telefonsamtal"
-                          : event.visibility === "internal"
-                            ? "Intern anteckning"
-                            : "Svar till kund"}
-                    </strong>
-                    <span className="muted">{date(event.created_at)}</span>
-                  </div>
-                  <p className="pre">{event.message}</p>
-                  <span
-                    className={`badge ${event.visibility === "internal" ? "internal" : ""}`}
-                  >
-                    {event.visibility === "internal"
-                      ? "Endast personal"
-                      : "Synligt för kunden"}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            {events.data.length === 0 ? (
-              <p className="muted">Ingen historik ännu.</p>
-            ) : null}
-            <div className="pager">
-              {search.events_cursor ? (
-                <Link href={`/cases/${reference}`}>Senaste händelserna</Link>
-              ) : null}
-              {events.page.has_more ? (
-                <Link
-                  className="button"
-                  href={`/cases/${reference}?${new URLSearchParams({ events_cursor: events.page.next_cursor! })}`}
-                >
-                  Äldre händelser →
-                </Link>
-              ) : null}
-            </div>
-          </section>
-          <section className="panel">
-            <h2>Bilagor</h2>
-            {!['closed', 'resolved', 'cancelled'].includes(item.status) ? <AttachmentUpload endpoint={`/cases/${reference}/attachments`} staff /> : null}
-            <ul className="attachments">
-              {attachments.data.map((file) => (
-                <li className="row" key={file.attachment_reference}>
-                  <div>
-                    <strong>{file.file_name}</strong>
-                    <p className="small muted">
-                      {Math.ceil(file.byte_size / 1024)} kB ·{" "}
-                      {file.visibility === "internal"
-                        ? "Endast personal"
-                        : "Synlig för kunden"}
-                    </p>
-                  </div>
-                  {file.scan_status === "released" ? (
-                    <a
-                      className="button"
-                      href={`/cases/${reference}/attachments/${file.attachment_reference}`}
-                    >
-                      Ladda ner
-                    </a>
-                  ) : (
-                    <span className="badge">
-                      {file.scan_status === "rejected"
-                        ? "Stoppad i kontrollen"
-                        : "Kontrolleras"}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {attachments.data.length === 0 ? (
-              <p className="muted">Inga bilagor.</p>
-            ) : null}
-            {attachments.page.has_more ? (
-              <div className="pager">
-                <Link
-                  href={`/cases/${reference}?${new URLSearchParams({ attachments_cursor: attachments.page.next_cursor! })}`}
-                >
-                  Fler bilagor →
-                </Link>
-              </div>
-            ) : null}
-          </section>
+          <CasePages
+            key={reference}
+            reference={reference}
+            firstEvents={events}
+            firstAttachments={attachments}
+            eventsCursor={eventsCursor ?? null}
+            attachmentsCursor={attachmentsCursor ?? null}
+            upload={!['closed', 'resolved', 'cancelled'].includes(item.status)
+              ? <AttachmentUpload endpoint={`/cases/${reference}/attachments`} staff /> : null}
+          />
         </div>
         <aside>
           <section className="panel">
@@ -261,33 +185,41 @@ export default async function Case({
               </label>
             </ActionForm>
           </section>
-          {users ? (
-            <section className="panel">
-              <h2>Ansvarig</h2>
-              <ActionForm
-                action={caseCommand.bind(null, reference, "assignee")}
-                idempotencyKey={randomUUID()}
-                submit="Tilldela ärendet"
-              >
-                <label>
-                  Medarbetare
-                  <select
-                    name="assignee_user_id"
-                    defaultValue={item.assignee_user_id ?? ""}
-                  >
-                    <option value="">Ej tilldelat</option>
-                    {users.data.map((u) => (
-                      <option key={u.user_id} value={u.user_id}>
-                        {u.full_name ?? u.email ?? "Medarbetare"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </ActionForm>
-            </section>
-          ) : null}
+          <Suspense fallback={<p role="status">Hämtar medarbetare…</p>}>
+            <CaseAssignee api={api} reference={reference} assigneeId={item.assignee_user_id} retryHref={assigneeRetryHref} />
+          </Suspense>
         </aside>
       </div>
     </>
+  );
+}
+
+async function CaseAssignee({ api, reference, assigneeId, retryHref }: {
+  api: StaffApiClient; reference: string; assigneeId: string | null; retryHref: string
+}) {
+  let options: AssigneeOptions;
+  try {
+    options = await listAssigneeOptions(api, 1);
+  } catch (error) {
+    if (error instanceof StaffApiError && error.status === 403) return null;
+    return (
+      <section className="panel">
+        <h2>Ansvarig</h2>
+        <p role="alert">Medarbetarna kunde inte hämtas just nu.</p>
+        <a href={retryHref}>Försök hämta medarbetare igen</a>
+      </section>
+    );
+  }
+  return (
+    <section className="panel">
+      <h2>Ansvarig</h2>
+      <ActionForm
+        action={caseCommand.bind(null, reference, "assignee")}
+        idempotencyKey={randomUUID()}
+        submit="Tilldela ärendet"
+      >
+        <AssigneeSelect key={assigneeId ?? ""} initial={options} assigneeId={assigneeId} />
+      </ActionForm>
+    </section>
   );
 }

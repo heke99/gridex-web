@@ -27,7 +27,7 @@ const operationId = '33333333-3333-4333-8333-333333333333'
 // the repository's TypeScript VM convention. Only Auth, OPS and rate limiting
 // are replaced; first-link activation is isolated and tested separately. No
 // production account, network, email or database is reachable.
-function harness(route, { authenticated = true } = {}) {
+function harness(route, { authenticated = true, clock = Date, syncSummary } = {}) {
   const state = { attempts: [], mutations: new Map(), priceReads: [], rateKeys: [] }
   class CustomerPortalAccessError extends Error {
     constructor() { super('Du behöver logga in.'); this.status = 401; this.code = 'unauthorized' }
@@ -44,6 +44,11 @@ function harness(route, { authenticated = true } = {}) {
     const key = `${kind}:${identity.userId}:${input.idempotencyKey}`
     state.attempts.push({ kind, input: structuredClone(input) })
     if (!state.mutations.has(key)) state.mutations.set(key, structuredClone(input))
+    if (kind === 'move-out') return {
+      ok: true, status: 'submitted',
+      data: { ...input.moveOut, status: 'submitted', completion_reference: 'verified-move-receipt' },
+    }
+    if (kind === 'sync' && syncSummary) return { ok: true, status: 'synced', synced: { summary: syncSummary } }
     return { ok: true, status: 'accepted', reference: key }
   }
   const boundaries = {
@@ -121,7 +126,7 @@ function harness(route, { authenticated = true } = {}) {
         }
         throw new Error(`Unexpected boundary import: ${specifier}`)
       },
-      Request, Response, Headers, ReadableStream, TextEncoder, TextDecoder,
+      Date: clock, Request, Response, Headers, ReadableStream, TextEncoder, TextDecoder,
       AbortSignal, AbortController, Uint8Array, ArrayBuffer, URL,
       Error, TypeError, RangeError, SyntaxError, crypto: webcrypto,
       console, performance, setTimeout, clearTimeout,
@@ -182,7 +187,7 @@ const routes = [
   // keeps testing the existing recovery path, whose identity comes from Auth.
   { path: 'customer-portal/sync', body: { customer_number: undefined } },
   { path: 'customer/profile-update', body: { profile: { invoice_email: 'invoice@example.invalid' } } },
-  { path: 'customer/move-out', body: { move_out: { facility_reference: 'facility-opaque-1', requested_move_out_date: '2026-12-01' } } },
+  { path: 'customer/move-out', body: { move_out: { facility_reference: 'other-site', requested_move_out_date: '2026-12-01' } } },
   { path: 'customer/notifications/read', body: { notification_ids: ['notification-opaque-1'] } },
   { path: 'market-price/current', public: true, body: { resolution_id: 'resolution-opaque-1' } },
 ]
@@ -209,6 +214,65 @@ function noUpstreamWork(state) {
   assert.equal(state.mutations.size, 0, 'rejected input creates no OPS mutation')
   assert.equal(state.priceReads.length, 0, 'rejected input creates no OPS price read')
 }
+
+test('customer sync rejects complete mixed or oversized batches before writing', async () => {
+  const route = { path: 'customer/sync', body: {} }
+  const { POST, state } = harness('app/api/web/customer/sync/route.ts')
+  const facility = { facility_reference: 'facility-synthetic' }
+  const document = { document_reference: 'document-synthetic', document_type: 'invoice' }
+  const submit = fields => POST(request(route, { body: JSON.stringify({ client_operation_id: operationId, ...fields }) }))
+  for (const [fields, field] of [
+    [{ facility_data: Array(21).fill(facility), documents: [document] }, 'facility_data'],
+    [{ facility_data: [facility], documents: [document, { document_reference: 'missing-type' }] }, 'documents[1]'],
+    [{ facility_data: [facility, null], documents: [document] }, 'facility_data[1]'],
+    [{ facility_data: facility, legal_acceptances: [{}] }, 'legal_acceptances[0]'],
+    [{ facility_data: facility, documents: document }, 'documents'],
+  ]) {
+    const response = await submit(fields)
+    assert.equal(response.status, 400)
+    const payload = await response.json()
+    assert.equal(payload.error.field, field)
+    assert.equal(state.attempts.length, 0)
+  }
+  assert.equal((await submit({ facility_data: Array(20).fill(facility), documents: [document] })).status, 200)
+  assert.equal(state.attempts[0].input.facilityData.length, 20)
+  assert.equal(state.attempts[0].input.documents.length, 1)
+})
+
+test('facility sync reports the OPS result for the requested facility', async () => {
+  const route = { path: 'customer/sync', body: { facility_data: { facility_id: '735999111222333444' } } }
+  for (const [summary, expected] of [
+    [{ processed: 1, updated: 1, skipped: 0 }, 'updated'],
+    [{ processed: 1, updated: 0, skipped: 0 }, 'unchanged'],
+    [{ processed: 1, updated: 0, skipped: 1 }, 'skipped'],
+    [{ processed: 0, updated: 0, skipped: 0 }, 'unconfirmed'],
+  ]) {
+    const { POST, state } = harness('app/api/web/customer/sync/route.ts', { syncSummary: { facility_data: summary } })
+    const response = await POST(request(route))
+    assert.equal(response.status, 200)
+    assert.equal((await response.json()).facilityOutcome, expected)
+    assert.equal(state.attempts.length, 1)
+  }
+})
+
+test('move-out rejects day 731 before OPS across the Stockholm midnight boundary', async () => {
+  const route = routes.find(item => item.path === 'customer/move-out')
+  for (const [instant, day730, day731] of [
+    ['2026-11-22T22:59:59Z', '2028-11-21', '2028-11-22'],
+    ['2026-11-22T23:00:00Z', '2028-11-22', '2028-11-23'],
+  ]) {
+    const clock = class extends Date { constructor(value = instant) { super(value) } }
+    const { POST, state } = harness('app/api/web/customer/move-out/route.ts', { clock })
+    const submit = date => POST(request(route, { body: JSON.stringify({
+      client_operation_id: operationId,
+      move_out: { facility_reference: 'facility-opaque-1', requested_move_out_date: date },
+    }) }))
+    assert.equal((await submit(day731)).status, 400)
+    assert.equal(state.attempts.length, 0)
+    assert.equal((await submit(day730)).status, 200)
+    assert.equal(state.attempts.length, 1)
+  }
+})
 
 for (const route of routes) {
   const file = `app/api/web/${route.path}/route.ts`
@@ -275,12 +339,22 @@ for (const route of routes) {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const response = await POST(request(route))
         assert.equal(response.status, 200)
+        if (route.path === 'customer/move-out') {
+          const payload = await response.json()
+          assert.deepEqual(payload.moveOutReceipt, {
+            completion_reference: 'verified-move-receipt', facility_reference: 'other-site',
+            requested_move_out_date: '2026-12-01', status: 'submitted',
+          })
+        }
       }
       assert.equal(state.attempts.length, 2)
       assert.equal(state.mutations.size, 1, 'the OPS fixture commits one write for two identical operation IDs')
       for (const attempt of state.attempts) {
         assert.deepEqual(attempt.input.identity, verifiedIdentity)
         assert.equal(attempt.input.idempotencyKey, operationId)
+        if (route.path === 'customer/move-out') {
+          assert.equal(attempt.input.moveOut.facility_reference, 'other-site')
+        }
         if (route.path === 'customer-portal/sync') {
           assert.equal(attempt.input.customerNumber, verifiedIdentity.customerNumber)
           assert.equal(attempt.input.externalCustomerId, verifiedIdentity.externalCustomerId)

@@ -1,3 +1,4 @@
+import { CHECKOUT_STREET_TOO_LONG, normalizeCheckoutStreet } from "@/lib/website/checkoutAddress";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -13,7 +14,7 @@ import {
   buildOpsCustomerApplicationPayload,
   createExternalApplicationId,
   createExternalCustomerId,
-  fetchOpsPublicContractsFresh,
+  fetchOpsPublicContractsSnapshot,
   getOpsClientStatus,
   hashIp,
   isOpsError,
@@ -25,7 +26,10 @@ import {
   type OpsWebsitePowerOfAttorneyInput,
 } from "@/lib/ops/client";
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from "@/lib/ops/contract";
+import { getGridexApiBaseUrl } from "@/lib/ops/config";
 import { checkRateLimit } from "@/lib/security/rateLimit";
+import { invoiceContactErrors } from "@/lib/website/invoiceContact";
+import { lockedLegalDocumentLinks } from "@/lib/website/lockedLegalDocumentLinks";
 import type { SignupContractOption } from "@/lib/website/signupContractOption";
 
 import {
@@ -59,7 +63,7 @@ import {
   normalizePhoneToE164,
 } from "@/lib/website/signupValidation";
 import { isStrictCalendarDate } from "@/lib/website/businessDate";
-import { parseRequestedStartSelection } from "@/lib/website/requestedStart";
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from "@/lib/website/requestedStart";
 import { matchesGridexWebsiteCheckoutPolicy } from "@/lib/website/checkoutPolicy";
 import { checkoutFaqItems } from "@/lib/content/faq";
 import {
@@ -108,6 +112,14 @@ function getClientIpFromHeaders(h: Headers): string | null {
   return null;
 }
 
+function legalDocumentOrigin(): string | null {
+  try {
+    return new URL(getGridexApiBaseUrl()).origin;
+  } catch {
+    return null;
+  }
+}
+
 function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
   return {
     name: item.name,
@@ -134,7 +146,6 @@ function toSignupContractOption(item: OpsPublicContract): SignupContractOption {
     pricingVisibility: item.pricing_visibility ?? {},
     pricingComponents: sanitizePricingComponentsBeforeAreaResolution(item.pricing_components, item.type)
       .filter((component) => component.website_card_visible),
-    priceOptions: item.price_options ?? [],
     validFrom: item.valid_from ?? null,
     validTo: item.valid_to ?? null,
     bindingPeriodMonths: item.binding_period_months ?? null,
@@ -185,7 +196,7 @@ function errorText(code?: string) {
     case "consent":
       return "Du behöver godkänna villkor, prisvillkor och övriga obligatoriska godkännanden för att teckna elavtal.";
     case "legal_changed":
-      return "Villkoren har uppdaterats sedan du öppnade teckningen. Uppdatera sidan, granska de aktuella villkoren och godkänn dem igen.";
+      return "Villkoren har ändrats. Räkna om priset och godkänn de aktuella villkoren.";
     case "legal_config":
       return "Avtalet kan inte tecknas online just nu. Kontakta kundservice så hjälper vi dig.";
     case "honeypot":
@@ -217,6 +228,8 @@ function errorText(code?: string) {
       return "Vi kunde inte teckna just nu. Försök igen om en stund eller kontakta kundservice.";
     case "live_disabled":
       return "Teckning online är inte aktiverad just nu.";
+    case "invalid_link":
+      return "Teckningslänken innehåller flera värden för samma val. Välj avtal igen nedan.";
     case "offer":
       return "Valt avtal kunde inte verifieras. Välj ett aktuellt avtal och försök igen.";
     case "snapshot":
@@ -512,30 +525,42 @@ async function getCurrentPortalAuth() {
 export default async function TecknaPage({
   searchParams,
 }: {
-  searchParams?: Promise<PageParams>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = (await searchParams) ?? {};
-  const status = getOpsClientStatus();
-  let contracts: OpsPublicContract[] = [];
-  let loadError: string | null = null;
-
-  if (status.configured) {
-    try {
-      contracts = (await loadWebsitePublicContractFeed({ context: "website signup" })).contracts;
-    } catch (error) {
-      logWebsitePublicContractFeedError("website signup", error);
-      loadError = "Vi kunde inte hämta aktuella elavtal just nu.";
-    }
-  } else {
-    loadError = "Teckning online är inte tillgänglig just nu.";
+  const rawParams = (await searchParams) ?? {};
+  if (Array.isArray(rawParams.offer) || Array.isArray(rawParams.checkout)) {
+    redirect("/teckna-avtal?error=invalid_link");
   }
-
-  const checkoutContext = params.checkout
-    ? await readWebsiteCheckoutContext(params.checkout).catch((error) => {
+  const params: PageParams = {
+    offer: rawParams.offer,
+    checkout: rawParams.checkout,
+    error: typeof rawParams.error === "string" ? rawParams.error : undefined,
+    utm_source: typeof rawParams.utm_source === "string" ? rawParams.utm_source : undefined,
+    utm_medium: typeof rawParams.utm_medium === "string" ? rawParams.utm_medium : undefined,
+    utm_campaign: typeof rawParams.utm_campaign === "string" ? rawParams.utm_campaign : undefined,
+  };
+  const status = getOpsClientStatus();
+  const catalog = status.configured
+    ? loadWebsitePublicContractFeed({ context: "website signup" }).then(
+        ({ contracts }) => ({ contracts, loadError: null }),
+        (error: unknown) => {
+          logWebsitePublicContractFeedError("website signup", error);
+          return { contracts: [], loadError: "Vi kunde inte hämta aktuella elavtal just nu." };
+        },
+      )
+    : { contracts: [], loadError: "Teckning online är inte tillgänglig just nu." };
+  const restoredCheckout = params.checkout
+    ? readWebsiteCheckoutContext(params.checkout).catch((error) => {
         console.error("[website signup] checkout context read failed", error);
         return null;
       })
     : null;
+
+  const [{ contracts, loadError }, checkoutContext, currentAuth] = await Promise.all([
+    catalog,
+    restoredCheckout,
+    getCurrentPortalAuth(),
+  ]);
   const requestedOffer = params.offer?.trim() || null;
   const requestedOfferExists = requestedOffer
     ? contracts.some((contract) => contract.offer_reference === requestedOffer)
@@ -543,23 +568,36 @@ export default async function TecknaPage({
   const restoredCheckoutContract = checkoutContext
     ? contracts.find((contract) => contract.offer_reference === checkoutContext.selectedOffer) ?? null
     : null;
-  const checkoutContextUsable = checkoutContext && restoredCheckoutContract
+  const savedQuote = checkoutContext?.quoteContext;
+  const savedStart = savedQuote?.requested_start_mode === "specific_date"
+    ? parseRequestedStartSelection({ mode: savedQuote.requested_start_mode, requestedDate: savedQuote.requested_start_date })
+    : null;
+  const savedStartExpired = savedStart?.ok === false && savedStart.code === "requested_start_date_past";
+  const checkoutContextUsable = checkoutContext && !savedStartExpired && restoredCheckoutContract &&
+    contractSupportsCustomerType(restoredCheckoutContract.customer_types, checkoutContext.customerType)
     ? checkoutContext
     : null;
   const selectedContract = restoredCheckoutContract ?? selectedContractFromParams(
     contracts,
     requestedOfferExists ? params : { ...params, offer: undefined },
   );
+  const initialCustomerType = checkoutContextUsable?.customerType ?? (
+    selectedContract &&
+    !contractSupportsCustomerType(selectedContract.customer_types, "private") &&
+    contractSupportsCustomerType(selectedContract.customer_types, "business")
+      ? "business"
+      : "private"
+  );
   const signupOptions = contracts.map(toSignupContractOption);
   const selectedValue = selectedContract?.offer_reference ?? "";
-  const currentAuth = await getCurrentPortalAuth();
   const signupReturnPath = `/teckna-avtal${params.checkout ? `?checkout=${encodeURIComponent(params.checkout)}` : params.offer ? `?offer=${encodeURIComponent(params.offer)}` : ''}`;
   const pageError =
     errorText(params.error) ??
     (params.checkout && !checkoutContext
       ? "Checkout-länken kunde inte återställas. Öppna prissteget igen för att återuppta teckningen."
       : null) ??
-    (checkoutContext && !restoredCheckoutContract ? errorText("price_changed") : null) ??
+    (savedStartExpired ? PAST_REQUESTED_START_MESSAGE : null) ??
+    (checkoutContext && !checkoutContextUsable ? errorText("price_changed") : null) ??
     (requestedOffer && !requestedOfferExists ? errorText("offer") : null);
   const canSubmit =
     status.configured &&
@@ -580,6 +618,7 @@ export default async function TecknaPage({
       errorMessage:
         errorText(code) ??
         "Teckningen kunde inte skickas just nu. Försök igen.",
+      ...(code === "legal_changed" ? { legalRefresh: { blockedVersion: normalizeText(formData.get("legal_bundle_version")) } } : {}),
       ...options,
     });
     const currentStatus = getOpsClientStatus();
@@ -599,29 +638,13 @@ export default async function TecknaPage({
     if (honeypot) return fail("honeypot");
 
     const selectedOffer = normalizeText(formData.get("selected_offer"));
-    let liveContracts: OpsPublicContract[];
-    try {
-      liveContracts = await fetchOpsPublicContractsFresh();
-    } catch (error) {
-      logWebsitePublicContractFeedError("website signup submit", error);
-      return fail(isTransientOpsError(error) ? "ops_unavailable" : "offer");
-    }
-    const offer = liveContracts.find(
-      (contract) =>
-        contract.offer_reference === selectedOffer && isPublicContractReady(contract),
-    );
-
-    if (!offer) return fail("offer");
-
+    if (!selectedOffer) return fail("offer");
     const customerType = parseWebsiteCustomerType(normalizeText(formData.get("customer_type")));
     if (!customerType) {
       return fail("validation", {
         step: 0,
         fieldErrors: { customer_type: "customer_type måste vara private eller business." },
       });
-    }
-    if (!contractSupportsCustomerType(offer.customer_types, customerType)) {
-      return fail("customer_type");
     }
     const firstName = normalizeText(formData.get("first_name"));
     const lastName = normalizeText(formData.get("last_name"));
@@ -638,30 +661,36 @@ export default async function TecknaPage({
     const email = normalizeEmail(formData.get("email"));
     const phoneInput = normalizeText(formData.get("phone"));
     const phone = normalizePhoneToE164(phoneInput);
-    const address = normalizeText(formData.get("address"));
+    const address = normalizeCheckoutStreet(formData.get("address"));
+    if (address === null) {
+      return {
+        ...fail("validation", { step: 0, fieldErrors: { address: CHECKOUT_STREET_TOO_LONG } }),
+        errorMessage: CHECKOUT_STREET_TOO_LONG,
+      };
+    }
     const postalCode = normalizePostalCodeForApplication(
       normalizeText(formData.get("postal_code")),
     );
     const city = normalizeText(formData.get("city"));
-    const billingSameAsContact =
-      String(formData.get("billing_same_as_contact") || "") === "on";
-    const invoiceEmail = billingSameAsContact
-      ? email
-      : normalizeEmail(formData.get("invoice_email"));
-    const billingStreet = billingSameAsContact
-      ? address
-      : normalizeText(formData.get("billing_street"));
-    const billingPostalCode = billingSameAsContact
-      ? postalCode
-      : normalizePostalCodeForApplication(
-          normalizeText(formData.get("billing_postal_code")),
-        );
-    const billingCity = billingSameAsContact
-      ? city
-      : normalizeText(formData.get("billing_city"));
-    const billingCountry = billingSameAsContact
-      ? "SE"
-      : normalizeText(formData.get("billing_country")).toUpperCase();
+    const legacySeparateBilling = formData.has("billing_same_as_contact") && formData.get("billing_same_as_contact") !== "on";
+    const separateInvoiceEmail = (formData.get("separate_invoice_email") ?? (legacySeparateBilling ? "on" : "")) === "on";
+    const separateBillingAddress = (formData.get("separate_billing_address") ?? (legacySeparateBilling ? "on" : "")) === "on";
+    const invoiceFields = {
+      invoice_email: normalizeEmail(formData.get("invoice_email")),
+      billing_street: normalizeText(formData.get("billing_street")),
+      billing_postal_code: normalizeText(formData.get("billing_postal_code")),
+      billing_city: normalizeText(formData.get("billing_city")),
+      billing_country: normalizeText(formData.get("billing_country")).toUpperCase(),
+    };
+    const billingErrors = invoiceContactErrors(invoiceFields, separateInvoiceEmail, separateBillingAddress);
+    if (Object.keys(billingErrors).length) {
+      return fail("validation", { step: 0, fieldErrors: billingErrors });
+    }
+    const invoiceEmail = separateInvoiceEmail ? invoiceFields.invoice_email : email;
+    const billingStreet = separateBillingAddress ? invoiceFields.billing_street : address;
+    const billingPostalCode = separateBillingAddress ? invoiceFields.billing_postal_code.replace(/\s/g, "") : postalCode;
+    const billingCity = separateBillingAddress ? invoiceFields.billing_city : city;
+    const billingCountry = separateBillingAddress ? invoiceFields.billing_country : "SE";
     const facilityId = normalizeText(formData.get("facility_id"));
     const meteringPointId = normalizeText(formData.get("metering_point_id"));
     const readingFrequency = normalizeText(formData.get("reading_frequency"));
@@ -681,12 +710,29 @@ export default async function TecknaPage({
         step: 0,
         fieldErrors: {
           [requestedStart.code === "requested_start_mode_invalid" ? "requested_start_mode" : "requested_start_date"]:
-            requestedStart.code,
+            requestedStart.code === "requested_start_date_past" ? PAST_REQUESTED_START_MESSAGE : requestedStart.code,
         },
       });
     }
     const requestedStartMode = requestedStart.value.mode;
     const requestedStartDate = requestedStart.value.requestedDate ?? "";
+
+    let liveContracts: OpsPublicContract[];
+    try {
+      ({ contracts: liveContracts } = await fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false }));
+    } catch (error) {
+      logWebsitePublicContractFeedError("website signup submit", error);
+      return fail(isTransientOpsError(error) ? "ops_unavailable" : "offer");
+    }
+    const offer = liveContracts.find(
+      (contract) =>
+        contract.offer_reference === selectedOffer && isPublicContractReady(contract),
+    );
+
+    if (!offer) return fail("offer");
+    if (!contractSupportsCustomerType(offer.customer_types, customerType)) {
+      return fail("customer_type");
+    }
 
     // The browser pins the exact immutable internal bundle version it displayed.
     // The external OPS API, however, must receive the tenant-scoped opaque
@@ -742,10 +788,8 @@ export default async function TecknaPage({
         legal_bundle_reference: legalBundleReference,
       });
       return fail("legal_changed", {
-        step: 1,
-        fieldErrors: {
-          legal: "Villkoren har uppdaterats. Uppdatera sidan och godkänn de aktuella dokumenten igen.",
-        },
+        step: 0,
+        legalRefresh: { contract: toSignupContractOption(offer) },
       });
     }
     const legalConsents = Object.fromEntries(
@@ -773,6 +817,15 @@ export default async function TecknaPage({
       (requirement) => requirement.requirement_code === "power_of_attorney",
     );
     const powerOfAttorneyRequired = powerOfAttorneyRequirement?.required === true;
+    if (powerOfAttorneyRequirement
+      ? lockedLegalDocumentLinks(offer.legal, powerOfAttorneyRequirement, legalDocumentOrigin()).length === 0
+      : offer.power_of_attorney_required === true
+    ) {
+      return fail("legal_config", {
+        step: 1,
+        fieldErrors: { legal: "Fullmakten för den här avtalsversionen går inte att öppna. Kontakta kundservice för hjälp med teckningen." },
+      });
+    }
     const acceptPowerOfAttorney = legalConsents.power_of_attorney === true;
     const groupedPowerOfAttorneyDocumentId =
       powerOfAttorneyRequirement?.primary_document_id ??
@@ -812,12 +865,6 @@ export default async function TecknaPage({
       !address ||
       !isValidSwedishPostalCode(postalCode) ||
       !city ||
-      !invoiceEmail ||
-      !isValidEmail(invoiceEmail) ||
-      !billingStreet ||
-      !isValidSwedishPostalCode(billingPostalCode) ||
-      !billingCity ||
-      !/^[A-Z]{2}$/.test(billingCountry) ||
       (installationDate && !isStrictCalendarDate(installationDate)) ||
       (currentSupplierUnknown &&
         Boolean(
@@ -928,12 +975,18 @@ export default async function TecknaPage({
     }
     const pricingQuoteToken = normalizeText(formData.get("pricing_snapshot_token"));
     const pricingSnapshotReference = normalizeText(formData.get("pricing_snapshot_reference"));
+    const currentResolutionToken =
+      checkoutContextUsable?.quoteContext.resolution_token === resolutionToken &&
+      checkoutContextUsable.pricingPreview.pricing_token === pricingQuoteToken
+        ? checkoutContextUsable.quoteContext.current_resolution_token
+        : undefined;
     let verifiedQuote: Awaited<ReturnType<typeof validateCanonicalWebsiteQuote>>;
     try {
       verifiedQuote = await validateCanonicalWebsiteQuote({
         pricingToken: pricingQuoteToken,
         pricingSnapshotReference,
         resolutionToken,
+        currentResolutionToken,
         contract: offer,
         customerType,
         estimatedMonthlyKwh,
@@ -976,8 +1029,8 @@ export default async function TecknaPage({
       verifiedQuote.value.quote.legal_bundle_version !== legalBundleVersionId
     ) {
       return fail("legal_changed", {
-        step: 1,
-        fieldErrors: { legal: "Villkoren i prisunderlaget har uppdaterats. Uppdatera sidan och granska de aktuella dokumenten igen." },
+        step: 0,
+        legalRefresh: { contract: toSignupContractOption(offer) },
       });
     }
     if (verifiedQuote.value.quote.energy_direction !== offer.energy_direction) {
@@ -1273,7 +1326,6 @@ export default async function TecknaPage({
           buildOpsCustomerApplicationPayload(applicationInput),
         ),
       });
-      await updateWebsiteSubmission({ submissionAttemptId, status: "submitting" });
     } catch (error) {
       console.error("[website signup] exact OPS payload lock failed", error);
       const mismatch =
@@ -1586,11 +1638,12 @@ export default async function TecknaPage({
       <SignupFlowClient
         contracts={signupOptions}
         initialSelectedValue={selectedValue}
-        initialCustomerType={checkoutContextUsable?.customerType ?? "private"}
+        initialCustomerType={initialCustomerType}
         authenticatedEmail={currentAuth?.email ?? null}
         authenticationRequired={currentAuth === null}
         authenticationReturnPath={signupReturnPath}
         canSubmit={canSubmit}
+        legalDocumentOrigin={legalDocumentOrigin()}
         utm={{
           utm_source: params.utm_source,
           utm_medium: params.utm_medium,
@@ -1598,7 +1651,9 @@ export default async function TecknaPage({
         }}
         action={submitApplicationAction}
         initialPricingPreview={checkoutContextUsable?.pricingPreview ?? null}
-        initialQuoteContext={checkoutContextUsable?.quoteContext ?? null}
+        initialQuoteContext={checkoutContextUsable?.quoteContext.current_resolution_token
+          ? { ...checkoutContextUsable.quoteContext, current_resolution_token: undefined }
+          : checkoutContextUsable?.quoteContext ?? null}
       />
 
       <FaqList

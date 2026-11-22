@@ -19,12 +19,27 @@ export function parseSupportDetail(body: unknown, expected: string): SupportDeta
   const status = string(r, 'status'); if (!['received', 'in_progress', 'resolved', 'closed'].includes(status)) throw new Error('Invalid case status');
   if (typeof r.moreMessages !== 'boolean' && r.moreMessages !== null) throw new Error('Invalid pagination');
   return { reference: expected, title: string(r, 'title'), description: text(r, 'description'), status, createdAt: text(r, 'createdAt'), updatedAt: text(r, 'updatedAt'), moreMessages: r.moreMessages,
-    messages: array(r, 'messages').map(value => {
-      const m = object(value); const author = string(m, 'author'); const kind = string(m, 'kind'); const content = text(m, 'body');
-      if ((author !== 'staff' && author !== 'customer') || (kind !== 'message' && kind !== 'phone_summary') || content === null || content.length > 8000) throw new Error('Invalid public message');
-      return { reference: string(m, 'reference'), author, kind, body: content, createdAt: text(m, 'createdAt') };
-    }),
+    messages: supportMessages(r),
   };
+}
+export function parseSupportContinuation(body: unknown, expected: string) {
+  const r = item(body, 'supportDetail');
+  if (string(r, 'reference') !== expected) throw new Error('Wrong case');
+  return supportMessages(r);
+}
+function supportMessages(r: Row): SupportDetail['messages'] {
+  return array(r, 'messages').map(parseSupportMessage);
+}
+
+export function parseSupportMessage(value: unknown): SupportDetail['messages'][number] {
+  const m = object(value);
+  const author = string(m, 'author');
+  const kind = string(m, 'kind');
+  const body = text(m, 'body');
+  if ((author !== 'staff' && author !== 'customer') || (kind !== 'message' && kind !== 'phone_summary') || body === null || body.length > 8000) throw new Error('Invalid public message');
+  const reference = string(m, 'reference');
+  if (!/^[A-Za-z0-9_-]{1,240}$/.test(reference)) throw new Error('Invalid message reference');
+  return { reference, author, kind, body, createdAt: text(m, 'createdAt') };
 }
 export function parseDocumentLink(body: unknown, expected: string, key: 'invoiceDocument' | 'customerDocument' = 'invoiceDocument'): string {
   const r = item(body, key); if (string(r, 'reference') !== expected) throw new Error('Wrong document');

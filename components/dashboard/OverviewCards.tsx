@@ -6,6 +6,7 @@ export default function OverviewCards({
 }: {
   overview: CustomerPortalOverview
 }) {
+  const unavailable = overview.unavailableSections ?? []
   const latestInvoice = overview.invoices[0] ?? null
   const unreadNotifications = overview.notifications.filter(
     (notification) => !notification.is_read
@@ -18,7 +19,7 @@ export default function OverviewCards({
           Avtal
         </div>
         <div className="mt-3 text-3xl font-semibold">
-          {overview.contracts.length}
+          {unavailable.includes('contracts') ? 'Kan inte visas' : overview.contracts.length}
         </div>
         <div className="mt-2 text-xs text-white/60">
           Aktiva och tidigare avtal som visas på Mina sidor.
@@ -30,7 +31,7 @@ export default function OverviewCards({
           Fakturor
         </div>
         <div className="mt-3 text-3xl font-semibold">
-          {overview.invoices.length}
+          {unavailable.includes('invoices') ? 'Kan inte visas' : overview.invoices.length}
         </div>
         <div className="mt-2 text-xs text-white/60">
           Senaste fakturadatum: {formatDate(latestInvoice?.issued_at ?? null)}
@@ -41,7 +42,7 @@ export default function OverviewCards({
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
           Dokument
         </div>
-        <div className="mt-3 text-3xl font-semibold">{overview.documents.length}</div>
+        <div className="mt-3 text-3xl font-semibold">{unavailable.includes('documents') ? 'Kan inte visas' : overview.documents.length}</div>
         <div className="mt-2 text-xs text-white/60">
           Avtal, villkor, fullmakter och andra underlag.
         </div>
@@ -51,7 +52,7 @@ export default function OverviewCards({
         <div className="text-xs uppercase tracking-[0.18em] text-white/45">
           Nya meddelanden
         </div>
-        <div className="mt-3 text-3xl font-semibold">{unreadNotifications}</div>
+        <div className="mt-3 text-3xl font-semibold">{unavailable.includes('notifications') ? 'Kan inte visas' : unreadNotifications}</div>
         <div className="mt-2 text-xs text-white/60">
           Olästa notiser och uppdateringar på Mina sidor.
         </div>

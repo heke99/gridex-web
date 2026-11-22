@@ -1,13 +1,14 @@
+import { CHECKOUT_STREET_TOO_LONG, normalizeCheckoutStreet } from '@/lib/website/checkoutAddress'
 import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { opsRetryAfterHeaders } from '@/lib/ops/errors'
 import { fetchOpsPublicContractsSnapshot, isOpsError } from '@/lib/ops/client'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
-import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from '@/lib/website/requestedStart'
 import { readWebJson } from '@/lib/api/webBoundary'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
-import { verifyWebsitePricingQuote } from '@/lib/website/pricingQuote'
+import { MAX_WEBSITE_PRICING_TOKEN_LENGTH, verifyWebsitePricingQuote } from '@/lib/website/pricingQuote'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -25,17 +26,27 @@ async function handlePost(req: Request) {
       'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
     },
   })
-  const parsedBody = await readWebJson<Record<string, unknown>>(req)
+  const parsedBody = await readWebJson<unknown>(req)
   if (!parsedBody.ok) return parsedBody.response
-  const body = parsedBody.value
-  if (typeof body.pricing_token !== 'string' || body.pricing_token.length > 24_000 || !verifyWebsitePricingQuote(body.pricing_token).ok) {
+  if (!parsedBody.value || typeof parsedBody.value !== 'object' || Array.isArray(parsedBody.value)) {
+    return NextResponse.json({ ok: false, error: { code: 'invalid_quote' } }, { status: 400 })
+  }
+  const body = parsedBody.value as Record<string, unknown>
+  const pricingToken = body.pricing_token
+  if (typeof pricingToken === 'string' && pricingToken.length > MAX_WEBSITE_PRICING_TOKEN_LENGTH) {
+    return NextResponse.json({ ok: false, error: { code: 'pricing_token_too_long', field: 'pricing_token' } }, { status: 400 })
+  }
+  if (typeof pricingToken !== 'string' || !verifyWebsitePricingQuote(pricingToken).ok) {
     return NextResponse.json({ ok: false, error: { code: 'invalid_quote' } }, { status: 400 })
   }
   const customerType = parseWebsiteCustomerType(body?.customer_type)
   const offerReference = text(body?.offer_reference, 180)
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
   const city = text(body?.city, 180)
-  const address = text(body?.address, 240)
+  const address = normalizeCheckoutStreet(body?.address)
+  if (address === null) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'address', message: CHECKOUT_STREET_TOO_LONG } }, { status: 400 })
+  }
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
   const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
   const requestedStart = parseRequestedStartSelection({
@@ -47,7 +58,7 @@ async function handlePost(req: Request) {
     return NextResponse.json({ ok: false, error: { code: 'validation_error', field: 'customer_type' } }, { status: 400 })
   }
   if (!requestedStart.ok) {
-    return NextResponse.json({ ok: false, error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date' } }, { status: 400 })
+    return NextResponse.json({ ok: false, error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date', ...(requestedStart.code === 'requested_start_date_past' ? { message: PAST_REQUESTED_START_MESSAGE } : {}) } }, { status: 400 })
   }
 
   if (!offerReference || !/^\d{5}$/.test(postalCode) || !city || !address ||
@@ -65,7 +76,7 @@ async function handlePost(req: Request) {
       return NextResponse.json({ ok: false, error: { code: 'offer_not_available' } }, { status: 409 })
     }
     const result = await validateCanonicalWebsiteQuote({
-      pricingToken: text(body?.pricing_token),
+      pricingToken,
       pricingSnapshotReference: text(body?.pricing_snapshot_reference, 180) || null,
       resolutionToken: text(body?.resolution_token),
       contract,

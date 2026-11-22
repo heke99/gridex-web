@@ -1,6 +1,8 @@
-import { formatCustomerCurrency as formatCurrency } from '@/lib/customerPortal/display'
+import { readInvoiceCursor } from '@/lib/customerPortal/invoicePagination'
+import { notFound } from 'next/navigation'
+import { customerInvoiceStatusLabel, formatCustomerCurrency as formatCurrency } from '@/lib/customerPortal/display'
 import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
-import EventLink from '@/components/customer/EventLink'
+import Link from 'next/link'
 import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerInvoice } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
@@ -19,24 +21,15 @@ function invoiceTitle(invoiceNumber: string | null, externalRef: string | null) 
   return invoiceNumber || externalRef || 'Faktura'
 }
 
-function invoiceStatus(status: string) {
-  switch (status) {
-    case 'paid':
-      return 'Betald'
-    case 'overdue':
-      return 'Förfallen'
-    case 'sent':
-    case 'issued':
-      return 'Skickad'
-    case 'draft':
-      return 'Förbereds'
-    default:
-      return 'Status uppdateras'
+export default async function DashboardInvoicesPage({ searchParams }: { searchParams: Promise<{ cursor?: string | string[] }> }) {
+  const { cursor: rawCursor } = await searchParams
+  let cursor: string | null
+  try {
+    cursor = readInvoiceCursor(typeof rawCursor === 'string' ? [rawCursor] : rawCursor ?? [])
+  } catch {
+    notFound()
   }
-}
-
-export default async function DashboardInvoicesPage() {
-  const resource = await getCanonicalCustomerResource('invoices')
+  const resource = await getCanonicalCustomerResource('invoices', undefined, cursor)
   const invoices = resource.data as CustomerInvoice[]
 
   return (
@@ -66,7 +59,7 @@ export default async function DashboardInvoicesPage() {
                   </p>
                 </div>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70">
-                  {invoiceStatus(invoice.status)}
+                  {customerInvoiceStatusLabel(invoice.status)}
                 </span>
               </div>
 
@@ -74,26 +67,27 @@ export default async function DashboardInvoicesPage() {
                 <Info label="Belopp" value={formatCurrency(invoice.total_amount, invoice.currency_code)} />
                 <Info label="Moms" value={formatCurrency(invoice.vat_amount, invoice.currency_code)} />
                 <Info label="Förfallodatum" value={formatDate(invoice.due_at)} />
+                {invoice.paid_at && formatDate(invoice.paid_at) !== '—' ? <Info label="Betalningsdatum" value={formatDate(invoice.paid_at)} /> : null}
                 <Info label="OCR/referens" value={invoice.ocr_number || invoice.payment_reference || '—'} />
               </div>
 
-              {invoice.pdf_url ? (
-                <EventLink
-                  href={invoice.pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  eventType="customer.opened_document"
-                  entityType="invoice"
-                  entityId={invoice.id}
-                  className="mt-5 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5"
-                >
-                  Öppna faktura
-                </EventLink>
-              ) : null}
+              <Link
+                href={`/dashboard/invoices/${encodeURIComponent(invoice.invoice_reference ?? invoice.id)}`}
+                prefetch={false}
+                className="mt-5 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5"
+              >
+                Visa fakturadetaljer
+              </Link>
             </article>
           ))}
         </div>
       )}
+      {(cursor || resource.page?.nextCursor) ? (
+        <nav aria-label="Fakturasidor" className="flex gap-5">
+          {cursor ? <Link prefetch={false} href="/dashboard/invoices" className="text-cyan-300 underline">Första fakturasidan</Link> : null}
+          {resource.page?.nextCursor ? <Link prefetch={false} href={`/dashboard/invoices?${new URLSearchParams({ cursor: resource.page.nextCursor })}`} className="text-cyan-300 underline">Visa fler fakturor</Link> : null}
+        </nav>
+      ) : null}
     </div>
   )
 }

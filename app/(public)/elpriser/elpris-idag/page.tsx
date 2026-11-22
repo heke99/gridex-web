@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { Suspense, type ReactNode } from 'react'
+import { connection } from 'next/server'
 import {
   GENERIC_MARKET_INFORMATION_NOTICE,
   getGenericCurrentMarketInformation,
@@ -14,8 +15,6 @@ import Breadcrumbs from '@/components/seo/Breadcrumbs'
 import { SITE_OG_IMAGE, SITE_URL } from '@/lib/seo/content'
 
 const AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
-
-export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Elpris idag – aktuellt spotpris i SE1, SE2, SE3 och SE4',
@@ -42,26 +41,68 @@ function formatOre(value: number | null | undefined) {
   }).format(value)} öre/kWh`
 }
 
-export default async function ElprisIdagPage() {
-  const supabase = await createSupabaseServerClient()
+const marketTime = new Intl.DateTimeFormat('sv-SE', { timeStyle: 'short', timeZone: 'Europe/Stockholm' })
+
+const priceCardClass = 'rounded-3xl border border-white/10 bg-gray-950 p-6'
+
+function MarketPriceCard({ area, period, selected, children }: {
+  area: PriceArea
+  period: 'dagens-pris' | 'manadspris'
+  selected: boolean
+  children: ReactNode
+}) {
+  if (selected) return <article className={priceCardClass}>{children}</article>
+  const label = period === 'dagens-pris' ? 'Dagens marknadspris' : 'Föregående månads spotpris'
+  return (
+    <Link href={`/elpriser/elpris-idag?area=${area}#${period}`} aria-label={`${label} för ${area}`}
+      className={`${priceCardClass} transition hover:border-cyan-500/40`}>
+      {children}
+    </Link>
+  )
+}
+
+async function PreviousMonthPrices({ areas, averages }: {
+  areas: readonly PriceArea[]
+  averages: Promise<Awaited<ReturnType<typeof getGenericMonthlyMarketInformation>>[]>
+}) {
+  const previousMonthAverages = await averages
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {areas.map((area, index) => {
+        const average = previousMonthAverages[index]
+        return (
+          <MarketPriceCard key={area} area={area} period="manadspris" selected={areas.length === 1}>
+            <div className="text-sm text-gray-400">{area}</div>
+            <div className="mt-2 text-3xl font-bold">{formatOre(average?.avgSpotOre)}</div>
+            <div className="mt-3 text-xs text-gray-500">
+              {average?.samples ? `${average.samples} datapunkter i snittet` : 'Pris kunde inte hämtas'}
+            </div>
+            {areas.length === 1 && average && (
+              <p className="mt-2 text-xs text-gray-400">{average.periodStart}–{average.periodEnd}</p>
+            )}
+          </MarketPriceCard>
+        )
+      })}
+    </div>
+  )
+}
+
+export default async function ElprisIdagPage({ searchParams }: {
+  searchParams?: Promise<{ area?: string | string[] }>
+}) {
+  await connection()
+  const requestedArea = (await searchParams)?.area
+  const selectedArea = AREAS.find(area => area === requestedArea)
+  const areas = selectedArea ? [selectedArea] : AREAS
   const period = prevYearMonth(new Date())
 
-  const [summaries, previousMonthAverages] = await Promise.all([
-    Promise.all(
-      AREAS.map((area) =>
-        getGenericCurrentMarketInformation({ supabase, area }).catch(() => null)
-      )
-    ),
-    Promise.all(
-      AREAS.map((area) =>
-        getGenericMonthlyMarketInformation({
-          year: period.year,
-          month: period.month,
-          priceArea: area,
-        }).catch(() => null)
-      )
-    ),
-  ])
+  const previousMonthAverages = Promise.all(
+    areas.map(priceArea => getGenericMonthlyMarketInformation({ ...period, priceArea }).catch(() => null))
+  )
+  const summaries = await Promise.all(
+    areas.map(area => getGenericCurrentMarketInformation({ area }).catch(() => null))
+  )
+  const renderTime = new Date().getTime()
 
   const faqItems = [
     {
@@ -128,37 +169,58 @@ export default async function ElprisIdagPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-white">Dagens marknadspris</h2>
+      {selectedArea && (
+        <nav aria-label="Elområden" className="flex flex-wrap gap-4 text-sm">
+          <span className="text-gray-200">Visar {selectedArea}</span>
+          <Link href="/elpriser/elpris-idag" className="text-cyan-300 underline">Visa alla elområden</Link>
+          <Link href={`/elpriser/${selectedArea.toLowerCase()}`} className="text-cyan-300 underline">Om elområde {selectedArea}</Link>
+        </nav>
+      )}
+
+      <section id="dagens-pris" className="scroll-mt-24 space-y-4">
+        <h2 className="text-2xl font-bold text-white">Dagens marknadspris{selectedArea ? ` i ${selectedArea}` : ''}</h2>
         <p className="text-sm text-gray-400">
           Dagens pris visas som marknadsinformation. Det är inte samma sak som rörligt månadspris, där föregående månads snittspot ofta används som bas.
         </p>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {AREAS.map((area, index) => {
+          {areas.map((area, index) => {
             const summary = summaries[index]
-            const current = summary?.current
+            const current = summary?.entries.find(entry =>
+              Date.parse(entry.timeStart) <= renderTime && renderTime < Date.parse(entry.timeEnd)
+            )
+            const min = summary?.stats.minSekPerKwh ?? null
+            const max = summary?.stats.maxSekPerKwh ?? null
             return (
-              <Link key={area} href={`/elpriser/${area.toLowerCase()}`} className="rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40">
+              <MarketPriceCard key={area} area={area} period="dagens-pris" selected={areas.length === 1}>
                 <div className="text-sm text-gray-400">{area}</div>
                 <div className="mt-2 text-3xl font-bold">{formatOre(current ? current.sekPerKwh * 100 : null)}</div>
+                {current && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    {marketTime.format(new Date(current.timeStart))}–{marketTime.format(new Date(current.timeEnd))} svensk tid
+                  </p>
+                )}
                 {!summary && <p className="mt-3 text-xs text-gray-400">Dagens pris kunde inte hämtas.</p>}
+                {summary?.stats.samples === 0 && <p className="mt-3 text-xs text-gray-400">Prisdata saknas för dagen.</p>}
+                {summary && summary.stats.samples > 0 && summary.stats.averageOrePerKwh === null && (
+                  <p className="mt-3 text-xs text-gray-400">Prisdata täcker bara delar av dagen.</p>
+                )}
                 <div className="mt-3 text-xs text-gray-500">
                   Dagens snitt: {formatOre(summary ? summary.stats.averageOrePerKwh : null)}
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
                   Lägst/högst:{' '}
-                  {summary
-                    ? `${formatOre(summary.stats.minSekPerKwh * 100)} / ${formatOre(summary.stats.maxSekPerKwh * 100)}`
+                  {min !== null && max !== null
+                    ? `${formatOre(min * 100)} / ${formatOre(max * 100)}`
                     : '—'}
                 </div>
-              </Link>
+              </MarketPriceCard>
             )
           })}
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section id="manadspris" className="scroll-mt-24 space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white">Föregående månads spotpris</h2>
@@ -171,20 +233,9 @@ export default async function ElprisIdagPage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {AREAS.map((area, index) => {
-            const average = previousMonthAverages[index]
-            return (
-              <Link key={area} href={`/elpriser/${area.toLowerCase()}`} className="rounded-3xl border border-white/10 bg-gray-950 p-6 transition hover:border-cyan-500/40">
-                <div className="text-sm text-gray-400">{area}</div>
-                <div className="mt-2 text-3xl font-bold">{formatOre(average?.avgSpotOre)}</div>
-                <div className="mt-3 text-xs text-gray-500">
-                  {average?.samples ? `${average.samples} datapunkter i snittet` : 'Pris kunde inte hämtas'}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+        <Suspense fallback={<p className="text-sm text-gray-400">Hämtar månadens spotpriser…</p>}>
+          <PreviousMonthPrices areas={areas} averages={previousMonthAverages} />
+        </Suspense>
       </section>
 
       <p className="text-sm text-gray-400">

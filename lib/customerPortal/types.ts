@@ -89,6 +89,9 @@ export type CustomerInvoice = {
 export type CustomerMeteringValue = {
   id: string
   metering_point_id: string | null
+  metering_point_reference?: string | null
+  resolution?: string | null
+  status?: string | null
   facility_id?: string | null
   period_start: string | null
   period_end: string | null
@@ -147,6 +150,7 @@ export type CustomerLegalAcceptance = {
   version: string | null
   document_reference?: string | null
   document_hash?: string | null
+  verified_document_url?: string | null
   accepted_at: string | null
   source: string | null
   status: string | null
@@ -187,6 +191,7 @@ export type CustomerSwitchStatus = {
 }
 
 export type CustomerPortalOverview = {
+  verifiedCustomerAccess: boolean
   supportError?: string | null
   profile: CustomerProfile | null
   contracts: CustomerPortalContract[]
@@ -206,6 +211,7 @@ export type CustomerPortalOverview = {
   opsError: string | null
   authoritative: boolean
   readOnly: boolean
-  dataFreshness: 'live'
+  unavailableSections?: string[]
+  dataFreshness: 'live' | 'partial'
   dataFreshnessMessage: string | null
 }

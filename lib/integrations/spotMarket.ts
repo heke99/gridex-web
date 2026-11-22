@@ -1,16 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { fetchMonthlySpotAverageFromElprisetJustNu, stockholmDateParts } from '@/lib/gridex/pricing/elprisetjustnu'
 
 export type PriceArea = 'SE1' | 'SE2' | 'SE3' | 'SE4'
 
 export const PRICE_AREAS: PriceArea[] = ['SE1', 'SE2', 'SE3', 'SE4']
-
-type ElprisetJustNuEntry = {
-  SEK_per_kWh?: unknown
-  EUR_per_kWh?: unknown
-  EXR?: unknown
-  time_start?: unknown
-  time_end?: unknown
-}
 
 export type ImportedSpotArea = {
   priceArea: PriceArea
@@ -32,27 +25,25 @@ function pad2(value: number): string {
   return String(value).padStart(2, '0')
 }
 
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate()
-}
-
-function isPriceArea(value: unknown): value is PriceArea {
-  return typeof value === 'string' && PRICE_AREAS.includes(value as PriceArea)
-}
-
 export function normalizePriceAreas(input: unknown): PriceArea[] {
-  if (!Array.isArray(input) || input.length === 0) return PRICE_AREAS
-
-  const areas = input
-    .map((value) => String(value).trim().toUpperCase())
-    .filter(isPriceArea)
-
-  return areas.length > 0 ? Array.from(new Set(areas)) : PRICE_AREAS
+  if (input === undefined) return [...PRICE_AREAS]
+  if (!Array.isArray(input) || input.length === 0) {
+    throw Object.assign(new Error('Ange minst ett giltigt elområde.'), { status: 400 })
+  }
+  const areas = input.map(value => typeof value === 'string' ? value.trim().toUpperCase() : null)
+  if (!areas.every((area): area is PriceArea => area !== null && PRICE_AREAS.some(valid => valid === area))) {
+    throw Object.assign(new Error('Ogiltigt elområde. Ange SE1, SE2, SE3 eller SE4.'), { status: 400 })
+  }
+  return [...new Set(areas)]
 }
 
 export function validateYearMonth(year: unknown, month: unknown) {
-  const parsedYear = Number(year)
-  const parsedMonth = Number(month)
+  const parsePart = (value: unknown) =>
+    typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))
+      ? Number(value)
+      : NaN
+  const parsedYear = parsePart(year)
+  const parsedMonth = parsePart(month)
 
   if (
     !Number.isInteger(parsedYear) ||
@@ -69,127 +60,10 @@ export function validateYearMonth(year: unknown, month: unknown) {
 }
 
 export function previousMonth(now = new Date()) {
-  const year = now.getUTCFullYear()
-  const month = now.getUTCMonth() + 1
+  const { year, month } = stockholmDateParts(now)
 
   if (month === 1) return { year: year - 1, month: 12 }
   return { year, month: month - 1 }
-}
-
-function marketUrl(params: {
-  baseUrl?: string
-  year: number
-  month: number
-  day: number
-  area: PriceArea
-}) {
-  const template =
-    params.baseUrl ??
-    process.env.SPOT_PRICE_API_URL_TEMPLATE ??
-    'https://www.elprisetjustnu.se/api/v1/prices/{YEAR}/{MONTH}-{DAY}_{AREA}.json'
-
-  return template
-    .replaceAll('{YEAR}', String(params.year))
-    .replaceAll('{MONTH}', pad2(params.month))
-    .replaceAll('{DAY}', pad2(params.day))
-    .replaceAll('{AREA}', params.area)
-}
-
-async function fetchDailyPrices(params: {
-  year: number
-  month: number
-  day: number
-  area: PriceArea
-}): Promise<number[]> {
-  const url = marketUrl(params)
-  const response = await fetch(url, {
-    headers: { accept: 'application/json' },
-    next: { revalidate: 60 * 60 },
-  })
-
-  if (response.status === 404) {
-    return []
-  }
-
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(`Spot price API failed for ${params.area} ${url}: ${response.status}`),
-      { status: 502 }
-    )
-  }
-
-  const data = (await response.json()) as unknown
-  if (!Array.isArray(data)) return []
-
-  return data
-    .map((entry: ElprisetJustNuEntry) => Number(entry.SEK_per_kWh))
-    .filter((value) => Number.isFinite(value))
-}
-
-async function importAreaMonth(params: {
-  year: number
-  month: number
-  area: PriceArea
-}): Promise<ImportedSpotArea> {
-  const values: number[] = []
-  const dayCount = daysInMonth(params.year, params.month)
-
-  for (let day = 1; day <= dayCount; day += 1) {
-    const daily = await fetchDailyPrices({ ...params, day })
-    values.push(...daily)
-  }
-
-  if (values.length === 0) {
-    throw Object.assign(
-      new Error(
-        `No spot price samples found for ${params.area} ${params.year}-${pad2(params.month)}`
-      ),
-      { status: 422 }
-    )
-  }
-
-  const avgSekPerKwh =
-    values.reduce((sum, value) => sum + value, 0) / values.length
-
-  return {
-    priceArea: params.area,
-    year: params.year,
-    month: params.month,
-    avgSpotOre: Number((avgSekPerKwh * 100).toFixed(6)),
-    samples: values.length,
-  }
-}
-
-async function queueSyncJob(
-  supabase: SupabaseClient,
-  result: Omit<SpotImportResult, 'syncJobId'>
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('integration_sync_jobs')
-    .insert({
-      provider_key: 'elprisetjustnu',
-      entity_type: 'spot_monthly_prices',
-      entity_id: `${result.year}-${pad2(result.month)}`,
-      direction: 'inbound',
-      status: 'success',
-      payload: {
-        source: result.source,
-        year: result.year,
-        month: result.month,
-        areas: result.areas,
-      },
-      response_payload: {},
-      idempotency_key: `elprisetjustnu:spot:${result.year}-${pad2(result.month)}`,
-    })
-    .select('id')
-    .single<{ id: string }>()
-
-  if (error) {
-    console.error('[spotMarket.queueSyncJob] failed', error)
-    return null
-  }
-
-  return data.id
 }
 
 export async function importMonthlySpotPrices(
@@ -202,62 +76,47 @@ export async function importMonthlySpotPrices(
     publishReason?: string | null
   }
 ): Promise<SpotImportResult> {
-  const areas = params.areas?.length ? params.areas : PRICE_AREAS
+  const areas = normalizePriceAreas(params.areas)
   const imported: ImportedSpotArea[] = []
 
   for (const area of areas) {
-    imported.push(
-      await importAreaMonth({
+    try {
+      const aggregate = await fetchMonthlySpotAverageFromElprisetJustNu({
         year: params.year,
         month: params.month,
-        area,
+        priceArea: area,
       })
-    )
-  }
-
-  const upsertRows = imported.map((area) => ({
-    price_area: area.priceArea,
-    year: area.year,
-    month: area.month,
-    avg_spot_ore: area.avgSpotOre,
-    source: 'elprisetjustnu',
-    source_payload: { samples: area.samples },
-  }))
-
-  const { error } = await supabase
-    .from('gridex_monthly_spot_prices')
-    .upsert(upsertRows, { onConflict: 'price_area,year,month' })
-
-  if (error) {
-    throw Object.assign(new Error(error.message), { status: 500 })
-  }
-
-  if (params.publish) {
-    const { error: publishError } = await supabase.rpc(
-      'gridex_spot_publish_active_basis',
-      {
-        p_year: params.year,
-        p_month: params.month,
-        p_reason:
-          params.publishReason ??
-          `Autoimport från elprisetjustnu (${params.year}-${pad2(params.month)})`,
-      }
-    )
-
-    if (publishError) {
-      throw Object.assign(new Error(publishError.message), { status: 500 })
+      if (!aggregate) throw new Error('Missing monthly price aggregate')
+      imported.push({
+        priceArea: area,
+        year: params.year,
+        month: params.month,
+        avgSpotOre: aggregate.avgSpotOre,
+        samples: aggregate.samples,
+      })
+    } catch (error) {
+      console.warn('[spotMarket] monthly source unavailable', { area, year: params.year, month: params.month, error })
+      throw Object.assign(new Error(`Komplett prisdata för ${area} ${params.year}-${pad2(params.month)} kunde inte hämtas.`), { status: 502 })
     }
   }
 
-  const result = {
+  const { data: syncJobId, error } = await supabase.rpc('gridex_import_monthly_spot_prices', {
+    p_year: params.year,
+    p_month: params.month,
+    p_areas: imported,
+    p_publish: params.publish === true,
+    p_reason: params.publishReason ?? `Autoimport från elprisetjustnu (${params.year}-${pad2(params.month)})`,
+  })
+  if (error || typeof syncJobId !== 'string') {
+    console.error('[spotMarket] monthly import failed', { code: error?.code })
+    throw Object.assign(new Error('Månadspriserna kunde inte sparas eller publiceras.'), { status: 500 })
+  }
+
+  return {
     source: 'elprisetjustnu',
     year: params.year,
     month: params.month,
     areas: imported,
-  }
-
-  return {
-    ...result,
-    syncJobId: await queueSyncJob(supabase, result),
+    syncJobId,
   }
 }

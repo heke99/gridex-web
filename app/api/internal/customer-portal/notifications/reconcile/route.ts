@@ -1,23 +1,17 @@
+import { verifyScheduledJobRequest } from '@/lib/integrations/auth'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+type ProfileColumn = 'external_customer_id' | 'customer_number' | 'contract_customer_ref' | 'email'
+
 type MatchResult = { status: 'none' | 'unique' | 'ambiguous'; userId: string | null }
 
 function env(name: string): string | null {
   const value = process.env[name]?.trim()
   return value || null
-}
-
-function authorized(request: Request): boolean {
-  const secret = env('CUSTOMER_PORTAL_OUTBOX_CRON_SECRET') ?? env('CRON_SECRET')
-  return Boolean(
-    secret &&
-      (request.headers.get('authorization') === `Bearer ${secret}` ||
-        request.headers.get('x-cron-secret') === secret),
-  )
 }
 
 function client() {
@@ -29,15 +23,13 @@ function client() {
 
 async function matchBy(
   supabase: ReturnType<typeof client>,
-  column: 'external_customer_id' | 'customer_number' | 'contract_customer_ref' | 'email',
-  value: string | null,
+  column: ProfileColumn,
+  value: string,
 ): Promise<MatchResult> {
-  if (!value) return { status: 'none', userId: null }
-  const queryValue = column === 'email' ? value.toLowerCase() : value
   const { data, error } = await supabase
     .from('customer_profiles')
     .select('user_id')
-    .eq(column, queryValue)
+    .eq(column, value)
     .limit(3)
   if (error) throw new Error(error.message)
   if (!data?.length) return { status: 'none', userId: null }
@@ -52,12 +44,15 @@ function backoffMinutes(attempt: number): number {
 async function updateUnresolvedNotification(
   supabase: ReturnType<typeof client>,
   id: string,
+  previousAttempts: number,
   values: Record<string, unknown>,
 ): Promise<boolean> {
   const { data, error } = await supabase
     .from('customer_notifications')
     .update(values)
     .eq('id', id)
+    .eq('identity_resolution_status', 'pending')
+    .eq('identity_resolution_attempt_count', previousAttempts)
     .is('user_id', null)
     .select('id')
     .maybeSingle<{ id: string }>()
@@ -66,7 +61,7 @@ async function updateUnresolvedNotification(
 }
 
 export async function POST(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!verifyScheduledJobRequest(request, process.env.CUSTOMER_PORTAL_OUTBOX_CRON_SECRET)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const supabase = client()
   const now = new Date().toISOString()
   const { data, error } = await supabase
@@ -79,68 +74,124 @@ export async function POST(request: Request) {
     .limit(100)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const matches = new Map<string, Promise<MatchResult>>()
+  function lookup(column: ProfileColumn, value: string | null): Promise<MatchResult> {
+    if (!value) return Promise.resolve({ status: 'none', userId: null })
+    const queryValue = column === 'email' ? value.toLowerCase() : value
+    const key = JSON.stringify([column, queryValue])
+    const cached = matches.get(key)
+    if (cached) return cached
+    const match = matchBy(supabase, column, queryValue).catch((error: unknown) => {
+      matches.delete(key)
+      throw error
+    })
+    matches.set(key, match)
+    return match
+  }
+
   let resolved = 0
   let pending = 0
   let ambiguous = 0
+  let failed = 0
+  let retriesScheduled = 0
+  let retryWriteFailures = 0
   for (const row of data ?? []) {
-    const [externalMatch, customerNumberMatch, contractRefMatch, emailMatch] = await Promise.all([
-      matchBy(supabase, 'external_customer_id', row.external_customer_id),
-      matchBy(supabase, 'customer_number', row.customer_number),
-      matchBy(supabase, 'contract_customer_ref', row.customer_number),
-      matchBy(supabase, 'email', row.customer_email),
-    ])
-    const attempt = Number(row.identity_resolution_attempt_count ?? 0) + 1
-    const customerUsers = new Set(
-      [customerNumberMatch, contractRefMatch]
-        .filter((match) => match.status === 'unique' && match.userId)
-        .map((match) => match.userId as string),
+    const previousAttempts = Number(row.identity_resolution_attempt_count ?? 0)
+    const attempt = previousAttempts + 1
+    const nextAttemptAt = new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString()
+    const update = (values: Record<string, unknown>) => updateUnresolvedNotification(
+      supabase,
+      String(row.id),
+      previousAttempts,
+      {
+        ...values,
+        identity_resolution_attempt_count: attempt,
+        identity_resolution_last_attempt_at: now,
+      },
     )
-    const hasAmbiguousIdentifier = [externalMatch, customerNumberMatch, contractRefMatch, emailMatch]
-      .some((match) => match.status === 'ambiguous') || customerUsers.size > 1
-    const externalUser = externalMatch.status === 'unique' ? externalMatch.userId : null
-    const customerUser = [...customerUsers][0] ?? null
-    const emailUser = emailMatch.status === 'unique' ? emailMatch.userId : null
-    const candidates = new Set([externalUser, customerUser, emailUser].filter((value): value is string => Boolean(value)))
 
-    if (hasAmbiguousIdentifier || candidates.size > 1) {
-      const updated = await updateUnresolvedNotification(supabase, String(row.id), {
-        identity_resolution_status: 'ambiguous',
-        identity_resolution_error: 'Customer identifiers are ambiguous or point to different portal profiles.',
-        identity_resolution_attempt_count: attempt,
-        identity_resolution_last_attempt_at: now,
-        identity_resolution_next_attempt_at: null,
+    try {
+      const results = await Promise.allSettled([
+        lookup('external_customer_id', row.external_customer_id),
+        lookup('customer_number', row.customer_number),
+        lookup('contract_customer_ref', row.customer_number),
+        lookup('email', row.customer_email),
+      ])
+      const [externalMatch, customerNumberMatch, contractRefMatch, emailMatch] = results.map((result) => {
+        if (result.status === 'rejected') throw result.reason
+        return result.value
       })
-      if (updated) ambiguous += 1
-      continue
-    }
+      const customerUsers = new Set(
+        [customerNumberMatch, contractRefMatch]
+          .filter((match) => match.status === 'unique' && match.userId)
+          .map((match) => match.userId as string),
+      )
+      const hasAmbiguousIdentifier = [externalMatch, customerNumberMatch, contractRefMatch, emailMatch]
+        .some((match) => match.status === 'ambiguous') || customerUsers.size > 1
+      const externalUser = externalMatch.status === 'unique' ? externalMatch.userId : null
+      const customerUser = [...customerUsers][0] ?? null
+      const emailUser = emailMatch.status === 'unique' ? emailMatch.userId : null
+      const candidates = new Set([externalUser, customerUser, emailUser].filter((value): value is string => Boolean(value)))
 
-    const candidate = [...candidates][0] ?? null
-    const matchingAttributes = candidate
-      ? Number(customerUser === candidate) + Number(emailUser === candidate)
-      : 0
-    if (candidate && (externalUser === candidate || matchingAttributes >= 2)) {
-      const updated = await updateUnresolvedNotification(supabase, String(row.id), {
-        user_id: candidate,
-        identity_resolution_status: 'resolved',
-        identity_resolution_error: null,
-        identity_resolution_attempt_count: attempt,
-        identity_resolution_last_attempt_at: now,
-        identity_resolution_next_attempt_at: null,
+      if (hasAmbiguousIdentifier || candidates.size > 1) {
+        const updated = await update({
+          identity_resolution_status: 'ambiguous',
+          identity_resolution_error: 'Customer identifiers are ambiguous or point to different portal profiles.',
+          identity_resolution_next_attempt_at: null,
+        })
+        if (updated) ambiguous += 1
+        continue
+      }
+
+      const candidate = [...candidates][0] ?? null
+      const matchingAttributes = candidate
+        ? Number(customerUser === candidate) + Number(emailUser === candidate)
+        : 0
+      if (candidate && (externalUser === candidate || matchingAttributes >= 2)) {
+        const updated = await update({
+          user_id: candidate,
+          identity_resolution_status: 'resolved',
+          identity_resolution_error: null,
+          identity_resolution_next_attempt_at: null,
+        })
+        if (updated) resolved += 1
+        continue
+      }
+
+      const updated = await update({
+        identity_resolution_status: 'pending',
+        identity_resolution_error: 'No exact external customer match or two matching customer attributes were found; retry is scheduled.',
+        identity_resolution_next_attempt_at: nextAttemptAt,
       })
-      if (updated) resolved += 1
-      continue
+      if (updated) pending += 1
+    } catch {
+      failed += 1
+      try {
+        const updated = await update({
+          identity_resolution_status: 'pending',
+          identity_resolution_error: 'Identity resolution failed during a database operation; retry is scheduled.',
+          identity_resolution_next_attempt_at: nextAttemptAt,
+        })
+        if (updated) retriesScheduled += 1
+      } catch {
+        retryWriteFailures += 1
+      }
     }
-
-    const updated = await updateUnresolvedNotification(supabase, String(row.id), {
-      identity_resolution_status: 'pending',
-      identity_resolution_error: 'No exact external customer match or two matching customer attributes were found; retry is scheduled.',
-      identity_resolution_attempt_count: attempt,
-      identity_resolution_last_attempt_at: now,
-      identity_resolution_next_attempt_at: new Date(Date.now() + backoffMinutes(attempt) * 60_000).toISOString(),
-    })
-    if (updated) pending += 1
   }
-  return NextResponse.json({ ok: true, checked: (data ?? []).length, resolved, pending, ambiguous })
+
+  const checked = data?.length ?? 0
+  const batchFailed = checked > 0 && failed === checked
+  return NextResponse.json({
+    ok: failed === 0,
+    checked,
+    resolved,
+    pending,
+    ambiguous,
+    failed,
+    retriesScheduled,
+    retryWriteFailures,
+    status: batchFailed ? 'failed' : failed > 0 ? 'partial' : 'completed',
+  }, { status: batchFailed ? 503 : 200 })
 }
 
 export async function GET(request: Request) {

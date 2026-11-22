@@ -35,6 +35,7 @@ import {
   assertCustomerPortalOperationResponse,
   assertWebsiteOperationRequest,
   assertWebsiteOperationResponse,
+  assertWebsiteReceiptStatusResponse,
   assertWebsiteRequest,
   assertWebsiteResponse,
   hasCustomerPortalOperation,
@@ -151,8 +152,11 @@ export function mapPriceAreaAssurance(
 
 export async function fetchOpsWebsiteEnergyArea(
   input: OpsWebsiteEnergyResolutionInput,
+  signal?: AbortSignal,
 ): Promise<OpsWebsiteEnergyResolution> {
+  signal?.throwIfAborted()
   const context = await getVerifiedOpsIntegrationContext()
+  signal?.throwIfAborted()
   const postalCode = input.postal_code?.replace(/\s+/g, '') || null
   const requestBody = {
     ...(postalCode ? { postal_code: postalCode } : {}),
@@ -184,7 +188,9 @@ export async function fetchOpsWebsiteEnergyArea(
   const payload = await opsFetch(endpoint, {
     method: 'POST',
     body: JSON.stringify(requestBody),
+    signal,
   })
+  signal?.throwIfAborted()
   observeRuntimeSchemaValidation({ endpoint, schema: 'WebsiteEnergyAreaResolveResponse', validate: () => assertWebsiteResponse('WebsiteEnergyAreaResolveResponse', payload, endpoint) })
   await verifiedOrganizationReference(payload, endpoint)
 
@@ -315,8 +321,11 @@ export async function fetchOpsWebsiteQuote(
 
 export async function validateOpsWebsiteQuote(
   input: OpsWebsiteQuoteValidationInput,
+  signal?: AbortSignal,
 ): Promise<OpsWebsiteQuoteValidation> {
+  signal?.throwIfAborted()
   await getVerifiedOpsIntegrationContext()
+  signal?.throwIfAborted()
   const selectedComponentReferences = [...new Set(input.selected_component_references)]
   const requestBody = {
     quote_reference: input.quote_reference,
@@ -341,6 +350,7 @@ export async function validateOpsWebsiteQuote(
   )
   const payload = await opsFetch('/api/v1/website/quote/validate', {
     method: 'POST',
+    signal,
     body: JSON.stringify(requestBody),
   })
   await verifiedOrganizationReference(payload, '/api/v1/website/quote/validate')
@@ -567,6 +577,7 @@ export async function fetchOpsCurrentMarketPrice(
 
 export async function fetchOpsWebsiteApplicationStatus(
   applicationNumber: string,
+  options?: { includeWebhookDiagnostics?: boolean },
 ): Promise<OpsWebsiteApplicationStatus> {
   const normalized = normalizeText(applicationNumber)
   if (!normalized) {
@@ -578,7 +589,22 @@ export async function fetchOpsWebsiteApplicationStatus(
   }
   await getVerifiedOpsIntegrationContext()
   const endpoint = `/api/v1/website/customer-applications/${encodeURIComponent(normalized)}`
-  const payload = await opsFetch(endpoint)
+  let payload: unknown
+  if (options?.includeWebhookDiagnostics === false) {
+    const preference = 'omit-webhook-diagnostics'
+    const response = await opsRequest(endpoint, { headers: { Prefer: preference } }, {
+      validateRequest: headers => assertWebsiteOperationRequest(endpoint, 'get', undefined, headers),
+    })
+    if (response.headers.get('preference-applied') === preference) {
+      assertWebsiteReceiptStatusResponse(endpoint, response.payload)
+    } else {
+      observeRuntimeSchemaValidation({ endpoint, schema: 'website-operation-response',
+        validate: () => assertWebsiteOperationResponse(endpoint, 'get', response.status, response.payload) })
+    }
+    payload = response.payload
+  } else {
+    payload = await opsFetch(endpoint)
+  }
   await verifiedOrganizationReference(payload, endpoint)
   const root = recordValue(payload)
   const row = recordValue(root?.data)
@@ -589,7 +615,7 @@ export async function fetchOpsWebsiteApplicationStatus(
       retryable: false,
     })
   }
-  const value = row as OpsCustomerApplicationStatusDto
+  const value = row as Omit<OpsCustomerApplicationStatusDto, 'webhook'>
   assertWebsiteResponse('WebsiteCheckoutResult', value.checkout, endpoint)
   if (value.application_number !== normalized) {
     throw new OpsError('OPS returnerade status för en annan ansökan.', 502, {
@@ -621,6 +647,7 @@ export async function fetchOpsWebsiteApplicationStatus(
 
 export async function fetchOpsWebsiteSwitchStatus(
   applicationNumber: string,
+  options?: { includeEvents?: boolean },
 ): Promise<OpsSwitchStatusDto> {
   const normalized = normalizeText(applicationNumber)
   if (!normalized) {
@@ -631,7 +658,9 @@ export async function fetchOpsWebsiteSwitchStatus(
     })
   }
   const endpoint = `/api/v1/website/switch-status?application_number=${encodeURIComponent(normalized)}`
-  const payload = await opsFetch(endpoint)
+  const payload = await opsFetch(endpoint, options?.includeEvents === false
+    ? { headers: { Prefer: 'omit-switch-events' } }
+    : undefined)
   await verifiedOrganizationReference(payload, '/api/v1/website/switch-status')
   const root = recordValue(payload)
   const row = recordValue(root?.data)
@@ -871,10 +900,19 @@ function publicContractOpaqueEtag(value: string | null): string | null {
   return value?.match(/^(?:W\/)?("[\x21\x23-\x7E\x80-\xFF]*")$/)?.[1] ?? null
 }
 
+/** Scheduling hint only. Callers must still validate against the fetched catalogue. */
+export function hasRecentlySeenPublicOffer(customerType: WebsiteCustomerType, offerReference: string): boolean {
+  const cached = publicContractsCache.get(publicContractsCacheKey(customerType))
+  return Boolean(cached &&
+    Date.now() - Date.parse(cached.fetched_at) <= maxWebsitePublicContractSnapshotAgeMs() &&
+    cached.contracts.some(contract => contract.offer_reference === offerReference))
+}
+
 export async function fetchOpsPublicContractsSnapshot(
   customerType?: WebsiteCustomerType | null,
-  options: { forceFresh?: boolean; allowStaleFallback?: boolean } = {},
+  options: { forceFresh?: boolean; allowStaleFallback?: boolean; signal?: AbortSignal } = {},
 ): Promise<OpsPublicContractsSnapshot> {
+  options.signal?.throwIfAborted()
   const cacheKey = publicContractsCacheKey(customerType)
   // Quote checks can use a live304, but must never continue on outage data.
   // forceFresh retains its separate unconditional/no-candidate semantics.
@@ -907,7 +945,7 @@ export async function fetchOpsPublicContractsSnapshot(
   try {
     response = await opsRequest(
       publicContractsPath(customerType),
-      { method: 'GET', headers },
+      { method: 'GET', headers, signal: options.signal },
       {
         allowNotModified: true,
         // Contract publication is consistency-sensitive. Never let Next's data
@@ -917,6 +955,7 @@ export async function fetchOpsPublicContractsSnapshot(
       },
     )
   } catch (error) {
+    options.signal?.throwIfAborted()
     const fallbackCached = allowStaleFallback && publicContractsFallbackEligible(error)
       ? await eligibleFallback()
       : undefined

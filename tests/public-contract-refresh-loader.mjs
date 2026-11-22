@@ -5,6 +5,15 @@ import { resolve as resolveAlias, load } from './typescript-alias-loader.mjs'
 export { load }
 
 export async function resolve(specifier, context, nextResolve) {
+  if (context.parentURL?.endsWith('/lib/webhooks/publicationChanged.ts')) {
+    const stubs = {
+      'next/cache': 'export const revalidateTag = (...args) => globalThis.__publicationWebhook.revalidateTag(...args); export const revalidatePath = (...args) => globalThis.__publicationWebhook.revalidatePath(...args)',
+      '@supabase/supabase-js': 'export const createClient = () => ({ rpc: (...args) => globalThis.__publicationWebhook.rpc(...args) })',
+      '@/lib/ops/client': 'export const getVerifiedOpsIntegrationContext = async () => ({ organization_reference: globalThis.__publicationWebhook.organization }); export const invalidateOpsPublicContractsCache = (...args) => globalThis.__publicationWebhook.invalidate(...args)',
+    }
+    const source = stubs[specifier]
+    if (source) return { url: `data:text/javascript,${encodeURIComponent(source)}`, shortCircuit: true }
+  }
   // Only replace external snapshot/provider ports. Next's cache, async stores,
   // patched fetch and the application's transport all execute unchanged.
   if (specifier === '@/lib/ops/client') {
@@ -33,7 +42,9 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (specifier === '@/lib/website/publicContractSnapshotStore') {
     return { url: `data:text/javascript,${encodeURIComponent(`
+      export const maxWebsitePublicContractSnapshotAgeMs = () => 900_000;
       export async function readWebsitePublicContractSnapshot() {
+        globalThis.__contractRefreshFixture.snapshotReads += 1;
         return structuredClone(globalThis.__contractRefreshFixture.snapshot);
       }
       export async function storeWebsitePublicContractSnapshot(input) {

@@ -19,8 +19,8 @@ adapter in your own environment. Customer rows are not copied during export.
 | GET | support/{reference} | supportDetail |
 | GET | invoices/{reference}/documents/{documentReference} | invoiceDocument |
 | GET | documents/{reference}/open | customerDocument |
-| POST | support | confirmed 2xx result |
-| POST | support/{reference}/messages | confirmed 2xx result |
+| POST | support | accepted, supportCase |
+| POST | support/{reference}/messages | accepted, caseReference, message |
 
 GET data keys contain arrays. Row reference is a nonempty canonical string.
 Exact field whitelists/validation: apps/mobile/src/customerData.ts and detailData.ts;
@@ -29,6 +29,9 @@ unknown, never invented defaults. List all projected fields explicitly, includin
 nulls. A normal list has shape {"data":{"profile":[{"reference":"...", ...}]}}.
 Support GET accepts only a bounded cursor and returns page.hasMore (boolean or null)
 and page.nextCursor (string or null). hasMore=true requires a nonempty nextCursor.
+The first support detail request returns the case and the first message page. A request
+to the same path with the returned cursor contains only the case reference and the
+next messages in the supportDetail row, plus the top-level page object.
 Other list routes currently reject query parameters. Document results contain
 reference and HTTPS url; recheck unique ownership and an approved provider origin
 when clicked. The OS receives the URL only, never the session bearer header.
@@ -37,7 +40,8 @@ Support POST body is {title,message}; reply body is {message}. The client sends
 Content-Type application/json and a stable Idempotency-Key for an uncertain attempt.
 The backend must bound/validate input, prevent private author/visibility overrides,
 enforce customer ownership and delegate idempotency to its authoritative service.
-Do not send success before the write is confirmed. Native parsing, lifecycle tests
+Return the confirmed public case or customer-authored message, with its case reference
+for replies, so the app can update the active view from the write receipt. Native parsing, lifecycle tests
 and fake-provider route tests are included in the source repository; real-provider
 contract qualification is a separate requirement for every installation.
 
@@ -86,7 +90,7 @@ contract and must not be disguised as consumption.
 The adapter requires verified windows, strips raw fields and excludes any whole
 interval crossing a rights/selection boundary. It rejects mixed facilities,
 duplicate references, overlapping revisions, invalid dates/quantities and more
-than4000 rows. Resolve authoritative revisions before returning data. Never mark
+than 6,400 rows. Resolve authoritative revisions before returning data. Never mark
 `complete:true` after a truncated page; `complete` means the available authorized
 readings were fully fetched, not that every expected meter interval exists.
 Gaps are not synthesized as zero. Returned data is

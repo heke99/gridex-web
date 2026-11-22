@@ -1,15 +1,19 @@
 import { randomUUID } from 'crypto'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
+import type { OpsPortalIdentity } from '@/lib/ops/client/portal'
 import {
-  getCustomerTicketPage,
+  getOpsPortalIdentityForUser,
   getPortalSession,
-  getTicketMessages,
 } from '@/lib/customerPortal/service'
 import { addSupportMessageAction, createSupportTicketAction } from './actions'
 import AttachmentUpload from '@/components/support/AttachmentUpload'
-import { listOpsCustomerSupportAttachments } from '@/lib/ops/client/customerSupport'
-import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
+import {
+  listOpsCustomerSupportAttachments,
+  listOpsCustomerSupportCases,
+  listOpsCustomerSupportMessages,
+} from '@/lib/ops/client/customerSupport'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,29 +98,71 @@ function statusMessage(status?: string) {
   }
 }
 
+type SupportSectionProps = {
+  identity: OpsPortalIdentity
+  reference: string
+  retryHref: string
+  cursor?: string
+}
+
+function supportPageHref(href: string, key: 'message_cursor' | 'attachment_cursor', cursor: string) {
+  const [path, queryAndHash] = href.split('?')
+  const [search, hash] = queryAndHash.split('#')
+  const query = new URLSearchParams(search)
+  query.set(key, cursor)
+  return `${path}?${query}#${hash}`
+}
+
+async function SupportMessages({ identity, reference, retryHref, cursor }: SupportSectionProps) {
+  const result = await listOpsCustomerSupportMessages(identity, reference, cursor).catch(() => null)
+  if (!result) return <p role="status">
+    Meddelandena kunde inte hämtas just nu. <a href={retryHref} className="underline">Försök igen</a>.
+  </p>
+  return <>
+    {!result.data.length && <p className="text-sm text-white/60">Inga meddelanden på den här sidan.</p>}
+    {result.data.map(message => (
+      <div key={message.message_reference} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="text-xs text-white/45">
+          {formatSenderLabel(message.author_type)} • {formatDate(message.created_at)}
+        </div>
+        <div className="mt-2 whitespace-pre-wrap text-sm text-white/85">{message.body}</div>
+      </div>
+    ))}
+    {result.nextCursor && <Link href={supportPageHref(retryHref, 'message_cursor', result.nextCursor)} prefetch={false} className="underline">Nästa sida med meddelanden</Link>}
+  </>
+}
+
+async function SupportAttachments({ identity, reference, retryHref, cursor }: SupportSectionProps) {
+  const result = await listOpsCustomerSupportAttachments(identity, reference, cursor).catch(() => null)
+  if (!result) return <p role="status">
+    Bilagorna kunde inte hämtas just nu. <a href={retryHref} className="underline">Försök igen</a>.
+  </p>
+  return <>
+    {result.data.length ? <ul>{result.data.map(file => (
+      <li key={file.attachment_reference}>
+        <a className="underline" href={`/api/customer-support/cases/${reference}/attachments/${file.attachment_reference}`}>{file.file_name}</a>
+        {' · '}{Math.ceil(file.byte_size / 1024)} kB
+      </li>
+    ))}</ul> : <p className="text-sm text-white/60">Inga godkända bilagor på den här sidan.</p>}
+    {result.nextCursor && <Link href={supportPageHref(retryHref, 'attachment_cursor', result.nextCursor)} prefetch={false} className="underline">Nästa sida med bilagor</Link>}
+  </>
+}
+
 export default async function DashboardSupportPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string; cursor?: string }>
+  searchParams?: Promise<{ status?: string; cursor?: string | string[]; case?: string | string[]; message_cursor?: string | string[]; attachment_cursor?: string | string[] }>
 }) {
   const { supabase, user } = await getPortalSession()
   const params = (await searchParams) ?? {}
   const banner = statusMessage(params.status)
-  const result = await getCustomerTicketPage(supabase, user.id, {
+  const cursor = typeof params.cursor === 'string' ? params.cursor : null
+  const identity = await getOpsPortalIdentityForUser(supabase, user)
+  const result = await listOpsCustomerSupportCases(identity, {
     limit: 5,
-    ...(params.cursor ? { cursor: params.cursor } : {}),
-  }, user)
+    ...(cursor ? { cursor } : {}),
+  })
   const tickets = result.data
-  const identity = tickets.length ? await getOpsPortalIdentityForUser(supabase, user) : null
-
-  const expanded = await Promise.all(
-    tickets.map(async (ticket) => ({
-      ticket,
-      messages: await getTicketMessages(supabase, ticket.case_reference, user),
-      attachments: identity ? (await listOpsCustomerSupportAttachments(identity, ticket.case_reference)).data : [],
-      replyRequestId: randomUUID(),
-    }))
-  )
 
   const createTicketRequestId = randomUUID()
 
@@ -193,13 +239,26 @@ export default async function DashboardSupportPage({
       </form>
 
       <div className="space-y-4">
-        {expanded.map(({ ticket, messages, attachments, replyRequestId }) => {
+        {tickets.map(ticket => {
           const closed = isTicketClosed(ticket.status)
+          const expanded = params.case === ticket.case_reference
+          const detailQuery = new URLSearchParams()
+          if (cursor) detailQuery.set('cursor', cursor)
+          if (!expanded) detailQuery.set('case', ticket.case_reference)
+          const retryQuery = new URLSearchParams(detailQuery)
+          retryQuery.set('case', ticket.case_reference)
+          const messageCursor = expanded && typeof params.message_cursor === 'string' ? params.message_cursor : undefined
+          const attachmentCursor = expanded && typeof params.attachment_cursor === 'string' ? params.attachment_cursor : undefined
+          if (messageCursor) retryQuery.set('message_cursor', messageCursor)
+          if (attachmentCursor) retryQuery.set('attachment_cursor', attachmentCursor)
+          const retryHref = `/dashboard/support?${retryQuery}#${ticket.case_reference}`
+          const detailHref = `/dashboard/support${detailQuery.size ? `?${detailQuery}` : ''}#${ticket.case_reference}`
 
           return (
             <section
               key={ticket.case_reference}
-              className="rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6"
+              id={ticket.case_reference}
+              className="scroll-mt-24 rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
@@ -229,69 +288,53 @@ export default async function DashboardSupportPage({
                 </div>
               ) : null}
 
-              {closed ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-                  {getClosedTicketMessage(ticket.status)}
-                </div>
-              ) : null}
+              <Link href={detailHref} prefetch={false}
+                aria-expanded={expanded}
+                className="mt-4 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm">
+                {expanded ? 'Dölj ärende' : 'Öppna ärende'}
+              </Link>
 
-              <div className="mt-5 space-y-3">
-                {messages.length > 0 ? (
-                  messages.map((message) => (
-                    <div
-                      key={message.message_reference}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4"
-                    >
-                      <div className="text-xs text-white/45">
-                        {formatSenderLabel(message.author_type)} •{' '}
-                        {formatDate(message.created_at)}
+              {expanded && (
+                <>
+                  {closed && <p className="mt-4 text-sm text-white/70">{getClosedTicketMessage(ticket.status)}</p>}
+                  <section className="mt-5 space-y-3">
+                    <h3 className="font-semibold">Meddelanden</h3>
+                    <Suspense fallback={<p role="status">Hämtar meddelanden…</p>}>
+                      <SupportMessages identity={identity} reference={ticket.case_reference} retryHref={retryHref} cursor={messageCursor} />
+                    </Suspense>
+                  </section>
+                  {!closed && (
+                    <form action={addSupportMessageAction} className="mt-5 space-y-3">
+                      <input type="hidden" name="ticket_id" value={ticket.case_reference} />
+                      <input type="hidden" name="client_request_id" value={randomUUID()} />
+                      {cursor && <input type="hidden" name="cursor" value={cursor} />}
+                      <div>
+                        <label className="mb-2 block text-xs text-white/60" htmlFor="support-message">
+                          Skriv ett meddelande
+                        </label>
+                        <textarea
+                          id="support-message"
+                          name="body"
+                          maxLength={8000}
+                          required
+                          placeholder="Skriv ditt meddelande"
+                          className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-black/40 px-3 py-3"
+                        />
                       </div>
-                      <div className="mt-2 whitespace-pre-wrap text-sm text-white/85">
-                        {message.body}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                    Inga meddelanden finns ännu i detta ärende.
-                  </div>
-                )}
-              </div>
-
-              {closed ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                  Ärendet är avslutat och tar inte emot nya meddelanden.
-                </div>
-              ) : (
-                <form action={addSupportMessageAction} className="mt-5 space-y-3">
-                  <input type="hidden" name="ticket_id" value={ticket.case_reference} />
-                  <input type="hidden" name="client_request_id" value={replyRequestId} />
-
-                  <div>
-                    <label className="mb-2 block text-xs text-white/60">
-                      Skriv ett meddelande
-                    </label>
-                    <textarea
-                      name="body"
-                      maxLength={8000}
-                      required
-                      placeholder="Skriv ditt meddelande"
-                      className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-black/40 px-3 py-3"
-                    />
-                  </div>
-                  <button className="h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-black sm:w-auto">
-                    Skicka meddelande
-                  </button>
-                </form>
+                      <button className="h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-black sm:w-auto">
+                        Skicka meddelande
+                      </button>
+                    </form>
+                  )}
+                  <section className="mt-5 space-y-3">
+                    <h3 className="font-semibold">Bilagor</h3>
+                    <Suspense fallback={<p role="status">Hämtar bilagor…</p>}>
+                      <SupportAttachments identity={identity} reference={ticket.case_reference} retryHref={retryHref} cursor={attachmentCursor} />
+                    </Suspense>
+                    {!closed && <AttachmentUpload endpoint={`/api/customer-support/cases/${ticket.case_reference}/attachments`} />}
+                  </section>
+                </>
               )}
-              <div className="mt-5 space-y-3">
-                <h3 className="font-semibold">Bilagor</h3>
-                {attachments.length ? <ul>{attachments.map(file => <li key={file.attachment_reference}>
-                  <a className="underline" href={`/api/customer-support/cases/${ticket.case_reference}/attachments/${file.attachment_reference}`}>{file.file_name}</a>
-                  {' · '}{Math.ceil(file.byte_size / 1024)} kB
-                </li>)}</ul> : <p className="text-sm text-white/60">Inga godkända bilagor ännu.</p>}
-                {!closed ? <AttachmentUpload endpoint={`/api/customer-support/cases/${ticket.case_reference}/attachments`} /> : null}
-              </div>
             </section>
           )
         })}
@@ -302,9 +345,9 @@ export default async function DashboardSupportPage({
           </div>
         )}
       </div>
-      {params.cursor || result.page.has_more ? (
+      {cursor || result.page.has_more ? (
         <nav aria-label="Ärendesidor" className="flex flex-wrap gap-4 text-sm text-cyan-200">
-          {params.cursor ? <Link href="/dashboard/support">Senaste ärendena</Link> : null}
+          {cursor ? <Link href="/dashboard/support">Senaste ärendena</Link> : null}
           {result.page.has_more && result.page.next_cursor ? (
             <Link href={`/dashboard/support?cursor=${encodeURIComponent(result.page.next_cursor)}`}>
               Fler ärenden

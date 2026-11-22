@@ -49,28 +49,35 @@ export async function listPoaArchives(identity: OpsPortalIdentity, query: PoaArc
   return result
 }
 
-export async function readPoaArchive(identity: OpsPortalIdentity, reference: string, query: { format?: 'json' | 'pdf'; sha256?: string } = {}) {
+export async function readPoaArchive(
+  identity: OpsPortalIdentity,
+  reference: string,
+  query: { format?: 'json' | 'pdf'; sha256?: string } = {},
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted()
   const search = new URLSearchParams()
   if (query.format !== undefined) search.set('format', query.format)
   if (query.sha256 !== undefined) search.set('sha256', query.sha256)
   if (query.format === 'pdf' && query.sha256 !== undefined) throw new OpsError('Kontrollsummejämförelse kräver JSON.', 400, { code: 'invalid_poa_archive_request', retryable: false })
   const path = `${detailPath(reference)}${search.size ? `?${search}` : ''}`
-  const response = await opsRequest(path, { headers: headers(identity) }, {
+  const response = await opsRequest(path, { headers: headers(identity), signal }, {
     validateRequest: h => assertPoaArchiveRequest(path, h),
     ...(query.format === 'pdf' ? { responseFormat: 'poa-archive' as const } : {}),
   })
+  signal?.throwIfAborted()
   if (query.format !== 'pdf') {
     assertPoaArchiveResponse(response.payload, 'detail')
     const result = response.payload as { data: { verification_reference: string; [key: string]: unknown }; request_id: string; contract_schema_version: string }
     if (result.data.verification_reference !== reference) invalidPdf()
     return { format: 'json' as const, value: result }
   }
-  const bytes = response.payload as Uint8Array
+  const chunks = response.payload as Uint8Array<ArrayBuffer>[]
   // OPS qualifies PDF structure before returning 200. Preserve all originals
   // accepted by that canonical reader, including legal leading/trailing bytes;
   // the transport independently checks the exact bytes, digest, MIME and bound.
   if (response.headers.get('x-gridex-verification-reference') !== reference) invalidPdf()
-  return { format: 'pdf' as const, bytes, reference, sha256: response.headers.get('x-gridex-document-sha256')! }
+  return { format: 'pdf' as const, chunks, reference, sha256: response.headers.get('x-gridex-document-sha256')! }
 }
 function invalidPdf(): never {
   throw new OpsError('Fullmaktens arkiverade original kunde inte verifieras.', 502, { code: 'poa_archive_response_invalid', retryable: false })

@@ -3,8 +3,6 @@ import { isStrictCalendarDate } from '@/lib/website/businessDate'
 
 type JsonRecord = Record<string, unknown>
 
-type InvoiceLineItem = JsonRecord
-
 export type ExternalInvoicePayload = {
   providerKey?: unknown
   externalInvoiceRef?: unknown
@@ -48,18 +46,6 @@ export type ImportedInvoiceResult = {
   status: string
 }
 
-type CustomerProfileMatch = {
-  user_id: string
-  email: string | null
-  billing_customer_ref: string | null
-  contract_customer_ref: string | null
-  external_identity_ref?: string | null
-}
-
-type PortalContractMatch = {
-  id: string
-}
-
 function asString(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
@@ -74,8 +60,7 @@ function requiredString(value: unknown, name: string): string {
   return parsed
 }
 
-function asNumber(value: unknown, fallback = 0): number {
-  if (value === undefined || value === null || value === '') return fallback
+function asNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
     const parsed = Number(value.replace(/\s+/g, '').replace(',', '.'))
@@ -105,188 +90,28 @@ function asDate(value: unknown): string | null {
   return iso ? iso.slice(0, 10) : null
 }
 
-function asLineItems(value: unknown): InvoiceLineItem[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is InvoiceLineItem => {
-    return !!item && typeof item === 'object' && !Array.isArray(item)
-  })
+function asLineItems(value: unknown): JsonRecord[] {
+  if (value === null) return []
+  if (!Array.isArray(value) || value.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+    throw Object.assign(new Error('Invalid invoice lineItems'), { status: 400 })
+  }
+  return value
 }
 
-function normalizeEmail(value: unknown): string | null {
-  return asString(value)?.toLowerCase() ?? null
+function optionalText(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'string') {
+    throw Object.assign(new Error('Invalid invoice reference or text field'), { status: 400 })
+  }
+  return asString(value) ?? undefined
 }
 
-async function findCustomerProfile(
-  supabase: SupabaseClient,
-  payload: ExternalInvoicePayload
-): Promise<CustomerProfileMatch | null> {
-  const customer = payload.customer ?? {}
-  const userId = asString(customer.userId)
-
-  if (userId) {
-    const { data, error } = await supabase
-      .from('customer_profiles')
-      .select(
-        'user_id,email,billing_customer_ref,contract_customer_ref,external_identity_ref'
-      )
-      .eq('user_id', userId)
-      .maybeSingle<CustomerProfileMatch>()
-
-    if (error) throw Object.assign(new Error(error.message), { status: 500 })
-    if (data) return data
+function optionalUuid(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.trim())) {
+    throw Object.assign(new Error('Invalid invoice customer or contract ID'), { status: 400 })
   }
-
-  const lookupCandidates: Array<{
-    column: keyof CustomerProfileMatch
-    value: string | null
-  }> = [
-    { column: 'billing_customer_ref', value: asString(customer.billingCustomerRef) },
-    { column: 'contract_customer_ref', value: asString(customer.contractCustomerRef) },
-    { column: 'external_identity_ref', value: asString(customer.externalIdentityRef) },
-    { column: 'email', value: normalizeEmail(customer.email) },
-  ]
-
-  for (const candidate of lookupCandidates) {
-    if (!candidate.value) continue
-
-    const { data, error } = await supabase
-      .from('customer_profiles')
-      .select(
-        'user_id,email,billing_customer_ref,contract_customer_ref,external_identity_ref'
-      )
-      .eq(candidate.column, candidate.value)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle<CustomerProfileMatch>()
-
-    if (error) throw Object.assign(new Error(error.message), { status: 500 })
-    if (data) return data
-  }
-
-  return null
-}
-
-async function updateCustomerProfileFromInvoice(
-  supabase: SupabaseClient,
-  userId: string,
-  payload: ExternalInvoicePayload
-) {
-  const customer = payload.customer ?? {}
-  const email = normalizeEmail(customer.email)
-  const firstName = asString(customer.firstName)
-  const lastName = asString(customer.lastName)
-  const inferredFullName = [firstName, lastName].filter(Boolean).join(' ')
-  const fullName = (asString(customer.fullName) ?? inferredFullName) || null
-  const phone = asString(customer.phone)
-  const billingCustomerRef = asString(customer.billingCustomerRef)
-  const contractCustomerRef = asString(customer.contractCustomerRef)
-  const externalIdentityRef = asString(customer.externalIdentityRef)
-  const patch: Record<string, unknown> = {
-    onboarding_state: 'verified',
-    metadata: {
-      source: 'invoice_import',
-      provider_key: asString(payload.providerKey),
-    },
-  }
-
-  if (email) {
-    patch.email = email
-    patch.email_verified_at = new Date().toISOString()
-  }
-
-  if (firstName) patch.first_name = firstName
-  if (lastName) patch.last_name = lastName
-  if (fullName) patch.full_name = fullName
-  if (phone) patch.phone = phone
-  if (billingCustomerRef) patch.billing_customer_ref = billingCustomerRef
-  if (contractCustomerRef) patch.contract_customer_ref = contractCustomerRef
-  if (externalIdentityRef) patch.external_identity_ref = externalIdentityRef
-
-  const { error } = await supabase
-    .from('customer_profiles')
-    .update(patch)
-    .eq('user_id', userId)
-
-  if (error) throw Object.assign(new Error(error.message), { status: 500 })
-}
-async function findPortalContractId(
-  supabase: SupabaseClient,
-  userId: string,
-  payload: ExternalInvoicePayload
-): Promise<string | null> {
-  const contract = payload.contract ?? {}
-  const directId = asString(contract.portalContractId)
-
-  if (directId) {
-    const { data, error } = await supabase
-      .from('customer_contract_portal_links')
-      .select('id')
-      .eq('id', directId)
-      .eq('user_id', userId)
-      .maybeSingle<PortalContractMatch>()
-
-    if (error) throw Object.assign(new Error(error.message), { status: 500 })
-    if (data) return data.id
-  }
-
-  const refs = [
-    { column: 'billing_contract_ref', value: asString(contract.billingContractRef) },
-    { column: 'contract_external_ref', value: asString(contract.contractExternalRef) },
-  ]
-
-  for (const ref of refs) {
-    if (!ref.value) continue
-
-    const { data, error } = await supabase
-      .from('customer_contract_portal_links')
-      .select('id')
-      .eq('user_id', userId)
-      .eq(ref.column, ref.value)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle<PortalContractMatch>()
-
-    if (error) throw Object.assign(new Error(error.message), { status: 500 })
-    if (data) return data.id
-  }
-
-  return null
-}
-
-async function queueSyncJob(
-  supabase: SupabaseClient,
-  params: {
-    providerKey: string
-    entityType: string
-    entityId: string
-    payload: JsonRecord
-    status?: 'success' | 'failed' | 'dead_letter'
-    lastError?: string
-    idempotencyKey?: string
-  }
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('integration_sync_jobs')
-    .insert({
-      provider_key: params.providerKey,
-      entity_type: params.entityType,
-      entity_id: params.entityId,
-      direction: 'inbound',
-      status: params.status ?? 'success',
-      payload: params.payload,
-      last_error: params.lastError ?? null,
-      idempotency_key: params.idempotencyKey ?? null,
-      response_payload: {},
-    })
-    .select('id')
-    .single<{ id: string }>()
-
-  if (error) {
-    console.error('[queueSyncJob] failed', error)
-    return null
-  }
-
-  return data.id
+  return value.trim().toLowerCase()
 }
 
 export async function importExternalInvoice(
@@ -306,87 +131,79 @@ export async function importExternalInvoice(
     payload.externalInvoiceRef,
     'externalInvoiceRef'
   )
-  const idempotencyKey = `${providerKey}:invoice:${externalInvoiceRef}`
-  // Reject malformed financial/date values before updating a profile or
-  // recording any synchronization outcome.
-  const validatedFields = {
-    invoice_period_start: asDate(payload.invoicePeriodStart),
-    invoice_period_end: asDate(payload.invoicePeriodEnd),
-    issued_at: asIso(payload.issuedAt),
-    due_at: asIso(payload.dueAt),
-    paid_at: asIso(payload.paidAt),
-    total_amount: asNumber(payload.totalAmount),
-    vat_amount: asNumber(payload.vatAmount),
+  const customer = payload.customer ?? {}
+  const contract = payload.contract ?? {}
+  const firstName = asString(customer.firstName)
+  const lastName = asString(customer.lastName)
+  const normalizedCustomer = {
+    user_id: optionalUuid(customer.userId),
+    email: optionalText(customer.email)?.toLowerCase(),
+    first_name: firstName ?? undefined,
+    last_name: lastName ?? undefined,
+    full_name: asString(customer.fullName) ?? ([firstName, lastName].filter(Boolean).join(' ') || undefined),
+    phone: optionalText(customer.phone),
+    billing_customer_ref: optionalText(customer.billingCustomerRef),
+    contract_customer_ref: optionalText(customer.contractCustomerRef),
+    external_identity_ref: optionalText(customer.externalIdentityRef),
   }
-  const profile = await findCustomerProfile(supabase, payload)
-
-  if (!profile) {
-    await queueSyncJob(supabase, {
-      providerKey,
-      entityType: 'invoice',
-      entityId: externalInvoiceRef,
-      payload: payload as unknown as JsonRecord,
-      status: 'dead_letter',
-      lastError: 'No customer profile matched invoice payload',
-      idempotencyKey,
-    })
-
-    throw Object.assign(
-      new Error(
-        'Invoice could not be matched to an existing customer profile. Provide userId, billingCustomerRef, contractCustomerRef, externalIdentityRef or email.'
-      ),
-      { status: 422 }
-    )
+  const normalizedContract = {
+    id: optionalUuid(contract.portalContractId),
+    billing_contract_ref: optionalText(contract.billingContractRef),
+    contract_external_ref: optionalText(contract.contractExternalRef),
   }
 
-  await updateCustomerProfileFromInvoice(supabase, profile.user_id, payload)
-
-  const portalContractId = await findPortalContractId(
-    supabase,
-    profile.user_id,
-    payload
-  )
-
-  const invoicePayload = {
-    user_id: profile.user_id,
-    portal_contract_id: portalContractId,
-    provider_key: providerKey,
-    external_invoice_ref: externalInvoiceRef,
-    invoice_number: asString(payload.invoiceNumber),
-    currency_code: asString(payload.currencyCode) ?? 'SEK',
-    ...validatedFields,
-    status: asString(payload.status) ?? 'issued',
-    ocr_number: asString(payload.ocrNumber),
-    payment_reference: asString(payload.paymentReference),
-    pdf_url: asString(payload.pdfUrl),
-    pdf_storage_path: asString(payload.pdfStoragePath),
-    line_items: asLineItems(payload.lineItems),
-    raw_payload: payload as unknown as JsonRecord,
+  // Undefined properties are omitted on the wire. A present null is an explicit update.
+  const fields = {
+    invoice_number: payload.invoiceNumber === undefined ? undefined : optionalText(payload.invoiceNumber) ?? null,
+    currency_code: payload.currencyCode === undefined ? undefined : requiredString(payload.currencyCode, 'currencyCode'),
+    invoice_period_start: payload.invoicePeriodStart === undefined ? undefined : asDate(payload.invoicePeriodStart),
+    invoice_period_end: payload.invoicePeriodEnd === undefined ? undefined : asDate(payload.invoicePeriodEnd),
+    issued_at: payload.issuedAt === undefined ? undefined : asIso(payload.issuedAt),
+    due_at: payload.dueAt === undefined ? undefined : asIso(payload.dueAt),
+    paid_at: payload.paidAt === undefined ? undefined : asIso(payload.paidAt),
+    status: payload.status === undefined ? undefined : requiredString(payload.status, 'status'),
+    total_amount: payload.totalAmount === undefined ? undefined : asNumber(payload.totalAmount),
+    vat_amount: payload.vatAmount === undefined ? undefined : asNumber(payload.vatAmount),
+    ocr_number: payload.ocrNumber === undefined ? undefined : optionalText(payload.ocrNumber) ?? null,
+    payment_reference: payload.paymentReference === undefined ? undefined : optionalText(payload.paymentReference) ?? null,
+    pdf_url: payload.pdfUrl === undefined ? undefined : optionalText(payload.pdfUrl) ?? null,
+    pdf_storage_path: payload.pdfStoragePath === undefined ? undefined : optionalText(payload.pdfStoragePath) ?? null,
+    line_items: payload.lineItems === undefined ? undefined : asLineItems(payload.lineItems),
   }
 
-  const { data: invoice, error } = await supabase
-    .from('customer_invoices')
-    .upsert(invoicePayload, {
-      onConflict: 'provider_key,external_invoice_ref',
-    })
-    .select('id,status')
-    .single<{ id: string; status: string }>()
-
-  if (error) throw Object.assign(new Error(error.message), { status: 500 })
-
-  const syncJobId = await queueSyncJob(supabase, {
-    providerKey,
-    entityType: 'invoice',
-    entityId: externalInvoiceRef,
-    payload: payload as unknown as JsonRecord,
-    status: 'success',
-    idempotencyKey,
+  const { data, error } = await supabase.rpc('gridex_import_invoice', {
+    p_provider: providerKey,
+    p_reference: externalInvoiceRef,
+    p_customer: normalizedCustomer,
+    p_contract: normalizedContract,
+    p_fields: fields,
+    p_payload: payload,
   })
-
-  return {
-    invoiceId: invoice.id,
-    userId: profile.user_id,
-    syncJobId,
-    status: invoice.status,
+  if (!error && data) return data as ImportedInvoiceResult
+  if (error?.code === 'P0002') {
+    const message = 'Invoice could not be matched to an existing customer profile'
+    const { error: queueError } = await supabase.from('integration_sync_jobs').insert({
+      provider_key: providerKey,
+      entity_type: 'invoice',
+      entity_id: externalInvoiceRef,
+      direction: 'inbound',
+      status: 'dead_letter',
+      payload,
+      last_error: message,
+      idempotency_key: `${providerKey}:invoice:${externalInvoiceRef}`,
+    })
+    if (queueError) {
+      console.error('[invoice import] dead-letter write failed', queueError.code)
+      throw Object.assign(new Error('Invoice import unavailable'), { status: 503 })
+    }
+    throw Object.assign(new Error(message), { status: 422 })
   }
+  if (error?.code === 'P0409' || error?.code === '23505') {
+    throw Object.assign(new Error('Invoice import conflicts with an existing record'), { status: 409 })
+  }
+  if (error?.code === 'P0400') {
+    throw Object.assign(new Error('Missing totalAmount'), { status: 400 })
+  }
+  console.error('[invoice import] transaction failed', error?.code ?? 'missing_result')
+  throw Object.assign(new Error('Invoice import failed'), { status: 500 })
 }

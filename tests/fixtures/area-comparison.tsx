@@ -4,8 +4,8 @@ import ElectricityCalculator, { type ContractOption } from '@/components/Electri
 import type { WebsitePricingPreview, WebsitePricingQuoteContext, WebsiteEnergyResolution } from '@/lib/website/publicApi'
 
 const contracts: ContractOption[] = [
-  { name: 'Syntetiskt fastpris', value: 'offer_area_fixed', offerReference: 'offer_area_fixed', type: 'fixed', customerTypes: ['private', 'business'] },
-  { name: 'Syntetiskt månadspris', value: 'offer_area_variable', offerReference: 'offer_area_variable', type: 'variable_monthly', customerTypes: ['private', 'business'] },
+  { name: 'Syntetiskt fastpris', value: 'offer_area_fixed', offerReference: 'offer_area_fixed', customerTypes: ['private', 'business'] },
+  { name: 'Syntetiskt månadspris', value: 'offer_area_variable', offerReference: 'offer_area_variable', customerTypes: ['private', 'business'] },
 ]
 const originalContext: WebsitePricingQuoteContext = {
   postal_code: '11122', city: 'Teststad', address: 'Återställd gata 1', price_area_code: 'SE3',

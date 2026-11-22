@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-20T19:18:27.432Z",
-  "migration_count": 50,
+  "generated_at": "2026-11-22T14:40:39.039Z",
+  "migration_count": 56,
   "version_collisions": [],
   "migrations": [
     {
@@ -253,6 +253,36 @@
       "file": "20261020190229_public_contract_snapshot_revision_race.sql",
       "version": "20261020190229",
       "sha256": "8eef2b7c29e12a39994d67e828529d36ca435ba8fcc1c6b47c413bd42f2f4586"
+    },
+    {
+      "file": "20261119195601_atomic_invoice_import.sql",
+      "version": "20261119195601",
+      "sha256": "36efe963d09c8fb71487b4bda7e7f9d4148cd30650a17f9a6a9417d0e04dd98e"
+    },
+    {
+      "file": "20261122091131_atomic_spot_price_import.sql",
+      "version": "20261122091131",
+      "sha256": "d8e3593721a7c6ea3496abf7ce3f3907e3b9e27f71cf170f222803038f735af7"
+    },
+    {
+      "file": "20261122103348_order_website_submission_status.sql",
+      "version": "20261122103348",
+      "sha256": "b64e050d8e5d6b8b7d9daef8f8aa5944d831226910b8a6a8548f8a30e446136e"
+    },
+    {
+      "file": "20261122110509_preserve_website_receipt_links.sql",
+      "version": "20261122110509",
+      "sha256": "0f55ae19e409fe5cda340ef7cf0808b9690cb304351f1858519479be71676045"
+    },
+    {
+      "file": "20261122122925_atomic_energy_area_audit.sql",
+      "version": "20261122122925",
+      "sha256": "5eb55af18ad19f1102e95935a06f2a05be6cdae02b680fdb5510cc9757a7335a"
+    },
+    {
+      "file": "20261122161000_atomic_website_reconciliation_enqueue.sql",
+      "version": "20261122161000",
+      "sha256": "23cb802a58aabdb0d52ccd64fe4d5c4a15a6f5a66b73cd12e71400e42457fbab"
     }
   ]
 }

@@ -1,44 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import {
-  GRIDEX_COOKIE_CONSENT_EVENT,
-  GRIDEX_COOKIE_CONSENT_KEY,
+  currentCookieConsent,
+  saveCookieConsent,
+  serverCookieConsent,
+  subscribeToCookieConsent,
   type GridexCookieConsent,
-  googleConsentState,
-  parseGridexCookieConsent,
 } from '@/lib/analytics/googleConsent'
 
-function label(value: GridexCookieConsent) {
+function label(value: GridexCookieConsent | undefined) {
+  if (value === undefined) return 'Läser cookieval…'
   if (value === 'accepted') return 'Accepterat'
   if (value === 'rejected') return 'Avvisat'
   return 'Inget val sparat'
 }
 
 export default function CookieSettings() {
-  const [consent, setConsent] = useState<GridexCookieConsent>(() => {
-    if (typeof window === 'undefined') return null
-    return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
-  })
-
-  function save(value: GridexCookieConsent) {
-    if (value) {
-      window.localStorage.setItem(GRIDEX_COOKIE_CONSENT_KEY, value)
-      window.gtag?.('consent', 'update', googleConsentState(value))
-    } else {
-      window.localStorage.removeItem(GRIDEX_COOKIE_CONSENT_KEY)
-      window.gtag?.('consent', 'update', googleConsentState('rejected'))
-    }
-
-    setConsent(value)
-    window.dispatchEvent(new Event(GRIDEX_COOKIE_CONSENT_EVENT))
-  }
+  const consent = useSyncExternalStore(subscribeToCookieConsent, currentCookieConsent, serverCookieConsent)
 
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-6">
       <h2 className="text-xl font-semibold text-white">Ändra cookieval</h2>
       <p className="mt-3 text-sm leading-6 text-gray-300">
-        Gridex använder Google Consent Mode. Google-taggen kan laddas med analys- och annonslagring avstängd innan du har gjort ett val. Full mätning och lagring aktiveras först om du accepterar. Ditt val sparas lokalt i webbläsaren så att bannern inte behöver visas varje gång.
+        Mätning och annonslagring aktiveras först när ditt godkännande kan sparas i webbläsaren. Om lagringen blockeras gäller ditt val tillfälligt och mätningen förblir avstängd.
       </p>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
         Nuvarande val: <span className="font-semibold text-white">{label(consent)}</span>
@@ -46,21 +31,21 @@ export default function CookieSettings() {
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => save('accepted')}
+          onClick={() => saveCookieConsent('accepted')}
           className="rounded-xl bg-cyan-500 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-400"
         >
           Acceptera
         </button>
         <button
           type="button"
-          onClick={() => save('rejected')}
+          onClick={() => saveCookieConsent('rejected')}
           className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:border-cyan-500/40 hover:bg-white/5"
         >
           Avvisa
         </button>
         <button
           type="button"
-          onClick={() => save(null)}
+          onClick={() => saveCookieConsent(null)}
           className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-cyan-500/40 hover:bg-white/5"
         >
           Nollställ valet

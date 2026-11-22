@@ -35,7 +35,7 @@ export function invoiceDetail(payload: unknown, expected: string, origins: reado
   const { invoice, lines, documents } = invoiceData(payload, expected);
   return {
     reference: expected, number: text(invoice, 'invoice_number'), status: text(invoice, 'status'), currency: text(invoice, 'currency'),
-    amount: amount(invoice, 'amount_inc_vat'), dueDate: text(invoice, 'due_date'), issuedAt: text(invoice, 'issued_at'), periodStart: text(invoice, 'period_start'), periodEnd: text(invoice, 'period_end'),
+    amount: amount(invoice, 'amount_inc_vat'), dueDate: text(invoice, 'due_date'), paidAt: text(invoice, 'paid_at'), issuedAt: text(invoice, 'issued_at'), periodStart: text(invoice, 'period_start'), periodEnd: text(invoice, 'period_end'),
     lines: lines.map(value => { const line = record(value); return { reference: reference(line, 'line_reference'), description: text(line, 'description'), quantity: amount(line, 'quantity'), unitPrice: amount(line, 'unit_price'), amountExVat: amount(line, 'amount_ex_vat'), vatAmount: amount(line, 'vat_amount'), amountIncVat: amount(line, 'amount_inc_vat') }; }),
     documents: documents.map(value => { const doc = record(value); return { reference: reference(doc, 'document_reference'), title: text(doc, 'title'), type: text(doc, 'document_type'), available: approvedDocumentUrl(doc.secure_url, origins) !== null }; }),
   };
@@ -51,7 +51,7 @@ export function invoiceDocument(payload: unknown, expected: string, docRef: stri
   return { reference: docRef, url };
 }
 
-function supportCase(value: unknown): SupportCase {
+export function supportCase(value: unknown): SupportCase {
   const row = record(value); const title = text(row, 'title'); const status = text(row, 'status');
   if (!title || !['received', 'in_progress', 'resolved', 'closed'].includes(status ?? '')) throw new Error('Invalid customer-visible case');
   return { reference: reference(row, 'case_reference'), title, description: text(row, 'description'), status: status!, createdAt: text(row, 'created_at'), updatedAt: text(row, 'updated_at') };
@@ -65,12 +65,27 @@ export function supportDetail(detail: unknown, messages: unknown, expected: stri
   if (row.reference !== expected) throw new Error('Support identity mismatch');
   const data = record(messages).data; if (!Array.isArray(data)) throw new Error('Invalid messages envelope');
   const page = record(record(messages).page);
-  return { ...row, moreMessages: typeof page.has_more === 'boolean' ? page.has_more : null,
-    messages: data.map(value => {
-      const message = record(value); const author = text(message, 'author_type'); const kind = text(message, 'kind'); const body = text(message, 'body');
-      // Internal notes and staff identities never cross the mobile boundary.
-      if ((author !== 'customer' && author !== 'staff') || (kind !== 'message' && kind !== 'phone_summary') || body === null) throw new Error('Invalid public message');
-      return { reference: reference(message, 'message_reference'), author, kind, body, createdAt: text(message, 'created_at') };
-    }),
+  const thread = supportMessages(data);
+
+  // OPS saves the original description and its opening event at the same instant.
+  const openings = row.createdAt && row.description
+    ? thread.filter(message => message.author === 'customer' && message.kind === 'message' &&
+      message.createdAt === row.createdAt && message.body === row.description)
+    : [];
+  return {
+    ...row,
+    description: openings.length === 1 ? null : row.description,
+    moreMessages: typeof page.has_more === 'boolean' ? page.has_more : null,
+    messages: thread,
   };
+}
+
+export function supportMessages(data: unknown) {
+  if (!Array.isArray(data)) throw new Error('Invalid messages envelope');
+  return data.map(value => {
+    const message = record(value); const author = text(message, 'author_type'); const kind = text(message, 'kind'); const body = text(message, 'body');
+    // Internal notes and staff identities never cross the mobile boundary.
+    if ((author !== 'customer' && author !== 'staff') || (kind !== 'message' && kind !== 'phone_summary') || body === null) throw new Error('Invalid public message');
+    return { reference: reference(message, 'message_reference'), author, kind, body, createdAt: text(message, 'created_at') } as const;
+  });
 }

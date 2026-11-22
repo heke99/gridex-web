@@ -1,6 +1,8 @@
 type WriteResult = {
   ok?: boolean
   queued?: boolean
+  facilityOutcome?: string
+  moveOutReceipt?: unknown
   data?: {
     ok?: boolean
     status?: string | null
@@ -12,6 +14,20 @@ type WriteResult = {
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+export function readMoveOutReceipt(value: unknown, facilityReference: unknown, requestedDate: unknown) {
+  if (!record(value) || value.status !== 'submitted' ||
+      typeof value.completion_reference !== 'string' || !value.completion_reference.trim() ||
+      value.completion_reference.length > 240 ||
+      typeof facilityReference !== 'string' || value.facility_reference !== facilityReference ||
+      typeof requestedDate !== 'string' || value.requested_move_out_date !== requestedDate) return null
+  return {
+    completion_reference: value.completion_reference,
+    facility_reference: facilityReference,
+    requested_move_out_date: requestedDate,
+    status: 'submitted' as const,
+  }
 }
 
 /** A 2xx response alone cannot confirm a customer write. */

@@ -5,7 +5,7 @@ const env = ['GRIDEX_MOBILE_API_ENABLED','NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC
 const old = env.map(k => process.env[k]);
 after(() => { env.forEach((k,i) => old[i] === undefined ? delete process.env[k] : process.env[k] = old[i]); delete globalThis.__mobileReadFixture; });
 const tokens = { 'mobile-session-one-123456': 'customer-one', 'mobile-session-two-123456': 'customer-two' };
-let calls, documentUrl;
+let calls, documentUrl, paidAt;
 const users = token => tokens[token] ? { id: tokens[token], email_confirmed_at: '2026-01-01' } : null;
 function assertIdentity(identity) { assert.ok(['customer-one','customer-two'].includes(identity.userId)); assert.equal(identity.customerNumber, `number-${identity.userId}`); }
 globalThis.__mobileReadFixture = {
@@ -17,21 +17,39 @@ globalThis.__mobileReadFixture = {
       return { maybeSingle: async () => ({ data: { customer_number: `number-${subject}`, external_customer_id: `external-${subject}` }, error: null }) };
     } }) }; },
   }),
-  resource: async (identity, resource, reference) => {
+  resource: async (identity, resource, reference, cursor) => {
     assertIdentity(identity); calls.push(`ops:${identity.userId}:${resource}:${reference}`);
+    if (resource === 'documents' && cursor instanceof URLSearchParams) {
+      calls.push('ops-document-reference');
+      const ownReference = `ref-${identity.userId}`;
+      return { data: cursor.get('document_reference') === ownReference ? [{ document_reference: ownReference, secure_url: documentUrl }] : [] };
+    }
     if (resource !== 'invoices') { const ref = `ref-${identity.userId}`; const row = { customer_reference: ref, notification_reference: ref, document_reference: ref, power_of_attorney_reference: ref, acceptance_reference: ref, display_name: 'Own name', title: 'Own title', message: 'Own message', scope: ['read'], secure_url: documentUrl, portal_identity: 'must-not-leak' }; return { data: resource === 'me' ? row : [row] }; }
+    if (!reference) {
+      assert.ok(cursor === undefined || cursor === 'opaque+/=');
+      return { data: [{ invoice_reference: cursor ? 'invoice_second' : invoiceId }],
+        page: { has_more: !cursor, next_cursor: cursor ? null : 'opaque+/=' } };
+    }
     if (identity.userId !== 'customer-one' || reference !== invoiceId) throw new Error('foreign or missing invoice');
-    const p = invoicePayload(); p.data.documents[0].secure_url = documentUrl; return p;
+    const p = invoicePayload();
+    p.data.documents[0].secure_url = documentUrl;
+    if (paidAt) Object.assign(p.data.invoice, { paid_at: paidAt, status: "paid" });
+    if (cursor instanceof URLSearchParams) {
+      calls.push('ops-document-projection');
+      p.data.lines = [];
+      p.data.documents = p.data.documents.filter(row => row.document_reference === cursor.get('document_reference'));
+    }
+    return p;
   },
   cases: async identity => { assertIdentity(identity); calls.push(`cases:${identity.userId}`); return { data: [supportPayload(identity.userId === 'customer-one' ? caseId : `support_case_${'z'.repeat(24)}`).data] }; },
-  caseDetail: async (identity, reference) => { assertIdentity(identity); calls.push(`case:${identity.userId}`); if (identity.userId !== 'customer-one' || reference !== caseId) throw new Error('foreign case'); return supportPayload(); },
-  messages: async (identity, reference) => { assertIdentity(identity); calls.push(`messages:${identity.userId}`); if (identity.userId !== 'customer-one' || reference !== caseId) throw new Error('foreign case'); return messagesPayload(); },
+  caseDetail: async (identity, reference) => { assertIdentity(identity); calls.push(`case:${identity.userId}`); if (identity.userId !== 'customer-one' || reference !== caseId) throw new Error('foreign case'); const payload = supportPayload(); payload.data.messages = messagesPayload().data; return { ...payload, nextCursor: 'thread-page-2' }; },
+  messages: async (identity, reference, cursor) => { assertIdentity(identity); calls.push(`messages:${identity.userId}`); if (identity.userId !== 'customer-one' || reference !== caseId) throw new Error('foreign case'); assert.equal(cursor, 'thread-page-2'); const payload = messagesPayload(); payload.data[0].message_reference += '2'; return payload; },
 };
 const invoice = (await import('../app/api/mobile/customer/invoices/[id]/route.ts')).GET;
 const document = (await import('../app/api/mobile/customer/invoices/[id]/documents/[documentRef]/route.ts')).GET;
 const cases = (await import('../app/api/mobile/customer/support/route.ts')).GET;
 const detail = (await import('../app/api/mobile/customer/support/[id]/route.ts')).GET;
-beforeEach(() => { calls = []; documentUrl = 'https://files.example.test/invoice.pdf?signature=test-only'; process.env.GRIDEX_MOBILE_API_ENABLED = 'true'; process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://tenant.supabase.co'; process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'public-test-key'; process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS = 'https://files.example.test'; });
+beforeEach(() => { calls = []; paidAt = null; documentUrl = 'https://files.example.test/invoice.pdf?signature=test-only'; process.env.GRIDEX_MOBILE_API_ENABLED = 'true'; process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://tenant.supabase.co'; process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'public-test-key'; process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS = 'https://files.example.test'; });
 const request = (token = 'mobile-session-one-123456', query = '') => new Request(`https://tenant.test/api/mobile/customer/resource${query}`, { headers: { Authorization: `Bearer ${token}`, 'x-gridex-customer-number': 'foreign-customer', 'x-gridex-auth-user-id': 'foreign-user' } });
 const context = (id = invoiceId, doc = documentId) => ({ params: Promise.resolve({ id, documentRef: doc }) });
 
@@ -39,7 +57,30 @@ test('actual invoice route uses verified subject and the correct detail envelope
   const response = await invoice(request(), context()); assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   const data = (await response.json()).data.invoiceDetail[0]; assert.equal(data.reference, invoiceId); assert.equal(data.lines[0].amountIncVat, 125);
+  assert.equal(data.paidAt, null);
   assert.ok(!JSON.stringify(data).includes('must-not-leak')); assert.ok(calls.includes('profile:customer-one'));
+});
+test('paid invoice detail retains the payment instant and shares Swedish date formatting', async () => {
+  paidAt = '2026-11-30T23:30:00Z';
+  const response = await invoice(request(), context());
+  assert.equal(response.status, 200);
+  const data = (await response.json()).data.invoiceDetail[0];
+  assert.equal(data.paidAt, paidAt);
+  const { formatCustomerDate } = await import('../packages/mobile-foundation/src/customerDate.ts');
+  assert.equal(formatCustomerDate(data.paidAt), '2026-12-01');
+  assert.equal(formatCustomerDate('2026-02-30'), '—');
+});
+test('mobile invoice list preserves the OPS cursor and signals the last page', async () => {
+  const { GET } = await import('../app/api/mobile/customer/invoices/route.ts');
+  const first = await GET(request());
+  assert.equal(first.status, 200);
+  assert.deepEqual((await first.json()).page, { hasMore: true, nextCursor: 'opaque+/=' });
+  const second = await GET(request(undefined, '?cursor=opaque%2B%2F%3D'));
+  assert.equal(second.status, 200);
+  const body = await second.json();
+  assert.equal(body.data.invoices[0].reference, 'invoice_second');
+  assert.deepEqual(body.page, { hasMore: false, nextCursor: null });
+  assert.equal((await GET(request(undefined, '?cursor=one&cursor=two'))).status, 400);
 });
 test('actual detail and document routes deny cross-customer access without reflecting invoice content', async () => {
   for (const route of [invoice, document]) {
@@ -49,6 +90,7 @@ test('actual detail and document routes deny cross-customer access without refle
 });
 test('document route rechecks Auth/OPS and only returns an attached approved link', async () => {
   const response = await document(request(), context()); assert.equal(response.status, 200);
+  assert.ok(calls.includes('ops-document-projection'));
   assert.equal((await response.json()).data.invoiceDocument[0].reference, documentId);
   assert.ok(calls.includes('auth')); assert.ok(calls.some(v => v.startsWith('ops:')));
   assert.equal((await document(request(), context(invoiceId, 'foreign-document'))).status, 503);
@@ -63,10 +105,20 @@ test('actual support list resolves different verified customers independently', 
   assert.notEqual(one.data.support[0].reference, two.data.support[0].reference);
   assert.ok(!JSON.stringify(one).includes('must-not-leak'));
 });
-test('actual support detail checks ownership for both case and public message reads', async () => {
+test('actual support detail reads initial messages once and fetches the next page separately', async () => {
+  calls = [];
   const response = await detail(request(), context(caseId)); assert.equal(response.status, 200);
   const body = await response.json(); assert.equal(body.data.supportDetail[0].messages[0].author, 'staff');
   assert.ok(!JSON.stringify(body).includes('must-not-leak'));
+  assert.deepEqual(body.page, { hasMore: true, nextCursor: 'thread-page-2' });
+  assert.deepEqual(calls.filter(call => /^(case|messages):/.test(call)), ['case:customer-one']);
+  const nextResponse = await detail(request(undefined, '?cursor=thread-page-2'), context(caseId));
+  assert.equal(nextResponse.status, 200);
+  const next = await nextResponse.json();
+  assert.deepEqual(next.page, { hasMore: false, nextCursor: null });
+  assert.notEqual(next.data.supportDetail[0].messages[0].reference, body.data.supportDetail[0].messages[0].reference);
+  assert.ok(!JSON.stringify(next).includes('must-not-leak'));
+  assert.deepEqual(calls.filter(call => /^(case|messages):/.test(call)), ['case:customer-one', 'messages:customer-one']);
   assert.equal((await detail(request('mobile-session-two-123456'), context(caseId))).status, 503);
 });
 test('all new routes reject bearer failures and customer query overrides before OPS', async () => {
@@ -82,16 +134,29 @@ test('disabled mobile routes do not query providers', async () => {
 
 test('actual support POST binds verified subject and preserves retry key', async () => {
  const post = (await import('../app/api/mobile/customer/support/route.ts')).POST;
- globalThis.__mobileReadFixture.createCase = async (identity, input, key) => { assert.equal(identity.userId,'customer-one'); assert.deepEqual(input,{title:'Question',message:'Hello'}); assert.equal(key,'create-attempt-123'); return {data:{}}; };
+ globalThis.__mobileReadFixture.createCase = async (identity, input, key) => { assert.equal(identity.userId,'customer-one'); assert.deepEqual(input,{title:'Question',message:'Hello'}); assert.equal(key,'create-attempt-123'); return supportPayload(); };
  const req = new Request('https://tenant.test/support',{method:'POST',headers:{authorization:'Bearer mobile-session-one-123456','content-type':'application/json','idempotency-key':'create-attempt-123'},body:JSON.stringify({title:'Question',message:'Hello'})});
- assert.equal((await post(req)).status,201);
+ const response = await post(req);
+ assert.equal(response.status, 201);
+ assert.equal(response.headers.get('cache-control'), 'private, no-store');
+ const receipt = await response.json();
+ assert.equal(receipt.data.supportCase.reference, caseId);
+ assert.ok(!JSON.stringify(receipt).includes('must-not-leak'));
 });
 test('actual reply route delegates ownership to canonical OPS and never creates a foreign message', async () => {
  const post = (await import('../app/api/mobile/customer/support/[id]/messages/route.ts')).POST;
- globalThis.__mobileReadFixture.reply = async (identity, reference) => { assert.equal(reference,caseId); if(identity.userId !== 'customer-one')throw Object.assign(Error('foreign'),{status:403}); return {data:{}}; };
+ globalThis.__mobileReadFixture.reply = async (identity, reference) => { assert.equal(reference,caseId); if(identity.userId !== 'customer-one')throw Object.assign(Error('foreign'),{status:403}); return {data: {...messagesPayload().data[0], author_type: 'customer', body: 'Reply'}}; };
  for(const [token,status] of [['mobile-session-one-123456',201],['mobile-session-two-123456',403]]) {
   const req = new Request('https://tenant.test/support',{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json','idempotency-key':'reply-attempt-123'},body:JSON.stringify({message:'Reply'})});
-  assert.equal((await post(req,context(caseId))).status,status);
+  const response = await post(req, context(caseId));
+  assert.equal(response.status, status);
+  const receipt = await response.json();
+  if (status === 201) {
+    assert.equal(receipt.data.caseReference, caseId);
+    assert.equal(receipt.data.message.body, 'Reply');
+    assert.equal(receipt.data.message.author, 'customer');
+    assert.ok(!JSON.stringify(receipt).includes('must-not-leak'));
+  } else assert.equal(receipt.data, undefined);
  }
 });
 
@@ -108,6 +173,7 @@ test('general document opening rechecks ownership and approved origins', async (
  const get = (await import('../app/api/mobile/customer/documents/[id]/open/route.ts')).GET;
  const ctx = {params:Promise.resolve({id:'ref-customer-one'})};
  assert.equal((await get(request(),ctx)).status,200);
+ assert.ok(calls.includes('ops-document-reference'));
  assert.equal((await get(request('mobile-session-two-123456'),ctx)).status,503);
  documentUrl='https://evil.test/a'; assert.equal((await get(request(),ctx)).status,503);
 });
@@ -115,8 +181,11 @@ test('general document opening rechecks ownership and approved origins', async (
 test('actual mobile phone update uses verified profile and requires accepted OPS completion',async()=>{
  const post=(await import('../app/api/mobile/customer/profile/route.ts')).POST;
  let status='accepted';globalThis.__mobileReadFixture.profileUpdate=async input=>{assert.equal(input.identity.userId,'customer-one');assert.deepEqual(input.profile,{phone:'0701234567'});assert.equal(input.idempotencyKey,'phone-update-123');return {status,data:{profile_updated:true}};};
- const req=()=>new Request('https://tenant.test/profile',{method:'POST',headers:{authorization:'Bearer mobile-session-one-123456','content-type':'application/json','idempotency-key':'phone-update-123'},body:JSON.stringify({phone:'0701234567'})});
+ const req=(phone='0701234567')=>new Request('https://tenant.test/profile',{method:'POST',headers:{authorization:'Bearer mobile-session-one-123456','content-type':'application/json','idempotency-key':'phone-update-123'},body:JSON.stringify({phone})});
  assert.equal((await post(req())).status,200);status='submitted';assert.equal((await post(req())).status,503);
+ assert.equal((await post(req('070+1234567'))).status,400);
+ globalThis.__mobileReadFixture.profileUpdate=async()=>{throw Object.assign(new Error('Invalid phone'),{status:422});};
+ assert.equal((await post(req())).status,422);
 });
 test('actual notification read verifies ownership and read-back before native success',async()=>{
  const post=(await import('../app/api/mobile/customer/notifications/read/route.ts')).POST;const reference=`notification_${'a'.repeat(24)}`;let confirmed=true;

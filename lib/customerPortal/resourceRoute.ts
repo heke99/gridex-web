@@ -19,9 +19,10 @@ const FALLBACK_MESSAGES: Readonly<Record<OpsCustomerReadResource, string>> = {
 export async function customerResourceResponse(
   resource: OpsCustomerReadResource,
   opaqueId?: string | null,
+  listQuery?: string | URLSearchParams | null,
 ) {
   try {
-    const response = await getCanonicalCustomerResource(resource, opaqueId)
+    const response = await getCanonicalCustomerResource(resource, opaqueId, listQuery)
     return privateJsonResponse(response)
   } catch (error) {
     return customerApiErrorResponse(error, {

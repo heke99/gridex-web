@@ -1,6 +1,8 @@
 import { canonicalSha256 } from '@/lib/ops/canonicalJson'
 import { OpsError } from '@/lib/ops/errors'
 import {
+  assertWebsiteOperationRequest,
+  assertWebsiteOperationResponse,
   assertWebsiteRequest,
   assertWebsiteResponse,
 } from '@/lib/ops/validators/openapi'
@@ -12,7 +14,8 @@ import {
   mapOpsWebsiteQuote,
   normalizeText,
   observeRuntimeSchemaValidation,
-  opsFetch,
+  opsRequest,
+  recordValue,
   verifiedOrganizationReference,
 } from './core'
 import type {
@@ -34,8 +37,11 @@ type AutoSelectedWebsiteQuoteInput = Omit<OpsWebsiteQuoteInput, 'price_option_re
  */
 export async function fetchOpsWebsiteQuoteAutoSelect(
   input: AutoSelectedWebsiteQuoteInput,
+  signal?: AbortSignal,
 ): Promise<OpsWebsitePricingPreview> {
+  signal?.throwIfAborted()
   await getVerifiedOpsIntegrationContext()
+  signal?.throwIfAborted()
   const requestBody = {
     resolution_id: input.resolution_id,
     offer_reference: input.offer_reference,
@@ -51,23 +57,37 @@ export async function fetchOpsWebsiteQuoteAutoSelect(
   }
   const endpoint = '/api/v1/website/quote'
   assertWebsiteRequest('WebsiteQuoteRequest', requestBody, endpoint)
-  const payload = await opsFetch(endpoint, {
+  const earliest = input.requested_start_mode === "earliest_possible";
+  const requestHeaders = new Headers({
+    ...(earliest ? { Prefer: "earliest-switch-start" } : {}),
+    "Idempotency-Key": [earliest ? "website-earliest-quote" : "website-quote", input.quote_attempt_id, canonicalSha256(requestBody)].join(":"),
+  });
+  assertWebsiteOperationRequest(endpoint, "post", requestBody, requestHeaders);
+  const { payload, headers, status } = await opsRequest(endpoint, {
     method: 'POST',
-    headers: {
-      'Idempotency-Key': [
-        'website-quote',
-        input.quote_attempt_id,
-        canonicalSha256(requestBody),
-      ].join(':'),
-    },
+    signal,
+    headers: requestHeaders,
     body: JSON.stringify(requestBody),
   })
   observeRuntimeSchemaValidation({
     endpoint,
     schema: 'WebsiteQuoteResponse',
-    validate: () => assertWebsiteResponse('WebsiteQuoteResponse', payload, endpoint),
+    validate: () => {
+      assertWebsiteOperationResponse(endpoint, 'post', status, payload)
+      assertWebsiteResponse('WebsiteQuoteResponse', payload, endpoint)
+    },
   })
   await verifiedOrganizationReference(payload, endpoint)
+
+  if (earliest && headers.get('Preference-Applied') !== 'earliest-switch-start') {
+    throw new OpsError('Tidigaste startdatum kunde inte verifieras just nu.', 503, {
+      code: 'ops_quote_start_policy_unavailable', endpoint, retryable: true,
+    })
+  }
+  const quoteStart = earliest ? normalizeText(recordValue(extractQuoteRow(payload).input)?.start_date) : input.start_date
+  if (!quoteStart) {
+    throw new OpsError('OPS-offerten saknar startdatum.', 502, { code: 'ops_quote_start_date_missing', endpoint })
+  }
 
   const selectedPriceOptionReference = normalizeText(
     extractQuoteRow(payload).price_option_reference,
@@ -82,6 +102,7 @@ export async function fetchOpsWebsiteQuoteAutoSelect(
 
   return mapOpsWebsiteQuote(payload, {
     ...input,
+    start_date: quoteStart,
     price_option_reference: selectedPriceOptionReference,
   })
 }

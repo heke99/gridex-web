@@ -104,6 +104,210 @@ assert.deepEqual(readiness.missing.sort(), ['function:public.gridex_support_clai
 assert.ok(!readiness.missing.some(value=>value.startsWith('client_write_grants:')))
 await db.exec('set role authenticated')
 await assert.rejects(()=>db.query('select gridex_web_audit_readiness_v1()'),/permission denied/)
+
+await db.exec(`
+ reset role;
+ create table public.website_application_submissions (
+   submission_attempt_id uuid primary key default gen_random_uuid(),
+   ops_application_number text,
+   ops_status text,
+   ops_workflow_state text,
+   ops_customer_number text,
+   contract_status text,
+   ops_supplier_switch_status text,
+   ops_result_snapshot jsonb,
+   last_status_synced_at timestamptz,
+   updated_at timestamptz not null default now(),
+   status text not null default 'submitting'
+ );
+ grant select, update on public.website_application_submissions to service_role;
+ insert into public.website_application_submissions (ops_application_number, ops_status, ops_result_snapshot) values
+   ('APP-VERSIONED', 'processing', '{"application_number":"APP-VERSIONED","status":"processing","stage":"queued","automation":{},"missing_customer_action":false,"updated_at":"2026-10-06T20:00:00.123456Z"}'),
+   ('APP-INVALID-CLOCK', 'processing', '{"application_number":"APP-INVALID-CLOCK","status":"processing","stage":"queued","automation":{},"missing_customer_action":false,"updated_at":"2026-99-06T20:00:00Z"}'),
+   ('APP-UNMATCHED', 'processing', '{"application_number":"APP-OTHER","status":"processing","stage":"queued","automation":{},"missing_customer_action":false,"updated_at":"2026-10-06T20:00:00Z"}'),
+   ('APP-SUBMITTED', 'accepted', '{"application_number":"APP-SUBMITTED","status":"accepted","continuation_job_id":"JOB-ORIGINAL","grid_owner_verification_issues":[]}'),
+   ('APP-DUPLICATE', 'processing', null),
+   ('APP-DUPLICATE', 'processing', null);
+`)
+await db.exec(await readFile(new URL('../supabase/migrations/20261122103348_order_website_submission_status.sql', import.meta.url), 'utf8'))
+
+const versionedAt = '2026-10-06T20:00:00.123456Z'
+const readStatus = async application => (await db.query(`
+ select status, ops_status, ops_workflow_state, ops_customer_number, contract_status,
+   ops_supplier_switch_status, ops_result_snapshot, ops_status_snapshot, last_status_synced_at::text,
+   ops_status_source_updated_at::text, ctid::text
+ from public.website_application_submissions where ops_application_number = $1
+`, [application])).rows[0]
+const syncStatus = async ({ application = 'APP-VERSIONED', time = versionedAt, status = 'processing', state = null,
+ customer = null, contract = null, switchStatus = null } = {}) => (await db.query(
+ 'select public.gridex_sync_website_submission_status($1,$2,$3,$4,$5,$6,$7,$8) as changed',
+ [application, time, status, state, customer, contract, switchStatus,
+  JSON.stringify({ application_number: application, status, stage: state ?? status, updated_at: time })],
+)).rows[0].changed
+
+assert.match((await readStatus('APP-VERSIONED')).ops_status_source_updated_at, /20:00:00\.123456/)
+assert.equal((await readStatus('APP-VERSIONED')).ops_result_snapshot, null)
+assert.equal((await readStatus('APP-VERSIONED')).ops_status_snapshot.updated_at, versionedAt)
+assert.equal((await readStatus('APP-INVALID-CLOCK')).ops_status_source_updated_at, null)
+assert.equal((await readStatus('APP-INVALID-CLOCK')).ops_status_snapshot.updated_at, '2026-99-06T20:00:00Z')
+assert.equal((await readStatus('APP-UNMATCHED')).ops_status_source_updated_at, null)
+assert.equal((await readStatus('APP-UNMATCHED')).ops_status_snapshot, null)
+assert.equal((await readStatus('APP-UNMATCHED')).ops_result_snapshot.application_number, 'APP-OTHER')
+const submissionResponse = (await readStatus('APP-SUBMITTED')).ops_result_snapshot
+assert.equal(submissionResponse.continuation_job_id, 'JOB-ORIGINAL')
+assert.equal((await readStatus('APP-SUBMITTED')).ops_status_snapshot, null)
+await db.exec('set role authenticated')
+await assert.rejects(() => syncStatus(), /permission denied/)
+await db.exec('set role service_role')
+const newerAt = '2026-10-06T20:00:00.123457Z'
+assert.equal(await syncStatus({ time: newerAt, status: 'accepted', state: 'committed', customer: 'CUSTOMER-TEST',
+ contract: 'signed', switchStatus: 'confirmed' }), true)
+const latest = await readStatus('APP-VERSIONED')
+assert.equal(latest.ops_status, 'accepted')
+assert.equal(latest.ops_status_snapshot.updated_at, newerAt)
+assert.equal(await syncStatus(), false)
+assert.equal(await syncStatus({ time: '2026-10-06T22:00:00.123457+02:00' }), false)
+assert.deepEqual(await readStatus('APP-VERSIONED'), latest, 'older and equal versions do not write a new row version')
+await db.exec(`
+ update public.website_application_submissions
+ set status = 'accepted', ops_status = 'processing', ops_workflow_state = 'queued', ops_customer_number = null,
+   contract_status = null, ops_supplier_switch_status = null, last_status_synced_at = null,
+   ops_result_snapshot = '{"application_number":"APP-VERSIONED","status":"accepted","continuation_job_id":"JOB-RECOVERED","grid_owner_verification_issues":[]}'
+ where ops_application_number = 'APP-VERSIONED'
+`)
+const { ctid: previousTuple, ...expected } = latest
+const { ctid: reconciledTuple, ...reconciled } = await readStatus('APP-VERSIONED')
+assert.notEqual(reconciledTuple, previousTuple)
+assert.equal(reconciled.ops_result_snapshot.continuation_job_id, 'JOB-RECOVERED')
+assert.deepEqual(reconciled, { ...expected, status: 'accepted', ops_result_snapshot: reconciled.ops_result_snapshot })
+assert.equal(await syncStatus({ time: '2026-10-06T20:00:00.123458Z', status: 'completed' }), true)
+const completed = await readStatus('APP-VERSIONED')
+assert.equal(completed.ops_status, 'completed')
+assert.equal(completed.ops_workflow_state, 'completed')
+assert.equal(completed.ops_customer_number, 'CUSTOMER-TEST')
+assert.equal(completed.contract_status, 'signed')
+assert.equal(completed.ops_supplier_switch_status, 'confirmed')
+assert.equal(completed.ops_result_snapshot.continuation_job_id, 'JOB-RECOVERED')
+
+const legacyStatusWrite = (application, time, status) => db.query(`
+ update public.website_application_submissions set ops_status = $1, ops_result_snapshot = $2 where ops_application_number = $3
+`, [status, JSON.stringify({ application_number: application, status, stage: 'legacy', automation: {},
+ missing_customer_action: false, updated_at: time }), application])
+await legacyStatusWrite('APP-SUBMITTED', null, 'processing')
+assert.equal((await readStatus('APP-SUBMITTED')).ops_status, 'accepted')
+assert.equal((await readStatus('APP-SUBMITTED')).ops_status_snapshot, null)
+await legacyStatusWrite('APP-SUBMITTED', versionedAt, 'processing')
+assert.equal((await readStatus('APP-SUBMITTED')).ops_status_snapshot.stage, 'legacy')
+assert.deepEqual((await readStatus('APP-SUBMITTED')).ops_result_snapshot, submissionResponse)
+assert.equal(await syncStatus({ application: 'APP-SUBMITTED', time: newerAt, status: 'completed' }), true)
+await legacyStatusWrite('APP-SUBMITTED', versionedAt, 'processing')
+const submitted = await readStatus('APP-SUBMITTED')
+assert.equal(submitted.ops_status, 'completed')
+assert.equal(submitted.ops_status_snapshot.status, 'completed')
+assert.deepEqual(submitted.ops_result_snapshot, submissionResponse)
+
+assert.equal(await syncStatus({ application: 'APP-INVALID-CLOCK' }), true)
+await assert.rejects(() => syncStatus({ time: null }), /Finite OPS source timestamp required/)
+await assert.rejects(() => syncStatus({ time: 'infinity' }), /Finite OPS source timestamp required/)
+await assert.rejects(() => syncStatus({ application: 'APP-MISSING' }), /Website application submission not found/)
+await assert.rejects(() => syncStatus({ application: 'APP-DUPLICATE' }), /more than one row/)
+assert.equal((await db.query("select count(*)::int as unversioned from public.website_application_submissions where ops_application_number = 'APP-DUPLICATE' and ops_status_source_updated_at is null")).rows[0].unversioned, 2)
+
+await db.exec(`
+ reset role;
+ create table public.website_application_results (
+   id uuid primary key default gen_random_uuid(),
+   token_hash text not null unique,
+   submission_attempt_id uuid not null unique references public.website_application_submissions(submission_attempt_id) on delete cascade,
+   user_id uuid references auth.users(id) on delete set null,
+   public_result jsonb not null,
+   expires_at timestamptz not null
+ );
+ grant select, insert, update, delete on public.website_application_results to service_role;
+ insert into public.website_application_results (token_hash, submission_attempt_id, user_id, public_result, expires_at)
+ select 'legacy-hash', submission_attempt_id, '${alice}', '{"status":"processing"}', now() + interval '2 hours'
+ from public.website_application_submissions where ops_application_number = 'APP-SUBMITTED';
+`)
+await db.exec(await readFile(new URL('../supabase/migrations/20261122110509_preserve_website_receipt_links.sql', import.meta.url), 'utf8'))
+const lookupReceipt = async hash => (await db.query(`
+ select public_result, expires_at::text, submission_attempt_id, user_id
+ from public.website_application_result_links where token_hash = $1
+`, [hash])).rows
+for (const role of ['anon', 'authenticated']) {
+ await db.exec(`set role ${role}`)
+ await assert.rejects(() => lookupReceipt('legacy-hash'), /permission denied/)
+ await assert.rejects(() => db.query('select * from public.website_application_result_history'), /permission denied/)
+}
+await db.exec('set role service_role')
+const [legacyLink] = await lookupReceipt('legacy-hash')
+const issueReceipt = (hash, status, user, duration) => db.query(`
+ insert into public.website_application_results (token_hash, submission_attempt_id, user_id, public_result, expires_at)
+ values ($1, $2, $3, jsonb_build_object('status', $4::text), now() + $5::interval)
+ on conflict (submission_attempt_id) do update
+ set token_hash = excluded.token_hash, public_result = excluded.public_result, user_id = excluded.user_id, expires_at = excluded.expires_at
+`, [hash, legacyLink.submission_attempt_id, user, status, duration])
+await issueReceipt('second-hash', 'accepted', bob, '3 hours')
+const [secondLink] = await lookupReceipt('second-hash')
+assert.equal(secondLink.user_id, bob)
+assert.deepEqual(secondLink.public_result, { status: 'accepted' })
+assert.deepEqual(await lookupReceipt('legacy-hash'), [legacyLink], 'old link keeps its own snapshot, binding and expiry')
+await issueReceipt('third-hash', 'completed', bob, '4 hours')
+assert.deepEqual(await lookupReceipt('second-hash'), [secondLink])
+assert.deepEqual(await lookupReceipt('legacy-hash'), [legacyLink])
+await issueReceipt('legacy-hash', 'processing', alice, '2 hours')
+assert.equal((await lookupReceipt('legacy-hash')).length, 1, 'a current and archived copy of the same token remains unambiguous')
+await assert.rejects(() => db.exec("delete from public.website_application_result_history where token_hash = 'second-hash'"), /permission denied/)
+await db.exec(`
+ reset role;
+ insert into public.website_application_result_history (token_hash, result_id, public_result, expires_at)
+ select 'expired-' || n, result.id, '{}', now() - interval '1 day'
+ from public.website_application_results as result cross join generate_series(1, 52) as n
+ where result.token_hash = 'legacy-hash';
+ set role service_role;
+`)
+await issueReceipt('fourth-hash', 'accepted', bob, '4 hours')
+assert.equal((await db.query('select count(*)::int as remaining from public.website_application_result_history where expires_at <= now()')).rows[0].remaining, 2)
+assert.equal((await lookupReceipt('second-hash')).length, 1)
+await db.exec("delete from public.website_application_results where token_hash = 'fourth-hash'")
+assert.deepEqual(await lookupReceipt('legacy-hash'), [])
+assert.deepEqual(await lookupReceipt('second-hash'), [])
+assert.equal((await db.query('select count(*)::int as remaining from public.website_application_result_history')).rows[0].remaining, 0)
+
+await db.exec(`
+ reset role;
+ create table public.website_submission_reconciliation_jobs (
+   submission_attempt_id uuid unique, status text, payload jsonb,
+   attempt_count integer default 0, last_error text, next_attempt_at timestamptz,
+   locked_at timestamptz, updated_at timestamptz
+ );
+ grant select, insert, update on public.website_submission_reconciliation_jobs to service_role;
+`)
+await db.exec(await readFile(new URL('../supabase/migrations/20261122161000_atomic_website_reconciliation_enqueue.sql', import.meta.url), 'utf8'))
+await db.exec('set role authenticated')
+const enqueueReconciliation = status => db.query(
+  'select public.gridex_enqueue_website_reconciliation_v1($1, $2::jsonb, $3)',
+  [alice, JSON.stringify({ submissionAttemptId: alice, status }), 'synthetic reason'],
+)
+await assert.rejects(() => enqueueReconciliation('accepted'), /permission denied/)
+await db.exec('reset role; set role service_role')
+await enqueueReconciliation('submitting')
+await enqueueReconciliation('accepted')
+await enqueueReconciliation('submitting')
+let reconciliationRows = (await db.query('select * from public.website_submission_reconciliation_jobs')).rows
+assert.equal(reconciliationRows.length, 1)
+assert.equal(reconciliationRows[0].payload.status, 'accepted')
+await db.exec("update public.website_submission_reconciliation_jobs set status = 'processing', attempt_count = 1, locked_at = now()")
+const [activeJob] = (await db.query('select * from public.website_submission_reconciliation_jobs')).rows
+await Promise.all([enqueueReconciliation('submitting'), enqueueReconciliation('accepted')])
+reconciliationRows = (await db.query('select * from public.website_submission_reconciliation_jobs')).rows
+assert.deepEqual(reconciliationRows, [activeJob])
+await db.exec("update public.website_submission_reconciliation_jobs set status = 'completed'")
+const [completedJob] = (await db.query('select * from public.website_submission_reconciliation_jobs')).rows
+await enqueueReconciliation('accepted')
+assert.deepEqual((await db.query('select * from public.website_submission_reconciliation_jobs')).rows, [completedJob])
+
 await db.close()
+console.log('Rotated receipt links preserve the issued snapshot, customer binding and expiry with private access and bounded cleanup')
+console.log('Submission status uses an atomic source-version comparison and avoids writes on equal or older versions')
 console.log('Pricing, support receipt transactions, duplicate-index checks and queue ownership passed')
 console.log('Audit SQL regressions passed: customer isolation, forged writes denied, scoped permissions, current Auth email, fencing and atomic rollback')

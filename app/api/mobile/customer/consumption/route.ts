@@ -14,6 +14,6 @@ export const GET = createConsumptionHandler({
     const subject = await authenticateMobile(token);
     return subject ? mobileIdentity(subject, token) : null;
   },
-  load: (binding, selection) => loadOpsConsumption(binding as OpsPortalIdentity, selection,
-    (path, identity, signal) => opsCustomerFetch(path, identity, { signal })),
+  load: (binding, selection, requestSignal) => loadOpsConsumption(binding as OpsPortalIdentity, selection,
+    (path, identity, signal) => opsCustomerFetch(path, identity, { signal }), requestSignal),
 });

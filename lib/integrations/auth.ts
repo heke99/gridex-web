@@ -15,6 +15,21 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(left, right)
 }
 
+export function verifyCronBearer(request: Request): boolean {
+  const secret = process.env.CRON_SECRET?.trim()
+  const authorization = request.headers.get('authorization')
+  return Boolean(secret && authorization && safeEqual(authorization, `Bearer ${secret}`))
+}
+
+export function verifyScheduledJobRequest(request: Request, jobSecret?: string): boolean {
+  if (verifyCronBearer(request)) return true
+  const secret = jobSecret?.trim() || process.env.CRON_SECRET?.trim()
+  if (!secret) return false
+  const bearer = bearerToken(request)
+  const header = request.headers.get('x-cron-secret')?.trim()
+  return Boolean((bearer && safeEqual(bearer, secret)) || (header && safeEqual(header, secret)))
+}
+
 function bearerToken(req: Request): string | null {
   const header = req.headers.get('authorization')
   if (!header) return null

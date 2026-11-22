@@ -51,6 +51,8 @@ export type WebsiteApplicationPublicResult = {
 }
 
 type StoredResultRow = {
+  submission_attempt_id: string | null
+  user_id: string | null
   public_result: WebsiteApplicationPublicResult
   expires_at: string
 }
@@ -298,8 +300,7 @@ export async function readWebsiteApplicationResultState(
     if (decoded.status !== 'verified') return decoded
 
     // The signed token is the customer-facing source of truth after OPS success.
-    // Opportunistically repair a missing/failed database projection whenever the
-    // customer opens the result or a status endpoint validates the token.
+    // Recreate missing projections without changing an existing receipt.
     try {
       const { error } = await serviceClient().from('website_application_results').upsert(
         [{
@@ -310,7 +311,7 @@ export async function readWebsiteApplicationResultState(
           expires_at: decoded.expiresAt,
           updated_at: new Date().toISOString(),
         }],
-        { onConflict: 'submission_attempt_id', defaultToNull: false },
+        { onConflict: 'submission_attempt_id', ignoreDuplicates: true, defaultToNull: false },
       )
       if (error) throw new Error(error.message)
     } catch (error) {
@@ -322,8 +323,8 @@ export async function readWebsiteApplicationResultState(
 
   try {
     const { data, error } = await serviceClient()
-      .from('website_application_results')
-      .select('public_result,expires_at')
+      .from('website_application_result_links')
+      .select('public_result,expires_at,submission_attempt_id,user_id')
       .eq('token_hash', tokenHash(normalized))
       .maybeSingle<StoredResultRow>()
     if (error) throw new Error(error.message)
@@ -339,6 +340,8 @@ export async function readWebsiteApplicationResultState(
       result: data.public_result,
       source: 'database',
       expiresAt: data.expires_at,
+      submissionAttemptId: data.submission_attempt_id ?? undefined,
+      userId: data.user_id,
     }
   } catch (error) {
     console.error('[website signup] result token database read failed', error)

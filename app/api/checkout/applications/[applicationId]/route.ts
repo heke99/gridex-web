@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteApplicationStatus, isOpsError } from '@/lib/ops/client'
-import { isWebsiteApplicationResultTokenShape, readWebsiteApplicationResult } from '@/lib/website/applicationResultStore'
+import { isWebsiteApplicationResultTokenShape, readWebsiteApplicationResultState } from '@/lib/website/applicationResultStore'
 import { syncWebsiteSubmissionStatus } from '@/lib/website/submissionStore'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 
@@ -33,7 +33,14 @@ export async function GET(
     )
   }
 
-  const stored = await readWebsiteApplicationResult(resultToken).catch(() => null)
+  const receipt = await readWebsiteApplicationResultState(resultToken)
+  if (receipt.status === 'storage_error') {
+    return NextResponse.json({ error: { code: 'application_status_unavailable' } }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
+  }
+  if (receipt.status === 'expired') {
+    return NextResponse.json({ error: { code: 'result_token_expired' } }, { status: 410 })
+  }
+  const stored = receipt.result
   if (!stored?.applicationNumber || stored.applicationNumber !== applicationNumber) {
     return NextResponse.json({ error: { code: 'application_not_found' } }, { status: 404 })
   }
@@ -45,10 +52,11 @@ export async function GET(
   )
   if (!applicationRate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((applicationRate.resetAt - Date.now()) / 1_000))) } })
   try {
-    const data = await fetchOpsWebsiteApplicationStatus(applicationNumber)
+    const data = await fetchOpsWebsiteApplicationStatus(applicationNumber, { includeWebhookDiagnostics: false })
     await syncWebsiteSubmissionStatus({
       opsApplicationNumber: data.application_number,
       opsStatus: data.status,
+      sourceUpdatedAt: data.updated_at,
       opsWorkflowState: data.stage,
       opsCustomerNumber: data.customer_number,
       contractStatus: data.contract_status,

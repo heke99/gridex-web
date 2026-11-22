@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import {
   OpsError,
+  fetchOpsWebsiteApplicationStatus,
+  fetchOpsWebsiteSwitchStatus,
   mapOpsCustomerApplicationResult,
   validateOpsWebsiteQuote,
 } from '../lib/ops/client.ts'
@@ -338,5 +340,64 @@ assert.equal(mappedApplication.communication?.failed[0]?.code, 'provider_unavail
 assert.equal(typeof mappedApplication.communication?.triggered[0], 'object')
 assert.equal(mappedApplication.communication?.triggered[0]?.event_type, 'agreement_confirmation')
 assert.equal(mappedApplication.raw?.power_of_attorney_id, undefined)
+
+const switchEvent = { event_type: 'requested', event_status: 'accepted', message: 'Synthetic switch history', created_at: '2026-09-01T12:00:00Z' }
+const switchRequests = []
+globalThis.fetch = async (url, init = {}) => {
+  const endpoint = new URL(url)
+  if (endpoint.pathname.endsWith('/integration/context')) return jsonResponse({ data: validContext })
+  assert.ok(endpoint.pathname.endsWith('/website/switch-status'))
+  const prefer = new Headers(init.headers).get('Prefer')
+  switchRequests.push(prefer)
+  // Simulate an older OPS that always returns history and ignores Prefer.
+  return jsonResponse({ data: {
+    application_number: 'APP-1001', application_status: 'accepted',
+    switch: { switch_reference: 'switch_synthetic', status: 'requested', lifecycle_blocked: false, events: [switchEvent] },
+    next_step: null, blocking_reasons: [], requested_start_date: null, confirmed_start_date: null, actual_start_date: null,
+  } })
+}
+const defaultSwitch = await fetchOpsWebsiteSwitchStatus('APP-1001')
+const receiptSwitch = await fetchOpsWebsiteSwitchStatus('APP-1001', { includeEvents: false })
+assert.deepEqual(switchRequests, [null, 'omit-switch-events'])
+assert.deepEqual(receiptSwitch, defaultSwitch)
+assert.deepEqual(receiptSwitch.switch.events, [switchEvent])
+
+const applicationFixture = {
+  application_number: 'APP-1001', status: 'processing', stage: 'integration', supplier_switch_status: 'unknown',
+  missing_customer_action: false, automation: { status: 'not_started', attempts: 0, max_attempts: 0 },
+  communication: { pending: false, source_of_truth: 'tenant_email_outbox+communication_logs', triggered: [], queued: [], sent: [], failed: [] },
+  checkout: {
+    outcome: 'application_received', thank_you_ready: false, page_state: 'processing', customer_action_required: false,
+    application: { application_number: 'APP-1001', status: 'processing' },
+    agreement: { status: null, contract_number: null, signed_at: null, withdrawal_deadline_at: null, signature_snapshot_sha256: null },
+    confirmation_email: { expected: false, status: 'not_expected' }, status_path: null,
+  },
+}
+const fullWebhook = { status: 'sent', fanout_status: 'completed', queued: 0, sent: 1, failed: 0, attempts: 1 }
+const applicationRequests = []
+let variant = 'compact'
+globalThis.fetch = async (url, init = {}) => {
+  const endpoint = new URL(url)
+  if (endpoint.pathname.endsWith('/integration/context')) return jsonResponse({ data: validContext })
+  assert.ok(endpoint.pathname.endsWith('/website/customer-applications/APP-1001'))
+  applicationRequests.push(new Headers(init.headers).get('Prefer'))
+  const data = structuredClone(applicationFixture)
+  if (variant === 'legacy') data.webhook = fullWebhook
+  if (variant === 'malformed') delete data.supplier_switch_status
+  return jsonResponse({ data, request_id: 'synthetic', contract_schema_version: CONTRACT_VERSION }, 200,
+    variant === 'legacy' || variant === 'unacknowledged' ? {} : { 'Preference-Applied': 'omit-webhook-diagnostics' })
+}
+const statusOptions = { includeWebhookDiagnostics: false }
+const compactStatus = await fetchOpsWebsiteApplicationStatus('APP-1001', statusOptions)
+assert.equal(compactStatus.status, 'processing')
+assert.equal(Object.hasOwn(compactStatus.raw, 'webhook'), false)
+variant = 'legacy'
+const legacyStatus = await fetchOpsWebsiteApplicationStatus('APP-1001', statusOptions)
+assert.deepEqual(legacyStatus, { ...compactStatus, raw: { ...compactStatus.raw, webhook: fullWebhook } })
+variant = 'malformed'
+await assert.rejects(() => fetchOpsWebsiteApplicationStatus('APP-1001', statusOptions), error => error.status === 502)
+variant = 'unacknowledged'
+await assert.rejects(() => fetchOpsWebsiteApplicationStatus('APP-1001', statusOptions), error => error.status === 502)
+assert.deepEqual(applicationRequests, Array(4).fill('omit-webhook-diagnostics'))
 
 console.log('Website API runtime contract tests passed')

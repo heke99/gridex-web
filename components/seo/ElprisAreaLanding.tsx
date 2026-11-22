@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import FaqJsonLd from '@/components/seo/FaqJsonLd'
 import {
   GENERIC_MARKET_INFORMATION_NOTICE,
@@ -29,7 +28,6 @@ function formatPrice(n: number) {
 }
 
 export default async function ElprisAreaLanding({ area }: { area: Area }) {
-  const supabase = await createSupabaseServerClient()
   const { year, month } = prevYearMonth(new Date())
 
   // Public SEO pages should show the same previous-month spot price
@@ -40,10 +38,7 @@ export default async function ElprisAreaLanding({ area }: { area: Area }) {
       month,
       priceArea: area,
     }).catch(() => null),
-    getGenericCurrentMarketInformation({
-      supabase,
-      area,
-    }).catch(() => null),
+    getGenericCurrentMarketInformation({ area }).catch(() => null),
   ])
 
   const spotAvgOre = spotAverage?.avgSpotOre ?? null

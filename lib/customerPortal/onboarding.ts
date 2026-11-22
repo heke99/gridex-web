@@ -63,14 +63,20 @@ type PortalOnboardingJob = {
   next_attempt_at: string | null
   last_error: string | null
   locked_at: string | null
+  updated_at: string
 }
 
-const JOB_COLUMNS = 'id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at,last_error,locked_at'
+const JOB_COLUMNS = 'id,submission_attempt_id,status,email,auth_user_id,payload,attempt_count,max_attempts,next_attempt_at,last_error,locked_at,updated_at'
 const EXISTING_ACCOUNT_MESSAGE = 'Ett konto finns redan för e-postadressen. Logga in för att koppla den här teckningen till Mina sidor. Välj själv återställning av lösenord om du behöver en ny inloggningslänk.'
 
 function waitingForExistingAccount(job: PortalOnboardingJob): boolean {
   return job.next_attempt_at === null && job.last_error === 'existing_auth_user_requires_login' &&
     (job.status === 'pending' || job.status === 'manual_review')
+}
+
+function dueForProcessing(job: PortalOnboardingJob, now: string): boolean {
+  return (job.status === 'pending' || job.status === 'retryable_failure') &&
+    job.next_attempt_at !== null && Date.parse(job.next_attempt_at) <= Date.parse(now)
 }
 
 function env(name: string): string | null {
@@ -328,6 +334,7 @@ async function claimJob(
     .eq('id', job.id)
     .eq('attempt_count', job.attempt_count)
     .eq('status', job.status)
+    .eq('next_attempt_at', job.next_attempt_at)
     .in('status', ['pending', 'retryable_failure'])
   update = job.auth_user_id ? update.eq('auth_user_id', job.auth_user_id) : update.is('auth_user_id', null)
   const { data, error } = await update.select('id').maybeSingle<{ id: string }>()
@@ -344,46 +351,60 @@ async function queueJob(
   supabase: SupabaseServiceClient,
   input: PortalOnboardingInput,
 ): Promise<PortalOnboardingJob> {
-  const { data: existing, error: readError } = await supabase
-    .from('portal_onboarding_jobs')
-    .select(JOB_COLUMNS)
-    .eq('submission_attempt_id', input.submissionAttemptId)
-    .maybeSingle<PortalOnboardingJob>()
-  if (readError) throw new Error(`Portal onboarding job read failed: ${readError.message}`)
-  if (existing && (normalizeEmail(existing.email) !== normalizeEmail(input.email) ||
-    stablePortalCustomerIdentityConflicts(existing.payload.application, input.application) ||
-    (existing.auth_user_id && input.authenticatedUserId && existing.auth_user_id !== input.authenticatedUserId))) {
-    throw new OpsError('Teckningens kundkoppling stämmer inte med det väntande försöket.', 409, {
-      code: 'portal_onboarding_job_identity_conflict', retryable: false,
-    })
+  function verifyIdentity(job: PortalOnboardingJob) {
+    if (normalizeEmail(job.email) !== normalizeEmail(input.email) ||
+      stablePortalCustomerIdentityConflicts(job.payload.application, input.application) ||
+      (job.auth_user_id && input.authenticatedUserId && job.auth_user_id !== input.authenticatedUserId)) {
+      throw new OpsError('Teckningens kundkoppling stämmer inte med det väntande försöket.', 409, {
+        code: 'portal_onboarding_job_identity_conflict', retryable: false,
+      })
+    }
+    return job
   }
-  if (existing?.status === 'completed' || existing?.status === 'processing') return existing
-  if (existing && (waitingForExistingAccount(existing) || existing.status === 'manual_review')) return existing
 
-  const { data, error } = await supabase
-    .from('portal_onboarding_jobs')
-    .upsert(
-      [{
-        submission_attempt_id: input.submissionAttemptId,
-        status: 'pending',
-        application_number: input.application.application_number,
-        customer_number: input.application.customer_number,
-        external_customer_id: input.application.external_customer_id,
-        email: normalizeEmail(input.email),
-        auth_user_id: input.authenticatedUserId ?? existing?.auth_user_id ?? null,
-        payload: input,
-        attempt_count: existing?.attempt_count ?? 0,
-        max_attempts: existing?.max_attempts ?? 10,
-        next_attempt_at: new Date().toISOString(),
-        last_error: null,
-        locked_at: null,
-      }],
-      { onConflict: 'submission_attempt_id', defaultToNull: false },
+  async function readJob() {
+    const { data, error } = await supabase.from('portal_onboarding_jobs')
+      .select(JOB_COLUMNS)
+      .eq('submission_attempt_id', input.submissionAttemptId)
+      .maybeSingle<PortalOnboardingJob>()
+    if (error) throw new Error(`Portal onboarding job read failed: ${error.message}`)
+    return data ? verifyIdentity(data) : null
+  }
+
+  const existing = await readJob()
+  if (existing && (existing.status === 'completed' || existing.status === 'processing' ||
+    existing.status === 'manual_review' || waitingForExistingAccount(existing))) return existing
+
+  const now = new Date().toISOString()
+  const patch = {
+    status: 'pending',
+    application_number: input.application.application_number,
+    customer_number: input.application.customer_number,
+    external_customer_id: input.application.external_customer_id,
+    email: normalizeEmail(input.email),
+    auth_user_id: input.authenticatedUserId ?? existing?.auth_user_id ?? null,
+    payload: input,
+    next_attempt_at: now,
+    last_error: null,
+    updated_at: now,
+  }
+  const query = existing
+    ? supabase.from('portal_onboarding_jobs').update(patch)
+      .eq('id', existing.id)
+      .eq('status', existing.status)
+      .eq('attempt_count', existing.attempt_count)
+      .eq('updated_at', existing.updated_at)
+    : supabase.from('portal_onboarding_jobs').upsert(
+      { ...patch, submission_attempt_id: input.submissionAttemptId, attempt_count: 0, max_attempts: 10, locked_at: null },
+      { onConflict: 'submission_attempt_id', ignoreDuplicates: true },
     )
-    .select(JOB_COLUMNS)
-    .single<PortalOnboardingJob>()
-  if (error || !data) throw new Error(`Portal onboarding job upsert failed: ${error?.message ?? 'missing row'}`)
-  return data
+  const { data, error } = await query.select(JOB_COLUMNS).maybeSingle<PortalOnboardingJob>()
+  if (error) throw new Error(`Portal onboarding job write failed: ${error.message}`)
+  if (data) return data
+
+  const concurrent = await readJob()
+  if (!concurrent) throw new Error('Portal onboarding job changed during enqueue.')
+  return concurrent
 }
 
 
@@ -414,16 +435,30 @@ function isExistingAuthUserInviteError(error: { status?: number; message?: strin
 async function processJob(
   supabase: SupabaseServiceClient,
   job: PortalOnboardingJob,
+  onClaim?: (claim: PortalProcessingClaim) => void,
 ): Promise<PortalOnboardingResult> {
   if (job.status === 'completed') return { status: 'profile_linked', userId: job.auth_user_id }
   if (waitingForExistingAccount(job)) return { status: 'pending', message: EXISTING_ACCOUNT_MESSAGE }
   if (job.status === 'manual_review') return { status: 'pending', message: 'Mina sidor-kopplingen behöver verifieras av kundservice.' }
+  if (!dueForProcessing(job, new Date().toISOString())) return { status: 'pending' }
+  if (job.attempt_count >= job.max_attempts) {
+    const { error } = await supabase.from('portal_onboarding_jobs').update({
+      status: 'manual_review',
+      next_attempt_at: null,
+      locked_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', job.id).eq('status', job.status).eq('attempt_count', job.attempt_count)
+      .eq('next_attempt_at', job.next_attempt_at)
+    if (error) throw new Error('Portal onboarding exhausted job update failed: ' + error.message)
+    return { status: 'failed', message: 'Portal onboarding attempts exhausted.' }
+  }
 
   const input = job.payload
   const processingClaim = await claimJob(supabase, job)
   if (processingClaim === null) {
     return { status: 'pending', message: 'Portal onboarding is already being processed.' }
   }
+  onClaim?.(processingClaim)
   const { attempt } = processingClaim
   const assertClaim = () => assertWorkerClaim(supabase, job.id, processingClaim)
 
@@ -580,8 +615,7 @@ export async function ensureCustomerPortalOnboarding(
   }
   try {
     const supabase = await loadServiceClient()
-    await recoverStalePortalOnboardingJobs(supabase)
-    return processJob(supabase, await queueJob(supabase, input))
+    return await processJob(supabase, await queueJob(supabase, input))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('[customer portal] onboarding could not be queued', error)
@@ -589,12 +623,26 @@ export async function ensureCustomerPortalOnboarding(
   }
 }
 
-export async function processPortalOnboardingJobs(limit = 25): Promise<{
+const ONBOARDING_CONCURRENCY = 2
+
+function onboardingIdentityKeys(job: PortalOnboardingJob): string[] {
+  return [
+    ['email', normalizeEmail(job.email)],
+    ['email', typeof job.payload?.email === 'string' ? normalizeEmail(job.payload.email) : null],
+    ['auth', job.auth_user_id],
+    ['auth', job.payload?.authenticatedUserId],
+    ['customer', job.payload?.application?.customer_number],
+    ['external', job.payload?.application?.external_customer_id],
+  ].flatMap(([kind, value]) => typeof value === 'string' && value.trim() ? [`${kind}:${value.trim()}`] : [])
+}
+
+export async function processPortalOnboardingJobs(limit = 25, signal?: AbortSignal): Promise<{
   processed: number
   completed: number
   pending: number
   failed: number
 }> {
+  signal?.throwIfAborted()
   const supabase = await loadServiceClient()
   await recoverStalePortalOnboardingJobs(supabase)
   const { data, error } = await supabase
@@ -610,12 +658,40 @@ export async function processPortalOnboardingJobs(limit = 25): Promise<{
   let completed = 0
   let pending = 0
   let failed = 0
-  for (const job of data ?? []) {
-    const result = await processJob(supabase, job)
-    if (result.status === 'profile_linked') completed += 1
-    else if (result.status === 'failed') failed += 1
-    else pending += 1
+  let retriesStarted = 0
+  let maxRetryLagMs = 0
+  let waiting = (data ?? []).map(job => ({ job, keys: onboardingIdentityKeys(job) }))
+  while (waiting.length > 0) {
+    signal?.throwIfAborted()
+    const batch: PortalOnboardingJob[] = []
+    const earlierKeys = new Set<string>()
+    waiting = waiting.filter(({ job, keys }) => {
+      if (batch.length === ONBOARDING_CONCURRENCY) return true
+      const blocked = keys.some(key => earlierKeys.has(key))
+      // Deferred jobs still reserve their place ahead of later related jobs.
+      for (const key of keys) earlierKeys.add(key)
+      if (blocked) return true
+      batch.push(job)
+      return false
+    })
+
+    await Promise.all(batch.map(async job => {
+      try {
+        const result = await processJob(supabase, job, claim => {
+          if (job.status !== 'retryable_failure' || !job.next_attempt_at) return
+          retriesStarted++
+          maxRetryLagMs = Math.max(maxRetryLagMs, Date.parse(claim.lockedAt) - Date.parse(job.next_attempt_at))
+        })
+        if (result.status === 'profile_linked') completed += 1
+        else if (result.status === 'failed') failed += 1
+        else pending += 1
+      } catch (error) {
+        failed += 1
+        console.error('[customer portal] onboarding job could not be processed', { jobId: job.id, error })
+      }
+    }))
   }
+  if (retriesStarted) console.info('[customer portal onboarding] retry delay', { retriesStarted, maxRetryLagMs })
   return { processed: (data ?? []).length, completed, pending, failed }
 }
 
@@ -640,21 +716,27 @@ export async function resumePortalOnboardingForConfirmedUser(input: {
   let processed = 0
   for (const job of data ?? []) {
     if (job.auth_user_id && job.auth_user_id !== input.userId) continue
+    const now = new Date().toISOString()
+    const waitingForLogin = waitingForExistingAccount(job)
+    if (job.attempt_count >= job.max_attempts || (!waitingForLogin && !dueForProcessing(job, now))) continue
+
     const payload = { ...job.payload, authenticatedUserId: input.userId }
+    const nextAttemptAt = waitingForLogin ? now : job.next_attempt_at
+    const status = waitingForLogin ? 'pending' : job.status
     let update = supabase.from('portal_onboarding_jobs').update({
       auth_user_id: input.userId,
       payload,
-      status: 'pending',
-      attempt_count: 0,
-      next_attempt_at: new Date().toISOString(),
-      last_error: null,
-      locked_at: null,
-      updated_at: new Date().toISOString(),
+      status,
+      next_attempt_at: nextAttemptAt,
+      updated_at: now,
     })
       .eq('id', job.id)
       .eq('status', job.status)
       .eq('attempt_count', job.attempt_count)
     update = job.auth_user_id ? update.eq('auth_user_id', job.auth_user_id) : update.is('auth_user_id', null)
+    update = waitingForLogin
+      ? update.is('next_attempt_at', null).eq('last_error', 'existing_auth_user_requires_login')
+      : update.eq('next_attempt_at', job.next_attempt_at)
     const { data: resumed, error: resumeError } = await update.select('id').maybeSingle<{ id: string }>()
     if (resumeError) throw new Error('Portal onboarding resume claim failed: ' + resumeError.message)
     if (!resumed) continue
@@ -663,27 +745,10 @@ export async function resumePortalOnboardingForConfirmedUser(input: {
       ...job,
       payload,
       auth_user_id: input.userId,
-      status: 'pending',
-      attempt_count: 0,
-      next_attempt_at: new Date().toISOString(),
-      last_error: null,
-      locked_at: null,
+      status,
+      next_attempt_at: nextAttemptAt,
     })
     if (result.status === 'profile_linked') completed += 1
   }
   return { processed, completed }
-}
-
-export async function hasPendingPortalOnboardingForUser(userId: string): Promise<boolean> {
-  const supabase = await loadServiceClient()
-  const { count, error } = await supabase
-    .from('portal_onboarding_jobs')
-    .select('id', { count: 'exact', head: true })
-    .eq('auth_user_id', userId)
-    .in('status', ['pending', 'processing', 'retryable_failure', 'manual_review'])
-  if (error) {
-    console.error('[customer portal] pending onboarding check failed', error)
-    return true
-  }
-  return (count ?? 0) > 0
 }

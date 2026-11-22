@@ -372,6 +372,30 @@ function addAutomaticRenewalRow(
  * DTO it was promised, never OPS-internal IDs or duplicate publication flags.
  */
 export function buildPublicContractDisplay(contract: OpsPublicContract): PublicContractDisplay {
+  return applyPublicContractValidity(contract, buildPublicContractPresentation(contract))
+}
+
+export function applyPublicContractValidity(
+  contract: OpsPublicContract,
+  display: PublicContractDisplay,
+): PublicContractDisplay {
+  const validity = stockholmValidityStatus({ validFrom: contract.valid_from, validTo: contract.valid_to })
+  if (validity === 'active') return display
+  const reason = {
+    not_started: 'gäller från framtida datum',
+    expired: 'avtalet har passerat slutdatum',
+    invalid: 'avtalets giltighetsperiod är ogiltig',
+  }[validity]
+  return {
+    ...display,
+    ready: false,
+    onlineReady: false,
+    blockedReasons: [...display.blockedReasons, reason],
+    onlineBlockedReasons: [...display.onlineBlockedReasons, reason],
+  }
+}
+
+export function buildPublicContractPresentation(contract: OpsPublicContract): PublicContractDisplay {
   const rows: PublicContractDisplayRow[] = []
   const typeLabel = publicContractTypeLabel(contract.type)
   const blockedReasons: string[] = []
@@ -462,14 +486,6 @@ export function buildPublicContractDisplay(contract: OpsPublicContract): PublicC
     }
   }
   validatePublicPricingForType(blockedReasons, contract)
-
-  const validity = stockholmValidityStatus({
-    validFrom: contract.valid_from,
-    validTo: contract.valid_to,
-  })
-  if (validity === 'not_started') blockedReasons.push('gäller från framtida datum')
-  if (validity === 'expired') blockedReasons.push('avtalet har passerat slutdatum')
-  if (validity === 'invalid') blockedReasons.push('avtalets giltighetsperiod är ogiltig')
 
   const requiresPriceArea = isFixedContractType(contract.type)
   if (requiresPriceArea) {

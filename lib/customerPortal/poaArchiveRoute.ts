@@ -28,12 +28,15 @@ export async function customerPoaArchiveListResponse(request: Request) {
 }
 export async function customerPoaArchiveDetailResponse(request: Request, reference: string) {
   try {
+    request.signal.throwIfAborted()
     const { user } = await getPortalSession()
+    request.signal.throwIfAborted()
     const params = query(request, ['format', 'sha256']), format = params.get('format') ?? 'json'
     if (format !== 'json' && format !== 'pdf') invalid('format')
     const result = await readPoaArchive({ userId: user.id }, reference, { format,
       ...(params.has('sha256') ? { sha256: params.get('sha256')! } : {}),
-    })
+    }, request.signal)
+    request.signal.throwIfAborted()
     if (result.format === 'json') return privateJsonResponse({ ...result.value,
       data: { ...result.value.data, download_url: poaArchiveDownloadPath({
         verification_reference: result.value.data.verification_reference,
@@ -41,16 +44,25 @@ export async function customerPoaArchiveDetailResponse(request: Request, referen
       }) },
     })
     // Complete digest/reference validation happens before response creation.
+    let index = 0
     let offset = 0
-    const stream = new ReadableStream<Uint8Array>({ pull(controller) {
-      const end = Math.min(offset + 64 * 1024, result.bytes.length)
-      controller.enqueue(result.bytes.slice(offset, end)); offset = end
-      if (offset === result.bytes.length) controller.close()
+    const stream = new ReadableStream<Uint8Array<ArrayBuffer>>({ pull(controller) {
+      request.signal.throwIfAborted()
+      const chunk = result.chunks[index]
+      const end = Math.min(offset + 64 * 1024, chunk.byteLength)
+      controller.enqueue(chunk.subarray(offset, end))
+      offset = end
+      if (offset === chunk.byteLength) {
+        index++
+        offset = 0
+        if (index === result.chunks.length) controller.close()
+      }
     } })
     return new Response(stream, { headers: { ...PRIVATE_NO_STORE_HEADERS, 'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="fullmakt-${result.reference}.pdf"`,
       'X-Gridex-Document-SHA256': result.sha256, 'X-Gridex-Verification-Reference': result.reference } })
   } catch (error) {
+    if (request.signal.aborted) return new Response(null, { status: 499, headers: PRIVATE_NO_STORE_HEADERS })
     return customerApiErrorResponse(error, { logLabel: 'POA archive detail', fallbackMessage: 'Fullmakten kunde inte hämtas just nu.' })
   }
 }

@@ -1,5 +1,6 @@
 //app/login/page.tsx
 import Link from 'next/link'
+import { passwordRecoveryPath } from '@/lib/auth/passwordRecoveryPath'
 import { loginWithPassword } from './actions'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
@@ -161,7 +162,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
               <div className="flex items-center justify-between text-sm text-gray-400">
                 <Link
-                  href="/login/forgot-password"
+                  href={passwordRecoveryPath('/login/forgot-password', next)}
                   className="underline decoration-white/20 underline-offset-4 hover:text-white"
                 >
                   Glömt lösenord?

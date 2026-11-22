@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const canonical = read('lib/website/canonicalQuoteValidation.ts')
 const start = canonical.indexOf('const opsValidation = await validateOpsWebsiteQuote({')
-const end = canonical.indexOf('\n  })', start)
+const end = canonical.indexOf('\n  }, signal)', start)
 assert.ok(start >= 0 && end > start, 'canonical quote validation payload was not found')
 const validationPayload = canonical.slice(start, end)
 

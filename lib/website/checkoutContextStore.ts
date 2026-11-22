@@ -5,6 +5,7 @@ import type {
   WebsitePricingQuoteContext,
 } from '@/lib/website/publicApi'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
+import type { QuoteVerificationReceipt } from '@/lib/website/canonicalQuoteValidation'
 
 export type WebsiteCheckoutContext = {
   customerType: WebsiteCustomerType
@@ -29,6 +30,7 @@ function tokenHash(token: string): string {
 
 export async function createWebsiteCheckoutContext(
   context: WebsiteCheckoutContext,
+  verification: QuoteVerificationReceipt,
 ): Promise<string> {
   const client = serviceClient()
   const token = randomBytes(32).toString('base64url')
@@ -37,21 +39,21 @@ export async function createWebsiteCheckoutContext(
   // independent from quote validity; the canonical quote remains verifiable in OPS.
   const expiresAt = new Date(now + CHECKOUT_HANDOFF_TTL_MS).toISOString()
 
-  await client
-    .from('website_checkout_contexts')
-    .delete()
-    .lt('expires_at', new Date(now).toISOString())
-    .then(({ error }) => {
-      if (error) console.warn('[website checkout context] stale-row cleanup failed', error.message)
-    })
-
   const { error } = await client.from('website_checkout_contexts').insert({
     token_hash: tokenHash(token),
-    public_context: context,
+    public_context: { ...context, verification },
     expires_at: expiresAt,
   })
   if (error) throw new Error(`Website checkout context storage failed: ${error.message}`)
   return token
+}
+
+export async function cleanupExpiredWebsiteCheckoutContexts(): Promise<void> {
+  const { error } = await serviceClient()
+    .from('website_checkout_contexts')
+    .delete()
+    .lte('expires_at', new Date().toISOString())
+  if (error) throw new Error('Website checkout context cleanup failed.')
 }
 
 export async function readWebsiteCheckoutContext(
@@ -66,5 +68,7 @@ export async function readWebsiteCheckoutContext(
     .gt('expires_at', new Date().toISOString())
     .maybeSingle<StoredRow>()
   if (error) throw new Error(`Website checkout context read failed: ${error.message}`)
-  return data?.public_context ?? null
+  if (!data?.public_context) return null
+  const { customerType, selectedOffer, pricingPreview, quoteContext } = data.public_context
+  return { customerType, selectedOffer, pricingPreview, quoteContext }
 }

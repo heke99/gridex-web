@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload as normalizeCanonicalPublicContract } from '../lib/website/publicContractContract.ts'
 import { buildPublicContractDisplay } from '../lib/website/publicContractDisplay.ts'
+import { lockedLegalDocumentLinks } from '../lib/website/lockedLegalDocumentLinks.ts'
 
 
 const BASE_LEGAL = {
@@ -124,6 +125,27 @@ const missingLegalUrlContract = {
 const missingLegalUrlDisplay = buildPublicContractDisplay(missingLegalUrlContract)
 assert.equal(missingLegalUrlDisplay.ready, true, 'nullable legal URL must not hide a published contract')
 assert.equal(missingLegalUrlDisplay.onlineReady, true, 'nullable legal URL must not block digital checkout')
+
+const legalOrigin = 'https://ops.example.invalid'
+const legal = missingLegalUrlContract.legal
+const bundlePath = `/legal/synthetic/agreement/${legal.legal_bundle_version_id}`
+const linksFor = (public_url, origin = legalOrigin, source = legal) =>
+  lockedLegalDocumentLinks(source, { ...nullableCustomerDocument, public_url }, origin)
+assert.deepEqual(linksFor(bundlePath), [legalOrigin + bundlePath])
+assert.deepEqual(linksFor(legalOrigin + bundlePath), [legalOrigin + bundlePath])
+assert.deepEqual(linksFor(bundlePath, null), [])
+assert.deepEqual(linksFor('https://documents.example.invalid/locked/terms-v1.pdf'), ['https://documents.example.invalid/locked/terms-v1.pdf'])
+for (const invalid of [null, '//untrusted.invalid/legal/synthetic/agreement/v1', 'javascript:alert(1)',
+  'https://user@ops.example.invalid/legal/synthetic/agreement/v1', 'http://ops.example.invalid/document',
+  bundlePath.replace('agreement', 'withdrawal'), bundlePath.replace(legal.legal_bundle_version_id, 'different-version')]) {
+  assert.deepEqual(linksFor(invalid), [])
+}
+const sourcePath = '/legal/synthetic/terms/terms_source_1'
+const withSource = { ...legal, module_versions: legal.module_versions.map(module => ({ ...module, url: sourcePath })) }
+assert.deepEqual(linksFor(null, legalOrigin, withSource), [legalOrigin + sourcePath])
+assert.deepEqual(lockedLegalDocumentLinks(withSource, { ...nullableCustomerDocument,
+  source_document_ids: ['terms_source_1', 'unknown-second-source'],
+}, legalOrigin), [], 'a partial set of source links cannot represent the locked agreement')
 
 const malformedRequiredLegalContract = normalizePublicContractApiPayload({
   offer_reference: 'offer_malformed_required_legal',

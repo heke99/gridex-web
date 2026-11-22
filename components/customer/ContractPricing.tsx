@@ -24,6 +24,8 @@ export default function ContractPricing({ contract }: { contract: CustomerPortal
         <Price label="Fakturaavgift" value={price(snapshot.invoice_fee_sek, 'kr/faktura')} />
         {fixedPriceApplies ? <Price label="Fast energipris" value={price(snapshot.fixed_price_ore_per_kwh, 'öre/kWh')} /> : null}
         <Price label="Påslag" value={price(snapshot.markup_ore_per_kwh, 'öre/kWh')} />
+        {typeof snapshot.variable_fee_ore_per_kwh === 'number' && Number.isFinite(snapshot.variable_fee_ore_per_kwh)
+          ? <Price label="Rörlig avgift" value={price(snapshot.variable_fee_ore_per_kwh, 'öre/kWh')} /> : null}
       </dl>
       {marketBased ? <p className="mt-3 text-sm text-white/70">Din energikostnad beräknas för faktureringsperioden enligt avtalet, utifrån uppmätt förbrukning eller produktion samt avtalade priser, påslag och avgifter.</p> : null}
       <p className="mt-3 text-xs text-white/55">Beloppen är avtalets registrerade prisuppgifter. Momshanteringen framgår av avtalsdokumentet. {CUSTOMER_NETWORK_FEE_NOTICE}</p>

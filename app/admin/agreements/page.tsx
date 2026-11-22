@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AGREEMENT_EXPORT_LIMIT } from '@/lib/admin/agreementExport'
 import { requireAdminPageAccess } from '@/lib/admin/guards'
 
 export const dynamic = 'force-dynamic'
@@ -136,7 +137,7 @@ export default async function AgreementsPage({
             href="/api/admin/agreements/export"
             className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs hover:bg-white/10 transition"
           >
-            Exportera CSV
+            Exportera senaste avtalen (CSV, max {AGREEMENT_EXPORT_LIMIT.toLocaleString('sv-SE')})
           </a>
         </div>
 

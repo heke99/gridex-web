@@ -35,6 +35,13 @@ export default function AttachmentUpload({ endpoint, staff = false }: { endpoint
           : 'Filen kunde inte laddas upp. Försök igen med samma fil.')
         return
       }
+      if (response.status !== 201 || response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() !== 'application/json') {
+        throw new Error('Unexpected attachment response')
+      }
+      const receipt: unknown = await response.json()
+      if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt) || !('ok' in receipt) || receipt.ok !== true) {
+        throw new Error('Invalid attachment receipt')
+      }
       setError(false); setMessage('Bilagan har skickats för innehållskontroll.')
       form.reset(); operation.current = null; router.refresh()
     } catch { setMessage('Uppladdningen kunde inte bekräftas. Försök igen med samma fil.') }

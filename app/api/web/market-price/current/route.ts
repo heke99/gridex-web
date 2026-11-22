@@ -2,7 +2,8 @@ import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsCurrentMarketPrice, isOpsError } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
-import { readWebJson } from '@/lib/api/webBoundary'
+import { opsRetryAfterHeaders } from '@/lib/ops/errors'
+import { readWebJson, webErrorResponse } from '@/lib/api/webBoundary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -21,9 +22,13 @@ async function handlePost(request: Request) {
     { limit: 30, windowMs: 5 * 60_000 },
   )
   if (!rate.allowed) {
-    return NextResponse.json(
-      { error: { code: 'rate_limited', message: 'För många prisförfrågningar.' } },
-      { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1_000))) } },
+    const unavailable = rate.source === 'unavailable'
+    return webErrorResponse(
+      unavailable
+        ? { code: 'rate_limit_unavailable', message: 'Marknadspriset kan inte hämtas just nu.' }
+        : { code: 'rate_limited', message: 'För många prisförfrågningar.' },
+      unavailable ? 503 : 429,
+      { 'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1_000))) },
     )
   }
 
@@ -47,18 +52,19 @@ async function handlePost(request: Request) {
       { headers: { 'Cache-Control': 'private, no-store' } },
     )
   } catch (error) {
-    const code = isOpsError(error) ? error.code : null
-    const status = isOpsError(error) && error.status < 500 ? error.status : 503
-    return NextResponse.json(
+    const opsError = isOpsError(error) ? error : null
+    const status = opsError && opsError.status < 500 ? opsError.status : 503
+    return webErrorResponse(
       {
-        error: {
-          code: code ?? 'market_price_unavailable',
-          message: code === 'market_price_stale'
-            ? 'Ett aktuellt marknadspris kan inte hämtas just nu.'
-            : 'Marknadspriset kan inte hämtas just nu.',
-        },
+        code: opsError?.code ?? (status === 429 ? 'rate_limited' : 'market_price_unavailable'),
+        message: opsError?.code === 'market_price_stale'
+          ? 'Ett aktuellt marknadspris kan inte hämtas just nu.'
+          : 'Marknadspriset kan inte hämtas just nu.',
+        requestId: opsError?.requestId,
+        retryable: opsError?.retryable,
       },
-      { status, headers: { 'Cache-Control': 'private, no-store' } },
+      status,
+      opsRetryAfterHeaders(opsError),
     )
   }
 }

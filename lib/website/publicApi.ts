@@ -89,6 +89,7 @@ export type WebsitePricingPreviewInput = {
 
 export type WebsitePricingQuoteContext = {
   resolution_token?: string | null;
+  current_resolution_token?: string | null;
   resolution_id?: string | null;
   postal_code: string;
   city: string;
@@ -226,33 +227,74 @@ export type WebsitePricingPreview = {
   raw?: Record<string, unknown>;
 };
 
-function extractErrorMessage(data: unknown, fallback: string): string {
-  const raw =
-    data && typeof data === "object"
-      ? ((data as Record<string, unknown>).customer_message ??
-        (data as Record<string, unknown>).message ??
-        (data as Record<string, unknown>).error)
-      : typeof data === "string"
-        ? data
-        : null;
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
 
-  const message = typeof raw === "string" ? raw.trim() : "";
+function nonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
 
-  if (
-    !message ||
-    /NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|redirect|<!doctype|<html|text\/html|login|logga in/i.test(
-      message,
-    )
-  ) {
-    return fallback;
+export class WebsiteApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  readonly requestId: string | null;
+
+  constructor(message: string, status: number, code: string | null, requestId: string | null) {
+    super(message);
+    this.name = "WebsiteApiError";
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
   }
+}
 
-  return message;
+function responseError(res: Response, data: unknown, fallback: string): WebsiteApiError {
+  const root = objectRecord(data);
+  const error = objectRecord(root?.error);
+  const raw = [
+    root?.customer_message, error?.customer_message, error?.message, root?.message, root?.error, data,
+  ].find(nonEmptyText);
+  const message = raw?.trim();
+  const safeMessage = message &&
+    !/NEXT_REDIRECT|NEXT_HTTP_ERROR_FALLBACK|redirect|<!doctype|<html|text\/html|login|logga in/i.test(message)
+    ? message
+    : fallback;
+  return new WebsiteApiError(
+    safeMessage,
+    res.status,
+    [error?.code, root?.code].find(nonEmptyText) ?? null,
+    [error?.request_id, root?.request_id, res.headers.get("x-request-id")].find(nonEmptyText) ?? null,
+  );
 }
 
 function assertOkResponse(res: Response, data: unknown, fallback: string): void {
-  if (res.ok) return;
-  throw new Error(extractErrorMessage(data, fallback));
+  if (!res.ok) throw responseError(res, data, fallback);
+}
+
+function isPricingPreview(value: unknown): value is WebsitePricingPreview {
+  const quote = objectRecord(value);
+  const contract = objectRecord(quote?.contract);
+  const settlement = objectRecord(quote?.settlement);
+  if (!quote || !contract || !settlement) return false;
+  return [
+    quote.resolution_id, quote.start_date, quote.valid_until, quote.price_option_reference, quote.pricing_token,
+    contract.slug, contract.name, contract.contractType, settlement.model, settlement.customer_accepts,
+    settlement.market_data_role, settlement.settlement_resolution,
+  ].every(nonEmptyText) &&
+    [quote.kwh, quote.pricePerKwhOre, quote.totalMonthlyCostSek, quote.site_count].every(Number.isFinite) &&
+    isWebsitePriceArea(quote.priceArea) &&
+    (["consumption", "production"] as readonly unknown[]).includes(quote.energy_direction) &&
+    (quote.production_pricing === null || objectRecord(quote.production_pricing) !== null) &&
+    (["earliest_possible", "specific_date"] as readonly unknown[]).includes(quote.requested_start_mode) &&
+    (["private", "business"] as readonly unknown[]).includes(quote.customer_type) &&
+    (["email", "e_invoice", "paper", "direct_debit"] as readonly unknown[]).includes(quote.invoice_delivery_method) &&
+    (quote.area_price_reference === null || nonEmptyText(quote.area_price_reference)) &&
+    Array.isArray(quote.selected_component_references) && quote.selected_component_references.every(nonEmptyText) &&
+    typeof settlement.energy_price_locked_at_signup === "boolean" &&
+    settlement.uses_actual_metered_consumption === true;
 }
 
 async function readJsonResponse(res: Response): Promise<unknown> {
@@ -293,19 +335,23 @@ export async function resolveWebsiteEnergyArea(
 
 export async function previewWebsitePricing(
   input: WebsitePricingPreviewInput,
+  signal?: AbortSignal,
 ): Promise<WebsitePricingPreview> {
   const res = await fetch("/api/checkout/quote", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),
+    signal,
   });
   const data = await readJsonResponse(res);
   assertOkResponse(res, data, "Kunde inte räkna pris just nu.");
-  return (
-    data && typeof data === "object" && "data" in data
-      ? (data as { data: WebsitePricingPreview }).data
-      : data
-  ) as WebsitePricingPreview;
+  const envelope = objectRecord(data);
+  const preview = envelope && "data" in envelope ? envelope.data : data;
+  if (!isPricingPreview(preview)) {
+    const requestId = responseError(res, data, "").requestId;
+    throw new WebsiteApiError("Prissvaret var ofullständigt. Försök räkna pris igen.", res.status, "invalid_quote_response", requestId);
+  }
+  return preview;
 }
 
 export async function verifyWebsitePricingSnapshot(input: {
@@ -327,7 +373,7 @@ export async function verifyWebsitePricingSnapshot(input: {
   postal_code: string;
   city: string;
   address: string;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; code?: string | null; requestId?: string | null }> {
   const res = await fetch("/api/checkout/quote/validate", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -335,8 +381,6 @@ export async function verifyWebsitePricingSnapshot(input: {
   });
   const data = await readJsonResponse(res);
   if (res.ok && data && typeof data === "object") return data as { ok: boolean; error?: string };
-  return {
-    ok: false,
-    error: extractErrorMessage(data, "Vi kunde inte kontrollera valt avtal just nu."),
-  };
+  const error = responseError(res, data, "Vi kunde inte kontrollera valt avtal just nu.");
+  return { ok: false, error: error.message, code: error.code, requestId: error.requestId };
 }

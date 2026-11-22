@@ -23,6 +23,7 @@ export type CanonicalQuoteValidationInput = {
   pricingToken: string | null | undefined
   pricingSnapshotReference?: string | null
   resolutionToken: string | null | undefined
+  currentResolutionToken?: string | null
   contract: OpsPublicContract
   customerType: WebsiteCustomerType
   estimatedMonthlyKwh: number
@@ -32,13 +33,23 @@ export type CanonicalQuoteValidationInput = {
   location: { postalCode: string; city: string; address: string }
 }
 
+export type QuoteVerificationReceipt = {
+  pricingSnapshotReference: string
+  quoteReference: string
+  status: 'valid'
+  validatedAt: string
+}
+
 export type CanonicalQuoteValidationSuccess = {
+  verification: QuoteVerificationReceipt
   /** Effective canonical quote used when the application is registered. */
   quote: WebsitePricingQuote
   /** Token matching the effective canonical quote. */
   pricingToken: string
-  /** Token matching the effective price-area resolution. */
+  /** Original address token bound to the signed quote. */
   resolutionToken: string
+  /** Renewed technical evidence for the same location and price area. */
+  currentResolutionToken: string | null
   /** Exact signed quote snapshot that was shown in the browser. */
   displayedQuote: WebsitePricingQuote
   /** True only when location/price-area evidence was refreshed; the accepted quote is never repriced. */
@@ -84,6 +95,7 @@ function sameCanonicalTimestamp(
 async function refreshCanonicalArea(input: {
   request: CanonicalQuoteValidationInput
   expectedPriceArea: OpsWebsitePriceArea
+  signal?: AbortSignal
 }): Promise<{ ok: true; area: CanonicalArea; token: string } | { ok: false; reason: string }> {
   const resolution = await fetchOpsWebsiteEnergyArea({
     postal_code: input.request.location.postalCode,
@@ -96,7 +108,8 @@ async function refreshCanonicalArea(input: {
       input.request.requestedStartMode === 'specific_date'
         ? input.request.requestedStartDate ?? null
         : null,
-  })
+  }, input.signal)
+  input.signal?.throwIfAborted()
   const assurance = resolution.price_area_assurance
   const validUntil = resolution.valid_until
   const priceArea = resolution.price_area_code
@@ -156,7 +169,9 @@ async function refreshCanonicalArea(input: {
 
 export async function validateCanonicalWebsiteQuote(
   input: CanonicalQuoteValidationInput,
+  { signal, audit = 'pricing-snapshot' }: { signal?: AbortSignal; audit?: 'pricing-snapshot' | 'checkout-context' } = {},
 ): Promise<{ ok: true; value: CanonicalQuoteValidationSuccess } | { ok: false; reason: string }> {
+  signal?.throwIfAborted()
   const tokenArea = verifyWebsiteEnergyAreaToken({
     token: input.resolutionToken,
     location: input.location,
@@ -193,27 +208,32 @@ export async function validateCanonicalWebsiteQuote(
     return { ok: false, reason: 'quote_start_date_mismatch' }
   }
 
-  let area: CanonicalArea = {
-    price_area_code: tokenArea.payload.price_area_code,
-    resolution_id: tokenArea.payload.resolution_id,
-    grid_area_code: tokenArea.payload.grid_area_code,
-    grid_owner_name: tokenArea.payload.grid_owner_name,
-    confidence: tokenArea.payload.confidence,
-    resolution_status: tokenArea.payload.resolution_status,
-    price_area_assurance: tokenArea.payload.price_area_assurance,
-    quote_ready: tokenArea.payload.quote_ready,
-    expires_at: tokenArea.payload.expires_at,
-  }
-  let effectiveResolutionToken = input.resolutionToken as string
-  const areaExpired = Date.parse(area.expires_at) <= Date.now()
-  if (areaExpired) {
-    const refreshedArea = await refreshCanonicalArea({
-      request: input,
-      expectedPriceArea: displayedQuote.price_area_code,
+  let area: CanonicalArea = tokenArea.payload
+  let currentResolutionToken: string | null = null
+  let refreshed = false
+  if (Date.parse(area.expires_at) <= Date.now()) {
+    const currentToken = input.currentResolutionToken
+    const current = currentToken && verifyWebsiteEnergyAreaToken({
+      token: currentToken,
+      location: input.location,
     })
-    if (!refreshedArea.ok) return refreshedArea
-    area = refreshedArea.area
-    effectiveResolutionToken = refreshedArea.token
+    if (current && current.ok && current.payload.quote_ready) {
+      if (current.payload.price_area_code !== displayedQuote.price_area_code) {
+        return { ok: false, reason: 'area_changed' }
+      }
+      area = current.payload
+      currentResolutionToken = currentToken
+    } else {
+      const refreshedArea = await refreshCanonicalArea({
+        request: input,
+        expectedPriceArea: displayedQuote.price_area_code,
+        signal,
+      })
+      if (!refreshedArea.ok) return refreshedArea
+      area = refreshedArea.area
+      currentResolutionToken = refreshedArea.token
+      refreshed = true
+    }
   }
   if (!area.quote_ready) return { ok: false, reason: 'resolution_quote_not_ready' }
 
@@ -242,7 +262,7 @@ export async function validateCanonicalWebsiteQuote(
     invoice_delivery_method: effectiveQuote.invoice_delivery_method,
     selected_component_references: effectiveQuote.selected_component_references,
     site_count: effectiveQuote.site_count,
-  })
+  }, signal)
   if (!opsValidation.valid) {
     return { ok: false, reason: opsValidation.code ?? opsValidation.status ?? 'ops_quote_invalid' }
   }
@@ -258,20 +278,25 @@ export async function validateCanonicalWebsiteQuote(
     return { ok: false, reason: 'quote_valid_until_changed' }
   }
 
-  await markWebsitePricingSnapshotValidated({
+  signal?.throwIfAborted()
+  const verification: QuoteVerificationReceipt = {
     pricingSnapshotReference: effectiveQuote.pricing_snapshot_reference,
     quoteReference: effectiveQuote.ops_quote_reference,
     status: 'valid',
-  })
+    validatedAt: new Date().toISOString(),
+  }
+  if (audit === 'pricing-snapshot') await markWebsitePricingSnapshotValidated(verification)
 
   return {
     ok: true,
     value: {
+      verification,
       quote: effectiveQuote,
       pricingToken: effectivePricingToken,
-      resolutionToken: effectiveResolutionToken,
+      resolutionToken: input.resolutionToken as string,
+      currentResolutionToken,
       displayedQuote,
-      refreshed: areaExpired,
+      refreshed,
       opsValidation,
       area: {
         priceAreaCode: area.price_area_code,

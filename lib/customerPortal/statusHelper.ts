@@ -39,6 +39,41 @@ export function statusLabel(status?: string | null): string {
   }
 }
 
+export function contractStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'draft': return 'Utkast'
+    case 'pending_signature': return 'Väntar på signering'
+    case 'signature_failed': return 'Signering misslyckades'
+    case 'signed': return 'Signerat'
+    case 'active': return 'Aktivt'
+    case 'terminated': return 'Uppsagt'
+    case 'cancelled': return 'Avbrutet'
+    case 'expired': return 'Utgånget'
+    default: return statusLabel(status)
+  }
+}
+
+export function powerOfAttorneyStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'signed': return 'Signerad'
+    case 'active': return 'Giltig'
+    case 'revoked': return 'Återkallad'
+    case 'expired': return 'Utgången'
+    default: return statusLabel(status)
+  }
+}
+
+export function powerOfAttorneyScopeLabel(scope: string): string {
+  switch (scope) {
+    case 'supplier_switch': return 'Leverantörsbyte'
+    case 'facility_information_lookup':
+    case 'facility_data_request': return 'Inhämtning av anläggningsuppgifter'
+    case 'metering_point_lookup': return 'Inhämtning av mätpunktsuppgifter'
+    case 'metering_values': return 'Mottagning av mätvärden'
+    default: return 'Okänt ändamål'
+  }
+}
+
 export function statusDescription(status?: string | null): string {
   // Provides a short explanation for the given status when displaying on the thank-you page.
   const code = status ?? ''

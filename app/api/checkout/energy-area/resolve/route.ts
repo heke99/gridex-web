@@ -1,3 +1,4 @@
+import { CHECKOUT_STREET_TOO_LONG, normalizeCheckoutStreet } from '@/lib/website/checkoutAddress'
 import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { fetchOpsWebsiteEnergyArea, getOpsClientStatus, isOpsError } from '@/lib/ops/client'
@@ -5,7 +6,7 @@ import { issueWebsiteEnergyAreaToken, energyAreaTokenConfigured } from '@/lib/we
 import { persistOpsEnergyAreaResolution } from '@/lib/website/energyAreaStore'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { readWebJson } from '@/lib/api/webBoundary'
-import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from '@/lib/website/requestedStart'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -51,11 +52,13 @@ function publicBlockers(blockers: Array<{ code: string; message?: string | null;
 }
 
 async function handlePost(req: Request) {
+  req.signal.throwIfAborted()
   const requestId = globalThis.crypto.randomUUID()
   const rateLimit = await checkRateLimit(
     `website-energy-resolve:${clientIpFromHeaders(new Headers(req.headers))}`,
     { limit: 30, windowMs: 5 * 60_000 },
   )
+  req.signal.throwIfAborted()
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'För många adresskontroller. Vänta en stund och försök igen.' },
@@ -67,11 +70,15 @@ async function handlePost(req: Request) {
   }
 
   const parsedBody = await readWebJson<ResolvePayload>(req)
+  req.signal.throwIfAborted()
   if (!parsedBody.ok) return parsedBody.response
   const body = parsedBody.value
   const postalCode = text(body?.postal_code, 20)?.replace(/\s+/g, '') ?? null
   const city = text(body?.city)
-  const address = text(body?.address ?? body?.street)
+  const address = normalizeCheckoutStreet(body?.address ?? body?.street)
+  if (address === null) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'address', message: CHECKOUT_STREET_TOO_LONG } }, { status: 400 })
+  }
   const streetNumber = text(body?.street_number, 40)
   const country = text(body?.country, 2)?.toUpperCase() ?? 'SE'
   const gridAreaCode = text(body?.grid_area_code, 80)
@@ -83,7 +90,7 @@ async function handlePost(req: Request) {
   })
   if (!requestedStart.ok) {
     return NextResponse.json(
-      { error: { code: 'validation_error', field: requestedStart.code === 'requested_start_mode_invalid' ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code } },
+      { error: { code: 'validation_error', field: requestedStart.code === 'requested_start_mode_invalid' ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code === 'requested_start_date_past' ? PAST_REQUESTED_START_MESSAGE : requestedStart.code } },
       { status: 400 },
     )
   }
@@ -109,7 +116,8 @@ async function handlePost(req: Request) {
       metering_point_id: meteringPointId,
       requested_start_mode: requestedStart.value.mode,
       requested_start_date: requestedStart.value.requestedDate,
-    })
+    }, req.signal)
+    req.signal.throwIfAborted()
 
     const structurallyResolved = Boolean(
       resolution.price_area_code &&
@@ -194,6 +202,7 @@ async function handlePost(req: Request) {
       { headers: { 'Cache-Control': 'private, no-store' } },
     )
   } catch (error) {
+    req.signal.throwIfAborted()
     console.error('[website energy resolve] OPS resolver failed', {
       request_id: requestId,
       upstream_request_id: isOpsError(error) ? error.requestId : null,
@@ -217,5 +226,12 @@ async function handlePost(req: Request) {
 }
 
 export async function POST(request: Request) {
-  return observeApiOperation('energy_area', () => handlePost(request))
+  return observeApiOperation('energy_area', async () => {
+    try {
+      return await handlePost(request)
+    } catch (error) {
+      if (request.signal.aborted) return new Response(null, { status: 499 })
+      throw error
+    }
+  })
 }

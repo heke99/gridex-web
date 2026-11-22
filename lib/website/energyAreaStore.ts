@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import type { OpsWebsiteEnergyResolution } from '@/lib/ops/client'
 import { canonicalJson } from '@/lib/ops/canonicalJson'
 
-const OPS_REFERENCE_UNIQUE_CONSTRAINT = 'website_price_area_resolutions_ops_reference_uidx'
 const AUDIT_MATCH_FIELDS = [
   'address_fingerprint',
   'postal_code',
@@ -36,20 +35,6 @@ function fingerprint(input: { postalCode: string; city: string; address: string 
   return createHash('sha256')
     .update(`${pepper}:${input.postalCode.replace(/\s+/g, '')}|${input.city.trim().toLowerCase()}|${input.address.trim().toLowerCase()}`)
     .digest('hex')
-}
-
-export function isOpsReferenceUniqueViolation(error: {
-  code?: unknown
-  message?: unknown
-  details?: unknown
-  hint?: unknown
-} | null | undefined): boolean {
-  if (!error || error.code !== '23505') return false
-  const diagnostic = [error.message, error.details, error.hint]
-    .filter((value): value is string => typeof value === 'string')
-    .join(' ')
-    .toLowerCase()
-  return diagnostic.includes(OPS_REFERENCE_UNIQUE_CONSTRAINT) || diagnostic.includes('ops_resolution_reference')
 }
 
 export function energyAreaAuditRetryMatches(
@@ -109,30 +94,15 @@ export async function persistOpsEnergyAreaResolution(input: {
     ops_valid_until: validUntil,
   }
 
-  const client = serviceClient()
-  const { error } = await client.from('website_price_area_resolutions').insert(record)
-  if (!error) return
+  const { data, error } = await serviceClient().rpc('gridex_record_website_energy_area_audit', {
+    p_record: record,
+  })
+  if (error) throw new Error(`Website energy-area audit storage failed: ${error.message}`)
+  if (data?.inserted === true) return
 
-  if (!record.ops_resolution_reference || !isOpsReferenceUniqueViolation(error)) {
-    throw new Error(`Website energy-area audit storage failed: ${error.message}`)
-  }
-
-  // OPS resolution references are immutable audit identities. A repeated website request may
-  // legitimately receive the same canonical resolution, including under concurrent retries.
-  // Verify the existing row instead of weakening the unique constraint or silently upserting.
-  const { data: existing, error: lookupError } = await client
-    .from('website_price_area_resolutions')
-    .select([...AUDIT_MATCH_FIELDS, 'ops_valid_until'].join(','))
-    .eq('ops_resolution_reference', record.ops_resolution_reference)
-    .maybeSingle<Record<string, unknown>>()
-
-  if (lookupError) {
-    throw new Error(`Website energy-area audit retry verification failed: ${lookupError.message}`)
-  }
-  if (!energyAreaAuditRetryMatches(existing, record)) {
+  // Preserve the first raw-response hash. Replay equivalence depends on the
+  // canonical address, area and assurance, not transport diagnostics.
+  if (!energyAreaAuditRetryMatches(data?.existing, record)) {
     throw new Error('Website energy-area audit reference collision detected; existing audit row does not match the OPS resolution.')
   }
-  // Preserve the first raw-response hash as audit evidence. Request/correlation
-  // IDs, cache diagnostics and warning repetitions can change on a legitimate
-  // replay; equivalence is established by the canonical area/assurance above.
 }

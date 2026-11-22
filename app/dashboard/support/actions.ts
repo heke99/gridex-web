@@ -52,5 +52,8 @@ export async function addSupportMessageAction(formData: FormData) {
 
   revalidatePath('/dashboard/support')
   revalidatePath('/dashboard')
-  redirect('/dashboard/support?status=message-sent')
+  const returnQuery = new URLSearchParams({ status: 'message-sent', case: reference })
+  const cursor = pick(formData, 'cursor')
+  if (cursor) returnQuery.set('cursor', cursor)
+  redirect(`/dashboard/support?${returnQuery}#${reference}`)
 }

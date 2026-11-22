@@ -2,7 +2,7 @@ import { readOpsClientImplementation } from './ops-client-source.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePublicContractApiPayload } from '../lib/website/publicContractContract.ts'
-import { energyAreaAuditRetryMatches, isOpsReferenceUniqueViolation } from '../lib/website/energyAreaStore.ts'
+import { energyAreaAuditRetryMatches } from '../lib/website/energyAreaStore.ts'
 import {
   isValidRequestedStartDate,
   isValidSwedishOrganizationNumber,
@@ -92,19 +92,6 @@ assert.equal(normalizePhoneToE164('070-123 45 67'), '+46701234567')
 assert.equal(isValidRequestedStartDate('specific_date', stockholmToday()), true)
 assert.equal(isValidRequestedStartDate('specific_date', '2020-01-01'), false)
 
-assert.equal(isOpsReferenceUniqueViolation({
-  code: '23505',
-  message: 'duplicate key value violates unique constraint "website_price_area_resolutions_ops_reference_uidx"',
-}), true)
-assert.equal(isOpsReferenceUniqueViolation({
-  code: '23505',
-  message: 'duplicate key value violates unique constraint "some_other_unique_constraint"',
-}), false)
-assert.equal(isOpsReferenceUniqueViolation({
-  code: '42501',
-  message: 'permission denied',
-}), false)
-
 const auditExpected = {
   address_fingerprint: 'address-a',
   postal_code: '11122',
@@ -172,7 +159,7 @@ assert.ok(checkoutStore.includes('tokenHash(token)'))
 assert.ok(checkoutStore.includes('CHECKOUT_HANDOFF_TTL_MS'))
 assert.ok(checkoutStore.includes('technical handoff'))
 assert.ok(!checkoutStore.includes('pricing_expires_at'))
-assert.ok(checkoutStore.includes(".lt('expires_at'"))
+assert.ok(checkoutStore.includes(".lte('expires_at'"))
 
 const calculator = read('components/ElectricityCalculator.tsx')
 assert.ok(!calculator.includes('manualArea'))
@@ -190,11 +177,7 @@ assert.ok(!pricingPreviewRoute.includes('const safe = { ...preview }'))
 assert.ok(read('app/api/checkout/energy-area/resolve/route.ts').includes('fetchOpsWebsiteEnergyArea'))
 
 const energyAreaStore = read('lib/website/energyAreaStore.ts')
-assert.ok(energyAreaStore.includes('website_price_area_resolutions_ops_reference_uidx'))
-assert.ok(energyAreaStore.includes("error.code !== '23505'"))
-assert.ok(energyAreaStore.includes(".eq('ops_resolution_reference', record.ops_resolution_reference)"))
-// Query results and duplicate lookup failures are exercised against the real
-// persistence function in energy-area-audit-idempotency.test.mjs.
+assert.ok(energyAreaStore.includes(".rpc('gridex_record_website_energy_area_audit'"))
 assert.ok(energyAreaStore.includes('Website energy-area audit reference collision detected'))
 assert.ok(!energyAreaStore.includes('.upsert('))
 

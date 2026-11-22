@@ -6,6 +6,7 @@ import {
   previousMonth,
   validateYearMonth,
 } from '@/lib/integrations/spotMarket'
+import { readWebJson } from '@/lib/api/webBoundary'
 import { supabaseService } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
@@ -52,8 +53,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json().catch(() => ({}))
-    return await runImport(body)
+    if (req.body === null) return await runImport({})
+    const parsed = await readWebJson<unknown>(req, { requireSameOrigin: false })
+    if (!parsed.ok) {
+      const body = await parsed.response.json()
+      return NextResponse.json({ error: body.error.message }, { status: parsed.response.status })
+    }
+    if (!parsed.value || typeof parsed.value !== 'object' || Array.isArray(parsed.value)) {
+      return NextResponse.json({ error: 'Begäran måste vara ett JSON-objekt.' }, { status: 400 })
+    }
+    return await runImport(parsed.value)
   } catch (err) {
     const error = err as ApiError
 

@@ -45,6 +45,7 @@ export type PortalReadiness = {
   } | null
 }
 
+const MAX_CONCURRENT_PROBES = 5
 const READINESS_USER_ID = '00000000-0000-4000-8000-000000000000'
 const READINESS_EXTERNAL_ID = 'readiness-no-customer'
 
@@ -154,11 +155,22 @@ export async function checkOpsCustomerPortalReadiness(): Promise<PortalReadiness
     { name: 'customer_support.read', scopes: ['customer_support.read'], path: '/api/v1/customer/support/cases?limit=1', method: 'GET' },
     { name: 'customer_support.write', scopes: ['customer_support.write'], path: '/api/v1/customer/support/cases', method: 'POST', body: {} },
   ]
-  const supportResults = await Promise.allSettled(supportDefinitions.map(runProbe))
+  const queue = [...supportDefinitions, ...definitions].entries()
+  const settledProbes: PromiseSettledResult<Awaited<ReturnType<typeof runProbe>>>[] = []
+  await Promise.all(Array.from({ length: MAX_CONCURRENT_PROBES }, async () => {
+    for (const [index, definition] of queue) {
+      try {
+        settledProbes[index] = { status: 'fulfilled', value: await runProbe(definition) }
+      } catch (reason) {
+        settledProbes[index] = { status: 'rejected', reason }
+      }
+    }
+  }))
+  const supportResults = settledProbes.slice(0, supportDefinitions.length)
   const supportProbes = supportResults.map((result, index) => result.status === 'fulfilled'
     ? { name: supportDefinitions[index].name, ...result.value }
     : { name: supportDefinitions[index].name, ok: false, status: isOpsError(result.reason) ? result.reason.status : null, code: 'support_probe_failed' })
-  const results = await Promise.allSettled(definitions.map(runProbe))
+  const results = settledProbes.slice(supportDefinitions.length)
   results.forEach((settled, index) => {
     const definition = definitions[index]
     if (settled.status === 'fulfilled') {

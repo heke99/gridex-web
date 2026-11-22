@@ -1,3 +1,4 @@
+import { CHECKOUT_STREET_TOO_LONG, normalizeCheckoutStreet } from '@/lib/website/checkoutAddress'
 import { observeApiOperation } from '@/lib/observability/apiPerformance'
 import { NextResponse } from 'next/server'
 import { opsRetryAfterHeaders } from '@/lib/ops/errors'
@@ -5,6 +6,7 @@ import {
   fetchOpsPublicContractsSnapshot,
   fetchOpsWebsiteQuoteAutoSelect,
   getOpsClientStatus,
+  hasRecentlySeenPublicOffer,
   isOpsError,
   type OpsWebsitePriceArea,
 } from '@/lib/ops/client'
@@ -16,7 +18,7 @@ import {
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import { parseWebsiteCustomerType } from '@/lib/website/customerType'
-import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from '@/lib/website/requestedStart'
 import { CUSTOMER_NETWORK_FEE_NOTICE } from '@/lib/website/customerFacingCopy'
 import { persistWebsitePricingSnapshot } from '@/lib/website/pricingSnapshotStore'
 import { verifyWebsiteEnergyAreaToken } from '@/lib/website/energyAreaToken'
@@ -95,7 +97,10 @@ async function handlePost(req: Request) {
   const annualKwh = requiredConsumption(body?.annual_consumption_kwh)
   const postalCode = text(body?.postal_code, 20)?.replace(/\s+/g, '') ?? null
   const city = text(body?.city)
-  const address = text(body?.address)
+  const address = normalizeCheckoutStreet(body?.address)
+  if (address === null) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'address', message: CHECKOUT_STREET_TOO_LONG } }, { status: 400 })
+  }
   const offerReference = text(body?.offer_reference)
   const requestedStart = parseRequestedStartSelection({
     mode: body?.requested_start_mode,
@@ -118,7 +123,7 @@ async function handlePost(req: Request) {
     return NextResponse.json({ error: { code: 'validation_error', field: 'customer_type', message: 'customer_type måste vara private eller business.' } }, { status: 400 })
   }
   if (!requestedStart.ok) {
-    return NextResponse.json({ error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code } }, { status: 400 })
+    return NextResponse.json({ error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date', message: requestedStart.code === 'requested_start_date_past' ? PAST_REQUESTED_START_MESSAGE : requestedStart.code } }, { status: 400 })
   }
   if (!quoteAttemptId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quoteAttemptId)) {
     return NextResponse.json({ error: { code: 'validation_error', field: 'quote_attempt_id', message: 'quote_attempt_id måste vara ett giltigt UUID.' } }, { status: 400 })
@@ -147,34 +152,47 @@ async function handlePost(req: Request) {
       )
     }
 
-    // These calls are independent. OPS remains authoritative for the price-option
-    // selection, while the public snapshot independently verifies that selection
-    // before a browser-facing checkout token can be issued.
-    const [contractsSnapshot, opsQuote] = await Promise.all([
-      fetchOpsPublicContractsSnapshot(customerType),
-      fetchOpsWebsiteQuoteAutoSelect({
-        resolution_id: verifiedArea.payload.resolution_id,
-        offer_reference: offerReference,
-        annual_consumption_kwh: annualKwh,
-        start_date: canonicalStartDate,
-        quote_attempt_id: quoteAttemptId,
-        requested_start_mode: requestedStart.value.mode,
-        customer_type: customerType,
-        invoice_delivery_method: requestedInvoiceMethod,
-        selected_component_references: requestedComponents,
-        site_count: requestedSiteCount,
-      }),
-    ])
+    req.signal.throwIfAborted()
+    const catalogue = fetchOpsPublicContractsSnapshot(customerType, { signal: req.signal })
+    const quoteController = new AbortController()
+    const quoteSignal = AbortSignal.any([req.signal, quoteController.signal])
+    const requestQuote = () => fetchOpsWebsiteQuoteAutoSelect({
+      resolution_id: verifiedArea.payload.resolution_id,
+      offer_reference: offerReference,
+      annual_consumption_kwh: annualKwh,
+      start_date: canonicalStartDate,
+      quote_attempt_id: quoteAttemptId,
+      requested_start_mode: requestedStart.value.mode,
+      customer_type: customerType,
+      invoice_delivery_method: requestedInvoiceMethod,
+      selected_component_references: requestedComponents,
+      site_count: requestedSiteCount,
+    }, quoteSignal)
 
+    // Only a recent, known offer can start speculatively. The current
+    // catalogue still controls whether the quote can be used.
+    const earlyQuote = hasRecentlySeenPublicOffer(customerType, offerReference) ? requestQuote() : null
+    void earlyQuote?.catch(() => {})
+    const contractsSnapshot = await catalogue.catch(error => {
+      quoteController.abort()
+      throw error
+    })
     const contract = contractsSnapshot.contracts.find((item) => item.offer_reference === offerReference)
     if (!contract || !buildPublicContractDisplay(contract).onlineReady) {
+      quoteController.abort()
       return NextResponse.json({ error: 'Valt elavtal kunde inte verifieras.' }, { status: 404 })
+    }
+    const opsQuote = await (earlyQuote ?? requestQuote())
+    const priceStartDate = requestedStart.value.mode === 'earliest_possible' ? opsQuote.start_date : canonicalStartDate
+    if (requestedStart.value.mode === 'earliest_possible' &&
+      (!isStrictCalendarDate(priceStartDate) || priceStartDate < canonicalStartDate)) {
+      return NextResponse.json({ error: 'OPS returnerade ett ogiltigt startdatum.', code: 'ops_quote_start_date_invalid' }, { status: 502 })
     }
     const priceOptionSelection = selectAutomaticPublicContractPriceOption({
       options: contract.price_options ?? [],
       customer_type: customerType,
       price_area_code: verifiedArea.payload.price_area_code,
-      start_date: canonicalStartDate,
+      start_date: priceStartDate,
     })
     if (priceOptionSelection.status !== 'selected') {
       return NextResponse.json(
@@ -210,7 +228,6 @@ async function handlePost(req: Request) {
     if (
       opsQuote.contract.offer_reference !== offerReference ||
       opsQuote.resolution_id !== verifiedArea.payload.resolution_id ||
-      opsQuote.start_date !== canonicalStartDate ||
       opsQuote.priceArea !== verifiedArea.payload.price_area_code ||
       opsQuote.price_option_reference !== selectedPriceOptionReference ||
       opsQuote.area_price_reference !== selectedAreaPriceReference ||
@@ -222,11 +239,20 @@ async function handlePost(req: Request) {
       )
     }
 
+    if (requestedStart.value.mode === 'specific_date' && opsQuote.start_date !== canonicalStartDate) {
+      const proposed = parseRequestedStartSelection({ mode: 'specific_date', requestedDate: opsQuote.start_date })
+      const message = proposed.ok
+        ? `Det valda startdatumet kunde inte bekräftas. Gridex föreslår ${opsQuote.start_date}. Välj ett nytt startdatum och räkna om priset.`
+        : 'Det valda startdatumet kunde inte bekräftas. Välj ett nytt startdatum och räkna om priset.'
+      return NextResponse.json({ error: message, code: 'ops_quote_start_date_changed' }, { status: 409 })
+    }
+
     const enrichedQuote = {
       ...opsQuote,
       public_contract_etag: opsQuote.public_contract_etag ?? contractsSnapshot.etag,
       publication_revision: opsQuote.publication_revision ?? contractsSnapshot.publication_revision,
     }
+    req.signal.throwIfAborted()
     const pricingSnapshotReference = await persistWebsitePricingSnapshot({
       preview: enrichedQuote,
       contract,
@@ -252,6 +278,7 @@ async function handlePost(req: Request) {
     }
     return NextResponse.json({ data }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
+    if (req.signal.aborted) return new Response(null, { status: 499 })
     const opsCode = isOpsError(error) ? error.code : null
     const opsDetails = isOpsError(error) && error.details && typeof error.details === 'object' && !Array.isArray(error.details)
       ? error.details as Record<string, unknown>

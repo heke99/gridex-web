@@ -1,46 +1,38 @@
 import { NextResponse } from 'next/server'
-import { fetchMonthlySpotAverageFromElprisetJustNu } from '@/lib/gridex/pricing/elprisetjustnu'
-import type { PriceArea } from '@/lib/gridex/pricing/types'
+import { fetchMonthlySpotAverageFromElprisetJustNu, SpotPriceCoverageError } from '@/lib/gridex/pricing/elprisetjustnu'
+import { isPriceArea } from '@/lib/gridex/postalAreas'
 import { prevYearMonth } from '@/lib/gridex/pricing/validators'
 
 export const dynamic = 'force-dynamic'
 
-const AREAS = new Set<PriceArea>(['SE1', 'SE2', 'SE3', 'SE4'])
-
-function parseArea(value: string | null): PriceArea {
-  const area = (value ?? 'SE3').toUpperCase() as PriceArea
-  return AREAS.has(area) ? area : 'SE3'
+function parsePeriodPart(value: string | null, fallback: number, min: number, max: number): number | null {
+  if (value === null) return fallback
+  if (!/^\d+$/.test(value)) return null
+  const parsed = Number(value)
+  return parsed >= min && parsed <= max ? parsed : null
 }
 
-function parseMonth(value: string | null, fallback: number): number {
-  const month = Number(value)
-  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback
-}
-
-function parseYear(value: string | null, fallback: number): number {
-  const year = Number(value)
-  return Number.isInteger(year) && year >= 2020 && year <= 2100 ? year : fallback
+function invalidField(field: string) {
+  return NextResponse.json({ error: 'Ogiltigt värde för elområde eller period.', field }, { status: 400 })
 }
 
 export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const fallback = prevYearMonth(new Date())
+  const area = (searchParams.get('area') ?? 'SE3').toUpperCase()
+  if (!isPriceArea(area)) return invalidField('area')
+  const year = parsePeriodPart(searchParams.get('year'), fallback.year, 2020, 2100)
+  if (year === null) return invalidField('year')
+  const month = parsePeriodPart(searchParams.get('month'), fallback.month, 1, 12)
+  if (month === null) return invalidField('month')
+
   try {
-    const url = new URL(req.url)
-    const fallbackPeriod = prevYearMonth(new Date())
-    const area = parseArea(url.searchParams.get('area'))
-    const year = parseYear(url.searchParams.get('year'), fallbackPeriod.year)
-    const month = parseMonth(url.searchParams.get('month'), fallbackPeriod.month)
-
-    const average = await fetchMonthlySpotAverageFromElprisetJustNu({
-      year,
-      month,
-      priceArea: area,
-    })
-
+    const average = await fetchMonthlySpotAverageFromElprisetJustNu({ year, month, priceArea: area })
     if (!average) {
-      return NextResponse.json(
-        { error: 'Spotpris kunde inte hämtas för vald period och elområde.' },
-        { status: 404 }
-      )
+      return NextResponse.json({
+        error: 'Spotpris saknas för vald period och elområde.',
+        code: 'spot_prices_not_published',
+      }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -52,7 +44,15 @@ export async function GET(req: Request) {
       source: average.source,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Kunde inte hämta spotpris.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (error instanceof SpotPriceCoverageError) {
+      return NextResponse.json({
+        error: 'Prisunderlaget täcker bara delar av månaden.',
+        code: 'spot_prices_incomplete',
+      }, { status: 422 })
+    }
+    return NextResponse.json({
+      error: 'Priskällan är tillfälligt otillgänglig. Försök igen om en stund.',
+      code: 'spot_provider_unavailable',
+    }, { status: 503 })
   }
 }

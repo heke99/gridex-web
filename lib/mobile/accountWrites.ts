@@ -1,3 +1,5 @@
+import { isContactPhone } from '../../packages/mobile-foundation/src/contactPhone';
+
 export type AccountWriteKind='phone'|'notification';
 type Input={phone:string}|{reference:string};
 type Dependencies={enabled:()=>boolean;authenticate:(token:string)=>Promise<string|null>;submit:(subject:string,token:string,input:Input,key:string)=>Promise<Record<string,unknown>>};
@@ -20,11 +22,22 @@ export function accountWriteHandler(deps:Dependencies,kind:AccountWriteKind){
     const body=JSON.parse(new TextDecoder().decode(bytes));const field=kind==='phone'?'phone':'reference';
     if(!body||Array.isArray(body)||typeof body!=='object'||Object.keys(body).length!==1||typeof body[field]!=='string')throw Error('Invalid fields');
     const value=body[field].trim();
-    if(kind==='phone'&&(!/^[+0-9() -]{7,40}$/.test(value)||value.replace(/\D/g,'').length<7||value.replace(/\D/g,'').length>15)||kind==='notification'&&!/^notification_[A-Za-z0-9_-]{20,64}$/.test(value))throw Error('Invalid value');
+    if(kind==='phone'&&!isContactPhone(value)||kind==='notification'&&!/^notification_[A-Za-z0-9_-]{20,64}$/.test(value))throw Error('Invalid value');
     input=kind==='phone'?{phone:value}:{reference:value};
-   }catch{return reply(400,'Kontrollera uppgifterna.');}
+   }catch{return reply(400,kind==='phone'?'Kontrollera telefonnumrets format.':'Kontrollera uppgifterna.');}
    const data=await deps.submit(subject,token,input,key);if(data.accepted!==true)throw Error('Unconfirmed write');
    return Response.json({data},{headers});
-  }catch(error){const status=error&&typeof error==='object'&&'status'in error?Number(error.status):503;return reply([403,404,409,429].includes(status)?status:503,'Ändringen kunde inte bekräftas. Försök igen med samma uppgifter.');}
+  }catch(error){
+   const details = typeof error === 'object' && error !== null ? error as { status?: unknown; code?: unknown } : {};
+   const status = typeof details.status === 'number' ? details.status : 503;
+   if (kind === 'phone' && status === 409 && details.code === 'profile_version_conflict') {
+    return Response.json({
+     error: 'Profilen har ändrats. Hämta profilen igen innan du sparar.',
+     code: 'profile_version_conflict',
+    }, { status: 409, headers });
+   }
+   if (kind === 'phone' && [400, 422].includes(status)) return reply(status, 'Kontrollera telefonnumrets format.');
+   return reply([403, 404, 409, 429].includes(status) ? status : 503, 'Ändringen kunde inte bekräftas. Försök igen med samma uppgifter.');
+  }
  };
 }

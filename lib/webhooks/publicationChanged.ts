@@ -94,14 +94,13 @@ function invalidateWebsiteContractSurfaces(args: {
   organizationReference: string
   publicationRevision: number
 }): boolean {
-  invalidateOpsPublicContractsCache({
-    organizationReference: args.organizationReference,
-    channel: 'website',
-    publicationRevision: args.publicationRevision,
-  })
-
   try {
-    revalidateTag(WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG, 'max')
+    invalidateOpsPublicContractsCache({
+      organizationReference: args.organizationReference,
+      channel: 'website',
+      publicationRevision: args.publicationRevision,
+    })
+    revalidateTag(WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG, { expire: 0 })
     for (const path of WEBSITE_PUBLIC_CONTRACT_PATHS) revalidatePath(path)
     return true
   } catch (error) {
@@ -225,13 +224,24 @@ export async function handlePublicationChangedWebhook(request: Request) {
       })
     : false
 
-  return NextResponse.json({
-    ok: true,
+  const receipt = {
     result: result.result,
     event_id: eventId,
     delivery_id: deliveryId,
     publication_revision: result.stored_revision,
     cache_invalidated: result.cache_invalidated,
     cache_revalidated: cacheRevalidated,
-  })
+  }
+  if (shouldRevalidateWebsite && !cacheRevalidated) {
+    return NextResponse.json({
+      ok: false,
+      ...receipt,
+      error: {
+        code: 'webhook_cache_revalidation_failed',
+        message: 'Publication was stored, but website cache revalidation must be retried.',
+        retryable: true,
+      },
+    }, { status: 503 })
+  }
+  return NextResponse.json({ ok: true, ...receipt })
 }

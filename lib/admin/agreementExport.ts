@@ -1,0 +1,1 @@
+export const AGREEMENT_EXPORT_LIMIT = 5_000

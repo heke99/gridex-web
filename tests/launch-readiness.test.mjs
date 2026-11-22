@@ -108,8 +108,8 @@ assert.ok(
   "form must render OPS-driven legal requirements dynamically",
 );
 assert.ok(
-  form.includes("requirement.public_url") && !form.includes('?? "/fullmakt"'),
-  "form must use the exact OPS legal document URL without a local fallback",
+  form.includes("lockedLegalDocumentLinks(selectedContract.legal, requirement, legalDocumentOrigin)") && !form.includes('?? "/fullmakt"'),
+  "form must use document links bound to the exact OPS legal version",
 );
 assert.ok(
   !form.includes("Allmänna villkor: version"),
@@ -331,7 +331,7 @@ assertIncludes(
 );
 assertIncludes(
   "app/api/web/customer/metering-values/route.ts",
-  "customerResourceResponse('metering-values')",
+  "customerResourceResponse('metering-values', undefined, query)",
   "web must expose metering values route",
 );
 assertIncludes(
@@ -425,9 +425,9 @@ assertIncludes(
   "signup thank-you redirect must preserve customer-safe nextAction message",
 );
 assertIncludes(
-  "app/(public)/teckna-avtal/tack/SignupThanksPage.tsx",
-  "nextActionMessage",
-  "thank-you page must surface customer-safe OPS nextAction message",
+  "components/signup/ApplicationStatusCard.tsx",
+  "nextStepDescription(status ? status.next_step : receipt.nextStep)",
+  "thank-you page must map next steps to customer-safe copy",
 );
 assertIncludes(
   "app/api/web/customer/profile-update/route.ts",

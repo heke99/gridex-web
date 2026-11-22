@@ -19,14 +19,14 @@ export function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<
 }
 
 /** Bound a body read even if a broken upstream/adapter ignores fetch's signal. */
-export async function readBoundedBytes(response: Response, maximum: number, signal?: AbortSignal): Promise<Uint8Array> {
+export async function readBoundedChunks(response: Response, maximum: number, signal?: AbortSignal) {
   const tooLarge = () => new RangeError('Response exceeds the configured byte limit')
   const length = response.headers.get('content-length')
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > maximum)) {
     void response.body?.cancel().catch(() => undefined)
     throw tooLarge()
   }
-  if (!response.body) return new Uint8Array()
+  if (!response.body) return { chunks: [] as Uint8Array[], size: 0 }
   const reader = response.body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
@@ -40,12 +40,17 @@ export async function readBoundedBytes(response: Response, maximum: number, sign
       if (chunk.done) break
       size += chunk.value.byteLength
       if (size > maximum) { void reader.cancel().catch(() => undefined); throw tooLarge() }
-      chunks.push(chunk.value)
+      if (chunk.value.byteLength) chunks.push(chunk.value)
     }
   } finally {
     signal?.removeEventListener('abort', abort)
     reader.releaseLock()
   }
+  return { chunks, size }
+}
+
+export async function readBoundedBytes(response: Response, maximum: number, signal?: AbortSignal): Promise<Uint8Array> {
+  const { chunks, size } = await readBoundedChunks(response, maximum, signal)
   const result = new Uint8Array(size)
   let offset = 0
   for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength }

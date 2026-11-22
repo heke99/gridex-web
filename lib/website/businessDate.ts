@@ -12,6 +12,14 @@ export function stockholmCalendarDate(now = new Date()): string {
   return `${value.year}-${value.month}-${value.day}`
 }
 
+// The customer portal move-out command allows up to 730 calendar days.
+export function moveOutDateBounds(now = new Date()): { min: string; max: string } {
+  const min = stockholmCalendarDate(now)
+  const lastDay = new Date(`${min}T00:00:00Z`)
+  lastDay.setUTCDate(lastDay.getUTCDate() + 730)
+  return { min, max: lastDay.toISOString().slice(0, 10) }
+}
+
 export function isStrictCalendarDate(value: unknown): value is string {
   if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)

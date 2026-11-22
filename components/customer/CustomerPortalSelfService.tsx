@@ -1,11 +1,15 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { readCustomerWriteResponse, pendingCustomerWrite as pendingResult } from '@/lib/customerPortal/writeResponse'
-import { stockholmCalendarDate } from '@/lib/website/businessDate'
+import { readCustomerWriteResponse, readMoveOutReceipt, pendingCustomerWrite as pendingResult } from '@/lib/customerPortal/writeResponse'
+import { withAbort } from '@/lib/ops/httpSafety'
+import { moveOutDateBounds } from '@/lib/website/businessDate'
+
+type MoveOutSite = { reference: string; address: string | null; facilityId: string | null }
 
 type Props = {
+  moveOutSites: readonly MoveOutSite[]
   userId?: string
   site: {
     id: string
@@ -22,18 +26,21 @@ type ActionState = {
   message: string
 }
 
+const MOVE_OUT_TIMEOUT_MS = 20_000
+
 const idle: ActionState = { kind: 'idle', message: '' }
 
 function operationId(prefix: string) {
   return `${prefix}:${crypto.randomUUID()}`
 }
 
-async function postJson(path: string, body: Record<string, unknown>) {
+async function postJson(path: string, body: Record<string, unknown>, signal?: AbortSignal) {
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     credentials: 'same-origin',
+    signal,
   })
   return readCustomerWriteResponse(response)
 }
@@ -47,11 +54,11 @@ function Result({ state }: { state: ActionState }) {
   )
 }
 
-export default function CustomerPortalSelfService({ site, latestUnreadNotificationId, userId }: Props) {
+export default function CustomerPortalSelfService({ site, moveOutSites, latestUnreadNotificationId, userId }: Props) {
   const router = useRouter()
   const [readNotificationId, setReadNotificationId] = useState<string | null>(null)
   const intents = useRef(new Map<string, string>())
-  async function submitIntent(path: string, prefix: string, body: Record<string, unknown>) {
+  async function submitIntent(path: string, prefix: string, body: Record<string, unknown>, signal?: AbortSignal) {
     const bytes = new TextEncoder().encode(JSON.stringify(body))
     const digest = await crypto.subtle.digest('SHA-256', bytes)
     const hash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
@@ -61,8 +68,14 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
     if (!id) id = operationId(prefix)
     intents.current.set(key, id)
     if (userId) { try { sessionStorage.setItem(key, id) } catch {} }
-    const result = await postJson(path, { ...body, client_operation_id: id })
-    if (!pendingResult(result)) {
+    signal?.throwIfAborted()
+    const request = postJson(path, { ...body, client_operation_id: id }, signal)
+    const result = await (signal ? withAbort(request, signal) : request)
+    if (prefix === 'move-out') return { ...result, releaseIntent: () => {
+      intents.current.delete(key)
+      if (userId) { try { sessionStorage.removeItem(key) } catch {} }
+    } }
+    if (!pendingResult(result) && !(prefix === 'facility-data' && (!result.facilityOutcome || result.facilityOutcome === 'unconfirmed'))) {
       intents.current.delete(key)
       if (userId) { try { sessionStorage.removeItem(key) } catch {} }
       router.refresh()
@@ -76,8 +89,13 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
   const [facilityId, setFacilityId] = useState(site?.facilityId ?? '')
   const [meteringPointId, setMeteringPointId] = useState(site?.meteringPointId ?? '')
   const [moveOutDate, setMoveOutDate] = useState('')
+  const [moveOutSiteReference, setMoveOutSiteReference] = useState('')
+  const moveOutSite = moveOutSites.length === 1
+    ? moveOutSites[0]
+    : moveOutSites.find(candidate => candidate.reference === moveOutSiteReference)
+  const moveOutFacilityReference = moveOutSite?.reference ?? (moveOutSites.length === 0 ? facilityId.trim() : '')
 
-  const minimumMoveOutDate = useMemo(() => stockholmCalendarDate(), [])
+  const moveOutDates = moveOutDateBounds()
 
   async function syncPortal() {
     setSyncState({ kind: 'working', message: '' })
@@ -106,12 +124,17 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
           source: 'customer_portal_self_service',
         },
       })
-      setFacilityState({
-        kind: pendingResult(result) ? 'pending' : 'success',
-        message: pendingResult(result)
-          ? 'Uppgifterna är mottagna och behandlas automatiskt.'
-          : 'Anläggningsuppgifterna är uppdaterade.',
-      })
+      if (pendingResult(result)) {
+        setFacilityState({ kind: 'pending', message: 'Uppgifterna är mottagna och behandlas automatiskt.' })
+      } else if (result.facilityOutcome === 'updated') {
+        setFacilityState({ kind: 'success', message: 'Anläggningsuppgifterna är uppdaterade.' })
+      } else if (result.facilityOutcome === 'unchanged') {
+        setFacilityState({ kind: 'success', message: 'Uppgifterna behandlades utan att någon ändring registrerades.' })
+      } else if (result.facilityOutcome === 'skipped') {
+        setFacilityState({ kind: 'error', message: 'Anläggningsändringen hoppades över. Kontrollera uppgifterna och försök igen.' })
+      } else {
+        setFacilityState({ kind: 'pending', message: 'Kunde inte bekräfta att anläggningsuppgifterna uppdaterades.' })
+      }
     } catch (error) {
       setFacilityState({ kind: 'error', message: error instanceof Error ? error.message : 'Uppgifterna kunde inte sparas.' })
     }
@@ -119,25 +142,41 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
 
   async function submitMoveOut(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!moveOutFacilityReference) {
+      setMoveState({ kind: 'error', message: 'Ange vilken anläggning du flyttar från.' })
+      return
+    }
+    const { min, max } = moveOutDateBounds()
+    if (!moveOutDate || moveOutDate < min || moveOutDate > max) {
+      setMoveState({ kind: 'error', message: 'Välj ett utflyttningsdatum från idag och högst 730 dagar framåt.' })
+      return
+    }
+    const signal = AbortSignal.timeout(MOVE_OUT_TIMEOUT_MS)
     setMoveState({ kind: 'working', message: '' })
     try {
       const result = await submitIntent('/api/web/customer/move-out', 'move-out', {
         move_out: {
-          site_id: site?.id ?? undefined,
-          facility_id: site?.facilityId ?? (facilityId.trim() || undefined),
+          facility_reference: moveOutFacilityReference,
           move_out_date: moveOutDate,
           reason: 'customer_requested_move_out',
         },
-      })
+      }, signal)
+      const receipt = readMoveOutReceipt(result.moveOutReceipt, moveOutFacilityReference, moveOutDate)
+      if (!receipt) {
+        setMoveState({ kind: 'pending', message: 'Kvittot kunde inte bekräftas. Försök igen med samma uppgifter.' })
+        return
+      }
+      if ('releaseIntent' in result) result.releaseIntent()
       setMoveState({
-        kind: pendingResult(result) ? 'pending' : 'success',
-        message: pendingResult(result)
-          ? 'Flyttanmälan är mottagen och behandlas automatiskt.'
-          : 'Flyttanmälan är skickad.',
+        kind: 'success',
+        message: `Flyttanmälan är skickad. Kvitto ${receipt.completion_reference} för anläggning ${receipt.facility_reference}. Utflyttningsdatum ${receipt.requested_move_out_date}.`,
       })
-      if (!pendingResult(result)) setMoveOutDate('')
+      setMoveOutDate('')
     } catch (error) {
-      setMoveState({ kind: 'error', message: error instanceof Error ? error.message : 'Flyttanmälan kunde inte skickas.' })
+      setMoveState(signal.aborted ? {
+        kind: 'pending',
+        message: 'Vi kunde inte bekräfta om flyttanmälan togs emot. Försök igen med samma uppgifter.',
+      } : { kind: 'error', message: error instanceof Error ? error.message : 'Flyttanmälan kunde inte skickas.' })
     }
   }
 
@@ -195,21 +234,40 @@ export default function CustomerPortalSelfService({ site, latestUnreadNotificati
         <form onSubmit={submitMoveOut} className="rounded-2xl border border-white/10 bg-black/30 p-5">
           <h3 className="font-medium">Flyttanmälan</h3>
           <p className="mt-1 text-xs text-white/50">Ange datumet då du lämnar anläggningen.</p>
+          {moveOutSites.length > 1 && (
+            <label className="mt-4 block text-xs text-white/60">
+              Anläggning
+              <select required value={moveOutSite?.reference ?? ''} disabled={moveState.kind === 'working'}
+                onChange={(event) => { setMoveOutSiteReference(event.target.value); setMoveState(idle) }}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white">
+                <option value="">Välj anläggning</option>
+                {moveOutSites.map(candidate => (
+                  <option key={candidate.reference} value={candidate.reference}>
+                    {candidate.address ?? 'Adress saknas'} · {candidate.facilityId ?? candidate.reference}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {moveOutSite && <p className="mt-3 text-sm text-white/80">
+            {moveOutSite.address ?? 'Adress saknas'} · Anläggningsreferens {moveOutSite.reference}
+          </p>}
           <label className="mt-4 block text-xs text-white/60">
             Utflyttningsdatum
             <input
               type="date"
               required
-              min={minimumMoveOutDate}
+              min={moveOutDates.min}
+              max={moveOutDates.max}
               value={moveOutDate}
               onChange={(event) => setMoveOutDate(event.target.value)}
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
             />
           </label>
-          <button type="submit" disabled={moveState.kind === 'working' || (!site && !facilityId.trim())} className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50">
+          <button type="submit" disabled={moveState.kind === 'working' || !moveOutFacilityReference} className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50">
             {moveState.kind === 'working' ? 'Skickar…' : 'Skicka flyttanmälan'}
           </button>
-          {!site && !facilityId.trim() ? <p className="mt-3 text-xs text-amber-200">Ange anläggnings-ID först.</p> : null}
+          {moveOutSites.length === 0 && !moveOutFacilityReference ? <p className="mt-3 text-xs text-amber-200">Ange anläggnings-ID först.</p> : null}
           <Result state={moveState} />
         </form>
       </div>

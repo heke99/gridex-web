@@ -60,8 +60,9 @@ function daysInMonth(year: number, month: number): number {
 }
 
 function apiNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null
-  const parsed = Number(typeof value === 'string' ? value.trim().replace(',', '.') : value)
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null
+  const parsed = Number(value.trim().replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : null
 }
 
@@ -159,6 +160,8 @@ function averageExchangeRate(samples: SpotSample[]): number | null {
   return average === null ? null : Number(average.toFixed(8))
 }
 
+export class SpotPriceCoverageError extends Error {}
+
 function validateSampleTimeline(samples: SpotSample[], date: string): SpotSample[] {
   const ordered = [...samples].sort((a, b) => a.startMs - b.startMs)
   for (let index = 1; index < ordered.length; index += 1) {
@@ -168,14 +171,14 @@ function validateSampleTimeline(samples: SpotSample[], date: string): SpotSample
     if (current.startMs < previous.endMs) {
       throw new Error('Elprisetjustnu API returnerade överlappande prisintervall.')
     }
-    if (current.startMs - previous.endMs > 1_000) {
-      throw new Error('Elprisetjustnu API returnerade ett ofullständigt marknadsdygn med luckor i prisintervallen.')
+    if (current.startMs > previous.endMs) {
+      throw new SpotPriceCoverageError('Elprisetjustnu API returnerade ett ofullständigt marknadsdygn med luckor i prisintervallen.')
     }
   }
   if (ordered.length) {
     const bounds = stockholmDayBounds(date)
     if (ordered[0].startMs !== bounds.start || ordered[ordered.length - 1].endMs !== bounds.end) {
-      throw new Error('Elprisetjustnu API returnerade inte ett komplett marknadsdygn.')
+      throw new SpotPriceCoverageError('Elprisetjustnu API returnerade inte ett komplett marknadsdygn.')
     }
   }
   return ordered
@@ -186,12 +189,15 @@ async function fetchDailySpotSamples(params: {
   month: number
   day: number
   area: PriceArea
+  signal?: AbortSignal
 }): Promise<SpotSample[]> {
   if (!['SE1', 'SE2', 'SE3', 'SE4'].includes(params.area) || !isStrictCalendarDate(`${params.year}-${pad2(params.month)}-${pad2(params.day)}`)) throw new Error('Ogiltigt datum eller elområde.')
   const requestInit: RequestInit & { next: { revalidate: number } } = {
     headers: { accept: 'application/json' },
     next: { revalidate: 5 * 60 },
-    signal: AbortSignal.timeout(apiTimeoutMs()),
+    signal: params.signal
+      ? AbortSignal.any([params.signal, AbortSignal.timeout(apiTimeoutMs())])
+      : AbortSignal.timeout(apiTimeoutMs()),
   }
   const response = await fetch(marketUrl(params), requestInit)
 
@@ -307,23 +313,35 @@ async function calculateMonthlySpotAverage(params: {
   const days = Array.from({ length: dayCount }, (_, index) => index + 1)
   const dailySamples: SpotSample[][] = new Array(dayCount)
   let cursor = 0
-  await Promise.all(Array.from({ length: Math.min(4, dayCount) }, async () => {
-    while (cursor < days.length) {
-      const index = cursor++
-      dailySamples[index] = await fetchDailySpotSamples({
-        year: params.year,
-        month: params.month,
-        day: days[index],
-        area: params.priceArea,
-      })
-    }
-  }))
+  const controller = new AbortController()
+  try {
+    await Promise.all(Array.from({ length: Math.min(4, dayCount) }, async () => {
+      while (!controller.signal.aborted && cursor < days.length) {
+        const index = cursor++
+        try {
+          dailySamples[index] = await fetchDailySpotSamples({
+            year: params.year,
+            month: params.month,
+            day: days[index],
+            area: params.priceArea,
+            signal: controller.signal,
+          })
+        } catch (error) {
+          controller.abort(error)
+          throw error
+        }
+      }
+    }))
+  } finally {
+    controller.abort()
+  }
 
   const missingDays = dailySamples.flatMap((samples, index) =>
     samples.length ? [] : [index + 1],
   )
+  if (missingDays.length === dayCount) return null
   if (missingDays.length) {
-    throw new Error(
+    throw new SpotPriceCoverageError(
       `Elprisetjustnu saknar prisdata för ${params.priceArea} ${params.year}-${pad2(params.month)} dag ${missingDays.join(', ')}.`,
     )
   }

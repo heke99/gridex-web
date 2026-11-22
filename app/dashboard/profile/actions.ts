@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-import { submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
+import { isOpsError, submitOpsCustomerProfileUpdate } from '@/lib/ops/client'
+import { opsErrorDetails } from '@/lib/customerPortal/apiErrors'
 import { getOpsPortalIdentityForUser } from '@/lib/customerPortal/service'
 import { passwordMeetsPolicy, PASSWORD_REQUIREMENT_TEXT } from '@/lib/auth/passwordPolicy'
 import { supabaseService } from '@/lib/supabase/service'
@@ -25,7 +26,15 @@ function validatePassword(password: string): string | null {
   return null
 }
 
-export async function updateCustomerProfileAction(formData: FormData) {
+export type ProfileFormBaseline = {
+  userId: string
+  first_name: string
+  last_name: string
+  phone: string
+  language_code: string
+}
+
+export async function updateCustomerProfileAction(baseline: ProfileFormBaseline, formData: FormData) {
   const supabase = await createSupabaseServerActionClient()
 
   const {
@@ -36,17 +45,25 @@ export async function updateCustomerProfileAction(formData: FormData) {
     throw new Error('Du behöver logga in igen.')
   }
 
-  const firstName = pick(formData, 'first_name')
-  const lastName = pick(formData, 'last_name')
-  const phone = pick(formData, 'phone')
-  const languageCode = pick(formData, 'language_code') || 'sv'
-
-  const profilePayload = {
-    first_name: firstName || null,
-    last_name: lastName || null,
-    phone: phone || null,
-    language_code: languageCode,
+  if (baseline.userId !== user.id) {
+    redirect('/dashboard/profile?status=profile-reload')
   }
+
+  const fields = ['first_name', 'last_name', 'phone', 'language_code'] as const
+  const profilePayload: Partial<Omit<ProfileFormBaseline, 'userId'>> = {}
+  for (const field of fields) {
+    if (!formData.has(field)) continue
+    const value = pick(formData, field)
+    if (value === baseline[field].trim()) continue
+    if (!value || (field === 'language_code' && value !== 'sv' && value !== 'en')) {
+      redirect(`/dashboard/profile?status=profile-invalid-${field}`)
+    }
+    profilePayload[field] = value
+  }
+  if (Object.keys(profilePayload).length === 0) {
+    redirect('/dashboard/profile?status=profile-unchanged')
+  }
+
   const operationId = pick(formData, 'client_operation_id')
   if (!/^[0-9a-zA-Z:_-]{8,240}$/.test(operationId)) {
     throw new Error('Åtgärds-ID saknas. Ladda om sidan och försök igen.')
@@ -63,6 +80,10 @@ export async function updateCustomerProfileAction(formData: FormData) {
     if (!result.ok) throw new Error('Profile update was not accepted.')
     profileUpdated = result.data?.profile_updated === true
   } catch (syncError) {
+    if (isOpsError(syncError) && (syncError.status === 400 || syncError.status === 422)) {
+      const field = fields.find(name => name === opsErrorDetails(syncError).field)
+      redirect(`/dashboard/profile?status=${field ? `profile-invalid-${field}` : 'profile-invalid'}`)
+    }
     console.error('[customer profile] canonical update failed', {
       message: syncError instanceof Error ? syncError.message : 'unknown_error',
     })
@@ -76,28 +97,18 @@ export async function updateCustomerProfileAction(formData: FormData) {
     redirect('/dashboard/profile?status=profile-pending')
   }
 
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const { error } = await supabaseService.from('customer_profiles').upsert(
-    [{
-      user_id: user.id,
-      email: user.email ?? null,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      full_name: fullName,
-      phone: phone || null,
-      language_code: languageCode,
-      source: 'ops',
-      synced_at: new Date().toISOString(),
-      projection_status: 'current',
-    }],
-    { onConflict: 'user_id', defaultToNull: false }
-  )
-  if (error) {
-    console.error('[customer profile] local projection update failed', { code: error.code })
-  }
+  const { data, error } = await supabaseService.from('customer_profiles')
+    .update(profilePayload)
+    .eq('user_id', user.id)
+    .select('user_id')
+    .maybeSingle()
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
+  if (error || !data) {
+    console.error('[customer profile] local projection update failed', { code: error?.code ?? 'missing_profile' })
+    redirect('/dashboard/profile?status=profile-local-sync-failed')
+  }
   redirect('/dashboard/profile?status=profile-updated')
 }
 

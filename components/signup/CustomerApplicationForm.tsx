@@ -8,7 +8,9 @@ import {
   publicContractTypeLabel,
   type PublicContractDisplay,
 } from "@/lib/website/publicContractDisplay";
+import { invoiceContactErrors } from "@/lib/website/invoiceContact";
 import type { PublicLegalRequirement } from "@/lib/website/publicContractContract";
+import { lockedLegalDocumentLinks } from "@/lib/website/lockedLegalDocumentLinks";
 import type { WebsiteCustomerType } from "@/lib/website/customerType";
 import type { WebsiteConsumptionProfile } from "@/lib/website/consumptionEstimator";
 import {
@@ -34,6 +36,7 @@ export type SignupSubmissionState = {
   step?: 0 | 1;
   rotateSubmissionAttempt?: boolean;
   requiresQuoteRefresh?: boolean;
+  legalRefresh?: { contract?: SignupContractOption; blockedVersion?: string };
 };
 
 type Props = {
@@ -41,6 +44,7 @@ type Props = {
   selectedValue: string;
   customerType: WebsiteCustomerType;
   canSubmit: boolean;
+  legalDocumentOrigin?: string | null;
   authenticatedEmail?: string | null;
   authenticationRequired?: boolean;
   authenticationReturnPath?: string;
@@ -52,6 +56,7 @@ type Props = {
   quoteContext: WebsitePricingQuoteContext;
   quoteValid?: boolean;
   onEditQuote: () => void;
+  onLegalRefresh?: (contract?: SignupContractOption) => void;
 };
 
 type FormValues = {
@@ -87,8 +92,9 @@ type LegalBundleState = {
   status: "loading" | "ready" | "error";
   bundleVersion: string | null;
   supported: boolean;
-  requirements: PublicLegalRequirement[];
+  requirements: (PublicLegalRequirement & { links: string[] })[];
   message: string | null;
+  powerOfAttorneyUnavailable?: boolean;
 };
 
 const STEPS = ["Dina uppgifter", "Granska och teckna"];
@@ -206,6 +212,7 @@ export default function CustomerApplicationForm({
   selectedValue,
   customerType,
   canSubmit,
+  legalDocumentOrigin = null,
   authenticatedEmail,
   authenticationRequired = false,
   authenticationReturnPath = '/teckna-avtal',
@@ -217,12 +224,14 @@ export default function CustomerApplicationForm({
   quoteContext,
   quoteValid = true,
   onEditQuote,
+  onLegalRefresh,
 }: Props) {
   const [step, setStep] = useState<0 | 1>(0);
   const [submissionAttemptId, setSubmissionAttemptId] = useState(() => crypto.randomUUID());
   const [companySignerAuthorized, setCompanySignerAuthorized] = useState(false);
   const [differentEmailConfirmed, setDifferentEmailConfirmed] = useState(false);
-  const [billingSameAsContact, setBillingSameAsContact] = useState(true);
+  const [separateInvoiceEmail, setSeparateInvoiceEmail] = useState(false);
+  const [separateBillingAddress, setSeparateBillingAddress] = useState(false);
   const [currentSupplierUnknown, setCurrentSupplierUnknown] = useState(false);
   const [form, setForm] = useState<FormValues>({
     customer_type: customerType,
@@ -263,10 +272,15 @@ export default function CustomerApplicationForm({
       if (submissionState.fieldErrors) setErrors(submissionState.fieldErrors);
       if (submissionState.step === 0 || submissionState.step === 1) setStep(submissionState.step);
       if (submissionState.rotateSubmissionAttempt) setSubmissionAttemptId(crypto.randomUUID());
-      if (submissionState.requiresQuoteRefresh) onEditQuote();
+      if (submissionState.legalRefresh) {
+        setConsentState({ scope: "", values: {} });
+        setSubmissionAttemptId(crypto.randomUUID());
+        setStep(0);
+        onLegalRefresh?.(submissionState.legalRefresh.contract);
+      } else if (submissionState.requiresQuoteRefresh) onEditQuote();
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [onEditQuote, submissionState]);
+  }, [onEditQuote, onLegalRefresh, submissionState]);
 
   const selectedContract = useMemo(
     () => contracts.find((contract) => contract.value === selectedValue) ?? null,
@@ -288,7 +302,12 @@ export default function CustomerApplicationForm({
       };
     }
     const bundleVersion = selectedContract.legal.legal_bundle_version_id;
-    const requirements = selectedContract.legal.customer_documents ?? [];
+    const requirements = (selectedContract.legal.customer_documents ?? []).map((requirement) => ({
+      ...requirement,
+      links: lockedLegalDocumentLinks(selectedContract.legal, requirement, legalDocumentOrigin),
+    }));
+    const powerOfAttorney = requirements.find((requirement) => requirement.requirement_code === 'power_of_attorney');
+    const powerOfAttorneyUnavailable = powerOfAttorney ? powerOfAttorney.links.length === 0 : selectedContract.powerOfAttorneyRequired === true;
     const unsupported = requirements.some((requirement) =>
       !["accept", "acknowledge"].includes(requirement.acceptance_mode) ||
       requirement.legal_bundle_version_id !== bundleVersion ||
@@ -308,18 +327,20 @@ export default function CustomerApplicationForm({
       bundleVersion &&
       requirements.length >= 1 &&
       requirements.length <= 3 &&
-      !unsupported
+      !unsupported &&
+      !powerOfAttorneyUnavailable
     );
     return {
       status: supported ? "ready" : "error",
       bundleVersion,
       supported,
       requirements,
+      powerOfAttorneyUnavailable,
       message: supported
         ? null
         : "Det publicerade avtalets låsta juridikunderlag är inte komplett för digital teckning.",
     };
-  }, [selectedContract]);
+  }, [selectedContract, legalDocumentOrigin]);
   const legalRequirements = legalBundle.requirements;
   const legalReady = Boolean(
     activeDisplay?.onlineReady &&
@@ -339,13 +360,15 @@ export default function CustomerApplicationForm({
     ),
   );
 
-  const consentScope = `${selectedContract?.offerReference ?? selectedValue}:${legalBundle.bundleVersion ?? "missing"}`;
+  const consentScope = `${selectedContract?.offerReference ?? selectedValue}:${legalBundle.bundleVersion ?? "missing"}:${quoteContext.quote_attempt_id}`;
   const consents = consentState.scope === consentScope ? consentState.values : {};
   const authenticatedEmailMismatch = Boolean(
     authenticatedEmail && form.email.trim() && authenticatedEmail.toLowerCase() !== form.email.trim().toLowerCase(),
   );
+  const legalRefreshBlocked = Boolean(submissionState.legalRefresh?.blockedVersion && submissionState.legalRefresh.blockedVersion === legalBundle.bundleVersion);
   const hasPricingPreview = Boolean(
-    quoteValid &&
+    !legalRefreshBlocked && quoteValid &&
+    (!pricingPreview?.legal_bundle_version || pricingPreview.legal_bundle_version === legalBundle.bundleVersion) &&
     pricingPreview?.pricing_token &&
     (pricingPreview.contract.offer_reference ?? pricingPreview.contract.slug) === selectedContract?.offerReference,
   );
@@ -378,9 +401,9 @@ export default function CustomerApplicationForm({
   }
 
   function validateDetails(): boolean {
-    const next: Record<string, string> = {};
+    const next = invoiceContactErrors(form, separateInvoiceEmail, separateBillingAddress);
     if (!selectedContract || !hasPricingPreview) next.pricing = "Välj ett avtal och hämta priset innan du fortsätter.";
-    if (!legalReady) next.legal = "Avtalets juridiska underlag är inte komplett. Välj ett annat avtal eller kontakta kundservice.";
+    if (!legalReady && !legalBundle.powerOfAttorneyUnavailable) next.legal = "Avtalets juridiska underlag är inte komplett. Välj ett annat avtal eller kontakta kundservice.";
     if (!form.first_name.trim()) next.first_name = customerType === 'business' ? "Ange firmatecknarens förnamn." : "Ange ditt förnamn.";
     if (!form.last_name.trim()) next.last_name = customerType === 'business' ? "Ange firmatecknarens efternamn." : "Ange ditt efternamn.";
     if (!isValidSwedishPersonalNumber(form.personal_number)) next.personal_number = "Ange ett giltigt svenskt personnummer med kontrollsiffra.";
@@ -394,7 +417,7 @@ export default function CustomerApplicationForm({
     if (!normalizePhoneToE164(form.phone)) next.phone = "Ange ett giltigt telefonnummer.";
     if (authenticatedEmailMismatch && !differentEmailConfirmed) next.different_email_confirmed = "Bekräfta att teckningen ska göras med en annan e-post än kontot du är inloggad på.";
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return !legalBundle.powerOfAttorneyUnavailable && Object.keys(next).length === 0;
   }
 
   function nextStep() {
@@ -416,6 +439,21 @@ export default function CustomerApplicationForm({
   const displayName = customerType === 'business'
     ? `${form.company_name} – ${form.first_name} ${form.last_name}`.trim()
     : `${form.first_name} ${form.last_name}`.trim();
+
+  const reviewDetails = [
+    { label: 'Faktura-e-post', value: separateInvoiceEmail ? form.invoice_email.trim().toLowerCase() : '' },
+    { label: 'Fakturapostadress', value: separateBillingAddress
+      ? `${form.billing_street.trim()}, ${form.billing_postal_code.replace(/\s/g, '')} ${form.billing_city.trim()}, ${form.billing_country.trim().toUpperCase()}`
+      : '' },
+    { label: 'Anläggnings-ID', value: form.facility_id.trim() },
+    { label: 'Mätpunkts-ID', value: form.metering_point_id.trim() },
+    { label: 'Avläsningsfrekvens', value: form.reading_frequency.trim() },
+    { label: 'Mättyp', value: form.measurement_type.trim() },
+    { label: 'Installationsdatum', value: form.installation_date },
+    { label: 'Nuvarande elleverantör', value: currentSupplierUnknown ? 'Okänd' : form.current_supplier_name.trim() },
+    { label: 'Leverantörens organisationsnummer', value: form.current_supplier_org_number.trim() },
+    { label: 'Ediel-ID', value: form.current_supplier_ediel_id.trim() },
+  ];
 
   return (
     <div className="space-y-8" aria-live="polite">
@@ -441,6 +479,17 @@ export default function CustomerApplicationForm({
       {showSubmissionError ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
           {submissionState.errorMessage}
+        </div>
+      ) : null}
+
+      {legalRefreshBlocked && onLegalRefresh ? (
+        <button type="button" onClick={() => onLegalRefresh()} className="text-sm text-cyan-200 underline">Hämta aktuella villkor igen</button>
+      ) : null}
+
+      {legalBundle.powerOfAttorneyUnavailable ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100" role="alert">
+          Fullmakten för den här avtalsversionen går inte att öppna. Kontakta{' '}
+          <Link href="/kundservice" className="underline">kundservice</Link> för hjälp med teckningen.
         </div>
       ) : null}
 
@@ -523,24 +572,28 @@ export default function CustomerApplicationForm({
               <p className="mt-1 text-xs leading-5 text-gray-400">Faktureringsuppgifterna används bara om du väljer en annan adress eller e-post för fakturor.</p>
             </div>
             <label className="flex items-start gap-3 text-sm text-gray-300">
-              <input
-                type="checkbox"
-                checked={billingSameAsContact}
-                onChange={(event) => {
-                  rotateSubmissionAttempt();
-                  setBillingSameAsContact(event.target.checked);
-                }}
-                className="mt-1 h-4 w-4"
-              />
-              <span>Använd kontaktens e-post och leveransadress för fakturering.</span>
+              <input type="checkbox" checked={separateInvoiceEmail} onChange={(event) => {
+                rotateSubmissionAttempt();
+                setSeparateInvoiceEmail(event.target.checked);
+              }} />
+              <span>Använd en separat faktura-e-postadress</span>
             </label>
-            {!billingSameAsContact ? (
+            {separateInvoiceEmail ? (
+              <Field id="invoice_email" label="Faktura-e-post" name="invoice_email" value={form.invoice_email} onChange={updateField} type="email" autoComplete="email" required error={errors.invoice_email} />
+            ) : null}
+            <label className="flex items-start gap-3 text-sm text-gray-300">
+              <input type="checkbox" checked={separateBillingAddress} onChange={(event) => {
+                rotateSubmissionAttempt();
+                setSeparateBillingAddress(event.target.checked);
+              }} />
+              <span>Använd en separat fakturapostadress</span>
+            </label>
+            {separateBillingAddress ? (
               <div className="grid gap-5 md:grid-cols-2">
-                <Field id="invoice_email" label="Faktura-e-post" name="invoice_email" value={form.invoice_email} onChange={updateField} type="email" autoComplete="email" inputMode="email" />
-                <Field id="billing_street" label="Fakturaadress" name="billing_street" value={form.billing_street} onChange={updateField} autoComplete="street-address" />
-                <Field id="billing_postal_code" label="Fakturapostnummer" name="billing_postal_code" value={form.billing_postal_code} onChange={updateField} inputMode="numeric" />
-                <Field id="billing_city" label="Fakturaort" name="billing_city" value={form.billing_city} onChange={updateField} />
-                <Field id="billing_country" label="Landkod" name="billing_country" value={form.billing_country} onChange={updateField} help="Två bokstäver, exempelvis SE." />
+                <Field id="billing_street" error={errors.billing_street} required label="Fakturaadress" name="billing_street" value={form.billing_street} onChange={updateField} autoComplete="street-address" />
+                <Field id="billing_postal_code" error={errors.billing_postal_code} required label="Fakturapostnummer" name="billing_postal_code" value={form.billing_postal_code} onChange={updateField} inputMode="numeric" />
+                <Field id="billing_city" error={errors.billing_city} required label="Fakturaort" name="billing_city" value={form.billing_city} onChange={updateField} />
+                <Field id="billing_country" error={errors.billing_country} required label="Landkod" name="billing_country" value={form.billing_country} onChange={updateField} help="Två bokstäver, exempelvis SE." />
               </div>
             ) : null}
           </div>
@@ -606,7 +659,7 @@ export default function CustomerApplicationForm({
           </details>
 
           <div className="flex justify-end">
-            <button type="button" onClick={nextStep} disabled={!canSubmit} className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black disabled:opacity-60">Granska teckningen</button>
+            <button type="button" onClick={nextStep} disabled={!canSubmit || legalBundle.powerOfAttorneyUnavailable} className="h-12 rounded-2xl bg-cyan-500 px-8 font-bold text-black disabled:opacity-60">Granska teckningen</button>
           </div>
         </section>
       ) : null}
@@ -624,12 +677,13 @@ export default function CustomerApplicationForm({
           <input type="hidden" name="legal_bundle_version" value={legalBundle.bundleVersion ?? ""} />
           <input type="hidden" name="company_signer_authorized" value={companySignerAuthorized ? "on" : ""} />
           <input type="hidden" name="different_email_confirmed" value={differentEmailConfirmed ? "on" : ""} />
-          <input type="hidden" name="billing_same_as_contact" value={billingSameAsContact ? "on" : ""} />
+          <input type="hidden" name="separate_invoice_email" value={separateInvoiceEmail ? "on" : ""} />
+          <input type="hidden" name="separate_billing_address" value={separateBillingAddress ? "on" : ""} />
           <input type="hidden" name="current_supplier_unknown" value={currentSupplierUnknown ? "on" : ""} />
           <input type="hidden" name="utm_source" value={utm.utm_source ?? ""} />
           <input type="hidden" name="utm_medium" value={utm.utm_medium ?? ""} />
           <input type="hidden" name="utm_campaign" value={utm.utm_campaign ?? ""} />
-          {Object.entries(form).map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
+          {Object.entries({ ...form, requested_start_mode: quoteContext.requested_start_mode, requested_start_date: quoteContext.requested_start_date ?? "" }).map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
           <input type="hidden" name="address" value={quoteContext.address} />
           <input type="hidden" name="postal_code" value={quoteContext.postal_code} />
           <input type="hidden" name="city" value={quoteContext.city} />
@@ -675,15 +729,18 @@ export default function CustomerApplicationForm({
                   <ReviewRow label="E-post" value={form.email} />
                   <ReviewRow label="Telefon" value={normalizePhoneToE164(form.phone) ?? form.phone} />
                   <ReviewRow label="Adress" value={`${quoteContext.address}, ${quoteContext.postal_code} ${quoteContext.city}`} />
+                  {reviewDetails.filter(({ value }) => value).map(({ label, value }) => <ReviewRow key={label} label={label} value={value} />)}
                   <ReviewRow label="Start" value={quoteContext.requested_start_mode === 'specific_date' ? quoteContext.requested_start_date ?? pricingPreview?.start_date ?? '' : 'Så snart som möjligt'} />
                 </dl>
               </div>
             </div>
 
             {!legalReady ? (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                {legalBundle.message ?? "Avtalets juridiska dokument är inte kompletta. Teckning är blockerad."}
-              </div>
+              legalBundle.powerOfAttorneyUnavailable ? null : (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+                  {legalBundle.message ?? "Avtalets juridiska dokument är inte kompletta. Teckning är blockerad."}
+                </div>
+              )
             ) : (
               <div className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5">
                 <div>
@@ -703,16 +760,12 @@ export default function CustomerApplicationForm({
                       <span className="font-medium text-white">{requirement.label}</span>
                       {requirement.description ? <span className="mt-1 block text-xs leading-5 text-white/55">{requirement.description}</span> : null}
                       <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                        {requirement.public_url ? <LegalLink href={requirement.public_url}>Öppna dokument</LegalLink> : null}
-                        {!requirement.public_url
-                          ? selectedContract?.legal.module_versions
-                              .filter((module) => requirement.source_document_ids.includes(module.id) && Boolean(module.url))
-                              .map((module, index) => (
-                                <LegalLink key={module.id} href={module.url as string}>
-                                  {requirement.source_document_ids.length > 1 ? `Öppna del ${index + 1}` : 'Öppna dokument'}
-                                </LegalLink>
-                              ))
-                          : null}
+                        {requirement.links.map((href, index) => (
+                          <LegalLink key={href} href={href}>
+                            {requirement.links.length > 1 ? `Öppna del ${index + 1}` : 'Öppna dokument'}
+                          </LegalLink>
+                        ))}
+                        {requirement.links.length === 0 ? <span className="text-sm text-gray-300">Dokumentlänken är inte tillgänglig.</span> : null}
                       </span>
                     </span>
                   </ConsentCheckbox>

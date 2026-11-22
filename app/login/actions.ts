@@ -22,6 +22,31 @@ function isAdminRole(role: string): boolean {
   return role === 'admin' || role === 'super_admin'
 }
 
+async function logCustomerLogin(supabase: Awaited<ReturnType<typeof createSupabaseServerActionClient>>) {
+  try {
+    const { error } = await supabase.rpc('gridex_my_log_login_v1')
+    if (error) throw error
+  } catch (error) {
+    console.error('[loginWithPassword] gridex_log_customer_login failed', error)
+  }
+}
+
+async function resumeCustomerPortal(user: { id: string; email?: string | null }) {
+  try {
+    const onboarding = await resumePortalOnboardingForConfirmedUserSafely({
+      userId: user.id,
+      email: user.email ?? null,
+    })
+    if (onboarding.blocked > 0) {
+      console.warn('[loginWithPassword] portal onboarding requires stable identity review', {
+        blocked: onboarding.blocked,
+      })
+    }
+  } catch (error) {
+    console.error('[loginWithPassword] portal onboarding resume failed', error)
+  }
+}
+
 export async function loginWithPassword(formData: FormData) {
   const email = normalizeEmail(String(formData.get('email') || ''))
   const password = String(formData.get('password') || '')
@@ -41,9 +66,12 @@ export async function loginWithPassword(formData: FormData) {
   })
 
   if (signInError) {
-    redirect(
-      `/login?error=${encodeURIComponent('Fel e-post eller lösenord')}&next=${encodeURIComponent(next)}`
-    )
+    const status = signInError.status
+    const temporary = status === 0 || status === 429 || (status !== undefined && status >= 500)
+    const message = temporary
+      ? 'Inloggningen är tillfälligt otillgänglig. Försök igen om en stund.'
+      : 'Fel e-post eller lösenord'
+    redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`)
   }
 
   const {
@@ -53,71 +81,59 @@ export async function loginWithPassword(formData: FormData) {
 
   if (userError || !user) {
     await supabase.auth.signOut()
-    redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera sessionen')}`)
+    const message = 'Kunde inte verifiera sessionen. Försök logga in igen.'
+    redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`)
   }
 
-  const [permissionsResult, rolesResult] = await Promise.allSettled([
-    supabase.rpc('gridex_my_permissions_v1'),
-    supabase
-      .from('user_roles')
-      .select('role,is_active')
-      .eq('user_id', user.id)
-      .returns<RoleRow[]>(),
+  const adminDestination = next.startsWith('/admin')
+  let isAdmin = false
+  if (adminDestination || next === '/dashboard') {
+    const [permissionsResult, rolesResult] = await Promise.allSettled([
+      supabase.rpc('gridex_my_permissions_v1'),
+      supabase
+        .from('user_roles')
+        .select('role,is_active')
+        .eq('user_id', user.id)
+        .returns<RoleRow[]>(),
+    ])
+
+    const permissionsData =
+      permissionsResult.status === 'fulfilled' && !permissionsResult.value.error
+        ? permissionsResult.value.data
+        : []
+    const rolesData =
+      rolesResult.status === 'fulfilled' && !rolesResult.value.error
+        ? rolesResult.value.data
+        : []
+
+    if (
+      adminDestination &&
+      ((permissionsResult.status === 'fulfilled' && permissionsResult.value.error) ||
+        (rolesResult.status === 'fulfilled' && rolesResult.value.error) ||
+        permissionsResult.status === 'rejected' ||
+        rolesResult.status === 'rejected')
+    ) {
+      await supabase.auth.signOut()
+      redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera adminbehörighet')}`)
+    }
+
+    const permissions = Array.isArray(permissionsData)
+      ? permissionsData.filter((v): v is string => typeof v === 'string')
+      : []
+
+    const roles = Array.isArray(rolesData)
+      ? rolesData.filter((row) => row.is_active !== false && typeof row.role === 'string').map((row) => row.role)
+      : []
+
+    isAdmin = permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
+  }
+
+  await Promise.all([
+    logCustomerLogin(supabase),
+    resumeCustomerPortal(user),
   ])
 
-  const permissionsData =
-    permissionsResult.status === 'fulfilled' && !permissionsResult.value.error
-      ? permissionsResult.value.data
-      : []
-  const rolesData =
-    rolesResult.status === 'fulfilled' && !rolesResult.value.error
-      ? rolesResult.value.data
-      : []
-
-  if (
-    next.startsWith('/admin') &&
-    ((permissionsResult.status === 'fulfilled' && permissionsResult.value.error) ||
-      (rolesResult.status === 'fulfilled' && rolesResult.value.error) ||
-      permissionsResult.status === 'rejected' ||
-      rolesResult.status === 'rejected')
-  ) {
-    await supabase.auth.signOut()
-    redirect(`/login?error=${encodeURIComponent('Kunde inte verifiera adminbehörighet')}`)
-  }
-
-  const permissions = Array.isArray(permissionsData)
-    ? permissionsData.filter((v): v is string => typeof v === 'string')
-    : []
-
-  const roles = Array.isArray(rolesData)
-    ? rolesData.filter((row) => row.is_active !== false && typeof row.role === 'string').map((row) => row.role)
-    : []
-
-  const isAdmin = permissions.includes('admin.access') || roles.some((role) => isAdminRole(role))
-
-  try {
-    const { error } = await supabase.rpc('gridex_my_log_login_v1')
-    if (error) throw error
-  } catch (error) {
-    console.error('[loginWithPassword] gridex_log_customer_login failed', error)
-  }
-
-  try {
-    const onboarding = await resumePortalOnboardingForConfirmedUserSafely({
-      userId: user.id,
-      email: user.email ?? null,
-    })
-    if (onboarding.blocked > 0) {
-      console.warn('[loginWithPassword] portal onboarding requires stable identity review', {
-        blocked: onboarding.blocked,
-      })
-    }
-  } catch (error) {
-    // Portal reconciliation must never make an otherwise valid login fail.
-    console.error('[loginWithPassword] portal onboarding resume failed', error)
-  }
-
-  if (next.startsWith('/admin') && !isAdmin) {
+  if (adminDestination && !isAdmin) {
     await supabase.auth.signOut()
     redirect(`/login?reason=${encodeURIComponent('forbidden')}`)
   }

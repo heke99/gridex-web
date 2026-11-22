@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {consumptionSelection,projectConsumption,createConsumptionHandler} from '../packages/customer-backend/consumption.mjs';
+import {consumptionSelection,projectConsumption,createConsumptionHandler,DAILY_CONSUMPTION_MEDIA_TYPE} from '../packages/customer-backend/consumption.mjs';
 import {createCustomerBackend} from '../packages/customer-backend/handler.mjs';
 const time=day=>`2026-11-${String(day).padStart(2,'0')}T00:00:00.000Z`;
 const selection={facility:'facility_one',from:time(1),to:time(8)};
@@ -40,4 +40,41 @@ test('consumption handler requires auth and hides upstream errors',async()=>{
 test('independent meter series can overlap, but each reading requires its own series window',()=>{
  const result=projectConsumption({deliveryWindows:[{facility:selection.facility,series:'meter_one',from:time(3),to:time(6)},{facility:selection.facility,series:'meter_two',from:time(4),to:time(6)}],items:[{...row('one',3,4),series:'meter_one'},{...row('not_allowed',3,4,99),series:'meter_two'},{...row('two',4,5,2),series:'meter_two'},{...row('also_one',4,5,1),series:'meter_one'}],complete:true},selection);
  assert.equal(result.totalKwh,4);assert.equal(result.items.length,3);assert.ok(!result.items.some(r=>r.reference==='reading_not_allowed'));
+});
+
+test('daily response preserves Stockholm DST days, delivery rights and partial coverage with fewer bytes', async () => {
+ const facility = 'facility_one';
+ for (const [date, from, to, hours] of [
+  ['2026-03-29', '2026-03-28T23:00:00.000Z', '2026-03-29T22:00:00.000Z', 23],
+  ['2026-10-25', '2026-10-24T22:00:00.000Z', '2026-10-25T23:00:00.000Z', 25],
+ ]) {
+  const timestamp = hour => new Date(Date.parse(from) + hour * 3600000).toISOString();
+  const rows = Array.from({ length: hours }, (_, index) => ({
+   facility, reference: `hour_${index}`, from: timestamp(index), to: timestamp(index + 1), kwh: 1,
+  }));
+  const handler = createConsumptionHandler({
+   authenticate: async () => ({ subject: 'test-user' }),
+   load: async () => ({
+    items: rows.filter((_row, index) => index !== 4),
+    deliveryWindows: [{ facility, from: timestamp(1), to }],
+    complete: false,
+   }),
+  });
+  const url = `https://test/consumption?${new URLSearchParams({ facility, from, to })}`;
+  const response = accept => handler(new Request(url, { headers: { authorization: 'Bearer verified-customer-token', accept } }));
+  const legacy = await response('application/json');
+  const compact = await response(DAILY_CONSUMPTION_MEDIA_TYPE);
+  assert.equal(compact.headers.get('content-type'), DAILY_CONSUMPTION_MEDIA_TYPE);
+  assert.equal(compact.headers.get('vary'), 'Accept');
+  const legacyText = await legacy.text();
+  const compactText = await compact.text();
+  assert.ok(Buffer.byteLength(compactText) < Buffer.byteLength(legacyText));
+  const intervals = JSON.parse(legacyText).data.consumption;
+  assert.ok(Array.isArray(intervals.items));
+  assert.deepEqual(JSON.parse(compactText).data.consumption, {
+   facility, from, to, totalKwh: intervals.totalKwh, complete: false,
+   days: [{ date, kwh: hours - 2, intervals: hours - 2 }],
+  });
+  console.log(`${hours}h Stockholm day: ${Buffer.byteLength(legacyText)} → ${Buffer.byteLength(compactText)} bytes`);
+ }
 });

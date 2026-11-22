@@ -7,6 +7,7 @@ import { clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { prepareCustomerSyncReceipt, completeCustomerSyncReceipt, type CustomerSyncReceipt } from '@/lib/customerPortal/syncReceipt'
 import {
   clientOperationId,
+  CUSTOMER_SYNC_LIST_LIMITS,
   object,
   profilePayload,
   syncDocuments,
@@ -17,6 +18,20 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+
+function facilityOutcome(synced: unknown, expected: number) {
+  const summary = object(object(object(synced)?.summary)?.facility_data)
+  const processed = summary?.processed
+  const updated = summary?.updated
+  const skipped = summary?.skipped
+  const meteringPoints = summary?.metering_point_created ?? 0
+  if (processed !== expected || typeof updated !== 'number' || typeof skipped !== 'number' ||
+      typeof meteringPoints !== 'number' || [updated, skipped, meteringPoints].some(value => !Number.isInteger(value) || value < 0) ||
+      updated + skipped > expected || meteringPoints + skipped > expected) return 'unconfirmed'
+  if (skipped === expected) return 'skipped'
+  if (skipped > 0) return 'partial'
+  return updated > 0 || meteringPoints > 0 ? 'updated' : 'unchanged'
+}
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerActionClient()
@@ -31,9 +46,31 @@ export async function POST(req: Request) {
   if (body.power_of_attorney !== undefined && !powerOfAttorney) {
     return validationError('Fullmakten behöver ett uttryckligt godkännande och kompletta signeringsuppgifter.', 'power_of_attorney')
   }
-  const legalAcceptances = syncLegalAcceptances(body.legal_acceptances)
-  const documents = syncDocuments(body.documents)
-  const facilityData = syncFacilityData(body.facility_data)
+  const lists = {
+    legal_acceptances: syncLegalAcceptances,
+    documents: syncDocuments,
+    facility_data: syncFacilityData,
+  }
+  const normalized: Record<keyof typeof lists, Record<string, unknown>[]> = {
+    legal_acceptances: [], documents: [], facility_data: [],
+  }
+  for (const field of Object.keys(lists) as (keyof typeof lists)[]) {
+    const value = body[field]
+    if (value === undefined) continue
+    const isList = Array.isArray(value)
+    if (!isList && (field !== 'facility_data' || !object(value))) {
+      return validationError('Ogiltigt format för synkposter.', field)
+    }
+    const items = isList ? value : [value]
+    const limit = CUSTOMER_SYNC_LIST_LIMITS[field]
+    if (items.length > limit) return validationError(`Högst ${limit} synkposter får anges.`, field)
+    for (const [index, item] of items.entries()) {
+      const [entry] = lists[field]([item])
+      if (!entry) return validationError('Synkposten är ogiltig.', isList ? `${field}[${index}]` : field)
+      normalized[field].push(entry)
+    }
+  }
+  const { legal_acceptances: legalAcceptances, documents, facility_data: facilityData } = normalized
   const profile = profilePayload(body.profile)
   if (!powerOfAttorney && legalAcceptances.length === 0 && documents.length === 0 && facilityData.length === 0 && !profile) {
     return validationError('Inga synkbara kunduppgifter angavs.')
@@ -72,7 +109,12 @@ export async function POST(req: Request) {
         console.error('[customer-sync] accepted consent receipt requires reconciliation')
       })
     }
-    return privateJsonResponse({ data: result, queued: false })
+    const expectedFacilities = (prepared.facility_data as Record<string, unknown>[]).length
+    return privateJsonResponse({
+      data: result,
+      queued: false,
+      ...(expectedFacilities > 0 && { facilityOutcome: facilityOutcome(result.ok ? result.synced : null, expectedFacilities) }),
+    })
   } catch (error) {
     return customerApiErrorResponse(error, {
       logLabel: 'customer-sync',

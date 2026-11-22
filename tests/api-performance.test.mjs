@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { checkOpsIntegrationReadiness } from '../lib/ops/readiness.ts'
+import { checkOpsCustomerPortalReadiness } from '../lib/ops/portalReadiness.ts'
 import test from 'node:test'
 import { opsRequest } from '../lib/ops/transport.ts'
+import { POST as resolveEnergyArea } from '../app/api/checkout/energy-area/resolve/route.ts'
+import { POST as marketPrice } from '../app/api/web/market-price/current/route.ts'
 import { getVerifiedOpsIntegrationContext } from '../lib/ops/client.ts'
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION as version } from '../lib/ops/contract.ts'
 import { API_PERFORMANCE_PREFIX, API_PERFORMANCE_SCHEMA, observeApiOperation, recordApiCache, recordOpsPerformance } from '../lib/observability/apiPerformance.ts'
@@ -214,4 +219,189 @@ test('report percentiles, cache denominators and retries use supplied records on
   assert.equal(parseApiPerformanceEvents('irrelevant or malformed logs').length, 0)
   const hostile = parseApiPerformanceEvents(JSON.stringify({ schema: API_PERFORMANCE_SCHEMA, kind: 'operation', surface: 'PRIVATE_EMAIL', duration_ms: -1, upstream: [{ route: '/PRIVATE_ADDRESS', method: 'PRIVATE_PASSWORD' }], cache: [{ layer: 'PRIVATE_IP', result: 'hit', count: 1 }] }))
   assert.doesNotMatch(JSON.stringify(summarizeApiPerformance(hostile)), /PRIVATE_/)
+})
+
+test('market price distinguishes quota exhaustion, limiter failure and OPS rate limiting', async t => {
+  capture(t)
+  const previous = Object.fromEntries(['NODE_ENV', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].map(key => [key, process.env[key]]))
+  t.after(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  })
+  Object.assign(process.env, {
+    NODE_ENV: 'production',
+    NEXT_PUBLIC_SUPABASE_URL: 'https://db.example.test',
+    SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-key',
+  })
+  for (const scenario of ['quota', 'unavailable', 'ops']) {
+    let opsCalls = 0
+    globalThis.fetch = async input => {
+      const url = new URL(input)
+      if (url.hostname === 'db.example.test') {
+        assert.match(url.pathname, /consume_distributed_rate_limit$/)
+        return scenario === 'unavailable'
+          ? Response.json({ message: 'unavailable' }, { status: 503 })
+          : Response.json([{ allowed: scenario === 'ops', remaining: 0, reset_at: new Date(Date.now() + 60_000).toISOString() }])
+      }
+      if (url.pathname.endsWith('/integration/context')) return ok(context)
+      assert.match(url.pathname, /\/website\/market-price\/current$/)
+      opsCalls += 1
+      return Response.json({ error: { code: 'rate_limited' } }, {
+        status: 429, headers: { 'Retry-After': '120', 'X-Request-Id': 'market-ops-request' },
+      })
+    }
+    const response = await marketPrice(new Request('https://gridex.example.test/api/web/market-price/current', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolution_id: '11111111-1111-4111-8111-111111111111' }),
+    }))
+    const body = await response.json()
+    assert.equal(response.status, scenario === 'unavailable' ? 503 : 429, JSON.stringify(body))
+    assert.equal(body.error.code, scenario === 'unavailable' ? 'rate_limit_unavailable' : 'rate_limited')
+    assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    if (scenario === 'ops') {
+      assert.equal(response.headers.get('retry-after'), '120')
+      assert.equal(body.error.request_id, 'market-ops-request')
+      assert.equal(opsCalls, 1)
+    } else {
+      assert.ok(Number(response.headers.get('retry-after')) > 0)
+      assert.match(body.error.request_id, /^[a-f0-9-]{36}$/)
+      assert.equal(opsCalls, 0)
+    }
+  }
+})
+
+test('cancelled address checks stop before the next boundary and abort the OPS transport', async t => {
+  capture(t)
+  const settings = {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://address-db.example.test',
+    SUPABASE_SERVICE_ROLE_KEY: 'synthetic-address-db-key',
+    GRIDEX_WEBSITE_STATE_SIGNING_SECRET: 'synthetic-address-signing-secret-for-tests',
+  }
+  const previous = Object.entries(settings).map(([key, value]) => [key, process.env[key], value])
+  for (const [key, , value] of previous) process.env[key] = value
+  t.after(() => {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  })
+  for (const phase of ['before-request', 'quota', 'ops']) {
+    const controller = new AbortController()
+    const calls = []
+    let opsSignal
+    if (phase === 'before-request') controller.abort()
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input)
+      if (url.pathname.endsWith('/consume_distributed_rate_limit')) {
+        calls.push('quota')
+        if (phase === 'quota') controller.abort()
+        return Response.json([{ allowed: true, remaining: 29, reset_at: new Date().toISOString() }])
+      }
+      if (url.pathname.endsWith('/integration/context')) return ok(context)
+      calls.push(url.pathname)
+      if (url.pathname !== '/api/v1/website/energy-area/resolve') throw Error('Unexpected request')
+      opsSignal = init.signal
+      return new Promise((_, reject) => {
+        opsSignal.addEventListener('abort', () => reject(opsSignal.reason), { once: true })
+        controller.abort()
+      })
+    }
+    const response = await resolveEnergyArea(new Request('https://gridex.example.test/api/checkout/energy-area/resolve', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postal_code: '11151', city: 'Stockholm', street: 'Testgatan 1', requested_start_mode: 'earliest_possible' }),
+    }))
+    assert.equal(response.status, 499, await response.text())
+    const expected = { 'before-request': [], quota: ['quota'], ops: ['quota', '/api/v1/website/energy-area/resolve'] }
+    assert.deepEqual(calls, expected[phase])
+    if (phase === 'ops') assert.equal(opsSignal.aborted, true)
+  }
+  const operations = []
+  globalThis.fetch = async input => {
+    const pathname = new URL(input).pathname
+    operations.push(pathname)
+    assert.match(pathname, /consume_distributed_rate_limit$/)
+    return Response.json([{ allowed: true, remaining: 29, reset_at: new Date().toISOString() }])
+  }
+  const oversized = await resolveEnergyArea(new Request('https://gridex.example.test/api/checkout/energy-area/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ street: 'a'.repeat(181), facility_id: 'synthetic-facility' }),
+  }))
+  assert.equal(oversized.status, 400)
+  assert.equal((await oversized.json()).error.field, 'address')
+  assert.equal(operations.length, 1)
+})
+
+test('website readiness shares one fresh context and one catalogue and labels a failed dependency', async t => {
+  capture(t)
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/public-contracts.ops-2026-10-04.1.json', import.meta.url), 'utf8')
+    .replaceAll('2026-10-04.1', version))
+  const fixtureContext = { ...context, data: { ...context.data, organization_reference: fixture.meta.organization_reference } }
+  for (const catalogueOk of [true, false]) {
+    const paths = []
+    globalThis.fetch = async input => {
+      const url = new URL(input)
+      paths.push(url.pathname)
+      if (url.pathname.endsWith('/integration/context')) return ok(fixtureContext)
+      if (url.pathname.endsWith('/website/public-contracts')) {
+        return catalogueOk ? ok(fixture) : Response.json({ error: { code: 'catalogue_denied' } }, { status: 403 })
+      }
+      if (url.pathname.endsWith('/legal-bundle')) {
+        assert.equal(url.searchParams.get('offer_reference'), 'offer_example')
+        return Response.json({ error: { code: 'legal_denied' } }, { status: 403 })
+      }
+      return Response.json({ error: { code: 'validation_error' } }, { status: 400 })
+    }
+    const result = await checkOpsIntegrationReadiness()
+    assert.equal(paths.filter(path => path.endsWith('/integration/context')).length, 1)
+    assert.equal(paths.filter(path => path.endsWith('/website/public-contracts')).length, 1)
+    assert.equal(paths.filter(path => path.endsWith('/legal-bundle')).length, Number(catalogueOk))
+    assert.equal(result.probes.find(probe => probe.name === 'website_contracts.read').ok, catalogueOk)
+    assert.equal(result.probes.find(probe => probe.name === 'website_legal.read').code,
+      catalogueOk ? 'legal_denied' : 'legal_readiness_catalogue_unavailable')
+  }
+})
+
+test('portal readiness overlaps support and portal probes without exceeding five in flight', async t => {
+  const log = capture(t)
+  let active = 0
+  let peak = 0
+  const activeSupport = new Set()
+  let overlapped = false
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input)
+    if (url.pathname.endsWith('/integration/context')) {
+      await delay(20)
+      return ok(context)
+    }
+    const support = url.pathname.includes('/support/')
+    const token = Symbol()
+    if (support) activeSupport.add(token)
+    else overlapped ||= activeSupport.size > 0
+    active += 1
+    peak = Math.max(peak, active)
+    await delay(support ? 35 : 25)
+    active -= 1
+    activeSupport.delete(token)
+    if (support && init.method === 'POST') {
+      return Response.json({ error: { code: 'rate_limited' } }, { status: 429, headers: { 'Retry-After': '120' } })
+    }
+    return Response.json({ error: { code: 'validation_error' } }, { status: 400 })
+  }
+  const start = performance.now()
+  const result = await checkOpsCustomerPortalReadiness()
+  console.log(`Synthetic portal readiness ${(performance.now() - start).toFixed(1)} ms, peak ${peak}`)
+  assert.equal(overlapped, true)
+  assert.equal(peak, 5)
+  assert.equal(result.probes.length, 5)
+  assert.ok(result.probes.every(probe => probe.ok))
+  assert.deepEqual(result.support.probes.map(probe => probe.status), [400, 429])
+  assert.equal(result.support.ready, false)
+  assert.equal(log.events().flatMap(event => event.upstream).reduce((sum, row) => sum + row.rate_limited_responses, 0), 1)
 })

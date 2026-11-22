@@ -34,13 +34,8 @@ assert.doesNotMatch(form, /\{submissionState\.errorMessage \? \(/)
 
 assert.match(signupPage, /Prisunderlaget kunde inte verifieras\. Gå tillbaka till prissteget och försök igen\./)
 
-// Contract-feed verification and the authoritative OPS quote are independent
-// network operations. Keep them parallel, then independently cross-check the
-// OPS-selected default before a customer checkout token can be issued.
-assert.match(
-  quoteRoute,
-  /const \[contractsSnapshot, opsQuote\] = await Promise\.all\(\[[\s\S]*fetchOpsPublicContractsSnapshot\(customerType\)[\s\S]*fetchOpsWebsiteQuoteAutoSelect\(/,
-)
+assert.ok(quoteRoute.includes('hasRecentlySeenPublicOffer(customerType, offerReference) ? requestQuote() : null'))
+assert.ok(quoteRoute.indexOf('const contract = contractsSnapshot.contracts.find') < quoteRoute.indexOf('const opsQuote = await'))
 assert.match(
   quoteRoute,
   /opsQuote\.price_option_reference !== selectedPriceOptionReference/,

@@ -113,7 +113,7 @@ for (const marker of [
   "portalRole !== 'owner'",
   'inviteUserByEmail',
   'isExistingAuthUserInviteError',
-  'attempt_count: 0',
+  'ignoreDuplicates: true',
 ]) assert.ok(onboarding.includes(marker), `missing portal onboarding marker: ${marker}`)
 assert.ok(onboarding.includes("onConflict: 'user_id,contract_provider_key,contract_external_ref'"))
 

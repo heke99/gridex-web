@@ -665,7 +665,7 @@ export const elprisPages: SeoPageContent[] = [
     h1: `Elpris ${area} – följ priset i ditt elområde`,
     lead: `${area} är ett av Sveriges elområden. Priset påverkas av marknad, efterfrågan, produktion och överföringskapacitet. Gridex visar både prisdata och hur elavtalet byggs upp.`,
     intent: `Rankar för elpris ${area} och kopplar elområdessökningar till tydligt avtalsval.`,
-    primaryCta: { label: `Se livepris och snitt för ${area}`, href: '/elpriser/elpris-idag' },
+    primaryCta: { label: `Se livepris och snitt för ${area}`, href: `/elpriser/elpris-idag?area=${area}#dagens-pris` },
     secondaryCta: { label: 'Jämför elavtal', href: '/elavtal/jamfor-elavtal' },
     sections: [
       {

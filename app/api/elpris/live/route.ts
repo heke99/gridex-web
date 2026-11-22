@@ -9,11 +9,13 @@ type ApiError = Error & { status?: number }
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const supabase = await createSupabaseServerClient()
+    const area = url.searchParams.get('area')
+    const postalCode = url.searchParams.get('postalCode')
+    const supabase = !area && postalCode ? await createSupabaseServerClient() : undefined
     const result = await getLivePriceSummary({
       supabase,
-      postalCode: url.searchParams.get('postalCode'),
-      area: url.searchParams.get('area'),
+      postalCode,
+      area,
       date: url.searchParams.get('date'),
     })
 
