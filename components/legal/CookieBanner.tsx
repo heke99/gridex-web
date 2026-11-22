@@ -3,42 +3,17 @@
 import Link from 'next/link'
 import { useSyncExternalStore } from 'react'
 import {
-  GRIDEX_COOKIE_CONSENT_EVENT,
-  GRIDEX_COOKIE_CONSENT_KEY,
-  type GridexCookieConsent,
-  googleConsentState,
-  parseGridexCookieConsent,
+  currentCookieConsent,
+  saveCookieConsent,
+  serverCookieConsent,
+  subscribeToCookieConsent,
 } from '@/lib/analytics/googleConsent'
-
-function subscribe(callback: () => void) {
-  window.addEventListener('storage', callback)
-  window.addEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
-  return () => {
-    window.removeEventListener('storage', callback)
-    window.removeEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
-  }
-}
-
-function getSnapshot(): GridexCookieConsent {
-  if (typeof window === 'undefined') return null
-  return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
-}
-
-function getServerSnapshot(): GridexCookieConsent {
-  return null
-}
-
-function persistConsent(value: Exclude<GridexCookieConsent, null>) {
-  window.localStorage.setItem(GRIDEX_COOKIE_CONSENT_KEY, value)
-  window.gtag?.('consent', 'update', googleConsentState(value))
-  window.dispatchEvent(new Event(GRIDEX_COOKIE_CONSENT_EVENT))
-}
 
 export default function CookieBanner() {
   const consent = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot
+    subscribeToCookieConsent,
+    currentCookieConsent,
+    serverCookieConsent
   )
 
   if (consent !== null) return null
@@ -65,14 +40,14 @@ export default function CookieBanner() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => persistConsent('rejected')}
+              onClick={() => saveCookieConsent('rejected')}
               className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-gray-200 transition hover:border-cyan-500/40"
             >
               Avvisa
             </button>
             <button
               type="button"
-              onClick={() => persistConsent('accepted')}
+              onClick={() => saveCookieConsent('accepted')}
               className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-bold text-black transition hover:bg-cyan-400"
             >
               Acceptera

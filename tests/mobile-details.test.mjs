@@ -52,3 +52,28 @@ test('internal note kinds and unexpected authors never reach mobile support', ()
   payload.data[0].kind = 'message'; payload.data[0].author_type = 'system';
   assert.throws(() => supportDetail(supportPayload(), payload, caseId));
 });
+
+test('support detail retains the opening event and suppresses only the matching case description', () => {
+  const detail = supportPayload();
+  const laterReply = messagesPayload().data[0];
+  const opening = {
+    ...laterReply,
+    message_reference: 'opening_ref',
+    author_type: 'customer',
+    kind: 'message',
+    body: detail.data.description,
+    created_at: detail.data.created_at,
+  };
+  const project = (...data) => supportDetail(detail, { data, page: { has_more: true } }, caseId);
+  const matched = project(laterReply, opening);
+  assert.equal(matched.description, null);
+  assert.deepEqual(matched.messages.map(message => message.body), [laterReply.body, opening.body]);
+  assert.equal(matched.moreMessages, true);
+  assert.equal(project(laterReply).description, detail.data.description);
+  for (const different of [
+    { created_at: laterReply.created_at }, { author_type: 'staff' },
+    { kind: 'phone_summary' }, { body: 'Ett separat meddelande' },
+  ]) {
+    assert.equal(project({ ...opening, ...different }).description, detail.data.description);
+  }
+});

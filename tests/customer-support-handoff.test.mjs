@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateKeyPairSync } from 'node:crypto'
+import { Suspense } from 'react'
 import { createSupportRuntime, FIXTURE_COMPANY, FIXTURE_ADMIN, FIXTURE_LOCAL_ADMIN, FIXTURE_OPS_PROJECT_REF, FIXTURE_CUSTOMER_AUTH, FIXTURE_FOREIGN_CUSTOMER_AUTH } from './fixtures/support-runtime.mjs'
 import { createStaffApiClient } from '../lib/staff-api/client.ts'
 import { createSupportTicketAction, addSupportMessageAction } from '../app/dashboard/support/actions.ts'
+import DashboardSupportPage from '../app/dashboard/support/page.tsx'
 import { getCustomerTicketPage, getCustomerTickets, getTicketMessages } from '../lib/customerPortal/service.ts'
 import { fetchOpsCustomerSupportCase, listOpsCustomerSupportCases, listOpsCustomerSupportMessages, sendOpsCustomerSupportMessage } from '../lib/ops/client/customerSupport.ts'
 
@@ -30,12 +32,121 @@ function setup(t, id = CUSTOMER_AUTH) {
 }
 const create = (id = '11111111-aaaa-4aaa-8aaa-111111111111', extra = {}) => form({ subject: 'Kanoniskt kundärende', description: 'Kunden frågar om sin faktura.', category: 'faktura', priority: 'high', client_request_id: id, user_id: FIXTURE_LOCAL_ADMIN, actor_user_id: FIXTURE_ADMIN, company_id: 'foreign', ...extra })
 const createdRedirect = error => error.location === '/dashboard/support?status=created'
-const messageSentRedirect = error => error.location === '/dashboard/support?status=message-sent'
+const messageSentRedirect = (reference, cursor) => error => {
+  const query = new URLSearchParams({ status: 'message-sent', case: reference })
+  if (cursor) query.set('cursor', cursor)
+  return error.location === `/dashboard/support?${query}#${reference}`
+}
 const reply = (reference, id = '22222222-aaaa-4aaa-8aaa-222222222222', body = 'Kundens uppföljning') => form({ ticket_id: reference, body, client_request_id: id, user_id: FIXTURE_ADMIN, actor_user_id: FIXTURE_ADMIN, company_id: 'foreign' })
 const identity = id => ({ userId: id, email: id === CUSTOMER_AUTH ? 'anna@example.invalid' : 'foreign-customer@example.invalid', customerNumber: id === CUSTOMER_AUTH ? 'TEST-1001' : 'TEST-FOREIGN' })
 const customerCalls = runtime => runtime.state.traffic.filter(call => call.boundary === 'customer')
 const snapshot = runtime => JSON.stringify({ cases: [...runtime.state.cases], events: [...runtime.state.events] })
 const noLocalSupport = runtime => assert.deepEqual(runtime.boundary.localWrites, [])
+
+test('dashboard uses one verified customer profile per render across five cases and their child reads', async t => {
+  const runtime = setup(t)
+  for (let i = 1; i <= 4; i++) {
+    await assert.rejects(() => createSupportTicketAction(create(`11111111-aaaa-4aaa-8aaa-11111111111${i}`)), createdRedirect)
+  }
+  runtime.boundary.localQueries.length = 0
+  const before = customerCalls(runtime).length
+  const result = await DashboardSupportPage({})
+  assert.deepEqual(runtime.boundary.localQueries, ['customer_profiles'])
+  assert.deepEqual(customerCalls(runtime).slice(before).map(call => call.path), ['/cases'])
+  const nodes = node => Array.isArray(node) ? node.flatMap(nodes) : node?.props ? [node, ...nodes(node.props.children)] : []
+  const closedTree = nodes(result)
+  assert.equal(closedTree.filter(node => node.type === 'section').length, 5)
+  assert.ok(closedTree.some(node => node.type === 'button' && node.props.children === 'Skapa ärende'))
+
+  const reference = [...runtime.state.cases.keys()].at(-1)
+  const request = (caseReference) => DashboardSupportPage({ searchParams: Promise.resolve({ case: caseReference }) })
+  const opened = await request(reference)
+  assert.deepEqual(runtime.boundary.localQueries, ['customer_profiles', 'customer_profiles'])
+  assert.deepEqual(customerCalls(runtime).slice(before).map(call => call.path), ['/cases', '/cases'])
+  const sections = nodes(opened).filter(node => node.type === Suspense)
+  assert.deepEqual(sections.map(section => section.props.fallback.props.children), ['Hämtar meddelanden…', 'Hämtar bilagor…'])
+
+  const messagesGate = Promise.withResolvers()
+  const fetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const response = await fetch(input, init)
+    const path = new URL(String(input)).pathname
+    if (path.endsWith('/messages')) await messagesGate.promise
+    if (path.endsWith('/attachments')) return Response.json({}, { status: 403, headers: response.headers })
+    return response
+  }
+  const [messages, attachments] = sections.map(section => {
+    const child = section.props.children
+    return child.type(child.props)
+  })
+  try {
+    const unavailable = await attachments
+    assert.match(unavailable.props.children.join(' '), /Bilagorna kunde inte hämtas just nu/)
+    assert.equal(nodes(unavailable).find(node => node.type === 'a').props.href,
+      `/dashboard/support?${new URLSearchParams({ case: reference })}#${reference}`)
+    const calls = customerCalls(runtime).slice(before + 2)
+    assert.equal(calls.length, 2)
+    assert.ok(calls.some(call => call.path === `/cases/${reference}/messages`))
+    assert.ok(calls.some(call => call.path === `/cases/${reference}/attachments`))
+    assert.ok(calls.every(call => call.authId === CUSTOMER_AUTH))
+  } finally {
+    messagesGate.resolve()
+    await messages
+    globalThis.fetch = fetch
+  }
+  assert.ok(nodes(await messages).some(node => node.props.children === 'Kunden frågar om sin faktura.'))
+  const pages = []
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input))
+    const response = await fetch(input, init)
+    const section = url.pathname.split('/').at(-1)
+    if (!['messages', 'attachments'].includes(section)) return response
+    const cursor = url.searchParams.get('cursor')
+    pages.push([section, cursor])
+    const headers = new Headers(response.headers)
+    if (!cursor) headers.set('X-Gridex-Next-Cursor', `next-${section}+=`)
+    return new Response(response.body, { status: response.status, headers })
+  }
+  async function readSections(query) {
+    const page = await DashboardSupportPage({ searchParams: Promise.resolve(query) })
+    return Promise.all(nodes(page).filter(node => node.type === Suspense).map(section => {
+      const child = section.props.children
+      return child.type(child.props)
+    }))
+  }
+  function nextQuery(section, label) {
+    const href = nodes(section).find(node => node.props.children === label).props.href
+    const url = new URL(href, 'https://gridex.example')
+    assert.equal(url.hash, `#${reference}`)
+    return Object.fromEntries(url.searchParams)
+  }
+  try {
+    const [firstMessages] = await readSections({ case: reference })
+    const messageQuery = nextQuery(firstMessages, 'Nästa sida med meddelanden')
+    assert.deepEqual(messageQuery, { case: reference, message_cursor: 'next-messages+=' })
+    const [secondMessages, firstAttachments] = await readSections(messageQuery)
+    assert.ok(nodes(secondMessages).some(node => node.props.children === 'Kunden frågar om sin faktura.'))
+    const attachmentQuery = nextQuery(firstAttachments, 'Nästa sida med bilagor')
+    assert.deepEqual(attachmentQuery, { ...messageQuery, attachment_cursor: 'next-attachments+=' })
+    const [, secondAttachments] = await readSections(attachmentQuery)
+    assert.ok(nodes(secondAttachments).every(node => node.props.children !== 'Nästa sida med bilagor'))
+    assert.deepEqual(pages, [
+      ['messages', null], ['attachments', null],
+      ['messages', 'next-messages+='], ['attachments', null],
+      ['messages', 'next-messages+='], ['attachments', 'next-attachments+='],
+    ])
+  } finally {
+    globalThis.fetch = fetch
+  }
+  const unknown = await request('support_case_ffffffffffffffffffffffffffffffff')
+  assert.equal(nodes(unknown).filter(node => node.type === Suspense).length, 0)
+  const beforeUnauthorized = customerCalls(runtime).length
+
+  runtime.boundary.user = null
+  await assert.rejects(() => DashboardSupportPage({}))
+  assert.equal(customerCalls(runtime).length, beforeUnauthorized)
+  assert.deepEqual(runtime.boundary.localQueries, Array(6).fill('customer_profiles'))
+})
 
 test('actual dashboard create writes one canonical case visible to signed Staff API, never legacy support tables', async t => {
   const runtime = setup(t); const initial = runtime.state.cases.size
@@ -76,7 +187,9 @@ test('real customer reply and Staff reply share history while internal notes sta
   const runtime = setup(t)
   await assert.rejects(() => createSupportTicketAction(create()), createdRedirect)
   const ref = [...runtime.state.cases.keys()].at(-1)
-  await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect)
+  const message = reply(ref)
+  message.set('cursor', 'opaque:cursor/2')
+  await assert.rejects(() => addSupportMessageAction(message), messageSentRedirect(ref, 'opaque:cursor/2'))
   assert.equal(customerCalls(runtime).filter(call => call.method === 'POST').length, 2)
   const staffDetail = (await runtime.staff.getCase(ref)).data
   assert.ok(staffDetail.events.some(event => event.message === 'Kundens uppföljning' && event.event_type === 'support_customer_message' && event.author_type === 'customer' && event.author_user_id === null && event.kind === null))
@@ -125,8 +238,8 @@ test('customer stable reply replay yields one event; changed payload conflicts40
   const runtime = setup(t)
   await assert.rejects(() => createSupportTicketAction(create()), createdRedirect)
   const ref = [...runtime.state.cases.keys()].at(-1)
-  await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect)
-  await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect)
+  await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect(ref))
+  await assert.rejects(() => addSupportMessageAction(reply(ref)), messageSentRedirect(ref))
   assert.equal(runtime.state.events.get(ref).length, 2)
   const keys = customerCalls(runtime).filter(call => call.path.endsWith('/messages') && call.method === 'POST').map(call => call.idempotencyKey)
   assert.equal(keys.length, 2); assert.equal(keys[0], keys[1])

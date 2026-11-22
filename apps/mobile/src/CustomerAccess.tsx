@@ -1,3 +1,4 @@
+import { formatCustomerDate } from '../../../packages/mobile-foundation/src/customerDate';
 import { ConsumptionPanel } from './ConsumptionPanel';
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native';
@@ -14,7 +15,7 @@ import { recoveryUrl, type Resource } from './customerData';
 
 const labels: Record<Resource, string> = { contracts: 'Avtal', sites: 'Anläggningar', invoices: 'Fakturor', support: 'Support', profile:'Profil', notifications:'Meddelanden', documents:'Dokument', powers:'Fullmakter', acceptances:'Godkännanden' };
 export function CustomerAccess({ brand, consumption = false }: { brand: MobileBrand; consumption?: boolean }) {
-  const a = useCustomerAccount(brand.id);
+  const a = useCustomerAccount(brand.id, consumption);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [linkError, setLinkError] = useState('');
   const openSupportWeb = async () => {
@@ -51,10 +52,10 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
       <Pressable accessibilityRole="link" disabled={a.busy} onPress={() => void openRecovery()} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: t.accent }}>Glömt lösenord? Återställ på hemsidan</Text></Pressable>
     </> : <>
       <Text accessibilityRole="header" style={{ color: t.text, fontSize: 20 }}>Mina sidor</Text>
-      {consumption && <ConsumptionPanel theme={t} read={a.readConsumption} />}
+      {consumption && <ConsumptionPanel theme={t} read={a.readConsumption} initialPreference={a.consumptionPreference} onPreferenceChange={a.setConsumptionPreference} />}
       {!consumption && <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: listResource === resource }} disabled={a.busy} onPress={() => void a.select(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: listResource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
+        {(Object.keys(labels) as Resource[]).map(resource => <Pressable key={resource} accessibilityRole="button" accessibilityState={{ selected: listResource === resource, disabled: a.navigationBlocked }} disabled={a.navigationBlocked} onPress={() => void a.switchView(resource)} style={{ minHeight: 48, padding: 10, borderWidth: 1, borderColor: listResource === resource ? t.accent : t.muted, borderRadius: 10 }}><Text style={{ color: t.text }}>{labels[resource]}</Text></Pressable>)}
       </View>
       {a.rows && <CustomerList key={a.resource} resource={listResource} rows={a.rows} theme={t}>{row => <View key={row.reference} style={{ gap: 6, paddingVertical: 10 }}>
         <Text style={{ color: t.text, fontWeight: '600' }}>{String(row.name ?? row.address ?? row.number ?? row.title ?? row.reference)}</Text>
@@ -73,15 +74,16 @@ export function CustomerAccess({ brand, consumption = false }: { brand: MobileBr
           <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.select('invoiceDetail', row.reference)} style={button}><Text style={{ color: t.accentText }}>Visa fakturadetaljer</Text></Pressable>
           <Text style={{ color: t.text }}>{row.amount === null ? 'Belopp saknas' : `${row.amount} ${row.currency ?? '(valuta saknas)'}`}</Text>
           <Text style={{ color: t.muted }}>Förfallodag: {row.dueDate ?? 'Uppgift saknas'}</Text>
-          {row.paidAt && <Text style={{ color: t.muted }}>Betald: {row.paidAt}</Text>}
+          {typeof row.paidAt === 'string' && formatCustomerDate(row.paidAt) !== '—' && <Text style={{ color: t.muted }}>Betald: {formatCustomerDate(row.paidAt)}</Text>}
         </>}
         {['profile','notifications','documents','powers','acceptances'].includes(a.resource) ? <CustomerExtraPanel resource={a.resource as Resource} row={row} theme={t} busy={a.busy} open={()=>void a.openDocument(null,row.reference,url=>Linking.openURL(url))} /> : <Text style={{ color: t.muted }}>Status: {row.status ?? 'Uppgift saknas'}</Text>}
       </View>}</CustomerList>}
       {a.resource === 'support' && <SupportComposer theme={t} busy={a.busy} submit={(title, message) => a.submitSupport(title, message)} />}
       {a.support && a.support.status !== 'closed' && <SupportComposer key={a.support.reference} theme={t} busy={a.busy} reply submit={(title, message) => a.submitSupport(title, message, a.support!.reference)} />}
-      {a.resource === 'support' && a.nextCursor && <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.loadMore()} style={button}><Text style={{ color: t.accentText }}>Visa fler ärenden</Text></Pressable>}
+      {(a.resource === 'support' || a.resource === 'invoices') && a.nextCursor && <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.loadMore()} style={button}><Text style={{ color: t.accentText }}>{a.resource === 'invoices' ? 'Visa fler fakturor' : 'Visa fler ärenden'}</Text></Pressable>}
       {a.invoice && <InvoicePanel invoice={a.invoice} theme={t} busy={a.busy} back={() => void a.select('invoices')} openDocument={reference => void a.openDocument(a.invoice!.reference, reference, url => Linking.openURL(url))} />}
       {a.support && <SupportPanel detail={a.support} theme={t} busy={a.busy} back={() => void a.select('support')} openWeb={() => void openSupportWeb()} />}
+      {a.support && a.nextCursor && <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.loadMore()} style={button}><Text style={{ color: t.accentText }}>Visa fler meddelanden</Text></Pressable>}
       <Pressable accessibilityRole="button" disabled={a.busy} onPress={() => void a.retry()} style={button}><Text style={{ color: t.accentText, textAlign: 'center' }}>Hämta igen</Text></Pressable>
       </>}
     </>}

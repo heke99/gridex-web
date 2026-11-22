@@ -3,7 +3,12 @@ export const priceAreas=['SE1','SE2','SE3','SE4'] as const;
 export type PriceArea=typeof priceAreas[number];
 export type MarketEntry={sekPerKwh:number;timeStart:string;timeEnd:string};
 export type MarketDay={area:PriceArea;date:string;source:string;disclaimer:string;entries:MarketEntry[];average:number|null};
-export function marketDate(now=new Date()):string{return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
+const marketDateFormatter = new Intl.DateTimeFormat('sv-SE', {
+ timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+export function marketDate(now = new Date()): string {
+ return marketDateFormatter.format(now);
+}
 export function relativeMarketDate(offset: -1 | 0 | 1, now = new Date()): string {
  const date = new Date(`${marketDate(now)}T12:00:00Z`);
  date.setUTCDate(date.getUTCDate() + offset);

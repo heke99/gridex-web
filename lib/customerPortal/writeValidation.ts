@@ -207,9 +207,15 @@ export function syncPowerOfAttorney(value: unknown): Record<string, unknown> | n
   return result
 }
 
+export const CUSTOMER_SYNC_LIST_LIMITS = {
+  legal_acceptances: 100,
+  documents: 100,
+  facility_data: 20,
+} as const
+
 export function syncLegalAcceptances(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return []
-  return value.slice(0, 100).flatMap((item) => {
+  return value.slice(0, CUSTOMER_SYNC_LIST_LIMITS.legal_acceptances).flatMap((item) => {
     const source = object(item)
     if (!source || source.accepted === false) return []
 
@@ -280,7 +286,7 @@ export function syncDocument(value: unknown): Record<string, unknown> | null {
 export function syncDocuments(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return []
   return value
-    .slice(0, 100)
+    .slice(0, CUSTOMER_SYNC_LIST_LIMITS.documents)
     .map(syncDocument)
     .filter((item): item is Record<string, unknown> => Boolean(item))
 }
@@ -319,7 +325,7 @@ function syncFacilityItem(value: unknown): Record<string, unknown> | null {
 export function syncFacilityData(value: unknown): Record<string, unknown>[] {
   const rows = Array.isArray(value) ? value : value ? [value] : []
   return rows
-    .slice(0, 20)
+    .slice(0, CUSTOMER_SYNC_LIST_LIMITS.facility_data)
     .map(syncFacilityItem)
     .filter((item): item is Record<string, unknown> => Boolean(item))
 }

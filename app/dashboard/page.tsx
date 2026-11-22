@@ -52,9 +52,10 @@ function getCustomerLabel(
 
 export default async function DashboardPage() {
   const overview = await getCustomerPortalOverview()
+  const unavailable = overview.unavailableSections ?? []
   const latestContract = overview.contracts[0] ?? null
-  const latestNotification = overview.notifications[0] ?? null
-  const latestSite = overview.sites[0] ?? null
+  const latestNotification = unavailable.includes('notifications') ? null : overview.notifications[0] ?? null
+  const latestSite = unavailable.includes('sites') ? null : overview.sites[0] ?? null
   const displayName = getDisplayName(overview.profile)
   const customerLabel = getCustomerLabel(overview.profile)
 
@@ -102,6 +103,7 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
+      {overview.dataFreshnessMessage && <p role="status" className="text-sm text-amber-100">{overview.dataFreshnessMessage}</p>}
       <OverviewCards overview={overview} />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -118,7 +120,9 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          {latestContract ? (
+          {unavailable.includes('contracts') ? (
+            <p className="mt-4 text-sm text-amber-100">Avtal kunde inte hämtas just nu.</p>
+          ) : latestContract ? (
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -147,7 +151,9 @@ export default async function DashboardPage() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-lg font-semibold">Senaste meddelande</h2>
 
-          {latestNotification ? (
+          {unavailable.includes('notifications') ? (
+            <p className="mt-4 text-sm text-amber-100">Meddelanden kunde inte hämtas just nu.</p>
+          ) : latestNotification ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
               <div className="text-sm font-medium">{latestNotification.title}</div>
               <div className="mt-2 text-sm text-white/70">{latestNotification.body}</div>
@@ -165,6 +171,11 @@ export default async function DashboardPage() {
 
       <CustomerPortalSelfService
         userId={overview.profile?.user_id}
+        moveOutSites={overview.sites.map(site => ({
+          reference: site.site_reference,
+          address: [site.address, [site.postal_code, site.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
+          facilityId: site.facility_id,
+        }))}
         site={latestSite ? {
           id: latestSite.id,
           facilityId: latestSite.facility_id,
@@ -172,7 +183,7 @@ export default async function DashboardPage() {
           gridAreaCode: latestSite.grid_area_code,
           priceAreaCode: latestSite.price_area,
         } : null}
-        latestUnreadNotificationId={overview.notifications.find((notification) => !notification.is_read)?.id ?? null}
+        latestUnreadNotificationId={latestNotification && !latestNotification.is_read ? latestNotification.id : null}
       />
       {overview.supportError ? <p role="status" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">{overview.supportError} Dina avtal och övriga kunduppgifter visas fortfarande.</p> : null}
 

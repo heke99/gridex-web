@@ -1,12 +1,13 @@
+import { CHECKOUT_STREET_TOO_LONG, normalizeCheckoutStreet } from '@/lib/website/checkoutAddress'
 import { NextResponse } from 'next/server'
-import { fetchOpsPublicContractsFresh } from '@/lib/ops/client'
+import { fetchOpsPublicContractsSnapshot } from '@/lib/ops/client'
 import { checkRateLimit, clientIpFromHeaders } from '@/lib/security/rateLimit'
 import { contractSupportsCustomerType, parseWebsiteCustomerType } from '@/lib/website/customerType'
 import { createWebsiteCheckoutContext } from '@/lib/website/checkoutContextStore'
-import { quoteToWebsitePricingPreview } from '@/lib/website/pricingQuote'
+import { MAX_WEBSITE_PRICING_TOKEN_LENGTH, quoteToWebsitePricingPreview } from '@/lib/website/pricingQuote'
 import { validateCanonicalWebsiteQuote } from '@/lib/website/canonicalQuoteValidation'
 import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
-import { parseRequestedStartSelection } from '@/lib/website/requestedStart'
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from '@/lib/website/requestedStart'
 import {
   consumptionProfileMatchesMonthlyKwh,
   normalizeWebsiteConsumptionProfile,
@@ -46,10 +47,16 @@ export async function POST(req: Request) {
     requestedDate: body?.requested_start_date,
   })
   const offerReference = text(body?.offer_reference)
-  const quoteToken = text(body?.pricing_token, 12_000)
+  const quoteToken = typeof body?.pricing_token === 'string' ? body.pricing_token : ''
+  if (quoteToken.length > MAX_WEBSITE_PRICING_TOKEN_LENGTH) {
+    return NextResponse.json({ error: { code: 'pricing_token_too_long', field: 'pricing_token' } }, { status: 400 })
+  }
   const postalCode = text(body?.postal_code, 20).replace(/\s+/g, '')
   const city = text(body?.city)
-  const address = text(body?.address)
+  const address = normalizeCheckoutStreet(body?.address)
+  if (address === null) {
+    return NextResponse.json({ error: { code: 'validation_error', field: 'address', message: CHECKOUT_STREET_TOO_LONG } }, { status: 400 })
+  }
   const resolutionToken = text(body?.resolution_token, 12_000)
   const estimatedMonthlyKwh = Number(body?.estimated_monthly_kwh)
   const annualConsumptionKwh = Number(body?.annual_consumption_kwh)
@@ -61,7 +68,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { code: 'validation_error', field: 'customer_type' } }, { status: 400 })
   }
   if (!requestedStart.ok) {
-    return NextResponse.json({ error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date' } }, { status: 400 })
+    return NextResponse.json({ error: { code: 'validation_error', field: requestedStart.code.startsWith('requested_start_mode') ? 'requested_start_mode' : 'requested_start_date', ...(requestedStart.code === 'requested_start_date_past' ? { message: PAST_REQUESTED_START_MESSAGE } : {}) } }, { status: 400 })
   }
 
   if (
@@ -86,7 +93,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const contracts = await fetchOpsPublicContractsFresh(customerType)
+    const { contracts } = await fetchOpsPublicContractsSnapshot(customerType, { allowStaleFallback: false, signal: req.signal })
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     if (
       !contract ||
@@ -106,7 +113,7 @@ export async function POST(req: Request) {
       requestedStartMode: requestedStart.value.mode,
       requestedStartDate: requestedStart.value.requestedDate,
       location: { postalCode, city, address },
-    })
+    }, { signal: req.signal, audit: 'checkout-context' })
     if (!verified.ok) {
       return NextResponse.json({ error: 'Prisunderlaget kunde inte kontrolleras automatiskt. Försök igen.' }, { status: 409 })
     }
@@ -126,6 +133,7 @@ export async function POST(req: Request) {
       )
     }
 
+    req.signal.throwIfAborted()
     const token = await createWebsiteCheckoutContext({
       customerType,
       selectedOffer: offerReference,
@@ -135,6 +143,7 @@ export async function POST(req: Request) {
         city,
         address,
         resolution_token: verified.value.resolutionToken,
+        current_resolution_token: verified.value.currentResolutionToken,
         resolution_id: verified.value.area.resolutionId,
         price_area_code: verified.value.area.priceAreaCode,
         grid_area_code: verified.value.area.gridAreaCode,
@@ -150,9 +159,10 @@ export async function POST(req: Request) {
         requested_start_date: verified.value.quote.requested_start_mode === 'specific_date' ? verified.value.quote.start_date : null,
         quote_attempt_id: verified.value.quote.quote_attempt_id ?? quoteAttemptId,
       },
-    })
+    }, verified.value.verification)
     return NextResponse.json({ checkout_token: token })
   } catch (error) {
+    if (req.signal.aborted) return new Response(null, { status: 499 })
     console.error('[website checkout context] failed', error)
     return NextResponse.json({ error: 'Vi kunde inte spara prisberäkningen just nu.' }, { status: 503 })
   }

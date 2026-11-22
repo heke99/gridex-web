@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import ElectricityCalculator from "@/components/ElectricityCalculator";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import type { ContractOption } from "@/components/ElectricityCalculator";
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
+async function HomeCalculator() {
   let options: ContractOption[] = [];
   let contractsLoadError: string | null = null;
 
@@ -48,23 +49,8 @@ export default async function HomePage() {
       name: item.name,
       value: item.offer_reference,
       offerReference: item.offer_reference,
-      type: item.type,
       energyDirection: item.energy_direction,
-      monthlyFeeSek: item.monthly_fee_sek ?? null,
-      invoiceFeeSek: null,
-      markupOrePerKwh: item.markup_ore_per_kwh ?? null,
-      variableMarkupOrePerKwh: item.variable_markup_ore_per_kwh ?? null,
-      fixedPriceOrePerKwh: item.type === "fixed" ? null : item.fixed_price_ore_per_kwh ?? null,
-      monthlyFixedPriceSek: item.monthly_fixed_price_sek ?? null,
-      elcertOrePerKwh: item.elcert_ore_per_kwh ?? null,
-      portfolioPriceOrePerKwh: null,
-      vatRate: item.vat_rate ?? null,
-      pricingModel: item.pricing_model ?? null,
-      spotShare: item.spot_share ?? null,
-      portfolioShare: item.portfolio_share ?? null,
       customerTypes: item.customer_types ?? null,
-      priceOptions: item.price_options ?? [],
-      pricingComponents: item.pricing_components ?? [],
     }));
   } catch (error) {
     logWebsitePublicContractFeedError("website home", error);
@@ -75,6 +61,17 @@ export default async function HomePage() {
     contractsLoadError = `Elavtalen kunde inte hämtas just nu. Supportreferens: ${reference}.`;
   }
 
+  return (
+    <ElectricityCalculator
+      contracts={options}
+      contractsLoadError={contractsLoadError}
+      showCustomerTypeSelector
+      persistCheckoutContext
+    />
+  );
+}
+
+export default function HomePage() {
   const faqItems = faqByIds(['elomrade', 'vad-ingar', 'avtalsskillnad', 'behover']);
 
   return (
@@ -83,12 +80,13 @@ export default async function HomePage() {
 
       <HeroBlock />
       <TrustBar />
-      <ElectricityCalculator
-        contracts={options}
-        contractsLoadError={contractsLoadError}
-        showCustomerTypeSelector
-        persistCheckoutContext
-      />
+      <Suspense fallback={
+        <section id="rakna-elpris" aria-busy="true" className="rounded-2xl border border-white/10 p-6">
+          <p role="status">Laddar elavtal till kalkylatorn…</p>
+        </section>
+      }>
+        <HomeCalculator />
+      </Suspense>
       <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
         <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
         <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>

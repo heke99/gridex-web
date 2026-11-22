@@ -116,9 +116,10 @@ function handleCustomerNotFound<T>(
  */
 export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
+  view?: "contracts",
 ): Promise<OpsPortalBundle> {
   try {
-    return await fetchRawOpsCustomerPortalBundle(identity)
+    return await fetchRawOpsCustomerPortalBundle(identity, view)
   } catch (error) {
     return handleCustomerNotFound(error, identity, () => notLinkedBundle(identity))
   }
@@ -128,9 +129,10 @@ export async function fetchOpsCustomerResource(
   identity: OpsPortalIdentity,
   resource: OpsCustomerReadResource,
   opaqueId?: string | null,
+  listQuery?: string | URLSearchParams | null,
 ): Promise<unknown> {
   try {
-    return await fetchRawOpsCustomerResource(identity, resource, opaqueId)
+    return await fetchRawOpsCustomerResource(identity, resource, opaqueId, listQuery)
   } catch (error) {
     return handleCustomerNotFound(
       error,

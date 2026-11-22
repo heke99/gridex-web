@@ -1,9 +1,10 @@
+import { customerListPage } from '@/lib/customerPortal/invoicePagination'
 import { extraRows, extraResources, customerDocumentLink, type Extra } from './customerExtras';
 import { createClient } from '@supabase/supabase-js';
 import { fetchOpsCustomerResource } from '@/lib/ops/client';
 import { createContractsHandler } from './contractsHandler';
 import { normalizeResource, type Resource } from './customerResources';
-import { invoiceDetail, invoiceDocument, supportCases, supportDetail } from './customerDetails';
+import { invoiceDetail, invoiceDocument, supportCases, supportDetail, supportMessages } from './customerDetails';
 import { listOpsCustomerSupportCases, fetchOpsCustomerSupportCase, listOpsCustomerSupportMessages } from '@/lib/ops/client/customerSupport';
 
 function authClient(token?: string) {
@@ -29,9 +30,12 @@ export async function mobileIdentity(subject: string, token: string) {
 export function customerResourceRoute(resource: Resource) {
   return createContractsHandler({
     enabled: () => process.env.GRIDEX_MOBILE_API_ENABLED === 'true', authenticate: authenticateMobile,
-    contracts: async (subject, token) => normalizeResource(resource,
-      await fetchOpsCustomerResource(await mobileIdentity(subject, token), resource)),
-  }, resource);
+    contracts: async (subject, token, cursor) => {
+      const payload = await fetchOpsCustomerResource(await mobileIdentity(subject, token), resource, undefined, cursor);
+      const items = normalizeResource(resource, payload);
+      return resource === 'invoices' ? { items, page: customerListPage(payload, cursor) } : items;
+    },
+  }, resource, resource === 'invoices');
 }
 export function customerDetailRoute(kind: 'invoiceDetail' | 'invoiceDocument' | 'support' | 'supportDetail', reference?: string, documentReference?: string) {
   return createContractsHandler({
@@ -48,18 +52,27 @@ export function customerDetailRoute(kind: 'invoiceDetail' | 'invoiceDocument' | 
       }
       if (!reference || !/^[A-Za-z0-9_-]{1,240}$/.test(reference)) throw new Error('Invalid reference');
       if (kind === 'supportDetail') {
-        const [detail, messages] = await Promise.all([fetchOpsCustomerSupportCase(customer, reference), listOpsCustomerSupportMessages(customer, reference)]);
-        return [supportDetail(detail, messages, reference)];
+        if (cursor) {
+          const result = await listOpsCustomerSupportMessages(customer, reference, cursor);
+          return { items: [{ reference, messages: supportMessages(result.data) }],
+            page: { hasMore: Boolean(result.nextCursor), nextCursor: result.nextCursor ?? null } };
+        }
+        const detail = await fetchOpsCustomerSupportCase(customer, reference);
+        const hasMore = Boolean(detail.nextCursor);
+        const item = supportDetail(detail, { data: detail.data.messages, page: { has_more: hasMore } }, reference);
+        return { items: [item], page: { hasMore, nextCursor: detail.nextCursor ?? null } };
       }
-      const payload = await fetchOpsCustomerResource(customer, 'invoices', reference);
       const origins = (process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS ?? '').split(',').map(v => v.trim()).filter(Boolean);
       if (kind === 'invoiceDocument') {
         if (!documentReference || !/^[A-Za-z0-9_-]{1,240}$/.test(documentReference)) throw new Error('Invalid document reference');
+        const payload = await fetchOpsCustomerResource(customer, 'invoices', reference, new URLSearchParams({
+          document_reference: documentReference,
+        }));
         return [invoiceDocument(payload, reference, documentReference, origins)];
       }
-      return [invoiceDetail(payload, reference, origins)];
+      return [invoiceDetail(await fetchOpsCustomerResource(customer, 'invoices', reference), reference, origins)];
     },
-  }, kind, kind === 'support');
+  }, kind, kind === 'support' || kind === 'supportDetail');
 }
 
 export function customerExtraRoute(kind: Extra) {
@@ -69,5 +82,7 @@ export function customerExtraRoute(kind: Extra) {
 function documentOrigins() {return (process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS??'').split(',').map(v=>v.trim()).filter(Boolean);}
 export function customerDocumentRoute(reference:string) {
  return createContractsHandler({enabled:()=>process.env.GRIDEX_MOBILE_API_ENABLED==='true',authenticate:authenticateMobile,
- contracts:async(subject,token)=>[customerDocumentLink(await fetchOpsCustomerResource(await mobileIdentity(subject,token),'documents'),reference,documentOrigins())]},'customerDocument');
+ contracts:async(subject,token)=>[customerDocumentLink(await fetchOpsCustomerResource(
+   await mobileIdentity(subject,token), 'documents', undefined, new URLSearchParams({ document_reference: reference }),
+ ),reference,documentOrigins())]},'customerDocument');
 }

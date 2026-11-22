@@ -5,6 +5,7 @@ import React from '../apps/mobile/node_modules/react/index.js';
 import Renderer from '../apps/mobile/node_modules/react-test-renderer/index.js';
 import { invoiceDetail, supportDetail } from '../lib/mobile/customerDetails.ts';
 import { invoiceId, documentId, caseId, invoicePayload, supportPayload, messagesPayload } from './mobile-detail-fixtures.mjs';
+import {gridexBrand} from '../apps/mobile/brands/gridex.mjs';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const originalFetch = globalThis.fetch;
 after(() => { globalThis.fetch = originalFetch; delete globalThis.__mobileFixture; });
@@ -24,15 +25,18 @@ const fixture = {
 };
 globalThis.__mobileFixture = fixture;
 const { useCustomerAccount } = await import('../apps/mobile/src/useCustomerAccount.ts');
-function Probe() { current = useCustomerAccount('test-brand'); return null; }
-async function mount(saved = false) {
+const { ConsumptionPanel, consumptionPeriod } = await import('../apps/mobile/src/ConsumptionPanel.tsx');
+function Probe({ consumption = false } = {}) { current = useCustomerAccount('test-brand', consumption); return null; }
+async function mount(saved = false, consumption = false) {
   session = saved ? { access_token: 'remembered-token' } : null;
   refreshes = 0; loginError = false; fetchCalls = 0;
   fixture.appState.currentState = 'active';
   handler = async () => Response.json({ data: { contracts: [{ reference: 'own-contract', name: null, status: null, startDate: null }] } });
   globalThis.fetch = async (...args) => { fetchCalls++; return handler(...args); };
-  let view; await act(async () => { view = Renderer.create(React.createElement(Probe)); });
-  return () => act(async () => view.unmount());
+  let view; await act(async () => { view = Renderer.create(React.createElement(Probe, { consumption })); });
+  const unmount = () => act(async () => view.unmount());
+  unmount.showConsumption = value => act(async () => view.update(React.createElement(Probe, { consumption: value })));
+  return unmount;
 }
 test('remembered sessions are refreshed before displaying customer data', async () => {
   const unmount = await mount(true);
@@ -98,6 +102,33 @@ test('support detail retry preserves case and late messages cannot reappear afte
   assert.equal(current.support, null); assert.equal(current.authenticated, false);
   await unmount();
 });
+test('support continuation retains earlier messages, deduplicates and retries the same cursor', async () => {
+  const unmount = await mount(true);
+  session.user = { id: 'verified-customer' };
+  const detail = supportDetail(supportPayload(), messagesPayload(), caseId);
+  const first = detail.messages[0];
+  const second = { ...first, reference: 'message-second', body: 'Nästa svar' };
+  const queries = [];
+  handler = async url => {
+    const cursor = new URL(url).searchParams.get('cursor');
+    queries.push(cursor);
+    if (!cursor) return Response.json({ data: { supportDetail: [detail] }, page: { nextCursor: 'more+=' } });
+    if (queries.length === 2) return new Response(null, { status: 503 });
+    return Response.json({ data: { supportDetail: [{ reference: caseId, messages: [first, second] }] }, page: { nextCursor: null } });
+  };
+  try {
+    await act(async () => current.select('supportDetail', caseId));
+    await act(async () => current.loadMore());
+    assert.deepEqual(current.support.messages, [first]);
+    assert.ok(current.error);
+    await act(async () => current.retry());
+    assert.deepEqual(current.support.messages, [first, second]);
+    assert.deepEqual(queries, [null, 'more+=', 'more+=']);
+    assert.equal(current.nextCursor, null);
+  } finally {
+    await unmount();
+  }
+});
 test('document click fetches a new verified URL and sends no bearer to external opener', async () => {
   const unmount = await mount(true); let opened;
   handler = async (url, init) => {
@@ -145,6 +176,48 @@ test('uncertain support submission retries the same key and confirmed new intent
  await act(async()=>{assert.equal(await current.submitSupport('Question','Hello'),true);});assert.notEqual(keys[1],keys[2]);
  await unmount();
 });
+test('support write receipts update the matching list and thread without rereads or duplicates', async () => {
+  const unmount = await mount(true);
+  session.user = { id: 'customer-one' };
+  const savedCase = supportDetail(supportPayload(), messagesPayload(), caseId);
+  const { messages } = savedCase;
+  const caseRow = { ...savedCase };
+  delete caseRow.messages;
+  delete caseRow.moreMessages;
+  const message = { ...messages[0], author: 'customer', reference: 'saved-reply', body: 'Reply' };
+  let reads = 0;
+  const keys = [];
+  let caseReference = 'wrong-case';
+  handler = async (url, init) => {
+    if (init.method === 'POST') {
+      if (String(url).endsWith('/messages')) {
+        keys.push(init.headers['Idempotency-Key']);
+        return Response.json({ data: { accepted: true, caseReference, message } }, { status: 201 });
+      }
+      return Response.json({ data: { accepted: true, supportCase: caseRow } }, { status: 201 });
+    }
+    reads++;
+    return Response.json({ data: String(url).endsWith(caseId) ? { supportDetail: [savedCase] } : { support: [] } });
+  };
+  try {
+    await act(async () => current.select('support'));
+    await act(async () => assert.equal(await current.submitSupport('Question', 'Hello'), true));
+    await act(async () => assert.equal(await current.submitSupport('Question', 'Hello'), true));
+    assert.deepEqual(current.rows.map(row => row.reference), [caseId]);
+    assert.equal(reads, 1);
+    await act(async () => current.select('supportDetail', caseId));
+    await act(async () => assert.equal(await current.submitSupport('', 'Reply', caseId), false));
+    assert.deepEqual(current.support.messages, messages);
+    caseReference = caseId;
+    await act(async () => assert.equal(await current.submitSupport('', 'Reply', caseId), true));
+    await act(async () => assert.equal(await current.submitSupport('', 'Reply', caseId), true));
+    assert.equal(keys[0], keys[1]);
+    assert.deepEqual(current.support.messages, [...messages, message]);
+    assert.equal(reads, 2);
+  } finally {
+    await unmount();
+  }
+});
 test('late support-write confirmation after logout never reports success to the new screen', async () => {
  const unmount=await mount(true);session.user={id:'own-user'};let resolve;
  handler=()=>new Promise(r=>{resolve=r;});let pending;
@@ -160,6 +233,23 @@ test('support continuation appends and deduplicates pages without changing ident
  handler=async url=>{page++;if(page===2)assert.ok(url.endsWith('?cursor=opaque%2B%2F%3D'));return Response.json({data:{support:page===1?[row('one')]:[row('one'),row('two')]},page:{hasMore:page===1,nextCursor:page===1?'opaque+/=':null}});};
  await act(async()=>{await current.select('support');});assert.equal(current.nextCursor,'opaque+/=');
  await act(async()=>{await current.loadMore();});assert.deepEqual(current.rows.map(r=>r.reference),['one','two']);assert.equal(current.nextCursor,null);
+ await unmount();
+});
+
+test('invoice continuation appends page two and removes the continuation at the end', async () => {
+ const unmount = await mount(true);
+ const row = reference => ({ reference, number: reference, status: 'issued', amount: 10, currency: 'SEK', dueDate: null, paidAt: null });
+ let page = 0;
+ handler = async url => {
+   page++;
+   if (page === 2) assert.match(url, /invoices\?cursor=opaque%2B%2F%3D$/);
+   return Response.json({ data: { invoices: [row(page === 1 ? 'invoice_one' : 'invoice_two')] },
+     page: { hasMore: page === 1, nextCursor: page === 1 ? 'opaque+/=' : null } });
+ };
+ await act(async () => { await current.select('invoices'); });
+ await act(async () => { await current.loadMore(); });
+ assert.deepEqual(current.rows.map(row => row.reference), ['invoice_one', 'invoice_two']);
+ assert.equal(current.nextCursor, null);
  await unmount();
 });
 
@@ -539,4 +629,278 @@ test('logout waits for an already started SDK secure-storage write before removi
   assert.equal((await sdk.auth.getSession()).data.session,null);assert.equal(stored.has(storageKey),false);
   assert.equal(current.authenticated,false);assert.equal(current.rows,null);
  }finally{sdk.auth.stopAutoRefresh();if(unmount)await unmount();fixture.client=originalClient;}
+});
+
+test('an unrelated profile write preserves the key for uncertain support delivery', async () => {
+  const unmount = await mount(true);
+  try {
+    session.user = { id: 'synthetic-account' };
+    const supportKeys = [];
+    handler = async (url, init) => {
+      if (String(url).endsWith('/profile')) return Response.json({ data: { accepted: true } });
+      supportKeys.push(init.headers['Idempotency-Key']);
+      return supportKeys.length === 1
+        ? new Response(null, { status: 503 })
+        : Response.json({ data: { accepted: true } });
+    };
+    await act(async () => { assert.equal(await current.submitSupport('Question', 'Message'), false); });
+    await act(async () => { assert.equal(await current.updatePhone('0701234567'), true); });
+    await act(async () => { assert.equal(await current.submitSupport('Question', 'Message'), true); });
+    assert.equal(supportKeys.length, 2);
+    assert.equal(supportKeys[0], supportKeys[1]);
+  } finally {
+    await unmount();
+  }
+});
+
+test('a confirmed phone update refreshes the open profile exactly once', async () => {
+  const unmount = await mount(true);
+  try {
+    session.user = { id: 'synthetic-account' };
+    let writes = 0;
+    let reads = 0;
+    handler = async (_url, init) => {
+      if (init.method === 'POST') {
+        writes++;
+        return Response.json({ data: { accepted: true } });
+      }
+      reads++;
+      return Response.json({
+        data: { profile: [{ reference: 'profile-synthetic', name: null, email: null, customerNumber: null, customerType: null, status: null, phone: writes ? '0707654321' : '0701234567' }] },
+      });
+    };
+    await act(async () => current.select('profile'));
+    assert.equal(current.rows[0].phone, '0701234567');
+    await act(async () => assert.equal(await current.updatePhone('0707654321'), true));
+    assert.equal(current.rows[0].phone, '0707654321');
+    assert.equal(reads, 2);
+    assert.equal(writes, 1);
+
+    handler = async (_url, init) => init.method === 'POST'
+      ? Response.json({ data: { accepted: true } })
+      : new Response(null, { status: 503 });
+    await act(async () => assert.equal(await current.updatePhone('0701111111'), true));
+    assert.equal(current.rows[0].phone, '0707654321');
+    assert.equal(current.error, 'Telefonnumret sparades. Profilen kunde inte hämtas på nytt.');
+
+    let releaseRead;
+    handler = async (_url, init) => init.method === 'POST'
+      ? Response.json({ data: { accepted: true } })
+      : new Promise(resolve => { releaseRead = resolve; });
+    let saving;
+    await act(async () => { saving = current.updatePhone('0702222222'); });
+    assert.equal(typeof releaseRead, 'function');
+    await act(async () => current.logout());
+    await act(async () => {
+      releaseRead(Response.json({ data: { profile: [] } }));
+      await saving;
+    });
+    assert.equal(current.rows, null);
+  } finally {
+    await unmount();
+  }
+});
+
+test('a confirmed profile conflict needs a fresh read before the same number can start a new attempt', async () => {
+  const unmount = await mount(true);
+  try {
+    session.user = { id: 'synthetic-account' };
+    const keys = [];
+    handler = async (_url, init) => {
+      if (init.method !== 'POST') return Response.json({ data: { profile: [{
+        reference: 'profile-synthetic', phone: '0707654321', name: null, email: null,
+        customerNumber: null, customerType: null, status: null,
+      }] } });
+      keys.push(init.headers['Idempotency-Key']);
+      if (keys.length === 1) return Response.json({ code: 'profile_version_conflict' }, { status: 409 });
+      if (keys.length === 2) return new Response(null, { status: 503 });
+      return Response.json({ data: { accepted: true } });
+    };
+    await act(async () => assert.equal(await current.updatePhone('0701234567'), false));
+    await act(async () => assert.equal(await current.updatePhone('0701234567'), false));
+    assert.equal(keys.length, 1);
+    await act(async () => current.select('profile'));
+    await act(async () => assert.equal(await current.updatePhone('0701234567'), false));
+    await act(async () => assert.equal(await current.updatePhone('0701234567'), true));
+    assert.equal(keys.length, 3);
+    assert.notEqual(keys[1], keys[0]);
+    assert.equal(keys[2], keys[1]);
+  } finally {
+    await unmount();
+  }
+});
+
+test('consumption mode restores and signs in without requesting a hidden account list', async () => {
+  for (const saved of [true, false]) {
+    const unmount = await mount(saved, true);
+    if (!saved) await act(async () => { await current.login('customer@example.test', 'password'); });
+    assert.equal(current.authenticated, true);
+    assert.equal(fetchCalls, 0);
+    assert.equal(current.error, '');
+    handler = async url => {
+      assert.equal(new URL(url).pathname, '/api/mobile/customer/sites');
+      return Response.json({ data: { sites: [] } });
+    };
+    const sites = await current.readConsumption('sites', {}, new AbortController().signal);
+    assert.deepEqual(sites.data.sites, []);
+    assert.equal(fetchCalls, 1);
+    await unmount();
+  }
+});
+
+test('switching to consumption clears a list error and returning reloads the selected list', async () => {
+  const unmount = await mount(true);
+  handler = async () => new Response(null, { status: 503 });
+  await act(async () => { await current.retry(); });
+  assert.match(current.error, /Uppgifterna kunde inte hämtas/);
+  const failedCalls = fetchCalls;
+  await unmount.showConsumption(true);
+  assert.equal(current.authenticated, true);
+  assert.equal(current.error, '');
+  assert.equal(fetchCalls, failedCalls);
+  handler = async url => {
+    assert.equal(new URL(url).pathname, '/api/mobile/customer/contracts');
+    return Response.json({ data: { contracts: [] } });
+  };
+  await unmount.showConsumption(false);
+  assert.equal(fetchCalls, failedCalls + 1);
+  assert.deepEqual(current.rows, []);
+  await unmount();
+});
+
+test('consumption restores verified choices on foreground entry and clears them for another account', async () => {
+  session = { access_token: 'first-token', user: { id: 'first-user' } };
+  fixture.appState.currentState = 'active';
+  const calls = [];
+  let sites = ['one', 'two'];
+  globalThis.fetch = async (url, init) => {
+    const target = new URL(url);
+    const token = init.headers.Authorization;
+    if (target.pathname.endsWith('/sites')) {
+      calls.push({ kind: 'sites', token });
+      return Response.json({ data: { sites: sites.map(reference => ({ reference, address: reference, postalCode: null, city: null, facilityId: null, priceArea: null, status: null })) } });
+    }
+    assert.ok(target.pathname.endsWith('/consumption'));
+    const selection = Object.fromEntries(target.searchParams);
+    calls.push({ kind: 'consumption', token, ...selection });
+    return Response.json({ data: { consumption: { ...selection, items: [], totalKwh: 0, complete: true } } });
+  };
+  function ConsumptionProbe() {
+    const account = useCustomerAccount('test-brand', true);
+    return account.active && account.authenticated ? React.createElement(ConsumptionPanel, {
+      theme: gridexBrand.theme,
+      read: account.readConsumption,
+      initialPreference: account.consumptionPreference,
+      onPreferenceChange: account.setConsumptionPreference,
+    }) : null;
+  }
+  let view;
+  const appState = value => act(async () => {
+    fixture.appState.currentState = value;
+    for (const listen of listeners) listen(value);
+  });
+  await act(async () => { view = Renderer.create(React.createElement(ConsumptionProbe)); });
+  await act(async () => view.root.findAllByType('Pressable')[1].props.onPress());
+  await act(async () => view.root.findAllByType('Pressable')[3].props.onPress());
+  assert.equal(calls.at(-1).facility, 'two');
+  assert.equal(calls.at(-1).from, consumptionPeriod(30).from);
+
+  await appState('background');
+  assert.equal(view.toJSON(), null);
+  const beforeResume = calls.length;
+  await appState('active');
+  assert.deepEqual(calls.slice(beforeResume).map(call => call.kind), ['sites', 'consumption']);
+  assert.equal(calls.at(-1).facility, 'two');
+  assert.equal(calls.at(-1).from, consumptionPeriod(30).from);
+
+  await appState('background');
+  sites = ['one'];
+  await appState('active');
+  assert.equal(calls.at(-1).facility, 'one');
+  assert.equal(calls.at(-1).from, consumptionPeriod(30).from);
+
+  session = { access_token: 'second-token', user: { id: 'second-user' } };
+  sites = ['three'];
+  await act(async () => authListener('SIGNED_IN', session));
+  assert.equal(calls.at(-1).token, 'Bearer second-token');
+  assert.equal(calls.at(-1).facility, 'three');
+  assert.equal(calls.at(-1).from, consumptionPeriod(7).from);
+  await act(async () => view.unmount());
+});
+
+test('support retry resumes the failed third page and preserves earlier pages', async () => {
+  const unmount = await mount(true);
+  const requested = [];
+  const row = reference => ({ reference, title: reference, description: null, status: 'received', createdAt: null, updatedAt: null });
+  handler = async url => {
+    const cursor = new URL(url).searchParams.get('cursor');
+    requested.push(cursor);
+    if (requested.length === 3) return new Response(null, { status: 503 });
+    const [items, nextCursor] = cursor === null ? [[row('one')], 'second'] :
+      cursor === 'second' ? [[row('two')], 'third'] : [[row('two'), row('three')], null];
+    return Response.json({ data: { support: items }, page: { hasMore: Boolean(nextCursor), nextCursor } });
+  };
+  await act(async () => current.select('support'));
+  await act(async () => current.loadMore());
+  await act(async () => current.loadMore());
+  assert.deepEqual(current.rows.map(item => item.reference), ['one', 'two']);
+  assert.match(current.error, /Uppgifterna kunde inte hämtas/);
+  await act(async () => current.retry());
+  assert.deepEqual(requested, [null, 'second', 'third', 'third']);
+  assert.deepEqual(current.rows.map(item => item.reference), ['one', 'two', 'three']);
+  assert.equal(current.error, '');
+  await unmount();
+});
+
+for (const phase of ['response', 'body']) {
+  test(`switching customer views cancels a pending invoice ${phase}`, async () => {
+    const unmount = await mount(true);
+    const old = Promise.withResolvers();
+    let oldSignal;
+    handler = async (url, init) => {
+      if (new URL(url).pathname.endsWith('/invoices')) {
+        oldSignal = init.signal;
+        return phase === 'response' ? old.promise : { ok: true, status: 200, json: () => old.promise };
+      }
+      assert.ok(new URL(url).pathname.endsWith('/profile'));
+      return Response.json({ data: { profile: [] } });
+    };
+    let invoices;
+    await act(async () => { invoices = current.switchView('invoices'); });
+    assert.equal(current.busy, true);
+    assert.equal(current.navigationBlocked, false);
+    await act(async () => { await current.switchView('profile'); });
+    assert.equal(oldSignal.aborted, true);
+    assert.equal(current.resource, 'profile');
+    assert.equal(current.busy, false);
+    assert.deepEqual(current.rows, []);
+    await act(async () => {
+      const body = { data: { invoices: [{ reference: 'stale' }] } };
+      old.resolve(phase === 'response' ? Response.json(body) : body);
+      await invoices;
+    });
+    assert.deepEqual(current.rows, []);
+    assert.equal(current.error, '');
+    await unmount();
+  });
+}
+
+test('view switching stays blocked during an account write', async () => {
+  const unmount = await mount(true);
+  session.user = { id: 'own-user' };
+  const write = Promise.withResolvers();
+  let signal;
+  handler = (_url, init) => { signal = init.signal; return write.promise; };
+  let pendingWrite;
+  await act(async () => { pendingWrite = current.submitSupport('Question', 'Hello'); });
+  const before = fetchCalls;
+  assert.equal(current.navigationBlocked, true);
+  await act(async () => { await current.switchView('profile'); });
+  assert.equal(fetchCalls, before);
+  assert.equal(signal.aborted, false);
+  await act(async () => {
+    write.resolve(Response.json({ data: { accepted: true } }, { status: 201 }));
+    assert.equal(await pendingWrite, true);
+  });
+  await unmount();
 });

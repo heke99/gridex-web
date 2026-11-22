@@ -10,3 +10,18 @@ test('invoice detail does not expose internal UUIDs or accept malformed referenc
     assert.throws(() => assertCustomerPortalOperationRequest('/api/v1/customer/invoices/' + value, 'get', undefined, headers));
   }
 });
+
+test('invoice detail accepts only a single canonical attachment reference as projection', () => {
+  const path = '/api/v1/customer/invoices/invoice_' + 'A'.repeat(32);
+  const reference = 'document_' + 'B'.repeat(32);
+  assert.doesNotThrow(() => assertCustomerPortalOperationRequest(path + '?document_reference=' + reference, 'get', undefined, headers));
+  for (const query of ['document_reference=raw-id', 'customer_number=other', 'document_reference=' + reference + '&document_reference=' + reference]) {
+    assert.throws(() => assertCustomerPortalOperationRequest(path + '?' + query, 'get', undefined, headers));
+  }
+});
+
+test('the documents lookup accepts one public reference without customer overrides', () => {
+  const path = '/api/v1/customer/documents?document_reference=document_' + 'B'.repeat(32);
+  assert.doesNotThrow(() => assertCustomerPortalOperationRequest(path, 'get', undefined, headers));
+  assert.throws(() => assertCustomerPortalOperationRequest(path + '&customer_number=other', 'get', undefined, headers));
+});

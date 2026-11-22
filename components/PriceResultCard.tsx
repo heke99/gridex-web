@@ -8,7 +8,7 @@ import {
   CUSTOMER_VERIFIED_PRICE_BASIS_LABEL,
 } from "@/lib/website/customerFacingCopy";
 
-type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; onCompare?: () => void; continueHref?: string };
+type Props = { data: WebsitePricingPreview; updatedAt?: Date; onSelect?: () => void; onCompare?: () => void; continueHref?: string | null };
 function hasNumber(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
 function formatNumber(value: number, maximumFractionDigits = 0) { return new Intl.NumberFormat("sv-SE", { maximumFractionDigits }).format(value); }
 function lineUnit(unit: string) { return ({sek_per_month:'kr/mån',sek_per_invoice:'kr/faktura',sek_per_kwh:'kr/kWh',ore_per_kwh:'öre/kWh',kwh:'kWh',sek:'kr'} as Record<string,string>)[unit] ?? unit; }
@@ -112,7 +112,7 @@ export default function PriceResultCard({ data, updatedAt, onSelect, onCompare, 
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">{CUSTOMER_NETWORK_FEE_NOTICE}</div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          {onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} prefetch={true} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">{production ? 'Teckna produktionsavtal' : 'Teckna elavtal'}</Link>}
+          {continueHref === null ? null : onSelect ? <button type="button" onClick={onSelect} className="w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">Välj detta avtal</button> : <Link href={contractHref} prefetch={true} className="flex w-full items-center justify-center rounded-2xl bg-cyan-500 py-4 text-lg font-bold text-black shadow-[0_0_40px_rgba(34,211,238,0.30)] transition hover:bg-cyan-400">{production ? 'Teckna produktionsavtal' : 'Teckna elavtal'}</Link>}
           {onCompare ? <button type="button" onClick={onCompare} className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</button> : <Link href="/elavtal" className="flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-white/85 transition hover:bg-white/10">Jämför fler elavtal</Link>}
         </div>
       </div>

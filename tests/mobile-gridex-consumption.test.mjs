@@ -59,6 +59,35 @@ test('end boundaries and delivery gaps exclude whole crossing intervals',async()
  scoped=async path=>{if(path.includes('/sites')){const s=sites();s.data.delivery_access.windows[0].to='2026-11-05T00:00:00Z';s.data.delivery_access.windows.push({facility_reference:'facility_one',metering_point_reference:'meter_one',from:'2026-11-06T00:00:00Z',to:'2026-11-07T00:00:00Z'});return s;}return {data:[reading('before_end',4,2),reading('gap',5,99),{...reading('cross_end',4,80),period_start:'2026-11-04T23:45:00Z',period_end:'2026-11-05T00:15:00Z'},reading('after_gap',6,3)],page:page()};};
  const r=await GET(request());assert.equal(r.status,200);assert.equal((await r.json()).data.consumption.totalKwh,5);
 });
+test('fractional delivery bounds preserve millisecond precision and exclude a one-millisecond crossing', async () => {
+ scoped=async path=>{
+  if(path.includes('/sites')){
+   const payload=sites();
+   Object.assign(payload.data.delivery_access.windows[0], {
+    from:'2026-11-03T01:00:00.125+01:00',to:'2026-11-03T00:15:00.125Z',
+   });
+   return payload;
+  }
+  return {data:[
+   {...reading('before_start',3,100),period_start:'2026-11-03T00:00:00.124Z',period_end:'2026-11-03T00:15:00.125Z'},
+   {...reading('at_both_bounds',3,2),period_start:'2026-11-03T00:00:00.125Z',period_end:'2026-11-03T00:15:00.125Z'},
+   {...reading('after_end',3,100),period_start:'2026-11-03T00:00:00.125Z',period_end:'2026-11-03T00:15:00.126Z'},
+  ],page:page()};
+ };
+ const response=await GET(request());
+ assert.equal(response.status,200);
+ const data=(await response.json()).data.consumption;
+ assert.equal(data.totalKwh,2);
+ assert.deepEqual(data.items.map(row=>[row.reference,row.from,row.to]), [
+  ['at_both_bounds','2026-11-03T00:00:00.125Z','2026-11-03T00:15:00.125Z'],
+ ]);
+});
+test('an unsupported finer delivery timestamp is rejected before reading measurements', async () => {
+ calls.length=0;
+ scoped=async()=>{const payload=sites();payload.data.delivery_access.windows[0].from='2026-11-03T00:00:00.0001Z';return payload;};
+ assert.equal((await GET(request())).status,503);
+ assert.equal(calls.length,1);
+});
 test('forty metering pages remain explicitly partial instead of a fabricated full total',async()=>{
  let pageNumber=0;scoped=async path=>{if(path.includes('/sites'))return sites();const n=pageNumber++;return {data:Array.from({length:100},(_,i)=>({...reading(`value_${n}_${i}`,4),period_start:new Date(Date.parse('2026-11-03T00:00:00Z')+(n*100+i)*60000).toISOString(),period_end:new Date(Date.parse('2026-11-03T00:00:00Z')+(n*100+i+1)*60000).toISOString()})),page:page(true,`cursor-${n}`)};};
  const r=await GET(request());assert.equal(r.status,200);const data=(await r.json()).data.consumption;assert.equal(data.complete,false);assert.equal(data.items.length,4000);assert.equal(pageNumber,40);
@@ -67,4 +96,69 @@ test('forty metering pages remain explicitly partial instead of a fabricated ful
 test('overall request deadline stops before metering after a slow capability read',async()=>{
  const now=Date.now;let elapsed=0;Date.now=()=>now()+elapsed;calls.length=0;
  try{scoped=async()=>{elapsed=16000;return sites();};assert.equal((await GET(request())).status,503);assert.equal(calls.length,1);assert.ok(calls[0][2].signal instanceof AbortSignal);}finally{Date.now=now;}
+});
+
+test('30 days of quarter-hour values from two meters fit the bounded OPS pagination', async () => {
+ const from = '2026-11-01T00:00:00.000Z';
+ const to = '2026-12-01T00:00:00.000Z';
+ const start = Date.parse(from);
+ const quarter = 15 * 60 * 1000;
+ const rows = Array.from({ length: 30 * 96 * 2 }, (_, i) => {
+  const index = Math.floor(i / 2);
+  return {
+   ...reading(`value_${i}`, 1),
+   metering_point_reference: i % 2 ? 'meter_two' : 'meter_one',
+   period_start: new Date(start + index * quarter).toISOString(),
+   period_end: new Date(start + (index + 1) * quarter).toISOString(),
+  };
+ });
+ let pages = 0;
+ scoped = async path => {
+  const url = new URL(path, 'https://ops.test');
+  if (url.pathname.endsWith('/sites')) {
+   const payload = sites();
+   payload.data.delivery_access.windows[0].from = from;
+   payload.data.metering_points.push({ ...payload.data.metering_points[0], metering_point_reference: 'meter_two' });
+   payload.data.delivery_access.windows.push({ ...payload.data.delivery_access.windows[0], metering_point_reference: 'meter_two' });
+   return payload;
+  }
+  assert.equal(url.searchParams.get('from'), from);
+  assert.equal(url.searchParams.get('to'), to);
+  assert.equal(url.searchParams.get('limit'), '100');
+  assert.equal(url.searchParams.get('cursor'), pages ? String(pages * 100) : null);
+  const offset = pages++ * 100;
+  const next = offset + 100;
+  return { data: rows.slice(offset, next), page: next < rows.length ? page(true, String(next)) : page() };
+ };
+ const query = new URLSearchParams({ facility: selection.facility, from, to });
+ const response = await GET(new Request(`https://test/api/mobile/customer/consumption?${query}`, {
+  headers: { authorization: 'Bearer verified-customer-token' },
+ }));
+ assert.equal(response.status, 200);
+ const { data: { consumption } } = await response.json();
+ assert.equal(pages, 58);
+ assert.equal(consumption.complete, true);
+ assert.equal(consumption.items.length, 5760);
+ assert.equal(consumption.totalKwh, 5760);
+ assert.equal(consumption.items[0].from, from);
+ assert.equal(consumption.items.at(-1).to, to);
+});
+
+test('caller cancellation aborts the OPS signal on the first metering page and skips continuation', async () => {
+  calls.length = 0;
+  const controller = new AbortController();
+  scoped = async (path, identity, { signal }) => {
+    assert.equal(identity.userId, 'subject-one');
+    assert.equal(signal.aborted, false);
+    if (path.endsWith('/sites')) return sites();
+    controller.abort();
+    return { data: [reading('first', 4)], page: page(true, 'second-page') };
+  };
+  const response = await GET(new Request(request(), { signal: controller.signal }));
+  assert.equal(response.status, 499);
+  assert.equal(await response.text(), '');
+  assert.equal(calls.length, 2);
+  assert.match(calls[1][0], /\/metering-values\?/);
+  assert.equal(calls[0][2].signal, calls[1][2].signal);
+  assert.equal(calls[1][2].signal.aborted, true);
 });

@@ -101,7 +101,7 @@ for (const field of ['price_option_reference', 'invoice_delivery_method', 'selec
   assert.ok(stagingFlow.includes(`${field}: quote.${field}`), `staging flow must validate ${field}`)
 }
 const canonicalValidationStart = canonicalQuoteValidation.indexOf('const opsValidation = await validateOpsWebsiteQuote({')
-const canonicalValidationEnd = canonicalQuoteValidation.indexOf('\n  })', canonicalValidationStart)
+const canonicalValidationEnd = canonicalQuoteValidation.indexOf('\n  }, signal)', canonicalValidationStart)
 const canonicalValidationPayload = canonicalQuoteValidation.slice(canonicalValidationStart, canonicalValidationEnd)
 for (const field of ['price_area:', 'grid_area_code:', 'postal_code:']) {
   assert.ok(!canonicalValidationPayload.includes(field), `${field} must not alter an existing canonical quote reference`)

@@ -19,6 +19,14 @@ function fixture() {
     in(key, values) { this.filters.push(r => values.includes(r[key])); return this }
     lt(key, value) { this.filters.push(r => r[key] != null && r[key] < value); return this }
     lte(key, value) { this.filters.push(r => r[key] != null && r[key] <= value); return this }
+    or(expression) {
+      const match = /^and\(status\.in\.\(pending,failed\),next_attempt_at\.lte\.([^,]+)\),and\(status\.eq\.processing,last_attempt_at\.lt\.([^,]+)\)$/.exec(expression)
+      assert.ok(match)
+      this.filters.push(row =>
+        (['pending', 'failed'].includes(row.status) && row.next_attempt_at && Date.parse(row.next_attempt_at) <= Date.parse(match[1])) ||
+        (row.status === 'processing' && row.last_attempt_at && Date.parse(row.last_attempt_at) < Date.parse(match[2])))
+      return this
+    }
     order() { return this } limit() { return this } returns() { return this }
     maybeSingle() { this.single = true; return this }
     then(resolve, reject) {

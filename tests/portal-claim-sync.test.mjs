@@ -5,6 +5,7 @@ import test from 'node:test'
 const claimService = await readFile(new URL('../lib/customerPortal/portalClaim.ts', import.meta.url), 'utf8')
 const claimRoute = await readFile(new URL('../app/auth/portal-claim/route.ts', import.meta.url), 'utf8')
 const thanksPage = await readFile(new URL('../app/(public)/teckna-avtal/tack/SignupThanksPage.tsx', import.meta.url), 'utf8')
+const applicationStatusCard = await readFile(new URL('../components/signup/ApplicationStatusCard.tsx', import.meta.url), 'utf8')
 const checkoutPage = await readFile(new URL('../app/(public)/teckna-avtal/page.tsx', import.meta.url), 'utf8')
 const headerAuth = await readFile(new URL('../components/layout/PublicHeaderAuth.tsx', import.meta.url), 'utf8')
 const header = await readFile(new URL('../components/layout/PublicHeader.tsx', import.meta.url), 'utf8')
@@ -37,7 +38,8 @@ test('repeat customer signings keep one customer identity but create distinct co
   assert.match(checkoutPage, /customerType === "business" \? organizationNumber : personalNumber/)
   assert.match(claimService, /onConflict: 'user_id,contract_provider_key,contract_external_ref'/)
   assert.match(claimService, /onConflict: 'user_id,facility_id'/)
-  assert.match(thanksPage, /Tack! Din teckning är skickad\./)
+  assert.match(thanksPage, /<ApplicationStatusCard\b/)
+  assert.match(applicationStatusCard, /Tack! Din teckning är skickad\./)
   assert.match(thanksPage, /Ett nytt avtal eller en ny anläggning läggs till separat och tidigare avtal och anläggningar ligger kvar\./)
 })
 

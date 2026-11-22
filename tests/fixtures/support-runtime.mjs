@@ -1,11 +1,13 @@
 /** Offline-only backend boundary. Production application code never imports this file. */
-import { readFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 
 export const FIXTURE_COMPANY = 'b3ad1bf6-fa45-41a6-8054-2e0862e82aca'
 export const FIXTURE_CASE = 'case_aaaaaaaaaaaaaaaaaaaaaaaa'
+export const FIXTURE_LATER_ASSIGNEE = '00000000-0000-4000-8000-000000000099'
+export const FIXTURE_LATER_COLLEAGUE = '00000000-0000-4000-8000-000000000100'
 export const FIXTURE_CUSTOMER = 'customer_aaaaaaaaaaaaaaaaaaaaaaaa'
 export const FIXTURE_ATTACHMENT = 'attachment_aaaaaaaaaaaaaaaaaaaaaaaa'
 export const FIXTURE_ADMIN = '11111111-1111-4111-8111-111111111111'
@@ -41,6 +43,7 @@ const clone = value => JSON.parse(JSON.stringify(value))
 const role = (key, label, permissions) => ({ key, label, description: 'Synthetic offline fixture role', permissions, assignable: true })
 
 export function createSupportRuntime(settings) {
+  let failAssigneeLoad = settings.failAssigneeLoad === true
   if (!settings.apiKey?.startsWith('support-test-') || settings.companyId !== FIXTURE_COMPANY || !settings.issuer || !settings.audience || !settings.keyId) throw new Error('Offline support fixture configuration required')
   const publicKey = createPublicKey(settings.publicKey)
   if (publicKey.asymmetricKeyType !== 'rsa' || publicKey.asymmetricKeyDetails.modulusLength < 2048) throw new Error('Offline RSA fixture public key required')
@@ -53,6 +56,12 @@ export function createSupportRuntime(settings) {
     [FIXTURE_READER, user(FIXTURE_READER, 'readonly@example.invalid', 'Läsbehörig personal', 'customer_service_viewer')],
     [FIXTURE_FOREIGN, user(FIXTURE_FOREIGN, 'foreign@example.invalid', 'Annan organisation', 'company_admin', '44444444-4444-4444-8444-444444444444')],
   ])
+  if (settings.casePagination) {
+    for (let i = 1; i <= 100; i++) {
+      const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+      users.set(id, user(id, `colleague-${i}@example.invalid`, `Medarbetare ${i}`, 'customer_service_viewer'))
+    }
+  }
   const identities = new Map([
     [FIXTURE_ADMIN, { localAuthSubject: FIXTURE_LOCAL_ADMIN, bindingId: '88888888-8888-4888-8888-888888888888' }],
     [FIXTURE_READER, { localAuthSubject: FIXTURE_LOCAL_READER, bindingId: '99999999-9999-4999-8999-999999999999' }],
@@ -62,7 +71,7 @@ export function createSupportRuntime(settings) {
   const binding = actorUserId => ({ actorUserId, ...identities.get(actorUserId), bindingVersion: 1, localAuthIssuer: `${AUTH_ORIGIN}/auth/v1` })
   const embedded = () => ({ limit: 100, returned: 0, has_more: false })
   const customer = { customer_reference: FIXTURE_CUSTOMER, customer_number: 'TEST-1001', customer_type: 'private', status: 'active', display_name: 'Anna Testkund', first_name: 'Anna', last_name: 'Testkund', company_name: null, email: 'anna@example.invalid', phone: '+46 70 111 22 33', personal_number_masked: '1980••••-••••', org_number_masked: null, created_at: now(), invoice_email: 'anna@example.invalid', preferred_language: 'sv', apartment_number: null, updated_at: now(), contacts: [], addresses: [], sites: [], contacts_page: embedded(), addresses_page: embedded(), sites_page: embedded() }
-  const supportCase = { case_reference: FIXTURE_CASE, customer_reference: FIXTURE_CUSTOMER, title: 'Inkommande kundärende', description: 'Kunden behöver hjälp med sin faktura.', status: 'open', priority: 'normal', category: 'faktura', assignee_user_id: null, channel: 'customer_portal', created_at: now(), updated_at: now(), resolved_at: null, closed_at: null }
+  const supportCase = { case_reference: FIXTURE_CASE, customer_reference: FIXTURE_CUSTOMER, title: 'Inkommande kundärende', description: 'Kunden behöver hjälp med sin faktura.', status: 'open', priority: 'normal', category: 'faktura', assignee_user_id: settings.casePagination ? FIXTURE_LATER_ASSIGNEE : null, channel: 'customer_portal', created_at: now(), updated_at: now(), resolved_at: null, closed_at: null }
   const cases = new Map([[FIXTURE_CASE, supportCase]])
   const events = new Map([[FIXTURE_CASE, []]])
   // Both public API surfaces operate on the same canonical cases and events.
@@ -160,11 +169,12 @@ export function createSupportRuntime(settings) {
       addEvent(ref, { id: null }, 'support_customer_message', payload.message, { author_type: 'customer', visibility: 'customer', kind: null, channel: 'customer_portal' })
       return done(customerCase(ref), 201, 'CustomerSupportCase')
     }
-    const match = path.match(/^\/cases\/([^/]+)(?:\/(messages))?$/)
+    const match = path.match(/^\/cases\/([^/]+)(?:\/(messages|attachments))?$/)
     if (!match || !cases.has(match[1]) || customerOwners.get(match[1]) !== authId) return failure(404, 'support_case_not_found')
     const ref = match[1]
     if (!match[2] && method === 'GET') return done({ ...customerCase(ref), messages: customerMessages(ref) }, 200, 'CustomerSupportCaseDetail')
     if (match[2] === 'messages' && method === 'GET') return done(customerMessages(ref), 200, 'CustomerSupportMessage')
+    if (match[2] === 'attachments' && method === 'GET') return done([], 200, 'CustomerSupportAttachment')
     if (match[2] === 'messages' && method === 'POST') {
       if (!validCustomer('CustomerSupportMessageCreateRequest', payload)) return failure(422, 'invalid_request')
       if (['resolved', 'closed'].includes(cases.get(ref).status)) return failure(409, 'support_case_closed')
@@ -296,7 +306,18 @@ export function createSupportRuntime(settings) {
     }
     const done = (data, status = 200) => { if (method !== 'GET') idempotent.set(replayKey, { body: JSON.stringify(payload), data: clone(data), status }); return json(data, status) }
     if (path === '/roles' && method === 'GET') return done(roles)
-    if (path === '/users' && method === 'GET') return json({ data: [...users.values()].filter(u => u.company === FIXTURE_COMPANY).map(account), pagination: { page: 1, page_size: 25, total: 2, has_more: false }, request_id: randomUUID(), contract_schema_version: '2026-10-04.1' }, 200, true)
+    if (path === '/users' && method === 'GET') {
+      if (failAssigneeLoad && url.searchParams.get('page_size') === '100') {
+        failAssigneeLoad = false
+        return failure(503, 'synthetic_directory_unavailable')
+      }
+      const status = url.searchParams.get('status')
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const pageSize = Number(url.searchParams.get('page_size') ?? 25)
+      const accounts = [...users.values()].filter(user => user.company === FIXTURE_COMPANY && (!status || user.status === status))
+      const data = accounts.slice((page - 1) * pageSize, page * pageSize).map(account)
+      return json({ data, pagination: { page, page_size: pageSize, total: accounts.length, has_more: page * pageSize < accounts.length }, request_id: randomUUID(), contract_schema_version: '2026-10-04.1' }, 200, true)
+    }
     if (path === '/users' && method === 'POST') {
       if (!valid('StaffInviteRequest', payload)) return failure(422, 'invalid_request')
       if (!roles.some(r => r.key === payload.role_key)) return failure(403, 'staff_role_ceiling')
@@ -349,9 +370,16 @@ export function createSupportRuntime(settings) {
       const ref = casePath[1]; const current = cases.get(ref); if (!current) return failure(404, 'support_case_not_found')
       const operation = casePath[2]
       const files = [...(ref === FIXTURE_CASE ? [attachment] : []), ...(uploadedAttachments.get(ref) ?? [])]
-      if (!operation && method === 'GET') return done({ ...current, events: events.get(ref), attachments: files, events_page: { limit: 50, offset: 0, returned: events.get(ref).length, has_more: false, next_cursor: null }, attachments_page: { limit: 50, offset: 0, returned: files.length, has_more: false, next_cursor: null } })
-      if (operation === 'events' && method === 'GET') return collection(events.get(ref), url)
-      if (operation === 'attachments' && method === 'GET') return collection(files, url)
+      const history = events.get(ref)
+      const continued = settings.casePagination && ref === FIXTURE_CASE
+      const firstPage = rows => ({ limit: 50, offset: 0, returned: rows.length, has_more: Boolean(continued), next_cursor: continued ? `offline-page-${rows.length}` : null })
+      if (!operation && method === 'GET') return done({ ...current, events: history, attachments: files, events_page: firstPage(history), attachments_page: firstPage(files) })
+      if (operation === 'events' && method === 'GET') return collection(continued
+        ? [...history, { ...history[0], message: 'Äldre syntetisk händelse', event_reference: 'support_message_ffffffffffffffffffffffffffffffff' }]
+        : history, url)
+      if (operation === 'attachments' && method === 'GET') return collection(continued
+        ? [...files, { ...attachment, file_name: 'aldre-syntetisk-bilaga.pdf', attachment_reference: 'attachment_ffffffffffffffffffffffff', scan_status: 'quarantined' }]
+        : files, url)
       if (operation === 'attachments' && method === 'POST') {
         if (!binary || !binary.length || binary.length > 4194304 || !binary.toString().startsWith('%PDF-')) return failure(422, 'attachment_rejected')
         const uploaded = { ...attachment, attachment_reference: `attachment_${String(++sequence).padStart(24, '0')}`, file_name: decodeURIComponent(headers.get('x-file-name') ?? 'bilaga.pdf'),
@@ -377,11 +405,14 @@ export function createSupportRuntime(settings) {
 
 if (process.env.SUPPORT_TEST_MODE === '1') {
   const publicKey = process.env.SUPPORT_TEST_PUBLIC_KEY ?? (process.env.SUPPORT_TEST_PUBLIC_KEY_FILE && readFileSync(process.env.SUPPORT_TEST_PUBLIC_KEY_FILE, 'utf8'))
-  const runtime = createSupportRuntime({ apiKey: process.env.GRIDEX_STAFF_API_KEY, companyId: process.env.GRIDEX_STAFF_COMPANY_ID, issuer: process.env.GRIDEX_STAFF_ASSERTION_ISSUER, audience: process.env.GRIDEX_STAFF_ASSERTION_AUDIENCE, keyId: process.env.GRIDEX_STAFF_ASSERTION_KID, publicKey })
+  const runtime = createSupportRuntime({ apiKey: process.env.GRIDEX_STAFF_API_KEY, companyId: process.env.GRIDEX_STAFF_COMPANY_ID, issuer: process.env.GRIDEX_STAFF_ASSERTION_ISSUER, audience: process.env.GRIDEX_STAFF_ASSERTION_AUDIENCE, keyId: process.env.GRIDEX_STAFF_ASSERTION_KID, publicKey, casePagination: process.env.SUPPORT_TEST_CASE_PAGING === '1', failAssigneeLoad: process.env.SUPPORT_TEST_ASSIGNEE_FAILURE === '1' })
   const originalFetch = globalThis.fetch
   globalThis.fetch = (input, init) => {
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
     if (['http://127.0.0.1', 'http://localhost', 'http://[::1]'].some(origin => url.origin === origin || url.origin.startsWith(`${origin}:`))) return originalFetch(input, init)
+    if (process.env.SUPPORT_TEST_STAFF_TRACE && url.origin === STAFF_ORIGIN && url.pathname.startsWith('/api/v1/staff/')) {
+      appendFileSync(process.env.SUPPORT_TEST_STAFF_TRACE, `${url.pathname}\n`)
+    }
     return runtime.fetch(input, init)
   }
   globalThis.__supportRuntime = runtime

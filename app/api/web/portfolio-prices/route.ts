@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import {
-  fetchOpsPublicContractsFresh,
+  fetchOpsPublicContractsSnapshot,
   fetchOpsWebsitePortfolioPrices,
   isOpsError,
 } from '@/lib/ops/client'
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const contracts = await fetchOpsPublicContractsFresh()
+    const { contracts } = await fetchOpsPublicContractsSnapshot(null, { allowStaleFallback: false })
     const contract = contracts.find((item) => item.offer_reference === offerReference)
     const type = String(contract?.contract_type ?? contract?.type ?? '').toLowerCase()
     if (!contract || !['portfolio', 'portfolio_managed', 'mix', 'mixed'].includes(type)) {

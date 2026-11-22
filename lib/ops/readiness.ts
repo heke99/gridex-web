@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { OpsError } from '@/lib/ops/errors'
 import { isSupportedResponseVersion } from '@/lib/ops/responseProfiles'
 import {
   fetchOpsIntegrationContext,
@@ -185,10 +186,12 @@ function authorizationProbe(path: string, method: 'GET' | 'POST', body?: Record<
   })
 }
 
-function probeDefinitions(): ProbeDefinition[] {
+function probeDefinitions(contextRequest: ReturnType<typeof fetchOpsIntegrationContext>): ProbeDefinition[] {
+  let catalogueRequest: ReturnType<typeof fetchOpsPublicContractsFresh> | undefined
+  const readCatalogue = () => catalogueRequest ??= fetchOpsPublicContractsFresh()
   return [
     { name: 'integration_context', scopes: ['integration_context.read'], run: async () => {
-      const context = await fetchOpsIntegrationContext(true)
+      const context = await contextRequest
       if (!context.capabilities.website_checkout_ready || context.capabilities.missing_website_scopes.length > 0) {
         return {
           ok: false,
@@ -200,7 +203,7 @@ function probeDefinitions(): ProbeDefinition[] {
         throw new Error('application_reference_location_mismatch')
       }
     } },
-    { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await fetchOpsPublicContractsFresh() } },
+    { name: 'website_contracts.read', scopes: ['website_contracts.read'], run: async () => { await readCatalogue() } },
     {
       name: 'website_contracts.diagnostics',
       scopes: [GRIDEX_WEBSITE_DIAGNOSTICS_SCOPE],
@@ -215,8 +218,11 @@ function probeDefinitions(): ProbeDefinition[] {
       name: 'website_legal.read',
       scopes: [GRIDEX_WEBSITE_LEGAL_SCOPE],
       run: async () => {
-        const [offer] = await fetchOpsPublicContractsFresh()
-        if (!offer?.offer_reference) throw new Error('legal_readiness_offer_unavailable')
+        const catalogue = await readCatalogue().catch(() => null)
+        const offer = catalogue?.[0]
+        if (!offer?.offer_reference) throw new OpsError('Juridikkontrollen saknar ett verifierat erbjudande.', 502, {
+          code: catalogue ? 'legal_readiness_offer_unavailable' : 'legal_readiness_catalogue_unavailable',
+        })
         await fetchOpsWebsiteLegalBundle(offer.offer_reference)
       },
     },
@@ -293,9 +299,11 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   let contextReadiness: OpsIntegrationReadiness['contextReadiness'] = null
   let resolvedContractVersion: string | null = null
 
+  const checkoutProbeNames = new Set<string>()
   if (client.configured) {
+    const contextRequest = fetchOpsIntegrationContext(true)
     try {
-      const context = await fetchOpsIntegrationContext(true)
+      const context = await contextRequest
       resolvedContractVersion = context.contract_version
       contextReadiness = {
         websiteCheckoutReady: context.capabilities.website_checkout_ready,
@@ -309,7 +317,10 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
       code = classifyProbeFailure(error)
     }
 
-    const definitions = probeDefinitions()
+    const definitions = probeDefinitions(contextRequest)
+    for (const definition of definitions) {
+      if (definition.requiredForWebsiteSales !== false) checkoutProbeNames.add(definition.name)
+    }
     const results = await Promise.allSettled(definitions.map(async (probe) => ({ probe, result: await probe.run() })))
     for (let index = 0; index < results.length; index += 1) {
       const definition = definitions[index]
@@ -338,9 +349,6 @@ export async function checkOpsIntegrationReadiness(): Promise<OpsIntegrationRead
   }
 
   const probeReady = (name: string) => probes.find((probe) => probe.name === name)?.ok === true
-  const checkoutProbeNames = new Set(probeDefinitions()
-    .filter((definition) => definition.requiredForWebsiteSales !== false)
-    .map((definition) => definition.name))
   const checkoutProbesReady = probes
     .filter((probe) => checkoutProbeNames.has(probe.name))
     .every((probe) => probe.ok)

@@ -2,11 +2,6 @@ import Link from 'next/link'
 import { readWebsiteApplicationResultState, type WebsiteCommunicationItem } from '@/lib/website/applicationResultStore'
 import SwitchStatusCard from '@/components/signup/SwitchStatusCard'
 import ApplicationStatusCard from '@/components/signup/ApplicationStatusCard'
-import {
-  statusLabel as friendlyStatusLabel,
-  statusDescription as friendlyStatusDescription,
-  nextStepDescription as friendlyNextStepDescription,
-} from '@/lib/customerPortal/statusHelper'
 
 type PortalStatus =
   | 'email_confirmation_sent'
@@ -50,13 +45,6 @@ function newCustomerState(status: PortalStatus | undefined, detail?: string | nu
   return null
 }
 
-function formatTimestamp(value: string | null | undefined) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })
-}
-
 function includesCommunicationEvent(events: WebsiteCommunicationItem[] | undefined, event: string) {
   return (events ?? []).some((value) => value.event_type === event || value.code === event)
 }
@@ -74,14 +62,9 @@ export default async function SignupThanksPage({
     return <UnverifiedResult state={resultState.status} />
   }
 
-  // OPS nextActionMessage is intentionally never rendered directly. Customer-facing
-  // next-step copy must come from the allowlisted status helpers below.
   const stored = resultState.result
-  const status = stored.status
   const portal = portalMessage(stored.portalStatus, stored.portalMessage)
   const isNewCustomer = newCustomerState(stored.portalStatus, stored.portalMessage)
-  const signedAt = formatTimestamp(stored.signedAt)
-  const withdrawalDeadline = formatTimestamp(stored.withdrawalDeadlineAt)
   const confirmationFailed = includesCommunicationEvent(stored.communicationFailed, 'contract.confirmation_sent')
   const confirmationSent = includesCommunicationEvent(stored.communicationSent, 'contract.confirmation_sent')
   const confirmationQueued = includesCommunicationEvent(stored.communicationQueued, 'contract.confirmation_sent')
@@ -117,43 +100,33 @@ export default async function SignupThanksPage({
         data-gridex-new-customer={isNewCustomer === null ? undefined : isNewCustomer ? 'true' : 'false'}
       />
       <section className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
-        <div className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Teckning mottagen</div>
-        <h1 className="mt-5 text-4xl font-bold tracking-tight text-white md:text-5xl">{stored.checkout?.page_state === 'action_required' ? 'Din ansökan behöver kompletteras' : stored.checkout?.page_state === 'processing' ? 'Din ansökan behandlas' : 'Tack! Din teckning är skickad.'}</h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">{friendlyStatusDescription(status)} Du får information om avtal, leverantörsbyte och Mina sidor när respektive del är klar.</p>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <Info label="Kundnummer" value={stored.customerNumber ?? '—'} />
-          <Info label="Avtalsnummer" value={stored.contractNumber ?? 'Kommer i bekräftelsen'} />
-          <Info label="Ärendenummer" value={stored.applicationNumber ?? '—'} />
-        </div>
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <div className="text-sm font-semibold text-white">Status</div>
-          <div className="mt-1 text-sm text-gray-300">{friendlyStatusLabel(status)}</div>
-          <div className="mt-2 text-xs text-gray-500">Nästa steg: {friendlyNextStepDescription(stored.nextStep)}</div>
-          {stored.powerOfAttorneySigned ? <div className="mt-3 text-xs text-emerald-300">Fullmakten är mottagen.</div> : null}
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="text-sm font-semibold text-white">Avtal och ångerrätt</div>
-            <div className="mt-2 text-sm text-gray-300">{stored.contractStatus === 'signed' ? `Avtalet är signerat${signedAt ? ` ${signedAt}` : ''}.` : 'Avtalet behandlas fortfarande.'}</div>
-            {withdrawalDeadline ? <div className="mt-2 text-xs text-gray-500">Ångerfristen löper till {withdrawalDeadline}.</div> : null}
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="text-sm font-semibold text-white">Bekräftelse och leverantörsbyte</div>
-            <div className={`mt-2 text-sm ${confirmationFailed ? 'text-amber-100' : 'text-gray-300'}`}>Vid inskickningen: {confirmationCopy}</div>
-            <div className="mt-2 text-xs text-gray-500">{switchCopy}</div>
-          </div>
-        </div>
+        <ApplicationStatusCard
+          key={resultToken}
+          applicationNumber={stored.applicationNumber}
+          resultToken={resultToken}
+          receipt={{
+            status: stored.status,
+            pageState: stored.checkout?.page_state,
+            customerNumber: stored.customerNumber,
+            contractNumber: stored.contractNumber,
+            contractStatus: stored.contractStatus,
+            signedAt: stored.signedAt,
+            withdrawalDeadlineAt: stored.withdrawalDeadlineAt,
+            nextStep: stored.nextStep,
+            powerOfAttorneySigned: stored.powerOfAttorneySigned,
+          }}
+          confirmation={
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="text-sm font-semibold text-white">Bekräftelse och leverantörsbyte vid inskickningen</div>
+              <div className={`mt-2 text-sm ${confirmationFailed ? 'text-amber-100' : 'text-gray-300'}`}>{confirmationCopy}</div>
+              <div className="mt-2 text-xs text-gray-500">{switchCopy}</div>
+            </div>
+          }
+        />
         <div className={['mt-6 rounded-2xl border p-5', portal.tone === 'success' ? 'border-emerald-500/30 bg-emerald-500/10' : portal.tone === 'warning' ? 'border-amber-500/30 bg-amber-500/10' : 'border-cyan-500/20 bg-cyan-500/10'].join(' ')}>
           <div className="text-sm font-semibold text-white">{portal.title}</div>
           <p className="mt-2 text-sm leading-6 text-gray-200">{portal.body}</p>
         </div>
-        {stored.applicationNumber && resultToken ? (
-          <ApplicationStatusCard
-            applicationNumber={stored.applicationNumber}
-            resultToken={resultToken}
-            initialStatus={stored.status}
-          />
-        ) : null}
         {stored.applicationNumber && resultToken ? (
           <SwitchStatusCard resultToken={resultToken} initialStatus={stored.supplierSwitchStatus} />
         ) : null}
@@ -212,8 +185,4 @@ function UnverifiedResult({
       </section>
     </div>
   )
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/5 p-5"><div className="text-xs uppercase tracking-wide text-gray-500">{label}</div><div className="mt-1 break-words text-lg font-semibold text-white">{value}</div></div>
 }

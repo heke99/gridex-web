@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const userId = '11111111-1111-4111-8111-111111111111'
@@ -77,6 +78,9 @@ class Query {
       rows = table.filter(row => this.predicates.every(predicate => predicate(row)))
       if (this.orderKey) rows.sort((a, b) => String(a[this.orderKey]).localeCompare(String(b[this.orderKey])))
       if (this.max !== undefined) rows = rows.slice(0, this.max)
+      if (rows.some(row => this.fixture.rejectUpdate?.(this.table, row, this.patch))) {
+        return { data: null, error: { message: 'Synthetic reservation failure' } }
+      }
       if (this.patch) for (const row of rows) {
         Object.assign(row, structuredClone(this.patch))
         this.fixture.writes.push({ table: this.table, id: row.id, patch: structuredClone(this.patch) })
@@ -135,6 +139,26 @@ function waitingJob(overrides = {}) {
     payload: structuredClone(input), attempt_count: 0, max_attempts: 10,
     next_attempt_at: null, last_error: 'existing_auth_user_requires_login', locked_at: null, ...overrides,
   }
+}
+
+for (const startingWithJob of [true, false]) {
+  test(`onboarding enqueue preserves a concurrent worker lease with ${startingWithJob ? 'an existing' : 'a new'} row`, async () => {
+    const f = fixture()
+    const job = waitingJob({ next_attempt_at: '2000-01-01T00:00:00Z', last_error: null, updated_at: '2000-01-01T00:00:00Z' })
+    if (startingWithJob) f.tables.portal_onboarding_jobs.push(job)
+    f.afterRead = table => {
+      if (table !== 'portal_onboarding_jobs') return
+      f.afterRead = null
+      Object.assign(job, { status: 'processing', attempt_count: 1, locked_at: 'worker-lease', updated_at: '2026-11-22T12:00:00Z' })
+      if (!startingWithJob) f.tables.portal_onboarding_jobs.push(job)
+    }
+    const result = await onboarding.ensureCustomerPortalOnboarding(input)
+    assert.equal(result.status, 'pending')
+    assert.deepEqual(f.tables.portal_onboarding_jobs.map(row => [row.status, row.attempt_count, row.locked_at]),
+      [['processing', 1, 'worker-lease']])
+    assert.equal(f.writes.length, 0)
+    assert.equal(f.invites, 0)
+  })
 }
 
 test('existing account waits for explicit claim without sending mail or minting reset tokens', async () => {
@@ -440,4 +464,140 @@ test('new Auth user retains invitation and confirmation flow', async () => {
   assert.equal(f.tables.portal_onboarding_jobs[0].auth_user_id, userId)
   assert.equal(f.syncs.length, 0)
   assert.equal(f.resets + f.generatedLinks, 0)
+})
+
+test('ordinary login respects scheduled retry and preserves prior attempts when the job becomes due', async () => {
+  const f = fixture()
+  const future = new Date(Date.now() + 60 * 60_000).toISOString()
+  const job = waitingJob({ auth_user_id: userId, status: 'retryable_failure', attempt_count: 8,
+    next_attempt_at: future, last_error: 'Earlier failure' })
+  f.tables.portal_onboarding_jobs.push(job)
+  const enqueue = () => resume.resumePortalOnboardingForConfirmedUserSafely({ userId, email })
+  let authReads = 0
+  f.onAuthRead = () => { authReads++ }
+  for (let attempt = 0; attempt < 2; attempt++) assert.equal((await enqueue()).processed, 0)
+  assert.equal((await onboarding.processPortalOnboardingJobs()).processed, 0)
+  assert.equal(authReads, 0)
+  assert.equal(job.attempt_count, 8)
+  assert.equal(job.next_attempt_at, future)
+  assert.equal(job.last_error, 'Earlier failure')
+  assert.equal(f.writes.length, 0)
+
+  job.next_attempt_at = '2026-01-01T00:00:00Z'
+  f.onAuthRead = () => { authReads++; throw new Error('Temporary Auth failure') }
+  assert.equal((await enqueue()).processed, 1)
+  assert.equal(job.attempt_count, 9)
+  assert.equal(job.status, 'retryable_failure')
+  assert.equal(authReads, 1)
+  assert.equal((await enqueue()).processed, 0)
+  job.attempt_count = job.max_attempts
+  job.next_attempt_at = '2026-01-01T00:00:00Z'
+  assert.equal((await enqueue()).processed, 0)
+  assert.equal((await onboarding.processPortalOnboardingJobs()).failed, 1)
+  assert.equal(job.status, 'manual_review')
+  assert.equal(authReads, 1)
+})
+
+test('a failed first reservation leaves that job retryable and lets the second job finish', async () => {
+  const f = fixture()
+  const due = '2026-01-01T00:00:00Z'
+  const first = waitingJob({ auth_user_id: userId, next_attempt_at: due, last_error: null })
+  const second = waitingJob({ id: 'job-2', submission_attempt_id: 'submission-2', auth_user_id: userId,
+    next_attempt_at: due, last_error: null })
+  second.payload.submissionAttemptId = 'submission-2'
+  f.tables.portal_onboarding_jobs.push(first, second)
+  f.rejectUpdate = (table, row, patch) => table === 'portal_onboarding_jobs' &&
+    row.id === first.id && patch?.status === 'processing'
+  const result = await onboarding.processPortalOnboardingJobs()
+  assert.deepEqual(result, { processed: 2, completed: 1, pending: 0, failed: 1 })
+  assert.equal(first.status, 'pending')
+  assert.equal(first.locked_at, null)
+  assert.equal(first.attempt_count, 0)
+  assert.equal(second.status, 'completed')
+})
+
+test('reading a completed checkout never recovers an unrelated stale lock', async () => {
+  const f = fixture()
+  const complete = waitingJob({ status: 'completed', auth_user_id: userId })
+  const unrelated = waitingJob({ id: 'job-2', submission_attempt_id: 'submission-2',
+    status: 'processing', attempt_count: 1, locked_at: '2026-01-01T00:00:00Z' })
+  f.tables.portal_onboarding_jobs.push(complete, unrelated)
+  assert.equal((await onboarding.ensureCustomerPortalOnboarding(input)).status, 'profile_linked')
+  assert.equal(unrelated.status, 'processing')
+  assert.equal(unrelated.locked_at, '2026-01-01T00:00:00Z')
+  assert.equal(f.writes.length, 0)
+  await onboarding.processPortalOnboardingJobs()
+  assert.ok(f.writes.some(write => write.id === unrelated.id && write.patch.status === 'retryable_failure'))
+})
+
+test('independent activation runs during a blocked Auth call while the same customer stays queued', { timeout: 3000 }, async () => {
+  const f = fixture()
+  const due = '2026-01-01T00:00:00Z'
+  const first = waitingJob({ auth_user_id: userId, next_attempt_at: due, last_error: null })
+  const related = waitingJob({ id: 'job-2', submission_attempt_id: 'submission-2', auth_user_id: userId,
+    next_attempt_at: due, last_error: null })
+  related.payload.submissionAttemptId = 'submission-2'
+  const anotherEmail = 'independent@example.test'
+  const independent = waitingJob({ id: 'job-3', submission_attempt_id: 'submission-3', auth_user_id: otherId,
+    email: anotherEmail, next_attempt_at: due, last_error: null })
+  Object.assign(independent.payload, { email: anotherEmail, submissionAttemptId: 'submission-3' })
+  Object.assign(independent.payload.application, { external_customer_id: 'customer-2', customer_number: 'C-2002' })
+  f.tables.portal_onboarding_jobs.push(first, related, independent)
+  let release
+  const blocked = new Promise(resolve => { release = resolve })
+  let notifyIndependent
+  const started = new Promise(resolve => { notifyIndependent = resolve })
+  let firstAuthReads = 0
+  f.auth.admin.getUserById = async id => {
+    if (id === userId && firstAuthReads++ === 0) await blocked
+    if (id === otherId) notifyIndependent()
+    return { data: { user: { id, email: id === otherId ? anotherEmail : email, email_confirmed_at: '2026-10-01T00:00:00Z' } }, error: null }
+  }
+  const batch = onboarding.processPortalOnboardingJobs()
+  try {
+    await started
+    assert.equal(first.status, 'processing')
+    assert.equal(independent.status, 'processing')
+    assert.equal(related.status, 'pending')
+    assert.equal(related.attempt_count, 0)
+  } finally {
+    release()
+  }
+  assert.deepEqual(await batch, { processed: 3, completed: 3, pending: 0, failed: 0 })
+  assert.deepEqual(f.writes.filter(write => write.patch.status === 'processing').map(write => write.id), ['job-1', 'job-3', 'job-2'])
+})
+
+test('activation schedule picks up a short retry within one cron interval and reports claim lag', async t => {
+  const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
+  const cron = config.crons.find(item => item.path === '/api/internal/customer-portal/onboarding/process')
+  assert.equal(cron.schedule, '*/5 * * * *')
+
+  const NativeDate = globalThis.Date
+  const originalInfo = console.info
+  const minute = 60_000
+  const previousStart = Date.parse('2026-11-22T09:10:00Z')
+  const due = previousStart + 5 * minute + 8_000
+  let clock = previousStart + 5 * minute
+  const metrics = []
+  globalThis.Date = class extends NativeDate {
+    constructor(...args) { super(...(args.length ? args : [clock])) }
+    static now() { return clock }
+  }
+  console.info = (...args) => metrics.push(args)
+  t.after(() => { globalThis.Date = NativeDate; console.info = originalInfo })
+
+  const f = fixture()
+  const job = waitingJob({ auth_user_id: userId, status: 'retryable_failure', attempt_count: 1,
+    next_attempt_at: new Date(due).toISOString(), last_error: 'Synthetic temporary failure' })
+  f.tables.portal_onboarding_jobs.push(job)
+
+  assert.equal((await onboarding.processPortalOnboardingJobs()).processed, 0)
+  assert.equal(job.attempt_count, 1)
+  clock += 5 * minute
+  assert.equal((await onboarding.processPortalOnboardingJobs()).completed, 1)
+  assert.equal(job.attempt_count, 2)
+  const claims = f.writes.filter(write => write.patch.status === 'processing')
+  assert.equal(claims.length, 1)
+  assert.equal(Date.parse(claims[0].patch.locked_at) - due, 292_000)
+  assert.deepEqual(metrics, [['[customer portal onboarding] retry delay', { retriesStarted: 1, maxRetryLagMs: 292_000 }]])
 })

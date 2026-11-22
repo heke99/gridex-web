@@ -1,6 +1,6 @@
 import { OpsError } from '@/lib/ops/errors'
 import type { components, paths } from '@/lib/ops/generated/customer-portal-api'
-import { opsCustomerFetch, type OpsPortalIdentity } from './portal'
+import { opsCustomerFetch, opsCustomerFetchResponse, type OpsPortalIdentity } from './portal'
 import { isSupportAttachmentType, MAX_SUPPORT_ATTACHMENT_BYTES } from '../../support/attachmentRules'
 
 export type OpsCustomerSupportCase = components['schemas']['CustomerSupportCase']
@@ -31,8 +31,30 @@ export type OpsCustomerSupportAttachment = components['schemas']['CustomerSuppor
 type AttachmentListResponse = paths['/api/v1/customer/support/cases/{reference}/attachments']['get']['responses']['200']['content']['application/json']
 type AttachmentResponse = paths['/api/v1/customer/support/cases/{reference}/attachments']['post']['responses']['201']['content']['application/json']
 
-export async function listOpsCustomerSupportAttachments(identity: OpsPortalIdentity, reference: string): Promise<AttachmentListResponse> {
-  return await opsCustomerFetch(`${casePath(reference)}/attachments`, identity) as AttachmentListResponse
+async function readSupportCasePage<T extends { data: unknown[] }>(
+  identity: OpsPortalIdentity,
+  reference: string,
+  section: 'messages' | 'attachments',
+  cursor?: string,
+): Promise<T & { nextCursor?: string }> {
+  if (cursor !== undefined && (!cursor.trim() || cursor.length > 2048)) {
+    throw supportInputError('invalid_customer_support_query', 'cursor')
+  }
+  const suffix = cursor ? `?${new URLSearchParams({ cursor })}` : ''
+  const response = await opsCustomerFetchResponse(`${casePath(reference)}/${section}${suffix}`, identity)
+  return supportContinuation(response.payload as T, response.headers, cursor)
+}
+
+function supportContinuation<T extends object>(payload: T, headers: Headers, cursor?: string): T & { nextCursor?: string } {
+  const nextCursor = headers.get('x-gridex-next-cursor')
+  if (nextCursor !== null && (!nextCursor.trim() || nextCursor.length > 2048 || nextCursor === cursor)) {
+    throw new OpsError('Kundärendets sidmarkör kunde inte verifieras.', 502, { code: 'invalid_support_continuation' })
+  }
+  return nextCursor === null ? payload : { ...payload, nextCursor }
+}
+
+export async function listOpsCustomerSupportAttachments(identity: OpsPortalIdentity, reference: string, cursor?: string) {
+  return readSupportCasePage<AttachmentListResponse>(identity, reference, 'attachments', cursor)
 }
 
 export async function uploadOpsCustomerSupportAttachment(identity: OpsPortalIdentity, reference: string,
@@ -109,15 +131,17 @@ export async function listOpsCustomerSupportCases(
 export async function fetchOpsCustomerSupportCase(
   identity: OpsPortalIdentity,
   caseReference: string,
-): Promise<OpsCustomerSupportCaseDetailResponse> {
-  return await opsCustomerFetch(casePath(caseReference), identity) as OpsCustomerSupportCaseDetailResponse
+): Promise<OpsCustomerSupportCaseDetailResponse & { nextCursor?: string }> {
+  const response = await opsCustomerFetchResponse(casePath(caseReference), identity)
+  return supportContinuation(response.payload as OpsCustomerSupportCaseDetailResponse, response.headers)
 }
 
 export async function listOpsCustomerSupportMessages(
   identity: OpsPortalIdentity,
   caseReference: string,
-): Promise<OpsCustomerSupportMessageListResponse> {
-  return await opsCustomerFetch(`${casePath(caseReference)}/messages`, identity) as OpsCustomerSupportMessageListResponse
+  cursor?: string,
+) {
+  return readSupportCasePage<OpsCustomerSupportMessageListResponse>(identity, caseReference, 'messages', cursor)
 }
 
 /** Reuse the same key for retries of the same submitted operation. */

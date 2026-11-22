@@ -13,7 +13,7 @@ export function createContractsHandler(deps: Dependencies, resource: 'contracts'
   return async (request: Request): Promise<Response> => {
     if (!deps.enabled()) return reply(404, { error: 'Mobilanslutningen är inte aktiverad.' });
     const query = new URL(request.url).searchParams;
-    if ([...query.keys()].some(k => !allowCursor || k !== 'cursor') || query.getAll('cursor').length > 1 || (query.has('cursor') && (!query.get('cursor') || query.get('cursor')!.length > 2048))) return reply(400, { error: 'Otillåtna parametrar.' });
+    if ([...query.keys()].some(k => !allowCursor || k !== 'cursor') || query.getAll('cursor').length > 1 || (query.has('cursor') && (!query.get('cursor')?.trim() || query.get('cursor')!.length > 2048))) return reply(400, { error: 'Otillåtna parametrar.' });
     const value = request.headers.get('authorization') ?? '';
     const match = /^Bearer ([A-Za-z0-9._~-]{16,8192})$/.exec(value);
     if (!match) return reply(401, { error: 'Logga in för att fortsätta.' });

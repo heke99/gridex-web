@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { FIXTURE_CASE, FIXTURE_CUSTOMER, FIXTURE_PASSWORD, FIXTURE_PUBLIC_INQUIRY } from './fixtures/support-runtime.mjs'
+import { FIXTURE_CASE, FIXTURE_CUSTOMER, FIXTURE_PASSWORD, FIXTURE_PUBLIC_INQUIRY, FIXTURE_LATER_ASSIGNEE, FIXTURE_LATER_COLLEAGUE } from './fixtures/support-runtime.mjs'
 
 const origin = process.env.SUPPORT_BROWSER_URL ?? 'http://127.0.0.1:3103'
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) throw new Error('Offline loopback browser verification only')
@@ -24,6 +24,11 @@ async function login(email) {
 }
 try {
   await check('anonymous inbox requires own staff login', async () => { await page.goto(origin); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByRole('heading', { name: 'Logga in', exact: true })).toBeVisible() })
+  await check('anonymous archive page requests require a staff session', async () => {
+    const response = await page.request.get(`${origin}/cases/${FIXTURE_CASE}/pages/events`, { maxRedirects: 0 })
+    expect(response.status()).toBe(307)
+    expect(response.headers().location).toContain('/login')
+  })
   await check('anonymous contact request list and detail require verified staff access', async () => { for (const path of ['/contact-requests', `/contact-requests/${FIXTURE_PUBLIC_INQUIRY}`]) { await page.goto(`${origin}${path}`); await expect(page).toHaveURL(`${origin}/login`); await expect(page.getByText('Fråga från kontaktformuläret', { exact: true })).toHaveCount(0) } })
   await check('login layout has no marketing or OPS navigation', async () => { await expect(page.getByRole('navigation')).toHaveCount(0); await expect(page.locator('a[href*="app.gridex.se"]')).toHaveCount(0); await page.screenshot({ path: `${output}/login.png`, fullPage: true }) })
   await check('mobile login fits viewport', async () => { await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await page.screenshot({ path: `${output}/login-mobile.png`, fullPage: true }); await page.setViewportSize({ width: 1440, height: 1000 }) })
@@ -90,7 +95,81 @@ try {
   await check('unverified contact can be manually searched but is never automatically linked to a canonical customer', async () => { const link = page.getByRole('link', { name: 'Sök i kundregistret →', exact: true }); await expect(link).toHaveAttribute('href', '/customers?q=anna%40example.invalid'); await link.click(); await expect(page.getByRole('heading', { name: 'Kunder', exact: true })).toBeVisible(); await expect(page.getByLabel('Sök kund', { exact: true })).toHaveValue('anna@example.invalid'); await expect(page.getByRole('link', { name: 'Anna Testkund', exact: true })).toHaveAttribute('href', `/customers/${FIXTURE_CUSTOMER}`); await page.getByRole('link', { name: 'Anna Testkund', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Anna Testkund', exact: true })).toBeVisible() })
   await check('anonymous request and canonical case remain separate surfaces after contact search', async () => { await page.goto(origin); await expect(page.getByRole('link', { name: 'Fråga från kontaktformuläret', exact: true })).toHaveCount(0); await expect(page.getByRole('link', { name: 'Inkommande kundärende', exact: true })).toHaveCount(1) })
   await check('case detail and attachment available', async () => { await page.getByRole('link', { name: 'Inkommande kundärende', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Inkommande kundärende', exact: true })).toBeVisible(); await expect(page.getByRole('link', { name: 'Ladda ner' })).toBeVisible(); const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Ladda ner' }).click()]); expect(download.suggestedFilename()).toBe('syntetisk-bilaga.pdf'); await download.saveAs(`${output}/synthetic-attachment.pdf`) })
+  await check('initial staff directory outage leaves the case readable and can be retried', async () => {
+    await expect(page.getByRole('alert').filter({ hasText: 'Medarbetarna kunde inte hämtas just nu' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Inkommande kundärende', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ladda ner' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tilldela ärendet' })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Försök hämta medarbetare igen' }).click()
+    await expect(page.getByLabel('Medarbetare', { exact: true })).toHaveValue(FIXTURE_LATER_ASSIGNEE)
+  })
+  await check('case pager reads only the chosen section and preserves both cursors', async () => {
+    const casePath = `/cases/${FIXTURE_CASE}`
+    const requests = []
+    const trace = process.env.SUPPORT_TEST_STAFF_TRACE
+    const upstreamStart = trace ? (await readFile(trace, 'utf8')).length : 0
+    const record = request => {
+      const url = new URL(request.url())
+      if (url.pathname.startsWith(casePath)) requests.push(url.pathname.slice(casePath.length))
+    }
+    page.on('request', record)
+    try {
+      await page.getByRole('link', { name: 'Äldre händelser' }).click()
+      await expect(page.getByText('Äldre syntetisk händelse', { exact: true })).toBeVisible()
+      const historyCursor = new URL(page.url()).searchParams.get('events_cursor')
+      expect(historyCursor).toBeTruthy()
+      const [response] = await Promise.all([
+        page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/pages/attachments')),
+        page.getByRole('link', { name: 'Fler bilagor' }).click(),
+      ])
+      expect(response.headers()['cache-control']).toContain('private, no-store')
+      await expect(page.getByText('aldre-syntetisk-bilaga.pdf', { exact: true })).toBeVisible()
+      await expect(page.getByText('Äldre syntetisk händelse', { exact: true })).toBeVisible()
+      const both = new URL(page.url()).searchParams
+      expect(both.get('events_cursor')).toBe(historyCursor)
+      expect(both.get('attachments_cursor')).toBeTruthy()
+      await page.getByRole('link', { name: 'Senaste händelserna' }).click()
+      await expect(page.getByRole('link', { name: 'Senaste händelserna' })).toHaveCount(0)
+      expect(new URL(page.url()).searchParams.get('attachments_cursor')).toBe(both.get('attachments_cursor'))
+      expect(requests).toEqual(['/pages/events', '/pages/attachments', '/pages/events'])
+      if (trace) {
+        const upstream = (await readFile(trace, 'utf8')).slice(upstreamStart).trim().split('\n')
+        expect(upstream.filter(path => path.startsWith(`/api/v1/staff${casePath}`) || path === '/api/v1/staff/users')).toEqual([
+          `/api/v1/staff${casePath}/events`,
+          `/api/v1/staff${casePath}/attachments`,
+          `/api/v1/staff${casePath}/events`,
+        ])
+        expect(upstream.filter(path => path === '/api/v1/staff/cases')).toHaveLength(3)
+      }
+    } finally {
+      page.off('request', record)
+    }
+    await page.goto(`${origin}${casePath}`)
+  })
   await check('reply creates customer-visible history', async () => { const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Svara kunden', exact: true }) }); await panel.getByLabel('Meddelande').fill('Webbläsartest: svar till kunden.'); await panel.getByRole('button', { name: 'Spara svar till kunden' }).click(); const event = page.locator('li.event').filter({ hasText: 'Webbläsartest: svar till kunden.' }); await expect(event).toHaveCount(1); await expect(event.getByText('Synligt för kunden', { exact: true })).toBeVisible() })
+  await check('assignee picker preserves current assignment and can assign a colleague beyond page one', async () => {
+    const picker = page.getByLabel('Medarbetare', { exact: true })
+    await expect(picker).toHaveValue(FIXTURE_LATER_ASSIGNEE)
+    await expect(picker.locator('option:checked')).toHaveText('Nuvarande ansvarig')
+    await expect(picker.getByRole('option', { name: 'Medarbetare 100', exact: true })).toHaveCount(0)
+    const more = page.getByRole('button', { name: 'Visa fler medarbetare' })
+    await page.route('**/api/staff/assignees?page=2', route => route.fulfill({ status: 503, json: { error: 'synthetic error' } }), { times: 1 })
+    await more.click()
+    await expect(page.getByRole('alert').filter({ hasText: 'Fler medarbetare kunde inte hämtas' })).toBeVisible()
+    await expect(picker).toHaveValue(FIXTURE_LATER_ASSIGNEE)
+    const [response] = await Promise.all([
+      page.waitForResponse(response => response.url().endsWith('/api/staff/assignees?page=2')),
+      more.click(),
+    ])
+    expect(response.headers()['cache-control']).toContain('private, no-store')
+    await expect(picker.locator('option:checked')).toHaveText('Medarbetare 99')
+    await expect(picker).toHaveValue(FIXTURE_LATER_ASSIGNEE)
+    await expect(more).toHaveCount(0)
+    await picker.selectOption(FIXTURE_LATER_COLLEAGUE)
+    await page.getByRole('button', { name: 'Tilldela ärendet' }).click()
+    await expect(page.getByText('Tilldelningen ändrades.', { exact: true })).toBeVisible()
+    await expect(picker).toHaveValue(FIXTURE_LATER_COLLEAGUE)
+  })
   await check('internal note remains staff-only', async () => { const details = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Intern anteckning' }) }); await details.locator('summary').click(); await details.getByLabel('Anteckning', { exact: true }).fill('Webbläsartest: intern anteckning.'); await details.getByRole('button', { name: 'Spara anteckning' }).click(); const event = page.locator('li.event').filter({ hasText: 'Webbläsartest: intern anteckning.' }); await expect(event.getByText('Endast personal', { exact: true })).toBeVisible() })
   await check('staff attachment upload preserves explicit visibility and refreshes the canonical case', async () => {
     await page.locator('input[name="file"]').setInputFiles({ name: 'syntetiskt-personalunderlag.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nSynthetic staff upload\n%%EOF') })

@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { PGlite } from '@electric-sql/pglite'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const nativeRequire = createRequire(import.meta.url)
@@ -45,46 +46,36 @@ function refreshRaw(input) {
 // The SDK fixture preserves the actual unique-key behavior and PostgREST
 // timestamptz representation. Only persistence is replaced; field selection,
 // fingerprinting, hashes and retry decisions execute in the real application.
-function fixture({ postgresTimestamps = false } = {}) {
-  const state = { rows: new Map(), now: Date.parse('2026-10-18T12:00:00.000Z'), readError: null, writeError: null }
+function fixture({ postgresTimestamps = false, db } = {}) {
+  const state = { rows: new Map(), now: Date.parse('2026-10-18T12:00:00.000Z'), calls: 0, readError: null }
   class Clock extends Date {
     constructor(...args) { super(...(args.length ? args : [state.now])) }
     static now() { return state.now }
-  }
-  class Query {
-    constructor() { this.filters = []; this.columns = '*' }
-    insert(row) { this.inserted = structuredClone(row); return this }
-    select(columns = '*') { this.columns = columns; return this }
-    eq(key, value) { this.filters.push(row => row[key] === value); return this }
-    maybeSingle() { this.one = true; return this }
-    then(resolvePromise, rejectPromise) {
-      try { return Promise.resolve(this.execute()).then(resolvePromise, rejectPromise) }
-      catch (error) { return Promise.reject(error).then(resolvePromise, rejectPromise) }
-    }
-    execute() {
-      if (this.inserted) {
-        if (state.writeError) return { data: null, error: state.writeError }
-        const key = this.inserted.ops_resolution_reference
-        if (state.rows.has(key)) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "website_price_area_resolutions_ops_reference_uidx"' } }
-        const row = { id: 'audit-row-1', created_at: new Clock().toISOString(), ...this.inserted }
-        if (postgresTimestamps) for (const field of ['resolved_at', 'valid_until', 'ops_valid_until']) {
-          if (typeof row[field] === 'string') row[field] = row[field].replace(/\.000Z$/, '+00:00')
-        }
-        state.rows.set(key, row)
-        return { data: null, error: null }
-      }
-      if (state.readError) return { data: null, error: state.readError }
-      const rows = [...state.rows.values()].filter(row => this.filters.every(predicate => predicate(row)))
-      const selected = rows.map(row => this.columns === '*' ? structuredClone(row)
-        : Object.fromEntries(this.columns.split(',').map(key => [key, structuredClone(row[key])])))
-      return { data: this.one ? selected[0] ?? null : selected, error: null }
-    }
   }
   const modules = new Map()
   const sdk = { createClient(url, key) {
     assert.equal(url, 'https://energy-area-fixture.example.invalid')
     assert.equal(key, 'synthetic-offline-key')
-    return { from(table) { assert.equal(table, 'website_price_area_resolutions'); return new Query() } }
+    return { async rpc(name, { p_record: record }) {
+      assert.equal(name, 'gridex_record_website_energy_area_audit')
+      state.calls++
+      if (db) {
+        const { rows: [{ result }] } = await db.query(
+          'select public.gridex_record_website_energy_area_audit($1::jsonb) as result',
+          [JSON.stringify(record)],
+        )
+        return { data: result, error: null }
+      }
+      const reference = record.ops_resolution_reference
+      const existing = state.rows.get(reference)
+      if (existing) return state.readError
+        ? { data: null, error: state.readError }
+        : { data: { inserted: false, existing: structuredClone(existing) }, error: null }
+      const row = { id: 'audit-row-1', created_at: new Clock().toISOString(), ...structuredClone(record) }
+      if (postgresTimestamps) row.ops_valid_until = row.ops_valid_until.replace(/\.000Z$/, '+00:00')
+      state.rows.set(reference, row)
+      return { data: { inserted: true }, error: null }
+    } }
   } }
   function load(file) {
     if (modules.has(file)) return modules.get(file).exports
@@ -122,6 +113,7 @@ test('an unchanged resolution survives only the PostgreSQL timestamptz wire-form
   const first = structuredClone(f.state.rows.get(input.resolution.resolution_reference))
   assert.equal(first.ops_valid_until, '2026-10-18T14:00:00+00:00')
   await f.persistOpsEnergyAreaResolution(structuredClone(input))
+  assert.equal(f.state.calls, 2, 'each attempt makes one database call')
   assert.deepEqual(f.state.rows.get(input.resolution.resolution_reference), first)
 })
 
@@ -194,4 +186,50 @@ test('a duplicate audit lookup failure remains an error without mutating the sto
   f.state.readError = { code: '08006', message: 'Synthetic audit lookup failure' }
   await assert.rejects(() => f.persistOpsEnergyAreaResolution(structuredClone(input)))
   assert.deepEqual(f.state.rows.get(input.resolution.resolution_reference), first)
+})
+
+test('the service-only PostgreSQL function preserves the original evidence on replay and conflict', async () => {
+  const db = new PGlite()
+  try {
+    await db.exec(`
+      create role anon;
+      create role authenticated;
+      create role service_role bypassrls;
+      create table public.website_application_submissions (created_at timestamptz, ops_payload_hash text);
+    `)
+    for (const migration of [
+      '20260723113000_website_pricing_audit.sql',
+      '20260724120000_ops_website_contract_20260723_1.sql',
+      '20260724190000_ops_website_contract_20260724_2.sql',
+      '20260804190000_price_area_assurance_20260804_2.sql',
+      '20261122122925_atomic_energy_area_audit.sql',
+    ]) await db.exec(readFileSync(resolve(root, 'supabase/migrations', migration), 'utf8'))
+    const signature = "'public.gridex_record_website_energy_area_audit(jsonb)'"
+    const { rows: [permissions] } = await db.query(`
+      select has_function_privilege('anon', ${signature}, 'EXECUTE') as anon,
+             has_function_privilege('authenticated', ${signature}, 'EXECUTE') as authenticated,
+             has_function_privilege('service_role', ${signature}, 'EXECUTE') as service
+    `)
+    assert.deepEqual(permissions, { anon: false, authenticated: false, service: true })
+    await db.exec('grant insert, select on public.website_price_area_resolutions to service_role; set role service_role;')
+    const f = fixture({ db })
+    const input = resolutionInput()
+    await f.persistOpsEnergyAreaResolution(input)
+    input.resolution.raw.request_id = 'retry_request'
+    await f.persistOpsEnergyAreaResolution(input)
+    const referenceConflict = structuredClone(input)
+    referenceConflict.location.address = 'Annan gata'
+    await assert.rejects(f.persistOpsEnergyAreaResolution(referenceConflict), /reference collision/)
+    const idConflict = structuredClone(input)
+    idConflict.resolution.resolution_reference = 'different-reference'
+    await assert.rejects(f.persistOpsEnergyAreaResolution(idConflict), /reference collision/)
+    const { rows } = await db.query('select ops_resolution_payload_sha256, ops_resolution_reference from public.website_price_area_resolutions')
+    assert.deepEqual(rows, [{
+      ops_resolution_payload_sha256: nativeRequire('node:crypto').createHash('sha256').update(JSON.stringify(resolutionInput().resolution.raw)).digest('hex'),
+      ops_resolution_reference: input.resolution.resolution_reference,
+    }])
+    assert.equal(f.state.calls, 4)
+  } finally {
+    await db.close()
+  }
 })

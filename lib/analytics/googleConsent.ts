@@ -27,3 +27,50 @@ export function googleConsentState(consent: Exclude<GridexCookieConsent, null>):
     analytics_storage: value,
   }
 }
+
+let temporaryConsent: GridexCookieConsent | undefined
+
+export function subscribeToCookieConsent(callback: () => void) {
+  window.addEventListener('storage', callback)
+  window.addEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
+  return () => {
+    window.removeEventListener('storage', callback)
+    window.removeEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
+  }
+}
+
+export function serverCookieConsent(): undefined {
+  return undefined
+}
+
+function storedCookieConsent(): GridexCookieConsent | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
+  } catch {
+    return undefined
+  }
+}
+
+export function measurementCookieConsent(): GridexCookieConsent {
+  return temporaryConsent === undefined ? storedCookieConsent() ?? null : null
+}
+
+export function currentCookieConsent(): GridexCookieConsent {
+  return temporaryConsent !== undefined ? temporaryConsent : measurementCookieConsent()
+}
+
+export function saveCookieConsent(value: GridexCookieConsent) {
+  try {
+    if (value === null) window.localStorage.removeItem(GRIDEX_COOKIE_CONSENT_KEY)
+    else window.localStorage.setItem(GRIDEX_COOKIE_CONSENT_KEY, value)
+    temporaryConsent = storedCookieConsent() === value ? undefined : value
+  } catch {
+    temporaryConsent = value
+  }
+  try {
+    window.gtag?.('consent', 'update', googleConsentState(measurementCookieConsent() ?? 'rejected'))
+  } finally {
+    window.dispatchEvent(new Event(GRIDEX_COOKIE_CONSENT_EVENT))
+  }
+}

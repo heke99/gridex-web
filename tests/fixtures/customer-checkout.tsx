@@ -40,26 +40,57 @@ export default function CustomerCheckoutFixture() {
   const [customerType, setCustomerType] = useState<'private' | 'business'>('private')
   const [attempts, setAttempts] = useState<Record<string, FormDataEntryValue>[]>([])
   const [newLegalVersion, setNewLegalVersion] = useState(false)
+  const [legalConflict, setLegalConflict] = useState(false)
+  const [quoteValid, setQuoteValid] = useState(true)
+  const [newQuote, setNewQuote] = useState(false)
+  const [powerOfAttorney, setPowerOfAttorney] = useState<'missing' | 'relative' | null>(null)
   const bundleVersion = '00000000-0000-4000-8000-000000000003'
-  const selected = newLegalVersion ? { ...option, legal: {
+  const base = newLegalVersion ? { ...option, legal: {
     ...option.legal, legal_bundle_version_id: bundleVersion,
     module_versions: option.legal.module_versions.map(module => ({ ...module, legal_bundle_version_id: bundleVersion })),
     customer_documents: option.legal.customer_documents.map(document => ({ ...document,
       legal_bundle_version_id: bundleVersion, document_version: 'synthetic-revised-version', document_hash: 'd'.repeat(64),
     })),
   } } : option
+  const poaId = '00000000-0000-4000-8000-000000000004'
+  const legalOrigin = 'https://ops.example.invalid'
+  const selected: SignupContractOption = powerOfAttorney ? { ...base, powerOfAttorneyRequired: true, legal: {
+    ...base.legal,
+    module_versions: [...base.legal.module_versions, { ...base.legal.module_versions[0],
+      id: poaId, module_key: 'power_of_attorney', url: null,
+    }],
+    customer_documents: [
+      { ...base.legal.customer_documents[0], public_url: `${legalOrigin}/legal/synthetic/agreement/${base.legal.legal_bundle_version_id}` },
+      { ...base.legal.customer_documents[0], requirement_code: 'power_of_attorney', document_type: 'power_of_attorney',
+        label: 'Jag godkänner fullmakten', document_reference: 'legal_synthetic_power_of_attorney',
+        module_keys: ['power_of_attorney'], source_document_ids: [poaId], primary_document_id: poaId,
+        public_url: powerOfAttorney === 'relative' ? `/legal/synthetic/power-of-attorney/${base.legal.legal_bundle_version_id}` : null,
+      },
+    ],
+  } } : base
   const submit = useCallback(async (_state: SignupSubmissionState, data: FormData): Promise<SignupSubmissionState> => {
     setAttempts(previous => [...previous, Object.fromEntries(data.entries())])
     await new Promise(resolve => setTimeout(resolve, 300))
+    if (legalConflict && !newQuote) {
+      return { errorMessage: 'Villkoren har ändrats i testet.', legalRefresh: {} }
+    }
     return { errorMessage: 'Syntetiskt avbrott. Försök igen med samma uppgifter.', step: 1 }
-  }, [])
+  }, [legalConflict, newQuote])
+  const refreshLegal = useCallback(() => { setNewLegalVersion(true); setQuoteValid(false) }, [])
+  const unexpectedQuoteRefresh = useCallback(() => { throw Error("Unexpected quote refresh") }, [])
   return <>
     <button onClick={() => setCustomerType('private')}>Prova privatkund</button>
     <button onClick={() => setCustomerType('business')}>Prova företagskund</button>
+    <button onClick={() => setLegalConflict(true)}>Simulera villkorskonflikt</button>
+    <button onClick={() => { setNewQuote(true); setQuoteValid(true) }}>Beräkna nytt testpris</button>
     <button onClick={() => setNewLegalVersion(true)}>Prova nya villkor</button>
+    <button onClick={() => setPowerOfAttorney('missing')}>Prova fullmakt utan länk</button>
+    <button onClick={() => setPowerOfAttorney('relative')}>Prova fullmakt med relativ länk</button>
     <CustomerApplicationForm key={customerType} contracts={[selected]} selectedValue={option.value} customerType={customerType}
-      canSubmit authenticatedEmail="customer@example.invalid" utm={{}} quoteContext={quote} pricingPreview={{ ...preview, customer_type: customerType }}
-      onEditQuote={() => { throw Error('Unexpected quote refresh') }}
+      canSubmit legalDocumentOrigin={legalOrigin} authenticatedEmail="customer@example.invalid" utm={{}} quoteContext={newQuote ? { ...quote, quote_attempt_id: '33333333-3333-4333-8333-333333333333' } : quote}
+      pricingPreview={{ ...preview, customer_type: customerType, pricing_token: newQuote ? 'new-synthetic-price' : preview.pricing_token }}
+      quoteValid={quoteValid} onLegalRefresh={refreshLegal}
+      onEditQuote={unexpectedQuoteRefresh}
       action={submit} />
     <pre data-testid="captured-submissions">{JSON.stringify(attempts)}</pre>
   </>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { issueWebsitePricingQuote, verifyWebsitePricingQuote } from '../lib/website/pricingQuote.ts'
+import { issueWebsitePricingQuote, verifyWebsitePricingQuote, MAX_WEBSITE_PRICING_TOKEN_LENGTH } from '../lib/website/pricingQuote.ts'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 process.env.GRIDEX_WEBSITE_STATE_SIGNING_SECRET = 'canonical-non-expiring-quote-test-secret-more-than-32-bytes'
@@ -29,6 +29,25 @@ const issued = issueWebsitePricingQuote({ preview, contract, customerType: 'priv
 assert.ok(issued, 'a quote remains signable even when compatibility valid_until is in the past')
 assert.equal(verifyWebsitePricingQuote(issued.token, new Date('2030-01-01T00:00:00.000Z')).ok, true)
 assert.deepEqual(issued.quote.settlement, preview.settlement, 'the signed non-expiring quote must retain settlement evidence')
+const issueWithAssumption = length => issueWebsitePricingQuote({
+  preview: { ...preview, assumptions: [{ label: 'x'.repeat(length) }] },
+  contract, customerType: 'private', requestedStartMode: 'earliest_possible',
+  quoteAttemptId: issued.quote.quote_attempt_id,
+  location: { postalCode: '58222', city: 'Linköping', address: 'Storgatan 1' },
+  now: new Date(issued.quote.created_at),
+})
+let allowed = 0
+let rejected = MAX_WEBSITE_PRICING_TOKEN_LENGTH
+while (rejected - allowed > 1) {
+  const middle = Math.floor((allowed + rejected) / 2)
+  if (issueWithAssumption(middle)) allowed = middle
+  else rejected = middle
+}
+const nearLimit = issueWithAssumption(allowed)
+assert.ok(nearLimit && nearLimit.token.length >= MAX_WEBSITE_PRICING_TOKEN_LENGTH - 1)
+assert.equal(verifyWebsitePricingQuote(nearLimit.token).ok, true)
+assert.equal(issueWithAssumption(rejected), null)
+assert.equal(verifyWebsitePricingQuote(nearLimit.token.padEnd(MAX_WEBSITE_PRICING_TOKEN_LENGTH + 1, 'x')).ok, false)
 const quoteSource = read('lib/website/pricingQuote.ts')
 assert.equal(quoteSource.includes('validUntilTimestamp > now.getTime()'), false)
 assert.equal(quoteSource.includes('Date.parse(parsed.valid_until) <= now.getTime()'), false)

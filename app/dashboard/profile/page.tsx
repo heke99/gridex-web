@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { PASSWORD_REQUIREMENT_TEXT } from '@/lib/auth/passwordPolicy'
 import { randomUUID } from 'node:crypto'
 import Link from 'next/link'
-import { getCustomerProfile, getPortalSession } from '@/lib/customerPortal/service'
+import { getEditableCustomerProfile, getPortalSession } from '@/lib/customerPortal/service'
 import {
   updateCustomerEmailAction,
   updateCustomerPasswordAction,
@@ -23,12 +23,28 @@ function statusMessage(status?: string) {
   switch (status) {
     case 'profile-updated':
       return 'Dina kontaktuppgifter har sparats och synkats.'
+    case 'profile-unchanged':
+      return 'Inga kontaktuppgifter ändrades.'
+    case 'profile-reload':
+      return 'Kontot har ändrats sedan formuläret öppnades. Kontrollera uppgifterna och försök igen.'
+    case 'profile-invalid-phone':
+      return 'Ange ett telefonnummer för att ändra det. Kontakta kundservice om numret ska tas bort.'
+    case 'profile-invalid-first_name':
+      return 'Ange ett förnamn.'
+    case 'profile-invalid-last_name':
+      return 'Ange ett efternamn.'
+    case 'profile-invalid-language_code':
+      return 'Välj ett språk i listan.'
+    case 'profile-invalid':
+      return 'De ändrade uppgifterna kunde inte godkännas. Kontrollera formatet och försök igen.'
+    case 'profile-local-sync-failed':
+      return 'Ändringen sparades i kundsystemet. Mina sidor kan fortfarande visa äldre uppgifter.'
     case 'profile-pending':
       return 'Dina kontaktuppgifter är mottagna och inväntar behandling.'
     case 'profile-sync-failed':
       return 'Kontaktuppgifterna kunde inte uppdateras just nu. Inga lokala ändringar har behandlats som genomförda.'
     case 'email-updated':
-      return 'E-postadressen har uppdaterats eller behöver bekräftas via e-post.'
+      return 'Inloggningsadressen har uppdaterats eller behöver bekräftas via e-post.'
     case 'password-updated':
       return 'Lösenordet har uppdaterats.'
     default:
@@ -37,10 +53,22 @@ function statusMessage(status?: string) {
 }
 
 export default async function DashboardProfilePage({ searchParams }: Props) {
-  const { supabase, user } = await getPortalSession()
-  const profile = await getCustomerProfile(supabase, user.id, user)
+  const session = await getPortalSession()
+  const { user } = session
+  const profile = await getEditableCustomerProfile(session)
   const params = (await searchParams) ?? {}
   const message = statusMessage(params.status)
+  const baseline = {
+    userId: user.id,
+    first_name: profile?.first_name ?? '',
+    last_name: profile?.last_name ?? '',
+    phone: profile?.phone ?? '',
+    language_code: profile?.language_code ?? 'sv',
+  }
+  async function saveContactDetails(formData: FormData) {
+    'use server'
+    await updateCustomerProfileAction(baseline, formData)
+  }
   const profileOperationId = `profile-update:${randomUUID()}`
 
   return (
@@ -60,7 +88,7 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <form
-          action={updateCustomerProfileAction}
+          action={saveContactDetails}
           className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6"
         >
           <input type="hidden" name="client_operation_id" value={profileOperationId} />
@@ -69,23 +97,23 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="first_name" className="text-xs text-white/60">Förnamn</label>
-              <input id="first_name" name="first_name" defaultValue={profile?.first_name ?? ''} autoComplete="given-name" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
+              <input id="first_name" name="first_name" defaultValue={baseline.first_name} autoComplete="given-name" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
             </div>
 
             <div className="space-y-2">
               <label htmlFor="last_name" className="text-xs text-white/60">Efternamn</label>
-              <input id="last_name" name="last_name" defaultValue={profile?.last_name ?? ''} autoComplete="family-name" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
+              <input id="last_name" name="last_name" defaultValue={baseline.last_name} autoComplete="family-name" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
             </div>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="phone" className="text-xs text-white/60">Telefon</label>
-            <input id="phone" name="phone" defaultValue={profile?.phone ?? ''} autoComplete="tel" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
+            <input id="phone" name="phone" defaultValue={baseline.phone} autoComplete="tel" className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />
           </div>
 
           <div className="space-y-2">
             <label htmlFor="language_code" className="text-xs text-white/60">Språk</label>
-            <select id="language_code" name="language_code" defaultValue={profile?.language_code ?? 'sv'} className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30">
+            <select id="language_code" name="language_code" defaultValue={baseline.language_code} className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30">
               <option value="sv">Svenska</option>
               <option value="en">English</option>
             </select>
@@ -98,8 +126,8 @@ export default async function DashboardProfilePage({ searchParams }: Props) {
 
         <div className="space-y-6">
           <form action={updateCustomerEmailAction} className="space-y-4 rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">E-postadress</h2>
-            <p className="text-sm text-white/60">Vid ändring kan en bekräftelse skickas till den nya adressen.</p>
+            <h2 className="text-lg font-semibold">E-postadress för inloggning</h2>
+            <p className="text-sm text-white/60">Vid ändring kan en bekräftelse skickas till den nya adressen. Kontaktadressen i kundsystemet hanteras separat.</p>
             <div className="space-y-2">
               <label htmlFor="email" className="text-xs text-white/60">Ny e-postadress</label>
               <input id="email" name="email" type="email" autoComplete="email" defaultValue={user.email ?? profile?.email ?? ''} className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30" />

@@ -4,11 +4,11 @@ import Script from 'next/script'
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import {
-  GRIDEX_COOKIE_CONSENT_EVENT,
-  GRIDEX_COOKIE_CONSENT_KEY,
   GRIDEX_GOOGLE_ADS_ID,
   googleConsentState,
-  parseGridexCookieConsent,
+  measurementCookieConsent,
+  serverCookieConsent,
+  subscribeToCookieConsent,
 } from '@/lib/analytics/googleConsent'
 
 declare global {
@@ -20,24 +20,6 @@ declare global {
 
 const GOOGLE_ADS_PURCHASE_SEND_TO = 'AW-18268724498/tA4dCL_0hOgcEJK6modE'
 
-function subscribe(callback: () => void) {
-  window.addEventListener('storage', callback)
-  window.addEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
-  return () => {
-    window.removeEventListener('storage', callback)
-    window.removeEventListener(GRIDEX_COOKIE_CONSENT_EVENT, callback)
-  }
-}
-
-function currentConsent() {
-  if (typeof window === 'undefined') return null
-  return parseGridexCookieConsent(window.localStorage.getItem(GRIDEX_COOKIE_CONSENT_KEY))
-}
-
-function serverConsent() {
-  return null
-}
-
 function eventKey(event: string, applicationNumber?: string | null) {
   const suffix = (applicationNumber || 'verified').replace(/[^a-zA-Z0-9_-]/g, '_')
   return `gridex_${event}_${suffix}`
@@ -48,7 +30,7 @@ export default function GoogleMarketingTags() {
   const adsId = GRIDEX_GOOGLE_ADS_ID
   const primaryTagId = gaId || adsId
   const pathname = usePathname()
-  const consent = useSyncExternalStore(subscribe, currentConsent, serverConsent)
+  const consent = useSyncExternalStore(subscribeToCookieConsent, measurementCookieConsent, serverCookieConsent)
   const measurementConsentGranted = consent === 'accepted'
 
   const bootstrap = useMemo(() => {
@@ -92,12 +74,12 @@ export default function GoogleMarketingTags() {
 
       const url = new URL(window.location.href)
       const isResultPage = url.pathname === '/teckna-avtal/tack'
-      const analyticsUrl = isResultPage ? `${url.origin}${url.pathname}` : url.href
-      const pathWithQuery = isResultPage ? url.pathname : `${url.pathname}${url.search}`
+      const referrer = URL.canParse(document.referrer) ? new URL(document.referrer).origin : ''
 
       window.gtag('event', 'page_view', {
-        page_path: pathWithQuery,
-        page_location: analyticsUrl,
+        page_path: url.pathname,
+        page_location: `${url.origin}${url.pathname}`,
+        page_referrer: referrer,
         page_title: document.title,
       })
 

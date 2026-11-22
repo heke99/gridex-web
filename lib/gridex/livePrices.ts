@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PriceArea } from '@/lib/gridex/pricing/types'
-import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
+import { isStrictCalendarDate, stockholmCalendarDate, stockholmDayBounds } from '@/lib/website/businessDate'
 import {
   isPriceArea,
   resolvePriceAreaForPostalCode,
@@ -23,10 +23,10 @@ export type LivePriceSummary = {
   current: LivePriceEntry | null
   entries: LivePriceEntry[]
   stats: {
-    averageSekPerKwh: number
-    averageOrePerKwh: number
-    minSekPerKwh: number
-    maxSekPerKwh: number
+    averageSekPerKwh: number | null
+    averageOrePerKwh: number | null
+    minSekPerKwh: number | null
+    maxSekPerKwh: number | null
     samples: number
   }
   disclaimer: string
@@ -63,22 +63,26 @@ function marketUrl(params: { date: string; area: PriceArea }) {
     .replaceAll('{AREA}', params.area)
 }
 
+function priceNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null
+  const parsed = Number(value.trim().replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function normalizeExternalEntry(entry: ExternalEntry): LivePriceEntry | null {
-  if (!entry || typeof entry !== 'object' || entry.SEK_per_kWh === null || entry.SEK_per_kWh === undefined || entry.SEK_per_kWh === '') return null
-  const sek = Number(entry.SEK_per_kWh)
+  if (!entry || typeof entry !== 'object') return null
+  const sek = priceNumber(entry.SEK_per_kWh)
   const timeStart =
     typeof entry.time_start === 'string' ? entry.time_start : null
   const timeEnd = typeof entry.time_end === 'string' ? entry.time_end : null
 
-  if (!Number.isFinite(sek) || !timeStart || !timeEnd || !Number.isFinite(Date.parse(timeStart)) || !Number.isFinite(Date.parse(timeEnd)) || Date.parse(timeEnd) <= Date.parse(timeStart)) return null
-
-  const eur = entry.EUR_per_kWh == null || entry.EUR_per_kWh === '' ? NaN : Number(entry.EUR_per_kWh)
-  const exr = entry.EXR == null || entry.EXR === '' ? NaN : Number(entry.EXR)
+  if (sek === null || !timeStart || !timeEnd || !Number.isFinite(Date.parse(timeStart)) || !Number.isFinite(Date.parse(timeEnd)) || Date.parse(timeEnd) <= Date.parse(timeStart)) return null
 
   return {
     sekPerKwh: sek,
-    eurPerKwh: Number.isFinite(eur) ? eur : null,
-    exchangeRate: Number.isFinite(exr) ? exr : null,
+    eurPerKwh: priceNumber(entry.EUR_per_kWh),
+    exchangeRate: priceNumber(entry.EXR),
     timeStart,
     timeEnd,
   }
@@ -95,14 +99,22 @@ function currentEntry(entries: LivePriceEntry[], now = new Date()) {
   )
 }
 
-function stats(entries: LivePriceEntry[]) {
-  if (entries.length === 0) {
+function stats(entries: LivePriceEntry[], date: string): LivePriceSummary['stats'] {
+  const bounds = stockholmDayBounds(date)
+  let coveredUntil = bounds.start
+  let coveredSamples = 0
+  for (const entry of entries) {
+    if (Date.parse(entry.timeStart) !== coveredUntil) break
+    coveredUntil = Date.parse(entry.timeEnd)
+    coveredSamples++
+  }
+  if (coveredSamples !== entries.length || coveredUntil !== bounds.end) {
     return {
-      averageSekPerKwh: 0,
-      averageOrePerKwh: 0,
-      minSekPerKwh: 0,
-      maxSekPerKwh: 0,
-      samples: 0,
+      averageSekPerKwh: null,
+      averageOrePerKwh: null,
+      minSekPerKwh: null,
+      maxSekPerKwh: null,
+      samples: entries.length,
     }
   }
 
@@ -127,7 +139,7 @@ export async function fetchDayAheadPrices(params: {
   const date = parseIsoDate(params.date)
   const response = await fetch(marketUrl({ date, area: params.area }), {
     headers: { accept: 'application/json' },
-    next: { revalidate: 15 * 60 },
+    next: { revalidate: date < stockholmCalendarDate() ? 300 : 60 },
     signal: AbortSignal.timeout(8_000),
   })
 
@@ -143,13 +155,23 @@ export async function fetchDayAheadPrices(params: {
   const json = (await response.json()) as unknown
   if (!Array.isArray(json)) return []
 
-  return json
+  const entries = json
     .map((entry) => normalizeExternalEntry(entry as ExternalEntry))
     .filter((entry): entry is LivePriceEntry => entry !== null)
+    .sort((a, b) => Date.parse(a.timeStart) - Date.parse(b.timeStart))
+
+  let previousEnd = -Infinity
+  for (const entry of entries) {
+    if (Date.parse(entry.timeStart) < previousEnd) {
+      throw Object.assign(new Error('Elpris-API returnerade överlappande prisintervall.'), { status: 502 })
+    }
+    previousEnd = Date.parse(entry.timeEnd)
+  }
+  return entries
 }
 
 export async function getLivePriceSummary(params: {
-  supabase: SupabaseClient
+  supabase?: SupabaseClient
   postalCode?: string | null
   area?: string | null
   date?: string | null
@@ -162,6 +184,7 @@ export async function getLivePriceSummary(params: {
   if (params.area && isPriceArea(params.area)) {
     priceArea = params.area
   } else if (params.postalCode) {
+    if (!params.supabase) throw new Error('Postnummeruppslagningen är otillgänglig.')
     const resolved = await resolvePriceAreaForPostalCode(
       params.supabase,
       params.postalCode
@@ -188,7 +211,7 @@ export async function getLivePriceSummary(params: {
     date,
     current: currentEntry(entries, params.now),
     entries,
-    stats: stats(entries),
+    stats: stats(entries, date),
     disclaimer:
       'Priserna kommer från elprisetjustnu.se och visas utan moms, skatter, elnätsavgifter och elhandlarens påslag.',
   }

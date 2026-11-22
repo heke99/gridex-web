@@ -14,6 +14,9 @@ type RetryableWebhookRow = {
   occurred_at: string | null
   payload_hash: string | null
   payload: Record<string, unknown> | null
+  attempt_count: number
+  max_attempts: number
+  next_attempt_at: string
 }
 
 type RetryResult = {
@@ -29,21 +32,34 @@ function boundedBatchSize(value?: number): number {
   return Math.min(MAX_BATCH_SIZE, Math.max(1, Math.trunc(value as number)))
 }
 
-async function deadLetterMalformed(row: RetryableWebhookRow, message: string) {
-  const now = new Date().toISOString()
-  const { error } = await supabaseService
+async function recordRetryOutcome(row: RetryableWebhookRow, malformed = false) {
+  const now = Date.now()
+  const attempt = malformed ? row.attempt_count : row.attempt_count + 1
+  const exhausted = malformed || attempt >= Math.max(1, row.max_attempts)
+  const timestamp = new Date(now).toISOString()
+  const { data, error } = await supabaseService
     .from('ops_webhook_events')
     .update({
-      status: 'permanent_failure',
-      handling_note: 'stored_webhook_payload_invalid',
-      error_message: message.slice(0, 1000),
-      next_attempt_at: null,
-      dead_letter_at: now,
-      processed_at: now,
+      status: exhausted ? 'permanent_failure' : 'retryable_failure',
+      attempt_count: attempt,
+      ...(malformed ? {} : { last_attempt_at: timestamp }),
+      handling_note: malformed ? 'stored_webhook_payload_invalid'
+        : exhausted ? 'webhook_retry_rpc_dead_lettered' : 'webhook_retry_rpc_failed',
+      error_message: malformed ? 'Stored signed webhook payload cannot be safely replayed.'
+        : 'Webhook projection did not return a confirmed result.',
+      next_attempt_at: exhausted ? null : new Date(now + Math.min(60, 5 * attempt) * 60_000).toISOString(),
+      ...(exhausted ? { dead_letter_at: timestamp, processed_at: timestamp } : {}),
     })
     .eq('id', row.id)
     .eq('status', 'retryable_failure')
-  if (error) throw new Error(`Unable to dead-letter malformed webhook ${row.id}: ${error.message}`)
+    .eq('attempt_count', row.attempt_count)
+    .eq('max_attempts', row.max_attempts)
+    .eq('next_attempt_at', row.next_attempt_at)
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error('Unable to persist webhook retry outcome.')
+  if (!data) return 'duplicate'
+  return exhausted ? 'permanent_failure' : 'retryable_failure'
 }
 
 export async function processOpsWebhookRetries(options?: { limit?: number }) {
@@ -51,7 +67,7 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
   const now = new Date().toISOString()
   const { data, error } = await supabaseService
     .from('ops_webhook_events')
-    .select('id,event_id,event_type,delivery_id,organization_reference,occurred_at,payload_hash,payload')
+    .select('id,event_id,event_type,delivery_id,organization_reference,occurred_at,payload_hash,payload,attempt_count,max_attempts,next_attempt_at')
     .eq('status', 'retryable_failure')
     .lte('next_attempt_at', now)
     .order('next_attempt_at', { ascending: true })
@@ -65,6 +81,17 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
   let retryableFailures = 0
   let permanentFailures = 0
   let identifierConflicts = 0
+  let unrecorded = 0
+  async function record(row: RetryableWebhookRow, malformed = false) {
+    try {
+      const result = await recordRetryOutcome(row, malformed)
+      if (result === 'permanent_failure') permanentFailures++
+      else if (result === 'duplicate') duplicates++
+      else retryableFailures++
+    } catch {
+      unrecorded++
+    }
+  }
 
   for (const row of (data ?? []) as RetryableWebhookRow[]) {
     const payload = row.payload ?? {}
@@ -79,13 +106,12 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       !row.occurred_at ||
       !row.payload_hash
     ) {
-      await deadLetterMalformed(row, 'Stored signed webhook payload cannot be safely replayed.')
-      permanentFailures += 1
+      await record(row, true)
       continue
     }
 
     const notification = customerNotificationForEvent(event)
-    const { data: rpcData, error: rpcError } = await supabaseService.rpc('apply_ops_domain_event_v2', {
+    const rpc = await Promise.resolve(supabaseService.rpc('apply_ops_domain_event_v2', {
       p_event_id: row.event_id,
       p_delivery_id: row.delivery_id,
       p_event_type: row.event_type,
@@ -104,14 +130,14 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       p_notification_title: notification?.title ?? null,
       p_notification_body: notification?.body ?? null,
       p_notification_link_href: notification?.link_href ?? null,
-    })
+    })).catch(() => null)
 
-    if (rpcError) {
-      retryableFailures += 1
+    if (!rpc || rpc.error) {
+      await record(row)
       continue
     }
 
-    const result = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as RetryResult | null
+    const result = (Array.isArray(rpc.data) ? rpc.data[0] : rpc.data) as RetryResult | null
     switch (result?.result) {
       case 'applied':
         applied += 1
@@ -125,10 +151,18 @@ export async function processOpsWebhookRetries(options?: { limit?: number }) {
       case 'permanent_failure':
         permanentFailures += 1
         break
-      default:
+      case 'retryable_failure':
         retryableFailures += 1
         break
+      default:
+        await record(row)
+        break
     }
+  }
+
+  if (unrecorded) {
+    console.error('[ops webhook retry] unable to persist batch outcomes', { unrecorded, applied, permanentFailures })
+    throw new Error('Webhook retry results could not all be saved.')
   }
 
   return {

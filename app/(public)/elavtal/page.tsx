@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import FaqJsonLd from "@/components/seo/FaqJsonLd";
 import {
   getOpsClientStatus,
   isOpsError,
-  type OpsPublicContract,
 } from "@/lib/ops/client";
-import { buildPublicContractDisplay } from "@/lib/website/publicContractDisplay";
-import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError } from "@/lib/website/publicContractFeed";
+import { loadWebsitePublicContractFeed, logWebsitePublicContractFeedError, type WebsitePublicContractCard } from "@/lib/website/publicContractFeed";
+import { customerTypeLabel } from "@/lib/website/customerType";
 import { faqByIds } from "@/lib/content/faq";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +20,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gridex.se/elavtal" },
 };
 
-function ContractCard({ contract }: { contract: OpsPublicContract }) {
-  const display = buildPublicContractDisplay(contract);
-  const customerTypes = contract.customer_types
-    ?.map((type) =>
-      /company|business|foretag|företag/i.test(type) ? "Företag" : "Privatkund",
-    )
-    .filter((value, index, values) => values.indexOf(value) === index);
+function ContractCard({ contract, display, signupEnabled, stale }: WebsitePublicContractCard & {
+  signupEnabled: boolean;
+  stale: boolean;
+}) {
+  const label = customerTypeLabel(contract.customer_types);
+  const canSign = signupEnabled && display.onlineReady;
 
   return (
     <article className="flex flex-col justify-between rounded-3xl border border-white/10 bg-[#0B0F17] p-8 transition hover:border-cyan-500/30">
@@ -45,9 +44,11 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
             </div>
             <p className="mt-1 text-sm text-gray-400">{display.typeLabel}</p>
           </div>
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-            Aktuellt
-          </span>
+          {!stale && (
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
+              Aktuellt
+            </span>
+          )}
         </div>
 
         <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-gray-300">
@@ -63,15 +64,10 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           ))}
         </dl>
 
-        {display.onlineReady ? (
+        {canSign ? (
           <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-xs leading-6 text-cyan-50/85">
             Din uppskattade månadskostnad beräknas först när du har angett
             adress, elområde och förbrukning.
-            {customerTypes?.length ? (
-              <div className="mt-1 text-cyan-100/80">
-                Gäller: {customerTypes.join(" och ")}.
-              </div>
-            ) : null}
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-6 text-amber-50/85">
@@ -80,6 +76,8 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
           </div>
         )}
 
+        {label && <p className="mt-3 text-sm text-gray-300">{label}.</p>}
+
         <p className="mt-4 text-xs leading-5 text-gray-500">
           Villkor, prisinformation och eventuell fullmakt visas tydligt innan du
           tecknar.
@@ -87,7 +85,7 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
       </div>
 
       <div className="mt-6 grid gap-3">
-        {display.onlineReady ? (
+        {canSign ? (
           <Link
             href={display.ctaHref}
             className="rounded-xl bg-cyan-500 px-5 py-3 text-center font-bold text-black transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
@@ -110,17 +108,43 @@ function ContractCard({ contract }: { contract: OpsPublicContract }) {
   );
 }
 
-export default async function AvtalPage() {
+export default function AvtalPage() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
+      <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
+        <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
+        <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Link href="/elavtal/foretag" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Företag, produktion och industri</h3>
+            <p className="mt-2 text-gray-400">Jämför avtalet utifrån drift, förbrukningsprofil och årskostnad. Läs om elavtal för företag →</p>
+          </Link>
+          <Link href="/elavtal/fastighetsagare" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
+            <h3 className="text-lg font-semibold">Privata hyresvärdar och fastighetsägare</h3>
+            <p className="mt-2 text-gray-400">Gå igenom fastighetselen och elhandelsavgifterna per anläggning. Läs om elavtal för fastighetsägare →</p>
+          </Link>
+        </div>
+      </section>
+      <Suspense fallback={<p role="status">Hämtar aktuella elavtal…</p>}>
+        <ContractCatalogue />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ContractCatalogue() {
   const status = getOpsClientStatus();
-  let contracts: OpsPublicContract[] = [];
+  let cards: WebsitePublicContractCard[] = [];
   let loadError: string | null = null;
   let blockedFeed = false;
+  let stale = false;
   let supportReference: string | null = null;
 
   if (status.configured) {
     try {
       const feed = await loadWebsitePublicContractFeed({ context: "website contracts" });
-      contracts = feed.contracts;
+      cards = feed.cards;
+      stale = feed.snapshot.stale;
       blockedFeed = feed.state === "feed_loaded_with_blocked_contracts" && feed.contracts.length === 0;
       if (blockedFeed) {
         supportReference =
@@ -142,27 +166,12 @@ export default async function AvtalPage() {
     supportReference = "INTEGRATION";
   }
 
+  const signupEnabled = status.configured && status.liveSignupEnabled && !stale && !loadError && !blockedFeed;
   const faqItems = faqByIds(['avtalsskillnad', 'vad-ingar', 'prisbegrepp']);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-14 px-6 py-12 md:py-16">
+    <>
       <FaqJsonLd items={faqItems} />
-      <section aria-labelledby="verksamhet-elavtal" className="space-y-5">
-        <h2 id="verksamhet-elavtal" className="text-2xl font-bold">Elavtal för företag och fastighetsägare</h2>
-        <p>Se över elhandelskostnaden med ett underlag som visar årsförbrukning, påslag och fasta avgifter. Gridex hjälper er att bedöma nästa steg för verksamheten eller hyresfastigheten.</p>
-        <div className="grid gap-5 md:grid-cols-2">
-          <Link href="/elavtal/foretag" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
-            <h3 className="text-lg font-semibold">Företag, produktion och industri</h3>
-            <p className="mt-2 text-gray-400">Jämför avtalet utifrån drift, förbrukningsprofil och årskostnad. Läs om elavtal för företag →</p>
-          </Link>
-          <Link href="/elavtal/fastighetsagare" className="rounded-2xl border border-white/10 p-6 hover:border-cyan-500/40">
-            <h3 className="text-lg font-semibold">Privata hyresvärdar och fastighetsägare</h3>
-            <p className="mt-2 text-gray-400">Gå igenom fastighetselen och elhandelsavgifterna per anläggning. Läs om elavtal för fastighetsägare →</p>
-          </Link>
-        </div>
-      </section>
-
-
       <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0B0F17] p-8 md:p-12">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-[120px]" />
 
@@ -186,12 +195,14 @@ export default async function AvtalPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/teckna-avtal"
-                className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
-              >
-                Teckna elavtal
-              </Link>
+              {signupEnabled && (
+                <Link
+                  href="/teckna-avtal"
+                  className="rounded-xl bg-cyan-500 px-6 py-3 text-center font-bold text-black transition hover:bg-cyan-400"
+                >
+                  Teckna elavtal
+                </Link>
+              )}
               <Link
                 href="/kundservice"
                 className="rounded-xl border border-white/10 px-6 py-3 text-center text-gray-200 transition hover:border-cyan-500/40 hover:bg-white/5"
@@ -303,7 +314,14 @@ export default async function AvtalPage() {
           </div>
         ) : null}
 
-        {!loadError && !blockedFeed && contracts.length === 0 ? (
+        {stale && !blockedFeed && (
+          <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+            <p className="font-semibold">Vi kan inte bekräfta aktuella elavtal just nu.</p>
+            {cards.length > 0 && <p className="mt-2 text-sm">Här visas senast bekräftade uppgifter. Webbteckning från katalogen är pausad.</p>}
+          </div>
+        )}
+
+        {!loadError && !blockedFeed && !stale && cards.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#0B0F17] p-8">
             <div className="text-lg font-semibold text-white">
               Inga elavtal finns att visa just nu
@@ -314,12 +332,15 @@ export default async function AvtalPage() {
           </div>
         ) : null}
 
-        {contracts.length > 0 ? (
+        {cards.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-3">
-            {contracts.map((contract) => (
+            {cards.map(({ contract, display }) => (
               <ContractCard
                 key={contract.offer_reference}
                 contract={contract}
+                display={display}
+                signupEnabled={signupEnabled}
+                stale={stale}
               />
             ))}
           </div>
@@ -344,6 +365,6 @@ export default async function AvtalPage() {
           ))}
         </div>
       </section>
-    </div>
+    </>
   );
 }

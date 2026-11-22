@@ -142,7 +142,14 @@ export function isOpsCustomerEventType(value: string): value is OpsCustomerEvent
   return OPS_CUSTOMER_EVENT_TYPES.has(value);
 }
 
+const PORTAL_BUNDLE_SECTIONS = new Set([
+  'contracts', 'sites', 'invoices', 'documents', 'legal_acceptances',
+  'powers_of_attorney', 'events', 'metering_values', 'notifications',
+  'website_applications', 'metering_points',
+]);
+
 export type OpsPortalBundle = {
+  bundleStatus?: { partial: boolean; unavailableSections: string[] };
   profile: Record<string, unknown> | null;
   customerStatus: Record<string, unknown> | null;
   dataQuality: Record<string, unknown> | null;
@@ -211,12 +218,55 @@ export function customerSyncIdentityPayload(identity: OpsPortalIdentity): Record
   }
 }
 
-export async function opsCustomerFetch(
+const CONTRACT_START_DATES_PREFERENCE = 'contract-start-dates'
+const CONTRACT_PRICING_HEADER = 'X-Gridex-Contract-Pricing'
+const SEPARATE_VARIABLE_FEE = 'separate-variable-fee'
+const CONTRACT_READ_HEADERS = {
+  Prefer: CONTRACT_START_DATES_PREFERENCE,
+  [CONTRACT_PRICING_HEADER]: SEPARATE_VARIABLE_FEE,
+}
+const CONTRACT_START_DATE_FIELDS = ['requested_start_date', 'confirmed_start_date', 'actual_start_date'] as const
+
+function baseContractResponse(
+  payload: unknown,
+  path: string,
+  extensions: { startDates: boolean; separateVariableFee: boolean },
+): unknown {
+  const envelope = recordValue(payload)
+  const bundle = path.split('?', 1)[0] === '/api/v1/customer/portal-bundle' ? recordValue(envelope?.data) : null
+  const contracts = bundle ? bundle.contracts : envelope?.data
+  if (!Array.isArray(contracts)) return payload
+  const baseContracts = contracts.map(value => {
+    const row = recordValue(value)
+    if (!row) return value
+    const base = { ...row }
+    if (extensions.startDates) {
+      for (const field of CONTRACT_START_DATE_FIELDS) {
+        const date = base[field]
+        if (date !== null && !isStrictCalendarDate(date)) {
+          throw new OpsError('OPS returnerade ett ogiltigt avtalsdatum.', 502, { code: 'ops_contract_start_date_invalid', field })
+        }
+        delete base[field]
+      }
+    }
+    if (extensions.separateVariableFee) {
+      const fee = base.variable_fee_ore_per_kwh
+      if (fee !== null && (typeof fee !== 'number' || !Number.isFinite(fee))) {
+        throw new OpsError('OPS returnerade en ogiltig rörlig avgift.', 502, { code: 'ops_contract_variable_fee_invalid' })
+      }
+      delete base.variable_fee_ore_per_kwh
+    }
+    return base
+  })
+  return { ...envelope, data: bundle ? { ...bundle, contracts: baseContracts } : baseContracts }
+}
+
+export async function opsCustomerFetchResponse(
   path: string,
   identity: OpsPortalIdentity,
   init?: RequestInit,
   attachment?: 'upload' | 'download',
-): Promise<unknown> {
+) {
   const headers = new Headers(init?.headers)
   portalHeaders(identity).forEach((value, key) => headers.set(key, value))
   const requestInit = { ...init, headers }
@@ -234,12 +284,32 @@ export async function opsCustomerFetch(
   // OpenAPI validator still checks the exact operation, identity and headers.
   assertCustomerPortalOperationRequest(path, method, attachment ? undefined : jsonRequestBody(requestInit), headers)
   const response = await opsRequest(path, requestInit, attachment === 'download' ? { responseFormat: 'attachment' } : {})
-  if (attachment === 'download') return { bytes: response.payload, mimeType: response.headers.get('content-type')?.split(';', 1)[0] }
+  if (attachment === 'download') return response
+  const negotiatedStartDates = headers.get('Prefer') === CONTRACT_START_DATES_PREFERENCE &&
+    response.headers.get('Preference-Applied') === CONTRACT_START_DATES_PREFERENCE
+  const negotiatedSeparateFee = headers.get(CONTRACT_PRICING_HEADER) === SEPARATE_VARIABLE_FEE &&
+    response.headers.get(CONTRACT_PRICING_HEADER) === SEPARATE_VARIABLE_FEE
+  const schemaPayload = negotiatedStartDates || negotiatedSeparateFee
+    ? baseContractResponse(response.payload, path, { startDates: negotiatedStartDates, separateVariableFee: negotiatedSeparateFee })
+    : response.payload
   observeRuntimeSchemaValidation({
     endpoint: path.split('?', 1)[0],
     schema: 'customer-portal-operation-response',
-    validate: () => assertCustomerPortalOperationResponse(path, method, response.status, response.payload),
+    validate: () => assertCustomerPortalOperationResponse(path, method, response.status, schemaPayload),
   })
+  return response
+}
+
+export async function opsCustomerFetch(
+  path: string,
+  identity: OpsPortalIdentity,
+  init?: RequestInit,
+  attachment?: 'upload' | 'download',
+): Promise<unknown> {
+  const response = await opsCustomerFetchResponse(path, identity, init, attachment)
+  if (attachment === 'download') {
+    return { bytes: response.payload, mimeType: response.headers.get('content-type')?.split(';', 1)[0] }
+  }
   return response.payload
 }
 
@@ -276,8 +346,19 @@ export async function fetchOpsCustomerResource(
   identity: OpsPortalIdentity,
   resource: OpsCustomerReadResource,
   opaqueId?: string | null,
+  listQuery?: string | URLSearchParams | null,
 ): Promise<unknown> {
   const basePath = OPS_CUSTOMER_READ_PATHS[resource];
+  if (listQuery instanceof URLSearchParams && opaqueId == null) {
+    if (!['metering-values', 'documents', 'legal-acceptances', 'powers-of-attorney'].includes(resource)) {
+      throw new Error('Invalid customer list query target')
+    }
+    return opsCustomerFetch(listQuery.size ? `${basePath}?${listQuery}` : basePath, identity);
+  }
+  if (typeof listQuery === 'string' && listQuery) {
+    if (resource !== 'invoices' || opaqueId != null) throw new Error('Invalid invoicing pagination target')
+    return opsCustomerFetch(`${basePath}?${new URLSearchParams({ cursor: listQuery })}`, identity);
+  }
   if (opaqueId !== undefined && opaqueId !== null) {
     const id = opaqueId.trim();
     if (resource !== "invoices" || !id || id.length > 240 || /[/\\?#]/.test(id)) {
@@ -286,9 +367,13 @@ export async function fetchOpsCustomerResource(
         resource,
       });
     }
-    return opsCustomerFetch(`${basePath}/${encodeURIComponent(id)}`, identity);
+    const detailPath = `${basePath}/${encodeURIComponent(id)}`;
+    const query = listQuery instanceof URLSearchParams ? `?${listQuery}` : '';
+    return opsCustomerFetch(detailPath + query, identity);
   }
-  return opsCustomerFetch(basePath, identity);
+  return opsCustomerFetch(basePath, identity, resource === "contracts"
+    ? { headers: CONTRACT_READ_HEADERS }
+    : undefined);
 }
 
 export function rowsAsObjects(payload: unknown): Record<string, unknown>[] {
@@ -317,8 +402,17 @@ export function normalizePortalBundle(payload: unknown): OpsPortalBundle {
   const root = extractObject(payload);
   const data = recordValue(root.data) ?? root;
   const profile = recordValue(data.profile);
+  const status = recordValue(data.bundle_status);
+  const unavailableSections = Array.isArray(status?.unavailable_sections)
+    ? [...new Set(status.unavailable_sections.filter((section): section is string =>
+      typeof section === 'string' && PORTAL_BUNDLE_SECTIONS.has(section)))]
+    : [];
 
   return {
+    bundleStatus: {
+      partial: status?.status === 'partial' || status?.status === 'unavailable' || unavailableSections.length > 0,
+      unavailableSections,
+    },
     profile,
     customerStatus:
       recordValue(data.customer_status),
@@ -345,10 +439,15 @@ export function opsErrorCodeValue(error: OpsError): string | null {
 
 export async function fetchOpsCustomerPortalBundle(
   identity: OpsPortalIdentity,
+  view?: "contracts",
 ): Promise<OpsPortalBundle> {
+  const path = view === "contracts"
+    ? "/api/v1/customer/portal-bundle?include=events&events_limit=8"
+    : "/api/v1/customer/portal-bundle";
   return normalizePortalBundle(
-    await opsCustomerFetch("/api/v1/customer/portal-bundle", identity, {
+    await opsCustomerFetch(path, identity, {
       method: "POST",
+      headers: CONTRACT_READ_HEADERS,
       body: JSON.stringify(portalIdentityPayload(identity)),
     }),
   );

@@ -25,3 +25,19 @@ test('disabled, unauthenticated, query override and oversized bodies never submi
 test('conflicts and provider failures never claim an accepted change or reflect credentials',async()=>{
  for(const status of [403,409,429,503]){const response=await accountWriteHandler({enabled:()=>true,authenticate:async()=> 'own',submit:async()=>{throw Object.assign(Error('secret-provider-token'),{status});}},'phone')(request({phone:'0701234567'}));assert.equal(response.status,status);assert.ok(!(await response.text()).includes('secret-provider-token'));}
 });
+
+test('only a confirmed OPS profile version conflict exposes the reload code', async () => {
+ let code = 'profile_version_conflict';
+ const handler = accountWriteHandler({
+  enabled: () => true,
+  authenticate: async () => 'own',
+  submit: async () => { throw Object.assign(new Error('provider details'), { status: 409, code }); },
+ }, 'phone');
+ const conflict = await handler(request({ phone: '0701234567' }));
+ assert.equal(conflict.status, 409);
+ assert.equal((await conflict.json()).code, 'profile_version_conflict');
+ code = 'idempotency_previous_attempt_failed';
+ const generic = await handler(request({ phone: '0701234567' }));
+ assert.equal(generic.status, 409);
+ assert.equal((await generic.json()).code, undefined);
+});

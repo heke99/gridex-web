@@ -7,6 +7,25 @@ import { useEffect, useState } from 'react'
 import GridexLogo from '@/components/brand/GridexLogo'
 import LogoutForm from '@/components/account/LogoutForm'
 
+function hasBrowserSessionCookie(): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) return false
+
+  let cookieName: string
+  try {
+    const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
+    cookieName = `sb-${projectRef}-auth-token`
+  } catch {
+    return false
+  }
+
+  // Supabase SSR stores the session in the base cookie or splits it into chunks.
+  return document.cookie.split(';').some((cookie) => {
+    const entry = cookie.trimStart()
+    return entry.startsWith(`${cookieName}=`) || entry.startsWith(`${cookieName}.0=`)
+  })
+}
+
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@')
   if (!local || !domain) return 'verifierat konto'
@@ -59,7 +78,7 @@ export default function PublicHeader({
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!resolveAuthClientSide || authenticatedEmail) return
+    if (!resolveAuthClientSide || authenticatedEmail || !hasBrowserSessionCookie()) return
 
     const controller = new AbortController()
 

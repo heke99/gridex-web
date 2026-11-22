@@ -51,11 +51,12 @@ assert.ok(canonical.includes('pricingToken: effectivePricingToken'))
 assert.equal(canonical.includes('refreshCanonicalQuote'), false)
 assert.equal(canonical.includes('quoteExpired'), false)
 assert.ok(canonical.includes('exact signed quote is the accepted commercial evidence'))
-assert.ok(canonical.includes('resolutionToken: effectiveResolutionToken'))
+assert.ok(canonical.includes('resolutionToken: input.resolutionToken'))
 assert.ok(quoteToken.includes('options: { allowExpired?: boolean }'))
 assert.ok(areaToken.includes('allowExpired?: boolean'))
 assert.ok(contextRoute.includes('verified.value.pricingToken'))
 assert.ok(contextRoute.includes('verified.value.resolutionToken'))
+assert.ok(contextRoute.includes('verified.value.currentResolutionToken'))
 assert.ok(contextRoute.includes('verified.value.displayedQuote.quote_attempt_id !== quoteAttemptId'))
 // Snapshot replay/concurrency and conflicting input are exercised against the
 // actual persistence function in pricing-snapshot-idempotency.test.mjs.

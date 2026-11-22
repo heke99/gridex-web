@@ -50,6 +50,9 @@ try {
           try { return await route.fulfill({ json: { data: {
             contract: { name: 'Syntetiskt pris', offer_reference: offer, slug: offer, contractType: offer === 'offer_area_fixed' ? 'fixed' : 'spot_monthly' },
             priceArea: area, price_area_code: area, kwh: body.estimated_monthly_kwh, annual_consumption_kwh: body.annual_consumption_kwh,
+            resolution_id: areaResponse(state.area).resolution_id, valid_until: '2099-01-01T00:00:00Z',
+            settlement: { model: 'market_monthly', customer_accepts: 'pricing_model', energy_price_locked_at_signup: false,
+              uses_actual_metered_consumption: true, market_data_role: 'indicative_preview_only', settlement_resolution: 'month' },
             pricePerKwhOre: 100, totalMonthlyCostSek: 149, totalMonthlyCostInclVatSek: 186.25,
             energy_direction: 'consumption', production_pricing: null, price_option_reference: 'option_area', area_price_reference: `area_price_${area}`,
             invoice_delivery_method: 'e_invoice', selected_component_references: [], site_count: 1,

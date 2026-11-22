@@ -1,7 +1,7 @@
-import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
-import EventLink from '@/components/customer/EventLink'
+import CustomerDocumentPages from '@/components/customer/CustomerDocumentPages'
+import { readInvoiceCursor } from '@/lib/customerPortal/invoicePagination'
 import PoaArchiveDocuments, { loadPoaArchiveDocuments } from '@/components/customer/PoaArchiveDocuments'
-import { getCanonicalCustomerResource } from '@/lib/customerPortal/service'
+import { CustomerPortalAccessError, getCanonicalCustomerResource } from '@/lib/customerPortal/service'
 import type { CustomerDocument } from '@/lib/customerPortal/types'
 import type { Metadata } from 'next'
 
@@ -12,27 +12,17 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-
-
-function statusLabel(status: string | null | undefined) {
-  switch (status) {
-    case 'available':
-    case 'published':
-      return 'Tillgängligt'
-    case 'sent':
-      return 'Skickat'
-    case 'draft':
-      return 'Förbereds'
-    default:
-      return 'Status uppdateras'
-  }
-}
-
-export default async function DashboardDocumentsPage({ searchParams }: { searchParams: Promise<{ poa_cursor?: string | string[] }> }) {
-  const { poa_cursor: cursor } = await searchParams
+export default async function DashboardDocumentsPage({ searchParams }: { searchParams: Promise<{ poa_cursor?: string | string[]; document_cursor?: string | string[] }> }) {
+  const { poa_cursor: cursor, document_cursor } = await searchParams
   const archive = loadPoaArchiveDocuments(cursor)
-  const resource = await getCanonicalCustomerResource('documents')
-  const documents = resource.data as CustomerDocument[]
+  let documentCursor: string | undefined
+  let resource: Awaited<ReturnType<typeof getCanonicalCustomerResource>> | null = null
+  try {
+    documentCursor = readInvoiceCursor(typeof document_cursor === 'string' ? [document_cursor] : document_cursor ?? []) ?? undefined
+    resource = await getCanonicalCustomerResource('documents', undefined, documentCursor ? new URLSearchParams({ cursor: documentCursor }) : undefined)
+  } catch (error) {
+    if (error instanceof CustomerPortalAccessError) throw error
+  }
 
   return (
     <div className="space-y-6">
@@ -43,45 +33,10 @@ export default async function DashboardDocumentsPage({ searchParams }: { searchP
         </p>
       </div>
 
-      <PoaArchiveDocuments data={archive} />
+      <PoaArchiveDocuments data={archive} documentCursor={documentCursor} />
 
-      <div className="space-y-4">
-        {documents.map((doc) => (
-          <article key={doc.id} className="rounded-3xl border border-white/10 bg-black/30 p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">{doc.title || doc.document_type || 'Dokument'}</h2>
-                <p className="mt-1 text-sm text-white/60">
-                  Version {doc.version || '—'} • {formatDate(doc.created_at)}
-                </p>
-              </div>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/70">
-                {statusLabel(doc.status)}
-              </span>
-            </div>
-
-            {(doc.download_url || doc.file_url) ? (
-              <EventLink
-                href={doc.download_url || doc.file_url || '#'}
-                target="_blank"
-                rel="noreferrer"
-                eventType="customer.opened_document"
-                entityType="document"
-                entityId={doc.id}
-                className="mt-5 inline-flex rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5"
-              >
-                Öppna dokument
-              </EventLink>
-            ) : null}
-          </article>
-        ))}
-
-        {documents.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/60">
-            Inga dokument finns att visa ännu.
-          </div>
-        ) : null}
-      </div>
+      <CustomerDocumentPages key={documentCursor ?? 'first'} initialPage={resource && { data: resource.data as CustomerDocument[], page: resource.page }}
+        initialCursor={documentCursor} poaCursor={typeof cursor === 'string' ? cursor : undefined} />
     </div>
   )
 }

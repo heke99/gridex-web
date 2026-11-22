@@ -7,15 +7,14 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const rate = await checkRateLimit(`legal-bundle:${clientIpFromHeaders(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })
-  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
-  const offerReference = new URL(request.url).searchParams.get('offer_reference')?.trim()
-  if (!offerReference || offerReference.length > 180) {
+  const references = new URL(request.url).searchParams.getAll('offer_reference')
+  const offerReference = references[0]?.trim()
+  if (references.length !== 1 || !offerReference || offerReference.length > 180) {
     return NextResponse.json(
       {
         error: {
           code: 'offer_reference_required',
-          message: 'Valt erbjudande saknas.',
+          message: 'Ange en giltig erbjudandereferens.',
           field: 'offer_reference',
           retryable: false,
           request_id: crypto.randomUUID(),
@@ -24,6 +23,8 @@ export async function GET(request: Request) {
       { status: 400, headers: { 'Cache-Control': 'private, no-store' } },
     )
   }
+  const rate = await checkRateLimit(`legal-bundle:${clientIpFromHeaders(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })
+  if (!rate.allowed) return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 })
   const status = getOpsClientStatus()
   if (!status.configured) {
     return NextResponse.json({ error: 'Juridiska underlag kan inte hämtas just nu.' }, { status: 503 })

@@ -131,7 +131,8 @@ export async function syncConfirmedUserProfileDurably(params: {
   try {
     const supabase = await loadServiceClient()
     await recoverStaleAuthProfileSyncJobs(supabase)
-    return processJob(supabase, await queueJob(supabase, normalized))
+    const job = await queueJob(supabase, normalized)
+    return await processJob(supabase, job)
   } catch (error) {
     return { completed: false, error: error instanceof Error ? error.message : String(error) }
   }
@@ -156,11 +157,12 @@ async function recoverStaleAuthProfileSyncJobs(
   if (error) throw new Error(`Auth profile stale-lock recovery failed: ${error.message}`)
 }
 
-export async function processAuthProfileSyncJobs(limit = 25): Promise<{
+export async function processAuthProfileSyncJobs(limit = 25, signal?: AbortSignal): Promise<{
   processed: number
   completed: number
   failed: number
 }> {
+  signal?.throwIfAborted()
   const supabase = await loadServiceClient()
   await recoverStaleAuthProfileSyncJobs(supabase)
   const { data, error } = await supabase
@@ -176,23 +178,10 @@ export async function processAuthProfileSyncJobs(limit = 25): Promise<{
   let completed = 0
   let failed = 0
   for (const job of data ?? []) {
+    signal?.throwIfAborted()
     const result = await processJob(supabase, job)
     if (result.completed) completed += 1
     else failed += 1
   }
   return { processed: (data ?? []).length, completed, failed }
-}
-
-export async function hasPendingAuthProfileSync(userId: string): Promise<boolean> {
-  const supabase = await loadServiceClient()
-  const { count, error } = await supabase
-    .from('auth_profile_sync_jobs')
-    .select('user_id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .in('status', ['pending', 'processing', 'retryable_failure', 'manual_review'])
-  if (error) {
-    console.error('[auth profile sync] pending state check failed', error)
-    return true
-  }
-  return (count ?? 0) > 0
 }

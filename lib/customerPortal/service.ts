@@ -1,4 +1,6 @@
-import { supabaseService } from '@/lib/supabase/service'
+import { getGridexApiBaseUrl } from '@/lib/ops/config'
+import { customerListPage } from '@/lib/customerPortal/invoicePagination'
+import { invoiceDetail, invoiceDocument } from '@/lib/mobile/customerDetails'
 import { portalCustomerReferences } from './identityReferences'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createSupabaseServerClient, getVerifiedServerUser } from '@/lib/supabase/server'
@@ -218,13 +220,16 @@ function mapOpsProfile(
   if (!row && fallback) return fallback
   if (!row) return fallback
 
-  const firstName = pick(row, ['first_name', 'firstName']) ?? fallback?.first_name ?? null
-  const lastName = pick(row, ['last_name', 'lastName']) ?? fallback?.last_name ?? null
+  const canonicalFirstName = pick(row, ['first_name', 'firstName'])
+  const canonicalLastName = pick(row, ['last_name', 'lastName'])
+  const firstName = canonicalFirstName ?? fallback?.first_name ?? null
+  const lastName = canonicalLastName ?? fallback?.last_name ?? null
+  const customerType = pick(row, ['customer_type', 'customerType']) ?? fallback?.customer_type ?? null
+  const companyName = pick(row, ['company_name', 'companyName']) ?? fallback?.company_name ?? null
   const computedFullName = [firstName, lastName].filter(Boolean).join(' ') || null
-  const fullName =
-    pick(row, ['display_name']) ??
-    fallback?.full_name ??
-    computedFullName
+  const canonicalPersonalName = !companyName && customerType !== 'business' &&
+    (canonicalFirstName || canonicalLastName) ? computedFullName : null
+  const fullName = canonicalPersonalName ?? pick(row, ['display_name']) ?? fallback?.full_name ?? computedFullName
 
   return {
     user_id: userId,
@@ -233,7 +238,7 @@ function mapOpsProfile(
     last_name: lastName,
     full_name: fullName,
     phone: pick(row, ['phone']) ?? fallback?.phone ?? null,
-    language_code: fallback?.language_code ?? 'sv',
+    language_code: pick(row, ['language_code']) ?? fallback?.language_code ?? 'sv',
     timezone: fallback?.timezone ?? 'Europe/Stockholm',
     email_verified_at: fallback?.email_verified_at ?? null,
     onboarding_state:
@@ -258,8 +263,8 @@ function mapOpsProfile(
       fallback?.portal_identity_id ??
       null,
     metadata: {},
-    customer_type: pick(row, ['customer_type', 'customerType']) ?? fallback?.customer_type ?? null,
-    company_name: pick(row, ['company_name', 'companyName']) ?? fallback?.company_name ?? null,
+    customer_type: customerType,
+    company_name: companyName,
   }
 }
 
@@ -277,9 +282,9 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
     signed_at: pickDate(row, ['signed_at']),
     starts_at: pickDate(row, ['start_date']),
     ends_at: pickDate(row, ['end_date']),
-    requested_start_date: null,
-    confirmed_start_date: null,
-    actual_start_date: null,
+    requested_start_date: pickDate(row, ['requested_start_date']),
+    confirmed_start_date: pickDate(row, ['confirmed_start_date']),
+    actual_start_date: pickDate(row, ['actual_start_date']),
     billing_provider_key: null,
     contract_provider_key: null,
     contract_external_ref: pick(row, ['contract_number']),
@@ -295,6 +300,7 @@ function mapOpsContract(row: Record<string, unknown>): CustomerPortalContract {
       invoice_fee_sek: asNumber(row.invoice_fee_sek),
       fixed_price_ore_per_kwh: asNumber(row.fixed_price_ore_per_kwh),
       markup_ore_per_kwh: asNumber(row.markup_ore_per_kwh),
+      variable_fee_ore_per_kwh: asNumber(row.variable_fee_ore_per_kwh),
       binding_months: asNumber(row.binding_months),
       notice_months: asNumber(row.notice_months),
       auto_renew_enabled: typeof row.auto_renew_enabled === 'boolean' ? row.auto_renew_enabled : null,
@@ -400,6 +406,17 @@ function acceptanceTitle(type: string) {
   }
 }
 
+function verifiedLegalDocumentUrl(value: unknown): string | null {
+  if (typeof value !== 'string' ||
+      !/^\/legal\/[a-z0-9_-]+\/[a-z0-9-]+\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value)) return null
+  try {
+    const base = new URL(getGridexApiBaseUrl())
+    return base.protocol === 'https:' ? new URL(value, base.origin).href : null
+  } catch {
+    return null
+  }
+}
+
 function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAcceptance {
   const type = pick(row, ['acceptance_type', 'type', 'legal_type']) ?? 'acceptance'
   return {
@@ -409,6 +426,7 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
     version: pick(row, ['document_version', 'version', 'legal_version', 'version_key']),
     document_reference: pick(row, ['document_reference']),
     document_hash: pick(row, ['document_hash']),
+    verified_document_url: verifiedLegalDocumentUrl(row.verified_document_path),
     accepted_at: pickDate(row, ['accepted_at', 'created_at']),
     source: pick(row, ['source', 'accepted_source']),
     status: pick(row, ['status']) ?? 'accepted',
@@ -418,6 +436,7 @@ function mapOpsLegalAcceptance(row: Record<string, unknown>): CustomerLegalAccep
 function poaScopeLabel(scopes: string[]) {
   const scope = scopes[0] ?? null
   switch (scope) {
+    case 'facility_information_lookup':
     case 'facility_data_request':
       return 'Begära anläggningsuppgifter'
     case 'metering_point_lookup':
@@ -432,7 +451,7 @@ function poaScopeLabel(scopes: string[]) {
 }
 
 function mapOpsPowerOfAttorney(row: Record<string, unknown>): CustomerPowerOfAttorney {
-  const scopes = stringArray(row.scope ?? row.scopes ?? row.poa_scope)
+  const scopes = stringArray(row.scopes ?? row.scope ?? row.poa_scope)
   return {
     id: stableEntityId('poa', row, ['power_of_attorney_reference', 'id', 'power_of_attorney_id']),
     status: pick(row, ['status']) ?? 'unknown',
@@ -485,6 +504,9 @@ function mapOpsMeteringValue(row: Record<string, unknown>): CustomerMeteringValu
   return {
     id: stableEntityId('metering', row, ['metering_value_reference', 'id', 'metering_value_id']),
     metering_point_id: pick(row, ['metering_point_id', 'mpan']),
+    metering_point_reference: pick(row, ['metering_point_reference']),
+    resolution: pick(row, ['resolution']),
+    status: pick(row, ['status']),
     facility_id: pick(row, ['facility_id']),
     period_start: pickDate(row, ['period_start', 'from_at', 'start_time']),
     period_end: pickDate(row, ['period_end', 'to_at', 'end_time']),
@@ -721,19 +743,62 @@ function normalizeCanonicalCustomerResource(
   return input.detail ? (mapped[0] ?? null) : mapped
 }
 
+function invoiceDocumentOrigins(): string[] {
+  return (process.env.GRIDEX_MOBILE_DOCUMENT_ORIGINS ?? '').split(',').map(origin => origin.trim()).filter(Boolean)
+}
+
+async function fetchPortalInvoicePayload(reference: string) {
+  const { supabase, user } = await getPortalSession()
+  const identity = await getOpsPortalIdentityForUser(supabase, user)
+  return fetchOpsCustomerResource(identity, 'invoices', reference)
+}
+
+export async function getPortalInvoiceDetail(reference: string) {
+  return invoiceDetail(await fetchPortalInvoicePayload(reference), reference, invoiceDocumentOrigins())
+}
+
+export async function openPortalInvoiceDocument(reference: string, documentReference: string) {
+  return invoiceDocument(await fetchPortalInvoicePayload(reference), reference, documentReference, invoiceDocumentOrigins())
+}
+
+export async function getEditableCustomerProfile(session: Awaited<ReturnType<typeof getPortalSession>>) {
+  const { supabase, user } = session
+  const localProfile = await getCustomerProfile(supabase, user.id, user)
+  try {
+    const identity = portalIdentityFromProfile(user, localProfile)
+    const payload = await fetchOpsCustomerResource(identity, 'me')
+    const row = canonicalResourceRows(unwrapOpsData(payload), 'profile')[0] ?? null
+    return mapOpsProfile(row, localProfile, user.id, user.email ?? null)
+  } catch {
+    return localProfile
+  }
+}
+
 export async function getCanonicalCustomerResource(
   resource: OpsCustomerReadResource,
   opaqueId?: string | null,
+  listQuery?: string | URLSearchParams | null,
 ): Promise<{
   data: unknown
+  page?: ReturnType<typeof customerListPage>
   authoritative: true
   read_only: false
   data_freshness: 'live'
 }> {
+  if (resource === 'invoices' && opaqueId) {
+    const payload = await fetchPortalInvoicePayload(opaqueId)
+    const detail = invoiceDetail(payload, opaqueId, invoiceDocumentOrigins())
+    return {
+      data: { ...mapOpsInvoice(asRecord(asRecord(unwrapOpsData(payload)).invoice)), lines: detail.lines, documents: detail.documents },
+      authoritative: true,
+      read_only: false,
+      data_freshness: 'live',
+    }
+  }
   const { supabase, user } = await getPortalSession()
   const profile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, profile)
-  const payload = await fetchOpsCustomerResource(identity, resource, opaqueId)
+  const payload = await fetchOpsCustomerResource(identity, resource, opaqueId, listQuery)
   const canonicalData = normalizeCanonicalCustomerResource(resource, unwrapOpsData(payload), {
     localProfile: profile,
     user,
@@ -741,25 +806,62 @@ export async function getCanonicalCustomerResource(
   })
   return {
     data: canonicalData,
+    ...((resource === 'invoices' || resource === 'metering-values' || resource === 'documents') ? {
+      page: customerListPage(payload, listQuery instanceof URLSearchParams ? listQuery.get('cursor') : listQuery),
+    } : {}),
     authoritative: true,
     read_only: false,
     data_freshness: 'live',
   }
 }
 
-export async function getCustomerPortalOverview(): Promise<CustomerPortalOverview> {
+async function getApprovalDocuments(identity: OpsPortalIdentity, query: URLSearchParams) {
+  const first = await fetchOpsCustomerResource(identity, 'documents', null, query)
+  const documents = canonicalResourceRows(unwrapOpsData(first), 'documents')
+  // The previous bundle could return up to 100 documents from each of two sources.
+  const { nextCursor } = customerListPage(first)
+  if (nextCursor) {
+    const continuation = new URLSearchParams(query)
+    continuation.set('cursor', nextCursor)
+    const second = await fetchOpsCustomerResource(identity, 'documents', null, continuation)
+    documents.push(...canonicalResourceRows(unwrapOpsData(second), 'documents'))
+  }
+  return documents.map(mapOpsDocument)
+}
+
+export async function getCustomerPortalApprovals() {
   const { supabase, user } = await getPortalSession()
+  const identity = await getOpsPortalIdentityForUser(supabase, user)
+  const query = new URLSearchParams({ limit: '100' })
+  const [acceptances, powersOfAttorney, documents] = await Promise.all([
+    fetchOpsCustomerResource(identity, 'legal-acceptances', null, query),
+    fetchOpsCustomerResource(identity, 'powers-of-attorney', null, query),
+    getApprovalDocuments(identity, query),
+  ])
+
+  return {
+    legalAcceptances: canonicalResourceRows(unwrapOpsData(acceptances), 'legal_acceptances').map(mapOpsLegalAcceptance),
+    powersOfAttorney: canonicalResourceRows(unwrapOpsData(powersOfAttorney), 'powers_of_attorney').map(mapOpsPowerOfAttorney),
+    documents,
+  }
+}
+
+export async function getCustomerPortalOverview(
+  view?: 'contracts',
+  session?: Awaited<ReturnType<typeof getPortalSession>>,
+): Promise<CustomerPortalOverview> {
+  const { supabase, user } = session ?? await getPortalSession()
   const localProfile = await getCustomerProfile(supabase, user.id, user)
   const identity = portalIdentityFromProfile(user, localProfile)
 
   const [support, bundle] = await Promise.all([
     // The verified identity is already resolved. Reusing it removes a second
     // profile query from the support branch without caching customer data.
-    listOpsCustomerSupportCases(identity, { limit: 50 }).then(
+    view === 'contracts' ? { tickets: [], error: null } : listOpsCustomerSupportCases(identity, { limit: 50 }).then(
       (result) => ({ tickets: result.data, error: null }),
       () => ({ tickets: [] as CustomerSupportTicket[], error: 'Supportärenden kan inte hämtas just nu.' }),
     ),
-    fetchOpsCustomerPortalBundle(identity),
+    fetchOpsCustomerPortalBundle(identity, view),
   ])
 
   if (!bundle.profile) {
@@ -791,6 +893,7 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
       : deriveSwitchStatus(contracts, sites))
 
   return {
+    verifiedCustomerAccess: Boolean(pick(bundle.profile, ['customer_number', 'external_customer_id', 'externalCustomerId'])),
     profile,
     contracts,
     sites,
@@ -808,10 +911,11 @@ export async function getCustomerPortalOverview(): Promise<CustomerPortalOvervie
     notifications: bundle.notifications.map(mapOpsNotification),
     opsAvailable: true,
     opsError: null,
-    authoritative: true,
+    authoritative: !bundle.bundleStatus?.partial,
     readOnly: false,
-    dataFreshness: 'live',
-    dataFreshnessMessage: null,
+    unavailableSections: bundle.bundleStatus?.unavailableSections ?? [],
+    dataFreshness: bundle.bundleStatus?.partial ? 'partial' : 'live',
+    dataFreshnessMessage: bundle.bundleStatus?.partial ? 'Vissa kunduppgifter kunde inte hämtas just nu.' : null,
   }
 }
 
@@ -826,18 +930,11 @@ export async function markCustomerNotificationsRead(input: {
   if (ids.length === 0) throw new Error('Minst en notis måste anges.')
   const operationId = input.operationId?.trim()
   if (!operationId) throw new Error('client_operation_id krävs för skrivoperationer.')
-  const readAt = new Date().toISOString()
   await markOpsCustomerNotificationsRead(identity, {
     notificationIds: ids,
     operationId,
   })
 
-  let localQuery = supabaseService
-    .from('customer_notifications')
-    .update({ is_read: true, read_at: readAt })
-    .eq('user_id', user.id)
-  localQuery = localQuery.in('id', ids)
-  const { error: localError } = await localQuery
-
-  return { ok: true, opsSynced: true, localSynced: !localError, queued: false }
+  // The portal reads OPS notifications. Webhook projections use distinct local UUIDs.
+  return { ok: true, opsSynced: true, localSynced: false, queued: false }
 }

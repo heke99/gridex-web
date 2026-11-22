@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto'
 import { createWriteStream } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
@@ -11,6 +11,8 @@ import { FIXTURE_COMPANY, FIXTURE_PUBLIC_SERVICE_KEY } from './fixtures/support-
 // in Supabase and the preloaded boundary blocks outbound production requests.
 const output = process.env.SUPPORT_BROWSER_OUTPUT ?? '/tmp/gridex-support-browser-evidence'
 await mkdir(output, { recursive: true })
+const trace = `${output}/staff-paths.log`
+await writeFile(trace, '')
 const socket = createServer()
 socket.listen(0, '127.0.0.1')
 await once(socket, 'listening')
@@ -21,6 +23,9 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 20
 const env = {
   ...process.env,
   SUPPORT_TEST_MODE: '1',
+  SUPPORT_TEST_CASE_PAGING: '1',
+  SUPPORT_TEST_ASSIGNEE_FAILURE: '1',
+  SUPPORT_TEST_STAFF_TRACE: trace,
   SUPPORT_TEST_PUBLIC_KEY: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
   GRIDEX_SUPPORT_SUPABASE_URL: 'https://ayiuxjlfazkjmmtlvhsl.supabase.co',
   GRIDEX_SUPPORT_SUPABASE_ANON_KEY: 'sb_publishable_offline_support_key_123456',
@@ -55,7 +60,7 @@ try {
     await new Promise(done => setTimeout(done, 200))
   }
   if (!ready) throw new Error(`Offline support server did not start; see ${output}/offline-runtime.log`)
-  const browser = spawn(process.execPath, ['tests/support-browser.mjs'], { stdio: 'inherit', env: { ...process.env, SUPPORT_BROWSER_URL: origin, SUPPORT_BROWSER_OUTPUT: output } })
+  const browser = spawn(process.execPath, ['tests/support-browser.mjs'], { stdio: 'inherit', env: { ...process.env, SUPPORT_BROWSER_URL: origin, SUPPORT_BROWSER_OUTPUT: output, SUPPORT_TEST_STAFF_TRACE: trace } })
   const [code] = await once(browser, 'exit')
   if (code !== 0) throw new Error(`Offline browser verification failed (${code})`)
 } finally {

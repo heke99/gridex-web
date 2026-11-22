@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { passwordRecoveryPath } from '@/lib/auth/passwordRecoveryPath'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { passwordMeetsPolicy, passwordStrength } from '@/lib/auth/passwordPolicy'
@@ -42,6 +43,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [destination, setDestination] = useState<string | null>(null)
 
   const strength = useMemo(() => passwordStrength(password), [password])
 
@@ -55,6 +57,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let active = true
+    setDestination(new URLSearchParams(window.location.search).get('next'))
 
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return
@@ -103,7 +106,7 @@ export default function ResetPasswordPage() {
       setSuccess(true)
 
       window.setTimeout(() => {
-        router.push('/login?status=password-updated')
+        router.push(passwordRecoveryPath('/login', destination, { status: 'password-updated' }))
       }, 1200)
     } catch {
       setError('Kunde inte uppdatera lösenordet just nu. Försök igen senare.')
@@ -131,7 +134,7 @@ export default function ResetPasswordPage() {
         {recoveryStatus === 'expired' ? (
           <div className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
             <p>Länken är ogiltig eller har gått ut. Begär en ny återställningslänk.</p>
-            <Link href="/login/forgot-password" className="inline-flex h-11 items-center rounded-xl bg-white px-4 font-semibold text-black transition hover:bg-white/90">
+            <Link href={passwordRecoveryPath('/login/forgot-password', destination)} className="inline-flex h-11 items-center rounded-xl bg-white px-4 font-semibold text-black transition hover:bg-white/90">
               Skicka ny länk
             </Link>
           </div>
@@ -195,7 +198,7 @@ export default function ResetPasswordPage() {
             </button>
 
             <div className="text-xs text-white/60">
-              <Link href="/login" className="underline hover:text-white">
+              <Link href={passwordRecoveryPath('/login', destination)} className="underline hover:text-white">
                 Tillbaka till inloggning
               </Link>
             </div>

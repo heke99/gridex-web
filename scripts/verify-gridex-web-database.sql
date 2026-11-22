@@ -14,6 +14,8 @@ with required_tables(table_name) as (
   values
     ('website_application_submissions'),
     ('website_application_results'),
+    ('website_application_result_history'),
+    ('website_application_result_links'),
     ('website_submission_failures'),
     ('customer_profiles'),
     ('user_profiles'),
@@ -46,6 +48,8 @@ begin
   from (values
     ('website_application_submissions'),
     ('website_application_results'),
+    ('website_application_result_history'),
+    ('website_application_result_links'),
     ('website_submission_failures'),
     ('customer_profiles'),
     ('user_profiles'),
@@ -73,6 +77,8 @@ begin
     ('website_application_submissions', 'ops_contract_reference'),
     ('website_application_submissions', 'ops_facility_reference'),
     ('website_application_submissions', 'ops_metering_point_reference'),
+    ('website_application_submissions', 'ops_status_snapshot'),
+    ('website_application_submissions', 'ops_status_source_updated_at'),
     ('website_application_results', 'updated_at'),
     ('website_submission_reconciliation_jobs', 'locked_at'),
     ('portal_onboarding_jobs', 'locked_at'),
@@ -116,6 +122,7 @@ begin
   where n.nspname = 'public'
     and c.relname in (
       'website_application_results',
+      'website_application_result_history',
       'website_submission_reconciliation_jobs',
       'portal_onboarding_jobs',
       'auth_profile_sync_jobs'
@@ -133,6 +140,8 @@ begin
   where table_schema = 'public'
     and table_name in (
       'website_application_results',
+      'website_application_result_history',
+      'website_application_result_links',
       'website_submission_reconciliation_jobs',
       'portal_onboarding_jobs',
       'auth_profile_sync_jobs'
@@ -152,6 +161,10 @@ begin
   ) then
     raise exception 'Required webhook RPC public.apply_ops_domain_event is missing.';
   end if;
+
+  if to_regprocedure('public.gridex_sync_website_submission_status(text,timestamptz,text,text,text,text,text,jsonb)') is null then
+    raise exception 'Required status RPC public.gridex_sync_website_submission_status is missing.';
+  end if;
 end $$;
 
 select
@@ -162,6 +175,8 @@ from information_schema.role_table_grants
 where table_schema = 'public'
   and table_name in (
     'website_application_results',
+    'website_application_result_history',
+    'website_application_result_links',
     'website_submission_reconciliation_jobs',
     'portal_onboarding_jobs',
     'auth_profile_sync_jobs'

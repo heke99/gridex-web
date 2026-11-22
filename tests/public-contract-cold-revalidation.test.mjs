@@ -12,12 +12,16 @@ process.env.VERCEL_ENV = 'production'
 // compatibility remains covered independently by public-contract-v4-runtime.
 const { GRIDEX_WEBSITE_API_CONTRACT_VERSION } = await import('../lib/ops/contract.ts')
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/public-contracts.ops-2026-10-04.1.json', import.meta.url), 'utf8').replaceAll('2026-10-04.1', GRIDEX_WEBSITE_API_CONTRACT_VERSION))
+for (const contract of [...fixture.data, ...fixture.contracts]) {
+  contract.contract_type = 'portfolio'
+  contract.price_areas = ['SE3']
+}
 const version = fixture.meta.contract_schema_version
 const organization = fixture.meta.organization_reference
 const OriginalDate = Date, nativeFetch = globalThis.fetch
 let clock = OriginalDate.now(), durable = null, upstreamStatus = 200, requestAdvanceMs = 0
 let notModifiedEtag = '"cold-catalogue"'
-const calls = [], reads = []
+const calls = [], reads = [], portfolioCalls = [], catalogueBytes = []
 globalThis.Date = class extends OriginalDate {
   constructor(...args) { super(...(args.length ? args : [clock])) }
   static now() { return clock }
@@ -43,6 +47,9 @@ globalThis.fetch = async (input, init = {}) => {
       durable = { cache_key: args.p_cache_key, snapshot: structuredClone(args.p_snapshot) }
       return json([{ stored: true, result: 'stored', empty_authorized: false, stored_revision: args.p_publication_revision }])
     }
+    if (url.pathname.endsWith('/rpc/consume_distributed_rate_limit')) {
+      return json([{ allowed: true, remaining: 29, reset_at: new Date(clock + 60_000).toISOString() }])
+    }
     assert.equal(url.pathname, '/rest/v1/website_public_contract_snapshots')
     reads.push(url)
     assert.equal(url.searchParams.get('select'), 'snapshot')
@@ -58,13 +65,31 @@ globalThis.fetch = async (input, init = {}) => {
   }
   assert.equal(url.origin, 'https://app.gridex.se', 'real network access is forbidden')
   if (url.pathname === '/api/v1/integration/context') return json(context)
+  if (url.pathname === '/api/v1/website/portfolio-prices') {
+    portfolioCalls.push([...url.searchParams])
+    return json({
+      data: {
+        offer_reference: url.searchParams.get('offer_reference'),
+        method: 'fixture',
+        historical_final_prices: [],
+        market_price_responsibility: 'gridex_quote',
+        calculator_market_price_supplied_by_gridex: true,
+        final_billing_rule: 'locked_settlement_only',
+      },
+      request_id: fixture.request_id,
+      contract_schema_version: version,
+    })
+  }
   assert.equal(url.pathname, '/api/v1/website/public-contracts')
   calls.push(new Headers(init.headers).get('If-None-Match'))
   clock += requestAdvanceMs
   requestAdvanceMs = 0
   if (upstreamStatus === 503) return json({ error: { code: 'PUBLIC_CONTRACTS_TEMPORARILY_UNAVAILABLE', message: 'Synthetic outage', retryable: true }, request_id: fixture.request_id, contract_schema_version: version }, 503, { 'Retry-After': '120' })
-  if (calls.at(-1)) return new Response(null, { status: 304, headers: { ETag: notModifiedEtag, 'X-Gridex-Contract-Version': version } })
-  return json(fixture, 200, { ETag: '"cold-catalogue"' })
+  const response = calls.at(-1)
+    ? new Response(null, { status: 304, headers: { ETag: notModifiedEtag, 'X-Gridex-Contract-Version': version } })
+    : json(fixture, 200, { ETag: '"cold-catalogue"' })
+  catalogueBytes.push((await response.clone().arrayBuffer()).byteLength)
+  return response
 }
 try {
   const { fetchOpsPublicContractsSnapshot } = await import('../lib/ops/client.ts')
@@ -153,6 +178,35 @@ try {
   durable.snapshot.organization_reference = 'organization_other_0123456789abcdef'
   await fetchOpsPublicContractsSnapshot(null)
   assert.equal(calls.at(-1), null, 'wrong-organization candidates cannot supply a conditional validator')
+  const { GET: getPortfolio } = await import('../app/api/web/portfolio-prices/route.ts')
+  const portfolioRequest = (offer = 'offer_example', area = 'SE3') =>
+    getPortfolio(new Request(`https://gridex.example.test/portfolio?offer_reference=${offer}&price_area=${area}`))
+
+  publicContractsCache.clear()
+  durable = null
+  const portfolioStart = performance.now()
+  const firstPortfolio = await portfolioRequest()
+  assert.equal(firstPortfolio.status, 200, JSON.stringify(await firstPortfolio.json()))
+  const firstPortfolioMs = performance.now() - portfolioStart
+  const repeatStart = performance.now()
+  assert.equal((await portfolioRequest()).status, 200)
+  const repeatPortfolioMs = performance.now() - repeatStart
+  assert.deepEqual(calls.slice(-2), [null, '"cold-catalogue"'])
+  const [firstBytes, repeatedBytes] = catalogueBytes.slice(-2)
+  assert.ok(firstBytes > 0)
+  assert.equal(repeatedBytes, 0)
+  assert.deepEqual(portfolioCalls, Array.from({ length: 2 }, () => [
+    ['offer_reference', 'offer_example'], ['price_area', 'SE3'],
+  ]))
+  assert.equal((await portfolioRequest('unknown')).status, 404)
+  assert.equal((await portfolioRequest('offer_example', 'SE4')).status, 404)
+  notModifiedEtag = '"unexpected-validator"'
+  assert.equal((await portfolioRequest()).status, 503)
+  notModifiedEtag = '"cold-catalogue"'
+  upstreamStatus = 503
+  assert.equal((await portfolioRequest()).status, 503)
+  assert.equal(portfolioCalls.length, 2, 'unavailable or unverified offers must not reach the price endpoint')
+  console.log(`Portfolio catalogue: ${firstBytes} B cold, ${repeatedBytes} B revalidated. Synthetic route times ${firstPortfolioMs.toFixed(1)} / ${repeatPortfolioMs.toFixed(1)} ms`)
   console.log('Cold catalogue: expired ETag304, expired outage denial, fresh fallback, final200 and organization isolation passed')
 } finally {
   globalThis.Date = OriginalDate

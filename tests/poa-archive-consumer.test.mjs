@@ -148,10 +148,22 @@ for (const mode of ['hash', 'reference', 'mime', 'oversized']) {
   })
 }
 
-test('a PDF above 4.5 MB is verified and streamed in bounded chunks', async t => {
+test('a PDF at the 15 MiB limit is verified across upstream chunks and streamed in bounded chunks', async t => {
+  const maximum = 15 * 1024 * 1024
   const at = pdf.lastIndexOf('startxref')
-  const large = Buffer.concat([pdf.subarray(0, at), Buffer.from('%' + 'x'.repeat(5 * 1024 * 1024) + '\n'), pdf.subarray(at)])
-  setup(t, async () => pdfResponse(large))
+  const large = Buffer.concat([
+    pdf.subarray(0, at), Buffer.from('%'), Buffer.alloc(maximum - pdf.length - 2, 'x'),
+    Buffer.from('\n'), pdf.subarray(at),
+  ])
+  const headers = pdfResponse(large).headers
+  setup(t, async () => new Response(new ReadableStream({
+    start(controller) {
+      for (let offset = 0; offset < large.length; offset += 768 * 1024) {
+        controller.enqueue(large.subarray(offset, offset + 768 * 1024))
+      }
+      controller.close()
+    },
+  }), { headers }))
   const r = await read('?format=pdf'); assert.equal(r.status, 200)
   const reader = r.body.getReader(), result = createHash('sha256'); let total = 0
   while (true) { const chunk = await reader.read(); if (chunk.done) break; assert.ok(chunk.value.length <= 64 * 1024); total += chunk.value.length; result.update(chunk.value) }
@@ -219,4 +231,61 @@ test('canonical OPS PDF structure refusal is propagated without sending a docume
   const response = await read('?format=pdf'); assert.equal(response.status, 409)
   assert.equal((await response.json()).error.code, 'poa_archive_unavailable')
   assert.ok(response.headers.get('content-type').includes('application/json'))
+})
+
+test('archive statuses explain availability and only the archived PDF has a download link', async () => {
+  const { createElement } = await import('react')
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const { default: ArchivePages } = await import('../components/customer/PoaArchivePages.tsx')
+  for (const [archive_status, message, downloadable] of [
+    ['missing', 'Det finns ännu inget arkiverat fullmaktsdokument.', false],
+    ['incomplete_evidence', 'saknar verifieringsuppgifter', false],
+    ['unavailable', 'Dokumentet kan inte hämtas just nu.', false],
+    ['archived_unverified', 'PDF-filens kontrollsumma kontrolleras', true],
+  ]) {
+    const initialPage = {
+      data: [{ power_of_attorney_reference: 'poa_fixture', verification_reference: 'fixture_ref',
+        archive_status, download_url: '/api/web/customer/powers-of-attorney/evidence/fixture_ref?format=pdf' }],
+      page: { has_more: false },
+    }
+    const html = renderToStaticMarkup(createElement(ArchivePages, { initialPage }))
+    assert.ok(html.includes(message), archive_status)
+    assert.equal(html.includes('Ladda ned fullmakt (PDF)'), downloadable, archive_status)
+  }
+})
+
+test('aborting a PDF download stops OPS body reading after the first chunk', async t => {
+  const controller = new AbortController()
+  let upstreamSignal
+  let pulls = 0
+  let cancelled = false
+  let calls = 0
+  setup(t, async (_url, init) => {
+    calls++
+    upstreamSignal = init.signal
+    const body = new ReadableStream({
+      pull(stream) {
+        pulls++
+        if (pulls === 1) stream.enqueue(pdf.subarray(0, 32))
+        else controller.abort()
+      },
+      cancel() { cancelled = true },
+    }, { highWaterMark: 0 })
+    return new Response(body, { headers: pdfResponse().headers })
+  })
+
+  const request = signal => detailRoute.GET(new Request(
+    'https://gridex.synthetic.invalid/api/web/customer/powers-of-attorney/evidence/' + reference + '?format=pdf',
+    { signal },
+  ), { params: Promise.resolve({ verificationReference: reference }) })
+
+  assert.equal((await request(AbortSignal.abort())).status, 499)
+  assert.equal(calls, 0)
+  const response = await request(controller.signal)
+  assert.equal(response.status, 499)
+  assert.equal(await response.text(), '')
+  assert.equal(upstreamSignal.aborted, true)
+  assert.equal(cancelled, true)
+  assert.equal(pulls, 2)
+  assert.equal(calls, 1)
 })

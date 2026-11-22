@@ -3,6 +3,7 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerActionClient } from '@/lib/supabase/server'
 import { syncConfirmedUserProfileDurably } from '@/lib/customerPortal/authProfileSync'
 import { resumePortalOnboardingForConfirmedUserSafely } from '@/lib/customerPortal/onboardingResume'
+import { passwordRecoveryPath } from '@/lib/auth/passwordRecoveryPath'
 import { safeRedirectPath } from '@/lib/auth/safeRedirectPath'
 
 const ALLOWED_TYPES = new Set<EmailOtpType>([
@@ -40,20 +41,28 @@ export async function GET(request: NextRequest) {
 
   const type = typeParam as EmailOtpType
   const next = safeRedirectPath(searchParams.get('next'), fallbackForType(type))
+  const nextUrl = new URL(next, origin)
+  const recoveryDestination = nextUrl.pathname === '/login/reset-password'
+    ? nextUrl.searchParams.get('next')
+    : null
   const supabase = await createSupabaseServerActionClient()
 
-  const { error } = await supabase.auth.verifyOtp({
+  const { data, error } = await supabase.auth.verifyOtp({
     type,
     token_hash: tokenHash,
   })
 
-  if (error) {
+  if (error || (type === 'recovery' && !data.session?.user?.id)) {
     const target =
       type === 'recovery'
-        ? '/login/forgot-password?error=L%C3%A4nken%20%C3%A4r%20ogiltig%20eller%20har%20g%C3%A5tt%20ut'
+        ? passwordRecoveryPath('/login/forgot-password', recoveryDestination, { error: 'Länken är ogiltig eller har gått ut' })
         : '/login?error=L%C3%A4nken%20%C3%A4r%20ogiltig%20eller%20har%20g%C3%A5tt%20ut'
 
     return NextResponse.redirect(new URL(target, origin))
+  }
+
+  if (type === 'recovery') {
+    return NextResponse.redirect(new URL(passwordRecoveryPath('/login/reset-password', recoveryDestination), origin))
   }
 
   const {

@@ -13,11 +13,11 @@ import {
   type OpsPublicContractsSnapshot,
 } from '@/lib/ops/client'
 import { GRIDEX_WEBSITE_API_CONTRACT_VERSION } from '@/lib/ops/contract'
-import { buildPublicContractDisplay } from '@/lib/website/publicContractDisplay'
+import { applyPublicContractValidity, buildPublicContractPresentation, type PublicContractDisplay } from '@/lib/website/publicContractDisplay'
 import type { WebsiteCustomerType } from '@/lib/website/customerType'
 import { emitPublicContractMetrics } from '@/lib/website/publicContractObservability'
 import { CONTRACT_PARSER_VERSION } from '@/lib/website/publicContractPolicy'
-import { readWebsitePublicContractSnapshot, storeWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
+import { maxWebsitePublicContractSnapshotAgeMs, readWebsitePublicContractSnapshot, storeWebsitePublicContractSnapshot } from '@/lib/website/publicContractSnapshotStore'
 import { WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG } from '@/lib/website/publicContractCache'
 import { observeApiOperation, recordApiCache } from '@/lib/observability/apiPerformance'
 
@@ -45,8 +45,14 @@ export type WebsiteBlockedPublicContract = OpsBlockedPublicContract & {
   source: 'upstream_parse' | 'website_readiness'
 }
 
+export type WebsitePublicContractCard = {
+  contract: OpsPublicContract
+  display: PublicContractDisplay
+}
+
 export type WebsitePublicContractFeed = {
   contracts: OpsPublicContract[]
+  cards: WebsitePublicContractCard[]
   blockedContracts: WebsiteBlockedPublicContract[]
   state: WebsitePublicContractFeedState
   snapshot: OpsPublicContractsSnapshot
@@ -121,13 +127,12 @@ const readCachedPublicContractSnapshot = unstable_cache(
   async (
     _cacheIdentity: string,
     customerType: WebsiteCustomerType | null,
-  ): Promise<OpsPublicContractsSnapshot> => {
+  ): Promise<{ snapshot: OpsPublicContractsSnapshot; presentation: PublicContractDisplay[] }> => {
     recordApiCache('public_contract_data', 'fill')
-    const stored = await readFastPublicContractSnapshot(customerType)
-    if (stored) return stored
-    return fetchOpsPublicContractsSnapshot(customerType)
+    const snapshot = await readFastPublicContractSnapshot(customerType) ?? await fetchOpsPublicContractsSnapshot(customerType)
+    return { snapshot, presentation: snapshot.contracts.map(buildPublicContractPresentation) }
   },
-  ['gridex-public-contract-snapshot-v1'],
+  ['gridex-public-contract-presentation-v1'],
   {
     revalidate: PUBLIC_CONTRACT_DATA_CACHE_SECONDS,
     tags: [WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG],
@@ -222,29 +227,43 @@ export async function loadWebsitePublicContractFeed(input: FeedInput): Promise<W
 async function readWebsitePublicContractFeed(input: FeedInput): Promise<WebsitePublicContractFeed> {
   const customerType = input.customerType ?? null
   let snapshot: OpsPublicContractsSnapshot
+  let presentation: PublicContractDisplay[]
 
   if (input.forceFresh) {
     recordApiCache('public_contract_data', 'bypass')
     snapshot = await fetchOpsPublicContractsSnapshot(customerType, { forceFresh: true })
+    presentation = snapshot.contracts.map(buildPublicContractPresentation)
   } else {
     recordApiCache('public_contract_data', 'lookup')
-    snapshot = await readCachedPublicContractSnapshot(
-      publicContractsCacheKey(customerType),
-      customerType,
-    )
+    const cached = await readCachedPublicContractSnapshot(publicContractsCacheKey(customerType), customerType)
+    snapshot = cached.snapshot
+    presentation = cached.presentation
     schedulePublicContractRevalidation(input.context, snapshot, customerType)
   }
 
+  const snapshotAge = Date.now() - Date.parse(snapshot.fetched_at)
+  if (!Number.isFinite(snapshotAge) || snapshotAge > maxWebsitePublicContractSnapshotAgeMs()) {
+    throw new OpsError('Aktuella elavtal kunde inte verifieras.', 503, {
+      code: 'public_contract_snapshot_expired',
+      retryable: true,
+    })
+  }
+  if (!input.forceFresh && !snapshot.stale && snapshotAge > FAST_PUBLIC_CONTRACT_SNAPSHOT_MAX_AGE_MS) {
+    snapshot = { ...snapshot, stale: true, stale_reason: 'cached_snapshot_age' }
+  }
+
   const contracts: OpsPublicContract[] = []
+  const cards: WebsitePublicContractCard[] = []
   const blockedContracts: WebsiteBlockedPublicContract[] = snapshot.blocked_contracts.map((item) => ({
     ...item,
     source: 'upstream_parse',
   }))
 
-  for (const contract of snapshot.contracts) {
-    const display = buildPublicContractDisplay(contract)
+  for (const [index, contract] of snapshot.contracts.entries()) {
+    const display = applyPublicContractValidity(contract, presentation[index])
     if (display.ready) {
       contracts.push(contract)
+      cards.push({ contract, display })
       continue
     }
     blockedContracts.push({
@@ -255,7 +274,7 @@ async function readWebsitePublicContractFeed(input: FeedInput): Promise<WebsiteP
   }
 
   if (snapshot.stale) {
-    console.warn(`[${input.context}] serving cached public contracts after transient OPS failure`, {
+    console.warn(`[${input.context}] serving cached public contracts marked stale`, {
       publication_revision: snapshot.publication_revision,
       fetched_at: snapshot.fetched_at,
       stale_reason: snapshot.stale_reason,
@@ -306,5 +325,5 @@ async function readWebsitePublicContractFeed(input: FeedInput): Promise<WebsiteP
     upstream_correlation_id: snapshot.upstream_correlation_id,
   })
 
-  return { contracts, blockedContracts, state, snapshot }
+  return { contracts, cards, blockedContracts, state, snapshot }
 }

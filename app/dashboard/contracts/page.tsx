@@ -4,7 +4,7 @@ import ContractPricing from '@/components/customer/ContractPricing'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 // Import status helper to translate raw status codes
-import { statusLabel as friendlyStatusLabel } from '@/lib/customerPortal/statusHelper'
+import { contractStatusLabel, statusLabel } from '@/lib/customerPortal/statusHelper'
 
 // Private page: prevent search engine indexing
 export const metadata: Metadata = {
@@ -19,13 +19,8 @@ function priceValue(value: unknown, unit: string): string {
 
 
 
-function statusLabel(status: string | null | undefined) {
-  // Delegate to central status helper for customer-friendly text
-  return friendlyStatusLabel(status ?? undefined)
-}
-
 export default async function DashboardContractsPage() {
-  const overview = await getCustomerPortalOverview()
+  const overview = await getCustomerPortalOverview('contracts')
   const { contracts, sites, events } = overview
 
   return (
@@ -52,7 +47,7 @@ export default async function DashboardContractsPage() {
                   {contract.contract_name || contract.contract_slug || 'Elavtal'}
                 </h2>
                 <p className="mt-1 text-sm text-white/60">
-                  Status: <span className="text-white/85">{statusLabel(contract.status)}</span>
+                  Status: <span className="text-white/85">{contractStatusLabel(contract.status)}</span>
                 </p>
               </div>
               <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60">
@@ -61,8 +56,14 @@ export default async function DashboardContractsPage() {
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Info label="Startdatum" value={formatDate(contract.starts_at)} />
-              <Info label="Bekräftat startdatum" value={formatDate(contract.confirmed_start_date)} />
+              {contract.requested_start_date ? <Info label="Önskat startdatum" value={formatDate(contract.requested_start_date)} /> : null}
+              {contract.confirmed_start_date ? <Info label="Bekräftat startdatum" value={formatDate(contract.confirmed_start_date)} /> : null}
+              {contract.actual_start_date ? <Info label="Faktiskt startdatum" value={formatDate(contract.actual_start_date)} /> : null}
+              {!contract.requested_start_date && !contract.confirmed_start_date && !contract.actual_start_date
+                ? <Info label="Startdatum" value={formatDate(contract.starts_at)} /> : null}
+              {contract.ends_at ? <Info label="Slutdatum" value={formatDate(contract.ends_at)} /> : null}
+              {typeof contract.pricing_snapshot.withdrawal_deadline_at === 'string' && contract.pricing_snapshot.withdrawal_deadline_at
+                ? <Info label="Ångerfrist" value={formatDate(contract.pricing_snapshot.withdrawal_deadline_at)} /> : null}
               <Info label="Avtalsreferens" value={contract.contract_number || contract.contract_external_ref || '—'} />
               <Info label="Skapat" value={formatDate(contract.created_at)} />
               <Info label="Energiriktning" value={contract.pricing_snapshot.energy_direction === 'production' ? 'Produktion' : contract.pricing_snapshot.energy_direction === 'consumption' ? 'Förbrukning' : 'Inväntas'} />

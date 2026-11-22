@@ -1,5 +1,7 @@
 "use client";
 
+import { MAX_CHECKOUT_STREET_LENGTH } from "@/lib/website/checkoutAddress";
+import { parseRequestedStartSelection, PAST_REQUESTED_START_MESSAGE } from "@/lib/website/requestedStart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PriceResultCard from "@/components/PriceResultCard";
 import {
@@ -29,11 +31,8 @@ import {
   type WebsiteCustomerType,
 } from "@/lib/website/customerType";
 import {
-  type PublicContractPriceOption,
-  type PublicPricingComponent,
-} from "@/lib/website/publicContractContract";
-import {
   isStrictCalendarDate,
+  stockholmCalendarDate,
 } from "@/lib/website/businessDate";
 import type { RequestedStartMode } from "@/lib/website/requestedStart";
 
@@ -41,23 +40,8 @@ export type ContractOption = {
   name: string;
   value: string;
   offerReference: string;
-  type: string;
   energyDirection?: 'consumption' | 'production';
-  monthlyFeeSek?: number | null;
-  invoiceFeeSek?: number | null;
-  markupOrePerKwh?: number | null;
-  variableMarkupOrePerKwh?: number | null;
-  fixedPriceOrePerKwh?: number | null;
-  monthlyFixedPriceSek?: number | null;
-  elcertOrePerKwh?: number | null;
-  portfolioPriceOrePerKwh?: number | null;
-  vatRate?: number | null;
-  pricingModel?: string | null;
-  spotShare?: number | null;
-  portfolioShare?: number | null;
   customerTypes?: string[] | null;
-  priceOptions?: PublicContractPriceOption[];
-  pricingComponents?: PublicPricingComponent[];
 };
 
 type Props = {
@@ -171,6 +155,15 @@ function restoredProfile(
 }
 
 
+function withCheckoutStorage<T>(operation: (storage: Storage) => T): T | undefined {
+  try {
+    return operation(window.sessionStorage);
+  } catch {
+    // Checkout can continue with the current in-memory values.
+    return undefined;
+  }
+}
+
 export default function ElectricityCalculator({
   contracts = [],
   contractsLoadError = null,
@@ -264,6 +257,12 @@ export default function ElectricityCalculator({
   );
   const [loading, setLoading] = useState(false);
   const calculationGeneration = useRef(0);
+  const calculationRequest = useRef<AbortController | null>(null);
+  const cancelCalculation = useCallback(() => {
+    calculationGeneration.current += 1;
+    calculationRequest.current?.abort();
+    calculationRequest.current = null;
+  }, []);
   const areaGeneration = useRef(0);
   const areaLookup = useMemo(() => createEnergyAreaLookup(), []);
   const [areaState, setAreaState] = useState<{ state: 'idle' | 'checking' | 'ready' | 'error'; message: string | null }>({
@@ -276,9 +275,14 @@ export default function ElectricityCalculator({
   }), [postalCode, city, address, requestedStartMode, requestedStartDate]);
   const restoredAreaKey = useRef(initialPricingPreview && initialQuoteContext ? energyAreaLookupKey(areaInput) : null);
   useEffect(() => () => { areaGeneration.current += 1; areaLookup.clear(); }, [areaLookup]);
-  useEffect(() => () => { calculationGeneration.current += 1; }, []);
+  useEffect(() => cancelCalculation, [cancelCalculation]);
   const [error, setError] = useState<string | null>(null);
-  const [continueHref, setContinueHref] = useState<string | null>(null);
+  const [handoff, setHandoff] = useState<
+    | { status: "pending" }
+    | { status: "failed"; body: string }
+    | { status: "ready"; href: string }
+    | null
+  >(null);
 
   const customerType = controlledCustomerType ?? internalCustomerType;
   const availableContracts = useMemo(
@@ -376,14 +380,13 @@ export default function ElectricityCalculator({
 
   useEffect(() => {
     if (!persistCheckoutContext) return;
-    const savedType = window.sessionStorage.getItem("gridex_checkout_customer_type");
+    const savedType = withCheckoutStorage(storage => storage.getItem("gridex_checkout_customer_type"));
+    const storedProfile = withCheckoutStorage(storage => storage.getItem("gridex_checkout_consumption_profile"));
     let savedProfile: WebsiteConsumptionProfile | null = null;
     try {
-      savedProfile = normalizeWebsiteConsumptionProfile(
-        JSON.parse(window.sessionStorage.getItem("gridex_checkout_consumption_profile") ?? "null"),
-      );
+      savedProfile = normalizeWebsiteConsumptionProfile(JSON.parse(storedProfile ?? "null"));
     } catch {
-      window.sessionStorage.removeItem("gridex_checkout_consumption_profile");
+      withCheckoutStorage(storage => storage.removeItem("gridex_checkout_consumption_profile"));
     }
     if (
       !controlledCustomerType &&
@@ -421,19 +424,15 @@ export default function ElectricityCalculator({
     onEstimatedMonthlyKwhChange?.(monthlyKwh);
     onConsumptionProfileChange?.(consumptionProfile);
     if (!persistCheckoutContext) return;
-    if (consumptionProfile) {
-      window.sessionStorage.setItem(
-        "gridex_checkout_consumption_profile",
-        JSON.stringify(consumptionProfile),
-      );
-      window.sessionStorage.setItem(
-        "gridex_checkout_monthly_kwh",
-        String(consumptionProfile.monthly_kwh),
-      );
-    } else {
-      window.sessionStorage.removeItem("gridex_checkout_consumption_profile");
-      window.sessionStorage.removeItem("gridex_checkout_monthly_kwh");
-    }
+    withCheckoutStorage(storage => {
+      if (consumptionProfile) {
+        storage.setItem("gridex_checkout_consumption_profile", JSON.stringify(consumptionProfile));
+        storage.setItem("gridex_checkout_monthly_kwh", String(consumptionProfile.monthly_kwh));
+      } else {
+        storage.removeItem("gridex_checkout_consumption_profile");
+        storage.removeItem("gridex_checkout_monthly_kwh");
+      }
+    });
   }, [
     consumptionProfile,
     monthlyKwh,
@@ -444,15 +443,15 @@ export default function ElectricityCalculator({
 
   const setSelectedValue = useCallback(
     (value: string) => {
-      calculationGeneration.current += 1;
+      cancelCalculation();
       setLoading(false);
       setInternalSelectedValue(value);
       onSelectedValueChange?.(value);
       setResultState(null);
       onPricingPreviewChange?.(null);
       onQuoteContextChange?.(null);
-      setContinueHref(null);
-    }, [onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
+      setHandoff(null);
+    }, [cancelCalculation, onPricingPreviewChange, onQuoteContextChange, onSelectedValueChange],
   );
 
 
@@ -463,12 +462,12 @@ export default function ElectricityCalculator({
 
   useEffect(() => {
     if (resetSignal <= 0) return;
-    calculationGeneration.current += 1;
+    cancelCalculation();
     setLoading(false);
     setResultState(null);
-    setContinueHref(null);
+    setHandoff(null);
     setError(null);
-  }, [resetSignal]);
+  }, [cancelCalculation, resetSignal]);
 
   const setResolution = useCallback((value: WebsiteEnergyResolution | null) => {
     setResolutionState(value);
@@ -516,19 +515,20 @@ export default function ElectricityCalculator({
   }
 
   function clearQuote() {
-    calculationGeneration.current += 1;
+    cancelCalculation();
     setLoading(false);
     setResult(null);
     onQuoteContextChange?.(null);
-    setContinueHref(null);
+    setHandoff(null);
     setError(null);
   }
 
   function setCustomerType(value: WebsiteCustomerType) {
     setInternalCustomerType(value);
     onCustomerTypeChange?.(value);
-    if (persistCheckoutContext)
-      window.sessionStorage.setItem("gridex_checkout_customer_type", value);
+    if (persistCheckoutContext) {
+      withCheckoutStorage(storage => storage.setItem("gridex_checkout_customer_type", value));
+    }
     clearQuote();
   }
 
@@ -577,11 +577,39 @@ export default function ElectricityCalculator({
     return resolved;
   }
 
+  function startCalculationRequest() {
+    calculationRequest.current?.abort();
+    const controller = new AbortController();
+    calculationRequest.current = controller;
+    return controller.signal;
+  }
+
+  async function saveCheckoutContext(body: string, generation: number, signal: AbortSignal) {
+    setHandoff({ status: "pending" });
+    try {
+      const response = await fetch("/api/checkout/context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body,
+        signal,
+      });
+      const data = (await response.json().catch(() => null)) as { checkout_token?: unknown } | null;
+      if (!response.ok || typeof data?.checkout_token !== "string" || !data.checkout_token) {
+        throw new Error("Checkout link unavailable");
+      }
+      if (signal.aborted || generation !== calculationGeneration.current) return;
+      setHandoff({ status: "ready", href: `/teckna-avtal?checkout=${encodeURIComponent(data.checkout_token)}` });
+    } catch {
+      if (!signal.aborted && generation === calculationGeneration.current) setHandoff({ status: "failed", body });
+    }
+  }
+
   async function calculate() {
     if (!selectedContract)
       return setError("Välj ett avtal för att räkna pris.");
-    if (requestedStartMode === "specific_date" && !isStrictCalendarDate(requestedStartDate))
-      return setError("Välj ett giltigt startdatum innan du räknar pris.");
+    const start = parseRequestedStartSelection({ mode: requestedStartMode, requestedDate: requestedStartMode === "specific_date" ? requestedStartDate : null });
+    if (!start.ok)
+      return setError(start.code === "requested_start_date_past" ? PAST_REQUESTED_START_MESSAGE : "Välj ett giltigt startdatum innan du räknar pris.");
     if (!consumptionProfile || !monthlyKwh)
       return setError(
         customerType === "business"
@@ -600,9 +628,12 @@ export default function ElectricityCalculator({
     }
 
     const generation = ++calculationGeneration.current;
+    const signal = startCalculationRequest();
     setLoading(true);
     setError(null);
+    setHandoff(null);
     setResult(null);
+    onQuoteContextChange?.(null);
     try {
       const quoteAttemptId = crypto.randomUUID();
       const resolved = await resolveArea(generation);
@@ -622,7 +653,7 @@ export default function ElectricityCalculator({
         requested_start_mode: requestedStartMode,
         requested_start_date: requestedStartMode === "specific_date" ? requestedStartDate : null,
         quote_attempt_id: quoteAttemptId,
-      });
+      }, signal);
       if (generation !== calculationGeneration.current) return;
       assertQuoteMatchesArea(preview, resolved, selectedContract.offerReference);
       if (!consumptionProfileMatchesMonthlyKwh(consumptionProfile, preview.kwh)) {
@@ -663,38 +694,17 @@ export default function ElectricityCalculator({
         quote_attempt_id: quoteAttemptId,
       } satisfies WebsitePricingQuoteContext;
 
-      if (persistCheckoutContext && preview.pricing_token) {
-        const contextResponse = await fetch("/api/checkout/context", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            customer_type: customerType,
-            offer_reference: selectedContract.offerReference,
-            pricing_token: preview.pricing_token,
-            pricing_snapshot_reference: preview.pricing_snapshot_reference,
-            ...nextQuoteContext,
-          }),
-        });
-        const contextData = (await contextResponse.json().catch(() => null)) as {
-          checkout_token?: string;
-          error?: string;
-        } | null;
-        if (!contextResponse.ok || !contextData?.checkout_token) {
-          throw new Error(
-            contextData?.error ||
-              "Priset är beräknat men kunde inte föras vidare. Försök igen.",
-          );
-        }
-        if (generation !== calculationGeneration.current) return;
-        setContinueHref(
-          `/teckna-avtal?checkout=${encodeURIComponent(contextData.checkout_token)}`,
-        );
-      }
-      // Publish the quote and its bound context together only after the technical
-      // handoff succeeds. This prevents a failed handoff from mixing a new quote
-      // context with a previously rendered pricing snapshot.
       setResult(verifiedPreview);
       onQuoteContextChange?.(nextQuoteContext);
+      if (persistCheckoutContext && preview.pricing_token) {
+        void saveCheckoutContext(JSON.stringify({
+          customer_type: customerType,
+          offer_reference: selectedContract.offerReference,
+          pricing_token: preview.pricing_token,
+          pricing_snapshot_reference: preview.pricing_snapshot_reference,
+          ...nextQuoteContext,
+        }), generation, signal);
+      }
     } catch (err) {
       if (generation !== calculationGeneration.current) return;
       onQuoteContextChange?.(null);
@@ -813,6 +823,8 @@ export default function ElectricityCalculator({
             </label>
             <input
               id="calculator-address"
+              maxLength={MAX_CHECKOUT_STREET_LENGTH}
+              aria-describedby="calculator-address-limit"
               placeholder="Gata och nummer"
               value={address}
               onChange={(event) => {
@@ -822,6 +834,9 @@ export default function ElectricityCalculator({
               }}
               className="w-full rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/30"
             />
+            <p id="calculator-address-limit" className="text-xs text-gray-400">
+              Högst {MAX_CHECKOUT_STREET_LENGTH} tecken.
+            </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
             <div role="status" aria-live="polite" aria-busy={areaState.state === 'checking'}>
@@ -1065,6 +1080,7 @@ export default function ElectricityCalculator({
                   <input
                     id="calculator-requested-start-date"
                     type="date"
+                    min={stockholmCalendarDate()}
                     value={requestedStartDate}
                     onChange={(event) => {
                       setRequestedStartDate(event.target.value);
@@ -1107,10 +1123,20 @@ export default function ElectricityCalculator({
         </div>
         {result ? (
           <div className="pt-2" aria-live="polite">
+            {persistCheckoutContext && !handoff ? <p className="mb-3 text-sm text-white/70">Teckningslänken är inte tillgänglig. Hämta ett nytt pris för att försöka igen.</p> : null}
+            {handoff?.status === "pending" ? <p className="mb-3 text-sm text-white/70">Skapar teckningslänken…</p> : null}
+            {handoff?.status === "failed" ? (
+              <div className="mb-3 space-y-2 text-sm text-amber-100">
+                <p>Priset är beräknat. Teckningslänken kunde inte skapas.</p>
+                <button type="button" className="underline" onClick={() => void saveCheckoutContext(handoff.body, calculationGeneration.current, startCalculationRequest())}>
+                  Försök skapa teckningslänken igen
+                </button>
+              </div>
+            ) : null}
             <PriceResultCard
               data={result}
               updatedAt={new Date()}
-              continueHref={continueHref ?? undefined}
+              continueHref={persistCheckoutContext ? (handoff?.status === "ready" ? handoff.href : null) : undefined}
               onSelect={onContinue}
               onCompare={() => {
                 const control = document.getElementById('calculator-contract');

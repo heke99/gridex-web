@@ -9,7 +9,7 @@ const feed = read('lib/website/publicContractFeed.ts')
 assert.doesNotMatch(feed, /ops_public_contracts_no_renderable_contracts/)
 assert.match(feed, /feed_loaded_with_blocked_contracts/)
 assert.match(feed, /source: 'website_readiness'/)
-assert.match(feed, /return \{ contracts, blockedContracts, state, snapshot \}/)
+assert.match(feed, /return \{ contracts, cards, blockedContracts, state, snapshot \}/)
 
 const endpoint = read('lib/website/publicContractsEndpoint.ts')
 assert.doesNotMatch(endpoint, /ops_public_contracts_no_renderable_contracts/)

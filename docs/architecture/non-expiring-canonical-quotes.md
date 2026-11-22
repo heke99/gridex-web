@@ -66,10 +66,17 @@ separat nyckel bunden till hela den normaliserade ansökningspayloaden.
 
 ## Cache och lagring
 
-Webbens checkout-token har 24 timmars teknisk retention. Den tiden är inte
+Webbens checkout-token kan användas i 24 timmar. Den tiden är inte
 quote-giltighet. Den signerade webbsnapshoten är ett transport- och
 manipulationsskydd; OPS quote-reference är den auktoritativa verifieringsvägen.
-Webbens cache får rensas utan att den canonicala quoten upphör.
+Webbens cache får rensas utan att den canonicala quoten upphör. Webbens läsning
+spärrar utgångna länkar direkt. Vercel Cron rensar utgångna databasrader var
+tionde minut genom `/api/internal/checkout/contexts/cleanup` med `CRON_SECRET`.
+Jobbet körs i produktionsdistributionen. När teckningslänken skapas sparas
+referenserna till den verifierade offerten och prissnapshoten samt tidpunkten
+för OPS-verifieringen i samma rad som länken. Uppgifterna följer länkens
+retention. Separat offertvalidering och ansökan fortsätter logga på
+prissnapshoten.
 
 ## Databas och backfill
 

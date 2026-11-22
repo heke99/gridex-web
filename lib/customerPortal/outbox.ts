@@ -53,7 +53,7 @@ type OutboxRow = {
   identity: OpsPortalIdentity
   payload: Record<string, unknown>
   attempt_count: number
-  max_attempts?: number
+  max_attempts: number
 }
 
 function env(name: string): string | null {
@@ -236,42 +236,58 @@ export async function processPortalWriteOutbox(limit = 50) {
   const supabase = serviceClient()
   const now = new Date().toISOString()
   const staleBefore = new Date(Date.now() - 15 * 60_000).toISOString()
-  await supabase
-    .from('distributed_rate_limits')
-    .delete()
-    .lt('reset_at', new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString())
-  const { error: staleError } = await supabase
-    .from('customer_portal_write_outbox')
-    .update({ status: 'failed', next_attempt_at: now, updated_at: now, last_error_code: 'stale_processing_reclaimed' })
-    .eq('status', 'processing')
-    .lt('last_attempt_at', staleBefore)
-  if (staleError) throw new Error(staleError.message)
-
+  const eligible = `and(status.in.(pending,failed),next_attempt_at.lte.${now}),and(status.eq.processing,last_attempt_at.lt.${staleBefore})`
   const { data, error } = await supabase
     .from('customer_portal_write_outbox')
-    .select('id,user_id,operation_type,idempotency_key,identity,payload,attempt_count,max_attempts')
-    .in('status', ['pending', 'failed'])
-    .lte('next_attempt_at', now)
+    .select('id,user_id,operation_type,idempotency_key,identity,payload,status,attempt_count,max_attempts,next_attempt_at')
+    .or(eligible)
     .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
     .limit(Math.max(1, Math.min(limit, 100)))
-    .returns<OutboxRow[]>()
+    .returns<Array<OutboxRow & { status: string; next_attempt_at: string }>>()
   if (error) throw new Error(error.message)
 
   let completed = 0
   let failed = 0
+  let retriesStarted = 0
+  let maxRetryLagMs = 0
   for (const row of data ?? []) {
-    const attempt = (row.attempt_count ?? 0) + 1
+    const attempt = row.attempt_count + 1
+    const maxAttempts = Math.max(1, row.max_attempts)
+    const exhausted = attempt > maxAttempts
     const claimed = await supabase
       .from('customer_portal_write_outbox')
-      .update({ status: 'processing', attempt_count: attempt, last_attempt_at: now, updated_at: now })
+      .update(exhausted ? {
+        status: 'dead_letter',
+        next_attempt_at: '9999-12-31T00:00:00.000Z',
+        dead_letter_at: now,
+        updated_at: now,
+        last_error_code: 'outbox_attempts_exhausted',
+        last_error_message: row.status === 'processing'
+          ? 'Last attempt outcome is unknown. Reconcile before replaying this job.'
+          : 'Configured attempt limit reached. Review before replaying this job.',
+      } : { status: 'processing', attempt_count: attempt, last_attempt_at: now, updated_at: now })
       .eq('id', row.id)
       .eq('attempt_count', row.attempt_count)
-      .in('status', ['pending', 'failed'])
+      .eq('max_attempts', row.max_attempts)
+      .eq('status', row.status)
+      .or(eligible)
       .select('id')
       .maybeSingle()
     if (claimed.error) throw new Error(claimed.error.message)
     if (!claimed.data) continue
+    if (exhausted) {
+      failed += 1
+      continue
+    }
 
+    if (attempt > 1) {
+      const dueAt = Date.parse(row.status === 'processing' ? now : row.next_attempt_at)
+      if (Number.isFinite(dueAt)) {
+        retriesStarted += 1
+        maxRetryLagMs = Math.max(maxRetryLagMs, Date.now() - dueAt)
+      }
+    }
     try {
       const receipt = await dispatch({ ...row, attempt_count: attempt }, supabase)
       if (row.operation_type === 'privacy_request') {
@@ -302,7 +318,6 @@ export async function processPortalWriteOutbox(limit = 50) {
     } catch (dispatchError) {
       const errorCode = outboxErrorCode(dispatchError)
       const permanent = isOpsError(dispatchError) && !dispatchError.retryable
-      const maxAttempts = Math.max(1, row.max_attempts ?? 10)
       const nextAttemptAt = Math.ceil(Date.now() + Math.max(
         backoffMinutes(attempt) * 60_000, opsRetryAfterMilliseconds(dispatchError),
       ))
@@ -336,6 +351,7 @@ export async function processPortalWriteOutbox(limit = 50) {
     }
   }
 
+  if (retriesStarted) console.info('[customer portal outbox] retry delay', { retriesStarted, maxRetryLagMs })
   return { processed: (data ?? []).length, completed, failed }
 }
 

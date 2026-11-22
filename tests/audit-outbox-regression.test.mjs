@@ -17,6 +17,14 @@ class Query {
   in(k,v) { this.filters.push(r => v.includes(r[k])); return this }
   lt(k,v) { this.filters.push(r => r[k] != null && r[k] < v); return this }
   lte(k,v) { this.filters.push(r => r[k] != null && r[k] <= v); return this }
+  or(expression) {
+    const match = /^and\(status\.in\.\(pending,failed\),next_attempt_at\.lte\.([^,]+)\),and\(status\.eq\.processing,last_attempt_at\.lt\.([^,]+)\)$/.exec(expression)
+    assert.ok(match)
+    this.filters.push(row =>
+      (['pending', 'failed'].includes(row.status) && row.next_attempt_at && Date.parse(row.next_attempt_at) <= Date.parse(match[1])) ||
+      (row.status === 'processing' && row.last_attempt_at && Date.parse(row.last_attempt_at) < Date.parse(match[2])))
+    return this
+  }
   order() { return this }
   limit() { return this }
   returns() { return this }

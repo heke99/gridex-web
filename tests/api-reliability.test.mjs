@@ -73,3 +73,44 @@ test('oversized streamed JSON is cancelled before it can exhaust server memory',
   await assert.rejects(() => opsRequest('/api/v1/customer/me'), error => error.code === 'ops_response_too_large' && error.status === 502)
   assert.equal(cancelled, true)
 })
+
+test('unread HTML error bodies are cancelled before each retry', async t => {
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  let calls = 0
+  let cancelled = 0
+  globalThis.fetch = async () => {
+    assert.equal(cancelled, calls)
+    calls += 1
+    return new Response(new ReadableStream({ cancel() { cancelled += 1 } }), {
+      status: 503, headers: { 'Content-Type': 'text/html', 'Retry-After': '0' },
+    })
+  }
+  await assert.rejects(() => opsRequest('/api/v1/customer/me'), { status: 503 })
+  assert.equal(calls, 3)
+  assert.equal(cancelled, 3)
+})
+
+test('stalled 429 body is cancelled while status, wait and request ID survive', async t => {
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  let cancelled = false
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls += 1
+    return new Response(new ReadableStream({ cancel() { cancelled = true } }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json', 'Retry-After': '120', 'X-Request-Id': 'limit-stalled' },
+    })
+  }
+  const started = performance.now()
+  await assert.rejects(() => opsRequest('/api/v1/customer/me'), error => {
+    assert.equal(error.status, 429)
+    assert.equal(error.requestId, 'limit-stalled')
+    assert.equal(error.details.retry_after_seconds, 120)
+    return true
+  })
+  assert.ok(performance.now() - started < 800)
+  assert.equal(calls, 1)
+  assert.equal(cancelled, true)
+})

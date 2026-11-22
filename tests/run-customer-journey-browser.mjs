@@ -18,8 +18,11 @@ for (const file of files.filter(file => file && !['proxy.ts', 'middleware.ts'].i
 }
 await symlink(resolve(root, 'node_modules'), join(isolated, 'node_modules'), 'dir')
 for (const route of ['mina-sidor', 'dashboard', 'aktivera-kundkonto']) await cp(join(root, 'app', route), join(isolated, 'app', route), { recursive: true })
+const invoiceApi = 'app/api/web/customer/invoices'
+await mkdir(join(isolated, invoiceApi), { recursive: true })
+await cp(join(root, invoiceApi), join(isolated, invoiceApi), { recursive: true })
 // These scenarios do not invoke profile/support actions; avoid registering unrelated forms.
-for (const route of ['profile', 'support', 'invoices', 'documents', 'approvals', 'privacy']) await rm(join(isolated, 'app/dashboard', route), { recursive: true, force: true })
+for (const route of ['profile', 'support', 'documents', 'approvals', 'privacy']) await rm(join(isolated, 'app/dashboard', route), { recursive: true, force: true })
 await mkdir(join(isolated, 'app/checkout-fixture'), { recursive: true })
 await mkdir(join(isolated, 'app/login'), { recursive: true })
 await writeFile(join(isolated, 'app/checkout-fixture/page.tsx'), `export {default} from '@/tests/fixtures/customer-checkout'`)
@@ -30,11 +33,11 @@ await cp(join(root, 'app/globals.css'), join(isolated, 'app/globals.css'))
 // resolves these before webpack aliases in some versions.
 for (const port of [
   'lib/supabase/server.ts', 'lib/supabase/service.ts', 'lib/ops/client.ts', 'lib/ops/client/customerSupport.ts',
-  'lib/customerPortal/onboarding.ts', 'lib/customerPortal/authProfileSync.ts', 'lib/auth/permissions.ts',
+  'lib/customerPortal/queueStatus.ts', 'lib/auth/permissions.ts',
 ]) await cp(join(root, 'tests/fixtures/customer-journey-server.ts'), join(isolated, port))
 await writeFile(join(isolated, 'components/auth/AuthSessionSync.tsx'), `'use client';export default function Session(){return null}`)
-await writeFile(join(isolated, 'next.config.ts'), `export default {reactStrictMode:false,experimental:{cpus:2}}`)
-const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: 'https://audit.invalid', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-audit-key', GRIDEX_JOURNEY_ORIGIN: origin }
+await writeFile(join(isolated, 'next.config.ts'), `export default {reactStrictMode:false,devIndicators:false,experimental:{cpus:2}}`)
+const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: 'https://audit.invalid', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-audit-key', GRIDEX_JOURNEY_ORIGIN: origin, GRIDEX_MOBILE_DOCUMENT_ORIGINS: 'https://documents.example.invalid' }
 for (const key of Object.keys(env)) if (/^(SUPABASE_SERVICE_ROLE_KEY|GRIDEX_API_KEY|GRIDEX_CUSTOMER_ASSERTION|GRIDEX_SUPPORT_RECEIPT|RESEND_API_KEY)/.test(key)) delete env[key]
 const server = spawn(process.execPath, [join(root, 'node_modules/next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], { cwd: isolated, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true })
 let output = ''
@@ -49,7 +52,7 @@ try {
   }
   // Finish lazy development compilation before attaching a browser. A first
   // compile can otherwise trigger Fast Refresh during an in-flight Firefox nav.
-  for (const route of ['/dashboard', '/dashboard/contracts', '/aktivera-kundkonto', '/login', '/checkout-fixture']) {
+  for (const route of ['/dashboard', '/dashboard/contracts', '/dashboard/invoices', '/aktivera-kundkonto', '/login', '/checkout-fixture']) {
     const response = await fetch(origin + route, { signal: AbortSignal.timeout(60000) })
     const body = await response.text()
     if (!response.ok) throw Error(`Fixture warm-up failed at ${route}: ${body.slice(-1000)} ${output.slice(-1000)}`)

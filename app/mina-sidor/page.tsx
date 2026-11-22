@@ -3,12 +3,10 @@ import LogoutForm from '@/components/account/LogoutForm'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { getCustomerPortalOverview } from '@/lib/customerPortal/service'
-import { statusLabel, nextStepDescription } from '@/lib/customerPortal/statusHelper'
-import { hasPendingPortalOnboardingForUser } from '@/lib/customerPortal/onboarding'
-import { hasPendingAuthProfileSync } from '@/lib/customerPortal/authProfileSync'
-import { formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
+import { CustomerPortalAccessError, getCustomerPortalOverview, getPortalSession } from '@/lib/customerPortal/service'
+import { statusLabel, nextStepDescription, powerOfAttorneyScopeLabel, powerOfAttorneyStatusLabel } from '@/lib/customerPortal/statusHelper'
+import { readPortalQueueStatus } from '@/lib/customerPortal/queueStatus'
+import { customerInvoiceStatusLabel, formatCustomerDate as formatDate } from '@/lib/customerPortal/display'
 import ContractPricing from '@/components/customer/ContractPricing'
 
 export const dynamic = 'force-dynamic'
@@ -35,20 +33,71 @@ function displayName(
   return profile?.company_name || profile?.full_name || personalName || 'kund'
 }
 
-export default async function MinaSidorPage() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+function PortalLinkNotice({ message, action }: { message: string; action?: 'activate' | 'support' }) {
+  return (
+    <div role="status" className="mt-6 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
+      <p>{message}</p>
+      {action === 'activate' && <Link href="/aktivera-kundkonto" className="mt-2 inline-block underline">Koppla ditt kundkonto</Link>}
+      {action === 'support' && <Link href="/kundservice" className="mt-2 inline-block underline">Kontakta kundservice</Link>}
+    </div>
+  )
+}
 
-  if (!user) redirect(buildLoginRedirect())
+export default async function MinaSidorPage({ searchParams }: {
+  searchParams?: Promise<{ portal_link?: string | string[] }>
+}) {
+  const session = await getPortalSession().catch((error: unknown) => {
+    if (error instanceof CustomerPortalAccessError) redirect(buildLoginRedirect())
+    throw error
+  })
+  const { user } = session
+  const portalLink = (await searchParams)?.portal_link
+  const hasLinkResult = portalLink === 'invalid' || portalLink === 'review' ||
+    portalLink === 'pending' || portalLink === 'completed'
 
-  const [overview, pendingPortalOnboarding, pendingProfileSync] = await Promise.all([
-    getCustomerPortalOverview(),
-    hasPendingPortalOnboardingForUser(user.id),
-    hasPendingAuthProfileSync(user.id),
+  const [overview, onboardingStatus, profileSyncStatus] = await Promise.all([
+    getCustomerPortalOverview(undefined, session).catch((error: unknown) => {
+      if (!hasLinkResult) throw error
+      return null
+    }),
+    readPortalQueueStatus('portal_onboarding_jobs', user.id),
+    readPortalQueueStatus('auth_profile_sync_jobs', user.id),
   ])
-  const portalLinkPending = pendingPortalOnboarding || pendingProfileSync
+  const queueStatuses = [onboardingStatus, profileSyncStatus]
+  const queueMessage = queueStatuses.includes('unavailable')
+    ? 'Kopplingens status kan inte visas just nu. Försök igen senare.'
+    : queueStatuses.includes('manual_review')
+      ? 'Kopplingen till alla uppgifter på Mina sidor behöver granskas av kundservice. Du behöver inte teckna avtalet igen.'
+      : queueStatuses.includes('pending')
+        ? 'Kopplingen till alla uppgifter på Mina sidor slutförs fortfarande. Du behöver inte teckna avtalet igen. Systemet försöker automatiskt igen.'
+        : null
+  const linkMessage = portalLink === 'invalid'
+    ? 'Kopplingslänken kunde inte verifieras. Du kan koppla kontot med ditt kundnummer eller kontakta kundservice.'
+    : portalLink === 'review'
+      ? 'Kopplingsförsöket behöver granskas av kundservice.'
+      : queueMessage ?? (portalLink === 'pending'
+        ? 'Kopplingen är ännu inte bekräftad. Kontrollera status igen om en stund.'
+        : portalLink === 'completed'
+          ? overview?.verifiedCustomerAccess
+            ? 'Din kundåtkomst är verifierad. Du kan se dina uppgifter på Mina sidor.'
+            : 'Kundåtkomsten kunde inte bekräftas just nu. Försök igen om en stund eller kontakta kundservice.'
+          : null)
+  const linkAction = portalLink === 'invalid' ? 'activate' : portalLink === 'review' ||
+    queueStatuses.includes('manual_review') || (portalLink === 'completed' && !overview?.verifiedCustomerAccess)
+    ? 'support' : undefined
+
+  if (!overview) {
+    return (
+      <main className="mx-auto max-w-7xl px-4 py-10 text-white">
+        <h1 className="text-3xl font-bold">Mina sidor</h1>
+        {linkMessage && <PortalLinkNotice message={linkMessage} action={linkAction} />}
+        <p className="mt-4">Kunduppgifterna kan inte hämtas just nu.</p>
+        <Link href="/mina-sidor" className="mt-2 inline-block underline">Försök igen</Link>
+      </main>
+    )
+  }
+
+  const unavailable = overview.unavailableSections ?? []
   const profile = overview.profile
   const latestContract = overview.contracts[0] ?? null
   const latestSite = overview.sites[0] ?? null
@@ -93,7 +142,7 @@ export default async function MinaSidorPage() {
           </div>
         </header>
 
-        {!portalLinkPending && !profile?.customer_number && !profile?.external_customer_id ? (
+        {!linkMessage && !profile?.customer_number && !profile?.external_customer_id ? (
           <Link href="/aktivera-kundkonto" className="mt-6 block rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 text-cyan-200 underline">
             Har du redan ett kundnummer? Koppla ditt kundkonto.
           </Link>
@@ -106,11 +155,9 @@ export default async function MinaSidorPage() {
         ) : null}
 
 
-        {portalLinkPending ? (
-          <div className="mt-6 rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50/90">
-            Din kundprofil är verifierad, men kopplingen till alla uppgifter på Mina sidor slutförs fortfarande. Du behöver inte teckna avtalet igen. Systemet försöker automatiskt igen och kundservice kan följa köstatusen.
-          </div>
-        ) : null}
+        {overview.dataFreshnessMessage && <p role="status" className="mt-4 text-sm text-amber-100">{overview.dataFreshnessMessage}</p>}
+
+        {linkMessage && <PortalLinkNotice message={linkMessage} action={linkAction} />}
 
         {overview.customerStatus ? (
           <div className={`mt-6 rounded-3xl border p-5 ${overview.customerStatus.can_start_switch === false ? 'border-amber-500/30 bg-amber-500/10 text-amber-50/90' : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-50/90'}`}>
@@ -132,7 +179,7 @@ export default async function MinaSidorPage() {
           <InfoCard label="Kundnummer" value={profile?.customer_number || profile?.contract_customer_ref || 'Kommer senare'} />
           <InfoCard label="Avtalsstatus" value={statusLabel(latestContract?.status)} />
           <InfoCard label="Anläggning" value={statusLabel(latestSite?.verification_status || latestSite?.resolution_status)} />
-          <InfoCard label="Fullmakt" value={activePowerOfAttorney ? statusLabel(activePowerOfAttorney.status) : 'Saknas eller kontrolleras'} />
+          <InfoCard label="Fullmakt" value={unavailable.includes('powers_of_attorney') ? 'Kan inte visas just nu' : activePowerOfAttorney ? powerOfAttorneyStatusLabel(activePowerOfAttorney.status) : 'Saknas eller kontrolleras'} />
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -140,7 +187,10 @@ export default async function MinaSidorPage() {
             <h2 className="text-xl font-semibold">Mina uppgifter</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <InfoCard label="Namn" value={profile?.full_name || profile?.company_name || '—'} />
-              <InfoCard label="E-post" value={profile?.email || user.email || '—'} />
+              <InfoCard label="E-post för inloggning" value={user.email || '—'} />
+              {profile?.email && profile.email.toLowerCase() !== user.email?.toLowerCase() && (
+                <InfoCard label="Kontaktadress i kundsystemet" value={profile.email} />
+              )}
               <InfoCard label="Telefon" value={profile?.phone || '—'} />
               <InfoCard label="Kundtyp" value={profile?.customer_type === 'business' ? 'Företag' : 'Privatkund'} />
             </div>
@@ -177,7 +227,11 @@ export default async function MinaSidorPage() {
               <div className="mt-5 grid gap-3 md:grid-cols-4">
                 <InfoCard label="Avtal" value={latestContract.contract_name || latestContract.contract_slug || 'Elavtal'} />
                 <InfoCard label="Avtalsnummer" value={latestContract.contract_number || latestContract.contract_external_ref || '—'} />
-                <InfoCard label="Startdatum" value={formatDate(latestContract.starts_at)} />
+                {latestContract.requested_start_date ? <InfoCard label="Önskat startdatum" value={formatDate(latestContract.requested_start_date)} /> : null}
+                {latestContract.confirmed_start_date ? <InfoCard label="Bekräftat startdatum" value={formatDate(latestContract.confirmed_start_date)} /> : null}
+                {latestContract.actual_start_date ? <InfoCard label="Faktiskt startdatum" value={formatDate(latestContract.actual_start_date)} /> : null}
+                {!latestContract.requested_start_date && !latestContract.confirmed_start_date && !latestContract.actual_start_date
+                  ? <InfoCard label="Startdatum" value={formatDate(latestContract.starts_at)} /> : null}
                 <InfoCard label="Status" value={statusLabel(latestContract.status)} />
               </div>
               <ContractPricing contract={latestContract} />
@@ -213,26 +267,24 @@ export default async function MinaSidorPage() {
                   badge={statusLabel(item.status)}
                 />
               ))}
-              {overview.legalAcceptances.length === 0 ? (
+              {unavailable.includes('legal_acceptances') ? <EmptyText>Godkännanden kunde inte hämtas just nu.</EmptyText> : overview.legalAcceptances.length === 0 ? (
                 <EmptyText>Inga godkännanden visas ännu.</EmptyText>
               ) : null}
             </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-semibold">Fullmakt för anläggningsuppgifter</h2>
+            <h2 className="text-xl font-semibold">Fullmakt</h2>
             {activePowerOfAttorney ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-5 text-sm text-gray-300">
                 <div className="font-semibold text-white">{activePowerOfAttorney.title || 'Fullmakt'}</div>
-                <div className="mt-2">Status: {statusLabel(activePowerOfAttorney.status)}</div>
+                <div className="mt-2">Status: {powerOfAttorneyStatusLabel(activePowerOfAttorney.status)}</div>
                 <div>Godkänd: {formatDate(activePowerOfAttorney.accepted_at)}</div>
+                {activePowerOfAttorney.valid_until ? <div>Giltig till: {formatDate(activePowerOfAttorney.valid_until)}</div> : null}
+                {activePowerOfAttorney.revoked_at ? <div>Återkallad: {formatDate(activePowerOfAttorney.revoked_at)}</div> : null}
                 <div>Version: {activePowerOfAttorney.version || '—'}</div>
-                <div>Omfattning: {activePowerOfAttorney.scopes.length ? activePowerOfAttorney.scopes.map((scope) => statusLabel(scope)).join(', ') : '—'}</div>
-                <p className="mt-3 text-xs leading-6 text-gray-500">
-                  Fullmakten gör att Gridex kan begära och ta emot de uppgifter från
-                  elnätsföretaget som behövs för att starta och administrera ditt elavtal.
-                </p>
-              </div>
+                <div>Omfattning: {activePowerOfAttorney.scopes.length ? activePowerOfAttorney.scopes.map(powerOfAttorneyScopeLabel).join(', ') : '—'}</div>
+             </div>
             ) : (
               <EmptyText>Fullmakt visas när den är kopplad till din kundprofil.</EmptyText>
             )}
@@ -251,10 +303,10 @@ export default async function MinaSidorPage() {
                   key={invoice.id}
                   title={invoice.invoice_number || invoice.external_invoice_ref || 'Faktura'}
                   meta={`Förfallodatum ${formatDate(invoice.due_at)}`}
-                  badge={statusLabel(invoice.status)}
+                  badge={customerInvoiceStatusLabel(invoice.status)}
                 />
               ))}
-              {overview.invoices.length === 0 ? <EmptyText>Inga fakturor visas ännu.</EmptyText> : null}
+              {unavailable.includes('invoices') ? <EmptyText>Fakturor kunde inte hämtas just nu.</EmptyText> : overview.invoices.length === 0 ? <EmptyText>Inga fakturor visas ännu.</EmptyText> : null}
             </div>
           </section>
 
@@ -272,7 +324,7 @@ export default async function MinaSidorPage() {
                   badge={statusLabel(doc.status)}
                 />
               ))}
-              {overview.documents.length === 0 ? <EmptyText>Inga dokument visas ännu.</EmptyText> : null}
+              {unavailable.includes('documents') ? <EmptyText>Dokument kunde inte hämtas just nu.</EmptyText> : overview.documents.length === 0 ? <EmptyText>Inga dokument visas ännu.</EmptyText> : null}
             </div>
           </section>
         </div>

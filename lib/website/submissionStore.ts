@@ -10,24 +10,17 @@ type SubmissionRequestContext = {
   utmCampaign: string | null
 }
 
-type SubmissionRow = {
-  submission_attempt_id: string
+type PreparedSubmission = {
   idempotency_key: string
   external_application_id: string
   external_customer_id: string
   offer_reference: string
   payload_hash: string
-  ops_payload_hash: string | null
-  normalized_ops_payload_sha256: string | null
-  ops_quote_reference: string | null
   accepted_at: string
   request_context: SubmissionRequestContext | null
-  pricing_quote_snapshot: Record<string, unknown> | null
-  contract_display_snapshot: Record<string, unknown> | null
-  legal_evidence_snapshot: Record<string, unknown> | null
-  ops_result_snapshot: Record<string, unknown> | null
-  status: string
 }
+
+const PREPARED_FIELDS = 'idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,accepted_at,request_context'
 
 function env(name: string): string | null {
   const value = process.env[name]?.trim()
@@ -56,18 +49,18 @@ function normalizeContext(value: SubmissionRequestContext | null | undefined): S
   }
 }
 
-async function readSubmission(submissionAttemptId: string): Promise<SubmissionRow | null> {
+async function readSubmission<Row extends Record<string, unknown>>(submissionAttemptId: string, columns: string): Promise<Row | null> {
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('website_application_submissions')
-    .select('submission_attempt_id,idempotency_key,external_application_id,external_customer_id,offer_reference,payload_hash,ops_payload_hash,normalized_ops_payload_sha256,ops_quote_reference,accepted_at,request_context,pricing_quote_snapshot,contract_display_snapshot,legal_evidence_snapshot,ops_result_snapshot,status')
+    .select(columns)
     .eq('submission_attempt_id', submissionAttemptId)
-    .maybeSingle<SubmissionRow>()
+    .maybeSingle<Row>()
   if (error) throw new Error(`Submission storage read failed: ${error.message}`)
   return data
 }
 
-function verifyImmutableSubmission(existing: SubmissionRow, input: {
+function verifyImmutableSubmission(existing: PreparedSubmission, input: {
   idempotencyKey: string
   externalApplicationId: string
   externalCustomerId: string
@@ -96,7 +89,7 @@ export async function prepareWebsiteSubmission(input: {
   contractDisplaySnapshot: Record<string, unknown>
   legalEvidenceSnapshot: Record<string, unknown>
 }): Promise<{ acceptedAt: string; requestContext: SubmissionRequestContext }> {
-  const existing = await readSubmission(input.submissionAttemptId)
+  const existing = await readSubmission<PreparedSubmission>(input.submissionAttemptId, PREPARED_FIELDS)
   if (existing) {
     verifyImmutableSubmission(existing, input)
     return {
@@ -132,7 +125,7 @@ export async function prepareWebsiteSubmission(input: {
   if (error) {
     // Two concurrent requests may race on the same attempt. Re-read and accept
     // only when the persisted immutable values are identical.
-    const raced = await readSubmission(input.submissionAttemptId)
+    const raced = await readSubmission<PreparedSubmission>(input.submissionAttemptId, PREPARED_FIELDS)
     if (!raced) throw new Error(`Submission storage insert failed: ${error.message}`)
     verifyImmutableSubmission(raced, input)
     return {
@@ -148,33 +141,49 @@ export async function lockWebsiteSubmissionOpsPayload(input: {
   opsPayloadHash: string
 }): Promise<void> {
   const supabase = serviceClient()
-  const existing = await readSubmission(input.submissionAttemptId)
-  if (!existing) throw new Error('Submission attempt was not prepared.')
-  if (existing.ops_payload_hash && existing.ops_payload_hash !== input.opsPayloadHash) {
-    throw new Error('OPS payload changed for an existing idempotency key.')
+  const statusPatch = {
+    status: 'submitting',
+    last_error_code: null,
+    last_error_message: null,
+    updated_at: new Date().toISOString(),
   }
-  if (existing.ops_payload_hash === input.opsPayloadHash) return
-
   const { data, error } = await supabase
     .from('website_application_submissions')
     .update({
+      ...statusPatch,
       ops_payload_hash: input.opsPayloadHash,
       normalized_ops_payload_sha256: input.opsPayloadHash,
       submission_payload_hash: input.opsPayloadHash,
-      attempt_count: existing.ops_payload_hash ? undefined : 1,
-      updated_at: new Date().toISOString(),
+      attempt_count: 1,
     })
     .eq('submission_attempt_id', input.submissionAttemptId)
     .is('ops_payload_hash', null)
-    .select('ops_payload_hash')
-    .maybeSingle<{ ops_payload_hash: string | null }>()
+    .neq('status', 'accepted')
+    .select('submission_attempt_id')
+    .maybeSingle()
   if (error) throw new Error(`Submission payload lock failed: ${error.message}`)
-  if (data?.ops_payload_hash === input.opsPayloadHash) return
+  if (data) return
 
-  const raced = await readSubmission(input.submissionAttemptId)
-  if (!raced || raced.ops_payload_hash !== input.opsPayloadHash) {
-    throw new Error('OPS payload changed for an existing idempotency key.')
-  }
+  // A retry may resume only the exact locked payload. An accepted attempt is
+  // recognized below without resetting its status or attempt count.
+  const retry = await supabase
+    .from('website_application_submissions')
+    .update(statusPatch)
+    .eq('submission_attempt_id', input.submissionAttemptId)
+    .eq('ops_payload_hash', input.opsPayloadHash)
+    .neq('status', 'accepted')
+    .select('submission_attempt_id')
+    .maybeSingle()
+  if (retry.error) throw new Error(`Submission payload lock failed: ${retry.error.message}`)
+  if (retry.data) return
+
+  const existing = await readSubmission<{ ops_payload_hash: string | null; status: string }>(
+    input.submissionAttemptId,
+    'ops_payload_hash,status',
+  )
+  if (!existing) throw new Error('Submission attempt was not prepared.')
+  if (existing.status === 'accepted' && existing.ops_payload_hash === input.opsPayloadHash) return
+  throw new Error('OPS payload changed for an existing idempotency key.')
 }
 
 export type WebsiteSubmissionUpdateInput = {
@@ -215,7 +224,7 @@ export type WebsiteSubmissionUpdateInput = {
 }
 
 export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInput): Promise<void> {
-  const existing = await readSubmission(input.submissionAttemptId)
+  const existing = await readSubmission<{ status: string }>(input.submissionAttemptId, 'status')
   if (!existing) throw new Error('Submission storage update failed: submission row not found.')
 
   // Once OPS has been durably recorded as accepted, a browser retry or a late
@@ -289,7 +298,7 @@ export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInpu
   if (data) return
 
   if (input.status !== 'accepted') {
-    const raced = await readSubmission(input.submissionAttemptId)
+    const raced = await readSubmission<{ status: string }>(input.submissionAttemptId, 'status')
     if (raced?.status === 'accepted') return
   }
   throw new Error('Submission storage update failed: submission row not found.')
@@ -298,6 +307,7 @@ export async function updateWebsiteSubmission(input: WebsiteSubmissionUpdateInpu
 export async function syncWebsiteSubmissionStatus(input: {
   opsApplicationNumber: string
   opsStatus: string
+  sourceUpdatedAt: string | null
   opsWorkflowState?: string | null
   opsCustomerNumber?: string | null
   contractStatus?: string | null
@@ -306,25 +316,22 @@ export async function syncWebsiteSubmissionStatus(input: {
 }): Promise<void> {
   const applicationNumber = input.opsApplicationNumber.trim()
   if (!applicationNumber) throw new Error('OPS application number is required for status sync.')
-  const now = new Date().toISOString()
-  const supabase = serviceClient()
-  const { data, error } = await supabase
-    .from('website_application_submissions')
-    .update({
-      ops_status: input.opsStatus,
-      ops_workflow_state: input.opsWorkflowState ?? input.opsStatus,
-      ops_customer_number: input.opsCustomerNumber ?? undefined,
-      contract_status: input.contractStatus ?? undefined,
-      ops_supplier_switch_status: input.supplierSwitchStatus ?? undefined,
-      last_status_synced_at: now,
-      ops_result_snapshot: input.snapshot,
-      updated_at: now,
-    })
-    .eq('ops_application_number', applicationNumber)
-    .select('submission_attempt_id')
-    .maybeSingle<{ submission_attempt_id: string }>()
+  const sourceUpdatedAt = input.sourceUpdatedAt?.trim()
+  // Keep the OPS timestamp's fractional precision for the PostgreSQL comparison.
+  if (!sourceUpdatedAt || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(sourceUpdatedAt)
+    || !Number.isFinite(Date.parse(sourceUpdatedAt))) return
+
+  const { error } = await serviceClient().rpc('gridex_sync_website_submission_status', {
+    p_application_number: applicationNumber,
+    p_source_updated_at: sourceUpdatedAt,
+    p_status: input.opsStatus,
+    p_workflow_state: input.opsWorkflowState ?? null,
+    p_customer_number: input.opsCustomerNumber ?? null,
+    p_contract_status: input.contractStatus ?? null,
+    p_switch_status: input.supplierSwitchStatus ?? null,
+    p_snapshot: input.snapshot,
+  })
   if (error) throw new Error(`Submission status sync failed: ${error.message}`)
-  if (!data) throw new Error('Submission status sync failed: submission row not found.')
 }
 
 export async function recordWebsiteSubmissionFailure(input: {
@@ -379,35 +386,17 @@ export async function queueWebsiteSubmissionReconciliation(
   input: WebsiteSubmissionUpdateInput,
   reason: string,
 ): Promise<void> {
-  const supabase = serviceClient()
-  const { data: existing, error: readError } = await supabase
-    .from('website_submission_reconciliation_jobs')
-    .select('id,status,attempt_count,max_attempts')
-    .eq('submission_attempt_id', input.submissionAttemptId)
-    .maybeSingle<Pick<WebsiteSubmissionReconciliationJob, 'id' | 'status' | 'attempt_count' | 'max_attempts'>>()
-  if (readError) throw new Error(`Submission reconciliation queue read failed: ${readError.message}`)
-  if (existing?.status === 'processing' || existing?.status === 'completed') return
-
-  const { error } = await supabase.from('website_submission_reconciliation_jobs').upsert(
-    [{
-      submission_attempt_id: input.submissionAttemptId,
-      status: 'pending',
-      payload: input,
-      attempt_count: existing?.attempt_count ?? 0,
-      max_attempts: existing?.max_attempts ?? 10,
-      last_error: reason.slice(0, 2000),
-      next_attempt_at: new Date().toISOString(),
-      locked_at: null,
-      updated_at: new Date().toISOString(),
-    }],
-    { onConflict: 'submission_attempt_id', defaultToNull: false },
-  )
+  const { error } = await serviceClient().rpc('gridex_enqueue_website_reconciliation_v1', {
+    p_submission_attempt_id: input.submissionAttemptId,
+    p_payload: input,
+    p_reason: reason,
+  })
   if (error) throw new Error(`Submission reconciliation queue failed: ${error.message}`)
 }
 
 async function claimWebsiteSubmissionReconciliationJob(
   job: WebsiteSubmissionReconciliationJob,
-): Promise<number | null> {
+): Promise<{ attempt: number; payload: WebsiteSubmissionUpdateInput } | null> {
   const attempt = job.attempt_count + 1
   const { data, error } = await serviceClient()
     .from('website_submission_reconciliation_jobs')
@@ -420,17 +409,18 @@ async function claimWebsiteSubmissionReconciliationJob(
     .eq('id', job.id)
     .eq('attempt_count', job.attempt_count)
     .in('status', ['pending', 'retryable_failure'])
-    .select('id')
-    .maybeSingle<{ id: string }>()
+    .select('payload')
+    .maybeSingle<{ payload: WebsiteSubmissionUpdateInput }>()
   if (error) throw new Error(`Submission reconciliation claim failed: ${error.message}`)
-  return data ? attempt : null
+  return data ? { attempt, payload: data.payload } : null
 }
 
-export async function processWebsiteSubmissionReconciliationJobs(limit = 25): Promise<{
+export async function processWebsiteSubmissionReconciliationJobs(limit = 25, signal?: AbortSignal): Promise<{
   processed: number
   completed: number
   failed: number
 }> {
+  signal?.throwIfAborted()
   const supabase = serviceClient()
   await recoverStaleWebsiteSubmissionReconciliationJobs()
   const { data, error } = await supabase
@@ -446,10 +436,12 @@ export async function processWebsiteSubmissionReconciliationJobs(limit = 25): Pr
   let completed = 0
   let failed = 0
   for (const job of data ?? []) {
-    const attempt = await claimWebsiteSubmissionReconciliationJob(job)
-    if (attempt === null) continue
+    signal?.throwIfAborted()
+    const claim = await claimWebsiteSubmissionReconciliationJob(job)
+    if (!claim) continue
+    const { attempt } = claim
     try {
-      await updateWebsiteSubmission(job.payload)
+      await updateWebsiteSubmission(claim.payload)
       const { data: completedJob, error: completeError } = await supabase
         .from('website_submission_reconciliation_jobs')
         .update({

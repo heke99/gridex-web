@@ -8,13 +8,13 @@ const reactUrl = pathToFileURL(createRequire(import.meta.url).resolve('react')).
 
 export async function resolve(specifier, context, nextResolve) {
   const ports = {
-    '@/lib/supabase/server': `export const createSupabaseServerClient=async()=>globalThis.__customerJourney.client; export const getVerifiedServerUser=async client=>client.auth.getUser();`,
-    '@/lib/supabase/service': `export const supabaseService={};`,
-    '@/lib/ops/client': `export const fetchOpsCustomerPortalBundle=async identity=>globalThis.__customerJourney.bundle(identity); export const fetchOpsCustomerResource=async()=>{throw Error('Unexpected resource request')}; export const markOpsCustomerNotificationsRead=async()=>{throw Error('Unexpected mutation')};`,
+    '@/lib/supabase/server': `export const createSupabaseServerClient=async()=>globalThis.__customerJourney.client; export const getVerifiedServerUser=async client=>client.auth.getUser(); export const createSupabaseServerActionClient=createSupabaseServerClient;`,
+    '@/lib/supabase/service': `export const supabaseService={from:(...args)=>globalThis.__customerJourney.queue(...args)};`,
+    '@/lib/ops/client': `export const fetchOpsCustomerPortalBundle=async (identity,view)=>globalThis.__customerJourney.bundle(identity,view); export const fetchOpsCustomerResource=async(identity,resource,id,query)=>globalThis.__customerJourney.resource(identity,resource,id,query); export const markOpsCustomerNotificationsRead=async(...args)=>globalThis.__customerJourney.readNotifications(...args); export const submitOpsCustomerProfileUpdate=async()=>{throw Error('Unexpected profile update')}; export const isOpsError=()=>false;`,
     '@/lib/ops/client/customerSupport': `export const listOpsCustomerSupportCases=async identity=>globalThis.__customerJourney.support(identity); export const listOpsCustomerSupportMessages=async()=>{throw Error('Unexpected messages request')};`,
-    '@/lib/customerPortal/onboarding': `export const hasPendingPortalOnboardingForUser=async()=>false;`,
-    '@/lib/customerPortal/authProfileSync': `export const hasPendingAuthProfileSync=async()=>false;`,
+    '@/components/customer/PoaArchiveDocuments': `export const loadPoaArchiveDocuments = async cursor => { globalThis.__customerJourney.archiveCursor = cursor; }; export default function Archive(){return globalThis.__customerJourney.archiveText ?? null;}`,
     '@/components/account/LogoutForm': `export default function Logout(){return null;}`,
+    'next/cache': 'export function revalidatePath(){}',
     'next/navigation': `export const redirect=path=>{throw Error('REDIRECT:'+path)}; export const useRouter=()=>({refresh(){}}); export const usePathname=()=>'/dashboard';`,
     'next/link': `import {createElement} from ${JSON.stringify(reactUrl)}; export default function Link({children,href,...props}){delete props.prefetch;return createElement('a',{...props,href},children);}`,
   }

@@ -1,3 +1,4 @@
+import { validMeteringQuery } from '@/lib/ops/meteringQuery'
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
@@ -299,6 +300,32 @@ function assertOperationQuery(contract: ContractName, path: string, method: stri
     ? path
     : `/api/v1${path.startsWith('/') ? path : `/${path}`}`
   const parsed = new URL(rawPath, 'https://gridex.invalid')
+  if (contract === 'customer-portal' && method.toLowerCase() === 'get' &&
+      (parsed.pathname === '/api/v1/customer/documents' || /^\/api\/v1\/customer\/invoices\/[^/]+$/.test(parsed.pathname)) &&
+      queryParameters.length === 0 &&
+      parsed.searchParams.size === 1 && /^document_[A-Za-z0-9_-]{32}$/.test(parsed.searchParams.get('document_reference') ?? '')) return
+  // OPS supports the contract view's projection before the frozen spec does.
+  if (contract === 'customer-portal' && method.toLowerCase() === 'post' &&
+      parsed.pathname === '/api/v1/customer/portal-bundle' && queryParameters.length === 0 &&
+      parsed.searchParams.size === 2 && parsed.searchParams.get('include') === 'events' &&
+      parsed.searchParams.get('events_limit') === '8') return
+  // The mounted OPS metering list supports these filters before the frozen spec does.
+  if (contract === 'customer-portal' && method.toLowerCase() === 'get' &&
+      parsed.pathname === '/api/v1/customer/metering-values' && queryParameters.length === 0) {
+    if (validMeteringQuery(parsed.searchParams)) return
+    throw new OpsError('Ogiltiga filter för mätvärden.', 400, {
+      code: 'invalid_metering_query',
+      endpoint: parsed.pathname,
+      retryable: false,
+    })
+  }
+  // The mounted OPS invoice list accepts the continuation it returns. The
+  // frozen portal specification has no query parameter for that continuation.
+  if (contract === 'customer-portal' && method.toLowerCase() === 'get' &&
+      parsed.pathname === '/api/v1/customer/invoices' &&
+      !queryParameters.some(parameter => parameter.name === 'cursor')) {
+    queryParameters.push({ in: 'query', name: 'cursor', schema: { type: 'string', minLength: 1, maxLength: 2048 } })
+  }
   if (queryParameters.length === 0) {
     if ([...parsed.searchParams.keys()].length > 0) {
       throw new OpsError('API-begäran innehåller odokumenterade query-parametrar.', 400, {
@@ -696,6 +723,26 @@ export function assertWebsiteOperationResponse(
   value: unknown,
 ): void {
   assertOperation('website', path, method, 'response', value, status)
+}
+
+/** The receipt's opt-in representation omits the operational webhook diagnostics. */
+export function assertWebsiteReceiptStatusResponse(path: string, value: unknown): void {
+  const schemaName = 'website-receipt-status-response'
+  let validate = cache.get(schemaName)
+  if (!validate) {
+    const operation = websiteOpenApi.paths['/api/v1/website/customer-applications/{application_number}'].get
+    const envelope = operation.responses['200'].content['application/json'].schema
+    const data = websiteOpenApi.components.schemas.WebsiteCustomerApplicationStatusData
+    const compact = {
+      ...data,
+      required: data.required.filter(field => field !== 'webhook'),
+      properties: Object.fromEntries(Object.entries(data.properties).filter(([key]) => key !== 'webhook')),
+    }
+    const schema = withSupportedResponseProfiles({ ...envelope, properties: { ...envelope.properties, data: compact } })
+    validate = websiteAjv.compile(qualifyRefs(schema, roots.website))
+    cache.set(schemaName, validate)
+  }
+  assertWithValidator(validate, 'website', schemaName, value, { stage: 'response', endpoint: path })
 }
 
 export function assertCustomerPortalOperationRequest(

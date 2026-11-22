@@ -1,4 +1,6 @@
-import { isStrictCalendarDate } from '@/lib/website/businessDate'
+import { isStrictCalendarDate, stockholmCalendarDate } from '@/lib/website/businessDate'
+
+export const PAST_REQUESTED_START_MESSAGE = 'Startdatumet har passerat. Välj ett nytt startdatum och räkna om priset.'
 
 export type RequestedStartMode = 'earliest_possible' | 'specific_date'
 
@@ -14,9 +16,10 @@ export function parseRequestedStartMode(value: unknown): RequestedStartMode | nu
 export function parseRequestedStartSelection(input: {
   mode: unknown
   requestedDate: unknown
+  now?: Date
 }):
   | { ok: true; value: RequestedStartSelection }
-  | { ok: false; code: 'requested_start_mode_invalid' | 'requested_start_date_required' | 'requested_start_date_invalid' } {
+  | { ok: false; code: 'requested_start_mode_invalid' | 'requested_start_date_required' | 'requested_start_date_invalid' | 'requested_start_date_past' } {
   const mode = parseRequestedStartMode(input.mode)
   if (!mode) return { ok: false, code: 'requested_start_mode_invalid' }
 
@@ -32,6 +35,10 @@ export function parseRequestedStartSelection(input: {
   if (!requestedDate) return { ok: false, code: 'requested_start_date_required' }
   if (!isStrictCalendarDate(requestedDate)) {
     return { ok: false, code: 'requested_start_date_invalid' }
+  }
+
+  if (requestedDate < stockholmCalendarDate(input.now)) {
+    return { ok: false, code: 'requested_start_date_past' }
   }
 
   return { ok: true, value: { mode, requestedDate } }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { passwordRecoveryPath } from '@/lib/auth/passwordRecoveryPath'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 function normalizeEmail(v: string): string {
@@ -36,9 +37,12 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [linkError, setLinkError] = useState(false)
+  const [destination, setDestination] = useState<string | null>(null)
 
   useEffect(() => {
-    setLinkError(new URLSearchParams(window.location.search).has('error'))
+    const query = new URLSearchParams(window.location.search)
+    setLinkError(query.has('error'))
+    setDestination(query.get('next'))
   }, [])
 
   async function handleReset(e: React.FormEvent<HTMLFormElement>) {
@@ -58,7 +62,7 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const redirectNext = encodeURIComponent('/login/reset-password')
+      const redirectNext = encodeURIComponent(passwordRecoveryPath('/login/reset-password', destination))
       const redirectTo = `${window.location.origin}/auth/confirm?next=${redirectNext}`
 
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
@@ -98,7 +102,7 @@ export default function ForgotPasswordPage() {
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
             Om adressen finns registrerad har vi skickat en återställningslänk.
             <div className="mt-3">
-              <Link href="/login?status=reset-sent" className="underline text-emerald-100 hover:text-white">
+              <Link href={passwordRecoveryPath('/login', destination, { status: 'reset-sent' })} className="underline text-emerald-100 hover:text-white">
                 Tillbaka till inloggning
               </Link>
             </div>
@@ -133,7 +137,7 @@ export default function ForgotPasswordPage() {
             </button>
 
             <div className="text-xs text-white/60">
-              <Link href="/login" className="underline hover:text-white">
+              <Link href={passwordRecoveryPath('/login', destination)} className="underline hover:text-white">
                 Tillbaka
               </Link>
             </div>

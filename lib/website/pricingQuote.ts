@@ -165,6 +165,8 @@ function isQuote(value: unknown): value is WebsitePricingQuote {
     Array.isArray(q.assumptions) && Array.isArray(q.market_sources) && text(q.pricing_snapshot_schema_version);
 }
 
+export const MAX_WEBSITE_PRICING_TOKEN_LENGTH = 24_000;
+
 export function issueWebsitePricingQuote(input: {
   preview: WebsitePricingPreview;
   contract: OpsPublicContract;
@@ -247,7 +249,8 @@ export function issueWebsitePricingQuote(input: {
   };
   const encoded = base64url(JSON.stringify(quote));
   const unsigned = `${CURRENT_TOKEN_VERSION}.${keyring!.active.kid}.${encoded}`;
-  return { token: `${unsigned}.${hmac(unsigned, secret)}`, quote };
+  const token = `${unsigned}.${hmac(unsigned, secret)}`;
+  return token.length <= MAX_WEBSITE_PRICING_TOKEN_LENGTH ? { token, quote } : null;
 }
 
 export function verifyWebsitePricingQuote(
@@ -260,7 +263,7 @@ export function verifyWebsitePricingQuote(
   void options;
   const keyring = quoteKeys();
   if (!keyring) return { ok: false, reason: "not_configured" };
-  if (!token) return { ok: false, reason: "invalid" };
+  if (!token || token.length > MAX_WEBSITE_PRICING_TOKEN_LENGTH) return { ok: false, reason: "invalid" };
   const [version, kid, payload, signature, ...rest] = token.split(".");
   const secret = keyring.verification.find((candidate) => candidate.kid === kid)?.key;
   if (!ACCEPTED_TOKEN_VERSIONS.has(version) || !kid || !payload || !signature || rest.length || !secret ||

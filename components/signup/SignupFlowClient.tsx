@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import ElectricityCalculator from "@/components/ElectricityCalculator";
 import type { SignupSubmissionState } from "@/components/signup/CustomerApplicationForm";
@@ -42,6 +43,7 @@ type Props = {
   authenticationRequired?: boolean;
   authenticationReturnPath?: string;
   canSubmit: boolean;
+  legalDocumentOrigin?: string | null;
   utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string };
   action: (state: SignupSubmissionState, formData: FormData) => Promise<SignupSubmissionState>;
   initialPricingPreview?: WebsitePricingPreview | null;
@@ -49,18 +51,24 @@ type Props = {
 };
 
 export default function SignupFlowClient({
-  contracts,
+  contracts: initialContracts,
   initialSelectedValue,
   initialCustomerType = "private",
   authenticatedEmail,
   authenticationRequired = false,
   authenticationReturnPath = '/teckna-avtal',
   canSubmit,
+  legalDocumentOrigin,
   utm,
   action,
   initialPricingPreview = null,
   initialQuoteContext = null,
 }: Props) {
+  const router = useRouter();
+  const [refreshedContract, setRefreshedContract] = useState<SignupContractOption | null>(null);
+  const contracts = useMemo(() => initialContracts.map(contract =>
+    refreshedContract?.offerReference === contract.offerReference ? refreshedContract : contract
+  ), [initialContracts, refreshedContract]);
   const [customerType, setCustomerType] = useState<WebsiteCustomerType>(initialCustomerType);
   const initialValue = contracts.some((contract) => contract.value === initialSelectedValue)
     ? initialSelectedValue
@@ -130,6 +138,12 @@ export default function SignupFlowClient({
     document.getElementById('rakna-elpris')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  const refreshLegal = useCallback((contract?: SignupContractOption) => {
+    setRefreshedContract(contract ?? null);
+    if (!contract) router.refresh();
+    editQuote();
+  }, [editQuote, router]);
+
   function updatePricingPreview(value: WebsitePricingPreview | null) {
     setPricingPreview(value);
     if (value) setLastPricingPreview(value);
@@ -170,7 +184,7 @@ export default function SignupFlowClient({
             <p className="mt-3 text-gray-400">Fyll i kunduppgifterna, granska de publicerade dokumenten och teckna.</p>
           </div>
           <CustomerApplicationForm
-            key={`${customerType}:${selectedValue}:${(quoteContext ?? lastQuoteContext).quote_attempt_id}`}
+            key={`${customerType}:${selectedValue}`}
             contracts={contracts}
             selectedValue={selectedValue}
             customerType={customerType}
@@ -178,6 +192,7 @@ export default function SignupFlowClient({
             authenticationRequired={authenticationRequired}
             authenticationReturnPath={authenticationReturnPath}
             canSubmit={canSubmit}
+            legalDocumentOrigin={legalDocumentOrigin}
             utm={utm}
             action={action}
             energyResolution={energyResolution}
@@ -186,6 +201,7 @@ export default function SignupFlowClient({
             quoteContext={quoteContext ?? lastQuoteContext}
             quoteValid={Boolean(pricingPreview && quoteContext)}
             onEditQuote={editQuote}
+            onLegalRefresh={refreshLegal}
           />
         </section>
       ) : (

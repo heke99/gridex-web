@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import { processPortalWriteOutbox } from '../lib/customerPortal/outbox.ts'
 import { OpsError } from '../lib/ops/errors.ts'
 
@@ -21,7 +22,7 @@ function fixture(error, { attemptCount = 0, maxAttempts = 10 } = {}) {
     identity: { userId: '22222222-2222-4222-8222-222222222222', externalCustomerId: 'tenant-customer-1' },
     payload: { operation_id: 'operation-1', profile: { phone: '+46701234567' } },
   }
-  const tables = { customer_portal_write_outbox: [row], distributed_rate_limits: [] }
+  const tables = { customer_portal_write_outbox: [row] }
   let dispatched = 0
   class Query {
     constructor(table) { assert.ok(Object.hasOwn(tables, table)); this.table = table; this.filters = []; this.columns = '*' }
@@ -32,6 +33,14 @@ function fixture(error, { attemptCount = 0, maxAttempts = 10 } = {}) {
     in(key, values) { this.filters.push(candidate => values.includes(candidate[key])); return this }
     lt(key, value) { this.filters.push(candidate => candidate[key] != null && candidate[key] < value); return this }
     lte(key, value) { this.filters.push(candidate => candidate[key] != null && candidate[key] <= value); return this }
+    or(expression) {
+      const match = /^and\(status\.in\.\(pending,failed\),next_attempt_at\.lte\.([^,]+)\),and\(status\.eq\.processing,last_attempt_at\.lt\.([^,]+)\)$/.exec(expression)
+      assert.ok(match)
+      this.filters.push(row =>
+        (['pending', 'failed'].includes(row.status) && row.next_attempt_at && Date.parse(row.next_attempt_at) <= Date.parse(match[1])) ||
+        (row.status === 'processing' && row.last_attempt_at && Date.parse(row.last_attempt_at) < Date.parse(match[2])))
+      return this
+    }
     order(key) { this.orderKey = key; return this }
     limit(count) { this.maximum = count; return this }
     returns() { return this }
@@ -55,6 +64,34 @@ function fixture(error, { attemptCount = 0, maxAttempts = 10 } = {}) {
   }
   return { row, dispatchCount: () => dispatched }
 }
+
+test('an expired final lease goes to manual handling without another API call', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now })
+  const f = fixture(new Error('Unexpected dispatch'), { attemptCount: 10, maxAttempts: 10 })
+  const lease = new Date(now - 16 * 60_000).toISOString()
+  Object.assign(f.row, { status: 'processing', last_attempt_at: lease })
+  assert.deepEqual(await processPortalWriteOutbox(1), { processed: 1, completed: 0, failed: 1 })
+  assert.equal(f.dispatchCount(), 0)
+  assert.equal(f.row.status, 'dead_letter')
+  assert.equal(f.row.attempt_count, 10)
+  assert.equal(f.row.last_attempt_at, lease)
+  assert.equal(f.row.last_error_code, 'outbox_attempts_exhausted')
+  assert.match(f.row.last_error_message, /outcome is unknown/)
+  assert.equal((await processPortalWriteOutbox(1)).processed, 0)
+})
+
+test('an active lease stays intact and a reclaimed earlier lease can use its final attempt', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now })
+  const f = fixture(new Error('Synthetic dispatch failure'), { attemptCount: 9, maxAttempts: 10 })
+  Object.assign(f.row, { status: 'processing', last_attempt_at: new Date(now - 14 * 60_000).toISOString() })
+  assert.equal((await processPortalWriteOutbox(1)).processed, 0)
+  assert.equal(f.row.attempt_count, 9)
+  f.row.last_attempt_at = new Date(now - 16 * 60_000).toISOString()
+  assert.deepEqual(await processPortalWriteOutbox(1), { processed: 1, completed: 0, failed: 1 })
+  assert.equal(f.dispatchCount(), 1)
+  assert.equal(f.row.attempt_count, 10)
+  assert.equal(f.row.status, 'dead_letter')
+})
 
 for (const placement of ['root', 'nested']) {
   test(`outbox respects a two-hour OPS Retry-After in the ${placement} error body`, async t => {
@@ -116,4 +153,32 @@ test('a finite but unschedulable server wait never causes an earlier automatic r
   await processPortalWriteOutbox(1)
   assert.equal(f.row.status, 'dead_letter')
   assert.equal(f.row.next_attempt_at, '9999-12-31T00:00:00.000Z')
+})
+
+test('the two-minute cron starts short retries on the next eligible tick without shortening OPS waits', async t => {
+  const schedule = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')).crons
+    .find(job => job.path === '/api/internal/customer-portal/outbox/process').schedule
+  assert.equal(schedule, '*/2 * * * *')
+  const cadenceMs = 120_000
+  const firstAttemptAt = now + 5_250
+  t.mock.timers.enable({ apis: ['Date'], now: firstAttemptAt })
+  const info = t.mock.method(console, 'info', () => {})
+  for (const retryAfter of [null, 420]) {
+    t.mock.timers.setTime(firstAttemptAt)
+    const f = fixture(new OpsError('Synthetic outage', 503, { retryable: true, retry_after_seconds: retryAfter }))
+    await processPortalWriteOutbox(1)
+    const dueAt = Date.parse(f.row.next_attempt_at)
+    assert.equal(dueAt, firstAttemptAt + Math.max(cadenceMs, (retryAfter ?? 0) * 1000))
+    const eligibleTick = Math.ceil(dueAt / cadenceMs) * cadenceMs
+    for (let tick = now + cadenceMs; tick < eligibleTick; tick += cadenceMs) {
+      t.mock.timers.setTime(tick)
+      assert.equal((await processPortalWriteOutbox(1)).processed, 0)
+      assert.equal(f.dispatchCount(), 1)
+    }
+    t.mock.timers.setTime(eligibleTick)
+    assert.equal((await processPortalWriteOutbox(1)).processed, 1)
+    assert.equal(f.dispatchCount(), 2)
+    assert.ok(eligibleTick - dueAt < cadenceMs)
+    assert.deepEqual(info.mock.calls.at(-1).arguments[1], { retriesStarted: 1, maxRetryLagMs: eligibleTick - dueAt })
+  }
 })

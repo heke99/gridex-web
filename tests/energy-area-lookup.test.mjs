@@ -112,3 +112,68 @@ test('quote identity and both area fields must match the resolved address before
   assert.doesNotThrow(() => assertQuoteMatchesArea(preview, area, 'offer_synthetic'))
   for (const wrong of [{ ...preview, priceArea: 'SE3' }, { ...preview, price_area_code: 'SE3' }, { ...preview, contract: { offer_reference: 'other_offer' } }]) assert.throws(() => assertQuoteMatchesArea(wrong, area, 'offer_synthetic'), /Priset stämmer inte/)
 })
+
+test('checkout errors keep structured messages, codes and request IDs alongside legacy responses', async t => {
+  const { resolveWebsiteEnergyArea, WebsiteApiError } = await import('../lib/website/publicApi.ts')
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  globalThis.fetch = async () => Response.json({
+    error: { message: 'Ange en giltig adress.', code: 'invalid_address', request_id: 'address-support-ref' },
+  }, { status: 400 })
+  await assert.rejects(resolveWebsiteEnergyArea(address), error => {
+    assert.ok(error instanceof WebsiteApiError)
+    assert.equal(error.message, 'Ange en giltig adress.')
+    assert.equal(error.code, 'invalid_address')
+    assert.equal(error.requestId, 'address-support-ref')
+    assert.equal(error.status, 400)
+    return true
+  })
+  globalThis.fetch = async () => Response.json({ error: 'Ange postnummer.' }, {
+    status: 400, headers: { 'X-Request-Id': 'legacy-ref' },
+  })
+  await assert.rejects(resolveWebsiteEnergyArea(address), { message: 'Ange postnummer.', requestId: 'legacy-ref' })
+  globalThis.fetch = async () => Response.json({ error: { message: '<html>login</html>' } }, { status: 403 })
+  await assert.rejects(resolveWebsiteEnergyArea(address), { message: 'Kunde inte kontrollera elområde just nu.' })
+})
+
+test('pricing rejects incomplete HTTP 200 responses and accepts complete wrapped and legacy quotes', async t => {
+  const { previewWebsitePricing } = await import('../lib/website/publicApi.ts')
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  const quote = {
+    resolution_id: 'resolution_fixture',
+    energy_direction: 'consumption',
+    production_pricing: null,
+    start_date: '2026-12-01',
+    requested_start_mode: 'earliest_possible',
+    customer_type: 'private',
+    contract: { slug: 'offer_fixture', name: 'Syntetiskt avtal', contractType: 'fixed' },
+    priceArea: 'SE3',
+    kwh: 1000,
+    pricePerKwhOre: 0,
+    totalMonthlyCostSek: 0,
+    settlement: {
+      model: 'fixed_price', customer_accepts: 'fixed_energy_price',
+      energy_price_locked_at_signup: true, uses_actual_metered_consumption: true,
+      market_data_role: 'not_applicable', settlement_resolution: 'fixed',
+    },
+    valid_until: '2026-12-01T12:00:00Z',
+    price_option_reference: 'option_fixture',
+    area_price_reference: null,
+    invoice_delivery_method: 'email',
+    selected_component_references: [],
+    site_count: 1,
+    pricing_token: 'signed-synthetic-quote',
+  }
+  for (const payload of [null, { data: null }, { data: {} }, { data: { ...quote, pricing_token: undefined } },
+    { data: { ...quote, totalMonthlyCostSek: '0' } }, { data: { ...quote, settlement: {} } }]) {
+    globalThis.fetch = async () => Response.json(payload, { headers: { 'X-Request-Id': 'quote-support-ref' } })
+    await assert.rejects(previewWebsitePricing(address), {
+      code: 'invalid_quote_response', status: 200, requestId: 'quote-support-ref',
+    })
+  }
+  for (const payload of [quote, { data: quote }]) {
+    globalThis.fetch = async () => Response.json(payload)
+    assert.deepEqual(await previewWebsitePricing(address), quote)
+  }
+})
