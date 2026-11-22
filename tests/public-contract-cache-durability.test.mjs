@@ -66,7 +66,7 @@ assert.doesNotMatch(sharedRpc, /grant execute on function[\s\S]*?\) to authentic
 const webhook = read('lib/webhooks/publicationChanged.ts')
 const feed = read('lib/website/publicContractFeed.ts')
 assert.match(feed, /tags: \[WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG\]/)
-assert.match(webhook, /revalidateTag\(WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG, 'max'\)/)
+assert.match(webhook, /revalidateTag\(WEBSITE_PUBLIC_CONTRACTS_CACHE_TAG, \{ expire: 0 \}\)/)
 assert.match(webhook, /WEBSITE_PUBLIC_CONTRACT_PATHS/)
 assert.match(webhook, /result\.result === 'duplicate'/)
 assert.match(webhook, /cache revalidation failed after durable apply/)
