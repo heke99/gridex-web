@@ -9,7 +9,7 @@ const item = (body: unknown, key: string): Row => { const rows = array(object(ob
 
 export function parseInvoiceDetail(body: unknown, expected: string): InvoiceDetail {
   const r = item(body, 'invoiceDetail'); if (string(r, 'reference') !== expected) throw new Error('Wrong invoice');
-  return { reference: expected, number: text(r, 'number'), status: text(r, 'status'), currency: text(r, 'currency'), amount: number(r, 'amount'), dueDate: text(r, 'dueDate'), issuedAt: text(r, 'issuedAt'), periodStart: text(r, 'periodStart'), periodEnd: text(r, 'periodEnd'),
+  return { reference: expected, number: text(r, 'number'), status: text(r, 'status'), currency: text(r, 'currency'), amount: number(r, 'amount'), dueDate: text(r, 'dueDate'), paidAt: r.paidAt === undefined ? null : text(r, 'paidAt'), issuedAt: text(r, 'issuedAt'), periodStart: text(r, 'periodStart'), periodEnd: text(r, 'periodEnd'),
     lines: array(r, 'lines').map(value => { const line = object(value); return { reference: string(line, 'reference'), description: text(line, 'description'), quantity: number(line, 'quantity'), unitPrice: number(line, 'unitPrice'), amountExVat: number(line, 'amountExVat'), vatAmount: number(line, 'vatAmount'), amountIncVat: number(line, 'amountIncVat') }; }),
     documents: array(r, 'documents').map(value => { const doc = object(value); if (typeof doc.available !== 'boolean') throw new Error('Invalid document'); return { reference: string(doc, 'reference'), title: text(doc, 'title'), type: text(doc, 'type'), available: doc.available }; }),
   };

@@ -9,7 +9,7 @@ const native = ['index.ts','tsconfig.json','metro.config.mjs','package.json','pa
  'src/CustomerExtraPanel.tsx','src/detailData.ts','src/EnergyAppShell.tsx','src/secureSessionStorage.ts',
  'src/SupportComposer.tsx','src/useCustomerAccount.ts','src/customerEndpoint.ts','src/ContractActions.tsx','src/marketPriceData.ts','src/MarketPrices.tsx','src/PhoneEditor.tsx','src/listTools.ts','src/CustomerList.tsx','src/ConsumptionPanel.tsx'];
 const backend = ['package.json','handler.mjs','projection.mjs','demo.mjs','README.md','consumption.mjs','consumption.d.mts'];
-const foundation = ['package.json','README.md','src/brand.mjs','src/brand.d.ts','src/ports.d.ts','src/customerDetails.ts'];
+const foundation = ['package.json','README.md','src/brand.mjs','src/brand.d.ts','src/ports.d.ts','src/customerDetails.ts', 'src/customerDate.ts', 'src/contactPhone.ts'];
 const defaultBrand = {id:'energy-demo',displayName:'Energy Demo',supportUrl:'https://example.com/support',theme:{canvas:'#08090b',surface:'#0f1115',text:'#f4f6f7',muted:'#a7afb8',accent:'#35c9d7',accentText:'#041113'}};
 
 /** Source-only transfer. A customer's database and backend are never exported. */
